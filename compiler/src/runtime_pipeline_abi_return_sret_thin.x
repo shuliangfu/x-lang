@@ -68,6 +68,7 @@ export extern function pipeline_expr_struct_lit_init_ref(arena: *u8, expr_ref: i
 export extern function backend_enc_push_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_pop_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i32, hi: i32, ta: i32): i32;
+export extern function backend_enc_load_64_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
 
 /**
  * `return f(...)` forwarding a > 16-byte result: pass this function's own
@@ -444,15 +445,19 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
         }
       }
     } else {
-      // ARRAY_LIT returned as TYPE_ARRAY must leave a durable element
-      // pointer in rax/x0. emit_expr leaves the address of a callee frame
-      // slot; a slice cell stores that pointer and the next cell's stores
-      // clobber it. The durable helper is the existing authority. A non-zero
-      // result falls through to emit_expr. A VAR whose function return type
-      // is TYPE_ARRAY stays on the value path. A VAR whose declared type is
-      // TYPE_ARRAY and whose function returns TYPE_SLICE is the arm below
-      // the ARRAY_LIT slice arm. PLATFORM: SHARED — LINUX|x86_64 ·
-      // MACOS|ARM64 · WINDOWS still runs the >16 hidden-dest copy below.
+      // ARRAY_LIT returned as TYPE_ARRAY is packed by the durable helper
+      // so the bytes are not a callee frame slot. An 8-byte aggregate
+      // (and a 16-byte pair on SysV / AAPCS64) is then loaded back into
+      // the return registers: that is the same value ABI as `return t`
+      // of a local array. A slice cell copies those register bytes into
+      // its own COMMON. Larger returns stay the durable pointer for the
+      // sret copy below. Windows keeps a 16-byte aggregate as the pointer
+      // (hidden dest). A non-zero durable result falls through to emit_expr.
+      // A VAR whose function return type is TYPE_ARRAY stays on the value
+      // path. A VAR whose declared type is TYPE_ARRAY and whose function
+      // returns TYPE_SLICE is the arm below the ARRAY_LIT slice arm.
+      // PLATFORM: SHARED — LINUX|x86_64 · MACOS|ARM64 · WINDOWS 8-byte
+      // value, 16-byte pointer.
       let dur_ok: i32 = 0;
       let opk_d: i32 = 0;
       let mod_d: *u8 = 0 as *u8;
@@ -503,6 +508,39 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                 }
                 if (rc == 0) {
                   dur_ok = 1;
+                  // n * esz is the width the durable helper just wrote.
+                  // 8 → one GPR. 16 → the existing pair load, except
+                  // Windows (hidden pointer). Do not load a wider page:
+                  // rsz > 16 still uses the sret copy below.
+                  // PLATFORM: SHARED — LINUX|x86_64 · MACOS|ARM64.
+                  let nbytes_d: i32 = 0;
+                  let an_d: i32 = 0;
+                  let win_sz: i32 = 0;
+                  unsafe {
+                    an_d = pipeline_type_array_size_at(arena, rty_d);
+                  }
+                  if (an_d > 0 && esz_d > 0) {
+                    nbytes_d = an_d * esz_d;
+                  }
+                  if (nbytes_d == 16 && ta == 0) {
+                    unsafe {
+                      win_sz = link_abi_host_is_windows();
+                    }
+                  }
+                  if (nbytes_d == 8 || (nbytes_d == 16 && win_sz == 0)) {
+                    if (nbytes_d == 8) {
+                      unsafe {
+                        rc = backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+                      }
+                    } else {
+                      unsafe {
+                        rc = pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta);
+                      }
+                    }
+                    if (rc != 0) {
+                      return 0 - 1;
+                    }
+                  }
                 }
               }
             }

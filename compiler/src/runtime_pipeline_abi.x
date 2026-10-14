@@ -39760,12 +39760,164 @@ export function glue_emit_import_module_const_field_to_rax_elf_c(
 }
 
 /**
+ * Copy an 8-byte or 16-byte register aggregate into a fresh COMMON.
+ * The caller has just emitted a CALL/METHOD: rax/x0 holds the low 8
+ * bytes, and rdx/x1 holds the high 8 when nbytes is 16. Frame slots
+ * only hold the memcpy operands. The COMMON outlives the frame, so a
+ * slice cell may keep the pointer. nbytes other than 8 or 16 fails.
+ * @param elf_ctx *u8 - emit context; null returns -1
+ * @param ctx *u8 - AsmFuncCtx*; null returns -1
+ * @param ta i32 - 0=x86_64, 1=arm64
+ * @param nbytes i32 - 8 or 16
+ * @return i32 - 0 and rax/x0 = durable pointer; -1 on failure
+ * PLATFORM: SHARED freestanding · LINUX|x86_64 · MACOS|ARM64.
+ */
+function glue_slice_durable_copy_reg_value_elf_c(elf_ctx: *u8, ctx: *u8, ta: i32, nbytes: i32): i32 {
+  let noff: i32 = 0;
+  let val_home: i32 = 0;
+  let hi_home: i32 = 0;
+  let src_sp: i32 = 0;
+  let dst_sp: i32 = 0;
+  let seq: i32 = 0;
+  let llen: i32 = 0;
+  let nd: i32 = 0;
+  let di: i32 = 0;
+  let v: i32 = 0;
+  let rc: i32 = 0;
+  let off: i32 = 0;
+  let lbl: u8[24] = [];
+  let digs: u8[8] = [];
+  if (elf_ctx == (0 as *u8) || ctx == (0 as *u8) || (ta != 0 && ta != 1)) {
+    return 0 - 1;
+  }
+  if (nbytes != 8 && nbytes != 16) {
+    return 0 - 1;
+  }
+  unsafe {
+    off = pipe_asm_ctx_off_next_offset();
+    noff = pipe_load_i32_le(ctx, off);
+  }
+  if (noff + 64 < noff) {
+    return 0 - 1;
+  }
+  // val, source pointer, dest pointer. Same magnitude polarity as the
+  // existing COMMON memcpy (store_rax / lea_rbp share one offset).
+  // PLATFORM: SHARED freestanding.
+  val_home = noff + 16;
+  src_sp = noff + 32;
+  dst_sp = noff + 48;
+  unsafe {
+    pipe_store_i32_le(ctx, off, noff + 64);
+    glue_align_next_offset(ctx);
+  }
+  unsafe {
+    rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, val_home, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  if (nbytes == 16) {
+    unsafe {
+      hi_home = glue_slice_dual_gp_length_off_c(val_home, ta);
+      rc = backend_enc_store_rdx_to_rbp_arch(elf_ctx, hi_home, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+  }
+  unsafe {
+    rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, val_home, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, src_sp, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    seq = glue_pipeline_asm_al_nc_seq_take_c();
+  }
+  if (seq < 0 || seq > 999999) {
+    seq = 0;
+  }
+  // "Lxlang_srv_"
+  lbl[0] = 76 as u8; lbl[1] = 120 as u8; lbl[2] = 108 as u8;
+  lbl[3] = 97 as u8; lbl[4] = 110 as u8; lbl[5] = 103 as u8;
+  lbl[6] = 95 as u8; lbl[7] = 115 as u8; lbl[8] = 114 as u8;
+  lbl[9] = 118 as u8; lbl[10] = 95 as u8;
+  llen = 11;
+  v = seq;
+  nd = 0;
+  if (v == 0) {
+    digs[0] = 48 as u8;
+    nd = 1;
+  } else {
+    while (v > 0 && nd < 8) {
+      digs[nd] = (48 + (v % 10)) as u8;
+      nd = nd + 1;
+      v = v / 10;
+    }
+  }
+  di = nd - 1;
+  while (di >= 0 && llen < 23) {
+    lbl[llen] = digs[di];
+    llen = llen + 1;
+    di = di - 1;
+  }
+  unsafe {
+    rc = pipeline_elf_ctx_add_common_sym(elf_ctx, &lbl[0], llen, nbytes, 8);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  if (ta == 1) {
+    unsafe {
+      rc = glue_asm_lea_rax_common_adrp_arm64(elf_ctx, &lbl[0], llen);
+    }
+  } else {
+    unsafe {
+      rc = glue_asm_lea_rax_common_rip_x86(elf_ctx, &lbl[0], llen);
+    }
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, dst_sp, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = glue_emit_bulk_mem_copy_spills_elf_c(elf_ctx, src_sp, dst_sp, nbytes, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  if (ta == 1) {
+    unsafe {
+      rc = glue_asm_lea_rax_common_adrp_arm64(elf_ctx, &lbl[0], llen);
+    }
+  } else {
+    unsafe {
+      rc = glue_asm_lea_rax_common_rip_x86(elf_ctx, &lbl[0], llen);
+    }
+  }
+  return rc;
+}
+
+/**
  * Let s: T[] = arr / [..] — write dual-GP {data,length} into slice stack slot.
  * ARRAY_LIT (46): durable text/BSS preferred; stack force_esz fallback.
  * VAR (3): prior fixed TYPE_ARRAY local / const / parent; FIELD (44): field lea.
  * CALL (48) / METHOD_CALL (49): N from callee return TYPE_ARRAY (same-module
- * emit-module table, or dep-module via map / dep-arena fallback); emit_expr
- * leaves rax = E* (ARRAY return ABI), then wrap {data,length=N}.
+ * emit-module table, or dep-module via map / dep-arena fallback). An 8-byte
+ * return, and a 16-byte pair except on Windows, is a register value; the
+ * arm copies those bytes into a COMMON and stores that pointer. A larger
+ * return stays the pointer emit_expr left. Then wrap {data, length=N}.
  * INDEX (47): dest-SLICE stamps the INDEX expr to TYPE_SLICE (hides N and
  * would make emit_index treat the [N]T element as a fat). N and scale esz
  * come from the base's elem TYPE_ARRAY; lea via
@@ -39827,6 +39979,9 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
   let import_rc: i32 = 0;
   let imp_sz: i32 = 0;
   let imp_sz_cell: i32[1] = [];
+  let nbytes_c: i32 = 0;
+  let do_copy: i32 = 0;
+  let win_c: i32 = 0;
   // block_ref may be 0: ARRAY_LIT rows (`[[1,2]]`) do not scan.
   // VAR rows (`[a]`) still need N from the TYPE_ARRAY decl: prior-let
   // when block_ref>0, else scope / func-body resolve (const+parent).
@@ -40170,7 +40325,10 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
     // Same-module: resolved_func_index + emit module (caller arena).
     // Dep-module: map return type into caller arena; if map fails, read
     // N from the dep arena (type_ref is arena-local — same as wave196).
-    // emit_expr leaves rax = E* (TYPE_ARRAY return ABI is 8B).
+    // 8-byte TYPE_ARRAY returns (and 16-byte pairs except Windows) are
+    // register values, same as `return t` of a local. Copy those bytes
+    // into a COMMON before the shared tail stores rax as .data.
+    // A larger return stays the pointer emit_expr left.
     // PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
     unsafe {
       ftr = pipeline_expr_call_resolved_func_index_at(arena, src);
@@ -40244,6 +40402,42 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
     }
     if (rc != 0) {
       return 0 - 1;
+    }
+    nbytes_c = 0;
+    if (lea_rc < 0 && tr > 0) {
+      unsafe {
+        nbytes_c = glue_fixed_array_total_bytes_c(arena, tr, 0);
+      }
+    } else if (init_tr > 0) {
+      unsafe {
+        nbytes_c = glue_fixed_array_total_bytes_c(arena, init_tr, 0);
+      }
+    } else if (dep_arena != (0 as *u8) && tr > 0) {
+      unsafe {
+        nbytes_c = glue_fixed_array_total_bytes_c(dep_arena, tr, 0);
+      }
+    }
+    do_copy = 0;
+    if (nbytes_c == 8) {
+      do_copy = 1;
+    } else if (nbytes_c == 16) {
+      win_c = 0;
+      if (ta == 0) {
+        unsafe {
+          win_c = link_abi_host_is_windows();
+        }
+      }
+      if (win_c == 0) {
+        do_copy = 1;
+      }
+    }
+    if (do_copy != 0) {
+      unsafe {
+        rc = glue_slice_durable_copy_reg_value_elf_c(elf_ctx, ctx, ta, nbytes_c);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
     }
   } else if (init_ko == 47) {
     // INDEX row: dest-SLICE stamps the INDEX expr to TYPE_SLICE, hiding N
