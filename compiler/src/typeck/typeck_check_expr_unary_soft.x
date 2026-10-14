@@ -9,7 +9,7 @@
 // beyond that, and one unary beyond that, onto a TYPE_VECTOR of f32
 // is kept. Two minuses cancel. Three minuses apply the sign once.
 // Four minuses cancel again. Five minuses apply the sign once more.
-// A sixth unary of that float is not a keep.
+// Six minuses cancel again. A seventh unary of that float is not a keep.
 // PLATFORM: SHARED — type rule is the same on macOS, Ubuntu, and Windows.
 // The demote/retarget step that makes this symbol win is Mach-O only.
 
@@ -54,8 +54,8 @@ export extern "C" function pipeline_expr_is_null_keyword_c(arena: *u8, expr_ref:
  * is a FLOAT_LIT, one more unary minus of that, one unary beyond
  * that, one unary beyond that, and one unary beyond that. Two
  * minuses cancel. Three minuses apply the sign once. Four minuses
- * cancel again. Five minuses apply the sign once more. A sixth unary
- * and a bitwise not are not a keep.
+ * cancel again. Five minuses apply the sign once more. Six minuses
+ * cancel again. A seventh unary and a bitwise not are not a keep.
  * A missing pre-stamp falls through and let-init coerce
  * stamps the same shape afterwards.
  * PLATFORM: SHARED — same type rule on every host.
@@ -233,8 +233,9 @@ export function typeck_check_expr_unary(
                  * unary beyond that. Kind 22 and kind 1 are separate
                  * compares. Two minuses cancel. Three minuses apply
                  * the sign once. Four minuses cancel again. Five
-                 * minuses apply the sign once more. A sixth unary stays
-                 * kind 22, so it is not kept. Bitwise not stays off. The keep below
+                 * minuses apply the sign once more. Six minuses cancel
+                 * again. A seventh unary stays kind 22, so it is not
+                 * kept. Bitwise not stays off. The keep below
                  * still typechecks the immediate operand with expected 0.
                  * PLATFORM: SHARED.
                  */
@@ -247,6 +248,8 @@ export function typeck_check_expr_unary(
                   let f_quad_k: i32 = 0;
                   let f_pent: i32 = 0;
                   let f_pent_k: i32 = 0;
+                  let f_hex: i32 = 0;
+                  let f_hex_k: i32 = 0;
                   if (expr_kind == ord_neg) {
                     if (op_ref > 0) {
                       already_op_k = pipeline_expr_kind_ord_at(arena, op_ref);
@@ -265,8 +268,9 @@ export function typeck_check_expr_unary(
                            * FLOAT_LIT, or one unary beyond that. Three
                            * minuses apply the sign once. Four minuses
                            * cancel again. Five minuses apply the sign
-                           * once more. A sixth unary is kind 22 here,
-                           * not kind 1. PLATFORM: SHARED.
+                           * once more. Six minuses cancel again. A
+                           * seventh unary is kind 22 here, not kind 1.
+                           * PLATFORM: SHARED.
                            */
                           if (f_in_k == ord_neg) {
                             f_deep = pipeline_expr_unary_operand_ref_at(arena, f_in);
@@ -288,6 +292,22 @@ export function typeck_check_expr_unary(
                                       f_pent_k = pipeline_expr_kind_ord_at(arena, f_pent);
                                       if (f_pent_k == 1) {
                                         already_keep = 1;
+                                      }
+                                      /*
+                                       * Six minuses: the innermost is a
+                                       * FLOAT_LIT. Three pairs cancel, so
+                                       * the sign bit stays clear. A seventh
+                                       * unary is kind 22 here, not kind 1.
+                                       * PLATFORM: SHARED.
+                                       */
+                                      if (f_pent_k == ord_neg) {
+                                        f_hex = pipeline_expr_unary_operand_ref_at(arena, f_pent);
+                                        if (f_hex > 0) {
+                                          f_hex_k = pipeline_expr_kind_ord_at(arena, f_hex);
+                                          if (f_hex_k == 1) {
+                                            already_keep = 1;
+                                          }
+                                        }
                                       }
                                     }
                                   }
