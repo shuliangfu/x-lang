@@ -9,6 +9,15 @@
 #include <string.h>
 #include <xlang_dns_cap.h>
 
+/*
+ * PLATFORM: MACOS|DARWIN|LINUX — pure-asm runtime_net_dns_fast.x already
+ * defines the faces (net_resolve_* / net_dns_*). Compile this TU with
+ * -DXLANG_NET_DNS_CAP_EXPORT_ONLY to emit only the two Cap exports below.
+ * Windows and a full seed compile leave the macro unset and keep the faces.
+ * Do not cc this whole file over the Darwin .x object: the faces would duplicate.
+ */
+#ifndef XLANG_NET_DNS_CAP_EXPORT_ONLY
+
 int32_t net_resolve_ipv4_ex_c(uint8_t *hostname, uint32_t *out_addr, int32_t *out_err);
 int32_t net_resolve_ipv6_ex_c(uint8_t *hostname, uint8_t *out_addr_16, int32_t *out_err);
 
@@ -52,6 +61,8 @@ uint32_t net_resolve_ipv4_c(uint8_t *hostname) {
     return addr;
 }
 
+#endif /* !XLANG_NET_DNS_CAP_EXPORT_ONLY */
+
 /**
  * Cap residual 9.1.7 slice2: IPv4 resolve via xlang_dns_cap.h.
  * Exported for dns.x / http_glue. PLATFORM: SHARED Cap.
@@ -68,6 +79,8 @@ int32_t xlang_dns_cap_resolve_ipv6(uint8_t *hostname, uint8_t *out_addr_16, int3
     return (int32_t)xlang_dns_resolve_ipv6((const char *)hostname, out_addr_16, out_err);
 }
 
+#ifndef XLANG_NET_DNS_CAP_EXPORT_ONLY
+
 int32_t net_resolve_ipv4_ex_c(uint8_t *hostname, uint32_t *out_addr, int32_t *out_err) {
     return xlang_dns_cap_resolve_ipv4(hostname, out_addr, out_err);
 }
@@ -75,3 +88,5 @@ int32_t net_resolve_ipv4_ex_c(uint8_t *hostname, uint32_t *out_addr, int32_t *ou
 int32_t net_resolve_ipv6_ex_c(uint8_t *hostname, uint8_t *out_addr_16, int32_t *out_err) {
     return xlang_dns_cap_resolve_ipv6(hostname, out_addr_16, out_err);
 }
+
+#endif /* !XLANG_NET_DNS_CAP_EXPORT_ONLY */

@@ -29037,9 +29037,10 @@ ensure_net_io_batch_fast_darwin_pure() {
 
 
 
-# w246: Darwin|Linux net_dns_fast.o from runtime_net_dns_fast.x (pure-asm).
-# Cap resolve stays U (xlang_dns_cap_resolve_*); same contract as std/net/dns.x.
-# Windows keeps the C seed below. PLATFORM: MACOS|DARWIN|LINUX.
+# w246: Darwin|Linux net_dns_fast.o from runtime_net_dns_fast.x (pure-asm faces).
+# The two xlang_dns_cap_resolve_* exports are the C seed (xlang_dns_cap.h).
+# Export-only cc + ld -r. Do not cc the whole seed over the faces.
+# Windows keeps the full C seed below. PLATFORM: MACOS|DARWIN|LINUX.
 ensure_net_dns_fast_pure() {
   local o="${1:-../std/net/net_dns_fast.o}"
   local xsrc="src/asm/runtime_net_dns_fast.x"
@@ -29070,8 +29071,31 @@ ensure_net_dns_fast_pure() {
           && nm "$o" 2>/dev/null | grep -qE ' T _?net_resolve_ipv4_ex_c$' \
           && nm "$o" 2>/dev/null | grep -qE ' T _?net_resolve_ipv6_ex_c$' \
           && nm "$o" 2>/dev/null | grep -qE ' T _?runtime_net_dns_fast_x_doc_anchor$'; then
-          log "pure-asm $xsrc → $o"
-          return 0
+          # PLATFORM: MACOS|DARWIN|LINUX — faces are the .x. Cap bodies are
+          # xlang_dns_cap_resolve_* in the seed. Full seed cc duplicates the faces.
+          local face_o cap_o
+          face_o="${o}.face"
+          cap_o="${o}.cap"
+          mv "$o" "$face_o"
+          # Darwin minos 11 matches the pure-asm face. No stack protector.
+          # PLATFORM: MACOS|DARWIN uses -mmacos-version-min; LINUX does not.
+          local cap_minos=""
+          if [ "$os" = "Darwin" ]; then
+            cap_minos="-mmacos-version-min=11.0"
+          fi
+          if $CC ${CFLAGS:-} -std=c11 -fno-stack-protector $cap_minos \
+              -I. -Iinclude -Isrc \
+              -DXLANG_NET_DNS_CAP_EXPORT_ONLY -c "$seed" -o "$cap_o" \
+            && ld -r -o "$o" "$face_o" "$cap_o" \
+            && nm "$o" 2>/dev/null | grep -qE ' T _?xlang_dns_cap_resolve_ipv4$' \
+            && nm "$o" 2>/dev/null | grep -qE ' T _?xlang_dns_cap_resolve_ipv6$'; then
+            rm -f "$face_o" "$cap_o"
+            log "pure-asm $xsrc + cap export → $o"
+            return 0
+          fi
+          echo "ensure_host_cc_seed_o net_dns: cap export link failed" >&2
+          rm -f "$o" "$face_o" "$cap_o"
+          return 1
         fi
         echo "ensure_host_cc_seed_o net_dns: pure-asm try $try failed" >&2
         rm -f "$o"
@@ -29090,7 +29114,7 @@ _std_core_net_fast_one() {
   local fast_o="$1" seed="$2" x_src="$3" from_x_def="$4" mode="$5" xbin="${6:-}"
   local prefer="${XLANG_G05_PREFER_X_O:-0}"
   local thin_o rest_o dir
-  # w246: Darwin|Linux net_dns_fast.o pure-asm (Cap U; no seed cc).
+  # w246: Darwin|Linux net_dns_fast.o pure-asm faces + cap export ld -r.
   # PLATFORM: MACOS|DARWIN|LINUX.
   if [ "$(basename "$fast_o")" = "net_dns_fast.o" ]; then
     local nd_s
