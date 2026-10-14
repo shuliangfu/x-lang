@@ -9,7 +9,8 @@
 // beyond that, and one unary beyond that, onto a TYPE_VECTOR of f32
 // is kept. Two minuses cancel. Three minuses apply the sign once.
 // Four minuses cancel again. Five minuses apply the sign once more.
-// Six minuses cancel again. A seventh unary of that float is not a keep.
+// Six minuses cancel again. Seven minuses apply the sign once more.
+// An eighth unary of that float is not a keep.
 // PLATFORM: SHARED — type rule is the same on macOS, Ubuntu, and Windows.
 // The demote/retarget step that makes this symbol win is Mach-O only.
 
@@ -55,7 +56,8 @@ export extern "C" function pipeline_expr_is_null_keyword_c(arena: *u8, expr_ref:
  * that, one unary beyond that, and one unary beyond that. Two
  * minuses cancel. Three minuses apply the sign once. Four minuses
  * cancel again. Five minuses apply the sign once more. Six minuses
- * cancel again. A seventh unary and a bitwise not are not a keep.
+ * cancel again. Seven minuses apply the sign once more. An eighth
+ * unary and a bitwise not are not a keep.
  * A missing pre-stamp falls through and let-init coerce
  * stamps the same shape afterwards.
  * PLATFORM: SHARED — same type rule on every host.
@@ -234,8 +236,9 @@ export function typeck_check_expr_unary(
                  * compares. Two minuses cancel. Three minuses apply
                  * the sign once. Four minuses cancel again. Five
                  * minuses apply the sign once more. Six minuses cancel
-                 * again. A seventh unary stays kind 22, so it is not
-                 * kept. Bitwise not stays off. The keep below
+                 * again. Seven minuses apply the sign once more. An
+                 * eighth unary stays kind 22, so it is not kept.
+                 * Bitwise not stays off. The keep below
                  * still typechecks the immediate operand with expected 0.
                  * PLATFORM: SHARED.
                  */
@@ -250,6 +253,8 @@ export function typeck_check_expr_unary(
                   let f_pent_k: i32 = 0;
                   let f_hex: i32 = 0;
                   let f_hex_k: i32 = 0;
+                  let f_sept: i32 = 0;
+                  let f_sept_k: i32 = 0;
                   if (expr_kind == ord_neg) {
                     if (op_ref > 0) {
                       already_op_k = pipeline_expr_kind_ord_at(arena, op_ref);
@@ -268,8 +273,9 @@ export function typeck_check_expr_unary(
                            * FLOAT_LIT, or one unary beyond that. Three
                            * minuses apply the sign once. Four minuses
                            * cancel again. Five minuses apply the sign
-                           * once more. Six minuses cancel again. A
-                           * seventh unary is kind 22 here, not kind 1.
+                           * once more. Six minuses cancel again.
+                           * Seven minuses apply the sign once more. An
+                           * eighth unary is kind 22 here, not kind 1.
                            * PLATFORM: SHARED.
                            */
                           if (f_in_k == ord_neg) {
@@ -296,9 +302,10 @@ export function typeck_check_expr_unary(
                                       /*
                                        * Six minuses: the innermost is a
                                        * FLOAT_LIT. Three pairs cancel, so
-                                       * the sign bit stays clear. A seventh
-                                       * unary is kind 22 here, not kind 1.
-                                       * PLATFORM: SHARED.
+                                       * the sign bit stays clear. Seven
+                                       * minuses apply the sign once. An
+                                       * eighth unary is kind 22 here, not
+                                       * kind 1. PLATFORM: SHARED.
                                        */
                                       if (f_pent_k == ord_neg) {
                                         f_hex = pipeline_expr_unary_operand_ref_at(arena, f_pent);
@@ -306,6 +313,21 @@ export function typeck_check_expr_unary(
                                           f_hex_k = pipeline_expr_kind_ord_at(arena, f_hex);
                                           if (f_hex_k == 1) {
                                             already_keep = 1;
+                                          }
+                                          /*
+                                           * Seven minuses: the innermost is a
+                                           * FLOAT_LIT. Apply the sign once. An
+                                           * eighth unary is kind 22 here, not
+                                           * kind 1. PLATFORM: SHARED.
+                                           */
+                                          if (f_hex_k == ord_neg) {
+                                            f_sept = pipeline_expr_unary_operand_ref_at(arena, f_hex);
+                                            if (f_sept > 0) {
+                                              f_sept_k = pipeline_expr_kind_ord_at(arena, f_sept);
+                                              if (f_sept_k == 1) {
+                                                already_keep = 1;
+                                              }
+                                            }
                                           }
                                         }
                                       }

@@ -10,9 +10,10 @@
 // unary minus of that, one unary beyond that, and one unary beyond
 // that, when the LHS is a VAR or a FIELD. Two minuses cancel. Three
 // minuses apply the sign once. Four minuses cancel again. Five
-// minuses apply the sign once more. Six minuses cancel again. The
-// float-lit checker keeps an already-resolved type. A seventh unary
-// and a bitwise not call the demoted body with no stamp.
+// minuses apply the sign once more. Six minuses cancel again. Seven
+// minuses apply the sign once more. The float-lit checker keeps an
+// already-resolved type. An eighth unary and a bitwise not call the
+// demoted body with no stamp.
 // Every other assign calls the demoted body with no stamp.
 // PLATFORM: SHARED — type rule is the same on macOS, Ubuntu, and Windows.
 // The demote/retarget step that makes this symbol win is Mach-O only.
@@ -59,11 +60,11 @@ export extern "C" function pipeline_expr_set_resolved_type_ref(arena: *u8, expr_
  * beyond that, one unary beyond that, and one unary beyond that, for
  * a VAR or a FIELD. Two minuses cancel. Three minuses apply the sign
  * once. Four minuses cancel again. Five minuses apply the sign once
- * more. Six minuses cancel again. The float-lit checker keeps an
- * already-resolved type, so the bare stamp survives. The unary checker
- * keeps the one-deep, two-deep, three-deep, four-deep, five-deep, and
- * six-deep stamps. A seventh unary and a bitwise not of that float
- * are not stamped.
+ * more. Six minuses cancel again. Seven minuses apply the sign once
+ * more. The float-lit checker keeps an already-resolved type, so the
+ * bare stamp survives. The unary checker keeps the one-deep, two-deep,
+ * three-deep, four-deep, five-deep, six-deep, and seven-deep stamps.
+ * An eighth unary and a bitwise not of that float are not stamped.
  * A failed LHS check does not call
  * demoted, so the diagnostic is not emitted twice.
  * Two compares, not a chained && : the bootstrap image clobbers the
@@ -305,12 +306,13 @@ export function typeck_check_expr_assign(
                * the let-init already fills. Two minuses cancel. Three
                * minuses apply the sign once. Four minuses cancel
                * again. Five minuses apply the sign once more. Six
-               * minuses cancel again. Kind 22 and kind 1 are separate
-               * compares. The float-lit checker keeps an
-               * already-resolved type, so the kind-1 stamp survives.
-               * The unary checker keeps the one-deep, two-deep,
-               * three-deep, four-deep, five-deep, and six-deep stamps.
-               * A seventh unary stays kind 22. Bitwise not stays off.
+               * minuses cancel again. Seven minuses apply the sign
+               * once more. Kind 22 and kind 1 are separate compares.
+               * The float-lit checker keeps an already-resolved type,
+               * so the kind-1 stamp survives. The unary checker keeps
+               * the one-deep, two-deep, three-deep, four-deep,
+               * five-deep, six-deep, and seven-deep stamps. An eighth
+               * unary stays kind 22. Bitwise not stays off.
                * An i32 element does not enter.
                * PLATFORM: SHARED.
                */
@@ -327,6 +329,8 @@ export function typeck_check_expr_assign(
                 let f_pent_k: i32 = 0;
                 let f_hex: i32 = 0;
                 let f_hex_k: i32 = 0;
+                let f_sept: i32 = 0;
+                let f_sept_k: i32 = 0;
                 if (right_ref > 0) {
                   lhs_kind = pipeline_expr_kind_ord_at(arena, left_ref);
                   rhs_kind = pipeline_expr_kind_ord_at(arena, right_ref);
@@ -360,7 +364,8 @@ export function typeck_check_expr_assign(
                          * FLOAT_LIT, or one unary beyond that. Three
                          * minuses apply the sign once. Four minuses
                          * cancel again. Five minuses apply the sign once
-                         * more. Six minuses cancel again. A seventh
+                         * more. Six minuses cancel again. Seven
+                         * minuses apply the sign once more. An eighth
                          * unary is kind 22 here, not kind 1.
                          * PLATFORM: SHARED.
                          */
@@ -403,9 +408,10 @@ export function typeck_check_expr_assign(
                                     /*
                                      * Six minuses: the innermost is a
                                      * FLOAT_LIT. Three pairs cancel, so
-                                     * the sign bit stays clear. A seventh
-                                     * unary is kind 22 here, not kind 1.
-                                     * PLATFORM: SHARED.
+                                     * the sign bit stays clear. Seven
+                                     * minuses apply the sign once. An
+                                     * eighth unary is kind 22 here, not
+                                     * kind 1. PLATFORM: SHARED.
                                      */
                                     if (f_pent_k == ord_neg) {
                                       f_hex = pipeline_expr_unary_operand_ref_at(arena, f_pent);
@@ -417,6 +423,26 @@ export function typeck_check_expr_assign(
                                           }
                                           if (lhs_kind == ord_field) {
                                             splat_ok = 1;
+                                          }
+                                        }
+                                        /*
+                                         * Seven minuses: the innermost is a
+                                         * FLOAT_LIT. Apply the sign once. An
+                                         * eighth unary is kind 22 here, not
+                                         * kind 1. PLATFORM: SHARED.
+                                         */
+                                        if (f_hex_k == ord_neg) {
+                                          f_sept = pipeline_expr_unary_operand_ref_at(arena, f_hex);
+                                          if (f_sept > 0) {
+                                            f_sept_k = pipeline_expr_kind_ord_at(arena, f_sept);
+                                            if (f_sept_k == 1) {
+                                              if (lhs_kind == ord_var) {
+                                                splat_ok = 1;
+                                              }
+                                              if (lhs_kind == ord_field) {
+                                                splat_ok = 1;
+                                              }
+                                            }
                                           }
                                         }
                                       }
