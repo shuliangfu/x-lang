@@ -37,6 +37,9 @@ export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32
 export extern function backend_enc_load_64_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function glue_field_access_field_type_ref_c(arena: *u8, mod: *u8, fa_ref: i32): i32;
 export extern function pipeline_asm_emit_ctx_module_get(): *u8;
+export extern function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i32): i32;
+export extern function glue_vector_type_lanes_esz_c(arena: *u8, type_ref: i32, out_lanes: *i32, out_esz: *i32): i32;
+export extern function backend_enc_append_u32_le_c(elf_ctx: *u8, word: u32): i32;
 
 /**
  * 1 when FIELD_ACCESS fa_ref has a PTR (9) field type, else 0.
@@ -73,8 +76,12 @@ function w1521_ib_field_is_ptr(arena: *u8, fa_ref: i32): i32 {
  * of that inner INDEX. emit_expr of the inner INDEX loads the by-value
  * element, and the outer lane load then uses those bits as a pointer
  * (Darwin `arr[0][0]` exit 1). PTR and SLICE elements stay on emit_expr.
- * CALL and DEREF bases stay on emit_expr. Slice and pointer fields of
- * the indexed field still peel through
+ * A CALL or METHOD base still uses emit_expr. When that rvalue is a
+ * 16-byte SIMD, the pair is spilled with the existing stp and x0 becomes
+ * the slot address. emit_expr left the bits in x0:x1, and the lane load
+ * then used those bits as a pointer (Darwin `add4(a,b)[1]` SIGBUS).
+ * DEREF stays an rvalue. A vector wider than 16 bytes is not spilled.
+ * Slice and pointer fields of the indexed field still peel through
  * glue_index_deref_ptr_field_slot_rax_elf_c.
  * @param arena *u8 — AST arena; null is not expected (callers checked)
  * @param elf_ctx *u8 — encoder context
@@ -83,8 +90,9 @@ function w1521_ib_field_is_ptr(arena: *u8, fa_ref: i32): i32 {
  * @param ta i32 — 0 x86_64, 1 arm64
  * @return i32 — 0 when x0 holds the element base address; -1 on a bad
  *   base or an encoder error
- * PLATFORM: SHARED body. Darwin ARM64 measured the nested-FIELD fail
- * and the nested-INDEX fail.
+ * PLATFORM: SHARED body. Darwin ARM64 measured the nested-FIELD fail,
+ * the nested-INDEX fail, and the CALL-base SIGBUS. The pair spill is
+ * ta == 1 only; x86_64 does not emit those words.
  */
 #[no_mangle]
 export function glue_emit_index_eff_addr_base_elf_c(arena: *u8, elf_ctx: *u8, ix_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -92,6 +100,11 @@ export function glue_emit_index_eff_addr_base_elf_c(arena: *u8, elf_ctx: *u8, ix
   let base_ko: i32 = 0;
   let tr: i32 = 0;
   let trk: i32 = 0;
+  let lanes_buf: i32[1] = [];
+  let esz_buf: i32[1] = [];
+  let lanes: i32 = 0;
+  let esz: i32 = 0;
+  let simd: i32 = 0;
   let fb_ref: i32 = 0;
   let field_off: i32 = 0;
   let vname: u8[256] = [];
@@ -232,7 +245,8 @@ export function glue_emit_index_eff_addr_base_elf_c(arena: *u8, elf_ctx: *u8, ix
       // (scaled lea). The inner base is not this INDEX, so this does
       // not recurse. PTR (9) and SLICE (11) stay on emit_expr: that
       // rvalue is already the pointee or the header the trailing peel
-      // loads. CALL and DEREF stay rvalues.
+      // loads. CALL and METHOD stay rvalues here; a 16-byte SIMD pair
+      // is spilled below, after this emit. DEREF stays an rvalue.
       // PLATFORM: SHARED. Darwin ARM64 measured arr[0][0].
       tr = 0;
       trk = 0;
@@ -297,6 +311,43 @@ export function glue_emit_index_eff_addr_base_elf_c(arena: *u8, elf_ctx: *u8, ix
       }
       if (rc != 0) {
         return 0 - 1;
+      }
+    }
+  }
+  // CALL (48) or METHOD (49) on arm64. emit_expr left a 16-byte SIMD
+  // in x0:x1. stp stores that pair and add x0, sp, #0 makes x0 the
+  // slot address the lane load expects. Same two words as the pair
+  // address in assign_index_one_pair_finish. Do not add sp back: the
+  // load still reads the slot, and the epilogue restores sp from x29.
+  // Slice (trk 11) is excluded: its header was already loaded. A
+  // pointer is not a SIMD spelling, so it is not spilled. DEREF (52)
+  // stays an rvalue. Wider than 16 stays a value.
+  // PLATFORM: MACOS|ARM64. ta != 1 skips this. Measured add4(a,b)[1].
+  if (ta == 1 && trk != 11 && (base_ko == 48 || base_ko == 49) && tr > 0) {
+    unsafe {
+      simd = asm_type_is_simd_vector_spelling(arena, tr);
+    }
+    if (simd != 0) {
+      rc = 0;
+      unsafe {
+        rc = glue_vector_type_lanes_esz_c(arena, tr, &lanes_buf[0], &esz_buf[0]);
+      }
+      if (rc == 0) {
+        lanes = lanes_buf[0];
+        esz = esz_buf[0];
+        if (lanes > 0 && esz > 0 && lanes * esz == 16) {
+          unsafe {
+            rc = backend_enc_append_u32_le_c(elf_ctx, 2847868896 as u32);
+          }
+          if (rc == 0) {
+            unsafe {
+              rc = backend_enc_append_u32_le_c(elf_ctx, 2432697312 as u32);
+            }
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+        }
       }
     }
   }
