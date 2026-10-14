@@ -496,16 +496,10 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
       ;;
     run-vector.sh)
       # Product pure-asm -o via xlang_asm (same as hello/slice). No silent -backend c.
-      # PLATFORM: SHARED — host-cc only if caller exports FORCE/ALLOW.
-      case "$(uname -m 2>/dev/null)" in
-        x86_64|amd64)
-          script_link="${XLANG_LINK_XLANG:-$script_shu}"
-          ;;
-        *)
-          echo "run-all-bstrict: skip $script on $(uname -m) (user asm -o incomplete; Linux x86_64 covers)"
-          continue
-          ;;
-      esac
+      # PLATFORM: SHARED — i32x4 a+b is the existing lane-binop let-init
+      # (arm64 add.4s). Do not skip arm64: the old dual-GP scalar add is gone.
+      # host-cc only if caller exports FORCE/ALLOW.
+      script_link="${XLANG_LINK_XLANG:-$script_shu}"
       ;;
     run-asm-*.sh)
       # 默认本波产品 xlang_asm；gen2 仅 XLANG_BSTRICT_USE_ASM2=1。
