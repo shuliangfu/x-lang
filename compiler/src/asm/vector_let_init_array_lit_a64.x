@@ -10,9 +10,10 @@
 // or 23 of a non-null INT_LIT folds both operators into that
 // immediate and uses the same fill. One more unary of that same
 // literal folds the third operator too. One unary beyond that folds
-// the fourth. One unary beyond that folds the fifth.
-// `let v: i32x8 = -(~(~(~(-3))))` wrote -2 into lane 0 and
-// left lane 1 unset. A sixth unary stays declined. A nested unary
+// the fourth. One unary beyond that folds the fifth. One unary
+// beyond that folds the sixth.
+// `let v: i32x8 = -(~(~(~(~(-3)))))` wrote 3 into lane 0 and
+// left lane 1 unset. A seventh unary stays declined. A nested unary
 // of a VAR, a binop, a
 // CALL, a METHOD, an INDEX, a DEREF, or an ARRAY_LIT stays on the
 // per-lane path. Keyword null, f32, and a lane size other than 4
@@ -147,7 +148,8 @@ export extern function backend_enc_store_rax_to_rbx_offset_arch(
  * immediate and calls the same fill. One more unary wrapping that
  * literal folds the third operator with the same fill. One unary
  * beyond that folds the fourth operator with the same fill. One unary
- * beyond that folds the fifth operator with the same fill. A sixth
+ * beyond that folds the fifth operator with the same fill. One unary
+ * beyond that folds the sixth operator with the same fill. A seventh
  * unary stays declined. Keyword null, an f32 element,
  * ta other than 1, and a lane size other than 4 stay on the decline
  * below. Lane size 8 of that pattern stays declined.
@@ -202,6 +204,10 @@ export function glue_emit_vector_type_let_init_elf_c(
   let pent_ref: i32 = 0;
   let pent_ko: i32 = 0;
   let apply_quad: i32 = 0;
+  let sixth_u: i32 = 0;
+  let hex_ref: i32 = 0;
+  let hex_ko: i32 = 0;
+  let apply_pent: i32 = 0;
   let peeled: i32 = 0;
   let peel_n: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || init_ref <= 0) {
@@ -298,8 +304,9 @@ export function glue_emit_vector_type_let_init_elf_c(
     // the existing fill. When that inner operand is itself kind 22 or
     // 23 of a non-null INT_LIT, fold that wrapper first. One more
     // unary of that wrapper folds the fourth operator, and one unary
-    // beyond that folds the fifth. A sixth unary is not kind 0 and
-    // stays declined. A VAR, a binop, CALL,
+    // beyond that folds the fifth. One unary beyond that folds the
+    // sixth. A seventh unary is not kind 0 and stays declined.
+    // A VAR, a binop, CALL,
     // METHOD, INDEX, DEREF, or ARRAY_LIT under the inner unary is not
     // kind 0 and stays on that arm. Keyword null stays declined. f32
     // is not an i32 not.
@@ -331,9 +338,9 @@ export function glue_emit_vector_type_let_init_elf_c(
          * not fire and the caller stores one str x0. Lane 0 of
          * `let v: i32x8 = ~(~(-3))` was -3 and lane 1 was 0. Apply the
          * wrapper, then the middle operator, then the outer one, and
-         * splat with the same fill. One or two more unaries of this wrapper
-         * are folded below. A sixth unary is not an INT_LIT here and
-         * stays on the decline. A VAR, a binop, CALL, METHOD,
+         * splat with the same fill. One, two, or three more unaries of
+         * this wrapper are folded below. A seventh unary is not an
+         * INT_LIT here and stays on the decline. A VAR, a binop, CALL, METHOD,
          * INDEX, DEREF, or ARRAY_LIT under the wrapper stays declined.
          * Keyword null stays declined. Two statements for each not.
          * PLATFORM: MACOS|ARM64.
@@ -364,9 +371,9 @@ export function glue_emit_vector_type_let_init_elf_c(
              * `let v: i32x8 = ~(~(~(-3)))` was 2 and lane 1 was not.
              * Apply this operator, then the wrapper, then the middle
              * operator, then the outer one, and splat with the same
-             * fill. One more unary of this wrapper is folded below.
-             * A sixth unary is not an INT_LIT here and stays on the
-             * decline. A VAR, a binop, CALL, METHOD, INDEX, DEREF, or
+             * fill. One or two more unaries of this wrapper are folded
+             * below. A seventh unary is not an INT_LIT here and stays
+             * on the decline. A VAR, a binop, CALL, METHOD, INDEX, DEREF, or
              * ARRAY_LIT under this unary stays declined. Keyword null
              * stays declined. Two statements for each not.
              * PLATFORM: MACOS|ARM64.
@@ -399,7 +406,8 @@ export function glue_emit_vector_type_let_init_elf_c(
                  * `let v: i32x8 = -(~(~(~(-3))))` was -2 and lane 1
                  * was not. Apply this innermost operator first, then
                  * the four operators already folded above, and splat
-                 * with the same fill. A sixth unary is not an INT_LIT
+                 * with the same fill. One more unary of this wrapper
+                 * is folded below. A seventh unary is not an INT_LIT
                  * here and stays on the decline. A VAR, a binop, CALL,
                  * METHOD, INDEX, DEREF, or ARRAY_LIT under this unary
                  * stays declined. Keyword null stays declined.
@@ -426,6 +434,47 @@ export function glue_emit_vector_type_let_init_elf_c(
                       apply_deep = 1;
                       apply_quad = 1;
                     }
+                    /*
+                     * One more unary of a non-null INT_LIT:
+                     * -(~(~(~(~(-3))))), ~(~(~(~(~(~1))))), ~~~~~~1,
+                     * -(-(-(-(-(-3))))). The operand of this wrapper
+                     * is not kind 0, so the five-level arm above does
+                     * not fire and the caller stores one str x0. Lane 0
+                     * of `let v: i32x8 = -(~(~(~(~(-3)))))` was 3 and
+                     * lane 1 was not. Apply this innermost operator
+                     * first, then the five operators already folded
+                     * above, and splat with the same fill. When pent_ko
+                     * is 0 the five-deep arm already took the literal
+                     * and this peel does not run. A seventh unary is
+                     * not an INT_LIT here and stays on the decline.
+                     * A VAR, a binop, CALL, METHOD, INDEX, DEREF, or
+                     * ARRAY_LIT under this unary stays declined.
+                     * Keyword null stays declined. Two statements for
+                     * each not. PLATFORM: MACOS|ARM64.
+                     */
+                    if (pent_ko == 22) {
+                      sixth_u = 1;
+                    }
+                    if (pent_ko == 23) {
+                      sixth_u = 1;
+                    }
+                    if (sixth_u != 0) {
+                      unsafe {
+                        hex_ref = pipeline_expr_unary_operand_ref_at(arena, pent_ref);
+                      }
+                      if (hex_ref > 0) {
+                        unsafe {
+                          hex_ko = pipeline_expr_kind_ord_at(arena, hex_ref);
+                        }
+                        if (hex_ko == 0) {
+                          lit_src = hex_ref;
+                          apply_wrap = 1;
+                          apply_deep = 1;
+                          apply_quad = 1;
+                          apply_pent = 1;
+                        }
+                      }
+                    }
                   }
                 }
               }
@@ -450,6 +499,20 @@ export function glue_emit_vector_type_let_init_elf_c(
                 if (rc == 0) {
                   if (esz_s[0] == 4) {
                     if (lanes_s[0] > 0) {
+                      // Innermost operator of a six-deep chain. pent_ko is 0
+                      // on a five-deep INT_LIT, so this block does not
+                      // run and that fold is unchanged. A seventh unary
+                      // leaves lit_src at 0 and never reaches here.
+                      // Two statements for each not. PLATFORM: MACOS|ARM64.
+                      if (apply_pent != 0) {
+                        if (pent_ko == 22) {
+                          imm = 0 - imm;
+                        }
+                        if (pent_ko == 23) {
+                          imm = 0 - imm;
+                          imm = imm - 1;
+                        }
+                      }
                       if (apply_quad != 0) {
                         if (quad_ko == 22) {
                           imm = 0 - imm;
