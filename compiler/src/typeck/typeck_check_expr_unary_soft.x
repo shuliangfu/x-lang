@@ -38,13 +38,13 @@ export extern "C" function pipeline_expr_is_null_keyword_c(arena: *u8, expr_ref:
  * body, which typechecks the operand itself.
  * Two compares, not a chained && : the bootstrap image clobbers the
  * register a chained compare reuses.
- * Assign pre-stamps `~lit` / `-lit`, and exactly one more unary of
- * that lit (`~(-3)`, `-(~1)`, `-(-3)`, `~~1`), with an i32
+ * Assign pre-stamps `~lit` / `-lit`, and one, two, three, or four more
+ * unaries of that lit, with an i32
  * TYPE_VECTOR before this call. When this expr is already that vector
- * and the operand is a non-null INT_LIT, or a unary minus / bitwise
- * not of one, the immediate operand is typechecked with expected 0
+ * and the operand is a non-null INT_LIT, or one through four more
+ * unaries of one, the immediate operand is typechecked with expected 0
  * and this function returns without calling demoted, so the stamp
- * stays. Expected 0 keeps that operand a scalar. A fifth unary is
+ * stays. Expected 0 keeps that operand a scalar. A sixth unary is
  * not a keep. A missing pre-stamp falls through and let-init coerce
  * stamps the same shape afterwards.
  * PLATFORM: SHARED — same type rule on every host.
@@ -87,7 +87,7 @@ export function typeck_check_expr_unary(
     /*
      * Keep an assign pre-stamp of this unary onto an i32 TYPE_VECTOR.
      * The immediate operand is checked with expected 0 so a lit stays
-     * i32 and a unary of a lit stays a scalar unary. A fifth unary
+     * i32 and a unary of a lit stays a scalar unary. A sixth unary
      * falls through. Keyword null falls through. Two compares, not a
      * chained &&.
      * PLATFORM: SHARED — element kind is the type rule, not a host ABI.
@@ -104,6 +104,8 @@ export function typeck_check_expr_unary(
       let already_deep_k: i32 = 0;
       let already_quad: i32 = 0;
       let already_quad_k: i32 = 0;
+      let already_pent: i32 = 0;
+      let already_pent_k: i32 = 0;
       if (already > 0) {
         if (already <= ntypes) {
           if (pipeline_type_kind_ord_at(arena, already) == ord_vector) {
@@ -121,10 +123,10 @@ export function typeck_check_expr_unary(
                     }
                     /*
                      * One more unary of a non-null INT_LIT, and exactly
-                     * one or two unaries beyond that. The keep below typechecks
+                     * one, two, or three unaries beyond that. The keep below typechecks
                      * op_ref with expected 0, so the inner unaries stay
                      * scalar and the vector stamp stays on this expr.
-                     * A fifth unary is not INT_LIT here. LOGNOT does
+                     * A sixth unary is not INT_LIT here. LOGNOT does
                      * not set already_keep. PLATFORM: SHARED.
                      */
                     if (already_op_k == ord_neg) {
@@ -164,6 +166,26 @@ export function typeck_check_expr_unary(
                           if (already_quad_k == ord_lit) {
                             if (pipeline_expr_is_null_keyword_c(arena, already_quad) == 0) {
                               already_keep = 1;
+                            }
+                          }
+                          /*
+                           * Fifth unary of a non-null INT_LIT. Kind 22 and kind 23 are
+                           * separate compares. A sixth unary stays 22 or 23, so it is not
+                           * stamped. PLATFORM: SHARED.
+                           */
+
+                          if (already_quad_k == ord_neg) {
+                            already_pent = pipeline_expr_unary_operand_ref_at(arena, already_quad);
+                          }
+                          if (already_quad_k == ord_bitnot) {
+                            already_pent = pipeline_expr_unary_operand_ref_at(arena, already_quad);
+                          }
+                          if (already_pent > 0) {
+                            already_pent_k = pipeline_expr_kind_ord_at(arena, already_pent);
+                            if (already_pent_k == ord_lit) {
+                              if (pipeline_expr_is_null_keyword_c(arena, already_pent) == 0) {
+                                already_keep = 1;
+                              }
                             }
                           }
                         }

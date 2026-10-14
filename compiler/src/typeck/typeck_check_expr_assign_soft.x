@@ -2,9 +2,9 @@
 // Source authority is the i32 TYPE_VECTOR splat pre-stamp in typeck.x.
 // Cap tip -c of that mega emits a hollow mov w0,#0; ret, so this thin
 // is what the link runs. Plain ASSIGN (kind 28) of an INT_LIT, of
-// unary minus / bitwise not of an INT_LIT, or of one, two, or three
-// more unaries of that unary, onto a TYPE_VECTOR of i32 stamps the RHS
-// with the LHS type, then calls the demoted body. A fifth unary
+// unary minus / bitwise not of an INT_LIT, or of one, two, three, or
+// four more unaries of that unary, onto a TYPE_VECTOR of i32 stamps the RHS
+// with the LHS type, then calls the demoted body. A sixth unary
 // calls the demoted body with no stamp.
 // Every other assign calls the demoted body with no stamp.
 // PLATFORM: SHARED — type rule is the same on macOS, Ubuntu, and Windows.
@@ -38,15 +38,15 @@ export extern "C" function pipeline_expr_set_resolved_type_ref(arena: *u8, expr_
  * so `v = 1` / `h.v = ~1` was "expected ?, found i32". The lit checker
  * no-ops when the RHS is already resolved, so this stamp survives
  * demoted assign. The unary checker keeps the stamp for an INT_LIT
- * operand, for one more unary of that lit, and for one or two unaries
- * beyond that. A bare INT_LIT
+ * operand, for one more unary of that lit, and for one, two, or three
+ * unaries beyond that. A bare INT_LIT
  * is stamped when the LHS is a VAR or a FIELD.
  * The field assign emitter fills every lane of an INT_LIT wider than
  * 16 bytes, and kind 22 or 23 calls the same let-init, so
  * `h.v = ~(-3)` on Vec8i is the same splat as `v = ~(-3)`.
  * Keyword null stays unstamped. Unary minus / bitwise not of an
  * INT_LIT, and one more unary of that, is stamped for a VAR or a
- * FIELD. A fifth unary, a binop, LOGNOT, compound assign, deref, and
+ * FIELD. A sixth unary, a binop, LOGNOT, compound assign, deref, and
  * a float vector are not stamped. A failed LHS check does not call
  * demoted, so the diagnostic is not emitted twice.
  * Two compares, not a chained && : the bootstrap image clobbers the
@@ -83,6 +83,8 @@ export function typeck_check_expr_assign(
     let deep_k: i32 = 0;
     let quad_ref: i32 = 0;
     let quad_k: i32 = 0;
+    let pent_ref: i32 = 0;
+    let pent_k: i32 = 0;
     let splat_ok: i32 = 0;
     if (module == 0 as *u8 || arena == 0 as *u8 || expr_ref <= 0) {
       return typeck_check_expr_assign__demoted(
@@ -112,8 +114,8 @@ export function typeck_check_expr_assign(
      * Only a real TYPE_VECTOR of i32. Out-of-range element refs stay
      * unstamped. A non-null INT_LIT is stamped for a VAR or a FIELD.
      * Unary minus / bitwise not of one, and exactly one more unary of
-     * that lit, or one or two unaries beyond that, is stamped for a VAR
-     * or a FIELD. A fifth unary stays
+     * that lit, or one, two, or three unaries beyond that, is stamped for a VAR
+     * or a FIELD. A sixth unary stays
      * unstamped.
      * PLATFORM: SHARED — element kind is the type rule, not a host ABI.
      */
@@ -160,10 +162,10 @@ export function typeck_check_expr_assign(
                     }
                     /*
                      * One more unary of a non-null INT_LIT, and exactly
-                     * one or two unaries beyond that, still only a VAR or a
-                     * FIELD. A fifth unary, an i32 variable, a binop,
+                     * one, two, or three unaries beyond that, still only a VAR or a
+                     * FIELD. A sixth unary, an i32 variable, a binop,
                      * keyword null, and LOGNOT stay unstamped. The
-                     * emitter folds four and declines five.
+                     * emitter folds five and declines six.
                      * PLATFORM: SHARED.
                      */
                     if (op_k == ord_neg) {
@@ -217,6 +219,31 @@ export function typeck_check_expr_assign(
                               }
                               if (lhs_kind == ord_field) {
                                 splat_ok = 1;
+                              }
+                            }
+                          }
+                          /*
+                           * Fifth unary of a non-null INT_LIT. Kind 22 and kind 23 are
+                           * separate compares. A sixth unary stays 22 or 23, so it is not
+                           * stamped. PLATFORM: SHARED.
+                           */
+
+                          if (quad_k == ord_neg) {
+                            pent_ref = pipeline_expr_unary_operand_ref_at(arena, quad_ref);
+                          }
+                          if (quad_k == ord_bitnot) {
+                            pent_ref = pipeline_expr_unary_operand_ref_at(arena, quad_ref);
+                          }
+                          if (pent_ref > 0) {
+                            pent_k = pipeline_expr_kind_ord_at(arena, pent_ref);
+                            if (pent_k == ord_lit) {
+                              if (pipeline_expr_is_null_keyword_c(arena, pent_ref) == 0) {
+                                if (lhs_kind == ord_var) {
+                                  splat_ok = 1;
+                                }
+                                if (lhs_kind == ord_field) {
+                                  splat_ok = 1;
+                                }
                               }
                             }
                           }
