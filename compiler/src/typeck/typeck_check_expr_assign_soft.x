@@ -36,11 +36,12 @@ export extern "C" function pipeline_expr_set_resolved_type_ref(arena: *u8, expr_
  * so `v = 1` / `h.v = ~1` was "expected ?, found i32". The lit checker
  * no-ops when the RHS is already resolved, so this stamp survives
  * demoted assign. The unary checker keeps the stamp only for an INT_LIT
- * operand. A bare INT_LIT is stamped only when the LHS is a VAR: the
- * var assign emitter splats all lanes, and the field assign emitter
- * still stores one `str w` for an INT_LIT, so `h.v = 1` stays rejected.
- * Unary minus / bitwise not is stamped for a VAR or a FIELD, because
- * that field path already splats. A binop, keyword null, a nested
+ * operand. A bare INT_LIT is stamped when the LHS is a VAR or a FIELD.
+ * The field assign emitter fills every lane of an INT_LIT wider than
+ * 16 bytes, so `h.v = 1` on Vec8i is the same splat as `v = 1`.
+ * Keyword null stays unstamped. Unary minus / bitwise not is stamped
+ * for a VAR or a FIELD, because that field path already splats.
+ * A binop, keyword null, a nested
  * unary, LOGNOT, compound assign, deref, and a float vector are not
  * stamped. A failed LHS check does not call demoted, so the diagnostic
  * is not emitted twice.
@@ -99,10 +100,9 @@ export function typeck_check_expr_assign(
     }
     /*
      * Only a real TYPE_VECTOR of i32. Out-of-range element refs stay
-     * unstamped. A non-null INT_LIT is stamped only for a VAR lhs.
+     * unstamped. A non-null INT_LIT is stamped for a VAR or a FIELD.
      * Unary minus / bitwise not of one is stamped for a VAR or a FIELD.
-     * A FIELD plus a bare INT_LIT is left to demoted: that store writes
-     * one lane. Nested unary operands stay unstamped.
+     * Nested unary operands stay unstamped.
      * PLATFORM: SHARED — element kind is the type rule, not a host ABI.
      */
     lt = pipeline_expr_resolved_type_ref(arena, left_ref);
@@ -119,8 +119,11 @@ export function typeck_check_expr_assign(
                   lhs_kind = pipeline_expr_kind_ord_at(arena, left_ref);
                   rhs_kind = pipeline_expr_kind_ord_at(arena, right_ref);
                   if (rhs_kind == ord_lit) {
-                    if (lhs_kind == ord_var) {
-                      if (pipeline_expr_is_null_keyword_c(arena, right_ref) == 0) {
+                    if (pipeline_expr_is_null_keyword_c(arena, right_ref) == 0) {
+                      if (lhs_kind == ord_var) {
+                        splat_ok = 1;
+                      }
+                      if (lhs_kind == ord_field) {
                         splat_ok = 1;
                       }
                     }

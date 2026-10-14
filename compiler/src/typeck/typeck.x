@@ -11405,11 +11405,11 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
  * @param return_type_ref i32 — enclosing return type; not applied to the LHS
  * @param ctx *PipelineDepCtx — dep context; may be null
  * @return i32 — 0 when the assign typechecks, -1 on failure
- * Plain ASSIGN of an INT_LIT onto a VAR of TYPE_VECTOR i32, or of
- * unary minus / bitwise not of an INT_LIT onto a VAR or FIELD of that
- * vector, is stamped with the LHS type before the RHS is checked.
- * Let-init already accepts that splat. A FIELD plus a bare INT_LIT is
- * not stamped: the field store writes one lane. Compound assign, an
+ * Plain ASSIGN of an INT_LIT onto a VAR or FIELD of TYPE_VECTOR i32,
+ * or of unary minus / bitwise not of an INT_LIT onto a VAR or FIELD
+ * of that vector, is stamped with the LHS type before the RHS is
+ * checked. Let-init already accepts that splat, and the field store
+ * fills every lane of an INT_LIT wider than 16 bytes. Compound assign, an
  * i32 variable RHS, a binop, keyword null, a nested unary, LOGNOT,
  * deref, and a non-i32 element (Vec4f) are not stamped. The linked
  * body is the assign thin; this function is the source authority.
@@ -11574,10 +11574,10 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      * "expected ?, found i32". Stamp the RHS before check_expr: the
      * lit checker no-ops when already resolved, and the unary checker
      * keeps this type instead of restamping i32. A bare INT_LIT is
-     * stamped only for a VAR lhs. Unary minus / bitwise not is stamped
-     * for a VAR or a FIELD. A FIELD plus a bare INT_LIT stays on the
-     * old mismatch: that field store is one `str w`, so accepting it
-     * would write a single lane. Compound assign (kinds 29..39) is not
+     * stamped for a VAR or a FIELD. Unary minus / bitwise not is
+     * stamped for a VAR or a FIELD. The field store fills every lane
+     * of an INT_LIT wider than 16 bytes, so `h.v = 1` is the same splat
+     * as `v = 1`. Compound assign (kinds 29..39) is not
      * a splat. An i32 variable, a binop, keyword null, a nested unary,
      * LOGNOT, deref, and a non-i32 element (Vec4f) are not stamped.
      * Two compares, not a chained && : the bootstrap image clobbers
@@ -11602,8 +11602,11 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                   splat_lhs_k = pipeline_expr_kind_ord_at(arena, left_ref);
                   splat_rhs_k = pipeline_expr_kind_ord_at(arena, right_ref);
                   if (splat_rhs_k == ord_lit) {
-                    if (splat_lhs_k == ord_var) {
-                      if (typeck_expr_is_null_keyword(arena, right_ref) == 0) {
+                    if (typeck_expr_is_null_keyword(arena, right_ref) == 0) {
+                      if (splat_lhs_k == ord_var) {
+                        splat_ok = 1;
+                      }
+                      if (splat_lhs_k == ord_field) {
                         splat_ok = 1;
                       }
                     }
