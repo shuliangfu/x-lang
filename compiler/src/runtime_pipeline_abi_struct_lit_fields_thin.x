@@ -32,6 +32,8 @@ export extern function backend_enc_load_rbp_to_rbx_arch(elf_ctx: *u8, off: i32, 
 export extern function backend_enc_load_rbp_to_rdx_arch(elf_ctx: *u8, off: i32, ta: i32): i32;
 export extern function glue_type_named_layout_size_any_module_elf_c(arena: *u8, ty_ref: i32): i32;
 export extern function glue_fixed_array_total_bytes_c(arena: *u8, ty_ref: i32, depth: i32): i32;
+export extern function pipeline_type_kind_ord_at(arena: *u8, ty_ref: i32): i32;
+export extern function pipeline_asm_type_ref_byte_size_c(arena: *u8, ty_ref: i32): i32;
 export extern function glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx: *u8, slot_off: i32, sz: i32, ta: i32): i32;
 export extern function pipe_asm_ctx_off_next_offset(): i32;
 export extern function pipe_load_i32_le(p: *u8, off: i32): i32;
@@ -56,10 +58,14 @@ function w254_sl_cell_i32(base: *u8): i32 {
  * 8-byte store. A named SIMD field is not a TYPE_ARRAY, so that helper
  * returns 0 and the layout size stays lanes times the element width.
  * When that size is at least 8, ARRAY_LIT uses the same address copy.
- * i32x8 is 32 bytes. The old gate left use_ptr clear and str x0 stored
- * the payload address, so lane 0 was not 1. A width below 8 stays on
- * the scalar store: the copy rejects it. Layouts wider than 16 for the
- * other kinds already copy from the address in x0.
+ * i32x8 is TYPE_NAMED (kind 8) and is 32 bytes. Vec8i is TYPE_VECTOR
+ * (kind 13): named-layout returns 0 by contract, and the array helper
+ * returns 0 unless kind is 10. pipeline_asm_type_ref_byte_size_c is
+ * lanes times the element size (Vec8i is 32). That count replaces
+ * `wide`, and the same address copy stores the payload. Kind 13
+ * alignment is unchanged. Do not pin a vector name. A width below 8
+ * stays on the scalar store: the copy rejects it. Layouts wider than
+ * 16 for the other kinds already copy from the address in x0.
  * @param arena *u8 — expression arena. Null returns -1.
  * @param elf_ctx *u8 — emit context. Null returns -1.
  * @param lit_ref i32 — STRUCT_LIT expression ref. Non-positive returns -1.
@@ -85,6 +91,7 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
   let fty: i32 = 0;
   let wide: i32 = 0;
   let arr_bytes: i32 = 0;
+  let vec_bytes: i32 = 0;
   let use_ptr: i32 = 0;
   let add_x19: u32 = 0;
   let mod: *u8 = 0 as *u8;
@@ -186,6 +193,30 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
           wide = arr_bytes;
         }
       }
+      // TYPE_VECTOR (kind 13) is not a named layout and not TYPE_ARRAY.
+      // named-layout returns 0 by contract (callers treat that as "not a
+      // struct"). The fixed-array helper returns 0 unless kind is 10.
+      // The byte-size helper is the live size authority: kind 13 is
+      // lanes * element size, so Vec8i is 32 and Vec4f is 16. ARRAY_LIT
+      // leaves the payload address in x0. A count of at least 8 takes
+      // the existing pointer copy below. Below 8 stays on the scalar
+      // store. Kind 8 spellings (i32x8) already set `wide` and are not
+      // replaced. Do not pin "Vec8i". Do not change kind-13 align.
+      // PLATFORM: MACOS|DARWIN — this gate. The size helper is SHARED.
+      if (iko == 46 && fty > 0 && arr_bytes < 8) {
+        vec_bytes = 0;
+        unsafe {
+          vec_bytes = pipeline_type_kind_ord_at(arena, fty);
+        }
+        if (vec_bytes == 13) {
+          unsafe {
+            vec_bytes = pipeline_asm_type_ref_byte_size_c(arena, fty);
+          }
+          if (vec_bytes >= 8) {
+            wide = vec_bytes;
+          }
+        }
+      }
       if (wide > 8 || (iko == 46 && arr_bytes >= 8)) {
         if (store_off < 0 || store_off > 4095) {
           return 0 - 1;
@@ -210,15 +241,14 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
         if (iko == 46 && arr_bytes >= 8) {
           use_ptr = 1;
         }
-        // A named field is not TYPE_ARRAY, so arr_bytes stays 0 and the
-        // wide>16 arm left use_ptr clear. ARRAY_LIT still leaves the
-        // payload address in x0. Copying `wide` bytes is the same
-        // pointer copy as [8]i32. Measured layout sizes: i32x8 and u32x8
-        // are 32, i32x16 is 64. When arr_bytes already replaced `wide`,
-        // this line is the same flag. A width below 8 never reaches
-        // here. Vec8i's named-layout size does not enter this block, so
-        // that field stays on the scalar store. H { v: [1, 2, 3, 4, 5, 6, 7, 8] }
-        // stored that address with str x0, so the field's lane 0 was not 1.
+        // A TYPE_VECTOR field is not TYPE_ARRAY, so arr_bytes stays 0 and
+        // the wide>16 arm leaves use_ptr clear when the init is ARRAY_LIT.
+        // ARRAY_LIT still leaves the payload address in x0. Copying `wide`
+        // bytes is the same pointer copy as [8]i32. Measured sizes: kind 8
+        // i32x8 / u32x8 are 32, i32x16 is 64; kind 13 Vec8i is 32 via the
+        // byte-size helper above. When arr_bytes or that helper already
+        // replaced `wide`, this line is the same flag. A width below 8
+        // never reaches here.
         // PLATFORM: MACOS|DARWIN.
         if (iko == 46 && wide >= 8) {
           use_ptr = 1;
