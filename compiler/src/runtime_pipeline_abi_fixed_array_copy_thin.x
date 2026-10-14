@@ -1731,6 +1731,45 @@ export function pipeline_asm_emit_array_lit_flat_elf_c(arena: *u8, elf_ctx: *u8,
         return 0;
       }
     }
+    /* Direct [N][]T. The element type is TYPE_SLICE (11), so each cell is
+     * a 16-byte fat {data, len}, not a run of leaf scalars. Nested rows
+     * used to fall through and str the i32s into that header; INDEX then
+     * loaded 0x200000001 as a pointer (SIGSEGV). Reuse the same per-cell
+     * writer as the ARRAY-of-SLICE arm above. ARRAY of scalar stays on
+     * the flatten loop. Fat stride is 16 on SysV and AAPCS64, matching
+     * the ji*16 cell home in that arm.
+     * PLATFORM: SHARED freestanding · LINUX|x86 downward slot · MACOS|ARM64. */
+    if (dest_ek == 11) {
+      ai = 0;
+      while (ai < n_arr && ai < 1024) {
+        unsafe {
+          elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ai);
+        }
+        if (elem_ref > 0) {
+          if (ta == 1) {
+            cell_home = stack_slot_off + ai * 16;
+          } else {
+            cell_home = stack_slot_off - ai * 16;
+          }
+          if (cell_home < 0) {
+            return 0 - 1;
+          }
+          unsafe {
+            row_st = glue_emit_slice_from_array_let_init_elf_c(
+                arena, elf_ctx, 0, 0, elem_ref, dest_elem, ctx, ta, cell_home);
+          }
+          if (row_st != 1) {
+            return 0 - 1;
+          }
+        }
+        ai = ai + 1;
+      }
+      unsafe {
+        fi = flat_i[0];
+        flat_i[0] = fi + n_arr;
+      }
+      return 0;
+    }
   }
   store_sz = leaf_esz;
   if (store_sz != 1 && store_sz != 2 && store_sz != 4 && store_sz != 8) {

@@ -76,6 +76,9 @@ function w1521_ib_field_is_ptr(arena: *u8, fa_ref: i32): i32 {
  * of that inner INDEX. emit_expr of the inner INDEX loads the by-value
  * element, and the outer lane load then uses those bits as a pointer
  * (Darwin `arr[0][0]` exit 1). PTR and SLICE elements stay on emit_expr.
+ * A slice-typed INDEX already ran deref_struct16, so x0 is the data
+ * pointer. The trailing header load is skipped for that base. A VAR
+ * slice still holds the header address and still loads.
  * A CALL or METHOD base still uses emit_expr. When that rvalue is a
  * 16-byte SIMD, the pair is spilled with the existing stp and x0 becomes
  * the slot address. emit_expr left the bits in x0:x1, and the lane load
@@ -243,9 +246,10 @@ export function glue_emit_index_eff_addr_base_elf_c(arena: *u8, elf_ctx: *u8, ix
       // into x0:x1; the outer lane load then uses those bits as a
       // pointer. lvalue of the inner INDEX is its element address
       // (scaled lea). The inner base is not this INDEX, so this does
-      // not recurse. PTR (9) and SLICE (11) stay on emit_expr: that
-      // rvalue is already the pointee or the header the trailing peel
-      // loads. CALL and METHOD stay rvalues here; a 16-byte SIMD pair
+      // not recurse. PTR (9) and SLICE (11) stay on emit_expr. A slice
+      // INDEX already leaves the data pointer in x0 (deref_struct16).
+      // The trailing load below is for a header address, so kind 47
+      // skips it. CALL and METHOD stay rvalues here; a 16-byte SIMD pair
       // is spilled below, after this emit. DEREF stays an rvalue.
       // PLATFORM: SHARED. Darwin ARM64 measured arr[0][0].
       tr = 0;
@@ -298,11 +302,18 @@ export function glue_emit_index_eff_addr_base_elf_c(arena: *u8, elf_ctx: *u8, ix
     trk = 0;
   }
   if (tr > 0 && trk == 11) {
-    unsafe {
-      rc = backend_enc_load_64_from_rax_arch(elf_ctx, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
+    /* VAR and other header addresses still need load_64 to fetch the
+     * data pointer. Kind 47 already did that inside emit_expr
+     * (deref_struct16: ldr x0,[x1] and the length at +8). Another
+     * load_64 treats the payload as a pointer (SIGBUS on x[0][0]).
+     * PLATFORM: SHARED. Darwin ARM64 measured [2][]i32. */
+    if (base_ko != 47) {
+      unsafe {
+        rc = backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
     }
   } else {
     if (base_ko == 44) {
