@@ -11577,10 +11577,11 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
  * accepts that splat, and the field store fills every lane. Compound
  * assign, an i32 variable RHS, a binop, keyword null, a seventh unary,
  * LOGNOT, and deref are not stamped. A TYPE_VECTOR of f32 stamps a
- * bare FLOAT_LIT and one unary minus of a FLOAT_LIT on a VAR or a
- * FIELD. The float-lit checker keeps an already-resolved type. A
- * second unary and a bitwise not stay unstamped. The linked body is
- * the assign thin; this function is the source authority.
+ * bare FLOAT_LIT, one unary minus of a FLOAT_LIT, and one more unary
+ * minus of that, on a VAR or a FIELD. Two minuses cancel. The
+ * float-lit checker keeps an already-resolved type. A third unary and
+ * a bitwise not stay unstamped. The linked body is the assign thin;
+ * this function is the source authority.
  * PLATFORM: SHARED — the type rule is the same on every host.
  */
 export function typeck_check_expr_assign(module: *Module, arena: *ASTArena, expr_ref: i32,
@@ -11749,10 +11750,11 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      * let-init, so `h.v = -(~(~(~(-3))))` is the same splat as the let.
      * Compound assign (kinds 29..39) is not a splat. An i32 variable, a
      * binop, keyword null, a seventh unary, LOGNOT, and deref are not
-     * stamped. A TYPE_VECTOR of f32 stamps a bare FLOAT_LIT and one
-     * unary minus of a FLOAT_LIT. The float-lit checker keeps an
-     * already-resolved type. A second unary and a bitwise not of that
-     * float are not stamped.
+     * stamped. A TYPE_VECTOR of f32 stamps a bare FLOAT_LIT, one unary
+     * minus of a FLOAT_LIT, and one more unary minus of that. Two
+     * minuses cancel. The float-lit checker keeps an already-resolved
+     * type. A third unary and a bitwise not of that float are not
+     * stamped.
      * Two compares, not a chained && : the bootstrap image clobbers
      * the register a chained compare reuses.
      * PLATFORM: SHARED — same type rule on every host. The linked body
@@ -11930,18 +11932,23 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                   }
                 }
                 /*
-                 * TYPE_VECTOR of f32 (Vec4f). A bare FLOAT_LIT, and one
-                 * unary minus of a FLOAT_LIT, on a VAR or a FIELD, is
-                 * the splat the let-init already fills. Kind 22 and
-                 * kind 1 are separate compares. The float-lit checker
-                 * keeps an already-resolved type, so the kind-1 stamp
-                 * survives. A second unary stays kind 22. Bitwise not
-                 * stays off. The unary operand ref is range-checked.
-                 * An i32 element does not enter. PLATFORM: SHARED.
+                 * TYPE_VECTOR of f32 (Vec4f). A bare FLOAT_LIT, one
+                 * unary minus of a FLOAT_LIT, and one more unary minus
+                 * of that, on a VAR or a FIELD, is the splat the
+                 * let-init already fills. Two minuses cancel. Kind 22
+                 * and kind 1 are separate compares. The float-lit
+                 * checker keeps an already-resolved type, so the kind-1
+                 * stamp survives. The unary checker keeps the one-deep
+                 * and two-deep stamps. A third unary stays kind 22.
+                 * Bitwise not stays off. The unary operand ref is
+                 * range-checked. An i32 element does not enter.
+                 * PLATFORM: SHARED.
                  */
                 if (pipeline_type_kind_ord_at(arena, splat_elem) == 14) {
                   let fop: i32 = 0;
                   let fop_k: i32 = 0;
+                  let f_in: i32 = 0;
+                  let f_in_k: i32 = 0;
                   splat_lhs_k = pipeline_expr_kind_ord_at(arena, left_ref);
                   splat_rhs_k = pipeline_expr_kind_ord_at(arena, right_ref);
                   if (splat_rhs_k == 22) {
@@ -11956,6 +11963,22 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                         }
                         if (splat_lhs_k == ord_field) {
                           splat_ok = 1;
+                        }
+                      }
+                      if (fop_k == 22) {
+                        f_in = pipeline_expr_unary_operand_ref_at(arena, fop);
+                        if (f_in > 0) {
+                          if (f_in <= arena.num_exprs) {
+                            f_in_k = pipeline_expr_kind_ord_at(arena, f_in);
+                            if (f_in_k == 1) {
+                              if (splat_lhs_k == ord_var) {
+                                splat_ok = 1;
+                              }
+                              if (splat_lhs_k == ord_field) {
+                                splat_ok = 1;
+                              }
+                            }
+                          }
                         }
                       }
                     }
@@ -16064,7 +16087,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      * more unaries of one, typecheck the immediate operand with
      * expected 0 and keep the stamp. Expected 0 keeps that operand a
      * scalar. A seventh unary falls through. A TYPE_VECTOR of f32 keeps
-     * one unary minus of a FLOAT_LIT. A second unary falls through.
+     * one unary minus of a FLOAT_LIT, and one more unary minus of that.
+     * Two minuses cancel. A third unary falls through.
      * Let-init does not pre-stamp,
      * so it falls through to coerce. LOGNOT never sets the keep flag.
      * Two compares, not a chained && : the bootstrap image
@@ -16208,19 +16232,33 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                 }
                 /*
                  * TYPE_VECTOR of f32. Assign pre-stamps one unary minus
-                 * of a FLOAT_LIT. Kind 22 and kind 1 are separate
-                 * compares. A second unary stays kind 22, so it is not
+                 * of a FLOAT_LIT, and one more unary minus of that.
+                 * Kind 22 and kind 1 are separate compares. Two minuses
+                 * cancel. A third unary stays kind 22, so it is not
                  * kept. Bitwise not stays off. The operand ref is
-                 * range-checked. The keep below still typechecks it
-                 * with expected 0. PLATFORM: SHARED.
+                 * range-checked. The keep below still typechecks the
+                 * immediate operand with expected 0. PLATFORM: SHARED.
                  */
                 if (pre_ek == 14) {
+                  let f_in: i32 = 0;
+                  let f_in_k: i32 = 0;
                   if (expr_kind == ord_neg) {
                     if (op_ref > 0) {
                       if (op_ref <= arena.num_exprs) {
                         pre_op_k = pipeline_expr_kind_ord_at(arena, op_ref);
                         if (pre_op_k == 1) {
                           pre_keep = 1;
+                        }
+                        if (pre_op_k == 22) {
+                          f_in = pipeline_expr_unary_operand_ref_at(arena, op_ref);
+                          if (f_in > 0) {
+                            if (f_in <= arena.num_exprs) {
+                              f_in_k = pipeline_expr_kind_ord_at(arena, f_in);
+                              if (f_in_k == 1) {
+                                pre_keep = 1;
+                              }
+                            }
+                          }
                         }
                       }
                     }

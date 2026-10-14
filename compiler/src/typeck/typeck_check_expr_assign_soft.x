@@ -6,10 +6,11 @@
 // five more unaries of that unary, onto a TYPE_VECTOR of i32 stamps the RHS
 // with the LHS type, then calls the demoted body. A seventh unary
 // calls the demoted body with no stamp. A TYPE_VECTOR of f32 also
-// stamps a bare FLOAT_LIT and one unary minus of a FLOAT_LIT when the
-// LHS is a VAR or a FIELD. The float-lit checker keeps an
-// already-resolved type. A second unary and a bitwise not call the
-// demoted body with no stamp.
+// stamps a bare FLOAT_LIT, one unary minus of a FLOAT_LIT, and one
+// more unary minus of that, when the LHS is a VAR or a FIELD. Two
+// minuses cancel. The float-lit checker keeps an already-resolved
+// type. A third unary and a bitwise not call the demoted body with
+// no stamp.
 // Every other assign calls the demoted body with no stamp.
 // PLATFORM: SHARED — type rule is the same on macOS, Ubuntu, and Windows.
 // The demote/retarget step that makes this symbol win is Mach-O only.
@@ -51,10 +52,12 @@ export extern "C" function pipeline_expr_set_resolved_type_ref(arena: *u8, expr_
  * Keyword null stays unstamped. Unary minus / bitwise not of an
  * INT_LIT, and one more unary of that, is stamped for a VAR or a
  * FIELD. A seventh unary, a binop, LOGNOT, compound assign, and deref
- * are not stamped. A TYPE_VECTOR of f32 stamps a bare FLOAT_LIT and
- * one unary minus of a FLOAT_LIT for a VAR or a FIELD. The float-lit
- * checker keeps an already-resolved type, so the bare stamp survives.
- * A second unary and a bitwise not of that float are not stamped.
+ * are not stamped. A TYPE_VECTOR of f32 stamps a bare FLOAT_LIT, one
+ * unary minus of a FLOAT_LIT, and one more unary minus of that, for a
+ * VAR or a FIELD. Two minuses cancel. The float-lit checker keeps an
+ * already-resolved type, so the bare stamp survives. The unary checker
+ * keeps the one-deep and two-deep stamps. A third unary and a bitwise
+ * not of that float are not stamped.
  * A failed LHS check does not call
  * demoted, so the diagnostic is not emitted twice.
  * Two compares, not a chained && : the bootstrap image clobbers the
@@ -289,18 +292,22 @@ export function typeck_check_expr_assign(
                 }
               }
               /*
-               * TYPE_VECTOR of f32 (Vec4f). A bare FLOAT_LIT, and one
-               * unary minus of a FLOAT_LIT, on a VAR or a FIELD, is
-               * the splat the let-init already fills. Kind 22 and
-               * kind 1 are separate compares. The float-lit checker
-               * keeps an already-resolved type, so the kind-1 stamp
-               * survives. A second unary stays kind 22. Bitwise not
-               * stays off. An i32 element does not enter.
+               * TYPE_VECTOR of f32 (Vec4f). A bare FLOAT_LIT, one unary
+               * minus of a FLOAT_LIT, and one more unary minus of that,
+               * on a VAR or a FIELD, is the splat the let-init already
+               * fills. Two minuses cancel. Kind 22 and kind 1 are
+               * separate compares. The float-lit checker keeps an
+               * already-resolved type, so the kind-1 stamp survives.
+               * The unary checker keeps the one-deep and two-deep
+               * stamps. A third unary stays kind 22. Bitwise not stays
+               * off. An i32 element does not enter.
                * PLATFORM: SHARED.
                */
               if (elem_k == 14) {
                 let fop: i32 = 0;
                 let fop_k: i32 = 0;
+                let f_in: i32 = 0;
+                let f_in_k: i32 = 0;
                 if (right_ref > 0) {
                   lhs_kind = pipeline_expr_kind_ord_at(arena, left_ref);
                   rhs_kind = pipeline_expr_kind_ord_at(arena, right_ref);
@@ -315,6 +322,20 @@ export function typeck_check_expr_assign(
                       }
                       if (lhs_kind == ord_field) {
                         splat_ok = 1;
+                      }
+                    }
+                    if (fop_k == ord_neg) {
+                      f_in = pipeline_expr_unary_operand_ref_at(arena, fop);
+                      if (f_in > 0) {
+                        f_in_k = pipeline_expr_kind_ord_at(arena, f_in);
+                        if (f_in_k == 1) {
+                          if (lhs_kind == ord_var) {
+                            splat_ok = 1;
+                          }
+                          if (lhs_kind == ord_field) {
+                            splat_ok = 1;
+                          }
+                        }
                       }
                     }
                   }

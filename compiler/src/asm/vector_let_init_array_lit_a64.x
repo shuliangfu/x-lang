@@ -51,7 +51,8 @@
 // mvn w0 per lane. f32 bitwise not stays declined. A FLOAT_LIT, or one
 // unary minus of a FLOAT_LIT, on an f32 lane is narrowed with
 // glue_ieee_f64_bits_to_f32_bits and splatted with the same imm fill.
-// A second unary of that float stays declined. A scalar mvn w0
+// One more unary minus of that FLOAT_LIT cancels the sign and uses
+// the same fill. A third unary of that float stays declined. A scalar mvn w0
 // plus str x0 left lane 1 of `let v: i32x4 = ~a` at 0. A VAR, a FIELD,
 // an ARRAY_LIT, or a lane binop under minus may be wider than 16 when
 // each lane is 4 bytes. The lane home, the lane-byte writer, and the
@@ -158,8 +159,9 @@ export extern function backend_enc_store_rax_to_rbx_offset_arch(
  * beyond that folds the sixth operator with the same fill. A seventh
  * unary stays declined. A FLOAT_LIT, or one unary minus of a FLOAT_LIT,
  * on an f32 lane is narrowed with glue_ieee_f64_bits_to_f32_bits and
- * splatted before that integer fold. A second unary of that float stays
- * declined. Keyword null, an f32 element of the integer fold,
+ * splatted before that integer fold. One more unary minus of that
+ * FLOAT_LIT cancels the sign and uses the same fill. A third unary of
+ * that float stays declined. Keyword null, an f32 element of the integer fold,
  * ta other than 1, and a lane size other than 4 stay on the decline
  * below. Lane size 8 of that pattern stays declined.
  * A lane size other than 4, and a
@@ -226,6 +228,8 @@ export function glue_emit_vector_type_let_init_elf_c(
   let f_bits: i32 = 0;
   let f_neg: i32 = 0;
   let f_sign: i32 = 0;
+  let f_in: i32 = 0;
+  let f_in_k: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || init_ref <= 0) {
     return 0 - 3;
   }
@@ -282,18 +286,21 @@ export function glue_emit_vector_type_let_init_elf_c(
     }
     return rc;
   }
-  // FLOAT_LIT = 1, or one EXPR_NEG of a FLOAT_LIT (`let v: Vec4f = -1.0`).
-  // The parser stores the magnitude as f64 bits. The existing
-  // glue_ieee_f64_bits_to_f32_bits narrows those bits. The existing
-  // glue_simd_emit_imm_fill_slot_c splats the f32 pattern. A second
-  // unary is not kind 1, so it stays on the decline below. Bitwise
-  // not of a float stays declined. The element must be f32, the lane
-  // size 4, and ta 1. An f64 lane stays declined. The sign bit is two
-  // statements (0x80000000), xored into the f64 high half before the
-  // narrow. PLATFORM: MACOS|ARM64.
+  // FLOAT_LIT = 1, one EXPR_NEG of a FLOAT_LIT (`-1.0`), or one more
+  // EXPR_NEG of that (`-(-1.0)`). The parser stores the magnitude as
+  // f64 bits. The existing glue_ieee_f64_bits_to_f32_bits narrows
+  // those bits. The existing glue_simd_emit_imm_fill_slot_c splats
+  // the f32 pattern. Two minuses cancel, so the second unary does not
+  // xor the sign bit. A third unary is not kind 1 and stays on the
+  // decline below. Bitwise not of a float stays declined. The element
+  // must be f32, the lane size 4, and ta 1. An f64 lane stays declined.
+  // The sign bit is two statements (0x80000000), xored into the f64
+  // high half before the narrow. PLATFORM: MACOS|ARM64.
   f_ref = 0;
   f_ko = 0;
   f_neg = 0;
+  f_in = 0;
+  f_in_k = 0;
   if (ko == 1) {
     f_ref = init_ref;
     f_ko = 1;
@@ -308,6 +315,21 @@ export function glue_emit_vector_type_let_init_elf_c(
       }
       if (f_ko == 1) {
         f_neg = 1;
+      }
+      if (f_ko == 22) {
+        unsafe {
+          f_in = pipeline_expr_unary_operand_ref_at(arena, f_ref);
+        }
+        if (f_in > 0) {
+          unsafe {
+            f_in_k = pipeline_expr_kind_ord_at(arena, f_in);
+          }
+          if (f_in_k == 1) {
+            f_ref = f_in;
+            f_ko = 1;
+            f_neg = 0;
+          }
+        }
       }
     }
   }
