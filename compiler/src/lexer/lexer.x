@@ -4386,7 +4386,7 @@ export function lexer_apply_optional_exponent(l: Lexer, data: u8[], fval: f64, o
       }
     } else {
       while (e > exp) {
-        scale = scale * 0.1;
+        scale = scale / 10.0;
         e = e - 1;
       }
     }
@@ -4776,14 +4776,17 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
     if (l.pos < data.length && data[l.pos] == 46 && lexer_dot_continues_float(data, l.pos) != 0) {
       advance_one(&l, 46);
       let fval: f64 = (ival as f64);
-      let frac: f64 = 0.1;
+      let places: i32 = 0;
+      // Scale with the exact literal 10.0. A 0.1 literal is lexed as 0.0 by
+      // the compiler that builds this file, so frac times 0.1 stored 2.3 as 2.0.
+      // PLATFORM: SHARED.
       // wave277: allow `_` digit separators in float fraction digits.
       while (l.pos < data.length) {
         if ((is_digit(data[l.pos]) != 0)) {
           let d: u8 = data[l.pos];
           advance_one(&l, d);
-          fval = fval + frac * (d - 48);
-          frac = frac * 0.1;
+          fval = fval * 10.0 + ((d - 48) as f64);
+          places = places + 1;
         } else if (lexer_is_digit_sep(data, l.pos, 0) != 0) {
           advance_one(&l, 95);
         } else {
@@ -4799,6 +4802,11 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
         write_tok_into(out, tok_eof_sep);
         out.token_start = start;
         return;
+      }
+      let pi: i32 = 0;
+      while (pi < places) {
+        fval = fval / 10.0;
+        pi = pi + 1;
       }
       // wave274: incomplete exp after fraction → L005 + TOKEN_EOF (not silent exp=0 float).
       // wave275: also covers empty-frac scientific `1.e` / `1.e+` (was host-cc soft residual).
@@ -4883,7 +4891,8 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
         }
       } else {
         while (e > exp) {
-          scale = scale * 0.1;
+          // Divide by exact ten. A one-tenth literal is stored as zero here.
+          scale = scale / 10.0;
           e = e - 1;
         }
       }
@@ -4929,14 +4938,15 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
     let col0: i32 = l.col;
     advance_one(&l, 46);
     let fval: f64 = 0.0;
-    let frac: f64 = 0.1;
+    let ld_places: i32 = 0;
+    // Same ten-scale fold as the digits-before-dot arm. PLATFORM: SHARED.
     // wave277: allow `_` digit separators in float fraction digits.
     while (l.pos < data.length) {
       if ((is_digit(data[l.pos]) != 0)) {
         let d: u8 = data[l.pos];
         advance_one(&l, d);
-        fval = fval + frac * (d - 48);
-        frac = frac * 0.1;
+        fval = fval * 10.0 + ((d - 48) as f64);
+        ld_places = ld_places + 1;
       } else if (lexer_is_digit_sep(data, l.pos, 0) != 0) {
         advance_one(&l, 95);
       } else {
@@ -4952,6 +4962,11 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
         write_tok_into(out, tok_eof_sep);
         out.token_start = start;
         return;
+    }
+    let ld_pi: i32 = 0;
+    while (ld_pi < ld_places) {
+      fval = fval / 10.0;
+      ld_pi = ld_pi + 1;
     }
     // wave274: incomplete exp after leading-dot float → L005 + TOKEN_EOF.
     if (lexer_apply_optional_exponent(l, data, fval, &l, &fval) != 0) {
