@@ -44,7 +44,7 @@ export extern "C" function pipeline_expr_is_null_keyword_c(arena: *u8, expr_ref:
  * and the operand is a non-null INT_LIT, or a unary minus / bitwise
  * not of one, the immediate operand is typechecked with expected 0
  * and this function returns without calling demoted, so the stamp
- * stays. Expected 0 keeps that operand a scalar. A third unary is
+ * stays. Expected 0 keeps that operand a scalar. A fourth unary is
  * not a keep. A missing pre-stamp falls through and let-init coerce
  * stamps the same shape afterwards.
  * PLATFORM: SHARED — same type rule on every host.
@@ -87,7 +87,7 @@ export function typeck_check_expr_unary(
     /*
      * Keep an assign pre-stamp of this unary onto an i32 TYPE_VECTOR.
      * The immediate operand is checked with expected 0 so a lit stays
-     * i32 and a unary of a lit stays a scalar unary. A third unary
+     * i32 and a unary of a lit stays a scalar unary. A fourth unary
      * falls through. Keyword null falls through. Two compares, not a
      * chained &&.
      * PLATFORM: SHARED — element kind is the type rule, not a host ABI.
@@ -100,6 +100,8 @@ export function typeck_check_expr_unary(
       let already_op_k: i32 = 0;
       let already_in: i32 = 0;
       let already_in_k: i32 = 0;
+      let already_deep: i32 = 0;
+      let already_deep_k: i32 = 0;
       if (already > 0) {
         if (already <= ntypes) {
           if (pipeline_type_kind_ord_at(arena, already) == ord_vector) {
@@ -116,11 +118,11 @@ export function typeck_check_expr_unary(
                       }
                     }
                     /*
-                     * One more unary whose operand is a non-null
-                     * INT_LIT. The keep below typechecks op_ref with
-                     * expected 0, so this inner unary stays i32 and
-                     * the vector stamp stays on the outer expr. A
-                     * third unary is not INT_LIT here. LOGNOT does
+                     * One more unary of a non-null INT_LIT, and exactly
+                     * one unary beyond that. The keep below typechecks
+                     * op_ref with expected 0, so the inner unaries stay
+                     * scalar and the vector stamp stays on this expr.
+                     * A fourth unary is not INT_LIT here. LOGNOT does
                      * not set already_keep. PLATFORM: SHARED.
                      */
                     if (already_op_k == ord_neg) {
@@ -134,6 +136,20 @@ export function typeck_check_expr_unary(
                       if (already_in_k == ord_lit) {
                         if (pipeline_expr_is_null_keyword_c(arena, already_in) == 0) {
                           already_keep = 1;
+                        }
+                      }
+                      if (already_in_k == ord_neg) {
+                        already_deep = pipeline_expr_unary_operand_ref_at(arena, already_in);
+                      }
+                      if (already_in_k == ord_bitnot) {
+                        already_deep = pipeline_expr_unary_operand_ref_at(arena, already_in);
+                      }
+                      if (already_deep > 0) {
+                        already_deep_k = pipeline_expr_kind_ord_at(arena, already_deep);
+                        if (already_deep_k == ord_lit) {
+                          if (pipeline_expr_is_null_keyword_c(arena, already_deep) == 0) {
+                            already_keep = 1;
+                          }
                         }
                       }
                     }
