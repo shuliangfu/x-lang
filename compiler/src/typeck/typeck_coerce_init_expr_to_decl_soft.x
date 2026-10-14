@@ -2,9 +2,9 @@
 // Source authority is the i32 TYPE_VECTOR splat in typeck.x. Cap tip -c
 // of that mega emits a hollow mov w0,#0; ret, so this thin is what the
 // link runs. An INT_LIT, unary minus / bitwise not of an INT_LIT, or
-// one or two more unaries of that unary, into a TYPE_VECTOR of i32
-// is stamped with the declared type. A fourth unary calls the demoted
-// body.
+// one, two, or three more unaries of that unary, into a TYPE_VECTOR
+// of i32 is stamped with the declared type. A fifth unary calls the
+// demoted body.
 // PLATFORM: SHARED — type rule is the same on macOS, Ubuntu, and Windows.
 // The demote/retarget step that makes this symbol win is Mach-O only.
 
@@ -28,8 +28,8 @@ export extern "C" function pipeline_expr_set_resolved_type_ref(arena: *u8, expr_
  * Vec8i is kind 13 of i32. Named i32x8 is kind 8 and already passes the
  * soft equality, so `let v: i32x8 = ~1` typechecks. Kind 13 does not, so
  * `let v: Vec8i = ~1` was "expected ?, found i32". The vector let-init
- * already splats INT_LIT, unary -/~ of an INT_LIT, and exactly one
- * more unary -/~ of that unary, or one unary beyond that. A fourth
+ * already splats INT_LIT, unary -/~ of an INT_LIT, and one, two, or
+ * three more unary -/~ of that unary. A fifth
  * unary, a variable, a binop,
  * keyword null, and a float vector stay on the demoted body.
  * Two compares, not a chained && : the bootstrap image clobbers the
@@ -58,6 +58,8 @@ export function typeck_coerce_init_expr_to_decl(
     let inner_k: i32 = 0;
     let deep_ref: i32 = 0;
     let deep_k: i32 = 0;
+    let quad_ref: i32 = 0;
+    let quad_k: i32 = 0;
     let ntypes: i32 = 0;
     if (arena == 0 as *u8 || init_ref <= 0 || decl_ty_ref <= 0) {
       return typeck_coerce_init_expr_to_decl__demoted(
@@ -99,11 +101,11 @@ export function typeck_coerce_init_expr_to_decl(
                 }
               }
               /*
-               * One more unary of a non-null INT_LIT, and exactly one
-               * unary beyond that: ~(-3) and ~(~(-3)). A fourth unary
-               * is kind 22 or 23 at the deepest operand, not INT_LIT,
-               * so it stays unstamped. The emitter folds four and
-               * declines five. VAR, binop, CALL, keyword null, and
+               * One more unary of a non-null INT_LIT, and one or two
+               * unaries beyond that: ~(-3), ~(~(-3)), and ~(~(~(-3))).
+               * A fifth unary is kind 22 or 23 at the deepest operand,
+               * not INT_LIT, so it stays unstamped. The emitter folds
+               * four and declines five. VAR, binop, CALL, keyword null, and
                * LOGNOT stay off. PLATFORM: SHARED.
                */
               if (op_k == ord_neg) {
@@ -130,6 +132,20 @@ export function typeck_coerce_init_expr_to_decl(
                   if (deep_k == ord_lit) {
                     if (pipeline_expr_is_null_keyword_c(arena, deep_ref) == 0) {
                       splat_ok = 1;
+                    }
+                  }
+                  if (deep_k == ord_neg) {
+                    quad_ref = pipeline_expr_unary_operand_ref_at(arena, deep_ref);
+                  }
+                  if (deep_k == ord_bitnot) {
+                    quad_ref = pipeline_expr_unary_operand_ref_at(arena, deep_ref);
+                  }
+                  if (quad_ref > 0) {
+                    quad_k = pipeline_expr_kind_ord_at(arena, quad_ref);
+                    if (quad_k == ord_lit) {
+                      if (pipeline_expr_is_null_keyword_c(arena, quad_ref) == 0) {
+                        splat_ok = 1;
+                      }
                     }
                   }
                 }
