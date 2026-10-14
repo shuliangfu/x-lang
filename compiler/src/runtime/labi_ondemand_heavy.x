@@ -2451,6 +2451,9 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
                     let _feg: i32 = xlang_ensure_formal_std_make_o(rt15, "std/compress/gzip/gzip.o", "../std/compress/gzip/gzip.o");
                     let _fezs: i32 = xlang_ensure_formal_std_make_o(rt15, "std/compress/zstd/zstd.o", "../std/compress/zstd/zstd.o");
                     let _febr: i32 = xlang_ensure_formal_std_make_o(rt15, "std/compress/brotli/brotli.o", "../std/compress/brotli/brotli.o");
+                    // gzip/zstd/brotli call core.mem. User.o does not.
+                    // PLATFORM: SHARED — same companion as queue → mem.o.
+                    let _fem: i32 = xlang_ensure_formal_std_make_o(rt15, "core/mem/mem.o", "../core/mem/mem.o");
                   }
                 }
               }
@@ -2578,11 +2581,17 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
               let grel: *u8 = "std/compress/gzip/gzip.o";
               let zsrel: *u8 = "std/compress/zstd/zstd.o";
               let brrel: *u8 = "std/compress/brotli/brotli.o";
+              // gzip/zstd/brotli undef core_mem_mem_zero / core_mem_mem_compare.
+              // The earlier core_mem gate only scans user.o, which names
+              // std_compress_* and not core.mem. Push the formal object here.
+              // PLATFORM: SHARED — same companion as queue → mem.o.
+              let mrel: *u8 = labi_od_rel_core_mem();
               unsafe {
                 let _pz: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, zrel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
                 let _pg: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, grel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
                 let _pzs: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, zsrel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
                 let _pbr: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, brrel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+                let _pmem: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, mrel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
               }
             }
             // PLATFORM: SHARED — g12 std.test monofile C dual companions

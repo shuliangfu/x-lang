@@ -1820,6 +1820,10 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
                                                         "../std/compress/zstd/zstd.o");
                     (void)xlang_ensure_formal_std_make_o(include_root, "std/compress/brotli/brotli.o",
                                                         "../std/compress/brotli/brotli.o");
+                    /* gzip/zstd/brotli call core.mem. User.o does not.
+                     * PLATFORM: SHARED — same companion as queue → mem.o. */
+                    (void)xlang_ensure_formal_std_make_o(include_root, "core/mem/mem.o",
+                                                        "../core/mem/mem.o");
                 }
                 link_abi_asm_ld_push_obj(NULL, link_argv0, "std/compress/zlib/zlib.o", lib_roots, n_lib_roots,
                                          bank, argv, la, max_la, NULL);
@@ -1828,6 +1832,10 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
                 link_abi_asm_ld_push_obj(NULL, link_argv0, "std/compress/zstd/zstd.o", lib_roots, n_lib_roots,
                                          bank, argv, la, max_la, NULL);
                 link_abi_asm_ld_push_obj(NULL, link_argv0, "std/compress/brotli/brotli.o", lib_roots, n_lib_roots,
+                                         bank, argv, la, max_la, NULL);
+                /* gzip/zstd/brotli U core_mem_mem_zero / core_mem_mem_compare.
+                 * User.o only U std_compress_*. PLATFORM: SHARED. */
+                link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_core_mem(), lib_roots, n_lib_roots,
                                          bank, argv, la, max_la, NULL);
                 /* Glue + -lz stay in asm_ld_append_compress_libs (needs_zlib).
                  * Do not push runtime_compress_zlib_glue.o here (duplicate T). */
