@@ -90,6 +90,7 @@ export extern function glue_field_access_field_type_ref_c(arena: *u8, mod: *u8, 
 export extern function pipeline_asm_emit_module_ref_c(): *u8;
 export extern function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 export extern function pipeline_asm_emit_var_field_access_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function pipeline_asm_emit_field_access_elf_fast_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 export extern function glue_field_access_emit_scalar_load_from_rax_elf_c(elf_ctx: *u8, load_sz: i32, ta: i32): i32;
 export extern function pipeline_expr_field_access_load_byte_sz(arena: *u8, mod: *u8, expr_ref: i32): i32;
 export extern function pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx: *u8, ta: i32): i32;
@@ -713,6 +714,19 @@ export function pipeline_asm_emit_expr_elf_rec(arena: *u8, elf_ctx: *u8, expr_re
     /* 256/10.2: ordinary struct field load via Cap residual var_field. */
     unsafe {
       pipe_store_i32_le(&cell_r[0], 0, pipeline_asm_emit_var_field_access_elf_c(arena, elf_ctx, expr_ref, ctx, ta));
+    }
+    r = w495_cell_i32(&cell_r[0]);
+    if (r != (0 - 99)) {
+      return r;
+    }
+    // var_field accepts only a VAR base. An INDEX base such as r[i].a on
+    // a [N]Pair returns -99. The slow stub then returns 0 and writes no
+    // instruction, so the low half of the previous store becomes the
+    // result. The existing field fast path already forms that address
+    // (lvalue of the INDEX, then the field offset) and scalar-loads it.
+    // -99 stays on the slow stub. PLATFORM: SHARED.
+    unsafe {
+      pipe_store_i32_le(&cell_r[0], 0, pipeline_asm_emit_field_access_elf_fast_c(arena, elf_ctx, expr_ref, ctx, ta));
     }
     r = w495_cell_i32(&cell_r[0]);
     if (r != (0 - 99)) {
