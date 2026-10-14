@@ -1391,11 +1391,21 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
                                                         "../std/error/error.o");
                     (void)xlang_ensure_formal_std_make_o(include_root, "std/context/context.o",
                                                         "../std/context/context.o");
+                    /* PLATFORM: SHARED — net/mod.o read_ctx and write_ctx call
+                     * std_io_driver_submit_read / submit_write. Bodies live on
+                     * std/io/driver.o (simple group 16). User.o only references
+                     * std_net_*, so group 16 does not fire. G.7: same need_net
+                     * companion as error/context. push_obj dedups a later
+                     * group-16 hit. Do not add a second driver table. */
+                    (void)xlang_ensure_formal_std_make_o(include_root, "std/io/driver.o",
+                                                        "../std/io/driver.o");
                 }
                 link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_error(), lib_roots, n_lib_roots,
                                          bank, argv, la, max_la, NULL);
                 link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_context(), lib_roots, n_lib_roots,
                                          bank, argv, la, max_la, NULL);
+                link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_simple_group_rel(16),
+                                         lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
                 link_abi_asm_ld_push_glue_after_std(1, xlang_ensure_runtime_atomic_glue_o,
                     xlang_runtime_atomic_glue_o_path(link_argv0), link_argv0,
                     labi_od_rel_atomic_glue(), lib_roots, n_lib_roots, bank, argv, la, max_la);

@@ -1589,14 +1589,23 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
             unsafe {
               let _fe_err: i32 = xlang_ensure_formal_std_make_o(root_net, "std/error/error.o", "../std/error/error.o");
               let _fe_ctx: i32 = xlang_ensure_formal_std_make_o(root_net, "std/context/context.o", "../std/context/context.o");
+              // PLATFORM: SHARED — net/mod.o read_ctx and write_ctx call
+              // std_io_driver_submit_read / submit_write. Those bodies already
+              // live on std/io/driver.o (simple group 16). The user object only
+              // references std_net_*, so group 16 does not fire. G.7: same
+              // need_net companion as error/context. push_obj dedups a later
+              // group-16 hit. Do not add a second driver table.
+              let _fe_drv: i32 = xlang_ensure_formal_std_make_o(root_net, "std/io/driver.o", "../std/io/driver.o");
             }
           }
         }
         let rel_err: *u8 = labi_od_rel_error();
         let rel_ctx: *u8 = labi_od_rel_context();
+        let rel_drv: *u8 = labi_od_simple_group_rel(16);
         unsafe {
           let _pe: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rel_err, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
           let _pc: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rel_ctx, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+          let _pd: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rel_drv, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
         }
         // context.o U atomic_*_i32_c + time_now_monotonic_ns_c (≡ invoke_cc need_context).
         let er_ag: i32 = 0;
