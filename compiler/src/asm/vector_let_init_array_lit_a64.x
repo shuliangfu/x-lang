@@ -30,9 +30,12 @@
 // Declining the block stored neg of lane 0 for `let n = unsafe { -*p }`
 // and left lane 0 of `let n = unsafe { [1, 2, 3, 4] }` unequal to 1.
 // Bare VAR and bare DEREF still return -3 after the peel. f32, a lane
-// size other than 4, a vector wider than
-// 16, and a negative immediate with lane size 8 still return -3 (neg
-// w0 is 32-bit; the fill zero-extends). Bare CALL and VAR copy still
+// size other than 4, and a negative immediate with lane size 8 still
+// return -3 (neg w0 is 32-bit; the fill zero-extends). A VAR or an
+// ARRAY_LIT under minus may be wider than 16 when each lane is 4
+// bytes: the lane home and the lane-byte writer already cover every
+// lane. FIELD, a lane binop, CALL, METHOD, INDEX, and DEREF under
+// minus stay declined past 16 bytes. Bare CALL and VAR copy still
 // return -3.
 // A non-SIMD type still returns
 // -3: a hollow 0 short-circuits VAR try_let (scalar i=i+1 / empty while).
@@ -108,9 +111,11 @@ export extern function backend_enc_store_rax_to_rbx_offset_arch(
  * its value expr first, using glue_expr_block_transparent_value_ref_at,
  * at most four times. Kind 22 of an ARRAY_LIT (kind 46) stores that literal
  * with pipeline_asm_emit_vector_let_init_elf_c, then negates each
- * destination lane in place. f32, a lane size other
- * than 4, a vector wider than 16, and a negative pattern whose lane is
- * 8 bytes stay declined: neg w0 is 32-bit and the fill zero-extends.
+ * destination lane in place. f32, a lane size other than 4, and a
+ * negative pattern whose lane is 8 bytes stay declined: neg w0 is
+ * 32-bit and the fill zero-extends. A VAR or an ARRAY_LIT whose lanes
+ * are 4 bytes may be wider than 16. FIELD, a lane binop, CALL, METHOD,
+ * INDEX, and DEREF stay declined past 16 bytes.
  * Bare CALL and VAR copy stay declined.
  * PLATFORM: MACOS|ARM64.
  */
@@ -260,8 +265,27 @@ export function glue_emit_vector_type_let_init_elf_c(
       unsafe {
         rc = glue_vector_type_lanes_esz_c(arena, type_ref, &lanes_s[0], &esz_s[0]);
       }
-      if (rc != 0 || esz_s[0] != 4 || lanes_s[0] <= 0 || (lanes_s[0] * esz_s[0]) > 16) {
+      // Lane size other than 4 stays declined: neg w0 is 32-bit.
+      // Binop, CALL, METHOD, INDEX, and DEREF writers store 16 bytes,
+      // so a wider vector would negate lanes past that store. FIELD
+      // wider than 16 stays declined: `let n: i32x8 = h.v` is still
+      // exit 11, and that copy is not this arm. VAR uses the existing
+      // lane home (slot + lane * 4). ARRAY_LIT uses the existing
+      // lane-byte writer, which already stores every element.
+      // Declining those two left `let v: i32x8 = -a` as neg w0 of the
+      // address of a, and lane 0 of
+      // `let v: i32x8 = -[1, 2, 3, 4, 5, 6, 7, 8]` was not -1.
+      // PLATFORM: MACOS|ARM64.
+      if (rc != 0 || esz_s[0] != 4 || lanes_s[0] <= 0) {
         return 0 - 3;
+      }
+      if ((lanes_s[0] * esz_s[0]) > 16) {
+        if (from_dest != 0 && from_dest != 3) {
+          return 0 - 3;
+        }
+        if (from_dest == 0 && op_ko != 3) {
+          return 0 - 3;
+        }
       }
       if (from_dest == 1) {
         unsafe {
