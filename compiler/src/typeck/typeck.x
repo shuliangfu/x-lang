@@ -10319,7 +10319,7 @@ decl_ty_ref: i32): i32 {
                  * One more unary of a non-null INT_LIT, and exactly
                  * one unary beyond that. A fourth unary is kind 22 or
                  * 23 at the deepest operand, not INT_LIT, so it stays
-                 * unstamped. The emitter folds three and declines four.
+                 * unstamped. The emitter folds four and declines five.
                  * PLATFORM: SHARED.
                  */
                 if (op_k == 22) {
@@ -11683,7 +11683,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                      * One more unary of a non-null INT_LIT, and exactly
                      * one unary beyond that, still only a VAR or a
                      * FIELD. A fourth unary stays unstamped. The emitter
-                     * folds three and declines four. PLATFORM: SHARED.
+                     * folds four and declines five. PLATFORM: SHARED.
                      */
                     if (splat_op_k == 22) {
                       splat_in = pipeline_expr_unary_operand_ref_at(arena, splat_op);

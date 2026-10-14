@@ -161,7 +161,7 @@ export function typeck_check_expr_assign(
                      * one unary beyond that, still only a VAR or a
                      * FIELD. A fourth unary, an i32 variable, a binop,
                      * keyword null, and LOGNOT stay unstamped. The
-                     * emitter folds three and declines four.
+                     * emitter folds four and declines five.
                      * PLATFORM: SHARED.
                      */
                     if (op_k == ord_neg) {

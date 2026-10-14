@@ -102,8 +102,8 @@ export function typeck_coerce_init_expr_to_decl(
                * One more unary of a non-null INT_LIT, and exactly one
                * unary beyond that: ~(-3) and ~(~(-3)). A fourth unary
                * is kind 22 or 23 at the deepest operand, not INT_LIT,
-               * so it stays unstamped. The emitter folds three and
-               * declines four. VAR, binop, CALL, keyword null, and
+               * so it stays unstamped. The emitter folds four and
+               * declines five. VAR, binop, CALL, keyword null, and
                * LOGNOT stay off. PLATFORM: SHARED.
                */
               if (op_k == ord_neg) {
