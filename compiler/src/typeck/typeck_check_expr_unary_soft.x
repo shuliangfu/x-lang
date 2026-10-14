@@ -3,8 +3,10 @@
 // Cap tip -c of that mega emits a hollow mov w0,#0; ret, so this thin
 // is what the link runs. Unary minus of TYPE_VECTOR (kind 13) is
 // accepted here. Bitwise not of a TYPE_VECTOR is accepted only when
-// the element kind is i32 (kind 0): Vec8i. Vec4f is kind 13 of f32
-// and stays on the demoted body, as does logical not.
+// the element kind is i32 (kind 0): Vec8i. Vec4f bitwise not stays on
+// the demoted body, as does logical not. An assign pre-stamp of one
+// unary minus of a FLOAT_LIT onto a TYPE_VECTOR of f32 is kept. A
+// second unary of that float is not a keep.
 // PLATFORM: SHARED — type rule is the same on macOS, Ubuntu, and Windows.
 // The demote/retarget step that makes this symbol win is Mach-O only.
 
@@ -45,7 +47,9 @@ export extern "C" function pipeline_expr_is_null_keyword_c(arena: *u8, expr_ref:
  * unaries of one, the immediate operand is typechecked with expected 0
  * and this function returns without calling demoted, so the stamp
  * stays. Expected 0 keeps that operand a scalar. A seventh unary is
- * not a keep. A missing pre-stamp falls through and let-init coerce
+ * not a keep. A TYPE_VECTOR of f32 keeps one unary minus whose operand
+ * is a FLOAT_LIT. A second unary and a bitwise not are not a keep.
+ * A missing pre-stamp falls through and let-init coerce
  * stamps the same shape afterwards.
  * PLATFORM: SHARED — same type rule on every host.
  */
@@ -211,6 +215,24 @@ export function typeck_check_expr_unary(
                             }
                           }
                         }
+                      }
+                    }
+                  }
+                }
+                /*
+                 * TYPE_VECTOR of f32. Assign pre-stamps one unary minus
+                 * of a FLOAT_LIT. Kind 22 and kind 1 are separate
+                 * compares. A second unary stays kind 22, so it is not
+                 * kept. Bitwise not stays off. The keep below still
+                 * typechecks the operand with expected 0.
+                 * PLATFORM: SHARED.
+                 */
+                if (already_ek == 14) {
+                  if (expr_kind == ord_neg) {
+                    if (op_ref > 0) {
+                      already_op_k = pipeline_expr_kind_ord_at(arena, op_ref);
+                      if (already_op_k == 1) {
+                        already_keep = 1;
                       }
                     }
                   }

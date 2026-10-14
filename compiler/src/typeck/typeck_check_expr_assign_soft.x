@@ -5,7 +5,11 @@
 // unary minus / bitwise not of an INT_LIT, or of one, two, three, or
 // five more unaries of that unary, onto a TYPE_VECTOR of i32 stamps the RHS
 // with the LHS type, then calls the demoted body. A seventh unary
-// calls the demoted body with no stamp.
+// calls the demoted body with no stamp. A TYPE_VECTOR of f32 also
+// stamps one unary minus of a FLOAT_LIT when the LHS is a VAR or a
+// FIELD. A bare FLOAT_LIT is not stamped: the float-lit checker still
+// overwrites a resolved type with f64. A second unary and a bitwise
+// not call the demoted body with no stamp.
 // Every other assign calls the demoted body with no stamp.
 // PLATFORM: SHARED — type rule is the same on macOS, Ubuntu, and Windows.
 // The demote/retarget step that makes this symbol win is Mach-O only.
@@ -46,8 +50,12 @@ export extern "C" function pipeline_expr_set_resolved_type_ref(arena: *u8, expr_
  * `h.v = ~(-3)` on Vec8i is the same splat as `v = ~(-3)`.
  * Keyword null stays unstamped. Unary minus / bitwise not of an
  * INT_LIT, and one more unary of that, is stamped for a VAR or a
- * FIELD. A seventh unary, a binop, LOGNOT, compound assign, deref, and
- * a float vector are not stamped. A failed LHS check does not call
+ * FIELD. A seventh unary, a binop, LOGNOT, compound assign, and deref
+ * are not stamped. A TYPE_VECTOR of f32 stamps one unary minus of a
+ * FLOAT_LIT for a VAR or a FIELD. A bare FLOAT_LIT is not stamped,
+ * because the float-lit checker overwrites a resolved type with f64.
+ * A second unary and a bitwise not of that float are not stamped.
+ * A failed LHS check does not call
  * demoted, so the diagnostic is not emitted twice.
  * Two compares, not a chained && : the bootstrap image clobbers the
  * register a chained compare reuses.
@@ -275,6 +283,38 @@ export function typeck_check_expr_assign(
                             }
                           }
                         }
+                      }
+                    }
+                  }
+                }
+              }
+              /*
+               * TYPE_VECTOR of f32 (Vec4f). One unary minus of a
+               * FLOAT_LIT, on a VAR or a FIELD, is the splat the
+               * let-init already fills. Kind 22 and kind 1 are
+               * separate compares. A bare FLOAT_LIT is not stamped:
+               * typeck_check_expr_float_lit overwrites any resolved
+               * type with f64. A second unary stays kind 22. Bitwise
+               * not stays off. An i32 element does not enter.
+               * PLATFORM: SHARED.
+               */
+              if (elem_k == 14) {
+                let fop: i32 = 0;
+                let fop_k: i32 = 0;
+                if (right_ref > 0) {
+                  lhs_kind = pipeline_expr_kind_ord_at(arena, left_ref);
+                  rhs_kind = pipeline_expr_kind_ord_at(arena, right_ref);
+                  if (rhs_kind == ord_neg) {
+                    fop = pipeline_expr_unary_operand_ref_at(arena, right_ref);
+                  }
+                  if (fop > 0) {
+                    fop_k = pipeline_expr_kind_ord_at(arena, fop);
+                    if (fop_k == 1) {
+                      if (lhs_kind == ord_var) {
+                        splat_ok = 1;
+                      }
+                      if (lhs_kind == ord_field) {
+                        splat_ok = 1;
                       }
                     }
                   }
