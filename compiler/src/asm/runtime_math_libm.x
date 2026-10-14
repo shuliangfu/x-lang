@@ -84,6 +84,11 @@ export extern "C" function math_fenv_mask_to_fe_impl(mask: i32): i32;
 export extern "C" function math_fenv_fe_to_mask_impl(fe: i32): i32;
 export extern "C" function math_fenv_emit_cap_report_impl(avail: i32): void;
 
+// Hosted byte copy. A store through a punned *u64 is a deref assign, and
+// this compiler does not emit that assign, so floor and ceil publish the
+// truncated bits with memcpy. PLATFORM: SHARED — libc memcpy on the product link.
+extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+
 // === forward declarations for thin functions (called by rest/smoke) ===
 
 export function math_special_near(a: f64, b: f64, eps: f64): i32;
@@ -146,7 +151,9 @@ export function math_special_near(a: f64, b: f64, eps: f64): i32 {
  * clear the low (1075 - e) mantissa bits (truncation toward zero via pure
  * bit subtraction — no borrow), then step one more unit away from zero
  * (f64 subtract/add of 1.0 is exact for every non-integral |x| < 2^52).
- * PLATFORM: SHARED freestanding (no libm).
+ * The truncated bits are copied into v with memcpy. A store through the
+ * punned pointer is not emitted.
+ * PLATFORM: SHARED — no libm; hosted C memcpy on the product link.
  */
 #[no_mangle]
 export function math_floor_c(x: f64): f64 {
@@ -185,7 +192,8 @@ export function math_floor_c(x: f64): f64 {
     return v;
   }
   let t_bits: u64 = bits - (bits & frac_mask);
-  unsafe { *p = t_bits; }
+  // Copy 8 bytes into v. *p = t_bits does not store through p.
+  unsafe { memcpy(&v as *u8, &t_bits as *u8, 8); }
   // Negative non-integer: floor moves one unit toward -inf.
   if ((bits & sign_bit) != 0) {
     return v - 1.0;
@@ -200,7 +208,8 @@ export function math_floor_c(x: f64): f64 {
  *               x unchanged for integers, +-inf and NaN
  * Bit-level mirror of math_floor_c: truncation by mantissa masking, then
  * positive non-integers step one unit toward +inf (exact f64 add of 1.0).
- * PLATFORM: SHARED freestanding (no libm).
+ * The truncated bits are copied into v with memcpy, same as math_floor_c.
+ * PLATFORM: SHARED — no libm; hosted C memcpy on the product link.
  */
 #[no_mangle]
 export function math_ceil_c(x: f64): f64 {
@@ -237,7 +246,8 @@ export function math_ceil_c(x: f64): f64 {
     return v;
   }
   let t_bits: u64 = bits - (bits & frac_mask);
-  unsafe { *p = t_bits; }
+  // Copy 8 bytes into v. *p = t_bits does not store through p.
+  unsafe { memcpy(&v as *u8, &t_bits as *u8, 8); }
   // Positive non-integer: ceil moves one unit toward +inf.
   if ((bits & sign_bit) == 0) {
     return v + 1.0;
