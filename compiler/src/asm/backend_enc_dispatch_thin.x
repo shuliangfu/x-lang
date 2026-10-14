@@ -1383,15 +1383,22 @@ export function backend_enc_store_rax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta:
   return 0 - 1;
 }
 
-/** Exported function `backend_enc_load_rbp_to_rax_arch`.
- * Implements `backend_enc_load_rbp_to_rax_arch`.
- * @param elf_ctx *u8
- * @param offset i32
- * @param ta i32
- * @return i32
+/**
+ * Load the frame slot at offset into rax (x0).
+ *
+ * Drops the binop VAR-slot rax belief first. The load overwrites rax,
+ * and a later operand must not skip its reload. Callers that want the
+ * new belief call glue_binop_var_slot_cache_set_rax after this returns.
+ * PLATFORM: SHARED — cache is compiler state. Twin of the full dispatch.
+ *
+ * @param elf_ctx *u8 — code buffer
+ * @param offset i32 — frame slot offset
+ * @param ta i32 — 0 x86_64, 1 arm64, 2 riscv64
+ * @return i32 — 0 when the load is emitted, -1 on encode failure
  */
 #[no_mangle]
 export function backend_enc_load_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
+  unsafe { glue_binop_var_slot_cache_invalidate_rax(); }
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_load_rbp_to_rax(elf_ctx, offset); }
   }
@@ -2813,15 +2820,24 @@ export function backend_enc_sub_imm_from_rbx_index_arch(elf_ctx: *u8, imm: i32, 
   return 0 - 1;
 }
 
-/** Exported function `backend_enc_load_rbp_to_rbx_arch`.
- * Implements `backend_enc_load_rbp_to_rbx_arch`.
- * @param elf_ctx *u8
- * @param offset i32
- * @param ta i32
- * @return i32
+/**
+ * Load the frame slot at offset into rbx (x1).
+ *
+ * Drops the binop VAR-slot rbx belief first. The load overwrites rbx.
+ * A restoring add that still believed rbx held the previous right-hand
+ * slot skipped its reload and added the wrong value. Callers that want
+ * the new belief call glue_binop_var_slot_cache_set_rbx after this
+ * returns. PLATFORM: SHARED — cache is compiler state. Twin of the full
+ * dispatch.
+ *
+ * @param elf_ctx *u8 — code buffer
+ * @param offset i32 — frame slot offset
+ * @param ta i32 — 0 x86_64, 1 arm64, 2 riscv64
+ * @return i32 — 0 when the load is emitted, -1 on encode failure
  */
 #[no_mangle]
 export function backend_enc_load_rbp_to_rbx_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
+  unsafe { glue_binop_var_slot_cache_invalidate_rbx(); }
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_load_rbp_to_rbx(elf_ctx, offset); }
   }

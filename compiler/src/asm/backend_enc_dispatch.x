@@ -1285,16 +1285,25 @@ export function backend_enc_store_rax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta:
 }
 
 // backend_enc_load_rbp_to_rax_arch: see function docblock below.
-/** Exported function `backend_enc_load_rbp_to_rax_arch`.
- * Implements `backend_enc_load_rbp_to_rax_arch`.
- * @param elf_ctx *u8
- * @param offset i32
- * @param ta i32
- * @return i32
+/**
+ * Load the frame slot at offset into rax (x0).
+ *
+ * The load overwrites rax. The binop VAR-slot cache may still say rax
+ * holds an earlier slot, so a later operand skips its reload and uses
+ * this slot's bits. Drop the rax belief before the load. A caller that
+ * wants the new belief calls glue_binop_var_slot_cache_set_rax after
+ * this returns. PLATFORM: SHARED — the cache is compiler state, not a
+ * guest instruction.
+ *
+ * @param elf_ctx *u8 — code buffer
+ * @param offset i32 — frame slot offset
+ * @param ta i32 — 0 x86_64, 1 arm64, 2 riscv64
+ * @return i32 — 0 when the load is emitted, -1 on encode failure
  */
 #[no_mangle]
 export function backend_enc_load_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
-  // See implementation.
+  // Frame load clobbers rax. Keep the binop slot cache from reusing it.
+  unsafe { glue_binop_var_slot_cache_invalidate_rax(); }
   unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_load_rbp_to_rax(elf_ctx, offset); }
   if (ta == 2) { return arch_riscv64_enc_enc_load_rbp_to_rax(elf_ctx, offset); }
@@ -2258,16 +2267,27 @@ export function backend_enc_load_i32_indirect_to_rax_arch(elf_ctx: *u8, ta: i32)
 }
 
 // backend_enc_load_rbp_to_rbx_arch: see function docblock below.
-/** Exported function `backend_enc_load_rbp_to_rbx_arch`.
- * Implements `backend_enc_load_rbp_to_rbx_arch`.
- * @param elf_ctx *u8
- * @param offset i32
- * @param ta i32
- * @return i32
+/**
+ * Load the frame slot at offset into rbx (x1).
+ *
+ * The load overwrites rbx. The binop VAR-slot cache may still say rbx
+ * holds an earlier slot. The next binop then skips its reload. A
+ * restoring step `q = q + rb` after `ix0u = ix0u - t` added the old
+ * ix0u instead of rb, so an odd-exponent square root assembled the
+ * wrong high half. Drop the rbx belief before the load. A caller that
+ * wants the new belief calls glue_binop_var_slot_cache_set_rbx after
+ * this returns. PLATFORM: SHARED — the cache is compiler state, not a
+ * guest instruction.
+ *
+ * @param elf_ctx *u8 — code buffer
+ * @param offset i32 — frame slot offset
+ * @param ta i32 — 0 x86_64, 1 arm64, 2 riscv64
+ * @return i32 — 0 when the load is emitted, -1 on encode failure
  */
 #[no_mangle]
 export function backend_enc_load_rbp_to_rbx_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
-  // See implementation.
+  // Frame load clobbers rbx. Keep the binop slot cache from reusing it.
+  unsafe { glue_binop_var_slot_cache_invalidate_rbx(); }
   unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_load_rbp_to_rbx(elf_ctx, offset); }
   if (ta == 2) { return arch_riscv64_enc_enc_load_rbp_to_rbx(elf_ctx, offset); }
