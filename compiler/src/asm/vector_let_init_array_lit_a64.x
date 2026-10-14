@@ -4,9 +4,12 @@
 // Darwin body of glue_emit_vector_type_let_init_elf_c.
 // Kind 46 calls the existing lane-byte writer. Kinds 4..13 (51 counts
 // as add) call the existing per-lane binop writer. INT_LIT (0) and
-// BOOL_LIT (2) call the existing lane-imm fill. Declining a scalar lit
-// made the caller store x0 and the untouched x1 as a 16-byte pair, so
-// lanes past the first 8 bytes stayed garbage. VAR copy and
+// BOOL_LIT (2) call the existing lane-imm fill. EXPR_NEG (22) over an
+// INT_LIT is the parser form of `-3`: negate that literal and splat
+// with the same fill. Declining it stored `neg w0` (zero-extended x0)
+// plus the untouched x1, so lane 1 of i32x4 = -3 was 0. NEG of a
+// non-literal, and a negative pattern with lane size 8, still return
+// -3 (the fill zero-extends a 32-bit immediate). VAR copy and
 // CALL/METHOD still return -3. A non-SIMD type still returns -3: a
 // hollow 0 short-circuits VAR try_let (scalar i=i+1 / empty while).
 // Windows keeps seeds/win_vector_type_let_init_override.c. Do not link
@@ -24,6 +27,7 @@ export extern function pipeline_asm_emit_vector_binop_let_init_elf_c(
   stack_slot_off: i32, type_ref: i32
 ): i32;
 export extern function pipeline_expr_int_val_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function glue_vector_type_lanes_esz_c(
   arena: *u8, type_ref: i32, out_lanes: *i32, out_esz: *i32
 ): i32;
@@ -40,13 +44,17 @@ export extern function glue_simd_emit_imm_fill_slot_c(
  * @param ta i32 — 0 x86, 1 arm64
  * @param stack_slot_off i32 — destination slot of lane 0
  * @param type_ref i32 — let type; not a SIMD vector spelling returns -3
- * @return i32 — 0 when kind 46, a lane binop, or a scalar lit is
- *   stored; -1 when that store fails; -3 when this face does not
- *   handle the expr
+ * @return i32 — 0 when kind 46, a lane binop, a scalar lit, or
+ *   unary-minus of an integer lit is stored; -1 when that store fails;
+ *   -3 when this face does not handle the expr
  * Kind 46 (ARRAY_LIT) calls pipeline_asm_emit_vector_let_init_elf_c.
  * Kinds 4..13 call pipeline_asm_emit_vector_binop_let_init_elf_c
  * (kind 51 is add). Kind 0 (INT_LIT) and kind 2 (BOOL_LIT) call
- * glue_simd_emit_imm_fill_slot_c. VAR copy and CALL/METHOD stay declined.
+ * glue_simd_emit_imm_fill_slot_c. Kind 22 (EXPR_NEG) of an INT_LIT
+ * negates that value and calls the same fill. NEG of a non-literal,
+ * and a negative pattern whose lane is 8 bytes, stay declined: the
+ * fill zero-extends the 32-bit immediate. VAR copy and CALL/METHOD
+ * stay declined.
  * PLATFORM: MACOS|ARM64.
  */
 #[no_mangle]
@@ -60,6 +68,9 @@ export function glue_emit_vector_type_let_init_elf_c(
   let imm: i32 = 0;
   let lanes_s: i32[1] = [];
   let esz_s: i32[1] = [];
+  let lit_ref: i32 = 0;
+  let op_ko: i32 = 0;
+  let neg_lit: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || init_ref <= 0) {
     return 0 - 3;
   }
@@ -92,15 +103,43 @@ export function glue_emit_vector_type_let_init_elf_c(
     return rc;
   }
   // EXPR_INT_LIT = 0, EXPR_BOOL_LIT = 2. Splat the i32 into every lane.
-  // A decline stores x0 plus untouched x1 (16 bytes). Lane 2 of i32x4 = 0
-  // is then garbage. FLOAT_LIT stays declined.
+  // EXPR_NEG = 22 over an INT_LIT is the parser form of `-3`. Negate
+  // that literal and splat with the same fill. A decline stores
+  // zero-extended `neg w0` plus untouched x1, so lane 1 of i32x4 = -3
+  // is 0. NEG of a non-literal stays declined. FLOAT_LIT stays declined.
+  // Lane size 8 of a negative pattern stays declined: the fill
+  // zero-extends the 32-bit immediate, which is not a negative i64.
   if (ko == 0 || ko == 2) {
+    lit_ref = init_ref;
+  }
+  if (ko == 22) {
     unsafe {
-      imm = pipeline_expr_int_val_at(arena, init_ref);
+      lit_ref = pipeline_expr_unary_operand_ref_at(arena, init_ref);
+    }
+    if (lit_ref <= 0) {
+      return 0 - 3;
+    }
+    unsafe {
+      op_ko = pipeline_expr_kind_ord_at(arena, lit_ref);
+    }
+    if (op_ko != 0) {
+      return 0 - 3;
+    }
+    neg_lit = 1;
+  }
+  if (lit_ref > 0) {
+    unsafe {
+      imm = pipeline_expr_int_val_at(arena, lit_ref);
       rc = glue_vector_type_lanes_esz_c(arena, type_ref, &lanes_s[0], &esz_s[0]);
     }
     if (rc != 0 || lanes_s[0] <= 0) {
       return 0 - 1;
+    }
+    if (neg_lit != 0) {
+      imm = 0 - imm;
+      if (esz_s[0] == 8 && imm < 0) {
+        return 0 - 3;
+      }
     }
     unsafe {
       rc = glue_simd_emit_imm_fill_slot_c(
