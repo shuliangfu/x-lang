@@ -11814,8 +11814,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
  * once more. Six minuses cancel again. Seven minuses apply the sign
  * once more. Eight minuses cancel again. Nine minuses apply the sign
  * once more. Ten minuses cancel again. Eleven minuses apply the sign
- * once more. Twelve minuses cancel again. The float-lit checker keeps an
- * already-resolved type. A thirteenth unary and a bitwise not stay
+ * once more. Twelve minuses cancel again. Thirteen minuses apply the
+ * sign once more. The float-lit checker keeps an
+ * already-resolved type. A fourteenth unary and a bitwise not stay
  * unstamped. The linked body
  * is the assign thin;
  * this function is the source authority.
@@ -11995,8 +11996,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      * Seven minuses apply the sign once more. Eight minuses cancel
      * again. Nine minuses apply the sign once more. Ten minuses cancel
      * again. Eleven minuses apply the sign once more. Twelve minuses
-     * cancel again. The float-lit
-     * checker keeps an already-resolved type. A thirteenth unary and a
+     * cancel again. Thirteen minuses apply the sign once more. The
+     * float-lit
+     * checker keeps an already-resolved type. A fourteenth unary and a
      * bitwise not of that float are not stamped.
      * Two compares, not a chained && : the bootstrap image clobbers
      * the register a chained compare reuses.
@@ -12190,7 +12192,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                  * The unary checker keeps the one-deep, two-deep,
                  * three-deep, four-deep, five-deep, six-deep,
                  * seven-deep, eight-deep, nine-deep, ten-deep, eleven-deep,
-                 * and twelve-deep stamps. A thirteenth unary stays kind 22.
+                 * twelve-deep, and thirteen-deep stamps. A fourteenth unary
+                 * stays kind 22.
                  * Bitwise not stays off. The unary operand ref
                  * is range-checked. An i32 element does not enter.
                  * PLATFORM: SHARED.
@@ -12220,6 +12223,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                   let f_undeca_k: i32 = 0;
                   let f_duodeca: i32 = 0;
                   let f_duodeca_k: i32 = 0;
+                  let f_tredeca: i32 = 0;
+                  let f_tredeca_k: i32 = 0;
                   splat_lhs_k = pipeline_expr_kind_ord_at(arena, left_ref);
                   splat_rhs_k = pipeline_expr_kind_ord_at(arena, right_ref);
                   if (splat_rhs_k == 22) {
@@ -12441,6 +12446,30 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                                                                                           }
                                                                                           if (splat_lhs_k == ord_field) {
                                                                                             splat_ok = 1;
+                                                                                          }
+                                                                                        }
+                                                                                        /*
+                                                                                         * Thirteen minuses: the innermost is a
+                                                                                         * FLOAT_LIT. The emitter applies the
+                                                                                         * sign once. A fourteenth unary is kind
+                                                                                         * 22 here, not kind 1. Load the operand
+                                                                                         * of f_duodeca only. The new ref is
+                                                                                         * range-checked. PLATFORM: SHARED.
+                                                                                         */
+                                                                                        if (f_duodeca_k == 22) {
+                                                                                          f_tredeca = pipeline_expr_unary_operand_ref_at(arena, f_duodeca);
+                                                                                          if (f_tredeca > 0) {
+                                                                                            if (f_tredeca <= arena.num_exprs) {
+                                                                                              f_tredeca_k = pipeline_expr_kind_ord_at(arena, f_tredeca);
+                                                                                              if (f_tredeca_k == 1) {
+                                                                                                if (splat_lhs_k == ord_var) {
+                                                                                                  splat_ok = 1;
+                                                                                                }
+                                                                                                if (splat_lhs_k == ord_field) {
+                                                                                                  splat_ok = 1;
+                                                                                                }
+                                                                                              }
+                                                                                            }
                                                                                           }
                                                                                         }
                                                                                       }
@@ -16590,7 +16619,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      * Eight minuses cancel again. Nine minuses apply the sign
      * once more. Ten minuses cancel again. Eleven minuses
      * apply the sign once more. Twelve minuses cancel
-     * again. A thirteenth unary falls through.
+     * again. Thirteen minuses apply the sign once more.
+     * A fourteenth unary falls through.
      * Let-init does not pre-stamp,
      * so it falls through to coerce. LOGNOT never sets the keep flag.
      * Two compares, not a chained && : the bootstrap image
@@ -16744,7 +16774,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                  * Nine minuses apply the sign once more. Ten minuses
                  * cancel again. Eleven minuses apply the sign once
                  * more. Twelve minuses cancel again.
-                 * A thirteenth unary stays kind 22, so
+                 * Thirteen minuses apply the sign once more.
+                 * A fourteenth unary stays kind 22, so
                  * it is not kept.
                  * Bitwise not stays
                  * off. The operand ref
@@ -16774,6 +16805,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                   let f_undeca_k: i32 = 0;
                   let f_duodeca: i32 = 0;
                   let f_duodeca_k: i32 = 0;
+                  let f_tredeca: i32 = 0;
+                  let f_tredeca_k: i32 = 0;
                   if (expr_kind == ord_neg) {
                     if (op_ref > 0) {
                       if (op_ref <= arena.num_exprs) {
@@ -16932,6 +16965,25 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                                                                                           f_duodeca_k = pipeline_expr_kind_ord_at(arena, f_duodeca);
                                                                                           if (f_duodeca_k == 1) {
                                                                                             pre_keep = 1;
+                                                                                          }
+                                                                                          /*
+                                                                                           * Thirteen minuses: the innermost is a
+                                                                                           * FLOAT_LIT. The emitter applies the
+                                                                                           * sign once. A fourteenth unary is kind
+                                                                                           * 22 here, not kind 1. Load the operand
+                                                                                           * of f_duodeca only. The new ref is
+                                                                                           * range-checked. PLATFORM: SHARED.
+                                                                                           */
+                                                                                          if (f_duodeca_k == 22) {
+                                                                                            f_tredeca = pipeline_expr_unary_operand_ref_at(arena, f_duodeca);
+                                                                                            if (f_tredeca > 0) {
+                                                                                              if (f_tredeca <= arena.num_exprs) {
+                                                                                                f_tredeca_k = pipeline_expr_kind_ord_at(arena, f_tredeca);
+                                                                                                if (f_tredeca_k == 1) {
+                                                                                                  pre_keep = 1;
+                                                                                                }
+                                                                                              }
+                                                                                            }
                                                                                           }
                                                                                         }
                                                                                       }

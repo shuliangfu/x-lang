@@ -59,7 +59,8 @@
 // cancels again. One unary beyond that applies the sign once.
 // One unary beyond that cancels again. One unary
 // beyond that applies the sign once. One unary
-// beyond that cancels again. A thirteenth
+// beyond that cancels again. Thirteen minuses apply
+// the sign once more. A fourteenth
 // unary of that float stays declined.
 // A scalar mvn w0
 // plus str x0 left lane 1 of `let v: i32x4 = ~a` at 0. A VAR, a FIELD,
@@ -177,7 +178,8 @@ export extern function backend_enc_store_rax_to_rbx_offset_arch(
  * again. One unary beyond that applies the sign once.
  * One unary beyond that cancels again. One unary
  * beyond that applies the sign once. One unary
- * beyond that cancels again. A thirteenth
+ * beyond that cancels again. Thirteen minuses apply
+ * the sign once more. A fourteenth
  * unary of that float stays declined. Keyword null,
  * an f32 element of the integer fold,
  * ta other than 1, and a lane size other than 4 stay on the decline
@@ -268,6 +270,8 @@ export function glue_emit_vector_type_let_init_elf_c(
   let f_undeca_k: i32 = 0;
   let f_duodeca: i32 = 0;
   let f_duodeca_k: i32 = 0;
+  let f_tredeca: i32 = 0;
+  let f_tredeca_k: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || init_ref <= 0) {
     return 0 - 3;
   }
@@ -336,7 +340,8 @@ export function glue_emit_vector_type_let_init_elf_c(
   // minuses cancel again. Seven minuses apply the sign once more.
   // Eight minuses cancel again. Nine minuses apply the sign once.
   // Ten minuses cancel again. Eleven minuses apply the sign once.
-  // Twelve minuses cancel again. A thirteenth unary is not kind 1
+  // Twelve minuses cancel again. Thirteen minuses apply the sign
+  // once more. A fourteenth unary is not kind 1
   // and stays on the decline below. Bitwise not
   // of a float stays declined. The element must be f32, the lane
   // size 4, and ta 1.
@@ -566,6 +571,26 @@ export function glue_emit_vector_type_let_init_elf_c(
                                                     f_ref = f_duodeca;
                                                     f_ko = 1;
                                                     f_neg = 0;
+                                                  }
+                                                  // Thirteen minuses: the innermost is a FLOAT_LIT.
+                                                  // The sign bit is applied once. A fourteenth
+                                                  // unary is kind 22 here, not kind 1.
+                                                  // Load the operand of f_duodeca only.
+                                                  // PLATFORM: MACOS|ARM64.
+                                                  if (f_duodeca_k == 22) {
+                                                    unsafe {
+                                                      f_tredeca = pipeline_expr_unary_operand_ref_at(arena, f_duodeca);
+                                                    }
+                                                    if (f_tredeca > 0) {
+                                                      unsafe {
+                                                        f_tredeca_k = pipeline_expr_kind_ord_at(arena, f_tredeca);
+                                                      }
+                                                      if (f_tredeca_k == 1) {
+                                                        f_ref = f_tredeca;
+                                                        f_ko = 1;
+                                                        f_neg = 1;
+                                                      }
+                                                    }
                                                   }
                                                 }
                                               }

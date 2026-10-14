@@ -14,9 +14,9 @@
 // minuses apply the sign once more. Eight minuses cancel again.
 // Nine minuses apply the sign once more. Ten minuses cancel again.
 // Eleven minuses apply the sign once more. Twelve minuses cancel
-// again. The float-lit checker
-// keeps an already-resolved type. A thirteenth unary and a bitwise not
-// call the demoted body with no stamp.
+// again. Thirteen minuses apply the sign once more. The float-lit
+// checker keeps an already-resolved type. A fourteenth unary and a
+// bitwise not call the demoted body with no stamp.
 // Every other assign calls the demoted body with no stamp.
 // PLATFORM: SHARED — type rule is the same on macOS, Ubuntu, and Windows.
 // The demote/retarget step that makes this symbol win is Mach-O only.
@@ -66,12 +66,14 @@ export extern "C" function pipeline_expr_set_resolved_type_ref(arena: *u8, expr_
  * more. Six minuses cancel again. Seven minuses apply the sign once
  * more. Eight minuses cancel again. Nine minuses apply the sign once
  * more. Ten minuses cancel again. Eleven minuses apply the sign once
- * more. Twelve minuses cancel again. The float-lit checker keeps an
+ * more. Twelve minuses cancel again. Thirteen minuses apply the sign
+ * once more. The float-lit checker keeps an
  * already-resolved type, so the
  * bare stamp survives. The unary checker keeps the one-deep, two-deep,
  * three-deep, four-deep, five-deep, six-deep, seven-deep, eight-deep,
- * nine-deep, ten-deep, eleven-deep, and twelve-deep stamps. A thirteenth
- * unary and a bitwise not of that float are not stamped.
+ * nine-deep, ten-deep, eleven-deep, twelve-deep, and thirteen-deep
+ * stamps. A fourteenth unary and a bitwise not of that float are not
+ * stamped.
  * A failed LHS check does not call
  * demoted, so the diagnostic is not emitted twice.
  * Two compares, not a chained && : the bootstrap image clobbers the
@@ -318,13 +320,15 @@ export function typeck_check_expr_assign(
                * apply the sign once more. Ten minuses cancel again.
                * Eleven minuses apply the sign once more.
                * Twelve minuses cancel again.
+               * Thirteen minuses apply the sign once more.
                * Kind 22 and kind 1 are
                * separate compares. The float-lit checker keeps an
                * already-resolved type, so the kind-1 stamp survives.
                * The unary checker keeps the one-deep, two-deep,
                * three-deep, four-deep, five-deep, six-deep,
                * seven-deep, eight-deep, nine-deep, ten-deep, eleven-deep,
-               * and twelve-deep stamps. A thirteenth unary stays kind 22.
+               * twelve-deep, and thirteen-deep stamps. A fourteenth
+               * unary stays kind 22.
                * Bitwise not stays off.
                * An i32 element does not enter.
                * PLATFORM: SHARED.
@@ -354,6 +358,8 @@ export function typeck_check_expr_assign(
                 let f_undeca_k: i32 = 0;
                 let f_duodeca: i32 = 0;
                 let f_duodeca_k: i32 = 0;
+                let f_tredeca: i32 = 0;
+                let f_tredeca_k: i32 = 0;
                 if (right_ref > 0) {
                   lhs_kind = pipeline_expr_kind_ord_at(arena, left_ref);
                   rhs_kind = pipeline_expr_kind_ord_at(arena, right_ref);
@@ -563,6 +569,27 @@ export function typeck_check_expr_assign(
                                                                   }
                                                                   if (lhs_kind == ord_field) {
                                                                     splat_ok = 1;
+                                                                  }
+                                                                }
+                                                                /*
+                                                                 * Thirteen minuses: the innermost is a
+                                                                 * FLOAT_LIT. The emitter applies the
+                                                                 * sign once. A fourteenth unary is kind
+                                                                 * 22 here, not kind 1. Load the operand
+                                                                 * of f_duodeca only. PLATFORM: SHARED.
+                                                                 */
+                                                                if (f_duodeca_k == 22) {
+                                                                  f_tredeca = pipeline_expr_unary_operand_ref_at(arena, f_duodeca);
+                                                                  if (f_tredeca > 0) {
+                                                                    f_tredeca_k = pipeline_expr_kind_ord_at(arena, f_tredeca);
+                                                                    if (f_tredeca_k == 1) {
+                                                                      if (lhs_kind == ord_var) {
+                                                                        splat_ok = 1;
+                                                                      }
+                                                                      if (lhs_kind == ord_field) {
+                                                                        splat_ok = 1;
+                                                                      }
+                                                                    }
                                                                   }
                                                                 }
                                                               }
