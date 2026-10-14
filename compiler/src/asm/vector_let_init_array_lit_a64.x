@@ -29,9 +29,13 @@
 // is peeled with the existing helper before that classification.
 // Declining the block stored neg of lane 0 for `let n = unsafe { -*p }`
 // and left lane 0 of `let n = unsafe { [1, 2, 3, 4] }` unequal to 1.
-// Bare VAR and bare DEREF still return -3 after the peel. f32, a lane
-// size other than 4, and a negative immediate with lane size 8 still
-// return -3 (neg w0 is 32-bit; the fill zero-extends). A VAR, a FIELD,
+// Bare VAR and bare DEREF still return -3 after the peel. An f32 lane
+// (Vec4f / f32x4, or TYPE_VECTOR of F32) flips bit 31 with the existing
+// mov of that bit into w1 and eor x0, x0, x1. neg w0 stays the i32
+// path: it is two's complement, and integer negate of an f32 bit
+// pattern is not an IEEE sign flip. A lane size other than 4, and a
+// negative immediate with lane size 8, still return -3 (neg w0 is
+// 32-bit; the fill zero-extends). f64 stays declined. A VAR, a FIELD,
 // an ARRAY_LIT, or a lane binop under minus may be wider than 16 when
 // each lane is 4 bytes. The lane home, the lane-byte writer, and the
 // binop let-init already cover every lane. CALL, METHOD, INDEX, and
@@ -75,6 +79,10 @@ export extern function backend_enc_load_rbp_lane_to_rax_arch(
   elf_ctx: *u8, offset: i32, esz: i32, ta: i32
 ): i32;
 export extern function backend_enc_neg_eax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_mov_imm32_to_rbx_arch(
+  elf_ctx: *u8, imm32: i32, ta: i32
+): i32;
+export extern function backend_enc_xor_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_lea_rbp_to_rbx_arch(
   elf_ctx: *u8, offset: i32, ta: i32
 ): i32;
@@ -101,7 +109,11 @@ export extern function backend_enc_store_rax_to_rbx_offset_arch(
  * glue_simd_emit_imm_fill_slot_c. Kind 22 (EXPR_NEG) of an INT_LIT
  * negates that value and calls the same fill. Kind 22 of a VAR (kind
  * 3) or a FIELD (kind 44) with a frame home negates each i32 lane via
- * neg w0. The home comes from glue_vector_var_lane_stack_off_elf_c.
+ * neg w0. An f32 lane flips bit 31 instead: the existing mov writes
+ * the sign bit into w1, then eor x0, x0, x1. A 4-byte lane load is
+ * LDR w0, so that 64-bit eor touches only bit 31, including -0 and a
+ * NaN payload. The destination lea runs after the eor because it
+ * clobbers x1. The home comes from glue_vector_var_lane_stack_off_elf_c.
  * A negative home declines before any emit. Kind 22 of a lane binop
  * (kinds 4..13 and 51) stores that binop with
  * pipeline_asm_emit_vector_binop_let_init_elf_c, then negates each
@@ -112,9 +124,12 @@ export extern function backend_enc_store_rax_to_rbx_offset_arch(
  * its value expr first, using glue_expr_block_transparent_value_ref_at,
  * at most four times. Kind 22 of an ARRAY_LIT (kind 46) stores that literal
  * with pipeline_asm_emit_vector_let_init_elf_c, then negates each
- * destination lane in place. f32, a lane size other than 4, and a
- * negative pattern whose lane is 8 bytes stay declined: neg w0 is
- * 32-bit and the fill zero-extends. A VAR, a FIELD, or an ARRAY_LIT
+ * destination lane in place. A lane size other than 4, and a
+ * negative pattern whose lane is 8 bytes, stay declined: neg w0 is
+ * 32-bit and the fill zero-extends. f64 stays declined. f32 with a
+ * 4-byte lane uses the sign-bit eor above, on the same loop that
+ * covers VAR, FIELD, a lane binop, CALL, METHOD, INDEX, DEREF, and
+ * ARRAY_LIT. A VAR, a FIELD, or an ARRAY_LIT
  * whose lanes are 4 bytes may be wider than 16. The FIELD home is the
  * same slot plus lane times 4, and that helper does not stop at 16.
  * A lane binop, CALL, METHOD, INDEX, and DEREF stay declined past 16
@@ -139,6 +154,8 @@ export function glue_emit_vector_type_let_init_elf_c(
   let lane_i: i32 = 0;
   let src_off: i32 = 0;
   let from_dest: i32 = 0;
+  let lane_f32: i32 = 0;
+  let sign_bit: i32 = 0;
   let peeled: i32 = 0;
   let peel_n: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || init_ref <= 0) {
@@ -262,8 +279,12 @@ export function glue_emit_vector_type_let_init_elf_c(
       unsafe {
         rc = glue_vector_elem_is_f32_c(arena, type_ref);
       }
+      // Nonzero means Vec4f, the f32x4 spelling, or TYPE_VECTOR of F32.
+      // Stay in this function. Integer neg w0 is not an IEEE sign flip,
+      // so the shared loop xors bit 31. esz other than 4 still returns
+      // -3 below. f64 is not this flag. PLATFORM: MACOS|ARM64.
       if (rc != 0) {
-        return 0 - 3;
+        lane_f32 = 1;
       }
       unsafe {
         rc = glue_vector_type_lanes_esz_c(arena, type_ref, &lanes_s[0], &esz_s[0]);
@@ -344,6 +365,16 @@ export function glue_emit_vector_type_let_init_elf_c(
           }
         }
       }
+      // Sign bit of f32 is bit 31. Two statements: a chained
+      // `0 - 2147483647 - 1` is not reliable here. 0 - 2147483647 is
+      // -2147483647; minus 1 is the i32 bit pattern 0x80000000.
+      // The value is passed to the existing mov-imm. It is not a
+      // shift emitted into the user program. i32 leaves sign_bit at 0
+      // and still emits neg w0. PLATFORM: MACOS|ARM64.
+      if (lane_f32 != 0) {
+        sign_bit = 0 - 2147483647;
+        sign_bit = sign_bit - 1;
+      }
       lane_i = 0;
       while (lane_i < lanes_s[0]) {
         if (from_dest != 0) {
@@ -360,8 +391,24 @@ export function glue_emit_vector_type_let_init_elf_c(
         if (rc != 0) {
           return 0 - 1;
         }
-        unsafe {
-          rc = backend_enc_neg_eax_arch(elf_ctx, ta);
+        if (lane_f32 != 0) {
+          // Load already left the lane in x0 (LDR w0, zero-extended).
+          // MOVZ/MOVK w1 of the sign bit, then eor x0, x0, x1.
+          // lea below clobbers x1, so the eor stays before that lea.
+          // PLATFORM: MACOS|ARM64.
+          unsafe {
+            rc = backend_enc_mov_imm32_to_rbx_arch(elf_ctx, sign_bit, ta);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+          unsafe {
+            rc = backend_enc_xor_rbx_rax_arch(elf_ctx, ta);
+          }
+        } else {
+          unsafe {
+            rc = backend_enc_neg_eax_arch(elf_ctx, ta);
+          }
         }
         if (rc != 0) {
           return 0 - 1;
