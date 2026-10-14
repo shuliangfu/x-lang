@@ -14,8 +14,9 @@
 // minuses apply the sign once more. Eight minuses cancel again.
 // Nine minuses apply the sign once more. Ten minuses cancel again.
 // Eleven minuses apply the sign once more. Twelve minuses cancel
-// again. Thirteen minuses apply the sign once more. The float-lit
-// checker keeps an already-resolved type. A fourteenth unary and a
+// again. Thirteen minuses apply the sign once more. Fourteen
+// minuses cancel again. The float-lit
+// checker keeps an already-resolved type. A fifteenth unary and a
 // bitwise not call the demoted body with no stamp.
 // Every other assign calls the demoted body with no stamp.
 // PLATFORM: SHARED — type rule is the same on macOS, Ubuntu, and Windows.
@@ -67,12 +68,13 @@ export extern "C" function pipeline_expr_set_resolved_type_ref(arena: *u8, expr_
  * more. Eight minuses cancel again. Nine minuses apply the sign once
  * more. Ten minuses cancel again. Eleven minuses apply the sign once
  * more. Twelve minuses cancel again. Thirteen minuses apply the sign
- * once more. The float-lit checker keeps an
+ * once more. Fourteen minuses cancel again. The float-lit checker keeps an
  * already-resolved type, so the
  * bare stamp survives. The unary checker keeps the one-deep, two-deep,
  * three-deep, four-deep, five-deep, six-deep, seven-deep, eight-deep,
- * nine-deep, ten-deep, eleven-deep, twelve-deep, and thirteen-deep
- * stamps. A fourteenth unary and a bitwise not of that float are not
+ * nine-deep, ten-deep, eleven-deep, twelve-deep, thirteen-deep, and
+ * fourteen-deep
+ * stamps. A fifteenth unary and a bitwise not of that float are not
  * stamped.
  * A failed LHS check does not call
  * demoted, so the diagnostic is not emitted twice.
@@ -327,7 +329,7 @@ export function typeck_check_expr_assign(
                * The unary checker keeps the one-deep, two-deep,
                * three-deep, four-deep, five-deep, six-deep,
                * seven-deep, eight-deep, nine-deep, ten-deep, eleven-deep,
-               * twelve-deep, and thirteen-deep stamps. A fourteenth
+               * twelve-deep, thirteen-deep, and fourteen-deep stamps. A fifteenth
                * unary stays kind 22.
                * Bitwise not stays off.
                * An i32 element does not enter.
@@ -360,6 +362,8 @@ export function typeck_check_expr_assign(
                 let f_duodeca_k: i32 = 0;
                 let f_tredeca: i32 = 0;
                 let f_tredeca_k: i32 = 0;
+                let f_quattuordeca: i32 = 0;
+                let f_quattuordeca_k: i32 = 0;
                 if (right_ref > 0) {
                   lhs_kind = pipeline_expr_kind_ord_at(arena, left_ref);
                   rhs_kind = pipeline_expr_kind_ord_at(arena, right_ref);
@@ -588,6 +592,28 @@ export function typeck_check_expr_assign(
                                                                       }
                                                                       if (lhs_kind == ord_field) {
                                                                         splat_ok = 1;
+                                                                      }
+                                                                    }
+                                                                    /*
+                                                                     * Fourteen minuses: the innermost is a
+                                                                     * FLOAT_LIT. Seven pairs cancel, so the
+                                                                     * sign bit stays clear. A fifteenth unary
+                                                                     * is kind 22 here, not kind 1. Load the
+                                                                     * operand of f_tredeca only.
+                                                                     * PLATFORM: SHARED.
+                                                                     */
+                                                                    if (f_tredeca_k == 22) {
+                                                                      f_quattuordeca = pipeline_expr_unary_operand_ref_at(arena, f_tredeca);
+                                                                      if (f_quattuordeca > 0) {
+                                                                        f_quattuordeca_k = pipeline_expr_kind_ord_at(arena, f_quattuordeca);
+                                                                        if (f_quattuordeca_k == 1) {
+                                                                          if (lhs_kind == ord_var) {
+                                                                            splat_ok = 1;
+                                                                          }
+                                                                          if (lhs_kind == ord_field) {
+                                                                            splat_ok = 1;
+                                                                          }
+                                                                        }
                                                                       }
                                                                     }
                                                                   }

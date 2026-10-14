@@ -60,7 +60,8 @@
 // One unary beyond that cancels again. One unary
 // beyond that applies the sign once. One unary
 // beyond that cancels again. Thirteen minuses apply
-// the sign once more. A fourteenth
+// the sign once more. Fourteen minuses cancel again.
+// A fifteenth
 // unary of that float stays declined.
 // A scalar mvn w0
 // plus str x0 left lane 1 of `let v: i32x4 = ~a` at 0. A VAR, a FIELD,
@@ -179,7 +180,8 @@ export extern function backend_enc_store_rax_to_rbx_offset_arch(
  * One unary beyond that cancels again. One unary
  * beyond that applies the sign once. One unary
  * beyond that cancels again. Thirteen minuses apply
- * the sign once more. A fourteenth
+ * the sign once more. Fourteen minuses cancel again.
+ * A fifteenth
  * unary of that float stays declined. Keyword null,
  * an f32 element of the integer fold,
  * ta other than 1, and a lane size other than 4 stay on the decline
@@ -272,6 +274,8 @@ export function glue_emit_vector_type_let_init_elf_c(
   let f_duodeca_k: i32 = 0;
   let f_tredeca: i32 = 0;
   let f_tredeca_k: i32 = 0;
+  let f_quattuordeca: i32 = 0;
+  let f_quattuordeca_k: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || init_ref <= 0) {
     return 0 - 3;
   }
@@ -341,8 +345,8 @@ export function glue_emit_vector_type_let_init_elf_c(
   // Eight minuses cancel again. Nine minuses apply the sign once.
   // Ten minuses cancel again. Eleven minuses apply the sign once.
   // Twelve minuses cancel again. Thirteen minuses apply the sign
-  // once more. A fourteenth unary is not kind 1
-  // and stays on the decline below. Bitwise not
+  // once more. Fourteen minuses cancel again. A fifteenth unary
+  // is not kind 1 and stays on the decline below. Bitwise not
   // of a float stays declined. The element must be f32, the lane
   // size 4, and ta 1.
   // An f64 lane stays declined.
@@ -589,6 +593,26 @@ export function glue_emit_vector_type_let_init_elf_c(
                                                         f_ref = f_tredeca;
                                                         f_ko = 1;
                                                         f_neg = 1;
+                                                      }
+                                                      // Fourteen minuses: the innermost is a FLOAT_LIT.
+                                                      // Seven pairs cancel, so the sign bit stays
+                                                      // clear. A fifteenth unary is kind 22 here,
+                                                      // not kind 1. Load the operand of f_tredeca only.
+                                                      // PLATFORM: MACOS|ARM64.
+                                                      if (f_tredeca_k == 22) {
+                                                        unsafe {
+                                                          f_quattuordeca = pipeline_expr_unary_operand_ref_at(arena, f_tredeca);
+                                                        }
+                                                        if (f_quattuordeca > 0) {
+                                                          unsafe {
+                                                            f_quattuordeca_k = pipeline_expr_kind_ord_at(arena, f_quattuordeca);
+                                                          }
+                                                          if (f_quattuordeca_k == 1) {
+                                                            f_ref = f_quattuordeca;
+                                                            f_ko = 1;
+                                                            f_neg = 0;
+                                                          }
+                                                        }
                                                       }
                                                     }
                                                   }
