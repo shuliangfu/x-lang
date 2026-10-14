@@ -19,6 +19,7 @@ export extern "C" function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32):
 export extern "C" function pipeline_type_elem_ref_at(arena: *u8, type_ref: i32): i32;
 export extern "C" function pipeline_arena_num_types(arena: *u8): i32;
 export extern "C" function pipeline_expr_set_resolved_type_ref(arena: *u8, expr_ref: i32, ty: i32): void;
+export extern "C" function pipeline_expr_is_null_keyword_c(arena: *u8, expr_ref: i32): i32;
 
 /**
  * Accept unary minus of a TYPE_VECTOR, and bitwise not of an i32
@@ -37,12 +38,18 @@ export extern "C" function pipeline_expr_set_resolved_type_ref(arena: *u8, expr_
  * body, which typechecks the operand itself.
  * Two compares, not a chained && : the bootstrap image clobbers the
  * register a chained compare reuses.
+ * Assign pre-stamps `~lit` / `-lit` with an i32 TYPE_VECTOR before
+ * this call. When this expr is already that vector and the operand is
+ * a non-null INT_LIT, the operand is typechecked with expected 0 and
+ * this function returns without calling demoted, so the stamp stays.
+ * A missing pre-stamp falls through and let-init is unchanged.
  * PLATFORM: SHARED — same type rule on every host.
  */
 #[no_mangle]
 export function typeck_check_expr_unary(
   module: *u8, arena: *u8, expr_ref: i32, return_type_ref: i32, ctx: *u8): i32 {
   unsafe {
+    let ord_lit: i32 = 0;
     let ord_neg: i32 = 22;
     let ord_bitnot: i32 = 23;
     let ord_vector: i32 = 13;
@@ -72,6 +79,50 @@ export function typeck_check_expr_unary(
         module, arena, expr_ref, return_type_ref, ctx);
     }
     op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+    ntypes = pipeline_arena_num_types(arena);
+    /*
+     * Keep an assign pre-stamp of this unary onto an i32 TYPE_VECTOR.
+     * The operand lit is checked with expected 0 so it stays i32.
+     * Nested unary operands are not INT_LIT and fall through. Keyword
+     * null falls through. Two compares, not a chained &&.
+     * PLATFORM: SHARED — element kind is the type rule, not a host ABI.
+     */
+    {
+      let already: i32 = pipeline_expr_resolved_type_ref(arena, expr_ref);
+      let already_keep: i32 = 0;
+      let already_elem: i32 = 0;
+      let already_ek: i32 = 0;
+      let already_op_k: i32 = 0;
+      if (already > 0) {
+        if (already <= ntypes) {
+          if (pipeline_type_kind_ord_at(arena, already) == ord_vector) {
+            already_elem = pipeline_type_elem_ref_at(arena, already);
+            if (already_elem > 0) {
+              if (already_elem <= ntypes) {
+                already_ek = pipeline_type_kind_ord_at(arena, already_elem);
+                if (already_ek == ord_i32) {
+                  if (op_ref > 0) {
+                    already_op_k = pipeline_expr_kind_ord_at(arena, op_ref);
+                    if (already_op_k == ord_lit) {
+                      if (pipeline_expr_is_null_keyword_c(arena, op_ref) == 0) {
+                        already_keep = 1;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      if (already_keep == 1) {
+        rc = typeck_check_expr(module, arena, op_ref, 0, ctx);
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        return 0;
+      }
+    }
     rc = typeck_check_expr(module, arena, op_ref, return_type_ref, ctx);
     if (rc != 0) {
       return 0 - 1;
