@@ -10,7 +10,8 @@
 // is kept. Two minuses cancel. Three minuses apply the sign once.
 // Four minuses cancel again. Five minuses apply the sign once more.
 // Six minuses cancel again. Seven minuses apply the sign once more.
-// Eight minuses cancel again. A ninth unary of that float is not a keep.
+// Eight minuses cancel again. Nine minuses apply the sign once more.
+// A tenth unary of that float is not a keep.
 // PLATFORM: SHARED — type rule is the same on macOS, Ubuntu, and Windows.
 // The demote/retarget step that makes this symbol win is Mach-O only.
 
@@ -57,7 +58,8 @@ export extern "C" function pipeline_expr_is_null_keyword_c(arena: *u8, expr_ref:
  * minuses cancel. Three minuses apply the sign once. Four minuses
  * cancel again. Five minuses apply the sign once more. Six minuses
  * cancel again. Seven minuses apply the sign once more. Eight
- * minuses cancel again. A ninth unary and a bitwise not are not a keep.
+ * minuses cancel again. Nine minuses apply the sign once more.
+ * A tenth unary and a bitwise not are not a keep.
  * A missing pre-stamp falls through and let-init coerce
  * stamps the same shape afterwards.
  * PLATFORM: SHARED — same type rule on every host.
@@ -237,8 +239,8 @@ export function typeck_check_expr_unary(
                  * the sign once. Four minuses cancel again. Five
                  * minuses apply the sign once more. Six minuses cancel
                  * again. Seven minuses apply the sign once more. Eight
-                 * minuses cancel again. A ninth unary stays kind 22, so
-                 * it is not kept.
+                 * minuses cancel again. Nine minuses apply the sign once
+                 * more. A tenth unary stays kind 22, so it is not kept.
                  * Bitwise not stays off. The keep below
                  * still typechecks the immediate operand with expected 0.
                  * PLATFORM: SHARED.
@@ -258,6 +260,8 @@ export function typeck_check_expr_unary(
                   let f_sept_k: i32 = 0;
                   let f_oct: i32 = 0;
                   let f_oct_k: i32 = 0;
+                  let f_nona: i32 = 0;
+                  let f_nona_k: i32 = 0;
                   if (expr_kind == ord_neg) {
                     if (op_ref > 0) {
                       already_op_k = pipeline_expr_kind_ord_at(arena, op_ref);
@@ -335,9 +339,10 @@ export function typeck_check_expr_unary(
                                               /*
                                                * Eight minuses: the innermost is a
                                                * FLOAT_LIT. Four pairs cancel, so
-                                               * the sign bit stays clear. A ninth
-                                               * unary is kind 22 here, not kind 1.
-                                               * PLATFORM: SHARED.
+                                               * the sign bit stays clear. Nine
+                                               * minuses apply the sign once. A
+                                               * tenth unary is kind 22 here, not
+                                               * kind 1. PLATFORM: SHARED.
                                                */
                                               if (f_sept_k == ord_neg) {
                                                 f_oct = pipeline_expr_unary_operand_ref_at(arena, f_sept);
@@ -345,6 +350,22 @@ export function typeck_check_expr_unary(
                                                   f_oct_k = pipeline_expr_kind_ord_at(arena, f_oct);
                                                   if (f_oct_k == 1) {
                                                     already_keep = 1;
+                                                  }
+                                                  /*
+                                                   * Nine minuses: the innermost is a
+                                                   * FLOAT_LIT. The emitter applies the
+                                                   * sign once. A tenth unary is kind 22
+                                                   * here, not kind 1. Load the operand
+                                                   * of f_oct only. PLATFORM: SHARED.
+                                                   */
+                                                  if (f_oct_k == ord_neg) {
+                                                    f_nona = pipeline_expr_unary_operand_ref_at(arena, f_oct);
+                                                    if (f_nona > 0) {
+                                                      f_nona_k = pipeline_expr_kind_ord_at(arena, f_nona);
+                                                      if (f_nona_k == 1) {
+                                                        already_keep = 1;
+                                                      }
+                                                    }
                                                   }
                                                 }
                                               }
