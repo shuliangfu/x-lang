@@ -6,10 +6,11 @@
 // of i32 is stamped with the declared type. A seventh unary calls the
 // demoted body. A TYPE_VECTOR of f32 also stamps a FLOAT_LIT, one
 // unary minus of a FLOAT_LIT, one more unary minus of that, one
-// unary beyond that, one unary beyond that, or one unary beyond
-// that. Two minuses cancel. Three minuses apply the sign once. Four
-// minuses cancel again. Five minuses apply the sign once more. A
-// sixth unary and a bitwise not call the demoted body.
+// unary beyond that, one unary beyond that, one unary beyond
+// that, or one unary beyond that. Two minuses cancel. Three
+// minuses apply the sign once. Four minuses cancel again. Five
+// minuses apply the sign once more. Six minuses cancel again. A
+// seventh unary and a bitwise not call the demoted body.
 // PLATFORM: SHARED — type rule is the same on macOS, Ubuntu, and Windows.
 // The demote/retarget step that makes this symbol win is Mach-O only.
 
@@ -39,10 +40,11 @@ export extern "C" function pipeline_expr_set_resolved_type_ref(arena: *u8, expr_
  * and keyword null stay on the demoted body. A TYPE_VECTOR of f32
  * stamps a FLOAT_LIT, one unary minus of a FLOAT_LIT, one more
  * unary minus of that, one unary beyond that, one unary beyond
- * that, or one unary beyond that. Two minuses cancel. Three
- * minuses apply the sign once. Four minuses cancel again. Five
- * minuses apply the sign once more. A sixth unary of that float
- * stays on the demoted body.
+ * that, one unary beyond that, or one unary beyond that. Two
+ * minuses cancel. Three minuses apply the sign once. Four minuses
+ * cancel again. Five minuses apply the sign once more. Six minuses
+ * cancel again. A seventh unary of that float stays on the demoted
+ * body.
  * Two compares, not a chained && : the bootstrap image clobbers the
  * register a chained compare reuses. An out-of-range expr ref is not
  * counted here: pipeline_expr_kind_ord_at already returns -1, which is
@@ -211,11 +213,12 @@ export function typeck_coerce_init_expr_to_decl(
           /*
            * TYPE_VECTOR of f32 (Vec4f). A FLOAT_LIT, one unary minus of
            * a FLOAT_LIT, one more unary minus of that, one unary
-           * beyond that, one unary beyond that, or one unary beyond
-           * that, is the same splat the emitter fills. Two minuses
-           * cancel. Three minuses apply the sign once. Four minuses
-           * cancel again. Five minuses apply the sign once more.
-           * Kind 1 and kind 22 are separate compares. A sixth unary
+           * beyond that, one unary beyond that, one unary beyond
+           * that, or one unary beyond that, is the same splat the
+           * emitter fills. Two minuses cancel. Three minuses apply
+           * the sign once. Four minuses cancel again. Five minuses
+           * apply the sign once more. Six minuses cancel again.
+           * Kind 1 and kind 22 are separate compares. A seventh unary
            * stays kind 22 at the inner operand, so it is not stamped.
            * Bitwise not stays off. An i32 element does not enter.
            * PLATFORM: SHARED.
@@ -231,6 +234,8 @@ export function typeck_coerce_init_expr_to_decl(
             let f_quad_k: i32 = 0;
             let f_pent: i32 = 0;
             let f_pent_k: i32 = 0;
+            let f_hex: i32 = 0;
+            let f_hex_k: i32 = 0;
             if (init_kind == 1) {
               splat_ok = 1;
             }
@@ -248,7 +253,8 @@ export function typeck_coerce_init_expr_to_decl(
                * leaves the sign bit clear. One unary beyond that
                * applies the sign once. One unary beyond that cancels
                * again. One unary beyond that applies the sign once
-               * more. A sixth unary is kind 22 here, not kind 1.
+               * more. One unary beyond that cancels again. A seventh
+               * unary is kind 22 here, not kind 1.
                * PLATFORM: SHARED.
                */
               if (fop_k == 22) {
@@ -274,8 +280,9 @@ export function typeck_coerce_init_expr_to_decl(
                           }
                           /*
                            * Five minuses: the innermost is a FLOAT_LIT.
-                           * The emitter applies the sign once. A sixth
-                           * unary is kind 22 here, not kind 1.
+                           * The emitter applies the sign once. Six
+                           * minuses cancel again. A seventh unary is
+                           * kind 22 here, not kind 1.
                            * PLATFORM: SHARED.
                            */
                           if (f_quad_k == 22) {
@@ -284,6 +291,21 @@ export function typeck_coerce_init_expr_to_decl(
                               f_pent_k = pipeline_expr_kind_ord_at(arena, f_pent);
                               if (f_pent_k == 1) {
                                 splat_ok = 1;
+                              }
+                              /*
+                               * Six minuses: the innermost is a FLOAT_LIT.
+                               * The emitter leaves the sign bit clear.
+                               * A seventh unary is kind 22 here, not
+                               * kind 1. PLATFORM: SHARED.
+                               */
+                              if (f_pent_k == 22) {
+                                f_hex = pipeline_expr_unary_operand_ref_at(arena, f_pent);
+                                if (f_hex > 0) {
+                                  f_hex_k = pipeline_expr_kind_ord_at(arena, f_hex);
+                                  if (f_hex_k == 1) {
+                                    splat_ok = 1;
+                                  }
+                                }
                               }
                             }
                           }
