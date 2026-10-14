@@ -17,9 +17,12 @@
 // A CALL or METHOD under the minus is stored by the existing struct
 // let-init call arm, then each destination lane is negated. An INDEX
 // under the minus uses that same let-init: it already copies the
-// indexed 16-byte value into the destination. A decline of that form
-// stored neg of lane 0 only, so lane 1 of `let n = -id(a)` was 0 and
-// lane 1 of `let n = -arr[1]` was 0. An ARRAY_LIT under the minus is
+// indexed 16-byte value into the destination. A DEREF under the minus
+// uses that same let-init: it already copies the 16-byte target into
+// the destination, and the store is not through the pointer. A decline
+// of that form stored neg of lane 0 only, so lane 1 of
+// `let n = -id(a)` was 0, lane 1 of `let n = -arr[1]` was 0, and lane 1
+// of `n = -*p` was 0. An ARRAY_LIT under the minus is
 // stored by the existing lane-byte writer, then each destination lane
 // is negated. Declining that left lane 0 of `let n = -[1, 2, 3, 4]`
 // unequal to -1. f32, a lane size other than 4, a vector wider than
@@ -80,7 +83,7 @@ export extern function backend_enc_store_rax_to_rbx_offset_arch(
  * @param type_ref i32 — let type; not a SIMD vector spelling returns -3
  * @return i32 — 0 when kind 46, a lane binop, a scalar lit, unary-minus
  *   of an integer lit, a VAR, a FIELD, a lane binop, a CALL, a METHOD,
- *   an INDEX, or an ARRAY_LIT is stored; -1 when that store fails;
+ *   an INDEX, a DEREF, or an ARRAY_LIT is stored; -1 when that store fails;
  *   -3 when this face does not handle the expr
  * Kind 46 (ARRAY_LIT) calls pipeline_asm_emit_vector_let_init_elf_c.
  * Kinds 4..13 call pipeline_asm_emit_vector_binop_let_init_elf_c
@@ -93,8 +96,8 @@ export extern function backend_enc_store_rax_to_rbx_offset_arch(
  * (kinds 4..13 and 51) stores that binop with
  * pipeline_asm_emit_vector_binop_let_init_elf_c, then negates each
  * destination lane in place. Kind 22 of a CALL (kind 48) or a METHOD
- * (kind 49) or an INDEX (kind 47) stores that value with
- * glue_emit_struct_type_let_init_elf_c, then negates each destination
+ * (kind 49), an INDEX (kind 47), or a DEREF (kind 52) stores that
+ * value with glue_emit_struct_type_let_init_elf_c, then negates each destination
  * lane in place. Kind 22 of an ARRAY_LIT (kind 46) stores that literal
  * with pipeline_asm_emit_vector_let_init_elf_c, then negates each
  * destination lane in place. f32, a lane size other
@@ -176,12 +179,15 @@ export function glue_emit_vector_type_let_init_elf_c(
       // lane-addressable here. A lane binop (kinds 4..13 and 51) is
       // stored into the destination by the existing binop writer, then
       // each of those lanes is negated in place. A CALL (kind 48) or a
-      // METHOD (kind 49) or an INDEX (kind 47) is stored by the
-      // existing struct let-init, then negated the same way. Declining
+      // METHOD (kind 49), an INDEX (kind 47), or a DEREF (kind 52) is
+      // stored by the existing struct let-init, then negated the same
+      // way. The deref store lands in the destination slot, not through
+      // the pointer. Declining
       // this stored neg of lane 0 only: lane 1 of `let v = -a` was 0,
       // lane 1 of `let n = -h.v` was 0, lane 1 of `let n = -(a + b)`
       // was 0, lane 1 of `let n = -id(a)` was 0, and lane 1 of
-      // `let n = -arr[1]` was 0. An ARRAY_LIT (kind 46) is stored by
+      // `let n = -arr[1]` was 0, and lane 1 of `n = -*p` was 0. An
+      // ARRAY_LIT (kind 46) is stored by
       // the existing lane-byte writer, then negated the same way.
       // Declining that left lane 0 of `let n = -[1, 2, 3, 4]` unequal
       // to -1. The width gate runs before that store, so a decline
@@ -198,7 +204,7 @@ export function glue_emit_vector_type_let_init_elf_c(
       if (rc != 0) {
         from_dest = 1;
       } else {
-        if (op_ko == 48 || op_ko == 49 || op_ko == 47) {
+        if (op_ko == 48 || op_ko == 49 || op_ko == 47 || op_ko == 52) {
           from_dest = 2;
         } else {
           if (op_ko == 46) {
@@ -233,11 +239,11 @@ export function glue_emit_vector_type_let_init_elf_c(
       } else {
         if (from_dest == 2) {
           // CALL and METHOD set the expected return type, emit, and
-          // store both halves. INDEX uses the same let-init: lvalue
-          // address, 16-byte load, then the pair store. A hand-rolled
-          // emit of an index keeps 8 bytes. Non-zero may already have
-          // emitted, so do not fall through to scalar neg. DEREF stays
-          // out of this arm.
+          // store both halves. INDEX and DEREF use the same let-init:
+          // lvalue address, 16-byte load, then the pair store into the
+          // destination slot. A hand-rolled emit keeps 8 bytes. This
+          // does not assign through the pointer. Non-zero may already
+          // have emitted, so do not fall through to scalar neg.
           // PLATFORM: MACOS|ARM64.
           unsafe {
             rc = glue_emit_struct_type_let_init_elf_c(
