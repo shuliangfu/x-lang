@@ -4012,7 +4012,8 @@ function lexer_block_comment_prev_is_path_like(prev: u8): i32 {
  * @param data u8[] — full source buffer (not required to be NUL-terminated)
  * @return Lexer — advanced past whitespace and comments; unchanged on EOF
  */
-// PLATFORM: SHARED — the advanced cursor is written through out.
+// PLATFORM: SHARED — deref-assign emits no store (kind 52), so each
+// return writes pos, line, and col through out. The advanced cursor is that write.
 export function skip_whitespace_and_comments(out: *Lexer, lex: Lexer, data: u8[]): void {
   // 10.2 Cap tip: use u8[] .length / [] like the rest of lexer.x. The
   // knife256 peel→park→buf path SEGV'd in dep prerun (core.option) when
@@ -4070,7 +4071,11 @@ export function skip_whitespace_and_comments(out: *Lexer, lex: Lexer, data: u8[]
       depth = 0;
     } else if (c == 35) {
       if (l.pos + (1 as usize) < data.length && data[l.pos + (1 as usize)] == 91) {
-        unsafe { *out = (l); }
+        unsafe {
+          out.pos = l.pos;
+          out.line = l.line;
+          out.col = l.col;
+        }
         return;
       } else {
         while (l.pos < data.length && data[l.pos] != 10) {
@@ -4078,14 +4083,24 @@ export function skip_whitespace_and_comments(out: *Lexer, lex: Lexer, data: u8[]
         }
       }
     } else {
-      unsafe { *out = (l); }
+      unsafe {
+        out.pos = l.pos;
+        out.line = l.line;
+        out.col = l.col;
+      }
       return;
     }
   }
-  unsafe { *out = (l); }
+  unsafe {
+    out.pos = l.pos;
+    out.line = l.line;
+    out.col = l.col;
+  }
   return;
 }
 
+// PLATFORM: SHARED — deref-assign emits no store (kind 52), so each
+// return writes pos, line, and col through out. The advanced cursor is that write.
 export function skip_whitespace_and_comments_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // knife256 / 10.2 Cap tip: walk call-arg data/len directly — do not park.
   // Park tip-image reject left sp null (early return → unsynced cursor) or a
@@ -4093,7 +4108,11 @@ export function skip_whitespace_and_comments_buf(out: *Lexer, lex: Lexer, data: 
   // (core.option / core.mem alone). Slice twin skip_whitespace_and_comments
   // already uses u8[] without park. PLATFORM: SHARED.
   if (data == (0 as *u8)) {
-    unsafe { *out = (lex); }
+    unsafe {
+      out.pos = lex.pos;
+      out.line = lex.line;
+      out.col = lex.col;
+    }
     return;
   }
   let n: i32 = len;
@@ -4167,7 +4186,11 @@ export function skip_whitespace_and_comments_buf(out: *Lexer, lex: Lexer, data: 
     } else if (c == 35) {
       // Bare # line comment; leave #[cfg]/attrs to the token scanner.
       if (l.pos + (1 as usize) < slen && sp[l.pos + (1 as usize)] == 91) {
-        unsafe { *out = (l); }
+        unsafe {
+          out.pos = l.pos;
+          out.line = l.line;
+          out.col = l.col;
+        }
         return;
       } else {
         while (l.pos < slen && sp[l.pos] != 10) {
@@ -4175,11 +4198,19 @@ export function skip_whitespace_and_comments_buf(out: *Lexer, lex: Lexer, data: 
         }
       }
     } else {
-      unsafe { *out = (l); }
+      unsafe {
+        out.pos = l.pos;
+        out.line = l.line;
+        out.col = l.col;
+      }
       return;
     }
   }
-  unsafe { *out = (l); }
+  unsafe {
+    out.pos = l.pos;
+    out.line = l.line;
+    out.col = l.col;
+  }
   return;
 
 }
