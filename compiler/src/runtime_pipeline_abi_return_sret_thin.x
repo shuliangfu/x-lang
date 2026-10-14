@@ -59,6 +59,12 @@ export extern function glue_var_decl_type_ref_elf_c(arena: *u8, ctx: *u8, var_ex
 export extern function pipeline_type_array_size_at(arena: *u8, type_ref: i32): i32;
 export extern function glue_var_expr_stack_off_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
 export extern function pipeline_expr_field_access_base_ref(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_field_access_name_len(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_field_access_name_into(arena: *u8, expr_ref: i32, out: *u8): void;
+export extern function pipeline_expr_struct_lit_num_fields(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_struct_lit_field_name_len(arena: *u8, expr_ref: i32, j: i32): i32;
+export extern function pipeline_expr_struct_lit_field_name_into(arena: *u8, expr_ref: i32, j: i32, out: *u8): void;
+export extern function pipeline_expr_struct_lit_init_ref(arena: *u8, expr_ref: i32, j: i32): i32;
 export extern function backend_enc_push_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_pop_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i32, hi: i32, ta: i32): i32;
@@ -348,7 +354,10 @@ function w1521_rs_mid_named_field(arena: *u8, op: i32): i32 {
  * A FIELD whose base is a VAR, whose field type is TYPE_ARRAY, and whose
  * function returns TYPE_SLICE calls emit_expr once (that already leaves
  * the field address in rax/x0) and then moves the element count into x1
- * (arm64) or rdx (SysV). A STRUCT_LIT base stays on emit_expr.
+ * (arm64) or rdx (SysV). A FIELD whose base is a STRUCT_LIT and whose
+ * named init is an ARRAY_LIT durables that literal with the same helper
+ * and then moves the element count. Any other STRUCT_LIT init stays on
+ * emit_expr.
  * An ARRAY_LIT whose return type is TYPE_SLICE, after the existing
  * ARRAY/SLICE ascription peel, uses that same helper and then moves the
  * element count into x1 (arm64) or rdx (SysV). Windows keeps emit_expr.
@@ -459,6 +468,15 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
       let decl_ty: i32 = 0;
       let arr_off: i32 = 0;
       let base_er: i32 = 0;
+      let sl_nf: i32 = 0;
+      let sl_i: i32 = 0;
+      let sl_init: i32 = 0;
+      let fa_nlen: i32 = 0;
+      let sl_nlen: i32 = 0;
+      let sl_eq: i32 = 0;
+      let sl_k: i32 = 0;
+      let fa_name: u8[64] = [];
+      let sl_name: u8[64] = [];
       if (ta == 0 || ta == 1) {
         unsafe {
           opk_d = pipeline_expr_kind_ord_at(arena, ret_op);
@@ -671,10 +689,10 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
           // The caller reads x1 as the slice length, so the copy loop walks
           // off the stack. Call emit_expr once, then put N in x1 (arm64) or
           // rdx (SysV). Do not lea: a second address would drop the stores
-          // emit_expr just wrote. A STRUCT_LIT base writes no payload, so
-          // packing N onto that x0 is a different producer. A TYPE_ARRAY
-          // function return stays on the value path. Windows stays on
-          // emit_expr. PLATFORM: MACOS|ARM64 · LINUX x86_64.
+          // emit_expr just wrote. A STRUCT_LIT base whose init is an
+          // ARRAY_LIT is the next arm. A TYPE_ARRAY function return stays
+          // on the value path. Windows stays on emit_expr.
+          // PLATFORM: MACOS|ARM64 · LINUX x86_64.
           if (dur_ok == 0) {
             unsafe {
               opk_d = pipeline_expr_kind_ord_at(arena, ret_op);
@@ -723,6 +741,108 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                               if (rc != 0) {
                                 return 0 - 1;
                               }
+                              unsafe {
+                                rc = backend_enc_push_rax_arch(elf_ctx, ta);
+                              }
+                              if (rc != 0) {
+                                return 0 - 1;
+                              }
+                              unsafe {
+                                rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_d, 0, ta);
+                              }
+                              if (rc != 0) {
+                                return 0 - 1;
+                              }
+                              if (ta == 1) {
+                                len_reg = 1;
+                              } else {
+                                len_reg = 2;
+                              }
+                              unsafe {
+                                rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, len_reg, ta);
+                              }
+                              if (rc != 0) {
+                                return 0 - 1;
+                              }
+                              unsafe {
+                                rc = backend_enc_pop_rax_arch(elf_ctx, ta);
+                              }
+                              if (rc != 0) {
+                                return 0 - 1;
+                              }
+                              dur_ok = 1;
+                            }
+                          }
+                        }
+                      }
+                    }
+                    // FIELD of a STRUCT_LIT, same slice return. emit_expr
+                    // writes no payload, so x0/x1 stay whatever the caller
+                    // left and the length check fails. When the named
+                    // field's init is an ARRAY_LIT, durable that literal
+                    // (the existing helper rejects every other kind) and
+                    // put its element count in x1 (arm64) or rdx (SysV).
+                    // A VAR init, a nested literal, or a failed durable
+                    // emit stays on emit_expr. Do not pack a count onto
+                    // an address this arm did not emit. Windows stays on
+                    // emit_expr. PLATFORM: MACOS|ARM64 · LINUX x86_64.
+                    if (dur_ok == 0 && opk_d == 45) {
+                      unsafe {
+                        fa_nlen = pipeline_expr_field_access_name_len(arena, ret_op);
+                        sl_nf = pipeline_expr_struct_lit_num_fields(arena, base_er);
+                      }
+                      sl_init = 0;
+                      if (fa_nlen > 0 && fa_nlen <= 63 && sl_nf > 0 && sl_nf <= 64) {
+                        unsafe {
+                          pipeline_expr_field_access_name_into(arena, ret_op, &fa_name[0]);
+                        }
+                        sl_i = 0;
+                        while (sl_i < sl_nf) {
+                          if (sl_init == 0) {
+                            unsafe {
+                              sl_nlen = pipeline_expr_struct_lit_field_name_len(arena, base_er, sl_i);
+                            }
+                            sl_eq = 0;
+                            if (sl_nlen == fa_nlen) {
+                              unsafe {
+                                pipeline_expr_struct_lit_field_name_into(arena, base_er, sl_i, &sl_name[0]);
+                              }
+                              sl_eq = 1;
+                              sl_k = 0;
+                              while (sl_k < fa_nlen) {
+                                if (fa_name[sl_k] != sl_name[sl_k]) {
+                                  sl_eq = 0;
+                                }
+                                sl_k = sl_k + 1;
+                              }
+                            }
+                            if (sl_eq != 0) {
+                              unsafe {
+                                sl_init = pipeline_expr_struct_lit_init_ref(arena, base_er, sl_i);
+                              }
+                            }
+                          }
+                          sl_i = sl_i + 1;
+                        }
+                      }
+                      if (sl_init > 0) {
+                        unsafe {
+                          opk_d = pipeline_expr_kind_ord_at(arena, sl_init);
+                        }
+                        // EXPR_ARRAY_LIT = 46. The durable helper rejects
+                        // every other kind, so a non-literal init falls
+                        // through.
+                        if (opk_d == 46) {
+                          unsafe {
+                            n_d = pipeline_expr_array_lit_num_elems_at(arena, sl_init);
+                            elem_d = pipeline_type_elem_ref_at(arena, rty_d);
+                            esz_d = glue_array_lit_force_esz_from_elem_type_c(arena, elem_d);
+                          }
+                          if (n_d >= 0 && n_d <= 1024) {
+                            unsafe {
+                              rc = glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, sl_init, esz_d, ta, ctx, elem_d);
+                            }
+                            if (rc == 0) {
                               unsafe {
                                 rc = backend_enc_push_rax_arch(elf_ctx, ta);
                               }
