@@ -77,12 +77,24 @@ extern "C" function fcntl(fd: i32, cmd: i32, ...): i32;
 /* 记231: Darwin libc ioctl is variadic; tip Apple va spill for 3rd+. */
 extern "C" function ioctl(fd: i32, req: u64, ...): i32;
 
-/* 记230: tip export const u64 with bit31 set sign-extends (0x8004667e →
- * 0xffffffff8004667e). Build FIONBIO via shift so movz/movk stay zero-ext. */
+/**
+ * FIONBIO request for ioctl. Single definition for std.net.
+ * udp.x, sock.x, and ipv6.x only declare this name.
+ * A u64 literal with bit 31 set is sign-extended by this compiler,
+ * so 0x8004667e is built as (0x8004 * 65536) + 0x667e.
+ * @return u64 — Darwin FIONBIO, low 32 bits 0x8004667e
+ * PLATFORM: MACOS|DARWIN — ioctl request. Linux value is the other cfg.
+ */
 #[cfg(target_os = "macos")]
 export function net_fionbio_c(): u64 {
   return ((0x8004 as u64) * 65536) + (0x667e as u64);
 }
+/**
+ * FIONBIO request for ioctl. Same link name as the Darwin cfg.
+ * udp.x, sock.x, and ipv6.x only declare this name.
+ * @return u64 — Linux FIONBIO, 0x5421
+ * PLATFORM: LINUX|UBUNTU — ioctl request number.
+ */
 #[cfg(target_os = "linux")]
 export function net_fionbio_c(): u64 {
   return 0x5421 as u64;
