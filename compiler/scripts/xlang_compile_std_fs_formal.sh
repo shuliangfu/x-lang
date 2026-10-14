@@ -125,6 +125,9 @@ if [ "$_fs_os" = "Darwin" ] || { [ "$_fs_os" = "Linux" ] && [ "$_fs_mach" = "x86
       fi
       _fs_more="$tmp_dir/free.o $tmp_dir/sysmod.o $tmp_dir/syslinux.o $tmp_dir/sysmmap.o"
     fi
+    # PLATFORM: MACOS|DARWIN — writer adds one '_' to C __error, so posix.o
+    # must undef ___error (same as std/net/net.o). Reject bare __error and
+    # doubled ____error. Linux posix.o has neither symbol.
     if "$XLANG_BIN" -backend asm -c -L "$_fs_L" -o "$tmp_dir/mod.o" "$_fs_mod" \
         >"$tmp_dir/mod_asm.log" 2>&1 \
       && [ -s "$tmp_dir/mod.o" ] \
@@ -140,6 +143,8 @@ if [ "$_fs_os" = "Darwin" ] || { [ "$_fs_os" = "Linux" ] && [ "$_fs_mach" = "x86
       && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_sys_readv$' \
       && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_sys_poll$' \
       && nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?pread$' \
+      && { [ "$_fs_os" != "Darwin" ] || nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U ___error$'; } \
+      && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U ____error$' \
       && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U __error$' \
       && ld -r -o "$tmp_dir/fs_formal_raw.o" "$tmp_dir/mod.o" "$tmp_dir/posix.o" $_fs_more \
         >"$tmp_dir/ld_asm.err" 2>&1; then
