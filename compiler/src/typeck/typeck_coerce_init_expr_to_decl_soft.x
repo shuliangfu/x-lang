@@ -3,7 +3,9 @@
 // of that mega emits a hollow mov w0,#0; ret, so this thin is what the
 // link runs. An INT_LIT, unary minus / bitwise not of an INT_LIT, or
 // one, two, three, four, or five more unaries of that unary, into a TYPE_VECTOR
-// of i32 is stamped with the declared type. A seventh unary calls the
+// of i32 is stamped with the declared type. The walk accepts kind 22
+// and kind 23 through 32 steps. Probes covered one through eight
+// minuses and the seven-deep mixed chain. A 33rd step calls the
 // demoted body. A TYPE_VECTOR of f32 also stamps a FLOAT_LIT and one
 // a chain of at most 32 unary minuses of that literal. An odd count
 // applies the sign once. An even count cancels. One more unary
@@ -31,9 +33,9 @@ export extern "C" function pipeline_expr_set_resolved_type_ref(arena: *u8, expr_
  * Vec8i is kind 13 of i32. Named i32x8 is kind 8 and already passes the
  * soft equality, so `let v: i32x8 = ~1` typechecks. Kind 13 does not, so
  * `let v: Vec8i = ~1` was "expected ?, found i32". The vector let-init
- * already splats INT_LIT, unary -/~ of an INT_LIT, and one, two,
- * three, four, or five more unary -/~ of that unary. A seventh
- * unary, a variable, a binop,
+ * already splats INT_LIT and a kind 22 / kind 23 chain around it.
+ * Probes covered one through eight minuses and the seven-deep mixed
+ * chain. A 33rd step, a variable, a binop,
  * and keyword null stay on the demoted body. A TYPE_VECTOR of f32
  * stamps a FLOAT_LIT and a chain of at most 32 unary minuses of that
  * literal. An odd count applies the sign once. An even count cancels.
@@ -70,6 +72,9 @@ export function typeck_coerce_init_expr_to_decl(
     let pent_k: i32 = 0;
     let hex_ref: i32 = 0;
     let hex_k: i32 = 0;
+    let u_go: i32 = 0;
+    let u_deep: i32 = 0;
+    let u_stop: i32 = 0;
     let ntypes: i32 = 0;
     if (arena == 0 as *u8 || init_ref <= 0 || decl_ty_ref <= 0) {
       return typeck_coerce_init_expr_to_decl__demoted(
@@ -97,107 +102,62 @@ export function typeck_coerce_init_expr_to_decl(
                 splat_ok = 1;
               }
             }
+            /*
+             * Walk kind 22 and kind 23 together, at most 32 steps.
+             * The innermost expr must be a non-null INT_LIT. Kind 24
+             * does not enter. A longer chain stays unstamped and the
+             * demoted body rejects it. Probes covered through eight minuses.
+             * Depth 32 was not run. One loop, not a seventh local.
+             * Each bound is its own compare. PLATFORM: SHARED.
+             */
             if (init_kind == ord_neg) {
-              op_ref = pipeline_expr_unary_operand_ref_at(arena, init_ref);
+              u_go = 1;
             }
             if (init_kind == ord_bitnot) {
-              op_ref = pipeline_expr_unary_operand_ref_at(arena, init_ref);
+              u_go = 1;
             }
-            if (op_ref > 0) {
-              op_k = pipeline_expr_kind_ord_at(arena, op_ref);
+            if (u_go != 0) {
+              op_ref = init_ref;
+              op_k = init_kind;
+              u_deep = 0;
+              u_stop = 0;
+              while (u_stop == 0) {
+                if (u_deep < 32) {
+                  if (op_k == ord_neg) {
+                    inner_ref = pipeline_expr_unary_operand_ref_at(arena, op_ref);
+                    if (inner_ref <= 0) {
+                      op_k = -1;
+                      u_stop = 1;
+                    } else {
+                      op_ref = inner_ref;
+                      u_deep = u_deep + 1;
+                      op_k = pipeline_expr_kind_ord_at(arena, op_ref);
+                    }
+                  } else {
+                    if (op_k == ord_bitnot) {
+                      inner_ref = pipeline_expr_unary_operand_ref_at(arena, op_ref);
+                      if (inner_ref <= 0) {
+                        op_k = -1;
+                        u_stop = 1;
+                      } else {
+                        op_ref = inner_ref;
+                        u_deep = u_deep + 1;
+                        op_k = pipeline_expr_kind_ord_at(arena, op_ref);
+                      }
+                    } else {
+                      u_stop = 1;
+                    }
+                  }
+                } else {
+                  // Kind 0 is INT_LIT. A 33rd step must stay unstamped.
+                  op_k = -1;
+                  u_stop = 1;
+                }
+              }
               if (op_k == ord_lit) {
-                if (pipeline_expr_is_null_keyword_c(arena, op_ref) == 0) {
-                  splat_ok = 1;
-                }
-              }
-              /*
-               * One more unary of a non-null INT_LIT, and one, two, or
-               * four unaries beyond that: ~(-3), ~(~(-3)), ~(~(~(-3))),
-               * -(~(~(~(-3)))), and -(~(~(~(~(-3))))).
-               * A seventh unary is kind 22 or 23 at the deepest operand,
-               * not INT_LIT, so it stays unstamped. The emitter folds
-               * six and declines seven. VAR, binop, CALL, keyword null, and
-               * LOGNOT stay off. PLATFORM: SHARED.
-               */
-              if (op_k == ord_neg) {
-                inner_ref = pipeline_expr_unary_operand_ref_at(arena, op_ref);
-              }
-              if (op_k == ord_bitnot) {
-                inner_ref = pipeline_expr_unary_operand_ref_at(arena, op_ref);
-              }
-              if (inner_ref > 0) {
-                inner_k = pipeline_expr_kind_ord_at(arena, inner_ref);
-                if (inner_k == ord_lit) {
-                  if (pipeline_expr_is_null_keyword_c(arena, inner_ref) == 0) {
+                if (u_deep > 0) {
+                  if (pipeline_expr_is_null_keyword_c(arena, op_ref) == 0) {
                     splat_ok = 1;
-                  }
-                }
-                if (inner_k == ord_neg) {
-                  deep_ref = pipeline_expr_unary_operand_ref_at(arena, inner_ref);
-                }
-                if (inner_k == ord_bitnot) {
-                  deep_ref = pipeline_expr_unary_operand_ref_at(arena, inner_ref);
-                }
-                if (deep_ref > 0) {
-                  deep_k = pipeline_expr_kind_ord_at(arena, deep_ref);
-                  if (deep_k == ord_lit) {
-                    if (pipeline_expr_is_null_keyword_c(arena, deep_ref) == 0) {
-                      splat_ok = 1;
-                    }
-                  }
-                  if (deep_k == ord_neg) {
-                    quad_ref = pipeline_expr_unary_operand_ref_at(arena, deep_ref);
-                  }
-                  if (deep_k == ord_bitnot) {
-                    quad_ref = pipeline_expr_unary_operand_ref_at(arena, deep_ref);
-                  }
-                  if (quad_ref > 0) {
-                    quad_k = pipeline_expr_kind_ord_at(arena, quad_ref);
-                    if (quad_k == ord_lit) {
-                      if (pipeline_expr_is_null_keyword_c(arena, quad_ref) == 0) {
-                        splat_ok = 1;
-                      }
-                    }
-                    /*
-                     * Fifth unary of a non-null INT_LIT. Kind 22 and kind 23 are
-                     * separate compares. One more unary of this wrapper is stamped below. A seventh unary stays 22 or 23, so it is not
-                     * stamped. PLATFORM: SHARED.
-                     */
-
-                    if (quad_k == ord_neg) {
-                      pent_ref = pipeline_expr_unary_operand_ref_at(arena, quad_ref);
-                    }
-                    if (quad_k == ord_bitnot) {
-                      pent_ref = pipeline_expr_unary_operand_ref_at(arena, quad_ref);
-                    }
-                    if (pent_ref > 0) {
-                      pent_k = pipeline_expr_kind_ord_at(arena, pent_ref);
-                      if (pent_k == ord_lit) {
-                        if (pipeline_expr_is_null_keyword_c(arena, pent_ref) == 0) {
-                          splat_ok = 1;
-                        }
-                      }
-                      /*
-                       * Sixth unary of a non-null INT_LIT. Kind 22 and kind 23 are
-                       * separate compares. A seventh unary stays 22 or 23, so it is
-                       * not stamped. The emitter folds six and declines seven.
-                       * PLATFORM: SHARED.
-                       */
-                      if (pent_k == ord_neg) {
-                        hex_ref = pipeline_expr_unary_operand_ref_at(arena, pent_ref);
-                      }
-                      if (pent_k == ord_bitnot) {
-                        hex_ref = pipeline_expr_unary_operand_ref_at(arena, pent_ref);
-                      }
-                      if (hex_ref > 0) {
-                        hex_k = pipeline_expr_kind_ord_at(arena, hex_ref);
-                        if (hex_k == ord_lit) {
-                          if (pipeline_expr_is_null_keyword_c(arena, hex_ref) == 0) {
-                            splat_ok = 1;
-                          }
-                        }
-                      }
-                    }
                   }
                 }
               }

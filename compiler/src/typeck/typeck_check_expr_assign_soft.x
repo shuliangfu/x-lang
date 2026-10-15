@@ -4,8 +4,10 @@
 // is what the link runs. Plain ASSIGN (kind 28) of an INT_LIT, of
 // unary minus / bitwise not of an INT_LIT, or of one, two, three, or
 // five more unaries of that unary, onto a TYPE_VECTOR of i32 stamps the RHS
-// with the LHS type, then calls the demoted body. A seventh unary
-// calls the demoted body with no stamp. A TYPE_VECTOR of f32 also
+// with the LHS type, then calls the demoted body. The walk accepts
+// kind 22 and kind 23 through 32 steps. Probes covered one through
+// eight minuses and the seven-deep mixed chain. A 33rd step calls
+// the demoted body with no stamp. A TYPE_VECTOR of f32 also
 // stamps a bare FLOAT_LIT, one unary minus of a FLOAT_LIT, one more
 // unary minus of that, one unary beyond that, and one unary beyond
 // that, when the LHS is a VAR or a FIELD. Two minuses cancel. Three
@@ -58,9 +60,10 @@ export extern "C" function pipeline_expr_set_resolved_type_ref(arena: *u8, expr_
  * 16 bytes, and kind 22 or 23 calls the same let-init, so
  * `h.v = ~(-3)` on Vec8i is the same splat as `v = ~(-3)`.
  * Keyword null stays unstamped. Unary minus / bitwise not of an
- * INT_LIT, and one more unary of that, is stamped for a VAR or a
- * FIELD. A seventh unary, a binop, LOGNOT, compound assign, and deref
- * are not stamped. A TYPE_VECTOR of f32 stamps a bare FLOAT_LIT, one
+ * INT_LIT, and a kind 22 / kind 23 chain around it, is stamped for a
+ * VAR or a FIELD. Probes covered one through eight minuses and the
+ * seven-deep mixed assign. A 33rd step, a binop, LOGNOT, compound
+ * assign, and deref are not stamped. A TYPE_VECTOR of f32 stamps a bare FLOAT_LIT, one
  * unary minus of a FLOAT_LIT, one more unary minus of that, one unary
  * beyond that, one unary beyond that, and one unary beyond that, for
  * a VAR or a FIELD. Two minuses cancel. Three minuses apply the sign
@@ -118,6 +121,10 @@ export function typeck_check_expr_assign(
     let pent_k: i32 = 0;
     let hex_ref: i32 = 0;
     let hex_k: i32 = 0;
+    let u_go: i32 = 0;
+    let u_deep: i32 = 0;
+    let u_stop: i32 = 0;
+    let lhs_ok: i32 = 0;
     let splat_ok: i32 = 0;
     if (module == 0 as *u8 || arena == 0 as *u8 || expr_ref <= 0) {
       return typeck_check_expr_assign__demoted(
@@ -147,8 +154,8 @@ export function typeck_check_expr_assign(
      * Only a real TYPE_VECTOR of i32. Out-of-range element refs stay
      * unstamped. A non-null INT_LIT is stamped for a VAR or a FIELD.
      * Unary minus / bitwise not of one, and exactly one more unary of
-     * that lit, or one, two, three, or four unaries beyond that, is stamped for a VAR
-     * or a FIELD. A seventh unary stays
+     * that lit, is stamped for a VAR or a FIELD. The walk stops at 32.
+     * Probes covered through eight minuses. A 33rd step stays
      * unstamped.
      * PLATFORM: SHARED — element kind is the type rule, not a host ABI.
      */
@@ -175,135 +182,69 @@ export function typeck_check_expr_assign(
                       }
                     }
                   }
+                  /*
+                   * Walk kind 22 and kind 23 together, at most 32 steps.
+                   * The innermost expr must be a non-null INT_LIT, and
+                   * the left side must be a VAR or a FIELD. Kind 24 does
+                   * not enter. A longer chain stays unstamped. Probes covered
+                   * through eight minuses. Depth 32 was not run. One loop,
+                   * not a seventh local. PLATFORM: SHARED.
+                   */
                   if (rhs_kind == ord_neg) {
-                    op_ref = pipeline_expr_unary_operand_ref_at(arena, right_ref);
+                    u_go = 1;
                   }
                   if (rhs_kind == ord_bitnot) {
-                    op_ref = pipeline_expr_unary_operand_ref_at(arena, right_ref);
+                    u_go = 1;
                   }
-                  if (op_ref > 0) {
-                    op_k = pipeline_expr_kind_ord_at(arena, op_ref);
-                    if (op_k == ord_lit) {
-                      if (pipeline_expr_is_null_keyword_c(arena, op_ref) == 0) {
-                        if (lhs_kind == ord_var) {
-                          splat_ok = 1;
-                        }
-                        if (lhs_kind == ord_field) {
-                          splat_ok = 1;
+                  if (lhs_kind == ord_var) {
+                    lhs_ok = 1;
+                  }
+                  if (lhs_kind == ord_field) {
+                    lhs_ok = 1;
+                  }
+                  if (u_go != 0) {
+                    if (lhs_ok != 0) {
+                      op_ref = right_ref;
+                      op_k = rhs_kind;
+                      u_deep = 0;
+                      u_stop = 0;
+                      while (u_stop == 0) {
+                        if (u_deep < 32) {
+                          if (op_k == ord_neg) {
+                            inner_ref = pipeline_expr_unary_operand_ref_at(arena, op_ref);
+                            if (inner_ref <= 0) {
+                              op_k = -1;
+                              u_stop = 1;
+                            } else {
+                              op_ref = inner_ref;
+                              u_deep = u_deep + 1;
+                              op_k = pipeline_expr_kind_ord_at(arena, op_ref);
+                            }
+                          } else {
+                            if (op_k == ord_bitnot) {
+                              inner_ref = pipeline_expr_unary_operand_ref_at(arena, op_ref);
+                              if (inner_ref <= 0) {
+                                op_k = -1;
+                                u_stop = 1;
+                              } else {
+                                op_ref = inner_ref;
+                                u_deep = u_deep + 1;
+                                op_k = pipeline_expr_kind_ord_at(arena, op_ref);
+                              }
+                            } else {
+                              u_stop = 1;
+                            }
+                          }
+                        } else {
+                          // Kind 0 is INT_LIT. A 33rd step must stay unstamped.
+                          op_k = -1;
+                          u_stop = 1;
                         }
                       }
-                    }
-                    /*
-                     * One more unary of a non-null INT_LIT, and exactly
-                     * one, two, three, or four unaries beyond that, still only a VAR or a
-                     * FIELD. A seventh unary, an i32 variable, a binop,
-                     * keyword null, and LOGNOT stay unstamped. The
-                     * emitter folds six and declines seven.
-                     * PLATFORM: SHARED.
-                     */
-                    if (op_k == ord_neg) {
-                      inner_ref = pipeline_expr_unary_operand_ref_at(arena, op_ref);
-                    }
-                    if (op_k == ord_bitnot) {
-                      inner_ref = pipeline_expr_unary_operand_ref_at(arena, op_ref);
-                    }
-                    if (inner_ref > 0) {
-                      inner_k = pipeline_expr_kind_ord_at(arena, inner_ref);
-                      if (inner_k == ord_lit) {
-                        if (pipeline_expr_is_null_keyword_c(arena, inner_ref) == 0) {
-                          if (lhs_kind == ord_var) {
+                      if (op_k == ord_lit) {
+                        if (u_deep > 0) {
+                          if (pipeline_expr_is_null_keyword_c(arena, op_ref) == 0) {
                             splat_ok = 1;
-                          }
-                          if (lhs_kind == ord_field) {
-                            splat_ok = 1;
-                          }
-                        }
-                      }
-                      if (inner_k == ord_neg) {
-                        deep_ref = pipeline_expr_unary_operand_ref_at(arena, inner_ref);
-                      }
-                      if (inner_k == ord_bitnot) {
-                        deep_ref = pipeline_expr_unary_operand_ref_at(arena, inner_ref);
-                      }
-                      if (deep_ref > 0) {
-                        deep_k = pipeline_expr_kind_ord_at(arena, deep_ref);
-                        if (deep_k == ord_lit) {
-                          if (pipeline_expr_is_null_keyword_c(arena, deep_ref) == 0) {
-                            if (lhs_kind == ord_var) {
-                              splat_ok = 1;
-                            }
-                            if (lhs_kind == ord_field) {
-                              splat_ok = 1;
-                            }
-                          }
-                        }
-                        if (deep_k == ord_neg) {
-                          quad_ref = pipeline_expr_unary_operand_ref_at(arena, deep_ref);
-                        }
-                        if (deep_k == ord_bitnot) {
-                          quad_ref = pipeline_expr_unary_operand_ref_at(arena, deep_ref);
-                        }
-                        if (quad_ref > 0) {
-                          quad_k = pipeline_expr_kind_ord_at(arena, quad_ref);
-                          if (quad_k == ord_lit) {
-                            if (pipeline_expr_is_null_keyword_c(arena, quad_ref) == 0) {
-                              if (lhs_kind == ord_var) {
-                                splat_ok = 1;
-                              }
-                              if (lhs_kind == ord_field) {
-                                splat_ok = 1;
-                              }
-                            }
-                          }
-                          /*
-                           * Fifth unary of a non-null INT_LIT. Kind 22 and kind 23 are
-                           * separate compares. One more unary of this wrapper is stamped below. A seventh unary stays 22 or 23, so it is not
-                           * stamped. PLATFORM: SHARED.
-                           */
-
-                          if (quad_k == ord_neg) {
-                            pent_ref = pipeline_expr_unary_operand_ref_at(arena, quad_ref);
-                          }
-                          if (quad_k == ord_bitnot) {
-                            pent_ref = pipeline_expr_unary_operand_ref_at(arena, quad_ref);
-                          }
-                          if (pent_ref > 0) {
-                            pent_k = pipeline_expr_kind_ord_at(arena, pent_ref);
-                            if (pent_k == ord_lit) {
-                              if (pipeline_expr_is_null_keyword_c(arena, pent_ref) == 0) {
-                                if (lhs_kind == ord_var) {
-                                  splat_ok = 1;
-                                }
-                                if (lhs_kind == ord_field) {
-                                  splat_ok = 1;
-                                }
-                              }
-                            }
-                            /*
-                             * Sixth unary of a non-null INT_LIT. Kind 22 and kind 23 are
-                             * separate compares. A seventh unary stays 22 or 23, so it is
-                             * not stamped. The emitter folds six and declines seven.
-                             * Still only a VAR or a FIELD. PLATFORM: SHARED.
-                             */
-                            if (pent_k == ord_neg) {
-                              hex_ref = pipeline_expr_unary_operand_ref_at(arena, pent_ref);
-                            }
-                            if (pent_k == ord_bitnot) {
-                              hex_ref = pipeline_expr_unary_operand_ref_at(arena, pent_ref);
-                            }
-                            if (hex_ref > 0) {
-                              hex_k = pipeline_expr_kind_ord_at(arena, hex_ref);
-                              if (hex_k == ord_lit) {
-                                if (pipeline_expr_is_null_keyword_c(arena, hex_ref) == 0) {
-                                  if (lhs_kind == ord_var) {
-                                    splat_ok = 1;
-                                  }
-                                  if (lhs_kind == ord_field) {
-                                    splat_ok = 1;
-                                  }
-                                }
-                              }
-                            }
                           }
                         }
                       }

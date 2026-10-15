@@ -54,7 +54,9 @@ export extern "C" function pipeline_expr_is_null_keyword_c(arena: *u8, expr_ref:
  * and the operand is a non-null INT_LIT, or one through five more
  * unaries of one, the immediate operand is typechecked with expected 0
  * and this function returns without calling demoted, so the stamp
- * stays. Expected 0 keeps that operand a scalar. A seventh unary is
+ * stays. Expected 0 keeps that operand a scalar. The keep walks kind
+ * 22 and kind 23 through 32 steps. Probes covered one through eight
+ * minuses and the seven-deep mixed chain. A 33rd step is
  * not a keep. A TYPE_VECTOR of f32 keeps one unary minus whose operand
  * is a FLOAT_LIT, one more unary minus of that, one unary beyond
  * that, one unary beyond that, and one unary beyond that. Two
@@ -109,7 +111,8 @@ export function typeck_check_expr_unary(
     /*
      * Keep an assign pre-stamp of this unary onto an i32 TYPE_VECTOR.
      * The immediate operand is checked with expected 0 so a lit stays
-     * i32 and a unary of a lit stays a scalar unary. A seventh unary
+     * i32 and a unary of a lit stays a scalar unary. The walk stops at
+     * 32. Probes covered through eight minuses. A 33rd step
      * falls through. Keyword null falls through. Two compares, not a
      * chained &&.
      * PLATFORM: SHARED — element kind is the type rule, not a host ABI.
@@ -130,6 +133,8 @@ export function typeck_check_expr_unary(
       let already_pent_k: i32 = 0;
       let already_hex: i32 = 0;
       let already_hex_k: i32 = 0;
+      let u_deep: i32 = 0;
+      let u_stop: i32 = 0;
       if (already > 0) {
         if (already <= ntypes) {
           if (pipeline_type_kind_ord_at(arena, already) == ord_vector) {
@@ -138,101 +143,55 @@ export function typeck_check_expr_unary(
               if (already_elem <= ntypes) {
                 already_ek = pipeline_type_kind_ord_at(arena, already_elem);
                 if (already_ek == ord_i32) {
-                  if (op_ref > 0) {
-                    already_op_k = pipeline_expr_kind_ord_at(arena, op_ref);
-                    if (already_op_k == ord_lit) {
-                      if (pipeline_expr_is_null_keyword_c(arena, op_ref) == 0) {
+                  /*
+                   * Walk kind 22 and kind 23 from this expr, at most 32
+                   * steps. The innermost expr must be a non-null INT_LIT.
+                   * Kind 24 does not enter. The keep below still
+                   * typechecks the immediate operand with expected 0, so
+                   * the inner unaries stay scalar and the vector stamp
+                   * stays on this expr. PLATFORM: SHARED.
+                   */
+                  already_op_k = expr_kind;
+                  already_in = expr_ref;
+                  u_deep = 0;
+                  u_stop = 0;
+                  while (u_stop == 0) {
+                    if (u_deep < 32) {
+                      if (already_op_k == ord_neg) {
+                        already_deep = pipeline_expr_unary_operand_ref_at(arena, already_in);
+                        if (already_deep <= 0) {
+                          already_op_k = -1;
+                          u_stop = 1;
+                        } else {
+                          already_in = already_deep;
+                          u_deep = u_deep + 1;
+                          already_op_k = pipeline_expr_kind_ord_at(arena, already_in);
+                        }
+                      } else {
+                        if (already_op_k == ord_bitnot) {
+                          already_deep = pipeline_expr_unary_operand_ref_at(arena, already_in);
+                          if (already_deep <= 0) {
+                            already_op_k = -1;
+                            u_stop = 1;
+                          } else {
+                            already_in = already_deep;
+                            u_deep = u_deep + 1;
+                            already_op_k = pipeline_expr_kind_ord_at(arena, already_in);
+                          }
+                        } else {
+                          u_stop = 1;
+                        }
+                      }
+                    } else {
+                      // Kind 0 is INT_LIT. A 33rd step must not be kept.
+                      already_op_k = -1;
+                      u_stop = 1;
+                    }
+                  }
+                  if (already_op_k == ord_lit) {
+                    if (u_deep > 0) {
+                      if (pipeline_expr_is_null_keyword_c(arena, already_in) == 0) {
                         already_keep = 1;
-                      }
-                    }
-                    /*
-                     * One more unary of a non-null INT_LIT, and exactly
-                     * one, two, three, or four unaries beyond that. The keep below typechecks
-                     * op_ref with expected 0, so the inner unaries stay
-                     * scalar and the vector stamp stays on this expr.
-                     * A seventh unary is not INT_LIT here. LOGNOT does
-                     * not set already_keep. PLATFORM: SHARED.
-                     */
-                    if (already_op_k == ord_neg) {
-                      already_in = pipeline_expr_unary_operand_ref_at(arena, op_ref);
-                    }
-                    if (already_op_k == ord_bitnot) {
-                      already_in = pipeline_expr_unary_operand_ref_at(arena, op_ref);
-                    }
-                    if (already_in > 0) {
-                      already_in_k = pipeline_expr_kind_ord_at(arena, already_in);
-                      if (already_in_k == ord_lit) {
-                        if (pipeline_expr_is_null_keyword_c(arena, already_in) == 0) {
-                          already_keep = 1;
-                        }
-                      }
-                      if (already_in_k == ord_neg) {
-                        already_deep = pipeline_expr_unary_operand_ref_at(arena, already_in);
-                      }
-                      if (already_in_k == ord_bitnot) {
-                        already_deep = pipeline_expr_unary_operand_ref_at(arena, already_in);
-                      }
-                      if (already_deep > 0) {
-                        already_deep_k = pipeline_expr_kind_ord_at(arena, already_deep);
-                        if (already_deep_k == ord_lit) {
-                          if (pipeline_expr_is_null_keyword_c(arena, already_deep) == 0) {
-                            already_keep = 1;
-                          }
-                        }
-                        if (already_deep_k == ord_neg) {
-                          already_quad = pipeline_expr_unary_operand_ref_at(arena, already_deep);
-                        }
-                        if (already_deep_k == ord_bitnot) {
-                          already_quad = pipeline_expr_unary_operand_ref_at(arena, already_deep);
-                        }
-                        if (already_quad > 0) {
-                          already_quad_k = pipeline_expr_kind_ord_at(arena, already_quad);
-                          if (already_quad_k == ord_lit) {
-                            if (pipeline_expr_is_null_keyword_c(arena, already_quad) == 0) {
-                              already_keep = 1;
-                            }
-                          }
-                          /*
-                           * Fifth unary of a non-null INT_LIT. Kind 22 and kind 23 are
-                           * separate compares. One more unary of this wrapper is stamped below. A seventh unary stays 22 or 23, so it is not
-                           * stamped. PLATFORM: SHARED.
-                           */
-
-                          if (already_quad_k == ord_neg) {
-                            already_pent = pipeline_expr_unary_operand_ref_at(arena, already_quad);
-                          }
-                          if (already_quad_k == ord_bitnot) {
-                            already_pent = pipeline_expr_unary_operand_ref_at(arena, already_quad);
-                          }
-                          if (already_pent > 0) {
-                            already_pent_k = pipeline_expr_kind_ord_at(arena, already_pent);
-                            if (already_pent_k == ord_lit) {
-                              if (pipeline_expr_is_null_keyword_c(arena, already_pent) == 0) {
-                                already_keep = 1;
-                              }
-                            }
-                            /*
-                             * Sixth unary of a non-null INT_LIT. Kind 22 and kind 23 are
-                             * separate compares. A seventh unary stays 22 or 23, so it is
-                             * not a keep. The keep below still typechecks op_ref with
-                             * expected 0. PLATFORM: SHARED.
-                             */
-                            if (already_pent_k == ord_neg) {
-                              already_hex = pipeline_expr_unary_operand_ref_at(arena, already_pent);
-                            }
-                            if (already_pent_k == ord_bitnot) {
-                              already_hex = pipeline_expr_unary_operand_ref_at(arena, already_pent);
-                            }
-                            if (already_hex > 0) {
-                              already_hex_k = pipeline_expr_kind_ord_at(arena, already_hex);
-                              if (already_hex_k == ord_lit) {
-                                if (pipeline_expr_is_null_keyword_c(arena, already_hex) == 0) {
-                                  already_keep = 1;
-                                }
-                              }
-                            }
-                          }
-                        }
                       }
                     }
                   }

@@ -13,7 +13,10 @@
 // the fourth. One unary beyond that folds the fifth. One unary
 // beyond that folds the sixth.
 // `let v: i32x8 = -(~(~(~(~(-3)))))` wrote 3 into lane 0 and
-// left lane 1 unset. A seventh unary stays declined. A nested unary
+// left lane 1 unset. The walk folds kind 22 and kind 23 through 32
+// steps, inside out. Probes covered one through eight minuses and the
+// seven-deep mixed chain on lane 0 and lane 7. A 33rd step stays
+// declined. A nested unary
 // of a VAR, a binop, a
 // CALL, a METHOD, an INDEX, a DEREF, or an ARRAY_LIT stays on the
 // per-lane path. Keyword null, f32, and a lane size other than 4
@@ -162,14 +165,12 @@ export extern function backend_enc_store_rax_to_rbx_offset_arch(
  * destination lane in place. Kind 23 (EXPR_BITNOT) uses that same
  * classification and emits mvn w0 on each i32 lane. f32 bitwise not
  * returns -3. An i32 immediate not is `-imm - 1` splatted by the
- * existing fill. Kind 22 or 23 of another kind 22 or 23 whose
- * operand is a non-null INT_LIT folds both operators into that
- * immediate and calls the same fill. One more unary wrapping that
- * literal folds the third operator with the same fill. One unary
- * beyond that folds the fourth operator with the same fill. One unary
- * beyond that folds the fifth operator with the same fill. One unary
- * beyond that folds the sixth operator with the same fill. A seventh
- * unary stays declined. A FLOAT_LIT, or one unary minus of a FLOAT_LIT,
+ * existing fill. A chain of kind 22 and kind 23 whose innermost
+ * expr is a non-null INT_LIT is one walk, at most 32 steps, applied
+ * inside out, then the same fill. Probes covered one through eight
+ * minuses and the seven-deep mixed chain on lane 0 and lane 7.
+ * A 33rd step stays declined.
+ * A FLOAT_LIT, or one unary minus of a FLOAT_LIT,
  * on an f32 lane is narrowed with glue_ieee_f64_bits_to_f32_bits and
  * splatted before that integer fold. One more unary minus of that
  * FLOAT_LIT cancels the sign and uses the same fill. One unary
@@ -243,6 +244,13 @@ export function glue_emit_vector_type_let_init_elf_c(
   let hex_ref: i32 = 0;
   let hex_ko: i32 = 0;
   let apply_pent: i32 = 0;
+  let u_knd: i32[32] = [];
+  let u_n: i32 = 0;
+  let u_cur: i32 = 0;
+  let u_kk: i32 = 0;
+  let u_stop: i32 = 0;
+  let u_i: i32 = 0;
+  let u_step: i32 = 0;
   let peeled: i32 = 0;
   let peel_n: i32 = 0;
   let f_ref: i32 = 0;
@@ -499,270 +507,96 @@ export function glue_emit_vector_type_let_init_elf_c(
     unsafe {
       op_ko = pipeline_expr_kind_ord_at(arena, lit_ref);
     }
-    // Nested unary of a non-null INT_LIT. `~(-3)` and `-(~1)` are
-    // kind 23 of kind 22, or kind 22 of kind 23. The operand is not
-    // kind 0, so the arm below used to return -3 and the caller stored
-    // one lane: lane 0 of `let v: i32x8 = ~(-3)` was 2 and lane 7 was
-    // not. Fold the inner operator, then the outer one, and splat with
-    // the existing fill. When that inner operand is itself kind 22 or
-    // 23 of a non-null INT_LIT, fold that wrapper first. One more
-    // unary of that wrapper folds the fourth operator, and one unary
-    // beyond that folds the fifth. One unary beyond that folds the
-    // sixth. A seventh unary is not kind 0 and stays declined.
-    // A VAR, a binop, CALL,
-    // METHOD, INDEX, DEREF, or ARRAY_LIT under the inner unary is not
-    // kind 0 and stays on that arm. Keyword null stays declined. f32
-    // is not an i32 not.
-    // Lane size other than 4 stays declined. ta other than 1 stays
-    // declined. Two statements for each not: `~x` is `-x - 1`.
+    // Walk kind 22 and kind 23, at most 32 steps, outermost first.
+    // The innermost expr must be a non-null INT_LIT. Apply from the
+    // inside out: kind 22 negates, kind 23 is `-imm - 1`. Kind 24 does
+    // not enter. A VAR, a binop, CALL, METHOD, INDEX, DEREF, or
+    // ARRAY_LIT stays on the arm below. Keyword null stays declined.
+    // Lane size other than 4, ta other than 1, and an f32 element stay
+    // declined. One more than 32 steps stays declined.
     // PLATFORM: MACOS|ARM64.
-    nested_u = 0;
-    if (op_ko == 22) {
-      nested_u = 1;
-    }
-    if (op_ko == 23) {
-      nested_u = 1;
-    }
-    if (nested_u != 0) {
-      unsafe {
-        inner_ref = pipeline_expr_unary_operand_ref_at(arena, lit_ref);
-      }
-      if (inner_ref > 0) {
-        unsafe {
-          inner_ko = pipeline_expr_kind_ord_at(arena, inner_ref);
-        }
-        if (inner_ko == 0) {
-          lit_src = inner_ref;
-        }
-        /*
-         * One more unary, still of a non-null INT_LIT: ~(~(-3)),
-         * -(~(~1)), ~(-(-3)), ~~~1, -(-(-3)). The operand of this
-         * inner unary is not kind 0, so the two-level arm above does
-         * not fire and the caller stores one str x0. Lane 0 of
-         * `let v: i32x8 = ~(~(-3))` was -3 and lane 1 was 0. Apply the
-         * wrapper, then the middle operator, then the outer one, and
-         * splat with the same fill. One, two, or three more unaries of
-         * this wrapper are folded below. A seventh unary is not an
-         * INT_LIT here and stays on the decline. A VAR, a binop, CALL, METHOD,
-         * INDEX, DEREF, or ARRAY_LIT under the wrapper stays declined.
-         * Keyword null stays declined. Two statements for each not.
-         * PLATFORM: MACOS|ARM64.
-         */
-        if (inner_ko == 22) {
-          third_u = 1;
-        }
-        if (inner_ko == 23) {
-          third_u = 1;
-        }
-        if (third_u != 0) {
+    u_n = 0;
+    u_cur = init_ref;
+    u_kk = ko;
+    u_stop = 0;
+    while (u_stop == 0) {
+      if (u_n < 32) {
+        if (u_kk == 22) {
+          u_knd[u_n] = 22;
+          u_n = u_n + 1;
           unsafe {
-            deep_ref = pipeline_expr_unary_operand_ref_at(arena, inner_ref);
+            u_step = pipeline_expr_unary_operand_ref_at(arena, u_cur);
           }
-          if (deep_ref > 0) {
+          if (u_step <= 0) {
+            u_kk = -1;
+            u_stop = 1;
+          } else {
+            u_cur = u_step;
             unsafe {
-              deep_ko = pipeline_expr_kind_ord_at(arena, deep_ref);
+              u_kk = pipeline_expr_kind_ord_at(arena, u_cur);
             }
-            if (deep_ko == 0) {
-              lit_src = deep_ref;
-              apply_wrap = 1;
+          }
+        } else {
+          if (u_kk == 23) {
+            u_knd[u_n] = 23;
+            u_n = u_n + 1;
+            unsafe {
+              u_step = pipeline_expr_unary_operand_ref_at(arena, u_cur);
             }
-            /*
-             * One more unary of a non-null INT_LIT: ~(~(~(-3))),
-             * -(~(~(~1))), ~~~~1, -(-(-(-3))). The operand of this
-             * wrapper is not kind 0, so the three-level arm above does
-             * not fire and the caller stores one str x0. Lane 0 of
-             * `let v: i32x8 = ~(~(~(-3)))` was 2 and lane 1 was not.
-             * Apply this operator, then the wrapper, then the middle
-             * operator, then the outer one, and splat with the same
-             * fill. One or two more unaries of this wrapper are folded
-             * below. A seventh unary is not an INT_LIT here and stays
-             * on the decline. A VAR, a binop, CALL, METHOD, INDEX, DEREF, or
-             * ARRAY_LIT under this unary stays declined. Keyword null
-             * stays declined. Two statements for each not.
-             * PLATFORM: MACOS|ARM64.
-             */
-            if (deep_ko == 22) {
-              fourth_u = 1;
-            }
-            if (deep_ko == 23) {
-              fourth_u = 1;
-            }
-            if (fourth_u != 0) {
+            if (u_step <= 0) {
+              u_kk = -1;
+              u_stop = 1;
+            } else {
+              u_cur = u_step;
               unsafe {
-                quad_ref = pipeline_expr_unary_operand_ref_at(arena, deep_ref);
-              }
-              if (quad_ref > 0) {
-                unsafe {
-                  quad_ko = pipeline_expr_kind_ord_at(arena, quad_ref);
-                }
-                if (quad_ko == 0) {
-                  lit_src = quad_ref;
-                  apply_wrap = 1;
-                  apply_deep = 1;
-                }
-                /*
-                 * One more unary of a non-null INT_LIT:
-                 * -(~(~(~(-3)))), ~(~(~(~1))), ~~~~~1,
-                 * -(-(-(-(-3)))). The operand of this wrapper is not
-                 * kind 0, so the four-level arm above does not fire
-                 * and the caller stores one str x0. Lane 0 of
-                 * `let v: i32x8 = -(~(~(~(-3))))` was -2 and lane 1
-                 * was not. Apply this innermost operator first, then
-                 * the four operators already folded above, and splat
-                 * with the same fill. One more unary of this wrapper
-                 * is folded below. A seventh unary is not an INT_LIT
-                 * here and stays on the decline. A VAR, a binop, CALL,
-                 * METHOD, INDEX, DEREF, or ARRAY_LIT under this unary
-                 * stays declined. Keyword null stays declined.
-                 * Two statements for each not.
-                 * PLATFORM: MACOS|ARM64.
-                 */
-                if (quad_ko == 22) {
-                  fifth_u = 1;
-                }
-                if (quad_ko == 23) {
-                  fifth_u = 1;
-                }
-                if (fifth_u != 0) {
-                  unsafe {
-                    pent_ref = pipeline_expr_unary_operand_ref_at(arena, quad_ref);
-                  }
-                  if (pent_ref > 0) {
-                    unsafe {
-                      pent_ko = pipeline_expr_kind_ord_at(arena, pent_ref);
-                    }
-                    if (pent_ko == 0) {
-                      lit_src = pent_ref;
-                      apply_wrap = 1;
-                      apply_deep = 1;
-                      apply_quad = 1;
-                    }
-                    /*
-                     * One more unary of a non-null INT_LIT:
-                     * -(~(~(~(~(-3))))), ~(~(~(~(~(~1))))), ~~~~~~1,
-                     * -(-(-(-(-(-3))))). The operand of this wrapper
-                     * is not kind 0, so the five-level arm above does
-                     * not fire and the caller stores one str x0. Lane 0
-                     * of `let v: i32x8 = -(~(~(~(~(-3)))))` was 3 and
-                     * lane 1 was not. Apply this innermost operator
-                     * first, then the five operators already folded
-                     * above, and splat with the same fill. When pent_ko
-                     * is 0 the five-deep arm already took the literal
-                     * and this peel does not run. A seventh unary is
-                     * not an INT_LIT here and stays on the decline.
-                     * A VAR, a binop, CALL, METHOD, INDEX, DEREF, or
-                     * ARRAY_LIT under this unary stays declined.
-                     * Keyword null stays declined. Two statements for
-                     * each not. PLATFORM: MACOS|ARM64.
-                     */
-                    if (pent_ko == 22) {
-                      sixth_u = 1;
-                    }
-                    if (pent_ko == 23) {
-                      sixth_u = 1;
-                    }
-                    if (sixth_u != 0) {
-                      unsafe {
-                        hex_ref = pipeline_expr_unary_operand_ref_at(arena, pent_ref);
-                      }
-                      if (hex_ref > 0) {
-                        unsafe {
-                          hex_ko = pipeline_expr_kind_ord_at(arena, hex_ref);
-                        }
-                        if (hex_ko == 0) {
-                          lit_src = hex_ref;
-                          apply_wrap = 1;
-                          apply_deep = 1;
-                          apply_quad = 1;
-                          apply_pent = 1;
-                        }
-                      }
-                    }
-                  }
-                }
+                u_kk = pipeline_expr_kind_ord_at(arena, u_cur);
               }
             }
+          } else {
+            u_stop = 1;
           }
         }
-        if (lit_src > 0) {
-          unsafe {
-            rc = pipeline_expr_is_null_keyword_c(arena, lit_src);
-          }
-          if (rc == 0) {
-            if (ta == 1) {
+      } else {
+        // Kind 0 is INT_LIT. A 33rd step must fall through, not fill.
+        u_kk = -1;
+        u_stop = 1;
+      }
+    }
+    if (u_kk == 0) {
+      if (u_n > 0) {
+        unsafe {
+          rc = pipeline_expr_is_null_keyword_c(arena, u_cur);
+        }
+        if (rc == 0) {
+          if (ta == 1) {
+            unsafe {
+              rc = glue_vector_elem_is_f32_c(arena, type_ref);
+            }
+            if (rc == 0) {
               unsafe {
-                rc = glue_vector_elem_is_f32_c(arena, type_ref);
+                imm = pipeline_expr_int_val_at(arena, u_cur);
+                rc = glue_vector_type_lanes_esz_c(
+                  arena, type_ref, &lanes_s[0], &esz_s[0]);
               }
               if (rc == 0) {
-                unsafe {
-                  imm = pipeline_expr_int_val_at(arena, lit_src);
-                  rc = glue_vector_type_lanes_esz_c(
-                    arena, type_ref, &lanes_s[0], &esz_s[0]);
-                }
-                if (rc == 0) {
-                  if (esz_s[0] == 4) {
-                    if (lanes_s[0] > 0) {
-                      // Innermost operator of a six-deep chain. pent_ko is 0
-                      // on a five-deep INT_LIT, so this block does not
-                      // run and that fold is unchanged. A seventh unary
-                      // leaves lit_src at 0 and never reaches here.
-                      // Two statements for each not. PLATFORM: MACOS|ARM64.
-                      if (apply_pent != 0) {
-                        if (pent_ko == 22) {
-                          imm = 0 - imm;
-                        }
-                        if (pent_ko == 23) {
-                          imm = 0 - imm;
-                          imm = imm - 1;
-                        }
-                      }
-                      if (apply_quad != 0) {
-                        if (quad_ko == 22) {
-                          imm = 0 - imm;
-                        }
-                        if (quad_ko == 23) {
-                          imm = 0 - imm;
-                          imm = imm - 1;
-                        }
-                      }
-                      if (apply_deep != 0) {
-                        if (deep_ko == 22) {
-                          imm = 0 - imm;
-                        }
-                        if (deep_ko == 23) {
-                          imm = 0 - imm;
-                          imm = imm - 1;
-                        }
-                      }
-                      if (apply_wrap != 0) {
-                        if (inner_ko == 22) {
-                          imm = 0 - imm;
-                        }
-                        if (inner_ko == 23) {
-                          imm = 0 - imm;
-                          imm = imm - 1;
-                        }
-                      }
-                      if (op_ko == 22) {
+                if (esz_s[0] == 4) {
+                  if (lanes_s[0] > 0) {
+                    u_i = u_n;
+                    while (u_i > 0) {
+                      u_i = u_i - 1;
+                      if (u_knd[u_i] == 22) {
                         imm = 0 - imm;
                       }
-                      if (op_ko == 23) {
+                      if (u_knd[u_i] == 23) {
                         imm = 0 - imm;
                         imm = imm - 1;
                       }
-                      if (lane_not != 0) {
-                        imm = 0 - imm;
-                        imm = imm - 1;
-                      }
-                      if (lane_not == 0) {
-                        imm = 0 - imm;
-                      }
-                      unsafe {
-                        rc = glue_simd_emit_imm_fill_slot_c(
-                          elf_ctx, stack_slot_off, lanes_s[0], esz_s[0], ta, imm);
-                      }
-                      return rc;
                     }
+                    unsafe {
+                      rc = glue_simd_emit_imm_fill_slot_c(
+                        elf_ctx, stack_slot_off, lanes_s[0], esz_s[0], ta, imm);
+                    }
+                    return rc;
                   }
                 }
               }
