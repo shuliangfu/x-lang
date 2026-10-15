@@ -1058,12 +1058,16 @@ export function glue_emit_vector_type_let_init_elf_c(
       unsafe {
         rc = glue_vector_elem_is_f32_c(arena, type_ref);
       }
-      // Nonzero means Vec4f, the f32x4 spelling, or TYPE_VECTOR of F32.
-      // Unary minus stays in this function and xors bit 31. Any kind
-      // 23 in the walked chain is bitwise not, which is not that flip,
-      // so an f32 lane returns -3. lane_not stays the outer flag for
-      // the integer-literal fallback below this arm. esz other than 4
-      // still returns -3 below. PLATFORM: MACOS|ARM64.
+      // Nonzero means Vec4f or the f32x4 spelling. The linked
+      // classifier does not accept f32x8. Unary minus of an f32x8
+      // VAR then did neg w0 on the lane bits, so 1.0 (0x3f800000)
+      // became 0xC0800000 instead of -1.0. When the chain has no
+      // kind 23, ask the existing f32 fill helper and xor bit 31.
+      // A kind 23 in the chain stays the integer not: f32x8 ~1 and
+      // ~a keep those bits. Vec4f and f32x4 already take the
+      // classifier arm. An f32 lane with kind 23 still returns -3
+      // when the classifier is nonzero. esz other than 4 still
+      // returns -3 below. PLATFORM: MACOS|ARM64.
       nested_u = 0;
       u_i = 0;
       while (u_i < u_n) {
@@ -1079,6 +1083,13 @@ export function glue_emit_vector_type_let_init_elf_c(
       } else {
         if (rc != 0) {
           lane_f32 = 1;
+        } else {
+          unsafe {
+            rc = vlet_f32_fill_lane(arena, type_ref);
+          }
+          if (rc != 0) {
+            lane_f32 = 1;
+          }
         }
       }
       unsafe {
