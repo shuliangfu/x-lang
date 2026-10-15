@@ -46,6 +46,7 @@ export extern function glue_emit_vector_type_let_init_elf_c(
 export extern function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i32): i32;
 export extern function glue_vector_elem_is_f32_c(arena: *u8, type_ref: i32): i32;
 export extern function vector_let_init_array_lit_a64_vlet_f32_fill_lane(arena: *u8, type_ref: i32): i32;
+export extern function glue_is_vector_lane_scalar_binop_ko(ko: i32): i32;
 
 function w254_sl_cell_i32(base: *u8): i32 {
   unsafe {
@@ -76,7 +77,13 @@ function w254_sl_cell_i32(base: *u8): i32 {
  * f32x8 is that spelling: the live classifier returns 0, so the
  * integer gate is already open, and `H { v: 1.0 }` used to store one
  * f64 word. The helper declines an integer spelling. Kind 22 of a
- * float already entered. f32x4 and Vec4f do not reach this gate.
+ * float already entered. A lane binop (kinds 4..13) and a transparent
+ * block use that same let-init. The scalar store keeps at most 8
+ * bytes, so lane 7 of `H { v: a + a }` was not the sum. Kind 51 stays
+ * on the scalar store: the binop helper reports it, and the let-init
+ * would read binop children and fail. A block that still has lets
+ * returns -3 from the let-init and keeps the store below. f32x4 and
+ * Vec4f do not reach this gate.
  * A VAR of 9..16 bytes (Vec4f) uses that byte size as
  * `wide` when the named layout is below 8, then the existing x0:x1
  * spill. A width above 16 is not that pair. Kind 13 alignment is
@@ -184,9 +191,12 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
      * asm_type_is_simd_vector_spelling plus glue_vector_elem_is_f32_c
      * is the split vector let-init already uses. Vec4f stays out.
      * The same let-init a `let` uses fills a temp. Kind 25 and 27
-     * already branch inside that let-init. The existing x19 memcpy
-     * then copies that temp onto this field. A -3 decline falls
-     * through to the scalar store. Kind 1 (FLOAT_LIT) enters only
+     * already branch inside that let-init. Kinds 4..13 are the lane
+     * binop that let already fills. Kind 26 is a block: the let-init
+     * peels a transparent block and fills the inner value. A block
+     * with lets returns -3. Kind 51 is not a binop here. The existing
+     * x19 memcpy then copies that temp onto this field. A -3 decline
+     * falls through to the scalar store. Kind 1 (FLOAT_LIT) enters only
      * when the f32 fill helper returns nonzero, so f32x8
      * `H { v: 1.0 }` uses this temp. Kind 22 of a float already
      * entered. Kind 24 and an f32 element kind do not enter.
@@ -247,6 +257,27 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
               }
               if (iko == 27) {
                 splat_go = 1;
+              }
+              // Kinds 4..13 are a lane binop. glue_is_vector_lane_scalar_binop_ko
+              // is that set, and it also returns 1 for kind 51. Kind 51 is an
+              // address: the let-init reads binop children and returns -1, so
+              // it stays on the scalar store. Kind 26 is a block. The same
+              // let-init peels a transparent block, then fills the inner
+              // value. A block that still has lets returns -3 and this falls
+              // through. The scalar store keeps at most 8 bytes, so lane 7
+              // of `H { v: a + a }` was not the sum. Nested blocks are the
+              // let-init peel, not another walker here.
+              // PLATFORM: MACOS|ARM64.
+              if (iko == 26) {
+                splat_go = 1;
+              }
+              if (iko != 51) {
+                unsafe {
+                  splat_elem = glue_is_vector_lane_scalar_binop_ko(iko);
+                }
+                if (splat_elem != 0) {
+                  splat_go = 1;
+                }
               }
               // FLOAT_LIT = 1. The integer set above does not include
               // it, so `H { v: 1.0 }` of f32x8 stored one 8-byte f64
