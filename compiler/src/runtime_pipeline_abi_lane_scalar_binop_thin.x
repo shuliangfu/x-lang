@@ -55,8 +55,11 @@ export extern function pipeline_type_elem_ref_at(arena: *u8, ref: i32): i32;
  * logical. A named SIMD type is not one of those kinds, so u32x8 would
  * look signed if this stopped there. Exact names i32x4, i32x8, and
  * i32x16 are arithmetic. Vec8i is the same. A kind-13 vector whose
- * element is i32 is arithmetic. Anything else, including a failed
- * lookup, stays logical. PLATFORM: SHARED.
+ * element is i32 is arithmetic. Scalar TYPE_I32 stays 0 here: the
+ * complement sign-extend asks this function, and a u32 lane of ~4
+ * must stay zero-extended. The shift sites use lane_shr_use_arith.
+ * Anything else, including a failed lookup, stays logical.
+ * PLATFORM: SHARED.
  */
 function lane_shr_is_arith(arena: *u8, ctx: *u8, left_ref: i32, right_ref: i32): i32 {
   let un: i32 = 0;
@@ -167,6 +170,64 @@ function lane_shr_is_arith(arena: *u8, ctx: *u8, left_ref: i32, right_ref: i32):
 }
 
 /**
+ * 1 when this right shift should use the arithmetic encoder.
+ * @param arena *u8 — expression arena. Null returns 0 (logical).
+ * @param ctx *u8 — asm ctx. Used only when a VAR has no resolved type.
+ * @param left_ref i32 — left expr. Not positive returns 0.
+ * @param right_ref i32 — right expr. Forwarded to lane_shr_is_arith.
+ * @return i32 — 1 arithmetic, 0 logical.
+ * Named signed lanes stay on lane_shr_is_arith. That function also
+ * decides the complement sign-extend, so it must keep returning 0 for
+ * scalar TYPE_I32: u32x8 ~4 / 2 stays the zero-extended quotient.
+ * A shift is different. An int literal is stamped i32, not the
+ * destination vector, and the scalar shift emitter uses sar for that
+ * kind. This function adds only that kind, and only for the shift.
+ * Kind 0 is TYPE_I32. Unsigned kinds already returned 0 from
+ * lane_shr_is_arith. A missing type stays logical. PLATFORM: SHARED.
+ */
+function lane_shr_use_arith(arena: *u8, ctx: *u8, left_ref: i32, right_ref: i32): i32 {
+  let arith: i32 = 0;
+  let tr: i32 = 0;
+  let tk: i32 = 0;
+  let ko: i32 = 0;
+  arith = lane_shr_is_arith(arena, ctx, left_ref, right_ref);
+  if (arith != 0) {
+    return 1;
+  }
+  if (arena == (0 as *u8)) {
+    return 0;
+  }
+  if (left_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    tr = pipeline_expr_resolved_type_ref(arena, left_ref);
+  }
+  if (tr <= 0) {
+    if (ctx != (0 as *u8)) {
+      unsafe {
+        ko = pipeline_expr_kind_ord_at(arena, left_ref);
+      }
+      if (ko == 3) {
+        unsafe {
+          tr = glue_var_decl_type_ref_elf_c(arena, ctx, left_ref);
+        }
+      }
+    }
+  }
+  if (tr <= 0) {
+    return 0;
+  }
+  unsafe {
+    tk = pipeline_type_kind_ord_at(arena, tr);
+  }
+  if (tk == 0) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
  * Emit one vector lane scalar binop; result in rax.
  * @param arena *u8 — expression arena. A null arena fails in the operand try.
  * @param elf_ctx *u8 — emit buffer. A null buffer fails in the operand try.
@@ -178,9 +239,10 @@ function lane_shr_is_arith(arena: *u8, ctx: *u8, left_ref: i32, right_ref: i32):
  * @param ctx *u8 — asm ctx.
  * @param ta i32 — 1 arm64, else x86. Forwarded to the encoders.
  * @return i32 — 0 when rax holds the lane, -1 when an encode fails.
- * Kind 10 is a right shift. Signed i32 lanes use the existing arithmetic
- * encoder. Unsigned lanes, and a type this helper does not know, keep
- * the logical encoder. The fast path does not call apply for kind 10:
+ * Kind 10 is a right shift. Signed i32 lanes, including a scalar i32
+ * left, use the existing arithmetic encoder. Unsigned lanes, and a
+ * type this helper does not know, keep the logical encoder. The fast
+ * path does not call apply for kind 10:
  * apply has no type and always shifts logically. Add, sub, mul, div,
  * mod, and the bitwise ops are unchanged. PLATFORM: SHARED.
  */
@@ -235,7 +297,7 @@ export function glue_emit_vector_lane_scalar_binop_elf_c(arena: *u8, elf_ctx: *u
     // Kind 10 count is already in rbx. apply would shift it logically.
     // Decide from the left type, then use the same ecx move. PLATFORM: SHARED.
     if (binop_ko == 10) {
-      arith = lane_shr_is_arith(arena, ctx, left_ref, right_ref);
+      arith = lane_shr_use_arith(arena, ctx, left_ref, right_ref);
       unsafe {
         rc = backend_enc_mov_rbx_to_ecx_arch(elf_ctx, ta);
       }
@@ -407,7 +469,7 @@ export function glue_emit_vector_lane_scalar_binop_elf_c(arena: *u8, elf_ctx: *u
       return 0 - 1;
     }
     if (is_shr != 0) {
-      arith = lane_shr_is_arith(arena, ctx, left_ref, right_ref);
+      arith = lane_shr_use_arith(arena, ctx, left_ref, right_ref);
       if (arith != 0) {
         unsafe {
           return backend_enc_sar_cl_eax_arch(elf_ctx, ta);
