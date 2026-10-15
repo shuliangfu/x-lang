@@ -89,6 +89,9 @@
 export extern function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i32): i32;
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern function glue_expr_block_transparent_value_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_lane_operand_emit_let_block_chain(
+  arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, budget: i32
+): i32;
 export extern function pipeline_asm_emit_vector_let_init_elf_c(
   arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32
 ): i32;
@@ -779,6 +782,13 @@ function vlet_f32_array_lanes(
  * A lane binop stores both halves. CALL and METHOD of a let wider
  * than 16 write the slot through sret. INDEX and DEREF memcpy let_sz.
  * Bare CALL and bare DEREF stay declined. Bare VAR copy stays declined.
+ * A block that still has lets is not one of those four transparent
+ * peels. pipeline_lane_operand_emit_let_block_chain emits each
+ * block's lets and returns the value expr. Nested blocks are that
+ * one call. This function then classifies the value. A unary whose
+ * operand is such a block uses that same call inside the existing
+ * unary walk. A VAR or FIELD value under those lets uses the existing
+ * struct let-init copy. 128 stops only a chain that does not end.
  * PLATFORM: MACOS|ARM64.
  */
 #[no_mangle]
@@ -833,6 +843,7 @@ export function glue_emit_vector_type_let_init_elf_c(
   let u_step: i32 = 0;
   let peeled: i32 = 0;
   let peel_n: i32 = 0;
+  let saw_lets: i32 = 0;
   let f_ref: i32 = 0;
   let f_ko: i32 = 0;
   let f_lo: i32 = 0;
@@ -906,6 +917,34 @@ export function glue_emit_vector_type_let_init_elf_c(
   }
   unsafe {
     ko = pipeline_expr_kind_ord_at(arena, init_ref);
+  }
+  // A block that still has lets is not transparent. Returning -3
+  // here made the caller store at most 16 bytes, so lane 7 of
+  // `let n = { let k; k + k }` was not the sum. The existing lane
+  // chain emits each block's lets and returns the value expr.
+  // Nested blocks are that one function. The arms below classify
+  // the value. A VAR or FIELD value uses the struct let-init copy
+  // at the end of this function. 128 stops only a chain that does
+  // not end. PLATFORM: MACOS|ARM64.
+  if (ko == 26) {
+    unsafe {
+      peeled = pipeline_lane_operand_emit_let_block_chain(
+        arena, elf_ctx, init_ref, ctx, ta, 128);
+    }
+    if (peeled <= 0) {
+      return 0 - 1;
+    }
+    if (peeled == init_ref) {
+      return 0 - 1;
+    }
+    init_ref = peeled;
+    saw_lets = 1;
+    unsafe {
+      ko = pipeline_expr_kind_ord_at(arena, init_ref);
+    }
+    if (ko == 26) {
+      return 0 - 1;
+    }
   }
   /*
    * EXPR_IF = 25 and EXPR_TERNARY = 27. A frame Vec8i let of
@@ -1210,7 +1249,36 @@ export function glue_emit_vector_type_let_init_elf_c(
               }
             }
           } else {
-            u_stop = 1;
+            // The operand under the unary is a block with lets.
+            // Declining it stored one scalar complement, so lane 7
+            // of `~{ let k; k + k }` was not that complement. The
+            // existing lane chain emits each block's lets and
+            // returns the value. Nested blocks are that one
+            // function. This walk then records a unary value.
+            // 128 stops only a chain that does not end.
+            // PLATFORM: MACOS|ARM64.
+            if (u_kk == 26) {
+              unsafe {
+                u_step = pipeline_lane_operand_emit_let_block_chain(
+                  arena, elf_ctx, u_cur, ctx, ta, 128);
+              }
+              if (u_step <= 0) {
+                return 0 - 1;
+              }
+              if (u_step == u_cur) {
+                return 0 - 1;
+              }
+              u_cur = u_step;
+              saw_lets = 1;
+              unsafe {
+                u_kk = pipeline_expr_kind_ord_at(arena, u_cur);
+              }
+              if (u_kk == 26) {
+                return 0 - 1;
+              }
+            } else {
+              u_stop = 1;
+            }
           }
         }
       } else {
@@ -1332,6 +1400,9 @@ export function glue_emit_vector_type_let_init_elf_c(
             from_dest = 3;
           } else {
             if (op_ko != 3 && op_ko != 44) {
+              if (saw_lets != 0) {
+                return 0 - 1;
+              }
               return 0 - 3;
             }
           }
@@ -1609,6 +1680,26 @@ export function glue_emit_vector_type_let_init_elf_c(
         elf_ctx, stack_slot_off, lanes_s[0], esz_s[0], ta, imm);
     }
     return rc;
+  }
+  // Lets were already written. A VAR or a FIELD is the existing
+  // struct copy, so lane 7 of `{ let k; k }` is that value. Any
+  // other declined kind returns -1: the caller must not emit this
+  // block a second time. A bare initializer still returns -3.
+  // PLATFORM: MACOS|ARM64.
+  if (saw_lets != 0) {
+    if (ko == 3 || ko == 44) {
+      unsafe {
+        rc = glue_emit_struct_type_let_init_elf_c(
+          arena, elf_ctx, init_ref, ctx, ta, type_ref, stack_slot_off);
+      }
+      if (rc == 0) {
+        return 0;
+      }
+      if (rc == (0 - 1)) {
+        return 0 - 1;
+      }
+    }
+    return 0 - 1;
   }
   return 0 - 3;
 }
