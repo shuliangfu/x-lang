@@ -45782,83 +45782,11 @@ export function pipeline_asm_emit_vector_var_copy_elf_c(arena: *u8, elf_ctx: *u8
   return 0;
 }
 
-/**
- * Try HW vector add/sub/mul for local VAR+VAR.
- * @return i32 - 0 handled; -1 fall back
- * wave148 pure: G.7 authority (was static glue_try_hw_vector_add_binop_elf_c).
- * PLATFORM: SHARED · LINUX|x86 HW path · MACOS|ARM64 soft-fail.
- */
-#[no_mangle]
-export function glue_try_hw_vector_add_binop_elf_c(arena: *u8, elf_ctx: *u8, binop_ko: i32, left_ref: i32, right_ref: i32, dst_off: i32, type_ref: i32, ctx: *u8, ta: i32): i32 {
-  let lanes: i32 = 0;
-  let esz: i32 = 0;
-  let off_a: i32 = 0;
-  let off_b: i32 = 0;
-  let feats: u32 = 0;
-  let hw_env: *u8 = 0 as *u8;
-  let ko_l: i32 = 0;
-  let ko_r: i32 = 0;
-  let rc: i32 = 0;
-  let is_f32: i32 = 0;
-  if (binop_ko != 4 && binop_ko != 5 && binop_ko != 6) {
-    return 0 - 1;
-  }
-  unsafe {
-    ko_l = pipeline_expr_kind_ord_at(arena, left_ref);
-    ko_r = pipeline_expr_kind_ord_at(arena, right_ref);
-  }
-  if (ko_l != 3 || ko_r != 3) {
-    return 0 - 1;
-  }
-  rc = glue_vector_type_lanes_esz_c(arena, type_ref, &lanes, &esz);
-  if (rc != 0) {
-    return 0 - 1;
-  }
-  unsafe {
-    hw_env = link_abi_getenv("XLANG_SIMD_HW");
-  }
-  if (hw_env != (0 as *u8) && hw_env[0] == 48) {
-    return 0 - 1;
-  }
-  off_a = glue_asm_local_var_stack_off_scoped(arena, ctx, left_ref);
-  off_b = glue_asm_local_var_stack_off_scoped(arena, ctx, right_ref);
-  if (off_a < 0 || off_b < 0) {
-    return 0 - 1;
-  }
-  feats = glue_simd_emit_cpu_features_c();
-  if (feats == 0) {
-    unsafe {
-      feats = xlang_target_cpu_detect_host();
-    }
-  }
-  is_f32 = glue_vector_elem_is_f32_c(arena, type_ref);
-  if (is_f32 != 0) {
-    if (binop_ko == 6) {
-      unsafe {
-        return simd_enc_try_hw_vector_fmul_rbp(elf_ctx, off_a, off_b, dst_off, lanes, esz, ta, feats);
-      }
-    }
-    if (binop_ko != 4) {
-      return 0 - 1;
-    }
-    unsafe {
-      return simd_enc_try_hw_vector_fadd_rbp(elf_ctx, off_a, off_b, dst_off, lanes, esz, ta, feats);
-    }
-  }
-  if (binop_ko == 5) {
-    unsafe {
-      return simd_enc_try_hw_vector_isub_rbp(elf_ctx, off_a, off_b, dst_off, lanes, esz, ta, feats);
-    }
-  }
-  if (binop_ko == 6) {
-    unsafe {
-      return simd_enc_try_hw_vector_imul_rbp(elf_ctx, off_a, off_b, dst_off, lanes, esz, ta, feats);
-    }
-  }
-  unsafe {
-    return simd_enc_try_hw_vector_iadd_rbp(elf_ctx, off_a, off_b, dst_off, lanes, esz, ta, feats);
-  }
-}
+// Body moved to runtime_pipeline_abi_hw_vector_add_thin.x.
+// pabi_weak still defines the old T. Link weakens that symbol so the
+// thin is the one definition. Do not restore a second body here.
+// PLATFORM: SHARED.
+export extern function glue_try_hw_vector_add_binop_elf_c(arena: *u8, elf_ctx: *u8, binop_ko: i32, left_ref: i32, right_ref: i32, dst_off: i32, type_ref: i32, ctx: *u8, ta: i32): i32;
 
 /**
  * let dst = left binop right: per-lane scalar into slot (HW try first).
