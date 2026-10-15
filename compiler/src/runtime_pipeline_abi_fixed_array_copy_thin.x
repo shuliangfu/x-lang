@@ -846,6 +846,9 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
  * and CALL/METHOD. Darwin arm64 stores an 8-byte CALL/METHOD result from x0
  * and a 16-byte result from x0:x1. Wider results, and every non-arm64
  * CALL/METHOD, still copy through the pointer emit_expr left in x0.
+ * TYPE_VECTOR force_esz stays 4, the lane. A VAR or FIELD copy whose
+ * glue_fixed_array_total_bytes_c payload is wider uses that payload,
+ * so [2]Vec8i copies every lane. Zero-fill keeps the lane stride.
  * @param arena *u8 - ASTArena*
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param init_ref i32 - field/let init expr ref
@@ -1092,6 +1095,22 @@ export function glue_struct_lit_store_fixed_array_field_elf_c(arena: *u8, elf_ct
       ai = ai + 1;
     }
     return 0;
+  }
+
+  // force_esz is 4 for TYPE_VECTOR (kind 13): one i32 lane. The array
+  // payload is glue_fixed_array_total_bytes_c. A [2]Vec8i VAR copy
+  // stored 4 bytes an element, so lane 0 was 3 and lane 7 stayed 0.
+  // When the payload is a wider multiple of the count, the copy stride
+  // becomes payload / count and the esz>8 bulk path runs. Zero-fill
+  // above already returned and keeps the lane stride. [2]i32 stays 4.
+  // PLATFORM: SHARED.
+  if (n_arr > 0) {
+    unsafe {
+      total = glue_fixed_array_total_bytes_c(arena, fty, 0);
+    }
+    if (total > n_arr * esz && (total % n_arr) == 0) {
+      esz = total / n_arr;
+    }
   }
 
   src_off = 0 - 1;
