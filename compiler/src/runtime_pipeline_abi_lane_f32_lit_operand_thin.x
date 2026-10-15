@@ -93,6 +93,7 @@ export extern function pipeline_expr_set_field_access_c(
 ): void;
 export extern function pipeline_expr_block_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function ast_ast_block_final_expr_ref(arena: *u8, block_ref: i32): i32;
+export extern function typeck_block_expr_value_ref(arena: *u8, block_ref: i32): i32;
 export extern function backend_ensure_block_local_slots(ctx: *u8, arena: *u8, block_ref: i32): void;
 export extern function pipeline_asm_emit_block_prefix_elf(
   arena: *u8, elf_ctx: *u8, block_ref: i32, ctx: *u8, ta: i32
@@ -454,6 +455,16 @@ function lane_emit_block_lets_value_ref(
   }
   unsafe {
     fin = ast_ast_block_final_expr_ref(arena, br);
+  }
+  // `unsafe { e }` on a block that also has lets is a region, not
+  // final_expr. final_expr stays empty, and returning -1 here drops
+  // the lets already written. typeck_block_expr_value_ref is the
+  // reader for that region and returns the inner expr. A block that
+  // already has a final_expr does not call it. PLATFORM: SHARED.
+  if (fin <= 0) {
+    unsafe {
+      fin = typeck_block_expr_value_ref(arena, br);
+    }
   }
   if (fin <= 0) {
     return 0 - 1;
