@@ -38,6 +38,11 @@ export extern function glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx: *u8, s
 export extern function pipe_asm_ctx_off_next_offset(): i32;
 export extern function pipe_load_i32_le(p: *u8, off: i32): i32;
 export extern function pipe_store_i32_le(p: *u8, off: i32, v: i32): void;
+export extern function pipeline_type_elem_ref_at(arena: *u8, ty_ref: i32): i32;
+export extern function glue_simd_alloc_vector_temp_slot_c(arena: *u8, ctx: *u8, type_ref: i32): i32;
+export extern function glue_emit_vector_type_let_init_elf_c(
+  arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32,
+  stack_slot_off: i32, type_ref: i32): i32;
 
 function w254_sl_cell_i32(base: *u8): i32 {
   unsafe {
@@ -94,6 +99,12 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
   let vec_bytes: i32 = 0;
   let use_ptr: i32 = 0;
   let add_x19: u32 = 0;
+  let splat_go: i32 = 0;
+  let splat_rc: i32 = 0;
+  let splat_slot: i32 = 0;
+  let splat_elem: i32 = 0;
+  let splat_ek: i32 = 0;
+  let splat_tk: i32 = 0;
   let mod: *u8 = 0 as *u8;
   let cell: u8[8];
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || lit_ref <= 0) {
@@ -150,6 +161,94 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
       }
       fi = fi + 1;
       continue;
+    }
+    /*
+     * INT_LIT or a kind-22 / kind-23 chain into a TYPE_VECTOR of i32
+     * that is wider than 8 bytes. The scalar store below keeps at most
+     * 8 bytes, so lane 7 of `H { v: 0 }` stayed unset. The same vector
+     * let-init a `let` uses fills a temp. The existing x19 memcpy then
+     * copies that temp onto this field. A -3 decline falls through to
+     * the scalar store. Kind 24 and an f32 element do not enter.
+     * ARRAY_LIT stays on the pointer copy below. PLATFORM: MACOS|ARM64.
+     */
+    if (ta == 1) {
+      fty = 0;
+      if (mod != (0 as *u8)) {
+        unsafe {
+          fty = pipeline_expr_struct_lit_field_type_ref_at(arena, mod, lit_ref, fi);
+        }
+      }
+      if (fty > 0) {
+        unsafe {
+          splat_tk = pipeline_type_kind_ord_at(arena, fty);
+        }
+        if (splat_tk == 13) {
+          unsafe {
+            splat_elem = pipeline_type_elem_ref_at(arena, fty);
+          }
+          if (splat_elem > 0) {
+            unsafe {
+              splat_ek = pipeline_type_kind_ord_at(arena, splat_elem);
+            }
+            if (splat_ek == 0) {
+              splat_go = 0;
+              if (iko == 0) {
+                splat_go = 1;
+              }
+              if (iko == 22) {
+                splat_go = 1;
+              }
+              if (iko == 23) {
+                splat_go = 1;
+              }
+              if (splat_go != 0) {
+                vec_bytes = 0;
+                unsafe {
+                  vec_bytes = pipeline_asm_type_ref_byte_size_c(arena, fty);
+                }
+                if (vec_bytes > 8) {
+                  if (ctx != (0 as *u8)) {
+                    unsafe {
+                      splat_slot = glue_simd_alloc_vector_temp_slot_c(arena, ctx, fty);
+                    }
+                    if (splat_slot < 0) {
+                      return 0 - 1;
+                    }
+                    unsafe {
+                      splat_rc = glue_emit_vector_type_let_init_elf_c(
+                        arena, elf_ctx, iref, ctx, ta, splat_slot, fty);
+                    }
+                    if (splat_rc == 0) {
+                      unsafe {
+                        pipe_store_i32_le(&cell[0], 0, backend_enc_lea_rbp_to_rax_arch(elf_ctx, splat_slot, ta));
+                        if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+                        pipe_store_i32_le(&cell[0], 0, backend_enc_pop_rbx_arch(elf_ctx, ta));
+                        if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+                        pipe_store_i32_le(&cell[0], 0, backend_enc_push_rbx_arch(elf_ctx, ta));
+                        if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+                        pipe_store_i32_le(&cell[0], 0, backend_enc_append_u32_le_c(elf_ctx, 2852193267 as u32));
+                        if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+                        if (store_off > 0) {
+                          add_x19 = (2432696947 as u32) | ((store_off as u32) * 1024);
+                          pipe_store_i32_le(&cell[0], 0, backend_enc_append_u32_le_c(elf_ctx, add_x19));
+                          if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+                        }
+                        pipe_store_i32_le(&cell[0], 0, glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, 0 - 3, vec_bytes, ta));
+                        if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+                      }
+                      fi = fi + 1;
+                      continue;
+                    }
+                    if (splat_rc != (0 - 3)) {
+                      return 0 - 1;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
     unsafe {
       fsz = glue_struct_lit_field_store_sz(arena, lit_ref, fi);
