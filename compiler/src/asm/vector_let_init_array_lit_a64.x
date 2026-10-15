@@ -97,6 +97,8 @@ export extern function glue_emit_struct_type_let_init_elf_c(
   let_ty_ref: i32, stack_slot_off: i32
 ): i32;
 export extern function pipeline_expr_int_val_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_array_lit_num_elems_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_array_lit_elem_ref(arena: *u8, expr_ref: i32, ai: i32): i32;
 export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_is_null_keyword_c(arena: *u8, expr_ref: i32): i32;
 export extern function glue_vector_type_lanes_esz_c(
@@ -216,6 +218,247 @@ function vlet_f32_fill_lane(arena: *u8, type_ref: i32): i32 {
     return 0;
   }
   return 1;
+}
+
+/**
+ * Classify one f32x8 lane literal.
+ * @param arena *u8 — AST arena; null returns -1
+ * @param elem_ref i32 — lane expr; not positive returns -1
+ * @return i32 — 0 for an INT_LIT chain of only kind 22, 1 for a
+ *   FLOAT_LIT chain of only kind 22, -1 otherwise
+ * Kind 23 returns -1 so bitwise not stays on the integer lane store.
+ * Kind 2 returns -1. More than 32 minuses returns -1. A null keyword
+ * returns -1. The walk advances the expr and the step count.
+ * PLATFORM: MACOS|ARM64.
+ */
+function vlet_f32_lane_class(arena: *u8, elem_ref: i32): i32 {
+  let ek: i32 = 0;
+  let cur: i32 = 0;
+  let step: i32 = 0;
+  let n: i32 = 0;
+  let stop: i32 = 0;
+  let is_null: i32 = 0;
+  if (arena == (0 as *u8) || elem_ref <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    ek = pipeline_expr_kind_ord_at(arena, elem_ref);
+  }
+  cur = elem_ref;
+  while (stop == 0) {
+    if (n < 32) {
+      if (ek == 23) {
+        return 0 - 1;
+      } else {
+        if (ek == 22) {
+          n = n + 1;
+          unsafe {
+            step = pipeline_expr_unary_operand_ref_at(arena, cur);
+          }
+          if (step <= 0) {
+            return 0 - 1;
+          }
+          cur = step;
+          unsafe {
+            ek = pipeline_expr_kind_ord_at(arena, cur);
+          }
+        } else {
+          stop = 1;
+        }
+      }
+    } else {
+      return 0 - 1;
+    }
+  }
+  if (ek == 0) {
+    unsafe {
+      is_null = pipeline_expr_is_null_keyword_c(arena, cur);
+    }
+    if (is_null != 0) {
+      return 0 - 1;
+    }
+    return 0;
+  }
+  if (ek == 1) {
+    return 1;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Store one f32x8 lane from an integer or float literal chain.
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — object writer
+ * @param elem_ref i32 — lane expr already accepted by vlet_f32_lane_class
+ * @param ta i32 — arm64
+ * @param slot i32 — frame offset of this lane; below 0 returns -1
+ * @return i32 — 0 stored, -1 when the literal or the fill fails
+ * An odd count of kind 22 negates the integer or flips the f64 sign
+ * bit before glue_ieee_f64_bits_to_f32_bits. The existing one-lane
+ * imm fill writes those f32 bits. PLATFORM: MACOS|ARM64.
+ */
+function vlet_f32_store_lane(
+  arena: *u8, elf_ctx: *u8, elem_ref: i32, ta: i32, slot: i32
+): i32 {
+  let ek: i32 = 0;
+  let cur: i32 = 0;
+  let step: i32 = 0;
+  let n: i32 = 0;
+  let stop: i32 = 0;
+  let neg: i32 = 0;
+  let imm: i32 = 0;
+  let bits: i32 = 0;
+  let lo: i32 = 0;
+  let hi: i32 = 0;
+  let sign: i32 = 0;
+  let rc: i32 = 0;
+  if (slot < 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    ek = pipeline_expr_kind_ord_at(arena, elem_ref);
+  }
+  cur = elem_ref;
+  while (stop == 0) {
+    if (n < 32) {
+      if (ek == 22) {
+        if (neg == 0) {
+          neg = 1;
+        } else {
+          neg = 0;
+        }
+        n = n + 1;
+        unsafe {
+          step = pipeline_expr_unary_operand_ref_at(arena, cur);
+        }
+        if (step <= 0) {
+          return 0 - 1;
+        }
+        cur = step;
+        unsafe {
+          ek = pipeline_expr_kind_ord_at(arena, cur);
+        }
+      } else {
+        stop = 1;
+      }
+    } else {
+      return 0 - 1;
+    }
+  }
+  if (ek == 0) {
+    unsafe {
+      imm = pipeline_expr_int_val_at(arena, cur);
+    }
+    if (neg != 0) {
+      imm = 0 - imm;
+    }
+    unsafe {
+      bits = glue_i32_to_f32_bits(imm);
+    }
+  } else {
+    if (ek != 1) {
+      return 0 - 1;
+    }
+    unsafe {
+      lo = pipeline_expr_float_bits_lo_at(arena, cur);
+      hi = pipeline_expr_float_bits_hi_at(arena, cur);
+    }
+    if (neg != 0) {
+      sign = 0 - 2147483647;
+      sign = sign - 1;
+      hi = hi ^ sign;
+    }
+    unsafe {
+      bits = glue_ieee_f64_bits_to_f32_bits(lo, hi);
+    }
+  }
+  unsafe {
+    rc = glue_simd_emit_imm_fill_slot_c(elf_ctx, slot, 1, 4, ta, bits);
+  }
+  return rc;
+}
+
+/**
+ * Store eight f32 lanes of an f32x8 ARRAY_LIT.
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — object writer
+ * @param init_ref i32 — kind 46 expr
+ * @param ctx *u8 — AsmFuncCtx; unused, the lane fill does not need it
+ * @param ta i32 — a value other than 1 returns 1
+ * @param stack_slot_off i32 — lane 0 slot
+ * @param type_ref i32 — let type
+ * @return i32 — 0 when all eight lanes are stored, -1 on an encoder
+ *   failure after the lane list was accepted, 1 when the typeless
+ *   lane store should run
+ * f32x4 and Vec4f are four lanes. Their existing store already writes
+ * f32 bits, so a lane count other than 8 returns 1. A non-literal lane
+ * returns 1 before any byte is emitted. PLATFORM: MACOS|ARM64.
+ */
+function vlet_f32_array_lanes(
+  arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32,
+  stack_slot_off: i32, type_ref: i32
+): i32 {
+  let is_f: i32 = 0;
+  let n: i32 = 0;
+  let ai: i32 = 0;
+  let elem: i32 = 0;
+  let cls: i32 = 0;
+  let slot: i32 = 0;
+  let rc: i32 = 0;
+  let lanes: i32 = 0;
+  let lesz: i32 = 0;
+  let lanes_s: i32[1] = [];
+  let esz_s: i32[1] = [];
+  if (ta != 1 || type_ref <= 0 || stack_slot_off < 0) {
+    return 1;
+  }
+  unsafe {
+    is_f = vlet_f32_fill_lane(arena, type_ref);
+  }
+  if (is_f == 0) {
+    return 1;
+  }
+  unsafe {
+    rc = glue_vector_type_lanes_esz_c(arena, type_ref, &lanes_s[0], &esz_s[0]);
+  }
+  if (rc != 0) {
+    return 1;
+  }
+  lanes = lanes_s[0];
+  lesz = esz_s[0];
+  if (lesz != 4 || lanes != 8) {
+    return 1;
+  }
+  unsafe {
+    n = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+  }
+  if (n != 8) {
+    return 1;
+  }
+  ai = 0;
+  while (ai < n) {
+    unsafe {
+      elem = pipeline_expr_array_lit_elem_ref(arena, init_ref, ai);
+    }
+    cls = vlet_f32_lane_class(arena, elem);
+    if (cls < 0) {
+      return 1;
+    }
+    ai = ai + 1;
+  }
+  ai = 0;
+  while (ai < n) {
+    unsafe {
+      elem = pipeline_expr_array_lit_elem_ref(arena, init_ref, ai);
+    }
+    slot = stack_slot_off + ai * 4;
+    rc = vlet_f32_store_lane(arena, elf_ctx, elem, ta, slot);
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    ai = ai + 1;
+  }
+  return 0;
 }
 
 /**
@@ -448,7 +691,16 @@ export function glue_emit_vector_type_let_init_elf_c(
     return rc;
   }
   // EXPR_ARRAY_LIT = 46. Store the lane bytes, not the buffer address.
+  // f32x8 used to store each lane as a 4-byte scalar. `1` stayed the
+  // integer 1. `-1.0` was the low half of the f64 bits, so lane 1 read
+  // as 0. Eight f32 lanes are stored here. Any other vector, including
+  // f32x4 and Vec4f, keeps the typeless lane store. PLATFORM: MACOS|ARM64.
   if (ko == 46) {
+    rc = vlet_f32_array_lanes(
+      arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, type_ref);
+    if (rc != 1) {
+      return rc;
+    }
     unsafe {
       rc = pipeline_asm_emit_vector_let_init_elf_c(
         arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
