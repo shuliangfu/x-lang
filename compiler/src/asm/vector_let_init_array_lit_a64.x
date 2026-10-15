@@ -30,13 +30,13 @@
 // the existing binop writer, then each destination lane is negated.
 // A CALL or METHOD under the minus is stored by the existing struct
 // let-init call arm, then each destination lane is negated. An INDEX
-// under the minus uses that same let-init: it already copies the
-// indexed 16-byte value into the destination. A DEREF under the minus
-// uses that same let-init: it already copies the 16-byte target into
-// the destination, and the store is not through the pointer. A decline
-// of that form stored neg of lane 0 only, so lane 1 of
-// `let n = -id(a)` was 0, lane 1 of `let n = -arr[1]` was 0, and lane 1
-// of `n = -*p` was 0. An ARRAY_LIT under the minus is
+// under the minus uses that same let-init: above 16 bytes it memcpy's
+// the whole element (Vec8i is 32). A DEREF under the minus uses that
+// same let-init: it memcpy's the whole target, and the store is not
+// through the pointer. CALL and METHOD still store 16 bytes, so a
+// wider vector stays declined. A decline of that form stored neg of
+// lane 0 only, so lane 1 of `let n = -id(a)` was 0. An ARRAY_LIT
+// under the minus is
 // stored by the existing lane-byte writer, then each destination lane
 // is negated. Declining that left lane 0 of `let n = -[1, 2, 3, 4]`
 // unequal to -1. A transparent EXPR_BLOCK (26), including `unsafe { e }`,
@@ -673,7 +673,9 @@ export function glue_emit_vector_type_let_init_elf_c(
       // the existing lane-byte writer, then negated the same way.
       // Declining that left lane 0 of `let n = -[1, 2, 3, 4]` unequal
       // to -1. The width gate runs before that store, so a decline
-      // emits nothing. Bare CALL and DEREF stay declined. ta != 1
+      // emits nothing. A CALL or METHOD wider than 16 stays declined.
+      // INDEX and DEREF wider than 16 copy let_sz, then negate.
+      // Bare CALL and bare DEREF stay declined. ta != 1
       // stays declined.
       // PLATFORM: MACOS|ARM64.
       if (ta != 1) {
@@ -718,9 +720,12 @@ export function glue_emit_vector_type_let_init_elf_c(
         rc = glue_vector_type_lanes_esz_c(arena, type_ref, &lanes_s[0], &esz_s[0]);
       }
       // Lane size other than 4 stays declined: neg w0 is 32-bit.
-      // CALL, METHOD, INDEX, and DEREF (from_dest 2) still store 16
+      // CALL and METHOD (from_dest 2, kinds 48 and 49) still store 16
       // bytes, so a wider vector would negate lanes past that store.
-      // A lane binop (from_dest 1) uses the existing binop let-init.
+      // INDEX (47) and DEREF (52) memcpy let_sz when it is above 16,
+      // so the negate loop sees every lane. The deref store is not
+      // through the pointer. A lane binop (from_dest 1) uses the
+      // existing binop let-init.
       // On arm64 that writer stores both 128-bit halves of an i32x8
       // add: ld1.4s, add.4s, st1.4s at +0 and at +16. The scalar
       // fallback loops every lane. Declining the binop left
@@ -737,7 +742,9 @@ export function glue_emit_vector_type_let_init_elf_c(
       }
       if ((lanes_s[0] * esz_s[0]) > 16) {
         if (from_dest == 2) {
-          return 0 - 3;
+          if (op_ko == 48 || op_ko == 49) {
+            return 0 - 3;
+          }
         }
       }
       if (from_dest == 1) {
@@ -751,9 +758,11 @@ export function glue_emit_vector_type_let_init_elf_c(
       } else {
         if (from_dest == 2) {
           // CALL and METHOD set the expected return type, emit, and
-          // store both halves. INDEX and DEREF use the same let-init:
-          // lvalue address, 16-byte load, then the pair store into the
-          // destination slot. A hand-rolled emit keeps 8 bytes. This
+          // store both halves. They never reach here when the vector
+          // is wider than 16: that decline is above. INDEX and DEREF
+          // lea the lvalue and memcpy let_sz bytes into this slot.
+          // Above 16 that count is the whole value (Vec8i is 32), not
+          // a 16-byte pair. A hand-rolled emit keeps 8 bytes. This
           // does not assign through the pointer. Non-zero may already
           // have emitted, so do not fall through to scalar neg.
           // PLATFORM: MACOS|ARM64.
