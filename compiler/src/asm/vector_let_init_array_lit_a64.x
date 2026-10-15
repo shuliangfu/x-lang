@@ -738,13 +738,13 @@ function vlet_f32_array_lanes(
  * at most four times. Kind 25 (IF) and kind 27 (TERNARY) of a SIMD
  * spelling wider than 16 bytes call glue_emit_vector_if_let_init_elf_c.
  * Named i32x8 is that spelling. That sibling returns -3 with no bytes
- * emitted when an arm is not a literal chain, a VAR, an ARRAY_LIT, a
- * lane binop, a block that still has lets, a nested if or ternary,
- * a unary whose innermost expr is a VAR or a FIELD, a CALL, or a
- * METHOD. That unary is the existing vector let-init, which already
- * applies the chain on every lane. A CALL or a METHOD is that
- * let-init's existing
- * struct let-init.
+ * emitted when an arm is not a literal chain, a VAR, a FIELD with a
+ * lane-0 home, an ARRAY_LIT, a lane binop, a block that still has
+ * lets, a nested if or ternary, a unary whose innermost expr is a
+ * VAR or a FIELD, a CALL, or a METHOD. That unary is the existing
+ * vector let-init, which already applies the chain on every lane.
+ * A bare FIELD is the same large copy as a VAR. A CALL or a METHOD
+ * is that let-init's existing struct let-init.
  * A nested if is that same call. Kind 51 stays out.
  * Vec4f stays declined because it is
  * 16 bytes. Kind 22 of an ARRAY_LIT (kind 46) stores that literal
@@ -1771,16 +1771,17 @@ export function glue_emit_vector_type_let_init_elf_c(
  * @param ta i32 — 1 is arm64. Other values return 0
  * @return i32 — peeled expr ref when the arm is a non-null INT_LIT,
  *   a kind-22 / kind-23 chain of one, that same chain whose innermost
- *   expr is a VAR or a FIELD with a lane-0 home, a VAR with a frame
- *   home, an ARRAY_LIT, a lane binop (kinds 4..13), a block that still
- *   has lets, a nested if (kind 25) or ternary (kind 27), a CALL
- *   (kind 48), or a METHOD (kind 49). 0 means decline this if before
- *   any branch is emitted.
+ *   expr is a VAR or a FIELD with a lane-0 home, a VAR or a FIELD
+ *   with a frame home, an ARRAY_LIT, a lane binop (kinds 4..13), a
+ *   block that still has lets, a nested if (kind 25) or ternary
+ *   (kind 27), a CALL (kind 48), or a METHOD (kind 49). 0 means
+ *   decline this if before any branch is emitted.
  * A unary of a VAR or a FIELD is the whole chain. The fill passes it
  * to the existing vector let-init, which already applies kind 22 and
- * kind 23 inside out on every lane. A CALL or a METHOD is that
- * let-init's
- * struct let-init. Kind 51 is an address. Kind 52 stays off.
+ * kind 23 inside out on every lane. A bare FIELD is copied like a
+ * VAR: lane 0 from glue_vector_var_lane_stack_off_elf_c is the start
+ * of the vector. A CALL or a METHOD is that let-init's struct
+ * let-init. Kind 51 is an address. Kind 52 stays off.
  * The lane-binop predicate remaps 51 to add, so it is excluded before
  * that call. Kind 24 does not enter.
  * The walk stops at 32 steps and sets the cursor kind to -1, because
@@ -1842,7 +1843,20 @@ export function glue_vec_if_arm_take_c(
     }
     return cur;
   }
+  // A VAR or a FIELD already lives in one frame slot. Lane 0 of that
+  // home is the start of the vector. The fill copies nbytes from
+  // there. A missing home declines before any branch. Nested fields
+  // are the existing home walk. Kind 51 is not kind 3 or kind 44.
+  // Kind 52 stays off. PLATFORM: MACOS|ARM64.
+  go = 0;
   if (ko == 3) {
+    go = 1;
+  }
+  if (ko == 44) {
+    go = 1;
+  }
+  if (go != 0) {
+    src_off = 0;
     unsafe {
       src_off = glue_vector_var_lane_stack_off_elf_c(arena, ctx, cur, 0, esz, ta);
     }
@@ -1985,11 +1999,12 @@ export function glue_vec_if_arm_take_c(
  * @param type_ref i32 — Vec8i type passed to the vector let-init
  * @param nbytes i32 — lane count times 4. Must be greater than 16.
  * @return i32 — 0 when the slot holds every lane; -1 on encode failure
- * A VAR is copied with glue_vector_var_lane_stack_off_elf_c and
- * glue_copy_large_struct_from_rax_ptr_elf_c. A literal chain, an
- * ARRAY_LIT, a lane binop, a block that still has lets, a nested
- * if or ternary, a unary whose innermost expr is a VAR or a FIELD,
- * a CALL, or a METHOD call glue_emit_vector_type_let_init_elf_c.
+ * A VAR or a FIELD is copied with glue_vector_var_lane_stack_off_elf_c
+ * and glue_copy_large_struct_from_rax_ptr_elf_c. Lane 0 is the start
+ * of that vector. A literal chain, an ARRAY_LIT, a lane binop, a
+ * block that still has lets, a nested if or ternary, a unary whose
+ * innermost expr is a VAR or a FIELD, a CALL, or a METHOD call
+ * glue_emit_vector_type_let_init_elf_c.
  * That call is one extra frame, not a second splat. An f32 binop uses
  * that let-init's own fill, not an i32 splat. PLATFORM: MACOS|ARM64.
  */
@@ -2001,10 +2016,20 @@ export function glue_vec_if_arm_fill_c(
   let ko: i32 = 0;
   let src_off: i32 = 0;
   let rc: i32 = 0;
+  let go: i32 = 0;
   unsafe {
     ko = pipeline_expr_kind_ord_at(arena, arm_ref);
   }
+  // Same home and the same large copy for a VAR and a FIELD. Lane 0
+  // is the start of the vector. Kind 51 is not either kind. Kind 52
+  // stays off. PLATFORM: MACOS|ARM64.
   if (ko == 3) {
+    go = 1;
+  }
+  if (ko == 44) {
+    go = 1;
+  }
+  if (go != 0) {
     unsafe {
       src_off = glue_vector_var_lane_stack_off_elf_c(arena, ctx, arm_ref, 0, 4, ta);
     }
@@ -2049,6 +2074,7 @@ export function glue_vec_if_arm_fill_c(
  * glue_vec_if_arm_take_c before the condition is emitted. A nested if
  * or ternary arm is this function again, through the vector let-init.
  * A unary of a VAR or a FIELD is that let-init's existing per-lane chain.
+ * A bare FIELD is the same large copy as a VAR.
  * A CALL or METHOD arm is that let-init's existing struct let-init.
  * The condition uses the existing bool-in-eax jump. A SIMD spelling wider
  * than 16 bytes enters, including named i32x8 and f32x8. The lane
