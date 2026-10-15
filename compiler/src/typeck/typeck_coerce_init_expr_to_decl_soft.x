@@ -28,7 +28,8 @@ export extern "C" function pipeline_expr_set_resolved_type_ref(arena: *u8, expr_
 /**
  * Stamp a bare INT_LIT, or a kind-22 / kind-23 chain of one, as a
  * TYPE_VECTOR of i32. Let coerce, the return coerce thin, the
- * call-arg checker, the struct-lit field coerce, the block checker
+ * call-arg checker, the struct-lit field coerce (on a literal init,
+ * on an if block tail, and on each ternary arm), the block checker
  * (on the block's value tail), and the ternary checker (on each arm)
  * all call this.
  * It does not call the demoted body.

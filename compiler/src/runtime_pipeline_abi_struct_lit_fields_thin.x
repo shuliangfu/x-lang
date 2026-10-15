@@ -163,13 +163,15 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
       continue;
     }
     /*
-     * INT_LIT or a kind-22 / kind-23 chain into a TYPE_VECTOR of i32
-     * that is wider than 8 bytes. The scalar store below keeps at most
-     * 8 bytes, so lane 7 of `H { v: 0 }` stayed unset. The same vector
-     * let-init a `let` uses fills a temp. The existing x19 memcpy then
-     * copies that temp onto this field. A -3 decline falls through to
-     * the scalar store. Kind 24 and an f32 element do not enter.
-     * ARRAY_LIT stays on the pointer copy below. PLATFORM: MACOS|ARM64.
+     * INT_LIT, a kind-22 / kind-23 chain, an if (kind 25), or a
+     * ternary (kind 27) into a TYPE_VECTOR of i32 that is wider than
+     * 8 bytes. The scalar store below keeps at most 8 bytes, so lane
+     * 7 of `H { v: 0 }` stayed unset. The same vector let-init a
+     * `let` uses fills a temp. Kind 25 and 27 already branch inside
+     * that let-init. The existing x19 memcpy then copies that temp
+     * onto this field. A -3 decline falls through to the scalar
+     * store. Kind 24 and an f32 element do not enter. ARRAY_LIT stays
+     * on the pointer copy below. PLATFORM: MACOS|ARM64.
      */
     if (ta == 1) {
       fty = 0;
@@ -199,6 +201,12 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
                 splat_go = 1;
               }
               if (iko == 23) {
+                splat_go = 1;
+              }
+              if (iko == 25) {
+                splat_go = 1;
+              }
+              if (iko == 27) {
                 splat_go = 1;
               }
               if (splat_go != 0) {
