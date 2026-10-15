@@ -1401,9 +1401,31 @@ export function glue_emit_vector_type_let_init_elf_c(
         return 0 - 3;
       }
       if (from_dest == 1) {
+        // -(4.0 / 2.0) called this writer with the literal gate clear.
+        // 4.0 and 2.0 then took integer div of the f64 low halves, both
+        // 0, and the sign xor below did not store -2.0. Kinds 4..7 of
+        // an f32 dest use the same gate as a bare lane binop. Kinds
+        // 8..13 do not. i32 leaves lane_f32 at 0. Restore the previous
+        // gate before that xor. PLATFORM: MACOS|ARM64. The gate symbol
+        // is SHARED.
+        lit_gate = 0;
+        lit_prev = 0;
+        if (lane_f32 != 0) {
+          if (op_ko == 4 || op_ko == 5 || op_ko == 6 || op_ko == 7) {
+            unsafe {
+              lit_prev = glue_lane_f32_lit_dest_set(1);
+            }
+            lit_gate = 1;
+          }
+        }
         unsafe {
           rc = pipeline_asm_emit_vector_binop_let_init_elf_c(
             arena, elf_ctx, lit_ref, ctx, ta, stack_slot_off, type_ref);
+        }
+        if (lit_gate != 0) {
+          unsafe {
+            lit_prev = glue_lane_f32_lit_dest_set(lit_prev);
+          }
         }
         if (rc != 0) {
           return 0 - 1;
