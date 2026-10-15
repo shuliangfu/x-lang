@@ -5,10 +5,10 @@
 // one, two, three, four, or five more unaries of that unary, into a TYPE_VECTOR
 // of i32 is stamped with the declared type. A seventh unary calls the
 // demoted body. A TYPE_VECTOR of f32 also stamps a FLOAT_LIT and one
-// through fourteen unary minuses of that literal. Two, four, six, eight,
+// through fifteen unary minuses of that literal. Two, four, six, eight,
 // ten, twelve, and fourteen minuses cancel. Three, five, seven, nine,
-// eleven, and thirteen apply the sign once. A fifteenth unary and a
-// bitwise not call the demoted body.
+// eleven, thirteen, and fifteen apply the sign once. A sixteenth unary
+// and a bitwise not call the demoted body.
 // PLATFORM: SHARED — type rule is the same on macOS, Ubuntu, and Windows.
 // The demote/retarget step that makes this symbol win is Mach-O only.
 
@@ -36,10 +36,11 @@ export extern "C" function pipeline_expr_set_resolved_type_ref(arena: *u8, expr_
  * three, four, or five more unary -/~ of that unary. A seventh
  * unary, a variable, a binop,
  * and keyword null stay on the demoted body. A TYPE_VECTOR of f32
- * stamps a FLOAT_LIT and one through fourteen unary minuses of that
+ * stamps a FLOAT_LIT and one through fifteen unary minuses of that
  * literal. Two, four, six, eight, ten, twelve, and fourteen minuses
- * cancel. Three, five, seven, nine, eleven, and thirteen apply the
- * sign once. A fifteenth unary of that float stays on the demoted body.
+ * cancel. Three, five, seven, nine, eleven, thirteen, and fifteen
+ * apply the sign once. A sixteenth unary of that float stays on the
+ * demoted body.
  * Two compares, not a chained && : the bootstrap image clobbers the
  * register a chained compare reuses. An out-of-range expr ref is not
  * counted here: pipeline_expr_kind_ord_at already returns -1, which is
@@ -217,7 +218,8 @@ export function typeck_coerce_init_expr_to_decl(
            * compares. Ten minuses cancel again. Eleven minuses apply
            * the sign once more. Twelve minuses cancel again. Thirteen
            * minuses apply the sign once more. Fourteen minuses cancel
-           * again. A fifteenth unary stays kind 22 at the inner
+           * again. Fifteen minuses apply the sign once more.
+           * A sixteenth unary stays kind 22 at the inner
            * operand, so it is not stamped.
            * Bitwise not stays off. An i32 element does not enter.
            * PLATFORM: SHARED.
@@ -251,6 +253,8 @@ export function typeck_coerce_init_expr_to_decl(
             let f_tredeca_k: i32 = 0;
             let f_quattuordeca: i32 = 0;
             let f_quattuordeca_k: i32 = 0;
+            let f_quindecim: i32 = 0;
+            let f_quindecim_k: i32 = 0;
             if (init_kind == 1) {
               splat_ok = 1;
             }
@@ -436,6 +440,23 @@ export function typeck_coerce_init_expr_to_decl(
                                                                   f_quattuordeca_k = pipeline_expr_kind_ord_at(arena, f_quattuordeca);
                                                                   if (f_quattuordeca_k == 1) {
                                                                     splat_ok = 1;
+                                                                  }
+                                                                  /*
+                                                                   * Fifteen minuses: the innermost is a
+                                                                   * FLOAT_LIT. The emitter applies the
+                                                                   * sign once. A sixteenth unary is kind
+                                                                   * 22 here, not kind 1. Load the operand
+                                                                   * of f_quattuordeca only.
+                                                                   * PLATFORM: SHARED.
+                                                                   */
+                                                                  if (f_quattuordeca_k == 22) {
+                                                                    f_quindecim = pipeline_expr_unary_operand_ref_at(arena, f_quattuordeca);
+                                                                    if (f_quindecim > 0) {
+                                                                      f_quindecim_k = pipeline_expr_kind_ord_at(arena, f_quindecim);
+                                                                      if (f_quindecim_k == 1) {
+                                                                        splat_ok = 1;
+                                                                      }
+                                                                    }
                                                                   }
                                                                 }
                                                               }
