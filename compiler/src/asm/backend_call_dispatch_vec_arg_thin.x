@@ -34,10 +34,12 @@ export extern "C" function backend_enc_lea_rbp_to_rax_arch(elf_ctx: *u8, offset:
  * @param sz i32 — formal size in bytes; the byref caller passes > 16
  * @param ta i32 — target arch; only 1 (Darwin arm64) materializes here
  * @return i32 — 0 when x0 holds the argument address; -1 on failure
- * Kind 3 stays on the demoted copy. Let-init -3 falls through so a
- * unary the filler declines keeps the old emit. Any other filler
- * failure returns -1 and does not pass an empty slot. f32 element
- * kinds do not enter. PLATFORM: MACOS|ARM64.
+ * Kind 3 stays on the demoted copy. Kind 25 and kind 27 use the same
+ * filler as a frame let, so `id(if (c) { 3 } else { -3 })` does not
+ * copy a scalar. Let-init -3 falls through so a unary the filler
+ * declines keeps the old emit. Any other filler failure returns -1
+ * and does not pass an empty slot. f32 element kinds do not enter.
+ * PLATFORM: MACOS|ARM64.
  */
 #[no_mangle]
 export function glue_vec_arg_addr(
@@ -70,6 +72,12 @@ export function glue_vec_arg_addr(
                   go = 1;
                 }
                 if (ko == ord_bitnot) {
+                  go = 1;
+                }
+                if (ko == 25) {
+                  go = 1;
+                }
+                if (ko == 27) {
                   go = 1;
                 }
                 if (go != 0) {

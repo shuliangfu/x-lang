@@ -941,12 +941,13 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
        * Darwin sret copies [x0] into the hidden dest. emit_expr of an
        * INT_LIT leaves the integer in x0, and the copy then reads that
        * integer as an address (SIGSEGV). A TYPE_VECTOR of i32 whose
-       * operand is a bare INT_LIT or a kind-22 / kind-23 chain is filled
-       * by the same let-init that `let v: Vec8i = 3` uses, then lea of
-       * that slot leaves the source address in x0. A VAR operand (kind 3)
-       * stays on emit_expr: that path already leaves the local address.
-       * Let-init -3 falls through. Any other failure returns -1.
-       * f32 element kinds do not enter. PLATFORM: MACOS|ARM64.
+       * operand is a bare INT_LIT, a kind-22 / kind-23 chain, or an
+       * if / ternary (kind 25 / 27) is filled by the same let-init that
+       * `let v: Vec8i = 3` uses, then lea of that slot leaves the source
+       * address in x0. A VAR operand (kind 3) stays on emit_expr: that
+       * path already leaves the local address. Let-init -3 falls through.
+       * Any other failure returns -1. f32 element kinds do not enter.
+       * PLATFORM: MACOS|ARM64.
        */
       if (ta == 1) {
         if (dur_ok == 0) {
@@ -960,6 +961,12 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
             v_go = 1;
           }
           if (v_opk == 23) {
+            v_go = 1;
+          }
+          if (v_opk == 25) {
+            v_go = 1;
+          }
+          if (v_opk == 27) {
             v_go = 1;
           }
           if (v_go != 0) {

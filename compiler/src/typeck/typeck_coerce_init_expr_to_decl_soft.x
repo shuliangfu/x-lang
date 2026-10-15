@@ -28,7 +28,8 @@ export extern "C" function pipeline_expr_set_resolved_type_ref(arena: *u8, expr_
 /**
  * Stamp a bare INT_LIT, or a kind-22 / kind-23 chain of one, as a
  * TYPE_VECTOR of i32. Let coerce, the return coerce thin, the
- * call-arg checker, and the struct-lit field coerce all call this.
+ * call-arg checker, the struct-lit field coerce, and the block
+ * checker (on the block's value tail) all call this.
  * It does not call the demoted body.
  * @param arena *u8 — AST arena; null returns 0
  * @param init_ref i32 — initializer or return operand; <= 0 returns 0

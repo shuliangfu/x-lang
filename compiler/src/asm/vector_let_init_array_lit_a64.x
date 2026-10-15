@@ -127,6 +127,32 @@ export extern function backend_enc_lea_rbp_to_rbx_arch(
 export extern function backend_enc_store_rax_to_rbx_offset_arch(
   elf_ctx: *u8, offset: i32, sz: i32, ta: i32
 ): i32;
+export extern function pipeline_expr_if_cond_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_if_then_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_if_else_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_asm_emit_expr_elf_c(
+  arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
+): i32;
+export extern function pipeline_asm_emit_next_label_c(
+  ctx: *u8, buf: *u8, buf_size: i32
+): i32;
+export extern function glue_enc_jz_after_bool_in_eax(
+  elf_ctx: *u8, label: *u8, label_len: i32, ta: i32
+): i32;
+export extern function backend_enc_jmp_arch(
+  elf_ctx: *u8, label: *u8, label_len: i32, ta: i32
+): i32;
+export extern function backend_enc_label_arch(
+  elf_ctx: *u8, name: *u8, name_len: i32, is_func: i32, ta: i32
+): i32;
+export extern function backend_enc_lea_rbp_to_rax_arch(
+  elf_ctx: *u8, offset: i32, ta: i32
+): i32;
+export extern function glue_copy_large_struct_from_rax_ptr_elf_c(
+  elf_ctx: *u8, slot_off: i32, sz: i32, ta: i32
+): i32;
+export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
+export extern function pipeline_type_elem_ref_at(arena: *u8, type_ref: i32): i32;
 
 /**
  * Store SIMD ARRAY_LIT lanes, a lane binop, or a scalar lit splat.
@@ -160,7 +186,11 @@ export extern function backend_enc_store_rax_to_rbx_offset_arch(
  * value with glue_emit_struct_type_let_init_elf_c, then negates each destination
  * lane in place. A transparent EXPR_BLOCK (kind 26) is replaced by
  * its value expr first, using glue_expr_block_transparent_value_ref_at,
- * at most four times. Kind 22 of an ARRAY_LIT (kind 46) stores that literal
+ * at most four times. Kind 25 (IF) and kind 27 (TERNARY) of an i32
+ * vector wider than 16 bytes call glue_emit_vector_if_let_init_elf_c.
+ * That sibling returns -3 with no bytes emitted when an arm is not a
+ * literal chain, a VAR, or an ARRAY_LIT. Vec4f stays here because it
+ * is 16 bytes. Kind 22 of an ARRAY_LIT (kind 46) stores that literal
  * with pipeline_asm_emit_vector_let_init_elf_c, then negates each
  * destination lane in place. Kind 23 (EXPR_BITNOT) uses that same
  * classification and emits mvn w0 on each i32 lane. f32 bitwise not
@@ -324,6 +354,27 @@ export function glue_emit_vector_type_let_init_elf_c(
   }
   unsafe {
     ko = pipeline_expr_kind_ord_at(arena, init_ref);
+  }
+  /*
+   * EXPR_IF = 25 and EXPR_TERNARY = 27. A frame Vec8i let of
+   * `if (c) { 3 } else { -3 }` or of two Vec8i vars used to fall
+   * through to a 16-byte pair store. The sibling fills every lane,
+   * or returns -3 before emitting. Slot -3 is dest-in-rbx and stays
+   * on that decline. PLATFORM: MACOS|ARM64.
+   */
+  if (ko == 25) {
+    unsafe {
+      rc = glue_emit_vector_if_let_init_elf_c(
+        arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, type_ref);
+    }
+    return rc;
+  }
+  if (ko == 27) {
+    unsafe {
+      rc = glue_emit_vector_if_let_init_elf_c(
+        arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, type_ref);
+    }
+    return rc;
   }
   // EXPR_ARRAY_LIT = 46. Store the lane bytes, not the buffer address.
   if (ko == 46) {
@@ -853,4 +904,366 @@ export function glue_emit_vector_type_let_init_elf_c(
     return rc;
   }
   return 0 - 3;
+}
+
+/**
+ * Peel a transparent block, then accept a Vec8i if-arm.
+ * @param arena *u8 — AST arena; null returns 0
+ * @param ctx *u8 — AsmFuncCtx; null returns 0
+ * @param arm_ref i32 — then or else expr; <= 0 returns 0
+ * @param esz i32 — lane size in bytes; not 4 returns 0
+ * @param ta i32 — 1 is arm64. Other values return 0
+ * @return i32 — peeled expr ref when the arm is a non-null INT_LIT,
+ *   a kind-22 / kind-23 chain of one, a VAR with a frame home, or an
+ *   ARRAY_LIT. 0 means decline this if before any branch is emitted.
+ * A unary of a VAR stays 0: the vector let-init can negate that VAR,
+ * but only after it has already been chosen. Kind 24 does not enter.
+ * The walk stops at 32 steps and sets the cursor kind to -1, because
+ * kind 0 is INT_LIT. Depth 32 was not probed. PLATFORM: MACOS|ARM64.
+ */
+#[no_mangle]
+export function glue_vec_if_arm_take_c(
+  arena: *u8, ctx: *u8, arm_ref: i32, esz: i32, ta: i32
+): i32 {
+  let cur: i32 = 0;
+  let peeled: i32 = 0;
+  let peel_n: i32 = 0;
+  let ko: i32 = 0;
+  let op_ref: i32 = 0;
+  let op_k: i32 = 0;
+  let inner_ref: i32 = 0;
+  let deep: i32 = 0;
+  let stop: i32 = 0;
+  let step: i32 = 0;
+  let go: i32 = 0;
+  let src_off: i32 = 0;
+  let is_null: i32 = 0;
+  if (arena == (0 as *u8) || ctx == (0 as *u8) || arm_ref <= 0) {
+    return 0;
+  }
+  if (esz != 4) {
+    return 0;
+  }
+  if (ta != 1) {
+    return 0;
+  }
+  cur = arm_ref;
+  peel_n = 0;
+  while (peel_n < 4) {
+    peeled = 0;
+    unsafe {
+      peeled = glue_expr_block_transparent_value_ref_at(arena, cur);
+    }
+    if (peeled <= 0) {
+      peel_n = 4;
+    } else {
+      if (peeled == cur) {
+        peel_n = 4;
+      } else {
+        cur = peeled;
+        peel_n = peel_n + 1;
+      }
+    }
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, cur);
+  }
+  if (ko == 0) {
+    unsafe {
+      is_null = pipeline_expr_is_null_keyword_c(arena, cur);
+    }
+    if (is_null != 0) {
+      return 0;
+    }
+    return cur;
+  }
+  if (ko == 3) {
+    unsafe {
+      src_off = glue_vector_var_lane_stack_off_elf_c(arena, ctx, cur, 0, esz, ta);
+    }
+    if (src_off < 0) {
+      return 0;
+    }
+    return cur;
+  }
+  if (ko == 46) {
+    return cur;
+  }
+  if (ko == 22) {
+    go = 1;
+  }
+  if (ko == 23) {
+    go = 1;
+  }
+  if (go == 0) {
+    return 0;
+  }
+  op_ref = cur;
+  op_k = ko;
+  deep = 0;
+  stop = 0;
+  while (stop == 0) {
+    step = 0;
+    if (op_k == 22) {
+      step = 1;
+    }
+    if (op_k == 23) {
+      step = 1;
+    }
+    if (step == 0) {
+      stop = 1;
+    } else {
+      if (deep < 32) {
+        inner_ref = 0;
+        unsafe {
+          inner_ref = pipeline_expr_unary_operand_ref_at(arena, op_ref);
+        }
+        if (inner_ref <= 0) {
+          op_k = 0 - 1;
+          stop = 1;
+        } else {
+          op_ref = inner_ref;
+          deep = deep + 1;
+          unsafe {
+            op_k = pipeline_expr_kind_ord_at(arena, op_ref);
+          }
+        }
+      } else {
+        op_k = 0 - 1;
+        stop = 1;
+      }
+    }
+  }
+  if (op_k != 0) {
+    return 0;
+  }
+  unsafe {
+    is_null = pipeline_expr_is_null_keyword_c(arena, op_ref);
+  }
+  if (is_null != 0) {
+    return 0;
+  }
+  return cur;
+}
+
+/**
+ * Fill one accepted Vec8i if-arm into the let slot.
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — object writer
+ * @param arm_ref i32 — peeled arm from glue_vec_if_arm_take_c
+ * @param ctx *u8 — AsmFuncCtx
+ * @param ta i32 — 1 is arm64
+ * @param stack_slot_off i32 — destination slot of lane 0. Not -3.
+ * @param type_ref i32 — Vec8i type passed to the vector let-init
+ * @param nbytes i32 — lane count times 4. Must be greater than 16.
+ * @return i32 — 0 when the slot holds every lane; -1 on encode failure
+ * A VAR is copied with glue_vector_var_lane_stack_off_elf_c and
+ * glue_copy_large_struct_from_rax_ptr_elf_c. A literal chain and an
+ * ARRAY_LIT call glue_emit_vector_type_let_init_elf_c. That call is
+ * one extra frame, not a second splat. PLATFORM: MACOS|ARM64.
+ */
+#[no_mangle]
+export function glue_vec_if_arm_fill_c(
+  arena: *u8, elf_ctx: *u8, arm_ref: i32, ctx: *u8, ta: i32,
+  stack_slot_off: i32, type_ref: i32, nbytes: i32
+): i32 {
+  let ko: i32 = 0;
+  let src_off: i32 = 0;
+  let rc: i32 = 0;
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, arm_ref);
+  }
+  if (ko == 3) {
+    unsafe {
+      src_off = glue_vector_var_lane_stack_off_elf_c(arena, ctx, arm_ref, 0, 4, ta);
+    }
+    if (src_off < 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, src_off, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = glue_copy_large_struct_from_rax_ptr_elf_c(
+        elf_ctx, stack_slot_off, nbytes, ta);
+    }
+    return rc;
+  }
+  unsafe {
+    rc = glue_emit_vector_type_let_init_elf_c(
+      arena, elf_ctx, arm_ref, ctx, ta, stack_slot_off, type_ref);
+  }
+  if (rc == 0) {
+    return 0;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Emit a Vec8i if or ternary into the let slot.
+ * @param arena *u8 — AST arena; null returns -3
+ * @param elf_ctx *u8 — object writer; null returns -3
+ * @param init_ref i32 — EXPR_IF or EXPR_TERNARY
+ * @param ctx *u8 — AsmFuncCtx; null returns -3
+ * @param ta i32 — only 1 (Darwin arm64) enters
+ * @param stack_slot_off i32 — destination slot. -3 returns -3
+ * @param type_ref i32 — declared vector type
+ * @return i32 — 0 when both arms filled the slot; -1 after a branch
+ *   was emitted and a fill failed; -3 when this face declines and
+ *   has emitted nothing
+ * Both arms are required. Each arm is accepted only by
+ * glue_vec_if_arm_take_c before the condition is emitted. The
+ * condition uses the existing bool-in-eax jump. Kind 24, f32, and a
+ * vector of 16 bytes or fewer stay on the caller decline. Vec4f is
+ * that 16-byte case. PLATFORM: MACOS|ARM64.
+ */
+#[no_mangle]
+export function glue_emit_vector_if_let_init_elf_c(
+  arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32,
+  stack_slot_off: i32, type_ref: i32
+): i32 {
+  let tk: i32 = 0;
+  let elem: i32 = 0;
+  let ek: i32 = 0;
+  let lanes_s: i32[1] = [];
+  let esz_s: i32[1] = [];
+  let rc: i32 = 0;
+  let nbytes: i32 = 0;
+  let ni: i32 = 0;
+  let if_cond: i32 = 0;
+  let if_then: i32 = 0;
+  let if_else: i32 = 0;
+  let then_arm: i32 = 0;
+  let else_arm: i32 = 0;
+  let else_lbl: u8[64] = [];
+  let done_lbl: u8[64] = [];
+  let else_len: i32 = 0;
+  let done_len: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8)) {
+    return 0 - 3;
+  }
+  if (init_ref <= 0) {
+    return 0 - 3;
+  }
+  if (ta != 1) {
+    return 0 - 3;
+  }
+  if (stack_slot_off == (0 - 3)) {
+    return 0 - 3;
+  }
+  unsafe {
+    tk = pipeline_type_kind_ord_at(arena, type_ref);
+  }
+  if (tk != 13) {
+    return 0 - 3;
+  }
+  unsafe {
+    elem = pipeline_type_elem_ref_at(arena, type_ref);
+  }
+  if (elem <= 0) {
+    return 0 - 3;
+  }
+  unsafe {
+    ek = pipeline_type_kind_ord_at(arena, elem);
+  }
+  if (ek != 0) {
+    return 0 - 3;
+  }
+  unsafe {
+    rc = glue_vector_type_lanes_esz_c(arena, type_ref, &lanes_s[0], &esz_s[0]);
+  }
+  if (rc != 0) {
+    return 0 - 3;
+  }
+  if (esz_s[0] != 4) {
+    return 0 - 3;
+  }
+  if (lanes_s[0] <= 0) {
+    return 0 - 3;
+  }
+  nbytes = 0;
+  ni = 0;
+  while (ni < lanes_s[0]) {
+    nbytes = nbytes + esz_s[0];
+    ni = ni + 1;
+  }
+  if (nbytes <= 16) {
+    return 0 - 3;
+  }
+  unsafe {
+    if_cond = pipeline_expr_if_cond_ref_at(arena, init_ref);
+    if_then = pipeline_expr_if_then_ref_at(arena, init_ref);
+    if_else = pipeline_expr_if_else_ref_at(arena, init_ref);
+  }
+  if (if_cond <= 0) {
+    return 0 - 3;
+  }
+  if (if_then <= 0) {
+    return 0 - 3;
+  }
+  if (if_else <= 0) {
+    return 0 - 3;
+  }
+  then_arm = glue_vec_if_arm_take_c(arena, ctx, if_then, esz_s[0], ta);
+  if (then_arm <= 0) {
+    return 0 - 3;
+  }
+  else_arm = glue_vec_if_arm_take_c(arena, ctx, if_else, esz_s[0], ta);
+  if (else_arm <= 0) {
+    return 0 - 3;
+  }
+  unsafe {
+    rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, if_cond, ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    else_len = pipeline_asm_emit_next_label_c(ctx, &else_lbl[0], 64);
+    done_len = pipeline_asm_emit_next_label_c(ctx, &done_lbl[0], 64);
+  }
+  if (else_len <= 0) {
+    return 0 - 1;
+  }
+  if (done_len <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = glue_enc_jz_after_bool_in_eax(elf_ctx, &else_lbl[0], else_len, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  rc = glue_vec_if_arm_fill_c(
+    arena, elf_ctx, then_arm, ctx, ta, stack_slot_off, type_ref, nbytes);
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_jmp_arch(elf_ctx, &done_lbl[0], done_len, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_label_arch(elf_ctx, &else_lbl[0], else_len, 0, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  rc = glue_vec_if_arm_fill_c(
+    arena, elf_ctx, else_arm, ctx, ta, stack_slot_off, type_ref, nbytes);
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_label_arch(elf_ctx, &done_lbl[0], done_len, 0, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  return 0;
 }
