@@ -6873,11 +6873,34 @@ name_len: i32, from_dep_index: i32, ctx: *PipelineDepCtx, func_index_out: *i32):
 }
 
 /**
- * See implementation.
- * See implementation.
- * See implementation.
+ * Score one call argument against one formal.
+ * The product entry is typeck_overload_arg_param_score_soft.x. Cap tip
+ * cannot re-emit this mega, so the linked object keeps this text and the
+ * Darwin link aliases it to typeck_overload_arg_param_score_mega. The entry
+ * calls that alias. A chain of two or more unary minuses of one float
+ * literal used to return -1 here (this body peels a single minus). The
+ * entry turns that -1 into the same weak 100 an f32 or f64 formal already
+ * gets for one minus. Do not paste a second score body in this file.
+ * @param caller_arena *ASTArena — caller's expression pool
+ * @param call_expr_ref i32 — EXPR_CALL or EXPR_METHOD_CALL
+ * @param arg_i i32 — argument index
+ * @param param_ty_raw i32 — formal type ref in the callee arena
+ * @param from_dep_index i32 — dep slot, or negative for the caller module
+ * @param ctx *PipelineDepCtx — dep arenas; null when from_dep_index is negative
+ * @return i32 — 1000 exact, 100 weak, 0 or negative on reject
+ * PLATFORM: SHARED.
  */
-export function typeck_overload_arg_param_score(caller_arena: *ASTArena, call_expr_ref: i32, arg_i: i32,
+export extern function typeck_overload_arg_param_score(caller_arena: *ASTArena, call_expr_ref: i32, arg_i: i32,
+param_ty_raw: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32;
+
+/**
+ * Mega body of the argument score. Linked as
+ * typeck_overload_arg_param_score_mega. The entry in
+ * typeck_overload_arg_param_score_soft.x is what call sites bind.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function typeck_overload_arg_param_score_mega(caller_arena: *ASTArena, call_expr_ref: i32, arg_i: i32,
 param_ty_raw: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -6970,7 +6993,11 @@ param_ty_raw: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32 {
       }
     }
     /*
-     * Bare FLOAT_LIT (kind 1) / NEG(FLOAT_LIT) weak-match f32/f64 formals.
+     * Bare FLOAT_LIT (kind 1) / one NEG(FLOAT_LIT) weak-match f32/f64 formals.
+     * A longer minus chain is not peeled here. The entry
+     * typeck_overload_arg_param_score_soft.x turns a -1 from this body into
+     * the same weak 100 when every step is unary minus and the innermost
+     * expr is a float literal. Do not add a second walker in this body.
      * Root (intrinsic_binop_dot): simd.splat(0.0) vs splat(i32)/splat(f32) —
      * both overloads scored -1 (lit defaults f64; no FLOAT_LIT clause) → first_idx
      * splat(i32) → emit U/sret SEGV. Score 100 < exact 1000; i32 stays -1.
@@ -9408,48 +9435,21 @@ decl_kind: i32, init_kind: i32): i32 {
 }
 
 /**
- * Coerce bare float literal (or unary `-` of a float literal) to a float decl type.
+ * Stamp a bare float literal, or a chain of unary minuses of one, onto an
+ * f32 or f64 declaration. The product body is
+ * typeck_coerce_init_float_lit_soft.x. Cap tip cannot re-emit this mega,
+ * and the linked object still holds the old one-peel text; that symbol is
+ * weakened so the thin is the definition. Do not paste a second body here.
  * @param arena *ASTArena — expression pool
  * @param init_ref i32 — init/RHS/return operand expr ref
  * @param decl_ty_ref i32 — destination type ref (f32 or f64)
  * @param decl_kind i32 — TypeKind ordinal of decl_ty_ref
  * @param init_kind i32 — ExprKind ordinal of init_ref
  * @return i32 — 1 if stamped, 0 if not applicable
- * wave316 Cap residual: bare FLOAT_LIT already coerced on let-init; assign/return
- * and unary `-6.0` (EXPR_NEG of FLOAT_LIT) still resolved as default f64 → type mismatch
- * on f32. G.7 single authority — peel NEG once, stamp both NEG and operand.
- * PLATFORM: SHARED — seed typeck_gen + empty_surface + pipeline_glue twin.
+ * PLATFORM: SHARED.
  */
-export function typeck_coerce_init_float_lit_to_decl(arena: *ASTArena, init_ref: i32, decl_ty_ref: i32,
-decl_kind: i32, init_kind: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-    let ord_expr_float: i32 = 1;
-    let ord_neg: i32 = 22;
-    let ord_f32: i32 = 14;
-    let ord_f64: i32 = 15;
-    let op_ref: i32 = 0;
-    if (decl_kind != ord_f32 && decl_kind != ord_f64) {
-      return 0;
-    }
-    if (init_kind == ord_expr_float) {
-      pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
-      return 1;
-    }
-    /* wave316: `let a: f32 = -6.0` / `return -6.0` / `a = -6.0` — EXPR_NEG of FLOAT_LIT. */
-    if (init_kind == ord_neg) {
-      op_ref = pipeline_expr_unary_operand_ref_at(arena, init_ref);
-      if (!ast.ref_is_null(op_ref) && op_ref > 0 && op_ref <= arena.num_exprs) {
-        if (pipeline_expr_kind_ord_at(arena, op_ref) == ord_expr_float) {
-          pipeline_expr_set_resolved_type_ref(arena, op_ref, decl_ty_ref);
-          pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
-          return 1;
-        }
-      }
-    }
-    return 0;
-  }
-}
+export extern function typeck_coerce_init_float_lit_to_decl(arena: *ASTArena, init_ref: i32, decl_ty_ref: i32,
+decl_kind: i32, init_kind: i32): i32;
 
 /**
  * After CALL / METHOD resolve: stamp FLOAT_LIT / `-float` args to formal f32/f64.
