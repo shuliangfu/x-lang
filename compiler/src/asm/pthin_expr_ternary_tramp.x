@@ -44,8 +44,8 @@ extern function parser_asm_parse_ternary_x_into_c(arena: *u8, lex_inout: *u8, so
 
 /**
  * Dest-buffer assign body. Defined in pthin_expr_ternary.x.
- * This file only forwards the cursor. The body keeps the
- * redundant double parse. Do not collapse it here.
+ * This file only forwards the cursor. The body parses the
+ * left-hand ternary once. Do not add a second walk here.
  */
 extern function parser_asm_parse_assign_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32;
 
