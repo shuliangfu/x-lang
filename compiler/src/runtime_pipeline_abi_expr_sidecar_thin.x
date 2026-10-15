@@ -993,21 +993,66 @@ export function pipeline_expr_append_method_call_arg(a: *u8, expr_ref: i32, arg_
 }
 
 /**
- * Append array lit elem.
+ * Append one element ref onto an array literal.
+ * The first append records ELEM_BASE as the side-table length. Later
+ * appends use base+index and expect that range to still be the tail.
+ * A nested `[...]` element appends into the same table before the parent
+ * stores the next index, so base+index then names a slot the child owns.
+ * Writing there replaces the child's element with the child expr itself
+ * and the block walk recurses forever. When the next index is not the
+ * current tail, copy this literal's existing refs to the tail and
+ * retarget ELEM_BASE, then store the new ref. One move covers every
+ * nesting depth. A null arena or expr_ref<=0 returns -1.
+ * @param a Arena; null returns -1.
+ * @param expr_ref Array-literal expr; <=0 returns -1.
+ * @param elem_ref Element expr ref to store.
+ * @return i32 The previous element count, or -1.
  * PLATFORM: SHARED
  */
 export function pipeline_expr_append_array_lit_elem(a: *u8, expr_ref: i32, elem_ref: i32): i32 {
   let ex: *u8 = 0 as *u8;
   let sc: *u8 = 0 as *u8;
   let slot: *u8 = 0 as *u8;
+  let gv: *u8 = 0 as *u8;
+  let src: *u8 = 0 as *u8;
+  let dst: *u8 = 0 as *u8;
   let idx: i32 = 0;
+  let old_base: i32 = 0;
+  let new_base: i32 = 0;
+  let slot_i: i32 = 0;
+  let val: i32 = 0;
   if (a == (0 as *u8) || expr_ref <= 0) { return 0 - 1; }
   sc = w327_sc(a, 1);
   ex = w327_expr(a, expr_ref);
   if (sc == (0 as *u8) || ex == (0 as *u8)) { return 0 - 1; }
+  gv = sc + (W327_SC_EXPR_ARRAY_LIT_ELEM_REFS as usize);
   idx = w327_load(ex, W327_E_ARRAY_LIT_NUM_ELEMS);
   if (idx == 0) {
-    w327_store(ex, W327_E_ARRAY_LIT_ELEM_BASE, w327_gv_len(sc + (W327_SC_EXPR_ARRAY_LIT_ELEM_REFS as usize)));
+    w327_store(ex, W327_E_ARRAY_LIT_ELEM_BASE, w327_gv_len(gv));
+  } else {
+    old_base = w327_load(ex, W327_E_ARRAY_LIT_ELEM_BASE);
+    new_base = w327_gv_len(gv);
+    /* Child literals already consumed base+idx. Move our run to the tail. */
+    if (old_base + idx != new_base) {
+      slot_i = 0;
+      while (slot_i < idx) {
+        if (w327_gv_ensure_abs(gv, new_base + slot_i) == 0) {
+          return 0 - 1;
+        }
+        src = w529_gv_at(gv, old_base + slot_i);
+        dst = w529_gv_at(gv, new_base + slot_i);
+        if (src == (0 as *u8)) {
+          return 0 - 1;
+        }
+        if (dst == (0 as *u8)) {
+          return 0 - 1;
+        }
+        val = w327_load(src, 0);
+        w327_store(dst, 0, val);
+        slot_i = slot_i + 1;
+      }
+      w327_store(ex, W327_E_ARRAY_LIT_ELEM_BASE, new_base);
+    }
   }
   slot = expr_array_lit_elem_slot(a, expr_ref, idx, 1);
   if (slot == (0 as *u8)) { return 0 - 1; }
