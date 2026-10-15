@@ -741,10 +741,11 @@ function vlet_f32_array_lanes(
  * emitted when an arm is not a literal chain, a VAR, a FIELD with a
  * lane-0 home, an ARRAY_LIT, a lane binop, a block that still has
  * lets, a nested if or ternary, a unary whose innermost expr is a
- * VAR or a FIELD, a CALL, or a METHOD. That unary is the existing
- * vector let-init, which already applies the chain on every lane.
- * A bare FIELD is the same large copy as a VAR. A CALL or a METHOD
- * is that let-init's existing struct let-init.
+ * VAR or a FIELD, a CALL, a METHOD, or an INDEX. That unary is the
+ * existing vector let-init, which already applies the chain on every
+ * lane. A bare FIELD is the same large copy as a VAR. A CALL, a
+ * METHOD, or an INDEX is that let-init's existing struct let-init.
+ * A unary of an INDEX stays declined.
  * A nested if is that same call. Kind 51 stays out.
  * Vec4f stays declined because it is
  * 16 bytes. Kind 22 of an ARRAY_LIT (kind 46) stores that literal
@@ -1698,7 +1699,8 @@ export function glue_emit_vector_type_let_init_elf_c(
   // `{ let k; id(k) }` and `{ let t; t[i] }` were CG002. Those kinds
   // are the same struct let-init. Kind 52 stays off this call. A
   // decline still returns -1: the caller must not emit this block a
-  // second time. A bare initializer other than a CALL still returns -3.
+  // second time. A bare CALL, METHOD, or INDEX is stored below.
+  // Kind 52 stays off. Another bare initializer still returns -3.
   // PLATFORM: MACOS|ARM64.
   if (saw_lets != 0) {
     store_go = 0;
@@ -1731,20 +1733,24 @@ export function glue_emit_vector_type_let_init_elf_c(
     }
     return 0 - 1;
   }
-  // A bare CALL or METHOD has no lets, so the block above does not
-  // run. The block-body let stores either kind with struct let-init
-  // only after this function returns -3. An if arm has no second
-  // chance: its fill turns -3 into -1 after the branch is already
-  // emitted. Call that same struct let-init here for kind 48 and
-  // kind 49. A return wider than 16 bytes is sret into this slot.
-  // Kind 51 is not a call. Kind 52 stays off. Another return code
-  // has not committed a store, so the old -3 fallback still runs.
-  // PLATFORM: MACOS|ARM64.
+  // A bare CALL, METHOD, or INDEX has no lets, so the block above
+  // does not run. The block-body let stores those kinds with struct
+  // let-init only after this function returns -3. An if arm has no
+  // second chance: its fill turns -3 into -1 after the branch is
+  // already emitted. Call that same struct let-init here for kind
+  // 48, kind 49, and kind 47. A return wider than 16 bytes is sret
+  // into this slot. An INDEX wider than 16 bytes is that writer's
+  // existing copy. Kind 51 is not one of these kinds. Kind 52 stays
+  // off. Another return code has not committed a store, so the old
+  // -3 fallback still runs. PLATFORM: MACOS|ARM64.
   store_go = 0;
   if (ko == 48) {
     store_go = 1;
   }
   if (ko == 49) {
+    store_go = 1;
+  }
+  if (ko == 47) {
     store_go = 1;
   }
   if (store_go != 0) {
@@ -1774,14 +1780,15 @@ export function glue_emit_vector_type_let_init_elf_c(
  *   expr is a VAR or a FIELD with a lane-0 home, a VAR or a FIELD
  *   with a frame home, an ARRAY_LIT, a lane binop (kinds 4..13), a
  *   block that still has lets, a nested if (kind 25) or ternary
- *   (kind 27), a CALL (kind 48), or a METHOD (kind 49). 0 means
- *   decline this if before any branch is emitted.
+ *   (kind 27), a CALL (kind 48), a METHOD (kind 49), or an INDEX
+ *   (kind 47). 0 means decline this if before any branch is emitted.
  * A unary of a VAR or a FIELD is the whole chain. The fill passes it
  * to the existing vector let-init, which already applies kind 22 and
  * kind 23 inside out on every lane. A bare FIELD is copied like a
  * VAR: lane 0 from glue_vector_var_lane_stack_off_elf_c is the start
- * of the vector. A CALL or a METHOD is that let-init's struct
- * let-init. Kind 51 is an address. Kind 52 stays off.
+ * of the vector. A CALL, a METHOD, or an INDEX is that let-init's
+ * struct let-init. A unary of an INDEX stays declined. Kind 51 is
+ * an address. Kind 52 stays off.
  * The lane-binop predicate remaps 51 to add, so it is excluded before
  * that call. Kind 24 does not enter.
  * The walk stops at 32 steps and sets the cursor kind to -1, because
@@ -1908,6 +1915,15 @@ export function glue_vec_if_arm_take_c(
   if (ko == 49) {
     return cur;
   }
+  // An index is not a call. The fill passes it to the existing
+  // vector let-init, which stores it with the existing struct
+  // let-init. That writer copies a value wider than 16 bytes into
+  // this slot. Kind 51 is not an index. Kind 52 stays off. A unary
+  // of an index is kind 22 or kind 23, so it stays on the walk
+  // below. PLATFORM: MACOS|ARM64.
+  if (ko == 47) {
+    return cur;
+  }
   if (ko == 22) {
     go = 1;
   }
@@ -2003,8 +2019,8 @@ export function glue_vec_if_arm_take_c(
  * and glue_copy_large_struct_from_rax_ptr_elf_c. Lane 0 is the start
  * of that vector. A literal chain, an ARRAY_LIT, a lane binop, a
  * block that still has lets, a nested if or ternary, a unary whose
- * innermost expr is a VAR or a FIELD, a CALL, or a METHOD call
- * glue_emit_vector_type_let_init_elf_c.
+ * innermost expr is a VAR or a FIELD, a CALL, a METHOD, or an INDEX
+ * call glue_emit_vector_type_let_init_elf_c.
  * That call is one extra frame, not a second splat. An f32 binop uses
  * that let-init's own fill, not an i32 splat. PLATFORM: MACOS|ARM64.
  */
@@ -2075,7 +2091,8 @@ export function glue_vec_if_arm_fill_c(
  * or ternary arm is this function again, through the vector let-init.
  * A unary of a VAR or a FIELD is that let-init's existing per-lane chain.
  * A bare FIELD is the same large copy as a VAR.
- * A CALL or METHOD arm is that let-init's existing struct let-init.
+ * A CALL, METHOD, or INDEX arm is that let-init's existing struct let-init.
+ * A unary of an INDEX stays declined.
  * The condition uses the existing bool-in-eax jump. A SIMD spelling wider
  * than 16 bytes enters, including named i32x8 and f32x8. The lane
  * count comes from glue_vector_type_lanes_esz_c. A vector of 16 bytes
