@@ -26,6 +26,9 @@ export extern function glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx: *u8, s
 export extern function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i32, ctx: *u8, ta: i32, let_ty_ref: i32, dest_spill: i32): i32;
 export extern function glue_emit_match_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, ty_ref: i32, dest_spill: i32): i32;
 export extern function glue_emit_module_from_ctx(ctx: *u8): *u8;
+export extern function glue_field_access_call_base_rvalue_elf_c(
+  arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, leave_addr: i32
+): i32;
 export extern function glue_enc_jz_after_bool_in_eax(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
 export extern function glue_field_layout_offset_for_var_base_field(a: *u8, m: *u8, base_var_ref: i32, field_name: *u8, flen: i32): i32;
 export extern function glue_slice_dual_gp_length_off_c(data_home: i32, ta: i32): i32;
@@ -102,6 +105,7 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   let ko: i32 = 0;
   let inl: i32 = 0;
   let emit_rc: i32 = 0;
+  let rvalue_ok: i32 = 0;
   let call_ret_sz: i32 = 0;
   let let_sz: i32 = 0;
   let named_sz: i32 = 0;
@@ -862,11 +866,36 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
         }
       }
     }
-    unsafe {
-      emit_rc = pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, init_ref, ctx, ta);
+    // A STRUCT_LIT, CALL, or METHOD base has no frame lvalue.
+    // The existing field materializer fills a temp and leaves this
+    // field's address in rax. -99 means the base is a VAR or another
+    // lvalue, so the address emitter below still runs. Nested fields
+    // and a block with lets are that materializer's one walk.
+    // Frame dest only. dest-in-rbx stays on the lvalue copy.
+    // PLATFORM: SHARED.
+    rvalue_ok = 0;
+    if (ko == 44) {
+      if (dest_in_rbx == 0) {
+        unsafe {
+          emit_rc = glue_field_access_call_base_rvalue_elf_c(
+            arena, elf_ctx, init_ref, ctx, ta, 1);
+        }
+        if (emit_rc == 0) {
+          rvalue_ok = 1;
+        } else {
+          if (emit_rc != (0 - 99)) {
+            return 0 - 1;
+          }
+        }
+      }
     }
-    if (emit_rc != 0) {
-      return 0 - 1;
+    if (rvalue_ok == 0) {
+      unsafe {
+        emit_rc = pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, init_ref, ctx, ta);
+      }
+      if (emit_rc != 0) {
+        return 0 - 1;
+      }
     }
     /* dest-in-rbx FIELD / INDEX / DEREF (`*p = w.h` / `*p = arr[i].h` /
      * `*p = arr[i]` / `*p = *q`): memcpy dest-in-rbx. Do not
