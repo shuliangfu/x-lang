@@ -69,6 +69,10 @@ export extern function backend_enc_push_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_pop_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i32, hi: i32, ta: i32): i32;
 export extern function backend_enc_load_64_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function glue_simd_alloc_vector_temp_slot_c(arena: *u8, ctx: *u8, type_ref: i32): i32;
+export extern function glue_emit_vector_type_let_init_elf_c(
+  arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32,
+  stack_off: i32, type_ref: i32): i32;
 
 /**
  * `return f(...)` forwarding a > 16-byte result: pass this function's own
@@ -482,6 +486,16 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
       let sl_k: i32 = 0;
       let fa_name: u8[64] = [];
       let sl_name: u8[64] = [];
+      let v_slot: i32 = 0;
+      let v_rc: i32 = 0;
+      let v_mod: *u8 = 0 as *u8;
+      let v_fi: i32 = 0;
+      let v_rty: i32 = 0;
+      let v_rk: i32 = 0;
+      let v_elem: i32 = 0;
+      let v_ek: i32 = 0;
+      let v_opk: i32 = 0;
+      let v_go: i32 = 0;
       if (ta == 0 || ta == 1) {
         unsafe {
           opk_d = pipeline_expr_kind_ord_at(arena, ret_op);
@@ -912,6 +926,86 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                               }
                               dur_ok = 1;
                             }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      /*
+       * Darwin sret copies [x0] into the hidden dest. emit_expr of an
+       * INT_LIT leaves the integer in x0, and the copy then reads that
+       * integer as an address (SIGSEGV). A TYPE_VECTOR of i32 whose
+       * operand is a bare INT_LIT or a kind-22 / kind-23 chain is filled
+       * by the same let-init that `let v: Vec8i = 3` uses, then lea of
+       * that slot leaves the source address in x0. A VAR operand (kind 3)
+       * stays on emit_expr: that path already leaves the local address.
+       * Let-init -3 falls through. Any other failure returns -1.
+       * f32 element kinds do not enter. PLATFORM: MACOS|ARM64.
+       */
+      if (ta == 1) {
+        if (dur_ok == 0) {
+          unsafe {
+            v_opk = pipeline_expr_kind_ord_at(arena, ret_op);
+          }
+          if (v_opk == 0) {
+            v_go = 1;
+          }
+          if (v_opk == 22) {
+            v_go = 1;
+          }
+          if (v_opk == 23) {
+            v_go = 1;
+          }
+          if (v_go != 0) {
+            unsafe {
+              v_mod = pipeline_asm_emit_module_ref_c();
+              v_fi = pipeline_asm_emit_func_index_c();
+            }
+            if (v_mod != (0 as *u8)) {
+              if (v_fi >= 0) {
+                unsafe {
+                  v_rty = pipeline_module_func_return_type_at(v_mod, v_fi);
+                }
+                if (v_rty > 0) {
+                  unsafe {
+                    v_rk = pipeline_type_kind_ord_at(arena, v_rty);
+                  }
+                  if (v_rk == 13) {
+                    unsafe {
+                      v_elem = pipeline_type_elem_ref_at(arena, v_rty);
+                    }
+                    if (v_elem > 0) {
+                      unsafe {
+                        v_ek = pipeline_type_kind_ord_at(arena, v_elem);
+                      }
+                      if (v_ek == 0) {
+                        unsafe {
+                          v_slot = glue_simd_alloc_vector_temp_slot_c(arena, ctx, v_rty);
+                        }
+                        if (v_slot < 0) {
+                          return 0 - 1;
+                        }
+                        unsafe {
+                          v_rc = glue_emit_vector_type_let_init_elf_c(
+                            arena, elf_ctx, ret_op, ctx, ta, v_slot, v_rty);
+                        }
+                        if (v_rc == 0) {
+                          unsafe {
+                            v_rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, v_slot, ta);
+                          }
+                          if (v_rc != 0) {
+                            return 0 - 1;
+                          }
+                          dur_ok = 1;
+                        } else {
+                          if (v_rc != (0 - 3)) {
+                            return 0 - 1;
                           }
                         }
                       }

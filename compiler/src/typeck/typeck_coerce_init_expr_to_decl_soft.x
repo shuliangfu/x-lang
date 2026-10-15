@@ -3,10 +3,12 @@
 // of that mega emits a hollow mov w0,#0; ret, so this thin is what the
 // link runs. An INT_LIT, unary minus / bitwise not of an INT_LIT, or
 // one, two, three, four, or five more unaries of that unary, into a TYPE_VECTOR
-// of i32 is stamped with the declared type. The walk accepts kind 22
-// and kind 23 through 32 steps. Probes covered one through eight
-// minuses and the seven-deep mixed chain. A 33rd step calls the
-// demoted body. A TYPE_VECTOR of f32 also stamps a FLOAT_LIT and one
+// of i32 is stamped with the declared type. The walk lives in
+// typeck_stamp_i32_vector_int_splat, which the return coerce thin
+// calls too. It accepts kind 22 and kind 23 through 32 steps. Probes
+// covered one through eight minuses and the seven-deep mixed chain.
+// A 33rd step calls the demoted body. A TYPE_VECTOR of f32 also
+// stamps a FLOAT_LIT and one
 // a chain of at most 32 unary minuses of that literal. An odd count
 // applies the sign once. An even count cancels. One more unary
 // and a bitwise not call the demoted body.
@@ -22,6 +24,135 @@ export extern "C" function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32):
 export extern "C" function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_is_null_keyword_c(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_set_resolved_type_ref(arena: *u8, expr_ref: i32, ty: i32): void;
+
+/**
+ * Stamp a bare INT_LIT, or a kind-22 / kind-23 chain of one, as a
+ * TYPE_VECTOR of i32. Let coerce and the return coerce thin both call
+ * this. It does not call the demoted body.
+ * @param arena *u8 — AST arena; null returns 0
+ * @param init_ref i32 — initializer or return operand; <= 0 returns 0
+ * @param decl_ty_ref i32 — declared or expected type; <= 0 returns 0
+ * @return i32 — 1 when the expr's resolved type was set to decl_ty_ref, else 0
+ * Kind 24, a FLOAT_LIT, a VAR, a binop, keyword null, and a 33rd unary
+ * stay 0. Kind 0 is INT_LIT, so a failed step sets the cursor kind to
+ * -1. Depth 32 was not probed. Two compares, not a chained &&.
+ * PLATFORM: SHARED — same type rule on every host.
+ */
+#[no_mangle]
+export function typeck_stamp_i32_vector_int_splat(
+  arena: *u8, init_ref: i32, decl_ty_ref: i32): i32 {
+  unsafe {
+    let ord_lit: i32 = 0;
+    let ord_neg: i32 = 22;
+    let ord_bitnot: i32 = 23;
+    let ord_vector: i32 = 13;
+    let ord_i32: i32 = 0;
+    let decl_kind: i32 = 0;
+    let init_kind: i32 = 0;
+    let splat_ok: i32 = 0;
+    let elem_ref: i32 = 0;
+    let elem_k: i32 = 0;
+    let op_ref: i32 = 0;
+    let op_k: i32 = 0;
+    let inner_ref: i32 = 0;
+    let u_go: i32 = 0;
+    let u_deep: i32 = 0;
+    let u_stop: i32 = 0;
+    let ntypes: i32 = 0;
+    if (arena == 0 as *u8 || init_ref <= 0 || decl_ty_ref <= 0) {
+      return 0;
+    }
+    ntypes = pipeline_arena_num_types(arena);
+    if (decl_ty_ref > ntypes) {
+      return 0;
+    }
+    decl_kind = pipeline_type_kind_ord_at(arena, decl_ty_ref);
+    if (decl_kind != ord_vector) {
+      return 0;
+    }
+    elem_ref = pipeline_type_elem_ref_at(arena, decl_ty_ref);
+    if (elem_ref <= 0) {
+      return 0;
+    }
+    if (elem_ref > ntypes) {
+      return 0;
+    }
+    elem_k = pipeline_type_kind_ord_at(arena, elem_ref);
+    if (elem_k != ord_i32) {
+      return 0;
+    }
+    init_kind = pipeline_expr_kind_ord_at(arena, init_ref);
+    if (init_kind == ord_lit) {
+      if (pipeline_expr_is_null_keyword_c(arena, init_ref) == 0) {
+        splat_ok = 1;
+      }
+    }
+    /*
+     * Walk kind 22 and kind 23 together, at most 32 steps.
+     * The innermost expr must be a non-null INT_LIT. Kind 24
+     * does not enter. A longer chain stays unstamped.
+     * Probes covered through eight minuses. Depth 32 was not run.
+     * Each bound is its own compare. PLATFORM: SHARED.
+     */
+    if (init_kind == ord_neg) {
+      u_go = 1;
+    }
+    if (init_kind == ord_bitnot) {
+      u_go = 1;
+    }
+    if (u_go != 0) {
+      op_ref = init_ref;
+      op_k = init_kind;
+      u_deep = 0;
+      u_stop = 0;
+      while (u_stop == 0) {
+        if (u_deep < 32) {
+          if (op_k == ord_neg) {
+            inner_ref = pipeline_expr_unary_operand_ref_at(arena, op_ref);
+            if (inner_ref <= 0) {
+              op_k = -1;
+              u_stop = 1;
+            } else {
+              op_ref = inner_ref;
+              u_deep = u_deep + 1;
+              op_k = pipeline_expr_kind_ord_at(arena, op_ref);
+            }
+          } else {
+            if (op_k == ord_bitnot) {
+              inner_ref = pipeline_expr_unary_operand_ref_at(arena, op_ref);
+              if (inner_ref <= 0) {
+                op_k = -1;
+                u_stop = 1;
+              } else {
+                op_ref = inner_ref;
+                u_deep = u_deep + 1;
+                op_k = pipeline_expr_kind_ord_at(arena, op_ref);
+              }
+            } else {
+              u_stop = 1;
+            }
+          }
+        } else {
+          // Kind 0 is INT_LIT. A 33rd step must stay unstamped.
+          op_k = -1;
+          u_stop = 1;
+        }
+      }
+      if (op_k == ord_lit) {
+        if (u_deep > 0) {
+          if (pipeline_expr_is_null_keyword_c(arena, op_ref) == 0) {
+            splat_ok = 1;
+          }
+        }
+      }
+    }
+    if (splat_ok == 1) {
+      pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
+      return 1;
+    }
+    return 0;
+  }
+}
 
 /**
  * Stamp an i32 scalar splat onto a TYPE_VECTOR, else call demoted.
@@ -85,84 +216,26 @@ export function typeck_coerce_init_expr_to_decl(
       return typeck_coerce_init_expr_to_decl__demoted(
         module, arena, init_ref, decl_ty_ref);
     }
+    /*
+     * One i32 walk, shared with the return coerce thin. A hit already
+     * wrote the resolved type. A miss continues into the f32 walk.
+     * PLATFORM: SHARED.
+     */
+    if (typeck_stamp_i32_vector_int_splat(arena, init_ref, decl_ty_ref) == 1) {
+      return 1;
+    }
     decl_kind = pipeline_type_kind_ord_at(arena, decl_ty_ref);
     init_kind = pipeline_expr_kind_ord_at(arena, init_ref);
     /*
-     * Only a real TYPE_VECTOR of i32. Out-of-range element refs stay
-     * on the demoted body. PLATFORM: SHARED.
+     * i32 TYPE_VECTOR already returned via the shared stamp. This
+     * block is the f32 walk only. Out-of-range element refs stay on
+     * the demoted body. PLATFORM: SHARED.
      */
     if (decl_kind == ord_vector) {
       elem_ref = pipeline_type_elem_ref_at(arena, decl_ty_ref);
       if (elem_ref > 0) {
         if (elem_ref <= ntypes) {
           elem_k = pipeline_type_kind_ord_at(arena, elem_ref);
-          if (elem_k == ord_i32) {
-            if (init_kind == ord_lit) {
-              if (pipeline_expr_is_null_keyword_c(arena, init_ref) == 0) {
-                splat_ok = 1;
-              }
-            }
-            /*
-             * Walk kind 22 and kind 23 together, at most 32 steps.
-             * The innermost expr must be a non-null INT_LIT. Kind 24
-             * does not enter. A longer chain stays unstamped and the
-             * demoted body rejects it. Probes covered through eight minuses.
-             * Depth 32 was not run. One loop, not a seventh local.
-             * Each bound is its own compare. PLATFORM: SHARED.
-             */
-            if (init_kind == ord_neg) {
-              u_go = 1;
-            }
-            if (init_kind == ord_bitnot) {
-              u_go = 1;
-            }
-            if (u_go != 0) {
-              op_ref = init_ref;
-              op_k = init_kind;
-              u_deep = 0;
-              u_stop = 0;
-              while (u_stop == 0) {
-                if (u_deep < 32) {
-                  if (op_k == ord_neg) {
-                    inner_ref = pipeline_expr_unary_operand_ref_at(arena, op_ref);
-                    if (inner_ref <= 0) {
-                      op_k = -1;
-                      u_stop = 1;
-                    } else {
-                      op_ref = inner_ref;
-                      u_deep = u_deep + 1;
-                      op_k = pipeline_expr_kind_ord_at(arena, op_ref);
-                    }
-                  } else {
-                    if (op_k == ord_bitnot) {
-                      inner_ref = pipeline_expr_unary_operand_ref_at(arena, op_ref);
-                      if (inner_ref <= 0) {
-                        op_k = -1;
-                        u_stop = 1;
-                      } else {
-                        op_ref = inner_ref;
-                        u_deep = u_deep + 1;
-                        op_k = pipeline_expr_kind_ord_at(arena, op_ref);
-                      }
-                    } else {
-                      u_stop = 1;
-                    }
-                  }
-                } else {
-                  // Kind 0 is INT_LIT. A 33rd step must stay unstamped.
-                  op_k = -1;
-                  u_stop = 1;
-                }
-              }
-              if (op_k == ord_lit) {
-                if (u_deep > 0) {
-                  if (pipeline_expr_is_null_keyword_c(arena, op_ref) == 0) {
-                    splat_ok = 1;
-                  }
-                }
-              }
-            }
-          }
           /*
            * TYPE_VECTOR of f32 (Vec4f). A FLOAT_LIT, one unary minus of
            * a FLOAT_LIT, one more unary minus of that, one unary
