@@ -234,8 +234,9 @@ function lane_f32_emit_lit_lane(arena: *u8, elf_ctx: *u8, expr_ref: i32, ta: i32
  * lane, then xors the f32 sign bit. Two EXPR_NEG of a VAR, a FIELD,
  * or add/sub/mul/div emit that lane and do not xor: the two sign
  * flips cancel. A third NEG of a FLOAT_LIT is the literal peel:
- * three sign flips leave the sign set. Kind 23, kinds 8..13 under a
- * NEG, a fourth NEG, and a third NEG of a VAR, FIELD, or binop stay
+ * three sign flips leave the sign set. A third NEG of a VAR loads
+ * that lane and xors the sign once. Kind 23, kinds 8..13 under a
+ * NEG, a fourth NEG, and a third NEG of a FIELD or a binop stay
  * on emit_expr. PLATFORM: SHARED.
  */
 #[no_mangle]
@@ -279,9 +280,10 @@ export function glue_emit_vector_operand_lane_elf_c(
       // the lane was not the f32 quotient. One NEG emits the inner
       // lane, then xors the f32 sign bit. Two NEG of a VAR, a FIELD,
       // or add/sub/mul/div emit that lane and do not xor. A third NEG
-      // of a FLOAT_LIT is the literal peel above. Kinds 8..13, a
-      // fourth NEG, and a third NEG of a VAR, FIELD, or binop stay
-      // out. Kind 23 does not enter.
+      // of a FLOAT_LIT is the literal peel above. A third NEG of a
+      // VAR loads that lane and xors the sign once. Kinds 8..13, a
+      // fourth NEG, and a third NEG of a FIELD or a binop stay out.
+      // Kind 23 does not enter.
       // i32 leaves the gate at 0. PLATFORM: SHARED.
       if (ko == 22) {
         unsafe {
@@ -348,8 +350,9 @@ export function glue_emit_vector_operand_lane_elf_c(
           // 22 of kind 7. Two sign flips cancel, so rax keeps the lane
           // and this does not xor. A missing VAR home is -1. A FIELD
           // with no frame home is -2 and falls through. Kinds 8..13
-          // stay out. A third NEG of a VAR, FIELD, or binop stays out
-          // of this arm. PLATFORM: SHARED.
+          // stay out. A third NEG of a VAR is peeled below. A third
+          // NEG of a FIELD or a binop stays out of this arm.
+          // PLATFORM: SHARED.
           if (lit == 22) {
             unsafe {
               left_ref = pipeline_expr_unary_operand_ref_at(arena, elem_ref);
@@ -408,6 +411,29 @@ export function glue_emit_vector_operand_lane_elf_c(
                   return 0 - 1;
                 }
                 return 0;
+              }
+              // -(-(-a)) is kind 22 of kind 22 of kind 22 of kind 3.
+              // Three sign flips leave the sign set, so load the VAR
+              // lane and xor. A missing home is -1. A FIELD or a
+              // binop under this peel is not kind 3. A fourth NEG is
+              // not kind 3. PLATFORM: SHARED.
+              if (rc == 22) {
+                unsafe {
+                  elem_ref = pipeline_expr_unary_operand_ref_at(arena, left_ref);
+                }
+                if (elem_ref > 0) {
+                  unsafe {
+                    rc = pipeline_expr_kind_ord_at(arena, elem_ref);
+                  }
+                  if (rc == 3) {
+                    rc = lane_f32_load_var_lane(
+                      arena, elf_ctx, elem_ref, lane, esz, ctx, ta);
+                    if (rc != 0) {
+                      return 0 - 1;
+                    }
+                    return lane_f32_xor_sign_rax(elf_ctx, ta);
+                  }
+                }
               }
             }
           }
