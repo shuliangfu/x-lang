@@ -4,12 +4,14 @@
 // FLOAT_LIT through pipeline_asm_emit_expr, which moves the f64 bits
 // into x0. The low half of f64 4.0 and f64 2.0 is 0, so an f32 lane
 // div of those literals stored 0. When the f32-literal gate is set,
-// a FLOAT_LIT, or one, two, or three EXPR_NEG of one, at lane size 4
-// is narrowed with the existing glue_ieee_f64_bits_to_f32_bits and
-// moved as imm32. Two EXPR_NEG of that literal cancel the sign xor.
-// Three leave the sign set. A fourth returns 0. The gate stays 0 for
-// i32 lanes, and this file then
-// matches the old body. Do not add a second divss. PLATFORM: SHARED.
+// a FLOAT_LIT, or a chain of EXPR_NEG over one, at lane size 4 is
+// narrowed with the existing glue_ieee_f64_bits_to_f32_bits and moved
+// as imm32. The same peel covers a VAR, a FIELD, and add/sub/mul/div.
+// An odd count xors the f32 sign. One peel handles every depth. The
+// 128 stop is only for a chain that does not end. The gate stays 0
+// for i32 lanes, and this
+// file then matches the old body. Do not add a second divss.
+// PLATFORM: SHARED.
 
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
@@ -126,8 +128,89 @@ function lane_f32_load_field_lane(
 }
 
 /**
- * Move one f32 lane immediate for a FLOAT_LIT, or one, two, or three
- * NEG of one.
+ * Count a leading EXPR_NEG chain.
+ * @param arena *u8 — expression arena.
+ * @param expr_ref i32 — current expr. Not positive returns 0.
+ * @param budget i32 — peels still allowed. The first call passes 128.
+ *   Zero stops without reading another node. That stop is only for a
+ *   chain that does not end. Every shorter nest is this one function.
+ * @return i32 — how many kind-22 nodes were peeled, or -1 when a NEG
+ *   has no operand.
+ * One call peels one NEG and recurses on that operand. The lane sign
+ * is this count modulo 2. Kind 23 is not kind 22 and stops the count.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function lane_f32_neg_depth(arena: *u8, expr_ref: i32, budget: i32): i32 {
+  let ko: i32 = 0;
+  let op: i32 = 0;
+  let n: i32 = 0;
+  if (budget <= 0 || expr_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  }
+  if (ko != 22) {
+    return 0;
+  }
+  unsafe {
+    op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+  }
+  if (op <= 0) {
+    return 0 - 1;
+  }
+  n = lane_f32_neg_depth(arena, op, budget - 1);
+  if (n < 0) {
+    return n;
+  }
+  return n + 1;
+}
+
+/**
+ * Expr under n leading EXPR_NEG nodes.
+ * @param arena *u8 — expression arena.
+ * @param expr_ref i32 — outer expr.
+ * @param n i32 — peels from lane_f32_neg_depth. Zero returns expr_ref.
+ * @return i32 — the core expr, or 0 when an operand is missing.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function lane_f32_neg_core(arena: *u8, expr_ref: i32, n: i32): i32 {
+  let op: i32 = 0;
+  if (n <= 0) {
+    return expr_ref;
+  }
+  if (expr_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+  }
+  if (op <= 0) {
+    return 0;
+  }
+  return lane_f32_neg_core(arena, op, n - 1);
+}
+
+/**
+ * True when a NEG count leaves the f32 sign set.
+ * @param n i32 — peel count. Zero is even.
+ * @return i32 — 1 when n is odd, 0 when n is even.
+ * PLATFORM: SHARED.
+ */
+function lane_f32_neg_is_odd(n: i32): i32 {
+  let q: i32 = 0;
+  q = n / 2;
+  q = q * 2;
+  if (n != q) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Move one f32 lane immediate for a FLOAT_LIT, or a NEG chain over one.
  * @param arena *u8 — expression arena. Null is not a literal.
  * @param elf_ctx *u8 — emit buffer.
  * @param expr_ref i32 — operand expr.
@@ -135,9 +218,9 @@ function lane_f32_load_field_lane(
  * @return i32 — 1 when w0 holds the f32 bits, 0 when this is not that
  *   shape, -1 when the move fails.
  * The f64 sign bit is xored into the high half before the existing
- * narrow, so one NEG of 4.0 stays negative. Two EXPR_NEG cancel that
- * xor. Three leave the sign set. A fourth NEG returns 0. Kind 23
- * does not enter.
+ * narrow when the peel count is odd. A VAR, a FIELD, a binop, or kind
+ * 23 is not kind 1. A chain that does not end within 128 peels leaves
+ * the core as kind 22 and returns 0.
  * PLATFORM: SHARED.
  */
 function lane_f32_emit_lit_lane(arena: *u8, elf_ctx: *u8, expr_ref: i32, ta: i32): i32 {
@@ -148,58 +231,26 @@ function lane_f32_emit_lit_lane(arena: *u8, elf_ctx: *u8, expr_ref: i32, ta: i32
   let hi: i32 = 0;
   let bits: i32 = 0;
   let rc: i32 = 0;
+  let n: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || expr_ref <= 0) {
     return 0;
   }
-  unsafe {
-    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  // One recursive peel. The core must be a FLOAT_LIT. PLATFORM: SHARED.
+  n = lane_f32_neg_depth(arena, expr_ref, 128);
+  if (n < 0) {
+    return 0;
   }
-  op = expr_ref;
-  if (ko == 22) {
-    unsafe {
-      op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
-    }
-    if (op <= 0) {
-      return 0;
-    }
-    unsafe {
-      ko = pipeline_expr_kind_ord_at(arena, op);
-    }
-    neg = 1;
-    // -(-4.0) is kind 22 of kind 22. One peel left the f64 bits, and
-    // the low half of f64 4.0 is 0. Two sign flips cancel. A third
-    // NEG is peeled below. Kind 23 does not enter. PLATFORM: SHARED.
-    if (ko == 22) {
-      unsafe {
-        op = pipeline_expr_unary_operand_ref_at(arena, op);
-      }
-      if (op <= 0) {
-        return 0;
-      }
-      unsafe {
-        ko = pipeline_expr_kind_ord_at(arena, op);
-      }
-      neg = 0;
-      // -(-(-4.0)) is one more NEG. Three sign flips leave the sign
-      // set. A fourth NEG is not a FLOAT_LIT and returns 0 below.
-      // A VAR under this peel is not kind 1. PLATFORM: SHARED.
-      if (ko == 22) {
-        unsafe {
-          op = pipeline_expr_unary_operand_ref_at(arena, op);
-        }
-        if (op <= 0) {
-          return 0;
-        }
-        unsafe {
-          ko = pipeline_expr_kind_ord_at(arena, op);
-        }
-        neg = 1;
-      }
-    }
+  op = lane_f32_neg_core(arena, expr_ref, n);
+  if (op <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, op);
   }
   if (ko != 1) {
     return 0;
   }
+  neg = lane_f32_neg_is_odd(n);
   unsafe {
     lo = pipeline_expr_float_bits_lo_at(arena, op);
     hi = pipeline_expr_float_bits_hi_at(arena, op);
@@ -219,6 +270,102 @@ function lane_f32_emit_lit_lane(arena: *u8, elf_ctx: *u8, expr_ref: i32, ta: i32
 }
 
 /**
+ * Emit a NEG chain's core lane into rax.
+ * @param arena *u8 — expression arena.
+ * @param elf_ctx *u8 — emit buffer.
+ * @param expr_ref i32 — outer EXPR_NEG.
+ * @param lane i32 — lane index.
+ * @param esz i32 — lane bytes.
+ * @param ctx *u8 — asm ctx.
+ * @param ta i32 — 1 arm64, else x86.
+ * @return i32 — 0 when rax holds the lane, -1 when a load or encode
+ *   fails, -2 when this chain is not a VAR, FIELD, or add/sub/mul/div.
+ *   A missing field home and a chain that does not end also return -2.
+ * The peel is lane_f32_neg_depth. An odd count xors the f32 sign.
+ * Kinds 8..13 and kind 23 return -2 so the caller falls through.
+ * PLATFORM: SHARED.
+ */
+function lane_f32_emit_neg_core(
+  arena: *u8, elf_ctx: *u8, expr_ref: i32, lane: i32, esz: i32, ctx: *u8, ta: i32
+): i32 {
+  let n: i32 = 0;
+  let core: i32 = 0;
+  let ko: i32 = 0;
+  let rc: i32 = 0;
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let odd: i32 = 0;
+  n = lane_f32_neg_depth(arena, expr_ref, 128);
+  if (n <= 0) {
+    return 0 - 2;
+  }
+  core = lane_f32_neg_core(arena, expr_ref, n);
+  if (core <= 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, core);
+  }
+  odd = lane_f32_neg_is_odd(n);
+  if (ko == 3) {
+    rc = lane_f32_load_var_lane(arena, elf_ctx, core, lane, esz, ctx, ta);
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    if (odd != 0) {
+      return lane_f32_xor_sign_rax(elf_ctx, ta);
+    }
+    return 0;
+  }
+  // No frame home is -2 and falls through. PLATFORM: SHARED.
+  if (ko == 44) {
+    rc = lane_f32_load_field_lane(arena, elf_ctx, core, lane, esz, ctx, ta);
+    if (rc == (0 - 2)) {
+      return 0 - 2;
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    if (odd != 0) {
+      return lane_f32_xor_sign_rax(elf_ctx, ta);
+    }
+    return 0;
+  }
+  // Kinds 8..13 are not 4..7. Kind 23 does not enter. PLATFORM: SHARED.
+  rc = 0;
+  if (ko == 4) {
+    rc = 1;
+  }
+  if (ko == 5) {
+    rc = 1;
+  }
+  if (ko == 6) {
+    rc = 1;
+  }
+  if (ko == 7) {
+    rc = 1;
+  }
+  if (rc == 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    left_ref = pipeline_expr_binop_left_ref_at(arena, core);
+    right_ref = pipeline_expr_binop_right_ref_at(arena, core);
+  }
+  unsafe {
+    rc = glue_emit_vector_lane_scalar_binop_elf_c(
+      arena, elf_ctx, ko, left_ref, right_ref, lane, esz, ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  if (odd != 0) {
+    return lane_f32_xor_sign_rax(elf_ctx, ta);
+  }
+  return 0;
+}
+
+/**
  * Emit one vector operand lane into rax.
  * @param arena *u8 — expression arena. Null returns -1.
  * @param elf_ctx *u8 — emit buffer. Null returns -1.
@@ -230,21 +377,16 @@ function lane_f32_emit_lit_lane(arena: *u8, elf_ctx: *u8, expr_ref: i32, ta: i32
  * @param ta i32 — 1 arm64, else x86. Arm64 lane slots grow up from rbp.
  * @return i32 — 0 when rax holds the lane, -1 on failure.
  * VAR, FIELD, ARRAY_LIT, and nested binop match the previous body.
- * One EXPR_NEG of add, sub, mul, div, a VAR, or a FIELD emits that
- * lane, then xors the f32 sign bit. Two EXPR_NEG of a VAR, a FIELD,
- * or add/sub/mul/div emit that lane and do not xor: the two sign
- * flips cancel. A third NEG of a FLOAT_LIT is the literal peel:
- * three sign flips leave the sign set. A third NEG of a VAR loads
- * that lane and xors the sign once. Kind 23, kinds 8..13 under a
- * NEG, a fourth NEG, and a third NEG of a FIELD or a binop stay
- * on emit_expr. PLATFORM: SHARED.
+ * A chain of EXPR_NEG over a VAR, a FIELD, or add/sub/mul/div is one
+ * peel. An odd count xors the f32 sign. A FLOAT_LIT chain is the
+ * literal peel above. Kind 23, kinds 8..13, and a chain that does not
+ * end stay on emit_expr. PLATFORM: SHARED.
  */
 #[no_mangle]
 export function glue_emit_vector_operand_lane_elf_c(
   arena: *u8, elf_ctx: *u8, expr_ref: i32, lane: i32, esz: i32, ctx: *u8, ta: i32
 ): i32 {
   let ko: i32 = 0;
-  let off: i32 = 0;
   let elem_ref: i32 = 0;
   let left_ref: i32 = 0;
   let right_ref: i32 = 0;
@@ -272,171 +414,15 @@ export function glue_emit_vector_operand_lane_elf_c(
       if (lit < 0) {
         return 0 - 1;
       }
-      // -(4.0 / 2.0) is kind 22 of kind 7. -a / 2.0 is kind 22 of a
-      // VAR. -h.v / 2.0 is kind 22 of a FIELD. -(-a) / 2.0 is kind 22
-      // of kind 22 of a VAR. -(-h.v) / 2.0 is kind 22 of kind 22 of a
-      // FIELD. -(-(4.0 / 2.0)) / 2.0 is kind 22 of kind 22 of kind 7.
-      // The literal peel returns 0, so the outer div saw f64 bits and
-      // the lane was not the f32 quotient. One NEG emits the inner
-      // lane, then xors the f32 sign bit. Two NEG of a VAR, a FIELD,
-      // or add/sub/mul/div emit that lane and do not xor. A third NEG
-      // of a FLOAT_LIT is the literal peel above. A third NEG of a
-      // VAR loads that lane and xors the sign once. Kinds 8..13, a
-      // fourth NEG, and a third NEG of a FIELD or a binop stay out.
-      // Kind 23 does not enter.
-      // i32 leaves the gate at 0. PLATFORM: SHARED.
+      // One recursive peel. An odd count xors the f32 sign.
+      // -2 falls through: no field home, kind 23, kinds 8..13, or a
+      // chain that does not end. i32 leaves the gate at 0.
+      // PLATFORM: SHARED.
       if (ko == 22) {
-        unsafe {
-          elem_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
-        }
-        if (elem_ref > 0) {
-          unsafe {
-            lit = pipeline_expr_kind_ord_at(arena, elem_ref);
-          }
-          rc = 0;
-          if (lit == 4) {
-            rc = 1;
-          }
-          if (lit == 5) {
-            rc = 1;
-          }
-          if (lit == 6) {
-            rc = 1;
-          }
-          if (lit == 7) {
-            rc = 1;
-          }
-          if (rc != 0) {
-            unsafe {
-              left_ref = pipeline_expr_binop_left_ref_at(arena, elem_ref);
-              right_ref = pipeline_expr_binop_right_ref_at(arena, elem_ref);
-            }
-            unsafe {
-              rc = glue_emit_vector_lane_scalar_binop_elf_c(
-                arena, elf_ctx, lit, left_ref, right_ref, lane, esz, ctx, ta);
-            }
-            if (rc != 0) {
-              return 0 - 1;
-            }
-            return lane_f32_xor_sign_rax(elf_ctx, ta);
-          }
-          // -a is kind 22 of kind 3. Load that VAR lane, then the
-          // same sign xor. PLATFORM: SHARED.
-          if (lit == 3) {
-            rc = lane_f32_load_var_lane(
-              arena, elf_ctx, elem_ref, lane, esz, ctx, ta);
-            if (rc != 0) {
-              return 0 - 1;
-            }
-            return lane_f32_xor_sign_rax(elf_ctx, ta);
-          }
-          // -h.v is kind 22 of kind 44. No frame home is -2 and falls
-          // through, the same as a bare field. A second NEG is not
-          // kind 44. PLATFORM: SHARED.
-          if (lit == 44) {
-            rc = lane_f32_load_field_lane(
-              arena, elf_ctx, elem_ref, lane, esz, ctx, ta);
-            if (rc == (0 - 2)) {
-              rc = 0;
-            } else {
-              if (rc != 0) {
-                return 0 - 1;
-              }
-              return lane_f32_xor_sign_rax(elf_ctx, ta);
-            }
-          }
-          // -(-a) is kind 22 of kind 22 of kind 3. -(-h.v) is kind 22
-          // of kind 22 of kind 44. -(-(4.0 / 2.0)) is kind 22 of kind
-          // 22 of kind 7. Two sign flips cancel, so rax keeps the lane
-          // and this does not xor. A missing VAR home is -1. A FIELD
-          // with no frame home is -2 and falls through. Kinds 8..13
-          // stay out. A third NEG of a VAR is peeled below. A third
-          // NEG of a FIELD or a binop stays out of this arm.
-          // PLATFORM: SHARED.
-          if (lit == 22) {
-            unsafe {
-              left_ref = pipeline_expr_unary_operand_ref_at(arena, elem_ref);
-            }
-            if (left_ref > 0) {
-              unsafe {
-                rc = pipeline_expr_kind_ord_at(arena, left_ref);
-              }
-              if (rc == 3) {
-                rc = lane_f32_load_var_lane(
-                  arena, elf_ctx, left_ref, lane, esz, ctx, ta);
-                if (rc != 0) {
-                  return 0 - 1;
-                }
-                return 0;
-              }
-              // No frame home falls through, same as a bare field.
-              if (rc == 44) {
-                rc = lane_f32_load_field_lane(
-                  arena, elf_ctx, left_ref, lane, esz, ctx, ta);
-                if (rc == (0 - 2)) {
-                  rc = 0;
-                } else {
-                  if (rc != 0) {
-                    return 0 - 1;
-                  }
-                  return 0;
-                }
-              }
-              // Two sign flips cancel, so the lane op is not xored.
-              // Kinds 8..13 are not 4..7. PLATFORM: SHARED.
-              off = 0;
-              if (rc == 4) {
-                off = 1;
-              }
-              if (rc == 5) {
-                off = 1;
-              }
-              if (rc == 6) {
-                off = 1;
-              }
-              if (rc == 7) {
-                off = 1;
-              }
-              if (off != 0) {
-                lit = rc;
-                unsafe {
-                  elem_ref = pipeline_expr_binop_left_ref_at(arena, left_ref);
-                  right_ref = pipeline_expr_binop_right_ref_at(arena, left_ref);
-                }
-                unsafe {
-                  rc = glue_emit_vector_lane_scalar_binop_elf_c(
-                    arena, elf_ctx, lit, elem_ref, right_ref, lane, esz, ctx, ta);
-                }
-                if (rc != 0) {
-                  return 0 - 1;
-                }
-                return 0;
-              }
-              // -(-(-a)) is kind 22 of kind 22 of kind 22 of kind 3.
-              // Three sign flips leave the sign set, so load the VAR
-              // lane and xor. A missing home is -1. A FIELD or a
-              // binop under this peel is not kind 3. A fourth NEG is
-              // not kind 3. PLATFORM: SHARED.
-              if (rc == 22) {
-                unsafe {
-                  elem_ref = pipeline_expr_unary_operand_ref_at(arena, left_ref);
-                }
-                if (elem_ref > 0) {
-                  unsafe {
-                    rc = pipeline_expr_kind_ord_at(arena, elem_ref);
-                  }
-                  if (rc == 3) {
-                    rc = lane_f32_load_var_lane(
-                      arena, elf_ctx, elem_ref, lane, esz, ctx, ta);
-                    if (rc != 0) {
-                      return 0 - 1;
-                    }
-                    return lane_f32_xor_sign_rax(elf_ctx, ta);
-                  }
-                }
-              }
-            }
-          }
+        rc = lane_f32_emit_neg_core(
+          arena, elf_ctx, expr_ref, lane, esz, ctx, ta);
+        if (rc != (0 - 2)) {
+          return rc;
         }
       }
     }
