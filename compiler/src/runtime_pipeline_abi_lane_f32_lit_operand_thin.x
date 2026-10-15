@@ -4,10 +4,11 @@
 // FLOAT_LIT through pipeline_asm_emit_expr, which moves the f64 bits
 // into x0. The low half of f64 4.0 and f64 2.0 is 0, so an f32 lane
 // div of those literals stored 0. When the f32-literal gate is set,
-// a FLOAT_LIT (or one EXPR_NEG of one) at lane size 4 is narrowed
+// a FLOAT_LIT, or one or two EXPR_NEG of one, at lane size 4 is narrowed
 // with the existing glue_ieee_f64_bits_to_f32_bits and moved as imm32.
-// The gate stays 0 for i32 lanes, and this file then matches the old
-// body. Do not add a second divss. PLATFORM: SHARED.
+// Two EXPR_NEG of that literal cancel the sign xor. A third NEG
+// returns 0. The gate stays 0 for i32 lanes, and this file then
+// matches the old body. Do not add a second divss. PLATFORM: SHARED.
 
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
@@ -36,7 +37,7 @@ export extern function backend_enc_load_rbp_lane_to_rax_arch(
 export extern function backend_enc_mov_imm32_to_w0_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
 
 /**
- * Move one f32 lane immediate for a FLOAT_LIT, or one NEG of one.
+ * Move one f32 lane immediate for a FLOAT_LIT, or one or two NEG of one.
  * @param arena *u8 — expression arena. Null is not a literal.
  * @param elf_ctx *u8 — emit buffer.
  * @param expr_ref i32 — operand expr.
@@ -44,7 +45,8 @@ export extern function backend_enc_mov_imm32_to_w0_arch(elf_ctx: *u8, imm: i32, 
  * @return i32 — 1 when w0 holds the f32 bits, 0 when this is not that
  *   shape, -1 when the move fails.
  * The f64 sign bit is xored into the high half before the existing
- * narrow, so -4.0 stays negative. Kind 23 does not enter.
+ * narrow, so one NEG of 4.0 stays negative. Two EXPR_NEG cancel that
+ * xor. A third NEG returns 0. Kind 23 does not enter.
  * PLATFORM: SHARED.
  */
 function lane_f32_emit_lit_lane(arena: *u8, elf_ctx: *u8, expr_ref: i32, ta: i32): i32 {
@@ -73,6 +75,22 @@ function lane_f32_emit_lit_lane(arena: *u8, elf_ctx: *u8, expr_ref: i32, ta: i32
       ko = pipeline_expr_kind_ord_at(arena, op);
     }
     neg = 1;
+    // -(-4.0) is kind 22 of kind 22. One peel left the f64 bits, and
+    // the low half of f64 4.0 is 0. Two sign flips cancel. A third
+    // NEG is not a FLOAT_LIT and returns 0 below. Kind 23 does not
+    // enter. PLATFORM: SHARED.
+    if (ko == 22) {
+      unsafe {
+        op = pipeline_expr_unary_operand_ref_at(arena, op);
+      }
+      if (op <= 0) {
+        return 0;
+      }
+      unsafe {
+        ko = pipeline_expr_kind_ord_at(arena, op);
+      }
+      neg = 0;
+    }
   }
   if (ko != 1) {
     return 0;
@@ -126,8 +144,9 @@ export function glue_emit_vector_operand_lane_elf_c(
   unsafe {
     ko = pipeline_expr_kind_ord_at(arena, expr_ref);
   }
-  // Gate is 1 only for f32 add, sub, mul, and div. A 4-byte FLOAT_LIT
-  // is then the f32 pattern, not the f64 bits. i32 lanes skip this.
+  // Gate is 1 for an f32 dest on add, sub, mul, div, and compare.
+  // A 4-byte FLOAT_LIT is then the f32 pattern, not the f64 bits.
+  // i32 lanes skip this.
   // PLATFORM: SHARED.
   if (esz == 4) {
     unsafe {

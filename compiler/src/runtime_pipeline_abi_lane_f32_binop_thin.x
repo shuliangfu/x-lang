@@ -58,8 +58,10 @@ export function glue_lane_f32_lit_dest_set(v: i32): i32 {
  * Vec4f, f32x4, and a TYPE_VECTOR of f32 come from the classifier.
  * f32x8 comes from the fill helper. An integer spelling returns 0.
  * When the f32 literal gate is set and those checks stay 0, a FLOAT_LIT,
- * one EXPR_NEG of a FLOAT_LIT, or a lane scalar binop (kinds 4..13 or 51)
- * also returns 1. Kind 23 and two EXPR_NEG do not. i32 leaves the gate at 0.
+ * one or two EXPR_NEG of a FLOAT_LIT, or a lane scalar binop
+ * (kinds 4..13 or 51) also returns 1. Kind 23 and a third EXPR_NEG do
+ * not. i32 leaves the gate at 0. The operand peeler accepts the same
+ * two-NEG depth.
  * PLATFORM: SHARED.
  */
 #[no_mangle]
@@ -103,7 +105,9 @@ export function glue_lane_binop_lhs_is_f32_c(arena: *u8, ctx: *u8, left_ref: i32
   // did integer div of the inner f32 bits, and the lane was not 1.0.
   // The gate is set for an f32 dest on add, sub, mul, div, and compare.
   // i32x8 leaves it at 0. Kind 23 does not enter. Two EXPR_NEG over a
-  // FLOAT_LIT is not this arm.
+  // FLOAT_LIT is still that literal: -(-4.0) / 2.0 was integer div of
+  // a zero low half. A third EXPR_NEG is not this arm. The operand
+  // peeler accepts the same depth.
   // PLATFORM: SHARED.
   if (is_f32 == 0 && g_lane_f32_lit_dest != 0) {
     unsafe {
@@ -128,6 +132,21 @@ export function glue_lane_binop_lhs_is_f32_c(arena: *u8, ctx: *u8, left_ref: i32
         }
         if (ko == 1) {
           return 1;
+        }
+        // Second EXPR_NEG of a FLOAT_LIT. A third stays out.
+        // Kind 23 does not enter. PLATFORM: SHARED.
+        if (ko == 22) {
+          unsafe {
+            op = pipeline_expr_unary_operand_ref_at(arena, op);
+          }
+          if (op > 0) {
+            unsafe {
+              ko = pipeline_expr_kind_ord_at(arena, op);
+            }
+            if (ko == 1) {
+              return 1;
+            }
+          }
         }
       }
     }
