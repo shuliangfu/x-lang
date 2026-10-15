@@ -787,8 +787,10 @@ function vlet_f32_array_lanes(
  * block's lets and returns the value expr. Nested blocks are that
  * one call. This function then classifies the value. A unary whose
  * operand is such a block uses that same call inside the existing
- * unary walk. A VAR or FIELD value under those lets uses the existing
- * struct let-init copy. 128 stops only a chain that does not end.
+ * unary walk. A VAR, FIELD, INDEX, CALL, or METHOD value under
+ * those lets uses the existing struct let-init. Kind 52 stays off
+ * that call. A decline returns -1 so the block is not emitted again.
+ * 128 stops only a chain that does not end.
  * PLATFORM: MACOS|ARM64.
  */
 #[no_mangle]
@@ -844,6 +846,7 @@ export function glue_emit_vector_type_let_init_elf_c(
   let peeled: i32 = 0;
   let peel_n: i32 = 0;
   let saw_lets: i32 = 0;
+  let store_go: i32 = 0;
   let f_ref: i32 = 0;
   let f_ko: i32 = 0;
   let f_lo: i32 = 0;
@@ -1681,13 +1684,32 @@ export function glue_emit_vector_type_let_init_elf_c(
     }
     return rc;
   }
-  // Lets were already written. A VAR or a FIELD is the existing
-  // struct copy, so lane 7 of `{ let k; k }` is that value. Any
-  // other declined kind returns -1: the caller must not emit this
-  // block a second time. A bare initializer still returns -3.
+  // Lets were already written. VAR and FIELD already copy through
+  // struct let-init, so lane 7 of `{ let k; k }` is that value.
+  // CALL, METHOD, and INDEX used to fall out here and return -1, so
+  // `{ let k; id(k) }` and `{ let t; t[i] }` were CG002. Those kinds
+  // are the same struct let-init. Kind 52 stays off this call. A
+  // decline still returns -1: the caller must not emit this block a
+  // second time. A bare initializer still returns -3.
   // PLATFORM: MACOS|ARM64.
   if (saw_lets != 0) {
-    if (ko == 3 || ko == 44) {
+    store_go = 0;
+    if (ko == 3) {
+      store_go = 1;
+    }
+    if (ko == 44) {
+      store_go = 1;
+    }
+    if (ko == 47) {
+      store_go = 1;
+    }
+    if (ko == 48) {
+      store_go = 1;
+    }
+    if (ko == 49) {
+      store_go = 1;
+    }
+    if (store_go != 0) {
       unsafe {
         rc = glue_emit_struct_type_let_init_elf_c(
           arena, elf_ctx, init_ref, ctx, ta, type_ref, stack_slot_off);
