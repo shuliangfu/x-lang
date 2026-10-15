@@ -79,6 +79,7 @@ export extern function glue_emit_struct_type_let_init_elf_c(
 export extern function glue_wide_i32_vec_array_bytes(arena: *u8, rty: i32): i32;
 export extern function glue_index_simd_elem_bytes_c(arena: *u8, ty: i32): i32;
 export extern function glue_is_vector_lane_scalar_binop_ko(ko: i32): i32;
+export extern function vlet_lane_cmp_ko(ko: i32): i32;
 export extern function pipeline_expr_array_lit_elem_ref(arena: *u8, expr_ref: i32, index: i32): i32;
 
 /**
@@ -630,6 +631,7 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
       let v_enter: i32 = 0;
       let v_take: i32 = 0;
       let v_bin: i32 = 0;
+      let v_cmp: i32 = 0;
       if (ta == 0 || ta == 1) {
         unsafe {
           opk_d = pipeline_expr_kind_ord_at(arena, ret_op);
@@ -1210,10 +1212,14 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
        * same let-init that `let v: Vec8i = 3` uses. A lane binop
        * (the existing glue_is_vector_lane_scalar_binop_ko set) is
        * the same fill: emit_expr subtracted the first qword and the
-       * copy read that integer as an address. A named SIMD (kind 8)
+       * copy read that integer as an address. A relational compare
+       * (vlet_lane_cmp_ko, kinds 14..19) is the same fill: emit_expr
+       * compared the first qword and the copy read that 0 or 1 as an
+       * address. A named SIMD (kind 8)
        * whose sret size is above 16 bytes uses that same let-init
        * for an INT_LIT, a FLOAT_LIT (kind 1), a BOOL_LIT (kind 2),
-       * a kind-22 chain, a kind-23 chain, or a lane binop.
+       * a kind-22 chain, a kind-23 chain, a lane binop, or a
+       * relational compare (kinds 14..19).
        * `return ~1` and `return true` of f32x8 keep the integer bits
        * the let-init already stores. A 16-byte return does not enter
        * the kind-8 arm, so f32x4 and i32x4 stay out. Vec4f is kind 13
@@ -1256,6 +1262,13 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
             v_bin = glue_is_vector_lane_scalar_binop_ko(v_opk);
           }
           if (v_bin != 0) {
+            v_go = 1;
+            v_go8 = 1;
+          }
+          unsafe {
+            v_cmp = vlet_lane_cmp_ko(v_opk);
+          }
+          if (v_cmp != 0) {
             v_go = 1;
             v_go8 = 1;
           }

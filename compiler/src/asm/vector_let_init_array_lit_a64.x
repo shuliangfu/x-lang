@@ -3,7 +3,11 @@
 //
 // Darwin body of glue_emit_vector_type_let_init_elf_c.
 // Kind 46 calls the existing lane-byte writer. Kinds 4..13 (51 counts
-// as add) call the existing per-lane binop writer. INT_LIT (0) and
+// as add) call the existing per-lane binop writer. Kinds 14..19
+// (EQ through GE) compare each i32 lane. The old path compared the
+// first qword once, stored that one cset, and a wide return then
+// loaded 0 or 1 as an address. f32 and a lane size other than 4
+// stay declined. INT_LIT (0) and
 // BOOL_LIT (2) call the existing lane-imm fill. EXPR_NEG (22) over an
 // INT_LIT is the parser form of `-3`: negate that literal and splat
 // with the same fill. Kind 22 or 23 whose operand is itself kind 22
@@ -130,6 +134,18 @@ export extern function backend_enc_lea_rbp_to_rbx_arch(
 export extern function backend_enc_store_rax_to_rbx_offset_arch(
   elf_ctx: *u8, offset: i32, sz: i32, ta: i32
 ): i32;
+export extern function pipeline_expr_binop_left_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_binop_right_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function glue_emit_vector_operand_lane_elf_c(
+  arena: *u8, elf_ctx: *u8, expr_ref: i32, lane: i32, esz: i32, ctx: *u8, ta: i32
+): i32;
+export extern function glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_push_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_pop_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_mov_rax_to_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_cmp_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_cset_w0_from_cc_arch(elf_ctx: *u8, cc: i32, ta: i32): i32;
+export extern function pipeline_asm_cmp_cc_for_expr_kind_ord(kind_ord: i32): i32;
 export extern function pipeline_expr_if_cond_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_if_then_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_if_else_ref_at(arena: *u8, expr_ref: i32): i32;
@@ -218,6 +234,170 @@ function vlet_f32_fill_lane(arena: *u8, type_ref: i32): i32 {
     return 0;
   }
   return 1;
+}
+
+/**
+ * True for a relational lane compare.
+ * EXPR_EQ is 14 and EXPR_GE is 19. Kinds 4..13 stay on the existing
+ * lane binop writer. This predicate does not include kind 51.
+ * @param ko i32 — expression kind ordinal
+ * @return i32 — 1 for EQ through GE; 0 otherwise
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function vlet_lane_cmp_ko(ko: i32): i32 {
+  if (ko < 14) {
+    return 0;
+  }
+  if (ko > 19) {
+    return 0;
+  }
+  return 1;
+}
+
+/**
+ * Store one 0-or-1 result in each i32 lane of a relational compare.
+ * The linked lane-binop set stops at kind 13, so `a == b` of i32x8
+ * compared the first qword and wrote one cset. A wide return then
+ * loaded that 0 or 1 as an address. Each lane is loaded with the
+ * existing operand helper, sign-extended with the existing sxtw,
+ * compared with the existing cmp x0, x1, and stored from the existing
+ * cset (0 or 1, not an all-ones mask). Left is x0 and right is x1, so
+ * LT means left < right. f32, a lane size other than 4, and ta other
+ * than 1 return -3 before any store. A lanes-helper failure returns
+ * -3 for the same reason. A missing operand or an encoder failure
+ * returns -1.
+ * @param arena *u8 — AST arena; null returns -3
+ * @param elf_ctx *u8 — emit context; null returns -3
+ * @param init_ref i32 — compare expr; not positive returns -3
+ * @param ctx *u8 — emit ctx; null returns -3
+ * @param ta i32 — 1 is Darwin ARM64; any other returns -3
+ * @param stack_slot_off i32 — destination frame slot
+ * @param type_ref i32 — vector type; f32 fill returns -3
+ * @return i32 — 0 when every lane is stored; -3 decline; -1 failure
+ * PLATFORM: MACOS|ARM64.
+ */
+function vlet_emit_i32_lane_cmp(
+  arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32,
+  stack_slot_off: i32, type_ref: i32
+): i32 {
+  let rc: i32 = 0;
+  let lanes: i32 = 0;
+  let esz: i32 = 0;
+  let li: i32 = 0;
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let cc: i32 = 0;
+  let lanes_s: i32[1] = [];
+  let esz_s: i32[1] = [];
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || init_ref <= 0) {
+    return 0 - 3;
+  }
+  if (ta != 1) {
+    return 0 - 3;
+  }
+  rc = vlet_f32_fill_lane(arena, type_ref);
+  if (rc != 0) {
+    return 0 - 3;
+  }
+  unsafe {
+    rc = glue_vector_type_lanes_esz_c(arena, type_ref, &lanes_s[0], &esz_s[0]);
+  }
+  if (rc != 0) {
+    return 0 - 3;
+  }
+  lanes = lanes_s[0];
+  esz = esz_s[0];
+  if (esz != 4) {
+    return 0 - 3;
+  }
+  if (lanes <= 0) {
+    return 0 - 3;
+  }
+  unsafe {
+    left_ref = pipeline_expr_binop_left_ref_at(arena, init_ref);
+    right_ref = pipeline_expr_binop_right_ref_at(arena, init_ref);
+    rc = pipeline_expr_kind_ord_at(arena, init_ref);
+  }
+  unsafe {
+    cc = pipeline_asm_cmp_cc_for_expr_kind_ord(rc);
+  }
+  if (left_ref <= 0 || right_ref <= 0 || cc < 0) {
+    return 0 - 1;
+  }
+  li = 0;
+  while (li < lanes) {
+    unsafe {
+      rc = glue_emit_vector_operand_lane_elf_c(
+        arena, elf_ctx, left_ref, li, esz, ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_push_rax_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = glue_emit_vector_operand_lane_elf_c(
+        arena, elf_ctx, right_ref, li, esz, ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_pop_rax_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_cmp_rax_rbx_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_cset_w0_from_cc_arch(elf_ctx, cc, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_lea_rbp_to_rbx_arch(elf_ctx, stack_slot_off, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, li * esz, esz, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    li = li + 1;
+  }
+  return 0;
 }
 
 /**
@@ -705,6 +885,15 @@ export function glue_emit_vector_type_let_init_elf_c(
       rc = pipeline_asm_emit_vector_let_init_elf_c(
         arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
     }
+    return rc;
+  }
+  // EXPR_EQ..GE are 14..19. The lane-binop set stops at 13, so the
+  // first qword was compared once. Each i32 lane uses the existing
+  // sxtw, cmp, and cset. f32 returns -3 before any store.
+  // PLATFORM: MACOS|ARM64.
+  if (vlet_lane_cmp_ko(ko) != 0) {
+    rc = vlet_emit_i32_lane_cmp(
+      arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, type_ref);
     return rc;
   }
   // Lane binop. Do not decline into the dual-GP pair store.
