@@ -153,6 +153,69 @@ export extern function glue_copy_large_struct_from_rax_ptr_elf_c(
 ): i32;
 export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
 export extern function pipeline_type_elem_ref_at(arena: *u8, type_ref: i32): i32;
+export extern function pipeline_type_named_name_into(arena: *u8, type_ref: i32, out: *u8): i32;
+
+/* BSS name scratch. A stack u8[64] is the cap-tip smash class. */
+let g_vlet_f32_name: u8[64] = [];
+
+/**
+ * True when the float-literal fill should splat this vector.
+ * glue_vector_elem_is_f32_c accepts f32x4, f32x8, Vec4f, and a
+ * TYPE_VECTOR of f32. The cap-tip object of that function was emitted
+ * before f32x8 was added, so `let v: f32x8 = 1.0` fell through to one
+ * str x of the f64 bits and lane 0 read as 0. f32x8 is kind 8, five
+ * bytes, f 3 2 x 8. When the classifier already returns 1 this name
+ * check is not reached. The existing fill still takes the lane count
+ * from glue_vector_type_lanes_esz_c. An integer literal does not call
+ * this helper.
+ * @param arena *u8 — AST arena
+ * @param type_ref i32 — let type; not positive returns 0
+ * @return i32 — 1 when the f32 fill should run; 0 otherwise
+ * PLATFORM: SHARED.
+ */
+function vlet_f32_fill_lane(arena: *u8, type_ref: i32): i32 {
+  let rc: i32 = 0;
+  let tk: i32 = 0;
+  let nlen: i32 = 0;
+  if (arena == (0 as *u8) || type_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    rc = glue_vector_elem_is_f32_c(arena, type_ref);
+  }
+  if (rc != 0) {
+    return 1;
+  }
+  unsafe {
+    tk = pipeline_type_kind_ord_at(arena, type_ref);
+  }
+  if (tk != 8) {
+    return 0;
+  }
+  unsafe {
+    nlen = pipeline_type_named_name_into(arena, type_ref, &g_vlet_f32_name[0]);
+  }
+  if (nlen != 5) {
+    return 0;
+  }
+  /* ASCII f 3 2 x 8. Five compares, no second name table. */
+  if (g_vlet_f32_name[0] != 102) {
+    return 0;
+  }
+  if (g_vlet_f32_name[1] != 51) {
+    return 0;
+  }
+  if (g_vlet_f32_name[2] != 50) {
+    return 0;
+  }
+  if (g_vlet_f32_name[3] != 120) {
+    return 0;
+  }
+  if (g_vlet_f32_name[4] != 56) {
+    return 0;
+  }
+  return 1;
+}
 
 /**
  * Store SIMD ARRAY_LIT lanes, a lane binop, or a scalar lit splat.
@@ -499,7 +562,7 @@ export function glue_emit_vector_type_let_init_elf_c(
     if (f_ref > 0) {
       if (ta == 1) {
         unsafe {
-          rc = glue_vector_elem_is_f32_c(arena, type_ref);
+          rc = vlet_f32_fill_lane(arena, type_ref);
         }
         if (rc != 0) {
           unsafe {

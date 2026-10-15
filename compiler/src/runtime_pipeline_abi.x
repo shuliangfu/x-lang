@@ -44718,7 +44718,7 @@ export function glue_expr_is_func_param_at_c(arena: *u8, mod: *u8, func_idx: i32
 }
 
 /**
- * Vector element type is f32 (f32x4 / Vec4f spelling or VECTOR of F32).
+ * Vector element type is f32 (f32x4 / f32x8 / Vec4f spelling or VECTOR of F32).
  * @param arena *u8 - ASTArena*
  * @param type_ref i32 - vector type
  * @return i32 - 1 f32 elem; 0 otherwise
@@ -44743,6 +44743,9 @@ export function glue_vector_elem_is_f32_c(arena: *u8, type_ref: i32): i32 {
       nlen = pipeline_type_named_name_into(arena, type_ref, &g_wave148_tname[0]);
     }
     if (nlen == 5 && wave148_bytes_eq(&g_wave148_tname[0], "f32x4", 5) != 0) {
+      return 1;
+    }
+    if (nlen == 5 && wave148_bytes_eq(&g_wave148_tname[0], "f32x8", 5) != 0) {
       return 1;
     }
     if (nlen == 5 && wave148_bytes_eq(&g_wave148_tname[0], "Vec4f", 5) != 0) {
