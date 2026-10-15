@@ -35,6 +35,8 @@ export extern function backend_enc_load_rbp_lane_to_rax_arch(
   elf_ctx: *u8, offset: i32, esz: i32, ta: i32
 ): i32;
 export extern function backend_enc_mov_imm32_to_w0_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
+export extern function backend_enc_mov_imm32_to_rbx_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
+export extern function backend_enc_xor_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
 
 /**
  * Move one f32 lane immediate for a FLOAT_LIT, or one or two NEG of one.
@@ -125,7 +127,9 @@ function lane_f32_emit_lit_lane(arena: *u8, elf_ctx: *u8, expr_ref: i32, ta: i32
  * @param ta i32 — 1 arm64, else x86. Arm64 lane slots grow up from rbp.
  * @return i32 — 0 when rax holds the lane, -1 on failure.
  * VAR, FIELD, ARRAY_LIT, and nested binop match the previous body.
- * PLATFORM: SHARED.
+ * One EXPR_NEG of add, sub, mul, or div emits that lane, then xors
+ * the f32 sign bit. A second NEG of a binop stays on emit_expr.
+ * Kind 23 does not enter. PLATFORM: SHARED.
  */
 #[no_mangle]
 export function glue_emit_vector_operand_lane_elf_c(
@@ -159,6 +163,65 @@ export function glue_emit_vector_operand_lane_elf_c(
       }
       if (lit < 0) {
         return 0 - 1;
+      }
+      // -(4.0 / 2.0) is kind 22 of kind 7. The literal peel returns 0,
+      // so the outer div saw f64 bits and the lane was not -1.0.
+      // Emit the inner add, sub, mul, or div, then xor the f32 sign
+      // bit already used by let-init. A second NEG stays out. Kind 23
+      // and kinds 8..13 do not enter. i32 leaves the gate at 0.
+      // PLATFORM: SHARED.
+      if (ko == 22) {
+        unsafe {
+          elem_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+        }
+        if (elem_ref > 0) {
+          unsafe {
+            lit = pipeline_expr_kind_ord_at(arena, elem_ref);
+          }
+          rc = 0;
+          if (lit == 4) {
+            rc = 1;
+          }
+          if (lit == 5) {
+            rc = 1;
+          }
+          if (lit == 6) {
+            rc = 1;
+          }
+          if (lit == 7) {
+            rc = 1;
+          }
+          if (rc != 0) {
+            unsafe {
+              left_ref = pipeline_expr_binop_left_ref_at(arena, elem_ref);
+              right_ref = pipeline_expr_binop_right_ref_at(arena, elem_ref);
+            }
+            unsafe {
+              rc = glue_emit_vector_lane_scalar_binop_elf_c(
+                arena, elf_ctx, lit, left_ref, right_ref, lane, esz, ctx, ta);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            // f32 sign bit 0x80000000. This thin already folds the
+            // same host constant for a negative FLOAT_LIT.
+            // PLATFORM: SHARED.
+            unsafe {
+              rc = backend_enc_mov_imm32_to_rbx_arch(
+                elf_ctx, 0 - 2147483647 - 1, ta);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            unsafe {
+              rc = backend_enc_xor_rbx_rax_arch(elf_ctx, ta);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            return 0;
+          }
+        }
       }
     }
   }
