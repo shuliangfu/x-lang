@@ -62,8 +62,8 @@
 // beyond that cancels again. Thirteen minuses apply
 // the sign once more. Fourteen minuses cancel again.
 // Fifteen minuses apply the sign once more.
-// A sixteenth
-// unary of that float stays declined.
+// At most 32 unary minuses of that float are folded. The sign
+// is the parity of the count. One more stays declined.
 // A scalar mvn w0
 // plus str x0 left lane 1 of `let v: i32x4 = ~a` at 0. A VAR, a FIELD,
 // an ARRAY_LIT, or a lane binop under minus may be wider than 16 when
@@ -183,8 +183,8 @@ export extern function backend_enc_store_rax_to_rbx_offset_arch(
  * beyond that cancels again. Thirteen minuses apply
  * the sign once more. Fourteen minuses cancel again.
  * Fifteen minuses apply the sign once more.
- * A sixteenth
- * unary of that float stays declined. Keyword null,
+ * At most 32 unary minuses of that float are folded.
+ * One more stays declined. Keyword null,
  * an f32 element of the integer fold,
  * ta other than 1, and a lane size other than 4 stay on the decline
  * below. Lane size 8 of that pattern stays declined.
@@ -350,8 +350,8 @@ export function glue_emit_vector_type_let_init_elf_c(
   // Ten minuses cancel again. Eleven minuses apply the sign once.
   // Twelve minuses cancel again. Thirteen minuses apply the sign
   // once more. Fourteen minuses cancel again. Fifteen minuses apply
-  // the sign once more. A sixteenth unary
-  // is not kind 1 and stays on the decline below. Bitwise not
+  // the sign once more. At most 32 minuses are folded. One more
+  // stays on the decline below. Bitwise not
   // of a float stays declined. The element must be f32, the lane
   // size 4, and ta 1.
   // An f64 lane stays declined.
@@ -379,292 +379,60 @@ export function glue_emit_vector_type_let_init_elf_c(
   if (ko == 1) {
     f_ref = init_ref;
     f_ko = 1;
+    f_neg = 0;
   }
+  /*
+   * Walk EXPR_NEG (kind 22) until the operand is not another
+   * minus. The innermost must be a FLOAT_LIT (kind 1).
+   * An odd count applies the sign once in the emitter. An
+   * even count cancels. Stop at 32 steps so a corrupt kind-22
+   * cycle cannot hang the compile. One more minus stays
+   * declined. Kind 23 and kind 24 do not enter. This is a
+   * loop, not a recursive call: the frame is already near the
+   * cap-tip stack budget. The bound is its own compare. A
+   * chained && clobbers a register in the bootstrap image.
+   * PLATFORM: MACOS|ARM64.
+   */
   if (ko == 22) {
-    unsafe {
-      f_ref = pipeline_expr_unary_operand_ref_at(arena, init_ref);
-    }
-    if (f_ref > 0) {
-      unsafe {
-        f_ko = pipeline_expr_kind_ord_at(arena, f_ref);
-      }
-      if (f_ko == 1) {
-        f_neg = 1;
-      }
-      if (f_ko == 22) {
+    f_in = init_ref;
+    f_deep = 0;
+    f_in_k = 22;
+    f_neg = 0;
+    while (f_in_k == 22) {
+      if (f_deep < 32) {
+        f_quad = 0;
         unsafe {
-          f_in = pipeline_expr_unary_operand_ref_at(arena, f_ref);
+          f_quad = pipeline_expr_unary_operand_ref_at(arena, f_in);
         }
-        if (f_in > 0) {
+        if (f_quad <= 0) {
+          f_in_k = 0;
+        } else {
+          f_in = f_quad;
+          f_deep = f_deep + 1;
+          if (f_neg == 0) {
+            f_neg = 1;
+          } else {
+            f_neg = 0;
+          }
           unsafe {
             f_in_k = pipeline_expr_kind_ord_at(arena, f_in);
           }
-          if (f_in_k == 1) {
-            f_ref = f_in;
-            f_ko = 1;
-            f_neg = 0;
-          }
-          // Three minuses: the innermost is still a FLOAT_LIT. Apply
-          // the sign once. Four minuses cancel again. Five minuses
-          // apply the sign once more. Six minuses cancel again. Seven
-          // minuses apply the sign once more. Eight minuses cancel
-          // again. A ninth unary leaves kind 22.
-          if (f_in_k == 22) {
-            unsafe {
-              f_deep = pipeline_expr_unary_operand_ref_at(arena, f_in);
-            }
-            if (f_deep > 0) {
-              unsafe {
-                f_deep_k = pipeline_expr_kind_ord_at(arena, f_deep);
-              }
-              if (f_deep_k == 1) {
-                f_ref = f_deep;
-                f_ko = 1;
-                f_neg = 1;
-              }
-              // Four minuses: the innermost is a FLOAT_LIT. Two pairs
-              // cancel, so the sign bit stays clear. A fifth unary is
-              // kind 22 here, not kind 1. PLATFORM: MACOS|ARM64.
-              if (f_deep_k == 22) {
-                unsafe {
-                  f_quad = pipeline_expr_unary_operand_ref_at(arena, f_deep);
-                }
-                if (f_quad > 0) {
-                  unsafe {
-                    f_quad_k = pipeline_expr_kind_ord_at(arena, f_quad);
-                  }
-                  if (f_quad_k == 1) {
-                    f_ref = f_quad;
-                    f_ko = 1;
-                    f_neg = 0;
-                  }
-                  // Five minuses: the innermost is a FLOAT_LIT. Apply
-                  // the sign once. Six minuses cancel again. Seven
-                  // minuses apply the sign once more. Eight minuses cancel
-                  // again. A ninth unary is kind 22 here, not kind 1.
-                  // PLATFORM: MACOS|ARM64.
-                  if (f_quad_k == 22) {
-                    unsafe {
-                      f_pent = pipeline_expr_unary_operand_ref_at(arena, f_quad);
-                    }
-                    if (f_pent > 0) {
-                      unsafe {
-                        f_pent_k = pipeline_expr_kind_ord_at(arena, f_pent);
-                      }
-                      if (f_pent_k == 1) {
-                        f_ref = f_pent;
-                        f_ko = 1;
-                        f_neg = 1;
-                      }
-                      // Six minuses: the innermost is a FLOAT_LIT.
-                      // Three pairs cancel, so the sign bit stays
-                      // clear. Seven minuses apply the sign once. An
-                      // eighth unary is kind 22 here, not kind 1.
-                      // PLATFORM: MACOS|ARM64.
-                      if (f_pent_k == 22) {
-                        unsafe {
-                          f_hex = pipeline_expr_unary_operand_ref_at(arena, f_pent);
-                        }
-                        if (f_hex > 0) {
-                          unsafe {
-                            f_hex_k = pipeline_expr_kind_ord_at(arena, f_hex);
-                          }
-                          if (f_hex_k == 1) {
-                            f_ref = f_hex;
-                            f_ko = 1;
-                            f_neg = 0;
-                          }
-                          // Seven minuses: the innermost is a FLOAT_LIT.
-                          // Apply the sign once. Eight minuses cancel
-                          // again. A ninth unary is kind 22 here, not
-                          // kind 1. PLATFORM: MACOS|ARM64.
-                          if (f_hex_k == 22) {
-                            unsafe {
-                              f_sept = pipeline_expr_unary_operand_ref_at(arena, f_hex);
-                            }
-                            if (f_sept > 0) {
-                              unsafe {
-                                f_sept_k = pipeline_expr_kind_ord_at(arena, f_sept);
-                              }
-                              if (f_sept_k == 1) {
-                                f_ref = f_sept;
-                                f_ko = 1;
-                                f_neg = 1;
-                              }
-                              // Eight minuses: the innermost is a FLOAT_LIT.
-                              // Four pairs cancel, so the sign bit stays
-                              // clear. Nine minuses apply the sign once.
-                              // A tenth unary is kind 22 here, not kind 1.
-                              // PLATFORM: MACOS|ARM64.
-                              if (f_sept_k == 22) {
-                                unsafe {
-                                  f_oct = pipeline_expr_unary_operand_ref_at(arena, f_sept);
-                                }
-                                if (f_oct > 0) {
-                                  unsafe {
-                                    f_oct_k = pipeline_expr_kind_ord_at(arena, f_oct);
-                                  }
-                                  if (f_oct_k == 1) {
-                                    f_ref = f_oct;
-                                    f_ko = 1;
-                                    f_neg = 0;
-                                  }
-                                  // Nine minuses: the innermost is a FLOAT_LIT.
-                                  // The sign bit is applied once. A tenth
-                                  // unary is kind 22 here, not kind 1.
-                                  // Load the operand of f_oct only.
-                                  // PLATFORM: MACOS|ARM64.
-                                  if (f_oct_k == 22) {
-                                    unsafe {
-                                      f_nona = pipeline_expr_unary_operand_ref_at(arena, f_oct);
-                                    }
-                                    if (f_nona > 0) {
-                                      unsafe {
-                                        f_nona_k = pipeline_expr_kind_ord_at(arena, f_nona);
-                                      }
-                                      if (f_nona_k == 1) {
-                                        f_ref = f_nona;
-                                        f_ko = 1;
-                                        f_neg = 1;
-                                      }
-                                      // Ten minuses: the innermost is a FLOAT_LIT.
-                                      // Five pairs cancel, so the sign bit stays
-                                      // clear. An eleventh unary is kind 22 here,
-                                      // not kind 1. Load the operand of f_nona only.
-                                      // PLATFORM: MACOS|ARM64.
-                                      if (f_nona_k == 22) {
-                                        unsafe {
-                                          f_deca = pipeline_expr_unary_operand_ref_at(arena, f_nona);
-                                        }
-                                        if (f_deca > 0) {
-                                          unsafe {
-                                            f_deca_k = pipeline_expr_kind_ord_at(arena, f_deca);
-                                          }
-                                          if (f_deca_k == 1) {
-                                            f_ref = f_deca;
-                                            f_ko = 1;
-                                            f_neg = 0;
-                                          }
-                                          // Eleven minuses: the innermost is a FLOAT_LIT.
-                                          // The sign bit is applied once. A twelfth
-                                          // unary is kind 22 here, not kind 1.
-                                          // Load the operand of f_deca only.
-                                          // PLATFORM: MACOS|ARM64.
-                                          if (f_deca_k == 22) {
-                                            unsafe {
-                                              f_undeca = pipeline_expr_unary_operand_ref_at(arena, f_deca);
-                                            }
-                                            if (f_undeca > 0) {
-                                              unsafe {
-                                                f_undeca_k = pipeline_expr_kind_ord_at(arena, f_undeca);
-                                              }
-                                              if (f_undeca_k == 1) {
-                                                f_ref = f_undeca;
-                                                f_ko = 1;
-                                                f_neg = 1;
-                                              }
-                                              // Twelve minuses: the innermost is a FLOAT_LIT.
-                                              // Six pairs cancel, so the sign bit stays
-                                              // clear. A thirteenth unary is kind 22 here,
-                                              // not kind 1. Load the operand of f_undeca only.
-                                              // PLATFORM: MACOS|ARM64.
-                                              if (f_undeca_k == 22) {
-                                                unsafe {
-                                                  f_duodeca = pipeline_expr_unary_operand_ref_at(arena, f_undeca);
-                                                }
-                                                if (f_duodeca > 0) {
-                                                  unsafe {
-                                                    f_duodeca_k = pipeline_expr_kind_ord_at(arena, f_duodeca);
-                                                  }
-                                                  if (f_duodeca_k == 1) {
-                                                    f_ref = f_duodeca;
-                                                    f_ko = 1;
-                                                    f_neg = 0;
-                                                  }
-                                                  // Thirteen minuses: the innermost is a FLOAT_LIT.
-                                                  // The sign bit is applied once. A fourteenth
-                                                  // unary is kind 22 here, not kind 1.
-                                                  // Load the operand of f_duodeca only.
-                                                  // PLATFORM: MACOS|ARM64.
-                                                  if (f_duodeca_k == 22) {
-                                                    unsafe {
-                                                      f_tredeca = pipeline_expr_unary_operand_ref_at(arena, f_duodeca);
-                                                    }
-                                                    if (f_tredeca > 0) {
-                                                      unsafe {
-                                                        f_tredeca_k = pipeline_expr_kind_ord_at(arena, f_tredeca);
-                                                      }
-                                                      if (f_tredeca_k == 1) {
-                                                        f_ref = f_tredeca;
-                                                        f_ko = 1;
-                                                        f_neg = 1;
-                                                      }
-                                                      // Fourteen minuses: the innermost is a FLOAT_LIT.
-                                                      // Seven pairs cancel, so the sign bit stays
-                                                      // clear. A fifteenth unary is kind 22 here,
-                                                      // not kind 1. Load the operand of f_tredeca only.
-                                                      // PLATFORM: MACOS|ARM64.
-                                                      if (f_tredeca_k == 22) {
-                                                        unsafe {
-                                                          f_quattuordeca = pipeline_expr_unary_operand_ref_at(arena, f_tredeca);
-                                                        }
-                                                        if (f_quattuordeca > 0) {
-                                                          unsafe {
-                                                            f_quattuordeca_k = pipeline_expr_kind_ord_at(arena, f_quattuordeca);
-                                                          }
-                                                          if (f_quattuordeca_k == 1) {
-                                                            f_ref = f_quattuordeca;
-                                                            f_ko = 1;
-                                                            f_neg = 0;
-                                                          }
-                                                          // Fifteen minuses: the innermost is a FLOAT_LIT.
-                                                          // The sign bit is applied once. A sixteenth
-                                                          // unary is kind 22 here, not kind 1.
-                                                          // Load the operand of f_quattuordeca only.
-                                                          // PLATFORM: MACOS|ARM64.
-                                                          if (f_quattuordeca_k == 22) {
-                                                            unsafe {
-                                                              f_quindecim = pipeline_expr_unary_operand_ref_at(arena, f_quattuordeca);
-                                                            }
-                                                            if (f_quindecim > 0) {
-                                                              unsafe {
-                                                                f_quindecim_k = pipeline_expr_kind_ord_at(arena, f_quindecim);
-                                                              }
-                                                              if (f_quindecim_k == 1) {
-                                                                f_ref = f_quindecim;
-                                                                f_ko = 1;
-                                                                f_neg = 1;
-                                                              }
-                                                            }
-                                                          }
-                                                        }
-                                                      }
-                                                    }
-                                                  }
-                                                }
-                                              }
-                                            }
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
         }
+      } else {
+        f_in_k = 0;
       }
     }
+    if (f_in_k == 1) {
+      if (f_deep > 0) {
+        f_ref = f_in;
+        f_ko = 1;
+      }
+    }
+    if (f_in_k != 1) {
+      f_neg = 0;
+    }
   }
+
   if (f_ko == 1) {
     if (f_ref > 0) {
       if (ta == 1) {

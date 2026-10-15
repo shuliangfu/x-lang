@@ -10293,7 +10293,7 @@ decl_ty_ref: i32): i32 {
      * FLOAT_LIT and one through fifteen unary minuses of that literal.
      * Two, four, six, eight, ten, twelve, and fourteen minuses cancel.
      * Three, five, seven, nine, eleven, thirteen, and fifteen apply
-     * the sign once. A sixteenth f32 unary, a bitwise not, a seventh
+     * the sign once. A 33rd f32 unary, a bitwise not, a seventh
      * i32 unary, a VAR, or a binop stays on the later coerces.
      * Keyword null stays rejected. Two compares, not a chained &&.
      * The linked body is the thin: cap tip -c of this mega is hollow.
@@ -10442,7 +10442,7 @@ decl_ty_ref: i32): i32 {
            * the sign once more. Twelve minuses cancel again. Thirteen
            * minuses apply the sign once more. Fourteen minuses cancel
            * again. Fifteen minuses apply the sign once more.
-           * A sixteenth unary stays kind 22 at the inner
+           * One more than 32 unary minuses stays kind 22 at the inner
            * operand, so it is not stamped.
            * Bitwise not stays off. An i32 element does not enter. The
            * operand refs are range-checked. PLATFORM: SHARED.
@@ -10481,273 +10481,48 @@ decl_ty_ref: i32): i32 {
             if (init_kind == 1) {
               splat_ok = 1;
             }
+            /*
+             * Walk EXPR_NEG (kind 22) until the operand is not another
+             * minus. The innermost must be a FLOAT_LIT (kind 1).
+             * An odd count applies the sign once in the emitter. An
+             * even count cancels. Stop at 32 steps so a corrupt kind-22
+             * cycle cannot hang the compile. One more minus stays
+             * declined. Kind 23 and kind 24 do not enter. This is a
+             * loop, not a recursive call: the frame is already near the
+             * cap-tip stack budget. The bound is its own compare. A
+             * chained && clobbers a register in the bootstrap image.
+             * PLATFORM: SHARED.
+             */
             if (init_kind == 22) {
-              fop = pipeline_expr_unary_operand_ref_at(arena, init_ref);
-            }
-            if (fop > 0) {
-              if (fop <= arena.num_exprs) {
-                fop_k = pipeline_expr_kind_ord_at(arena, fop);
-                if (fop_k == 1) {
-                  splat_ok = 1;
-                }
-                /*
-                 * One more unary minus whose operand is a FLOAT_LIT.
-                 * The emitter retargets the fill at that literal and
-                 * leaves the sign bit clear. One unary beyond that
-                 * applies the sign once. One unary beyond that cancels
-                 * again. One unary beyond that applies the sign once
-                 * more. One unary beyond that cancels again. Seven
-                 * minuses apply the sign once. An eighth unary is kind
-                 * 22 here, not kind 1.
-                 * The new ref is range-checked. PLATFORM: SHARED.
-                 */
-                if (fop_k == 22) {
-                  f_in = pipeline_expr_unary_operand_ref_at(arena, fop);
-                  if (f_in > 0) {
-                    if (f_in <= arena.num_exprs) {
+              f_in = init_ref;
+              f_deep = 0;
+              f_in_k = 22;
+              while (f_in_k == 22) {
+                if (f_deep < 32) {
+                  f_quad = 0;
+                  f_quad = pipeline_expr_unary_operand_ref_at(arena, f_in);
+                  if (f_quad <= 0) {
+                    f_in_k = 0;
+                  } else {
+                    if (f_quad <= arena.num_exprs) {
+                      f_in = f_quad;
+                      f_deep = f_deep + 1;
                       f_in_k = pipeline_expr_kind_ord_at(arena, f_in);
-                      if (f_in_k == 1) {
-                        splat_ok = 1;
-                      }
-                      if (f_in_k == 22) {
-                        f_deep = pipeline_expr_unary_operand_ref_at(arena, f_in);
-                        if (f_deep > 0) {
-                          if (f_deep <= arena.num_exprs) {
-                            f_deep_k = pipeline_expr_kind_ord_at(arena, f_deep);
-                            if (f_deep_k == 1) {
-                              splat_ok = 1;
-                            }
-                            if (f_deep_k == 22) {
-                              f_quad = pipeline_expr_unary_operand_ref_at(arena, f_deep);
-                              if (f_quad > 0) {
-                                if (f_quad <= arena.num_exprs) {
-                                  f_quad_k = pipeline_expr_kind_ord_at(arena, f_quad);
-                                  if (f_quad_k == 1) {
-                                    splat_ok = 1;
-                                  }
-                                  /*
-                                   * Five minuses: the innermost is a FLOAT_LIT.
-                                   * The emitter applies the sign once. Six
-                                   * minuses cancel again. A seventh unary is
-                                   * kind 22 here, not kind 1. The new ref is
-                                   * range-checked. PLATFORM: SHARED.
-                                   */
-                                  if (f_quad_k == 22) {
-                                    f_pent = pipeline_expr_unary_operand_ref_at(arena, f_quad);
-                                    if (f_pent > 0) {
-                                      if (f_pent <= arena.num_exprs) {
-                                        f_pent_k = pipeline_expr_kind_ord_at(arena, f_pent);
-                                        if (f_pent_k == 1) {
-                                          splat_ok = 1;
-                                        }
-                                        /*
-                                         * Six minuses: the innermost is a FLOAT_LIT.
-                                         * The emitter leaves the sign bit clear.
-                                         * Seven minuses apply the sign once. An
-                                         * eighth unary is kind 22 here, not kind 1.
-                                         * The new ref is range-checked.
-                                         * PLATFORM: SHARED.
-                                         */
-                                        if (f_pent_k == 22) {
-                                          f_hex = pipeline_expr_unary_operand_ref_at(arena, f_pent);
-                                          if (f_hex > 0) {
-                                            if (f_hex <= arena.num_exprs) {
-                                              f_hex_k = pipeline_expr_kind_ord_at(arena, f_hex);
-                                              if (f_hex_k == 1) {
-                                                splat_ok = 1;
-                                              }
-                                              /*
-                                               * Seven minuses: the innermost is a
-                                               * FLOAT_LIT. The emitter applies the
-                                               * sign once. Eight minuses cancel again.
-                                               * A ninth unary is kind 22 here, not
-                                               * kind 1. Load the operand of f_hex
-                                               * only. PLATFORM: SHARED.
-                                               */
-                                              if (f_hex_k == 22) {
-                                                f_sept = pipeline_expr_unary_operand_ref_at(arena, f_hex);
-                                                if (f_sept > 0) {
-                                                  if (f_sept <= arena.num_exprs) {
-                                                    f_sept_k = pipeline_expr_kind_ord_at(arena, f_sept);
-                                                    if (f_sept_k == 1) {
-                                                      splat_ok = 1;
-                                                    }
-                                                    /*
-                                                     * Eight minuses: the innermost is a
-                                                     * FLOAT_LIT. Four pairs cancel, so
-                                                     * the sign bit stays clear. Nine
-                                                     * minuses apply the sign once. A
-                                                     * tenth unary is kind 22 here, not
-                                                     * kind 1. Load the operand of f_sept
-                                                     * only. The new ref is range-checked.
-                                                     * PLATFORM: SHARED.
-                                                     */
-                                                    if (f_sept_k == 22) {
-                                                      f_oct = pipeline_expr_unary_operand_ref_at(arena, f_sept);
-                                                      if (f_oct > 0) {
-                                                        if (f_oct <= arena.num_exprs) {
-                                                          f_oct_k = pipeline_expr_kind_ord_at(arena, f_oct);
-                                                          if (f_oct_k == 1) {
-                                                            splat_ok = 1;
-                                                          }
-                                                          /*
-                                                           * Nine minuses: the innermost is a
-                                                           * FLOAT_LIT. The emitter applies the
-                                                           * sign once. A tenth unary is kind 22
-                                                           * here, not kind 1. Load the operand
-                                                           * of f_oct only. The new ref is
-                                                           * range-checked. PLATFORM: SHARED.
-                                                           */
-                                                          if (f_oct_k == 22) {
-                                                            f_nona = pipeline_expr_unary_operand_ref_at(arena, f_oct);
-                                                            if (f_nona > 0) {
-                                                              if (f_nona <= arena.num_exprs) {
-                                                                f_nona_k = pipeline_expr_kind_ord_at(arena, f_nona);
-                                                                if (f_nona_k == 1) {
-                                                                  splat_ok = 1;
-                                                                }
-                                                                /*
-                                                                 * Ten minuses: the innermost is a
-                                                                 * FLOAT_LIT. Five pairs cancel, so the
-                                                                 * sign bit stays clear. An eleventh
-                                                                 * unary is kind 22 here, not kind 1.
-                                                                 * Load the operand of f_nona only. The
-                                                                 * new ref is range-checked.
-                                                                 * PLATFORM: SHARED.
-                                                                 */
-                                                                if (f_nona_k == 22) {
-                                                                  f_deca = pipeline_expr_unary_operand_ref_at(arena, f_nona);
-                                                                  if (f_deca > 0) {
-                                                                    if (f_deca <= arena.num_exprs) {
-                                                                      f_deca_k = pipeline_expr_kind_ord_at(arena, f_deca);
-                                                                      if (f_deca_k == 1) {
-                                                                        splat_ok = 1;
-                                                                      }
-                                                                      /*
-                                                                       * Eleven minuses: the innermost is a
-                                                                       * FLOAT_LIT. The emitter applies the
-                                                                       * sign once. A twelfth unary is kind 22
-                                                                       * here, not kind 1. Load the operand of
-                                                                       * f_deca only. The new ref is
-                                                                       * range-checked. PLATFORM: SHARED.
-                                                                       */
-                                                                      if (f_deca_k == 22) {
-                                                                        f_undeca = pipeline_expr_unary_operand_ref_at(arena, f_deca);
-                                                                        if (f_undeca > 0) {
-                                                                          if (f_undeca <= arena.num_exprs) {
-                                                                            f_undeca_k = pipeline_expr_kind_ord_at(arena, f_undeca);
-                                                                            if (f_undeca_k == 1) {
-                                                                              splat_ok = 1;
-                                                                            }
-                                                                            /*
-                                                                             * Twelve minuses: the innermost is a
-                                                                             * FLOAT_LIT. Six pairs cancel, so the
-                                                                             * sign bit stays clear. A thirteenth
-                                                                             * unary is kind 22 here, not kind 1.
-                                                                             * Load the operand of f_undeca only.
-                                                                             * The new ref is range-checked.
-                                                                             * PLATFORM: SHARED.
-                                                                             */
-                                                                            if (f_undeca_k == 22) {
-                                                                              f_duodeca = pipeline_expr_unary_operand_ref_at(arena, f_undeca);
-                                                                              if (f_duodeca > 0) {
-                                                                                if (f_duodeca <= arena.num_exprs) {
-                                                                                  f_duodeca_k = pipeline_expr_kind_ord_at(arena, f_duodeca);
-                                                                                  if (f_duodeca_k == 1) {
-                                                                                    splat_ok = 1;
-                                                                                  }
-                                                                                  /*
-                                                                                   * Thirteen minuses: the innermost is a
-                                                                                   * FLOAT_LIT. The emitter applies the
-                                                                                   * sign once. A fourteenth unary is kind
-                                                                                   * 22 here, not kind 1. Load the operand
-                                                                                   * of f_duodeca only. The new ref is
-                                                                                   * range-checked. PLATFORM: SHARED.
-                                                                                   */
-                                                                                  if (f_duodeca_k == 22) {
-                                                                                    f_tredeca = pipeline_expr_unary_operand_ref_at(arena, f_duodeca);
-                                                                                    if (f_tredeca > 0) {
-                                                                                      if (f_tredeca <= arena.num_exprs) {
-                                                                                        f_tredeca_k = pipeline_expr_kind_ord_at(arena, f_tredeca);
-                                                                                        if (f_tredeca_k == 1) {
-                                                                                          splat_ok = 1;
-                                                                                        }
-                                                                                        /*
-                                                                                         * Fourteen minuses: the innermost is a
-                                                                                         * FLOAT_LIT. Seven pairs cancel, so the
-                                                                                         * sign bit stays clear. A fifteenth unary
-                                                                                         * is kind 22 here, not kind 1. Load the
-                                                                                         * operand of f_tredeca only. The new ref
-                                                                                         * is range-checked. PLATFORM: SHARED.
-                                                                                         */
-                                                                                        if (f_tredeca_k == 22) {
-                                                                                          f_quattuordeca = pipeline_expr_unary_operand_ref_at(arena, f_tredeca);
-                                                                                          if (f_quattuordeca > 0) {
-                                                                                            if (f_quattuordeca <= arena.num_exprs) {
-                                                                                              f_quattuordeca_k = pipeline_expr_kind_ord_at(arena, f_quattuordeca);
-                                                                                              if (f_quattuordeca_k == 1) {
-                                                                                                splat_ok = 1;
-                                                                                              }
-                                                                                              /*
-                                                                                               * Fifteen minuses: the innermost is a
-                                                                                               * FLOAT_LIT. The emitter applies the
-                                                                                               * sign once. A sixteenth unary is kind
-                                                                                               * 22 here, not kind 1. Load the operand
-                                                                                               * of f_quattuordeca only. The new ref
-                                                                                               * is range-checked. PLATFORM: SHARED.
-                                                                                               */
-                                                                                              if (f_quattuordeca_k == 22) {
-                                                                                                f_quindecim = pipeline_expr_unary_operand_ref_at(arena, f_quattuordeca);
-                                                                                                if (f_quindecim > 0) {
-                                                                                                  if (f_quindecim <= arena.num_exprs) {
-                                                                                                    f_quindecim_k = pipeline_expr_kind_ord_at(arena, f_quindecim);
-                                                                                                    if (f_quindecim_k == 1) {
-                                                                                                      splat_ok = 1;
-                                                                                                    }
-                                                                                                  }
-                                                                                                }
-                                                                                              }
-                                                                                            }
-                                                                                          }
-                                                                                        }
-                                                                                      }
-                                                                                    }
-                                                                                  }
-                                                                                }
-                                                                              }
-                                                                            }
-                                                                          }
-                                                                        }
-                                                                      }
-                                                                    }
-                                                                  }
-                                                                }
-                                                              }
-                                                            }
-                                                          }
-                                                        }
-                                                      }
-                                                    }
-                                                  }
-                                                }
-                                              }
-                                            }
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
+                    } else {
+                      f_in_k = 0;
                     }
                   }
+                } else {
+                  f_in_k = 0;
+                }
+              }
+              if (f_in_k == 1) {
+                if (f_deep > 0) {
+                  splat_ok = 1;
                 }
               }
             }
+
           }
         }
       }
@@ -11883,7 +11658,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
  * once more. Twelve minuses cancel again. Thirteen minuses apply the
  * sign once more. Fourteen minuses cancel again. Fifteen minuses
  * apply the sign once more. The float-lit checker keeps an
- * already-resolved type. A sixteenth unary and a bitwise not stay
+ * already-resolved type. One more than 32 unary minuses and a bitwise not stay
  * unstamped. The linked body
  * is the assign thin;
  * this function is the source authority.
@@ -12067,7 +11842,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      * Fourteen minuses cancel again. Fifteen minuses apply the sign
      * once more. The
      * float-lit
-     * checker keeps an already-resolved type. A sixteenth unary and a
+     * checker keeps an already-resolved type. One more than 32 unary minuses and a
      * bitwise not of that float are not stamped.
      * Two compares, not a chained && : the bootstrap image clobbers
      * the register a chained compare reuses.
@@ -12261,7 +12036,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                  * The unary checker keeps the one-deep, two-deep,
                  * three-deep, four-deep, five-deep, six-deep,
                  * seven-deep, eight-deep, nine-deep, ten-deep, eleven-deep,
-                 * twelve-deep, thirteen-deep, fourteen-deep, and fifteen-deep stamps. A sixteenth unary
+                 * twelve-deep, thirteen-deep, fourteen-deep, and fifteen-deep stamps. At most 32 unary minuses are stamped. A 33rd unary
                  * stays kind 22.
                  * Bitwise not stays off. The unary operand ref
                  * is range-checked. An i32 element does not enter.
@@ -12300,13 +12075,43 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                   let f_quindecim_k: i32 = 0;
                   splat_lhs_k = pipeline_expr_kind_ord_at(arena, left_ref);
                   splat_rhs_k = pipeline_expr_kind_ord_at(arena, right_ref);
+                  /*
+                   * Walk EXPR_NEG (kind 22) until the operand is not another
+                   * minus. The innermost must be a FLOAT_LIT (kind 1).
+                   * An odd count applies the sign once in the emitter. An
+                   * even count cancels. Stop at 32 steps so a corrupt kind-22
+                   * cycle cannot hang the compile. One more minus stays
+                   * declined. Kind 23 and kind 24 do not enter. This is a
+                   * loop, not a recursive call: the frame is already near the
+                   * cap-tip stack budget. The bound is its own compare. A
+                   * chained && clobbers a register in the bootstrap image.
+                   * PLATFORM: SHARED.
+                   */
                   if (splat_rhs_k == 22) {
-                    fop = pipeline_expr_unary_operand_ref_at(arena, right_ref);
-                  }
-                  if (fop > 0) {
-                    if (fop <= arena.num_exprs) {
-                      fop_k = pipeline_expr_kind_ord_at(arena, fop);
-                      if (fop_k == 1) {
+                    f_in = right_ref;
+                    f_deep = 0;
+                    f_in_k = 22;
+                    while (f_in_k == 22) {
+                      if (f_deep < 32) {
+                        f_quad = 0;
+                        f_quad = pipeline_expr_unary_operand_ref_at(arena, f_in);
+                        if (f_quad <= 0) {
+                          f_in_k = 0;
+                        } else {
+                          if (f_quad <= arena.num_exprs) {
+                            f_in = f_quad;
+                            f_deep = f_deep + 1;
+                            f_in_k = pipeline_expr_kind_ord_at(arena, f_in);
+                          } else {
+                            f_in_k = 0;
+                          }
+                        }
+                      } else {
+                        f_in_k = 0;
+                      }
+                    }
+                    if (f_in_k == 1) {
+                      if (f_deep > 0) {
                         if (splat_lhs_k == ord_var) {
                           splat_ok = 1;
                         }
@@ -12314,320 +12119,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                           splat_ok = 1;
                         }
                       }
-                      if (fop_k == 22) {
-                        f_in = pipeline_expr_unary_operand_ref_at(arena, fop);
-                        if (f_in > 0) {
-                          if (f_in <= arena.num_exprs) {
-                            f_in_k = pipeline_expr_kind_ord_at(arena, f_in);
-                            if (f_in_k == 1) {
-                              if (splat_lhs_k == ord_var) {
-                                splat_ok = 1;
-                              }
-                              if (splat_lhs_k == ord_field) {
-                                splat_ok = 1;
-                              }
-                            }
-                            /*
-                             * One more unary minus whose operand is a
-                             * FLOAT_LIT, or one unary beyond that.
-                             * Three minuses apply the sign once. Four
-                             * minuses cancel again. Five minuses apply
-                             * the sign once more. Six minuses cancel
-                             * again. Seven minuses apply the sign once
-                             * more. Eight minuses cancel again. A ninth
-                             * unary is kind 22 here, not kind 1. The new
-                             * ref is range-checked.
-                             * PLATFORM: SHARED.
-                             */
-                            if (f_in_k == 22) {
-                              f_deep = pipeline_expr_unary_operand_ref_at(arena, f_in);
-                              if (f_deep > 0) {
-                                if (f_deep <= arena.num_exprs) {
-                                  f_deep_k = pipeline_expr_kind_ord_at(arena, f_deep);
-                                  if (f_deep_k == 1) {
-                                    if (splat_lhs_k == ord_var) {
-                                      splat_ok = 1;
-                                    }
-                                    if (splat_lhs_k == ord_field) {
-                                      splat_ok = 1;
-                                    }
-                                  }
-                                  if (f_deep_k == 22) {
-                                    f_quad = pipeline_expr_unary_operand_ref_at(arena, f_deep);
-                                    if (f_quad > 0) {
-                                      if (f_quad <= arena.num_exprs) {
-                                        f_quad_k = pipeline_expr_kind_ord_at(arena, f_quad);
-                                        if (f_quad_k == 1) {
-                                          if (splat_lhs_k == ord_var) {
-                                            splat_ok = 1;
-                                          }
-                                          if (splat_lhs_k == ord_field) {
-                                            splat_ok = 1;
-                                          }
-                                        }
-                                        if (f_quad_k == 22) {
-                                          f_pent = pipeline_expr_unary_operand_ref_at(arena, f_quad);
-                                          if (f_pent > 0) {
-                                            if (f_pent <= arena.num_exprs) {
-                                              f_pent_k = pipeline_expr_kind_ord_at(arena, f_pent);
-                                              if (f_pent_k == 1) {
-                                                if (splat_lhs_k == ord_var) {
-                                                  splat_ok = 1;
-                                                }
-                                                if (splat_lhs_k == ord_field) {
-                                                  splat_ok = 1;
-                                                }
-                                              }
-                                              /*
-                                               * Six minuses: the innermost is a
-                                               * FLOAT_LIT. Three pairs cancel, so
-                                               * the sign bit stays clear. Seven
-                                               * minuses apply the sign once. An
-                                               * eighth unary is kind 22 here, not
-                                               * kind 1. The new ref is range-checked.
-                                               * PLATFORM: SHARED.
-                                               */
-                                              if (f_pent_k == 22) {
-                                                f_hex = pipeline_expr_unary_operand_ref_at(arena, f_pent);
-                                                if (f_hex > 0) {
-                                                  if (f_hex <= arena.num_exprs) {
-                                                    f_hex_k = pipeline_expr_kind_ord_at(arena, f_hex);
-                                                    if (f_hex_k == 1) {
-                                                      if (splat_lhs_k == ord_var) {
-                                                        splat_ok = 1;
-                                                      }
-                                                      if (splat_lhs_k == ord_field) {
-                                                        splat_ok = 1;
-                                                      }
-                                                    }
-                                                    /*
-                                                     * Seven minuses: the innermost is a
-                                                     * FLOAT_LIT. Apply the sign once.
-                                                     * Eight minuses cancel again. A ninth
-                                                     * unary is kind 22 here, not kind 1.
-                                                     * Load the operand of f_sept only.
-                                                     * The new ref is range-checked.
-                                                     * PLATFORM: SHARED.
-                                                     */
-                                                    if (f_hex_k == 22) {
-                                                      f_sept = pipeline_expr_unary_operand_ref_at(arena, f_hex);
-                                                      if (f_sept > 0) {
-                                                        if (f_sept <= arena.num_exprs) {
-                                                          f_sept_k = pipeline_expr_kind_ord_at(arena, f_sept);
-                                                          if (f_sept_k == 1) {
-                                                            if (splat_lhs_k == ord_var) {
-                                                              splat_ok = 1;
-                                                            }
-                                                            if (splat_lhs_k == ord_field) {
-                                                              splat_ok = 1;
-                                                            }
-                                                          }
-                                                          if (f_sept_k == 22) {
-                                                            f_oct = pipeline_expr_unary_operand_ref_at(arena, f_sept);
-                                                            if (f_oct > 0) {
-                                                              if (f_oct <= arena.num_exprs) {
-                                                                f_oct_k = pipeline_expr_kind_ord_at(arena, f_oct);
-                                                                if (f_oct_k == 1) {
-                                                                  if (splat_lhs_k == ord_var) {
-                                                                    splat_ok = 1;
-                                                                  }
-                                                                  if (splat_lhs_k == ord_field) {
-                                                                    splat_ok = 1;
-                                                                  }
-                                                                }
-                                                                /*
-                                                                 * Nine minuses: the innermost is a
-                                                                 * FLOAT_LIT. The emitter applies the
-                                                                 * sign once. A tenth unary is kind 22
-                                                                 * here, not kind 1. Load the operand
-                                                                 * of f_oct only. The new ref is
-                                                                 * range-checked. PLATFORM: SHARED.
-                                                                 */
-                                                                if (f_oct_k == 22) {
-                                                                  f_nona = pipeline_expr_unary_operand_ref_at(arena, f_oct);
-                                                                  if (f_nona > 0) {
-                                                                    if (f_nona <= arena.num_exprs) {
-                                                                      f_nona_k = pipeline_expr_kind_ord_at(arena, f_nona);
-                                                                      if (f_nona_k == 1) {
-                                                                        if (splat_lhs_k == ord_var) {
-                                                                          splat_ok = 1;
-                                                                        }
-                                                                        if (splat_lhs_k == ord_field) {
-                                                                          splat_ok = 1;
-                                                                        }
-                                                                      }
-                                                                      /*
-                                                                       * Ten minuses: the innermost is a
-                                                                       * FLOAT_LIT. Five pairs cancel, so
-                                                                       * the sign bit stays clear. An
-                                                                       * eleventh unary is kind 22 here,
-                                                                       * not kind 1. Load the operand of
-                                                                       * f_nona only. The new ref is
-                                                                       * range-checked. PLATFORM: SHARED.
-                                                                       */
-                                                                      if (f_nona_k == 22) {
-                                                                        f_deca = pipeline_expr_unary_operand_ref_at(arena, f_nona);
-                                                                        if (f_deca > 0) {
-                                                                          if (f_deca <= arena.num_exprs) {
-                                                                            f_deca_k = pipeline_expr_kind_ord_at(arena, f_deca);
-                                                                            if (f_deca_k == 1) {
-                                                                              if (splat_lhs_k == ord_var) {
-                                                                                splat_ok = 1;
-                                                                              }
-                                                                              if (splat_lhs_k == ord_field) {
-                                                                                splat_ok = 1;
-                                                                              }
-                                                                            }
-                                                                            /*
-                                                                             * Eleven minuses: the innermost is a
-                                                                             * FLOAT_LIT. The emitter applies the
-                                                                             * sign once. A twelfth unary is kind
-                                                                             * 22 here, not kind 1. Load the operand
-                                                                             * of f_deca only. The new ref is
-                                                                             * range-checked. PLATFORM: SHARED.
-                                                                             */
-                                                                            if (f_deca_k == 22) {
-                                                                              f_undeca = pipeline_expr_unary_operand_ref_at(arena, f_deca);
-                                                                              if (f_undeca > 0) {
-                                                                                if (f_undeca <= arena.num_exprs) {
-                                                                                  f_undeca_k = pipeline_expr_kind_ord_at(arena, f_undeca);
-                                                                                  if (f_undeca_k == 1) {
-                                                                                    if (splat_lhs_k == ord_var) {
-                                                                                      splat_ok = 1;
-                                                                                    }
-                                                                                    if (splat_lhs_k == ord_field) {
-                                                                                      splat_ok = 1;
-                                                                                    }
-                                                                                  }
-                                                                                  /*
-                                                                                   * Twelve minuses: the innermost is a
-                                                                                   * FLOAT_LIT. Six pairs cancel, so the
-                                                                                   * sign bit stays clear. A thirteenth
-                                                                                   * unary is kind 22 here, not kind 1.
-                                                                                   * Load the operand of f_undeca only.
-                                                                                   * The new ref is range-checked.
-                                                                                   * PLATFORM: SHARED.
-                                                                                   */
-                                                                                  if (f_undeca_k == 22) {
-                                                                                    f_duodeca = pipeline_expr_unary_operand_ref_at(arena, f_undeca);
-                                                                                    if (f_duodeca > 0) {
-                                                                                      if (f_duodeca <= arena.num_exprs) {
-                                                                                        f_duodeca_k = pipeline_expr_kind_ord_at(arena, f_duodeca);
-                                                                                        if (f_duodeca_k == 1) {
-                                                                                          if (splat_lhs_k == ord_var) {
-                                                                                            splat_ok = 1;
-                                                                                          }
-                                                                                          if (splat_lhs_k == ord_field) {
-                                                                                            splat_ok = 1;
-                                                                                          }
-                                                                                        }
-                                                                                        /*
-                                                                                         * Thirteen minuses: the innermost is a
-                                                                                         * FLOAT_LIT. The emitter applies the
-                                                                                         * sign once. A fourteenth unary is kind
-                                                                                         * 22 here, not kind 1. Load the operand
-                                                                                         * of f_duodeca only. The new ref is
-                                                                                         * range-checked. PLATFORM: SHARED.
-                                                                                         */
-                                                                                        if (f_duodeca_k == 22) {
-                                                                                          f_tredeca = pipeline_expr_unary_operand_ref_at(arena, f_duodeca);
-                                                                                          if (f_tredeca > 0) {
-                                                                                            if (f_tredeca <= arena.num_exprs) {
-                                                                                              f_tredeca_k = pipeline_expr_kind_ord_at(arena, f_tredeca);
-                                                                                              if (f_tredeca_k == 1) {
-                                                                                                if (splat_lhs_k == ord_var) {
-                                                                                                  splat_ok = 1;
-                                                                                                }
-                                                                                                if (splat_lhs_k == ord_field) {
-                                                                                                  splat_ok = 1;
-                                                                                                }
-                                                                                              }
-                                                                                              /*
-                                                                                               * Fourteen minuses: the innermost is a
-                                                                                               * FLOAT_LIT. Seven pairs cancel, so the
-                                                                                               * sign bit stays clear. A fifteenth unary
-                                                                                               * is kind 22 here, not kind 1. Load the
-                                                                                               * operand of f_tredeca only. The new ref
-                                                                                               * is range-checked. PLATFORM: SHARED.
-                                                                                               */
-                                                                                              if (f_tredeca_k == 22) {
-                                                                                                f_quattuordeca = pipeline_expr_unary_operand_ref_at(arena, f_tredeca);
-                                                                                                if (f_quattuordeca > 0) {
-                                                                                                  if (f_quattuordeca <= arena.num_exprs) {
-                                                                                                    f_quattuordeca_k = pipeline_expr_kind_ord_at(arena, f_quattuordeca);
-                                                                                                    if (f_quattuordeca_k == 1) {
-                                                                                                      if (splat_lhs_k == ord_var) {
-                                                                                                        splat_ok = 1;
-                                                                                                      }
-                                                                                                      if (splat_lhs_k == ord_field) {
-                                                                                                        splat_ok = 1;
-                                                                                                      }
-                                                                                                    }
-                                                                                                    /*
-                                                                                                     * Fifteen minuses: the innermost is a
-                                                                                                     * FLOAT_LIT. The emitter applies the
-                                                                                                     * sign once. A sixteenth unary is kind
-                                                                                                     * 22 here, not kind 1. Load the operand
-                                                                                                     * of f_quattuordeca only. The new ref
-                                                                                                     * is range-checked. PLATFORM: SHARED.
-                                                                                                     */
-                                                                                                    if (f_quattuordeca_k == 22) {
-                                                                                                      f_quindecim = pipeline_expr_unary_operand_ref_at(arena, f_quattuordeca);
-                                                                                                      if (f_quindecim > 0) {
-                                                                                                        if (f_quindecim <= arena.num_exprs) {
-                                                                                                          f_quindecim_k = pipeline_expr_kind_ord_at(arena, f_quindecim);
-                                                                                                          if (f_quindecim_k == 1) {
-                                                                                                            if (splat_lhs_k == ord_var) {
-                                                                                                              splat_ok = 1;
-                                                                                                            }
-                                                                                                            if (splat_lhs_k == ord_field) {
-                                                                                                              splat_ok = 1;
-                                                                                                            }
-                                                                                                          }
-                                                                                                        }
-                                                                                                      }
-                                                                                                    }
-                                                                                                  }
-                                                                                                }
-                                                                                              }
-                                                                                            }
-                                                                                          }
-                                                                                        }
-                                                                                      }
-                                                                                    }
-                                                                                  }
-                                                                                }
-                                                                              }
-                                                                            }
-                                                                          }
-                                                                        }
-                                                                      }
-                                                                    }
-                                                                  }
-                                                                }
-                                                              }
-                                                            }
-                                                          }
-                                                        }
-                                                      }
-                                                    }
-                                                  }
-                                                }
-                                              }
-                                            }
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
                     }
                   }
+
                   if (splat_rhs_k == 1) {
                     if (splat_lhs_k == ord_var) {
                       splat_ok = 1;
@@ -16743,7 +16237,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      * again. Thirteen minuses apply the sign once more.
      * Fourteen minuses cancel again.
      * Fifteen minuses apply the sign once more.
-     * A sixteenth unary falls through.
+     * One more than 32 unary minuses falls through.
      * Let-init does not pre-stamp,
      * so it falls through to coerce. LOGNOT never sets the keep flag.
      * Two compares, not a chained && : the bootstrap image
@@ -16900,7 +16394,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                  * Thirteen minuses apply the sign once more.
                  * Fourteen minuses cancel again.
                  * Fifteen minuses apply the sign once more.
-                 * A sixteenth unary stays kind 22, so
+                 * At most 32 unary minuses are kept, so a 33rd
                  * it is not kept.
                  * Bitwise not stays
                  * off. The operand ref
@@ -16936,258 +16430,48 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                   let f_quattuordeca_k: i32 = 0;
                   let f_quindecim: i32 = 0;
                   let f_quindecim_k: i32 = 0;
+                  /*
+                   * Walk EXPR_NEG (kind 22) until the operand is not another
+                   * minus. The innermost must be a FLOAT_LIT (kind 1).
+                   * An odd count applies the sign once in the emitter. An
+                   * even count cancels. Stop at 32 steps so a corrupt kind-22
+                   * cycle cannot hang the compile. One more minus stays
+                   * declined. Kind 23 and kind 24 do not enter. This is a
+                   * loop, not a recursive call: the frame is already near the
+                   * cap-tip stack budget. The bound is its own compare. A
+                   * chained && clobbers a register in the bootstrap image.
+                   * PLATFORM: SHARED.
+                   */
                   if (expr_kind == ord_neg) {
-                    if (op_ref > 0) {
-                      if (op_ref <= arena.num_exprs) {
-                        pre_op_k = pipeline_expr_kind_ord_at(arena, op_ref);
-                        if (pre_op_k == 1) {
-                          pre_keep = 1;
-                        }
-                        if (pre_op_k == 22) {
-                          f_in = pipeline_expr_unary_operand_ref_at(arena, op_ref);
-                          if (f_in > 0) {
-                            if (f_in <= arena.num_exprs) {
-                              f_in_k = pipeline_expr_kind_ord_at(arena, f_in);
-                              if (f_in_k == 1) {
-                                pre_keep = 1;
-                              }
-                              /*
-                               * One more unary minus whose operand is a
-                               * FLOAT_LIT, or one unary beyond that.
-                               * Three minuses apply the sign once. Four
-                               * minuses cancel again. Five minuses apply
-                               * the sign once more. Six minuses cancel
-                               * again. Seven minuses apply the sign once
-                               * more. Eight minuses cancel again. A ninth
-                               * unary is kind 22 here,
-                               * not kind 1. The new ref is range-checked.
-                               * PLATFORM: SHARED.
-                               */
-                              if (f_in_k == 22) {
-                                f_deep = pipeline_expr_unary_operand_ref_at(arena, f_in);
-                                if (f_deep > 0) {
-                                  if (f_deep <= arena.num_exprs) {
-                                    f_deep_k = pipeline_expr_kind_ord_at(arena, f_deep);
-                                    if (f_deep_k == 1) {
-                                      pre_keep = 1;
-                                    }
-                                    if (f_deep_k == 22) {
-                                      f_quad = pipeline_expr_unary_operand_ref_at(arena, f_deep);
-                                      if (f_quad > 0) {
-                                        if (f_quad <= arena.num_exprs) {
-                                          f_quad_k = pipeline_expr_kind_ord_at(arena, f_quad);
-                                          if (f_quad_k == 1) {
-                                            pre_keep = 1;
-                                          }
-                                          if (f_quad_k == 22) {
-                                            f_pent = pipeline_expr_unary_operand_ref_at(arena, f_quad);
-                                            if (f_pent > 0) {
-                                              if (f_pent <= arena.num_exprs) {
-                                                f_pent_k = pipeline_expr_kind_ord_at(arena, f_pent);
-                                                if (f_pent_k == 1) {
-                                                  pre_keep = 1;
-                                                }
-                                                /*
-                                                 * Six minuses: the innermost is a
-                                                 * FLOAT_LIT. Three pairs cancel, so
-                                                 * the sign bit stays clear. Seven
-                                                 * minuses apply the sign once. An
-                                                 * eighth unary is kind 22 here, not
-                                                 * kind 1. The new ref is range-checked.
-                                                 * PLATFORM: SHARED.
-                                                 */
-                                                if (f_pent_k == 22) {
-                                                  f_hex = pipeline_expr_unary_operand_ref_at(arena, f_pent);
-                                                  if (f_hex > 0) {
-                                                    if (f_hex <= arena.num_exprs) {
-                                                      f_hex_k = pipeline_expr_kind_ord_at(arena, f_hex);
-                                                      if (f_hex_k == 1) {
-                                                        pre_keep = 1;
-                                                      }
-                                                      /*
-                                                       * Seven minuses: the innermost is a
-                                                       * FLOAT_LIT. Apply the sign once.
-                                                       * Eight minuses cancel again. A ninth
-                                                       * unary is kind 22 here, not kind 1.
-                                                       * Load the operand of f_sept only.
-                                                       * The new ref is range-checked.
-                                                       * PLATFORM: SHARED.
-                                                       */
-                                                      if (f_hex_k == 22) {
-                                                        f_sept = pipeline_expr_unary_operand_ref_at(arena, f_hex);
-                                                        if (f_sept > 0) {
-                                                          if (f_sept <= arena.num_exprs) {
-                                                            f_sept_k = pipeline_expr_kind_ord_at(arena, f_sept);
-                                                            if (f_sept_k == 1) {
-                                                              pre_keep = 1;
-                                                            }
-                                                            if (f_sept_k == 22) {
-                                                              f_oct = pipeline_expr_unary_operand_ref_at(arena, f_sept);
-                                                              if (f_oct > 0) {
-                                                                if (f_oct <= arena.num_exprs) {
-                                                                  f_oct_k = pipeline_expr_kind_ord_at(arena, f_oct);
-                                                                  if (f_oct_k == 1) {
-                                                                    pre_keep = 1;
-                                                                  }
-                                                                  /*
-                                                                   * Nine minuses: the innermost is a
-                                                                   * FLOAT_LIT. The emitter applies the
-                                                                   * sign once. A tenth unary is kind 22
-                                                                   * here, not kind 1. Load the operand
-                                                                   * of f_oct only. The new ref is
-                                                                   * range-checked. PLATFORM: SHARED.
-                                                                   */
-                                                                  if (f_oct_k == 22) {
-                                                                    f_nona = pipeline_expr_unary_operand_ref_at(arena, f_oct);
-                                                                    if (f_nona > 0) {
-                                                                      if (f_nona <= arena.num_exprs) {
-                                                                        f_nona_k = pipeline_expr_kind_ord_at(arena, f_nona);
-                                                                        if (f_nona_k == 1) {
-                                                                          pre_keep = 1;
-                                                                        }
-                                                                        /*
-                                                                         * Ten minuses: the innermost is a
-                                                                         * FLOAT_LIT. Five pairs cancel, so
-                                                                         * the sign bit stays clear. An
-                                                                         * eleventh unary is kind 22 here,
-                                                                         * not kind 1. Load the operand of
-                                                                         * f_nona only. The new ref is
-                                                                         * range-checked. PLATFORM: SHARED.
-                                                                         */
-                                                                        if (f_nona_k == 22) {
-                                                                          f_deca = pipeline_expr_unary_operand_ref_at(arena, f_nona);
-                                                                          if (f_deca > 0) {
-                                                                            if (f_deca <= arena.num_exprs) {
-                                                                              f_deca_k = pipeline_expr_kind_ord_at(arena, f_deca);
-                                                                              if (f_deca_k == 1) {
-                                                                                pre_keep = 1;
-                                                                              }
-                                                                              /*
-                                                                               * Eleven minuses: the innermost is a
-                                                                               * FLOAT_LIT. The emitter applies the
-                                                                               * sign once. A twelfth unary is kind
-                                                                               * 22 here, not kind 1. Load the operand
-                                                                               * of f_deca only. The new ref is
-                                                                               * range-checked. PLATFORM: SHARED.
-                                                                               */
-                                                                              if (f_deca_k == 22) {
-                                                                                f_undeca = pipeline_expr_unary_operand_ref_at(arena, f_deca);
-                                                                                if (f_undeca > 0) {
-                                                                                  if (f_undeca <= arena.num_exprs) {
-                                                                                    f_undeca_k = pipeline_expr_kind_ord_at(arena, f_undeca);
-                                                                                    if (f_undeca_k == 1) {
-                                                                                      pre_keep = 1;
-                                                                                    }
-                                                                                    /*
-                                                                                     * Twelve minuses: the innermost is a
-                                                                                     * FLOAT_LIT. Six pairs cancel, so the
-                                                                                     * sign bit stays clear. A thirteenth
-                                                                                     * unary is kind 22 here, not kind 1.
-                                                                                     * Load the operand of f_undeca only.
-                                                                                     * The new ref is range-checked.
-                                                                                     * PLATFORM: SHARED.
-                                                                                     */
-                                                                                    if (f_undeca_k == 22) {
-                                                                                      f_duodeca = pipeline_expr_unary_operand_ref_at(arena, f_undeca);
-                                                                                      if (f_duodeca > 0) {
-                                                                                        if (f_duodeca <= arena.num_exprs) {
-                                                                                          f_duodeca_k = pipeline_expr_kind_ord_at(arena, f_duodeca);
-                                                                                          if (f_duodeca_k == 1) {
-                                                                                            pre_keep = 1;
-                                                                                          }
-                                                                                          /*
-                                                                                           * Thirteen minuses: the innermost is a
-                                                                                           * FLOAT_LIT. The emitter applies the
-                                                                                           * sign once. A fourteenth unary is kind
-                                                                                           * 22 here, not kind 1. Load the operand
-                                                                                           * of f_duodeca only. The new ref is
-                                                                                           * range-checked. PLATFORM: SHARED.
-                                                                                           */
-                                                                                          if (f_duodeca_k == 22) {
-                                                                                            f_tredeca = pipeline_expr_unary_operand_ref_at(arena, f_duodeca);
-                                                                                            if (f_tredeca > 0) {
-                                                                                              if (f_tredeca <= arena.num_exprs) {
-                                                                                                f_tredeca_k = pipeline_expr_kind_ord_at(arena, f_tredeca);
-                                                                                                if (f_tredeca_k == 1) {
-                                                                                                  pre_keep = 1;
-                                                                                                }
-                                                                                                /*
-                                                                                                 * Fourteen minuses: the innermost is a
-                                                                                                 * FLOAT_LIT. Seven pairs cancel, so the
-                                                                                                 * sign bit stays clear. A fifteenth unary
-                                                                                                 * is kind 22 here, not kind 1. Load the
-                                                                                                 * operand of f_tredeca only. The new ref
-                                                                                                 * is range-checked. PLATFORM: SHARED.
-                                                                                                 */
-                                                                                                if (f_tredeca_k == 22) {
-                                                                                                  f_quattuordeca = pipeline_expr_unary_operand_ref_at(arena, f_tredeca);
-                                                                                                  if (f_quattuordeca > 0) {
-                                                                                                    if (f_quattuordeca <= arena.num_exprs) {
-                                                                                                      f_quattuordeca_k = pipeline_expr_kind_ord_at(arena, f_quattuordeca);
-                                                                                                      if (f_quattuordeca_k == 1) {
-                                                                                                        pre_keep = 1;
-                                                                                                      }
-                                                                                                      /*
-                                                                                                       * Fifteen minuses: the innermost is a
-                                                                                                       * FLOAT_LIT. The emitter applies the
-                                                                                                       * sign once. A sixteenth unary is kind
-                                                                                                       * 22 here, not kind 1. Load the operand
-                                                                                                       * of f_quattuordeca only. The new ref
-                                                                                                       * is range-checked. PLATFORM: SHARED.
-                                                                                                       */
-                                                                                                      if (f_quattuordeca_k == 22) {
-                                                                                                        f_quindecim = pipeline_expr_unary_operand_ref_at(arena, f_quattuordeca);
-                                                                                                        if (f_quindecim > 0) {
-                                                                                                          if (f_quindecim <= arena.num_exprs) {
-                                                                                                            f_quindecim_k = pipeline_expr_kind_ord_at(arena, f_quindecim);
-                                                                                                            if (f_quindecim_k == 1) {
-                                                                                                              pre_keep = 1;
-                                                                                                            }
-                                                                                                          }
-                                                                                                        }
-                                                                                                      }
-                                                                                                    }
-                                                                                                  }
-                                                                                                }
-                                                                                              }
-                                                                                            }
-                                                                                          }
-                                                                                        }
-                                                                                      }
-                                                                                    }
-                                                                                  }
-                                                                                }
-                                                                              }
-                                                                            }
-                                                                          }
-                                                                        }
-                                                                      }
-                                                                    }
-                                                                  }
-                                                                }
-                                                              }
-                                                            }
-                                                          }
-                                                        }
-                                                      }
-                                                    }
-                                                  }
-                                                }
-                                              }
-                                            }
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            }
+                    f_in = expr_ref;
+                    f_deep = 0;
+                    f_in_k = 22;
+                    while (f_in_k == 22) {
+                      if (f_deep < 32) {
+                        f_quad = 0;
+                        f_quad = pipeline_expr_unary_operand_ref_at(arena, f_in);
+                        if (f_quad <= 0) {
+                          f_in_k = 0;
+                        } else {
+                          if (f_quad <= arena.num_exprs) {
+                            f_in = f_quad;
+                            f_deep = f_deep + 1;
+                            f_in_k = pipeline_expr_kind_ord_at(arena, f_in);
+                          } else {
+                            f_in_k = 0;
                           }
                         }
+                      } else {
+                        f_in_k = 0;
+                      }
+                    }
+                    if (f_in_k == 1) {
+                      if (f_deep > 0) {
+                        pre_keep = 1;
                       }
                     }
                   }
+
                 }
               }
             }
