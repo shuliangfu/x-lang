@@ -24,6 +24,11 @@
 // checker keeps an already-resolved type. A chain of at most 32 unary minuses of a FLOAT_LIT is stamped.
 // One more unary and a bitwise not call the demoted body with no stamp.
 // Every other assign calls the demoted body with no stamp.
+// A plain ASSIGN of an ARRAY_LIT onto an array or slice of an i32
+// TYPE_VECTOR stamps each integer element with that vector type
+// before the demoted body. The demoted walker only stamps integer 0
+// onto kind 13, so `a = [3, -3]` stayed i32. check_expr keeps an
+// already-resolved INT_LIT and an already-stamped i32-vector unary.
 // PLATFORM: SHARED — type rule is the same on macOS, Ubuntu, and Windows.
 // The demote/retarget step that makes this symbol win is Mach-O only.
 
@@ -43,6 +48,8 @@ export extern "C" function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32):
 export extern "C" function pipeline_type_elem_ref_at(arena: *u8, type_ref: i32): i32;
 export extern "C" function pipeline_arena_num_types(arena: *u8): i32;
 export extern "C" function pipeline_expr_set_resolved_type_ref(arena: *u8, expr_ref: i32, ty: i32): void;
+export extern "C" function typeck_stamp_arr_i32_vec_elems(
+  arena: *u8, init_ref: i32, decl_ty_ref: i32): i32;
 
 /**
  * Pre-stamp an i32 scalar splat on plain ASSIGN, then call demoted.
@@ -88,6 +95,11 @@ export extern "C" function pipeline_expr_set_resolved_type_ref(arena: *u8, expr_
  * fourteen-deep, and fifteen-deep
  * stamps. At most 32 unary minuses of that float are stamped. One more
  * unary and a bitwise not of that float are not stamped.
+ * An ARRAY_LIT assigned to an array or slice whose element is a
+ * TYPE_VECTOR of i32 stamps each integer element through
+ * typeck_stamp_arr_i32_vec_elems, then still calls demoted. A VAR
+ * element, a binop, a nested ARRAY_LIT, kind 24, and kind 8 stay
+ * unstamped. The demoted walker then checks equality.
  * A failed LHS check does not call
  * demoted, so the diagnostic is not emitted twice.
  * Two compares, not a chained && : the bootstrap image clobbers the
@@ -416,6 +428,14 @@ export function typeck_check_expr_assign(
     if (splat_ok == 1) {
       pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
     }
+    /*
+     * Whole-array ASSIGN. The demoted walker stamps kind 13 only for
+     * integer 0, so `a = [3, -3]` stayed i32. Stamp integer elements
+     * first. check_expr keeps a resolved INT_LIT and a stamped i32
+     * vector unary. Nested array literals stay on the walker.
+     * PLATFORM: SHARED.
+     */
+    typeck_stamp_arr_i32_vec_elems(arena, right_ref, lt);
     return typeck_check_expr_assign__demoted(
       module, arena, expr_ref, return_type_ref, ctx);
   }
