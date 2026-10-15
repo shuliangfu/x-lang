@@ -47,6 +47,9 @@ export extern function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i3
 export extern function glue_vector_elem_is_f32_c(arena: *u8, type_ref: i32): i32;
 export extern function vector_let_init_array_lit_a64_vlet_f32_fill_lane(arena: *u8, type_ref: i32): i32;
 export extern function glue_is_vector_lane_scalar_binop_ko(ko: i32): i32;
+export extern function pipeline_lane_operand_emit_let_block_chain(
+  arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, budget: i32
+): i32;
 
 function w254_sl_cell_i32(base: *u8): i32 {
   unsafe {
@@ -81,8 +84,10 @@ function w254_sl_cell_i32(base: *u8): i32 {
  * block use that same let-init. The scalar store keeps at most 8
  * bytes, so lane 7 of `H { v: a + a }` was not the sum. Kind 51 stays
  * on the scalar store: the binop helper reports it, and the let-init
- * would read binop children and fail. A block that still has lets
- * returns -3 from the let-init and keeps the store below. f32x4 and
+ * would read binop children and fail. A block with lets is wider than
+ * 8 bytes here: pipeline_lane_operand_emit_let_block_chain emits those
+ * lets and returns the value, then this classifies that value. Nested
+ * blocks are that one chain. f32x4 and
  * Vec4f do not reach this gate.
  * A VAR of 9..16 bytes (Vec4f) uses that byte size as
  * `wide` when the named layout is below 8, then the existing x0:x1
@@ -122,6 +127,7 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
   let splat_rc: i32 = 0;
   let splat_slot: i32 = 0;
   let splat_elem: i32 = 0;
+  let peel_ref: i32 = 0;
   let splat_ek: i32 = 0;
   let splat_tk: i32 = 0;
   let mod: *u8 = 0 as *u8;
@@ -243,6 +249,36 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
         }
         if (splat_ek == 0) {
               splat_go = 0;
+              // A block with lets is not transparent. The vector
+              // let-init returns -3, and the scalar store keeps at
+              // most 8 bytes, so lane 7 of
+              // `H { v: { let k; k + k } }` is not the sum. The
+              // existing lane chain emits each block's lets and
+              // returns the value expr. Nested blocks are that one
+              // function. A binop value then takes the let-init
+              // below. A VAR value takes the wide copy below. Width
+              // 8 or less is not peeled. 128 stops only a chain that
+              // does not end. rbx stays the parked field base: the
+              // copy below restores it. PLATFORM: MACOS|ARM64.
+              if (iko == 26) {
+                vec_bytes = 0;
+                unsafe {
+                  vec_bytes = pipeline_asm_type_ref_byte_size_c(arena, fty);
+                }
+                if (vec_bytes > 8) {
+                  unsafe {
+                    peel_ref = pipeline_lane_operand_emit_let_block_chain(
+                      arena, elf_ctx, iref, ctx, ta, 128);
+                  }
+                  if (peel_ref <= 0) {
+                    return 0 - 1;
+                  }
+                  iref = peel_ref;
+                  unsafe {
+                    iko = pipeline_expr_kind_ord_at(arena, iref);
+                  }
+                }
+              }
               if (iko == 0) {
                 splat_go = 1;
               }
@@ -263,10 +299,9 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
               // address: the let-init reads binop children and returns -1, so
               // it stays on the scalar store. Kind 26 is a block. The same
               // let-init peels a transparent block, then fills the inner
-              // value. A block that still has lets returns -3 and this falls
-              // through. The scalar store keeps at most 8 bytes, so lane 7
-              // of `H { v: a + a }` was not the sum. Nested blocks are the
-              // let-init peel, not another walker here.
+              // value. A wider block with lets was already replaced by
+              // its value above, so this arm is only a narrow block.
+              // Nested blocks are the lane chain, not another walker.
               // PLATFORM: MACOS|ARM64.
               if (iko == 26) {
                 splat_go = 1;
