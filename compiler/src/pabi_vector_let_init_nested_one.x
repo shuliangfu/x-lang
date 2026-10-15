@@ -46,6 +46,9 @@ export extern function glue_emit_vector_type_let_init_elf_c(
   stack_slot_off: i32, type_ref: i32
 ): i32;
 export extern function glue_is_vector_lane_scalar_binop_ko(ko: i32): i32;
+export extern function pipeline_lane_operand_emit_let_block_chain(
+  arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, budget: i32
+): i32;
 export extern function glue_vector_elem_is_f32_c(arena: *u8, type_ref: i32): i32;
 export extern function glue_vector_type_lanes_esz_c(
   arena: *u8, type_ref: i32, out_lanes: *i32, out_esz: *i32
@@ -337,6 +340,14 @@ function vlet_f32_elem_lit(
  * and INDEX (kinds 3, 44, 47) copy esz bytes from the element's
  * address. The copy lea uses stack_slot_off, then adds ai*esz only
  * when ai > 0.
+ * A block (kind 26) is none of those. A transparent `{ a + a }` and
+ * a block that still has lets both used to reach the 4-byte store,
+ * so lane 7 of `[{ let k; k + k }]` was not the sum.
+ * pipeline_lane_operand_emit_let_block_chain emits each block's lets
+ * and returns the value expr. Nested blocks are that one call. The
+ * arms below then store that value. Kind 51 stays out of the binop
+ * splat. 128 stops only a chain that does not end. Width 8 or less
+ * is not peeled.
  * PLATFORM: SHARED.
  */
 function vlet_wide_elem(
@@ -362,6 +373,39 @@ function vlet_wide_elem(
   unsafe {
     ek = pipeline_expr_kind_ord_at(arena, elem_ref);
     lane_bin = glue_is_vector_lane_scalar_binop_ko(ek);
+  }
+  // Kind 26 is a block. Struct let-init returns -2 for it, and the
+  // caller then stores 4 bytes, so lane 7 of
+  // `[{ let k; k + k }]` and of `[{ a + a }]` is not the sum. The
+  // existing lane chain emits each block's lets and returns the
+  // value expr. Nested blocks are that one function. The arms below
+  // store that value. Kind 51 is an address, so it stays off the
+  // binop splat. Width 8 or less is not peeled. 128 stops only a
+  // chain that does not end. PLATFORM: SHARED.
+  if (ek == 26) {
+    if (esz > 8) {
+      unsafe {
+        rc = pipeline_lane_operand_emit_let_block_chain(
+          arena, elf_ctx, elem_ref, ctx, ta, 128);
+      }
+      if (rc <= 0) {
+        return 0 - 1;
+      }
+      if (rc == elem_ref) {
+        return 0 - 1;
+      }
+      elem_ref = rc;
+      unsafe {
+        ek = pipeline_expr_kind_ord_at(arena, elem_ref);
+        lane_bin = glue_is_vector_lane_scalar_binop_ko(ek);
+      }
+      if (ek == 51) {
+        lane_bin = 0;
+      }
+      if (ek == 26) {
+        return 0 - 1;
+      }
+    }
   }
   if (ek == 45) {
     unsafe {
