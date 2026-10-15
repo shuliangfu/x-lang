@@ -1321,12 +1321,16 @@ function lane_i32_not_is_signed(arena: *u8, ctx: *u8, expr_ref: i32, budget: i32
  *   fails, -2 when the core is not a VAR, FIELD, or a lane scalar
  *   binop of kinds 4..13. An INT_LIT core returns -2 so the existing
  *   literal path stays. A missing field home returns -2. Kind 24
- *   returns -2.
+ *   returns -2. A block whose lets were emitted and whose value this
+ *   core does not handle returns -1, so the caller does not emit the
+ *   unary again.
  * One call peels one node and recurses on its operand, then applies
  * this node on the way out. A transparent block is not a negation or
  * a complement: lane_operand_unwrap_block replaces it, then this walk
- * continues on the inner value. A block with lets stays, and this
- * returns -2. Negation and bitwise not do not commute, so the walk
+ * continues on the inner value. A block with lets is
+ * lane_emit_block_lets_value_ref, then this same call on the value.
+ * Nested blocks are that call. Negation and bitwise not do not
+ * commute, so the walk
  * does not count them apart. Kind 23 emits the existing not encoder.
  * A signed i32 complement is then sign-extended: mvn w0 zeros the
  * high half, and the lane div is sdiv x0. A u32 complement is not
@@ -1348,6 +1352,7 @@ function lane_i32_emit_neg_core(
   let step: i32 = 0;
   let signed_lane: i32 = 0;
   let cur: i32 = 0;
+  let fin: i32 = 0;
   if (budget <= 0) {
     return 0 - 2;
   }
@@ -1412,6 +1417,25 @@ function lane_i32_emit_neg_core(
     unsafe {
       return glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx, ta);
     }
+  }
+  // EXPR_BLOCK that unwrap left in place still has lets or loops.
+  // The existing helper emits those lets and returns the value expr.
+  // This same function then walks that value, so ~{ let k; k + k }
+  // and a block nested under another block are one call. The value
+  // itself is not emitted here. If that walk returns -2, the lets are
+  // already in the frame: return -1 so the caller does not emit this
+  // unary a second time. PLATFORM: SHARED.
+  if (ko == 26) {
+    fin = lane_emit_block_lets_value_ref(arena, elf_ctx, expr_ref, ctx, ta);
+    if (fin <= 0) {
+      return 0 - 1;
+    }
+    rc = lane_i32_emit_neg_core(
+      arena, elf_ctx, fin, lane, esz, ctx, ta, budget - 1);
+    if (rc == (0 - 2)) {
+      return 0 - 1;
+    }
+    return rc;
   }
   if (ko == 3) {
     rc = lane_f32_load_var_lane(arena, elf_ctx, expr_ref, lane, esz, ctx, ta);
