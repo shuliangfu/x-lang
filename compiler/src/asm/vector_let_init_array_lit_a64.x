@@ -105,6 +105,7 @@ export extern function glue_vector_type_lanes_esz_c(
 export extern function glue_simd_emit_imm_fill_slot_c(
   elf_ctx: *u8, stack_slot_off: i32, lanes: i32, esz: i32, ta: i32, imm_bits: i32
 ): i32;
+export extern function glue_i32_to_f32_bits(v: i32): i32;
 export extern function pipeline_expr_float_bits_lo_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_float_bits_hi_at(arena: *u8, expr_ref: i32): i32;
 export extern function glue_ieee_f64_bits_to_f32_bits(lo: i32, hi: i32): i32;
@@ -233,7 +234,10 @@ function vlet_f32_fill_lane(arena: *u8, type_ref: i32): i32 {
  * Kind 46 (ARRAY_LIT) calls pipeline_asm_emit_vector_let_init_elf_c.
  * Kinds 4..13 call pipeline_asm_emit_vector_binop_let_init_elf_c
  * (kind 51 is add). Kind 0 (INT_LIT) and kind 2 (BOOL_LIT) call
- * glue_simd_emit_imm_fill_slot_c. Kind 22 (EXPR_NEG) of an INT_LIT
+ * glue_simd_emit_imm_fill_slot_c. On an f32 fill target the kind 0
+ * value is converted with glue_i32_to_f32_bits first. Kind 23 in that
+ * chain keeps the integer bits. Kind 2 is not converted. Kind 22
+ * (EXPR_NEG) of an INT_LIT
  * negates that value and calls the same fill. Kind 22 of a VAR (kind
  * 3) or a FIELD (kind 44) with a frame home negates each i32 lane via
  * neg w0. An f32 lane flips bit 31 instead: the existing mov writes
@@ -307,6 +311,7 @@ export function glue_emit_vector_type_let_init_elf_c(
   let simd: i32 = 0;
   let rc: i32 = 0;
   let imm: i32 = 0;
+  let saw_f: i32 = 0;
   let lanes_s: i32[1] = [];
   let esz_s: i32[1] = [];
   let lit_ref: i32 = 0;
@@ -700,14 +705,31 @@ export function glue_emit_vector_type_let_init_elf_c(
                 if (esz_s[0] == 4) {
                   if (lanes_s[0] > 0) {
                     u_i = u_n;
+                    saw_f = 0;
                     while (u_i > 0) {
                       u_i = u_i - 1;
                       if (u_knd[u_i] == 22) {
                         imm = 0 - imm;
                       }
                       if (u_knd[u_i] == 23) {
+                        saw_f = 1;
                         imm = 0 - imm;
                         imm = imm - 1;
+                      }
+                    }
+                    // The linked classifier misses f32x8, so `let v = -1`
+                    // splatted the i32 bits and lane 0 was not -1.0.
+                    // Convert only when no kind 23 was applied. f32
+                    // bitwise not keeps those integer bits.
+                    // PLATFORM: MACOS|ARM64.
+                    unsafe {
+                      rc = vlet_f32_fill_lane(arena, type_ref);
+                    }
+                    if (rc != 0) {
+                      if (saw_f == 0) {
+                        unsafe {
+                          imm = glue_i32_to_f32_bits(imm);
+                        }
                       }
                     }
                     unsafe {
@@ -992,6 +1014,27 @@ export function glue_emit_vector_type_let_init_elf_c(
       imm = imm - 1;
       if (esz_s[0] == 8) {
         return 0 - 3;
+      }
+    }
+    // Kind 0 on an f32 fill target was stored as i32 bits. `let v:
+    // f32x8 = 1` wrote 1 into every lane, and the 1.0 compare failed.
+    // Kind 2 (BOOL_LIT) stays on the integer bits. Kind 23 (not_lit)
+    // stays on the integer bits. PLATFORM: MACOS|ARM64.
+    unsafe {
+      rc = vlet_f32_fill_lane(arena, type_ref);
+    }
+    if (rc != 0) {
+      unsafe {
+        rc = pipeline_expr_kind_ord_at(arena, lit_ref);
+      }
+      if (rc == 0) {
+        if (not_lit == 0) {
+          if (esz_s[0] == 4) {
+            unsafe {
+              imm = glue_i32_to_f32_bits(imm);
+            }
+          }
+        }
       }
     }
     unsafe {
