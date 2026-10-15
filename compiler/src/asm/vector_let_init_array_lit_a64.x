@@ -742,8 +742,8 @@ function vlet_f32_array_lanes(
  * lane-0 home, an ARRAY_LIT, a lane binop, a block that still has
  * lets, a nested if or ternary, a unary whose innermost expr is a
  * VAR, a FIELD, an INDEX, a CALL, a METHOD, a lane binop
- * (kinds 4..13), an ARRAY_LIT, or a block that still has lets,
- * or a bare INDEX.
+ * (kinds 4..13), an ARRAY_LIT, a block that still has lets, or a
+ * DEREF, or a bare INDEX.
  * That unary is the existing vector let-init, which already applies
  * the chain on every lane. A unary of an INDEX is that let-init's
  * existing copy, then the chain. A unary of a CALL or a METHOD is
@@ -752,8 +752,10 @@ function vlet_f32_array_lanes(
  * A unary of an ARRAY_LIT is that let-init's existing lane-byte
  * writer, then the chain. A unary of a block that still has lets is
  * that let-init's existing lane chain, then this chain. The block is
- * not made transparent. Kind 51 is excluded before the classifier
- * because it remaps 51 to add. Kind 52 stays off that walk.
+ * not made transparent. A unary of a DEREF is that let-init's existing
+ * struct let-init copy of the target, then the chain. The store is
+ * not through the pointer. Kind 51 is excluded before the classifier
+ * because it remaps 51 to add. A bare deref stays off that walk.
  * A bare FIELD is the same large copy as a VAR. A CALL, a METHOD,
  * or an INDEX is that let-init's existing struct let-init.
  * A nested if is that same call. Kind 51 stays out.
@@ -1788,32 +1790,34 @@ export function glue_emit_vector_type_let_init_elf_c(
  * @return i32 — peeled expr ref when the arm is a non-null INT_LIT,
  *   a kind-22 / kind-23 chain of one, that same chain whose innermost
  *   expr is a VAR or a FIELD with a lane-0 home, an INDEX, a CALL,
- *   a METHOD, a lane binop (kinds 4..13), an ARRAY_LIT, or a block
- *   that still has lets, a VAR or a FIELD with a frame home, an
- *   ARRAY_LIT, a lane binop (kinds 4..13), a block that still has
- *   lets, a nested if
+ *   a METHOD, a lane binop (kinds 4..13), an ARRAY_LIT, a block
+ *   that still has lets, or a DEREF, a VAR or a FIELD with a frame
+ *   home, an ARRAY_LIT, a lane binop (kinds 4..13), a block that
+ *   still has lets, a nested if
  *   (kind 25) or ternary (kind 27), a CALL (kind 48), a METHOD
  *   (kind 49), or an INDEX (kind 47). 0 means decline this if
  *   before any branch is emitted.
  * A unary of a VAR, a FIELD, an INDEX, a CALL, a METHOD, a lane
- * binop (kinds 4..13), an ARRAY_LIT, or a block that still has lets
- * is the whole chain. The fill passes it to the existing vector
- * let-init, which already applies kind 22 and kind 23 inside out on
- * every lane. A VAR or a FIELD needs a lane-0 home. An INDEX does
- * not: that let-init copies it with struct let-init, then applies the
- * chain. A CALL or a METHOD does not: that let-init srets a return
+ * binop (kinds 4..13), an ARRAY_LIT, a block that still has lets,
+ * or a DEREF is the whole chain. The fill passes it to the existing
+ * vector let-init, which already applies kind 22 and kind 23 inside
+ * out on every lane. A VAR or a FIELD needs a lane-0 home. An INDEX
+ * does not: that let-init copies it with struct let-init, then applies
+ * the chain. A CALL or a METHOD does not: that let-init srets a return
  * wider than 16 bytes, then applies the chain. A lane binop does not:
  * that let-init writes the binop into the slot, then applies the
  * chain. An ARRAY_LIT does not: that let-init writes the literal with
  * the lane-byte writer, then applies the chain. A block that still
  * has lets does not: that let-init emits the lets through the lane
  * chain, stores the value, then applies this chain. The block is not
- * made transparent. Kind 51 is excluded before the classifier because
- * it remaps 51 to add. Kind 52 stays off this walk. A bare FIELD
- * is copied like a VAR: lane 0 from
+ * made transparent. A DEREF does not: that let-init copies the target
+ * with struct let-init, then applies the chain. The store is not
+ * through the pointer. Kind 51 is excluded before the classifier
+ * because it remaps 51 to add. A bare deref stays off this walk.
+ * A bare FIELD is copied like a VAR: lane 0 from
  * glue_vector_var_lane_stack_off_elf_c is the start of the vector.
  * A CALL, a METHOD, or an INDEX is that let-init's struct let-init.
- * Kind 51 is an address. Kind 52 stays off.
+ * Kind 51 is an address. A bare deref stays off.
  * The lane-binop predicate remaps 51 to add, so it is excluded before
  * that call. Kind 24 does not enter.
  * The walk stops at 32 steps and sets the cursor kind to -1, because
@@ -1999,7 +2003,7 @@ export function glue_vec_if_arm_take_c(
   // that home and applies this chain. Nested unaries are that one
   // walk, already capped at 32. A missing lane-0 home declines before
   // any branch. Kind 51 is not kind 3 or kind 44, so an address stays
-  // out. Kind 52 stays off. PLATFORM: MACOS|ARM64.
+  // out. PLATFORM: MACOS|ARM64.
   go = 0;
   if (op_k == 3) {
     go = 1;
@@ -2021,7 +2025,7 @@ export function glue_vec_if_arm_take_c(
   // does not address an index. The fill stores this chain with the
   // existing vector let-init, which copies the index through struct
   // let-init and applies the chain on every destination lane.
-  // Nested unaries stay that one walk. Kind 52 stays off.
+  // Nested unaries stay that one walk.
   // PLATFORM: MACOS|ARM64.
   if (op_k == 47) {
     return cur;
@@ -2030,7 +2034,7 @@ export function glue_vec_if_arm_take_c(
   // does not address a call. The fill stores this chain with the
   // existing vector let-init, which srets a return wider than 16
   // bytes into the slot and applies the chain on every lane.
-  // Nested unaries stay that one walk. Kind 52 stays off.
+  // Nested unaries stay that one walk.
   // PLATFORM: MACOS|ARM64.
   if (op_k == 48) {
     return cur;
@@ -2039,7 +2043,7 @@ export function glue_vec_if_arm_take_c(
   // does not address a method. The fill stores this chain with the
   // existing vector let-init, which srets a return wider than 16
   // bytes into the slot and applies the chain on every lane.
-  // Nested unaries stay that one walk. Kind 52 stays off.
+  // Nested unaries stay that one walk.
   // PLATFORM: MACOS|ARM64.
   if (op_k == 49) {
     return cur;
@@ -2049,7 +2053,7 @@ export function glue_vec_if_arm_take_c(
   // before that call. The fill stores this chain with the existing
   // vector let-init, which writes the binop into the slot and applies
   // the chain on every lane. Nested unaries stay that one walk.
-  // Kind 52 stays off. PLATFORM: MACOS|ARM64.
+  // PLATFORM: MACOS|ARM64.
   go = 0;
   if (op_k != 51) {
     unsafe {
@@ -2063,7 +2067,7 @@ export function glue_vec_if_arm_take_c(
   // helper does not address a literal. The fill stores this chain
   // with the existing vector let-init, which writes the literal with
   // the lane-byte writer and applies the chain on every lane. Nested
-  // unaries stay that one walk. Kind 52 stays off.
+  // unaries stay that one walk.
   // PLATFORM: MACOS|ARM64.
   if (op_k == 46) {
     return cur;
@@ -2074,9 +2078,18 @@ export function glue_vec_if_arm_take_c(
   // which emits those lets through the lane chain, stores the value,
   // and applies this chain on every lane. Nested blocks are that one
   // call. 128 stops a chain that does not end. Nested unaries stay
-  // this walk, capped at 32. Kind 52 stays off.
+  // this walk, capped at 32.
   // PLATFORM: MACOS|ARM64.
   if (op_k == 26) {
+    return cur;
+  }
+  // Innermost DEREF: return the whole unary. The lane-home helper
+  // does not address a deref. The fill stores this chain with the
+  // existing vector let-init, which copies the target with struct
+  // let-init and applies the chain on every lane. The store is not
+  // through the pointer. Nested unaries stay this walk, capped at 32.
+  // A bare deref is not this chain. PLATFORM: MACOS|ARM64.
+  if (op_k == 52) {
     return cur;
   }
   if (op_k != 0) {
@@ -2107,8 +2120,8 @@ export function glue_vec_if_arm_take_c(
  * of that vector. A literal chain, an ARRAY_LIT, a lane binop, a
  * block that still has lets, a nested if or ternary, a unary whose
  * innermost expr is a VAR, a FIELD, an INDEX, a CALL, a METHOD, a
- * lane binop (kinds 4..13), an ARRAY_LIT, or a block that still has
- * lets, or a bare INDEX call glue_emit_vector_type_let_init_elf_c.
+ * lane binop (kinds 4..13), an ARRAY_LIT, a block that still has
+ * lets, or a DEREF, or a bare INDEX call glue_emit_vector_type_let_init_elf_c.
  * That block is not made transparent.
  * That call is one extra frame, not a second splat. An f32 binop uses
  * that let-init's own fill, not an i32 splat. PLATFORM: MACOS|ARM64.
@@ -2179,14 +2192,16 @@ export function glue_vec_if_arm_fill_c(
  * glue_vec_if_arm_take_c before the condition is emitted. A nested if
  * or ternary arm is this function again, through the vector let-init.
  * A unary of a VAR, a FIELD, an INDEX, a CALL, a METHOD, a lane
- * binop (kinds 4..13), an ARRAY_LIT, or a block that still has lets
- * is that let-init's existing per-lane chain. An INDEX is copied
- * first. A CALL or a METHOD is sret first. A lane binop is that
+ * binop (kinds 4..13), an ARRAY_LIT, a block that still has lets,
+ * or a DEREF is that let-init's existing per-lane chain. An INDEX is
+ * copied first. A CALL or a METHOD is sret first. A lane binop is that
  * let-init's existing binop writer first. An ARRAY_LIT is that
  * let-init's existing lane-byte writer first. A block emits its lets
  * through the lane chain first. The block is not made transparent.
- * Then the chain runs. Kind 51 is excluded before the classifier
- * because it remaps 51 to add. Kind 52 stays off that walk.
+ * A DEREF copies the target with struct let-init first. The store is
+ * not through the pointer. Then the chain runs. Kind 51 is excluded
+ * before the classifier because it remaps 51 to add. A bare deref
+ * stays off that walk.
  * A bare FIELD is the same large copy as a VAR.
  * A CALL, METHOD, or INDEX arm is that let-init's existing struct let-init.
  * The condition uses the existing bool-in-eax jump. A SIMD spelling wider
