@@ -214,8 +214,9 @@ function lane_f32_emit_lit_lane(arena: *u8, elf_ctx: *u8, expr_ref: i32, ta: i32
  * @return i32 — 0 when rax holds the lane, -1 on failure.
  * VAR, FIELD, ARRAY_LIT, and nested binop match the previous body.
  * One EXPR_NEG of add, sub, mul, div, a VAR, or a FIELD emits that
- * lane, then xors the f32 sign bit. A second NEG and kind 23 stay on
- * emit_expr. PLATFORM: SHARED.
+ * lane, then xors the f32 sign bit. Two EXPR_NEG of a VAR load that
+ * lane and do not xor: the two sign flips cancel. A second NEG of a
+ * FIELD or a binop, and kind 23, stay on emit_expr. PLATFORM: SHARED.
  */
 #[no_mangle]
 export function glue_emit_vector_operand_lane_elf_c(
@@ -251,10 +252,12 @@ export function glue_emit_vector_operand_lane_elf_c(
         return 0 - 1;
       }
       // -(4.0 / 2.0) is kind 22 of kind 7. -a / 2.0 is kind 22 of a
-      // VAR. -h.v / 2.0 is kind 22 of a FIELD. The literal peel returns
-      // 0, so the outer div saw f64 bits and the lane was not the f32
-      // quotient. Emit the inner lane, then xor the f32 sign bit. A
-      // second NEG stays out. Kind 23 and kinds 8..13 do not enter.
+      // VAR. -h.v / 2.0 is kind 22 of a FIELD. -(-a) / 2.0 is kind 22
+      // of kind 22 of a VAR. The literal peel returns 0, so the outer
+      // div saw f64 bits and the lane was not the f32 quotient. One
+      // NEG emits the inner lane, then xors the f32 sign bit. Two NEG
+      // of a VAR load that lane and do not xor. A second NEG of a
+      // FIELD stays out. Kind 23 and kinds 8..13 do not enter.
       // i32 leaves the gate at 0. PLATFORM: SHARED.
       if (ko == 22) {
         unsafe {
@@ -314,6 +317,28 @@ export function glue_emit_vector_operand_lane_elf_c(
                 return 0 - 1;
               }
               return lane_f32_xor_sign_rax(elf_ctx, ta);
+            }
+          }
+          // -(-a) is kind 22 of kind 22 of kind 3. Two sign flips
+          // cancel, so rax keeps the VAR lane and this does not xor.
+          // A missing home is -1. A FIELD under this peel is not
+          // kind 3. A third NEG is not kind 3. PLATFORM: SHARED.
+          if (lit == 22) {
+            unsafe {
+              left_ref = pipeline_expr_unary_operand_ref_at(arena, elem_ref);
+            }
+            if (left_ref > 0) {
+              unsafe {
+                rc = pipeline_expr_kind_ord_at(arena, left_ref);
+              }
+              if (rc == 3) {
+                rc = lane_f32_load_var_lane(
+                  arena, elf_ctx, left_ref, lane, esz, ctx, ta);
+                if (rc != 0) {
+                  return 0 - 1;
+                }
+                return 0;
+              }
             }
           }
         }
