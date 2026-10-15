@@ -4581,13 +4581,19 @@ function parser_string_lit_decode_span(arena: *ASTArena, head_ref: i32, source: 
 }
 
 /** Internal function `parse_body_lets_into`.
- * Implements `parse_body_lets_into`.
- * @param arena *ASTArena
- * @param lex Lexer
- * @param source u8[]
- * @param out *OneFuncResult
- * @param lex_out *Lexer
- * @return bool
+ * Parses a run of body `let` / `const` bindings into the onefunc sidecar.
+ * A `[` initializer that the shallow INT/FLOAT walker cannot finish is
+ * rewind-parsed by `parse_body_let_bracket_compound_init_ref`. That
+ * includes a bare `if` (or while/for/return/let/const/`;`/`}`) still
+ * inside the brackets. The same tokens after a consumed `]` stay the
+ * next statement and are not reparsed.
+ * @param arena *ASTArena — AST arena; the let nodes are appended here
+ * @param lex Lexer — cursor on the first `let` or `const`
+ * @param source u8[] — source bytes
+ * @param out *OneFuncResult — sidecar that receives each binding
+ * @param lex_out *Lexer — cursor after the run; on failure, the stop point
+ * @return bool — false drops the enclosing function (no `_main`)
+ * PLATFORM: SHARED parse.
  */
 function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *OneFuncResult, lex_out: *Lexer): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -4831,8 +4837,20 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
        * parse_body_let_bracket_compound_init_ref rewind-parses from `[`
        * via parse_expr_into; const then append_const. G.7: complete this
        * gate (no second matcher). Top-level const already uses parse_expr.
+       * arr_init_plain is the token after that walk: `;`, let, const,
+       * return, if, while, for, or `}`. Those mean "the next statement
+       * started" only once `]` was consumed and let_init_ref stored.
+       * A bare `[if ...]` breaks the walk on TOKEN_IF with let_init_ref
+       * still 0. Treating that if as plain skips the reparse, sets
+       * init_handled, and drops the function (no `_main`). `(if ...)`
+       * and an ident in element 0 are not in the plain set, so they
+       * already reparse. An if after a closed `[1, 2]` keeps let_init_ref
+       * and stays the next statement.
        * PLATFORM: SHARED parse.
        */
+      if (let_init_ref == 0) {
+        arr_init_plain = false;
+      }
       if ((r.tok.kind as i32) == 128 || !arr_init_plain) {
         let reparsed_ref: i32 =
             parse_body_let_bracket_compound_init_ref(arena, bracket_start, lex, source, &lex, &r);

@@ -382,7 +382,18 @@ function vlet_f32_elem_lit(
  * arms below then store that value. Kind 51 stays out of the binop
  * splat. 128 stops only a chain that does not end. Width 8 or less
  * is not peeled.
- * PLATFORM: SHARED.
+ * An if (kind 25) or a ternary (kind 27) is none of the splat or
+ * copy arms. Struct let-init stores those only when the destination
+ * is rbx (slot -3). A frame home returns -2 and emits nothing, so
+ * the 4-byte store dropped _main for
+ * `[if (c) { a } else { a + a }, a]`. The existing vector let-init
+ * stores that if into home, including a nested if, a unary of a var,
+ * and a call arm. A result other than 0 or -1, including -3 before
+ * any store when the type is not a wide SIMD spelling, keeps the
+ * later splat and the scalar store. Kind 51 is not an if. Kind 52
+ * stays off this call.
+ * PLATFORM: SHARED. The if store is the existing vector let-init,
+ * which declines when ta is not arm64.
  */
 function vlet_wide_elem(
   arena: *u8, elf_ctx: *u8, elem_ref: i32, ctx: *u8, ta: i32,
@@ -393,6 +404,7 @@ function vlet_wide_elem(
   let st: i32 = 0;
   let rc: i32 = 0;
   let lane_bin: i32 = 0;
+  let if_ek: i32 = 0;
   if (ta != 0 && ta != 1) {
     return 1;
   }
@@ -459,6 +471,33 @@ function vlet_wide_elem(
   }
   if (st == (0 - 1)) {
     return 0 - 1;
+  }
+  // Kind 25 is IF. Kind 27 is TERNARY. Two tests, no boolean join.
+  // Struct let-init just returned something other than 0 or -1, and
+  // for a frame home that is -2 with no bytes emitted. The existing
+  // vector let-init stores a wide SIMD if into home. 0 is stored.
+  // -1 means the condition or an arm was already emitted and failed,
+  // so the caller must not also scalar-store. Any other code,
+  // including -3 before a store, falls through. Kind 49 is not here.
+  // Kind 51 is not an if. Kind 52 stays off this call.
+  // PLATFORM: SHARED.
+  if (ek == 25) {
+    if_ek = 1;
+  }
+  if (ek == 27) {
+    if_ek = 1;
+  }
+  if (if_ek != 0) {
+    unsafe {
+      st = glue_emit_vector_type_let_init_elf_c(
+        arena, elf_ctx, elem_ref, ctx, ta, home, elem_ty);
+    }
+    if (st == 0) {
+      return 0;
+    }
+    if (st == (0 - 1)) {
+      return 0 - 1;
+    }
   }
   // f32x8 [1, -1] and [1.0, -1.0] used to fall through to one 4-byte
   // store. The integer splat declines a leading 'f', and a float
