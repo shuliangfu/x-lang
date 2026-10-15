@@ -739,7 +739,9 @@ function vlet_f32_array_lanes(
  * spelling wider than 16 bytes call glue_emit_vector_if_let_init_elf_c.
  * Named i32x8 is that spelling. That sibling returns -3 with no bytes
  * emitted when an arm is not a literal chain, a VAR, an ARRAY_LIT, a
- * lane binop, a block that still has lets, or a nested if or ternary.
+ * lane binop, a block that still has lets, a nested if or ternary, or
+ * a unary whose innermost expr is a VAR. That unary is the existing
+ * vector let-init, which already applies the chain on every lane.
  * A nested if is that same call. Kind 51 stays out.
  * Vec4f stays declined because it is
  * 16 bytes. Kind 22 of an ARRAY_LIT (kind 46) stores that literal
@@ -1737,12 +1739,14 @@ export function glue_emit_vector_type_let_init_elf_c(
  * @param esz i32 — lane size in bytes; not 4 returns 0
  * @param ta i32 — 1 is arm64. Other values return 0
  * @return i32 — peeled expr ref when the arm is a non-null INT_LIT,
- *   a kind-22 / kind-23 chain of one, a VAR with a frame home, an
+ *   a kind-22 / kind-23 chain of one, that same chain whose innermost
+ *   expr is a VAR with a lane-0 home, a VAR with a frame home, an
  *   ARRAY_LIT, a lane binop (kinds 4..13), a block that still has
  *   lets, or a nested if (kind 25) or ternary (kind 27). 0 means
  *   decline this if before any branch is emitted.
- * A unary of a VAR stays 0: the vector let-init can negate that VAR,
- * but only after it has already been chosen. Kind 51 is an address.
+ * A unary of a VAR is the whole chain. The fill passes it to the
+ * existing vector let-init, which already applies kind 22 and kind 23
+ * inside out on every lane. Kind 51 is an address.
  * The lane-binop predicate remaps 51 to add, so it is excluded before
  * that call. Kind 24 does not enter.
  * The walk stops at 32 steps and sets the cursor kind to -1, because
@@ -1890,6 +1894,22 @@ export function glue_vec_if_arm_take_c(
       }
     }
   }
+  // Innermost VAR: return the whole unary. The fill stores it with
+  // the existing vector let-init, which loads each lane from that
+  // VAR and applies this chain. Nested unaries are that one walk,
+  // already capped at 32. A missing lane-0 home declines before any
+  // branch. Kind 51 is not kind 3, so an address stays out.
+  // PLATFORM: MACOS|ARM64.
+  if (op_k == 3) {
+    src_off = 0;
+    unsafe {
+      src_off = glue_vector_var_lane_stack_off_elf_c(arena, ctx, op_ref, 0, esz, ta);
+    }
+    if (src_off < 0) {
+      return 0;
+    }
+    return cur;
+  }
   if (op_k != 0) {
     return 0;
   }
@@ -1915,8 +1935,9 @@ export function glue_vec_if_arm_take_c(
  * @return i32 — 0 when the slot holds every lane; -1 on encode failure
  * A VAR is copied with glue_vector_var_lane_stack_off_elf_c and
  * glue_copy_large_struct_from_rax_ptr_elf_c. A literal chain, an
- * ARRAY_LIT, a lane binop, a block that still has lets, and a nested
- * if or ternary call glue_emit_vector_type_let_init_elf_c.
+ * ARRAY_LIT, a lane binop, a block that still has lets, a nested
+ * if or ternary, and a unary whose innermost expr is a VAR call
+ * glue_emit_vector_type_let_init_elf_c.
  * That call is one extra frame, not a second splat. An f32 binop uses
  * that let-init's own fill, not an i32 splat. PLATFORM: MACOS|ARM64.
  */
@@ -1975,6 +1996,7 @@ export function glue_vec_if_arm_fill_c(
  * Both arms are required. Each arm is accepted only by
  * glue_vec_if_arm_take_c before the condition is emitted. A nested if
  * or ternary arm is this function again, through the vector let-init.
+ * A unary of a VAR is that let-init's existing per-lane chain.
  * The condition uses the existing bool-in-eax jump. A SIMD spelling wider
  * than 16 bytes enters, including named i32x8 and f32x8. The lane
  * count comes from glue_vector_type_lanes_esz_c. A vector of 16 bytes
