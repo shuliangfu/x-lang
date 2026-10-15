@@ -96,6 +96,35 @@ function lane_f32_load_var_lane(
 }
 
 /**
+ * Load one FIELD lane into rax.
+ * @param arena *u8 — expression arena.
+ * @param elf_ctx *u8 — emit buffer.
+ * @param field_ref i32 — FIELD expr. No frame home returns -2.
+ * @param lane i32 — lane index.
+ * @param esz i32 — lane bytes.
+ * @param ctx *u8 — asm ctx.
+ * @param ta i32 — 1 arm64, else x86. The field helper already applies
+ *   lane polarity, so this load does not add lane * esz again.
+ * @return i32 — 0 when rax holds the lane, -1 when the load encode
+ *   fails, -2 when the field has no frame home.
+ * PLATFORM: SHARED.
+ */
+function lane_f32_load_field_lane(
+  arena: *u8, elf_ctx: *u8, field_ref: i32, lane: i32, esz: i32, ctx: *u8, ta: i32
+): i32 {
+  let off: i32 = 0;
+  unsafe {
+    off = glue_vector_var_lane_stack_off_elf_c(arena, ctx, field_ref, lane, esz, ta);
+  }
+  if (off < 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    return backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, off, esz, ta);
+  }
+}
+
+/**
  * Move one f32 lane immediate for a FLOAT_LIT, or one or two NEG of one.
  * @param arena *u8 — expression arena. Null is not a literal.
  * @param elf_ctx *u8 — emit buffer.
@@ -184,8 +213,8 @@ function lane_f32_emit_lit_lane(arena: *u8, elf_ctx: *u8, expr_ref: i32, ta: i32
  * @param ta i32 — 1 arm64, else x86. Arm64 lane slots grow up from rbp.
  * @return i32 — 0 when rax holds the lane, -1 on failure.
  * VAR, FIELD, ARRAY_LIT, and nested binop match the previous body.
- * One EXPR_NEG of add, sub, mul, div, or a VAR emits that lane, then
- * xors the f32 sign bit. A second NEG, a FIELD, and kind 23 stay on
+ * One EXPR_NEG of add, sub, mul, div, a VAR, or a FIELD emits that
+ * lane, then xors the f32 sign bit. A second NEG and kind 23 stay on
  * emit_expr. PLATFORM: SHARED.
  */
 #[no_mangle]
@@ -222,11 +251,11 @@ export function glue_emit_vector_operand_lane_elf_c(
         return 0 - 1;
       }
       // -(4.0 / 2.0) is kind 22 of kind 7. -a / 2.0 is kind 22 of a
-      // VAR. The literal peel returns 0, so the outer div saw f64 bits
-      // and neither lane was the f32 quotient. Emit the inner lane,
-      // then xor the f32 sign bit. A second NEG stays out. A FIELD
-      // stays out. Kind 23 and kinds 8..13 do not enter. i32 leaves
-      // the gate at 0. PLATFORM: SHARED.
+      // VAR. -h.v / 2.0 is kind 22 of a FIELD. The literal peel returns
+      // 0, so the outer div saw f64 bits and the lane was not the f32
+      // quotient. Emit the inner lane, then xor the f32 sign bit. A
+      // second NEG stays out. Kind 23 and kinds 8..13 do not enter.
+      // i32 leaves the gate at 0. PLATFORM: SHARED.
       if (ko == 22) {
         unsafe {
           elem_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
@@ -263,7 +292,7 @@ export function glue_emit_vector_operand_lane_elf_c(
             return lane_f32_xor_sign_rax(elf_ctx, ta);
           }
           // -a is kind 22 of kind 3. Load that VAR lane, then the
-          // same sign xor. A FIELD is not kind 3. PLATFORM: SHARED.
+          // same sign xor. PLATFORM: SHARED.
           if (lit == 3) {
             rc = lane_f32_load_var_lane(
               arena, elf_ctx, elem_ref, lane, esz, ctx, ta);
@@ -272,6 +301,21 @@ export function glue_emit_vector_operand_lane_elf_c(
             }
             return lane_f32_xor_sign_rax(elf_ctx, ta);
           }
+          // -h.v is kind 22 of kind 44. No frame home is -2 and falls
+          // through, the same as a bare field. A second NEG is not
+          // kind 44. PLATFORM: SHARED.
+          if (lit == 44) {
+            rc = lane_f32_load_field_lane(
+              arena, elf_ctx, elem_ref, lane, esz, ctx, ta);
+            if (rc == (0 - 2)) {
+              rc = 0;
+            } else {
+              if (rc != 0) {
+                return 0 - 1;
+              }
+              return lane_f32_xor_sign_rax(elf_ctx, ta);
+            }
+          }
         }
       }
     }
@@ -279,15 +323,12 @@ export function glue_emit_vector_operand_lane_elf_c(
   if (ko == 3) {
     return lane_f32_load_var_lane(arena, elf_ctx, expr_ref, lane, esz, ctx, ta);
   }
-  // FIELD=44. off already includes lane polarity.
+  // FIELD=44. The helper's offset already includes lane polarity.
+  // -2 means no frame home and falls through. PLATFORM: SHARED.
   if (ko == 44) {
-    unsafe {
-      off = glue_vector_var_lane_stack_off_elf_c(arena, ctx, expr_ref, lane, esz, ta);
-    }
-    if (off >= 0) {
-      unsafe {
-        return backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, off, esz, ta);
-      }
+    rc = lane_f32_load_field_lane(arena, elf_ctx, expr_ref, lane, esz, ctx, ta);
+    if (rc != (0 - 2)) {
+      return rc;
     }
   }
   if (ko == 46) {

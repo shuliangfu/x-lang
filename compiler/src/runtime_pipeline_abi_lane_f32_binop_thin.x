@@ -59,11 +59,11 @@ export function glue_lane_f32_lit_dest_set(v: i32): i32 {
  * f32x8 comes from the fill helper. An integer spelling returns 0.
  * When the f32 literal gate is set and those checks stay 0, a FLOAT_LIT,
  * one or two EXPR_NEG of a FLOAT_LIT, one EXPR_NEG of add/sub/mul/div
- * (kinds 4..7), one EXPR_NEG of a VAR (kind 3), or a lane scalar
- * binop (kinds 4..13 or 51) also returns 1. Kind 23, kinds 8..13
- * under a NEG, a FIELD under a NEG, a second NEG, and a third
- * EXPR_NEG do not. i32 leaves the gate at 0. The operand peeler
- * accepts the same shapes.
+ * (kinds 4..7), one EXPR_NEG of a VAR (kind 3), one EXPR_NEG of a
+ * FIELD (kind 44), or a lane scalar binop (kinds 4..13 or 51) also
+ * returns 1. Kind 23, kinds 8..13 under a NEG, a second NEG, and a
+ * third EXPR_NEG do not. i32 leaves the gate at 0. The operand
+ * peeler accepts the same shapes.
  * PLATFORM: SHARED.
  */
 #[no_mangle]
@@ -110,9 +110,9 @@ export function glue_lane_binop_lhs_is_f32_c(arena: *u8, ctx: *u8, left_ref: i32
   // FLOAT_LIT is still that literal. One EXPR_NEG over add, sub, mul,
   // or div is still an f32 lane: -(4.0 / 2.0) / 2.0 was integer div
   // and the lane was not -1.0. One EXPR_NEG of a VAR is the same:
-  // -a / 2.0 was not -2.0. A second NEG stays out. A FIELD stays out.
-  // Kinds 8..13 under a NEG stay out. The operand peeler accepts the
-  // same shapes.
+  // -a / 2.0 was not -2.0. One EXPR_NEG of a FIELD is the same:
+  // -h.v / 2.0 was not -2.0. A second NEG stays out. Kinds 8..13
+  // under a NEG stay out. The operand peeler accepts the same shapes.
   // PLATFORM: SHARED.
   if (is_f32 == 0 && g_lane_f32_lit_dest != 0) {
     unsafe {
@@ -152,9 +152,14 @@ export function glue_lane_binop_lhs_is_f32_c(arena: *u8, ctx: *u8, left_ref: i32
         if (ko == 7) {
           return 1;
         }
-        // One NEG of a VAR. A FIELD is not kind 3. A second NEG is
-        // kind 22 and falls through. PLATFORM: SHARED.
+        // One NEG of a VAR. A second NEG is kind 22 and falls
+        // through. PLATFORM: SHARED.
         if (ko == 3) {
+          return 1;
+        }
+        // One NEG of a FIELD. A second NEG is not kind 44.
+        // PLATFORM: SHARED.
+        if (ko == 44) {
           return 1;
         }
         // Second EXPR_NEG of a FLOAT_LIT. A third stays out.
