@@ -45,6 +45,7 @@ export extern function glue_emit_vector_type_let_init_elf_c(
   stack_slot_off: i32, type_ref: i32): i32;
 export extern function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i32): i32;
 export extern function glue_vector_elem_is_f32_c(arena: *u8, type_ref: i32): i32;
+export extern function vector_let_init_array_lit_a64_vlet_f32_fill_lane(arena: *u8, type_ref: i32): i32;
 
 function w254_sl_cell_i32(base: *u8): i32 {
   unsafe {
@@ -70,7 +71,13 @@ function w254_sl_cell_i32(base: *u8): i32 {
  * returns 0 unless kind is 10. pipeline_asm_type_ref_byte_size_c is
  * lanes times the element size (Vec8i is 32, Vec4f is 16). An integer
  * literal into a kind-8 integer spelling uses the same let-init splat
- * as kind 13. A VAR of 9..16 bytes (Vec4f) uses that byte size as
+ * as kind 13. A FLOAT_LIT on that same kind-8 gate enters only when
+ * vector_let_init_array_lit_a64_vlet_f32_fill_lane returns nonzero.
+ * f32x8 is that spelling: the live classifier returns 0, so the
+ * integer gate is already open, and `H { v: 1.0 }` used to store one
+ * f64 word. The helper declines an integer spelling. Kind 22 of a
+ * float already entered. f32x4 and Vec4f do not reach this gate.
+ * A VAR of 9..16 bytes (Vec4f) uses that byte size as
  * `wide` when the named layout is below 8, then the existing x0:x1
  * spill. A width above 16 is not that pair. Kind 13 alignment is
  * unchanged. Do not pin a vector name. A width below 8 stays on the
@@ -179,8 +186,11 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
      * The same let-init a `let` uses fills a temp. Kind 25 and 27
      * already branch inside that let-init. The existing x19 memcpy
      * then copies that temp onto this field. A -3 decline falls
-     * through to the scalar store. Kind 24 and an f32 element do not
-     * enter. ARRAY_LIT stays on the pointer copy below.
+     * through to the scalar store. Kind 1 (FLOAT_LIT) enters only
+     * when the f32 fill helper returns nonzero, so f32x8
+     * `H { v: 1.0 }` uses this temp. Kind 22 of a float already
+     * entered. Kind 24 and an f32 element kind do not enter.
+     * ARRAY_LIT stays on the pointer copy below.
      * PLATFORM: MACOS|ARM64.
      */
     if (ta == 1) {
@@ -194,8 +204,9 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
         unsafe {
           splat_tk = pipeline_type_kind_ord_at(arena, fty);
         }
-        // splat_ek == 0 means integer lanes. -1 means this field is
-        // not an integer vector, so the scalar store below runs.
+        // splat_ek == 0 means the integer-vector gate. f32x8 also
+        // lands here: the live classifier returns 0 for that name.
+        // -1 means the scalar store below runs.
         splat_ek = 0 - 1;
         if (splat_tk == 13) {
           unsafe {
@@ -236,6 +247,24 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
               }
               if (iko == 27) {
                 splat_go = 1;
+              }
+              // FLOAT_LIT = 1. The integer set above does not include
+              // it, so `H { v: 1.0 }` of f32x8 stored one 8-byte f64
+              // word and lane 0 read as 0. Kind 22 of `-1.0` already
+              // enters and the let-init converts it. f32x8 is the
+              // kind-8 spelling whose live classifier returns 0, so
+              // splat_ek is 0 here. The same fill helper a `let` uses
+              // returns 1 only for that f32 target. An integer
+              // spelling returns 0 and stays on the scalar store.
+              // f32x4 and Vec4f never reach splat_ek == 0.
+              // PLATFORM: MACOS|ARM64.
+              if (iko == 1) {
+                unsafe {
+                  splat_elem = vector_let_init_array_lit_a64_vlet_f32_fill_lane(arena, fty);
+                }
+                if (splat_elem != 0) {
+                  splat_go = 1;
+                }
               }
               if (splat_go != 0) {
                 vec_bytes = 0;
