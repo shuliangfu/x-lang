@@ -44772,35 +44772,11 @@ export function glue_vector_elem_is_f32_c(arena: *u8, type_ref: i32): i32 {
   return 0;
 }
 
-/**
- * True when a vector-lane binop left operand has f32 lanes (Vec4f / f32x4 /
- * TYPE_VECTOR of F32). Used so lane ALU uses addss/subss/mulss, not integer
- * add of IEEE bits (1.0+10.0 as i32 is garbage).
- * @param arena *u8 — ASTArena*
- * @param ctx *u8 — AsmFuncCtx* (VAR decl fallback; may be null)
- * @param left_ref i32 — left expr of the vector binop
- * @return i32 — 1 f32 lanes; 0 otherwise
- * PLATFORM: SHARED — G.7 complete of glue_vector_elem_is_f32_c.
- */
-function glue_lane_binop_lhs_is_f32_c(arena: *u8, ctx: *u8, left_ref: i32): i32 {
-  let tr: i32 = 0;
-  let ko: i32 = 0;
-  if (arena == (0 as *u8) || left_ref <= 0) {
-    return 0;
-  }
-  unsafe {
-    tr = pipeline_expr_resolved_type_ref(arena, left_ref);
-  }
-  if (tr <= 0 && ctx != (0 as *u8)) {
-    unsafe {
-      ko = pipeline_expr_kind_ord_at(arena, left_ref);
-    }
-    if (ko == 3) {
-      tr = glue_var_decl_type_ref_elf_c(arena, ctx, left_ref);
-    }
-  }
-  return glue_vector_elem_is_f32_c(arena, tr);
-}
+// Body moved to runtime_pipeline_abi_lane_f32_binop_thin.x.
+// pabi_weak still defines the old T. Link weakens that symbol so the
+// thin is the one definition. Do not restore a second body here.
+// PLATFORM: SHARED.
+export extern function glue_lane_binop_lhs_is_f32_c(arena: *u8, ctx: *u8, left_ref: i32): i32;
 
 /**
  * Vector VAR / FIELD / FIELD-chain lane stack off. x86 SysV: base - lane*esz
