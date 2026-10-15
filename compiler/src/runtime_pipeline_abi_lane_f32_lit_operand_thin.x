@@ -19,8 +19,11 @@
 // stay on emit_expr. A transparent block, a nested block, and
 // unsafe { e } are one recursion over the existing
 // glue_expr_block_transparent_value_ref_at. The lane op then sees the
-// inner value. A block that has lets is not peeled. The 128 stop is
-// only for a chain that does not end. This file then matches the old
+// inner value. A block that has lets is not peeled. An INDEX with an
+// integer-literal index loads one lane from the base frame. Nested
+// indexes are that same recursion. The stride is the existing index
+// element size. A non-literal index stays on emit_expr. The 128 stop
+// is only for a chain that does not end. This file then matches the old
 // body. Do not add a second divss.
 // PLATFORM: SHARED.
 
@@ -58,6 +61,10 @@ export extern function pipeline_lane_shr_is_arith(
   arena: *u8, ctx: *u8, left_ref: i32, right_ref: i32
 ): i32;
 export extern function glue_expr_block_transparent_value_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_index_base_ref(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_index_index_ref(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_asm_index_elem_byte_sz_c(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_int_val_at(arena: *u8, expr_ref: i32): i32;
 
 /**
  * Flip bit 31 of the f32 lane already in rax.
@@ -322,6 +329,151 @@ function lane_operand_unwrap_block(arena: *u8, expr_ref: i32, budget: i32): i32 
 }
 
 /**
+ * Frame offset of one lane of an indexed vector.
+ * @param arena *u8 — expression arena. Null returns -1.
+ * @param ctx *u8 — asm ctx. Null returns -1.
+ * @param expr_ref i32 — INDEX, or the VAR / FIELD base under one.
+ *   Not positive returns -1.
+ * @param lane i32 — lane inside the indexed element. Negative returns -1.
+ *   A recursive call on the base passes 0.
+ * @param esz i32 — lane bytes. Not positive returns -1. A recursive
+ *   call on the base passes the element stride instead.
+ * @param ta i32 — 1 arm64, else x86. Arm64 adds the lane. x86 subtracts.
+ * @param budget i32 — indexes still allowed. The first call passes 128.
+ *   Zero returns -1 without reading. That stop is only for a chain
+ *   that does not end. Every shorter nest is this one function.
+ * @return i32 — rbp offset of the lane, or -1 when the home is missing,
+ *   the index is not an integer literal, or the base is not a VAR,
+ *   FIELD, or another such INDEX.
+ * One call peels one INDEX. The element stride is the existing
+ * pipeline_asm_index_elem_byte_sz_c. The literal value is the existing
+ * pipeline_expr_int_val_at. The base home is this function again.
+ * A FIELD base uses the existing glue_vector_var_lane_stack_off_elf_c
+ * and does not walk fields here. A negative offset is no home, same
+ * as the field loader. PLATFORM: SHARED.
+ */
+function lane_indexed_lane_off(
+  arena: *u8, ctx: *u8, expr_ref: i32, lane: i32, esz: i32, ta: i32, budget: i32
+): i32 {
+  let ko: i32 = 0;
+  let cur: i32 = 0;
+  let off: i32 = 0;
+  let base_ref: i32 = 0;
+  let idx_ref: i32 = 0;
+  let elem_sz: i32 = 0;
+  let imm: i32 = 0;
+  let base_off: i32 = 0;
+  if (budget <= 0) {
+    return 0 - 1;
+  }
+  if (arena == (0 as *u8)) {
+    return 0 - 1;
+  }
+  if (ctx == (0 as *u8)) {
+    return 0 - 1;
+  }
+  if (expr_ref <= 0) {
+    return 0 - 1;
+  }
+  if (lane < 0) {
+    return 0 - 1;
+  }
+  if (esz <= 0) {
+    return 0 - 1;
+  }
+  cur = lane_operand_unwrap_block(arena, expr_ref, budget);
+  if (cur <= 0) {
+    return 0 - 1;
+  }
+  if (cur != expr_ref) {
+    return lane_indexed_lane_off(arena, ctx, cur, lane, esz, ta, budget - 1);
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  }
+  if (ko == 3) {
+    unsafe {
+      off = glue_asm_local_var_stack_off_scoped(arena, ctx, expr_ref);
+    }
+    if (off < 0) {
+      return 0 - 1;
+    }
+    if (ta == 1) {
+      return off + lane * esz;
+    }
+    return off - lane * esz;
+  }
+  if (ko == 44) {
+    unsafe {
+      return glue_vector_var_lane_stack_off_elf_c(arena, ctx, expr_ref, lane, esz, ta);
+    }
+  }
+  if (ko != 47) {
+    return 0 - 1;
+  }
+  unsafe {
+    base_ref = pipeline_expr_index_base_ref(arena, expr_ref);
+    idx_ref = pipeline_expr_index_index_ref(arena, expr_ref);
+    elem_sz = pipeline_asm_index_elem_byte_sz_c(arena, expr_ref);
+  }
+  if (base_ref <= 0) {
+    return 0 - 1;
+  }
+  if (idx_ref <= 0) {
+    return 0 - 1;
+  }
+  if (elem_sz <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, idx_ref);
+  }
+  if (ko != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    imm = pipeline_expr_int_val_at(arena, idx_ref);
+  }
+  // Lane 0 of the base is the start of this array. This level then
+  // adds the literal element and the caller's lane. PLATFORM: SHARED.
+  base_off = lane_indexed_lane_off(arena, ctx, base_ref, 0, elem_sz, ta, budget - 1);
+  if (base_off < 0) {
+    return 0 - 1;
+  }
+  if (ta == 1) {
+    return base_off + imm * elem_sz + lane * esz;
+  }
+  return base_off - imm * elem_sz - lane * esz;
+}
+
+/**
+ * Load one lane of an indexed vector into rax.
+ * @param arena *u8 — expression arena.
+ * @param elf_ctx *u8 — emit buffer.
+ * @param expr_ref i32 — INDEX expr.
+ * @param lane i32 — lane index.
+ * @param esz i32 — lane bytes.
+ * @param ctx *u8 — asm ctx.
+ * @param ta i32 — 1 arm64, else x86.
+ * @return i32 — 0 when rax holds the lane, the load encoder result
+ *   when the encode fails, -2 when lane_indexed_lane_off has no home.
+ * The offset already includes lane polarity. This load does not add
+ * lane * esz again. PLATFORM: SHARED.
+ */
+function lane_load_indexed_lane(
+  arena: *u8, elf_ctx: *u8, expr_ref: i32, lane: i32, esz: i32, ctx: *u8, ta: i32
+): i32 {
+  let off: i32 = 0;
+  off = lane_indexed_lane_off(arena, ctx, expr_ref, lane, esz, ta, 128);
+  if (off < 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    return backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, off, esz, ta);
+  }
+}
+
+/**
  * Emit a NEG chain's core lane into rax.
  * @param arena *u8 — expression arena.
  * @param elf_ctx *u8 — emit buffer.
@@ -417,6 +569,20 @@ function lane_f32_emit_neg_core(
   // No frame home is -2 and falls through. PLATFORM: SHARED.
   if (ko == 44) {
     rc = lane_f32_load_field_lane(arena, elf_ctx, core, lane, esz, ctx, ta);
+    if (rc == (0 - 2)) {
+      return 0 - 2;
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    if (odd != 0) {
+      return lane_f32_xor_sign_rax(elf_ctx, ta);
+    }
+    return 0;
+  }
+  // INDEX=47. No literal home is -2 and falls through. PLATFORM: SHARED.
+  if (ko == 47) {
+    rc = lane_load_indexed_lane(arena, elf_ctx, core, lane, esz, ctx, ta);
     if (rc == (0 - 2)) {
       return 0 - 2;
     }
@@ -672,6 +838,18 @@ function lane_i32_emit_neg_core(
     }
     return 0;
   }
+  // INDEX=47. A non-literal index is -2 and keeps emit_expr.
+  // PLATFORM: SHARED.
+  if (ko == 47) {
+    rc = lane_load_indexed_lane(arena, elf_ctx, expr_ref, lane, esz, ctx, ta);
+    if (rc == (0 - 2)) {
+      return 0 - 2;
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    return 0;
+  }
   // Kinds 4..13, including mod, shifts, and, or, xor. Kind 51 stays
   // out. INT_LIT and kind 24 return -2. PLATFORM: SHARED.
   arith = 0;
@@ -820,6 +998,14 @@ export function glue_emit_vector_operand_lane_elf_c(
   // -2 means no frame home and falls through. PLATFORM: SHARED.
   if (ko == 44) {
     rc = lane_f32_load_field_lane(arena, elf_ctx, expr_ref, lane, esz, ctx, ta);
+    if (rc != (0 - 2)) {
+      return rc;
+    }
+  }
+  // INDEX=47. The offset already includes the lane. No literal home
+  // falls through. PLATFORM: SHARED.
+  if (ko == 47) {
+    rc = lane_load_indexed_lane(arena, elf_ctx, expr_ref, lane, esz, ctx, ta);
     if (rc != (0 - 2)) {
       return rc;
     }
