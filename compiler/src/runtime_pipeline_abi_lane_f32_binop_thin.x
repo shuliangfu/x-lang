@@ -15,6 +15,7 @@ export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: 
 export extern function glue_var_decl_type_ref_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
 export extern function glue_vector_elem_is_f32_c(arena: *u8, type_ref: i32): i32;
 export extern function vector_let_init_array_lit_a64_vlet_f32_fill_lane(arena: *u8, type_ref: i32): i32;
+export extern function glue_is_vector_lane_scalar_binop_ko(ko: i32): i32;
 
 // 1 while an f32-lane add, sub, mul, or div is being emitted.
 // The operand materializer reads this and narrows a FLOAT_LIT to f32
@@ -56,6 +57,9 @@ export function glue_lane_f32_lit_dest_set(v: i32): i32 {
  * @return i32 — 1 when the lane op must be f32, 0 when it stays integer.
  * Vec4f, f32x4, and a TYPE_VECTOR of f32 come from the classifier.
  * f32x8 comes from the fill helper. An integer spelling returns 0.
+ * When the f32 literal gate is set and those checks stay 0, a FLOAT_LIT,
+ * one EXPR_NEG of a FLOAT_LIT, or a lane scalar binop (kinds 4..13 or 51)
+ * also returns 1. Kind 23 and two EXPR_NEG do not. i32 leaves the gate at 0.
  * PLATFORM: SHARED.
  */
 #[no_mangle]
@@ -95,15 +99,21 @@ export function glue_lane_binop_lhs_is_f32_c(arena: *u8, ctx: *u8, left_ref: i32
     }
   }
   // A FLOAT_LIT has no vector type, so both checks above stay 0.
-  // f32x8 `4.0 / 2.0` then took integer div of the f64 bit pattern
-  // (low half of 4.0 and 2.0 is 0, so the lane stored 0). The gate
-  // is set only for an f32 dest and only for add, sub, mul, and div.
-  // i32x8 `4.0 / 2.0` leaves the gate at 0. One EXPR_NEG over a
-  // FLOAT_LIT is that same literal. Kind 23 does not enter.
+  // A nested lane binop does not either: `(4.0 / 2.0) / 2.0` then
+  // did integer div of the inner f32 bits, and the lane was not 1.0.
+  // The gate is set for an f32 dest on add, sub, mul, div, and compare.
+  // i32x8 leaves it at 0. Kind 23 does not enter. Two EXPR_NEG over a
+  // FLOAT_LIT is not this arm.
   // PLATFORM: SHARED.
   if (is_f32 == 0 && g_lane_f32_lit_dest != 0) {
     unsafe {
       ko = pipeline_expr_kind_ord_at(arena, left_ref);
+    }
+    unsafe {
+      op = glue_is_vector_lane_scalar_binop_ko(ko);
+    }
+    if (op != 0) {
+      return 1;
     }
     if (ko == 1) {
       return 1;
