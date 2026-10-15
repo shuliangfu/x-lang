@@ -454,9 +454,10 @@ function w1521_rs_mid_named_field(arena: *u8, op: i32): i32 {
  * durable element pointer in rax/x0 and skips emit_expr. When that array's
  * element is a TYPE_VECTOR of i32 wider than 16 bytes, each element is
  * filled by glue_emit_vector_type_let_init_elf_c into one element slot
- * and copied to the sret dest at i * width. A VAR element is not that
- * fill: vector let-init returns -3 so the caller copies. The address
- * of the VAR is copied the same width. FIELD and INDEX stay declined.
+ * and copied to the sret dest at i * width. A VAR or FIELD element is
+ * not that fill: vector let-init returns -3 and emits nothing. The
+ * address of the local or of the field is copied the same width.
+ * INDEX stays declined: a lane index is not the whole vector.
  * The slot stays one element wide. A miss leaves that element and
  * still returns the dest. An encoder miss returns -1. It does not
  * fall through to the 8-byte load.
@@ -636,9 +637,9 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                 let wide_src: i32 = 0;
                 /*
                  * [N]Vec8i is wider than 16 bytes. The frame temp is one
-                 * vector. Fill that slot, or take a VAR's address, then
-                 * copy width bytes to the sret dest at i * width. FIELD
-                 * and INDEX stay declined. A miss leaves that element.
+                 * vector. Fill that slot, or take a VAR or FIELD address,
+                 * then copy width bytes to the sret dest at i * width.
+                 * INDEX stays declined. A miss leaves that element.
                  * Do not fall through to the 8-byte load.
                  * PLATFORM: SHARED. The copy encoding is MACOS|ARM64
                  * or LINUX x86_64.
@@ -680,12 +681,13 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                       unsafe {
                         wide_rc = pipeline_expr_kind_ord_at(arena, wide_er);
                       }
-                      // EXPR_VAR = 3. Vector let-init returns -3 and
-                      // emits nothing, so the array-literal store can
-                      // copy the local. The address is the whole vector.
-                      // FIELD (44) and INDEX (47) stay declined: an
-                      // index may be one lane. PLATFORM: SHARED.
-                      if (wide_rc == 3) {
+                      // EXPR_VAR = 3. EXPR_FIELD = 44. Vector let-init
+                      // returns -3 and emits nothing, so the array-literal
+                      // store copies from the address lvalue leaves in x0.
+                      // A field address is the whole vector, same as a
+                      // local. INDEX (47) stays declined: a lane is not
+                      // that width. PLATFORM: SHARED.
+                      if (wide_rc == 3 || wide_rc == 44) {
                         unsafe {
                           rc = pipeline_asm_emit_lvalue_eff_addr_elf_c(
                             arena, elf_ctx, wide_er, ctx, ta);
