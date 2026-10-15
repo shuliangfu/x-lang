@@ -22,6 +22,7 @@ export extern function glue_emit_float_lit_to_rax_elf_c(arena: *u8, elf_ctx: *u8
 export extern function glue_emit_module_from_ctx(ctx: *u8): *u8;
 export extern function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *u8, block_ref: i32, let_idx: i32, init_ref: i32, let_type_ref: i32, ctx: *u8, ta: i32, slice_slot_off: i32): i32;
 export extern function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, let_ty_ref: i32, stack_slot_off: i32): i32;
+export extern function glue_wide_i32_vec_array_bytes(arena: *u8, rty: i32): i32;
 export extern function glue_emit_vector_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32, type_ref: i32): i32;
 export extern function glue_float_promote_src_ty_ref_c(arena: *u8, expr_ref: i32): i32;
 export extern function glue_index_assign_addr_cache_clear(): void;
@@ -45,6 +46,19 @@ let g_w2060_emit_let_vn: u8[256] = [];
 
 /**
  * Emit one let init. w2060: empty [] fixed T[N] zero-fills via fixed_array path.
+ * A call whose type is [N] of an i32 vector wider than 16 bytes uses the
+ * struct call arm (lea slot, mov x8). Every other fixed array, including
+ * a -2 from the fixed-array store, keeps that store.
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — encoder context
+ * @param block_ref i32 — enclosing block
+ * @param idx i32 — let index in the block
+ * @param init_ref i32 — initializer expr
+ * @param slot i32 — let slot index
+ * @param ctx *u8 — AsmFuncCtx
+ * @param ta i32 — target arch
+ * @param lnb *u8 — let name bytes; may be unused by a given arm
+ * @param llen i32 — let name length
  * @return i32 — 0 ok; -1 fail
  * PLATFORM: SHARED freestanding emit.
  */
@@ -123,7 +137,28 @@ export function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_re
 
   unsafe {
     if (glue_block_let_is_fixed_array_type(arena, block_ref, idx) != 0) {
-      arr_st = glue_emit_fixed_array_type_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta, pipeline_block_let_type_ref(arena, block_ref, idx), slot_off);
+      let_ty2 = pipeline_block_let_type_ref(arena, block_ref, idx);
+      /*
+       * [N]Vec8i wider than 16 bytes is sret into this let slot.
+       * The fixed-array store would keep the call's pointer. The struct
+       * call arm already leas the slot and moves it to x8. A non-call,
+       * and every array the helper rejects, keeps the fixed-array store.
+       * PLATFORM: SHARED.
+       */
+      if (glue_wide_i32_vec_array_bytes(arena, let_ty2) > 16) {
+        init_ko = pipeline_expr_kind_ord_at(arena, init_ref);
+        if (init_ko == 48 || init_ko == 49) {
+          rc = glue_emit_struct_type_let_init_elf_c(
+              arena, elf_ctx, init_ref, ctx, ta, let_ty2, slot_off);
+          if (rc == 0) {
+            return 0;
+          }
+          if (rc == 0 - 1) {
+            return 0 - 1;
+          }
+        }
+      }
+      arr_st = glue_emit_fixed_array_type_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta, let_ty2, slot_off);
       if (arr_st == 0) {
         return 0;
       }

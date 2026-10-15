@@ -73,6 +73,9 @@ export extern function glue_simd_alloc_vector_temp_slot_c(arena: *u8, ctx: *u8, 
 export extern function glue_emit_vector_type_let_init_elf_c(
   arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32,
   stack_off: i32, type_ref: i32): i32;
+export extern function glue_wide_i32_vec_array_bytes(arena: *u8, rty: i32): i32;
+export extern function glue_index_simd_elem_bytes_c(arena: *u8, ty: i32): i32;
+export extern function pipeline_expr_array_lit_elem_ref(arena: *u8, expr_ref: i32, index: i32): i32;
 
 /**
  * `return f(...)` forwarding a > 16-byte result: pass this function's own
@@ -196,6 +199,46 @@ function w1521_rs_copy_x86(elf_ctx: *u8, home: i32, sz: i32): i32 {
   return 0;
 }
 
+/**
+ * rax holds the source. Copy `width` bytes from rax to the hidden dest
+ * parked at [rbp-home], starting at dest_off, then leave that dest in rax.
+ * width and dest_off are multiples of 8. A non-positive home returns 1.
+ * @param elf_ctx *u8 — encoder context
+ * @param home i32 — positive frame slot of the saved dest pointer
+ * @param dest_off i32 — byte offset into the dest, multiple of 8
+ * @param width i32 — byte count, multiple of 8
+ * @return i32 — 0 ok; 1 not applicable; -1 encoder fail
+ * PLATFORM: LINUX x86_64.
+ */
+function w1521_rs_copy_x86_off(elf_ctx: *u8, home: i32, dest_off: i32, width: i32): i32 {
+  let k: i32 = 0;
+  let d: i32 = 0;
+  if (home <= 0 || dest_off < 0 || width <= 0 || width > 32000) {
+    return 1;
+  }
+  if ((dest_off % 8) != 0 || (width % 8) != 0) {
+    return 1;
+  }
+  if (dest_off + width > 1000000) {
+    return 1;
+  }
+  // mov rcx, [rbp - home]
+  if (w1521_rs_b(elf_ctx, 72) != 0 || w1521_rs_b(elf_ctx, 139) != 0 || w1521_rs_b(elf_ctx, 141) != 0) { return 0 - 1; }
+  if (w1521_rs_d32(elf_ctx, 0 - home) != 0) { return 0 - 1; }
+  while (k + 8 <= width) {
+    d = dest_off + k;
+    // mov rdx, [rax + k] ; mov [rcx + d], rdx
+    if (w1521_rs_b(elf_ctx, 72) != 0 || w1521_rs_b(elf_ctx, 139) != 0 || w1521_rs_b(elf_ctx, 144) != 0) { return 0 - 1; }
+    if (w1521_rs_d32(elf_ctx, k) != 0) { return 0 - 1; }
+    if (w1521_rs_b(elf_ctx, 72) != 0 || w1521_rs_b(elf_ctx, 137) != 0 || w1521_rs_b(elf_ctx, 145) != 0) { return 0 - 1; }
+    if (w1521_rs_d32(elf_ctx, d) != 0) { return 0 - 1; }
+    k = k + 8;
+  }
+  // mov rax, rcx
+  if (w1521_rs_b(elf_ctx, 72) != 0 || w1521_rs_b(elf_ctx, 137) != 0 || w1521_rs_b(elf_ctx, 200) != 0) { return 0 - 1; }
+  return 0;
+}
+
 /** Append one little-endian arm64 instruction word. PLATFORM: MACOS|ARM64. */
 function w1521_rs_a64(elf_ctx: *u8, word: i64): i32 {
   let b: u8[4] = [];
@@ -236,6 +279,63 @@ function w1521_rs_copy_to_dest(elf_ctx: *u8, home: i32, sz: i32): i32 {
   }
   // mov x0, x9
   if (w1521_rs_a64(elf_ctx, 2852717536) != 0) { return 0 - 1; }
+  return 0;
+}
+
+/**
+ * x0 holds one element's address. Copy `width` bytes from x0 onto the
+ * sret dest saved at [x29,#home], at byte dest_off, then leave that dest
+ * pointer in x0. The frame slot itself stays one element wide: the next
+ * element reuses it. width and dest_off are multiples of 8.
+ * @param elf_ctx *u8 — encoder context
+ * @param home i32 — nonnegative 8-byte-aligned slot of the saved x8
+ * @param dest_off i32 — byte offset into the dest, multiple of 8
+ * @param width i32 — byte count, multiple of 8
+ * @return i32 — 0 copied; 1 home or size not applicable; -1 encoder fail
+ * PLATFORM: MACOS|ARM64.
+ */
+function w1521_rs_copy_x0_to_dest_off(elf_ctx: *u8, home: i32, dest_off: i32, width: i32): i32 {
+  let k: i32 = 0;
+  let d: i32 = 0;
+  if (home < 0 || home > 32760 || (home % 8) != 0) {
+    return 1;
+  }
+  if (dest_off < 0 || width <= 0 || (dest_off % 8) != 0 || (width % 8) != 0) {
+    return 1;
+  }
+  if (dest_off + width > 32760) {
+    return 1;
+  }
+  // ldr x9, [x29, #home]
+  if (w1521_rs_a64(elf_ctx, 4181722025 + (((home / 8) as i64) << 10)) != 0) { return 0 - 1; }
+  k = 0;
+  while (k + 8 <= width) {
+    d = dest_off + k;
+    // ldr x10, [x0, #k] ; str x10, [x9, #d]
+    if (w1521_rs_a64(elf_ctx, 4181721098 + (((k / 8) as i64) << 10)) != 0) { return 0 - 1; }
+    if (w1521_rs_a64(elf_ctx, 4177527082 + (((d / 8) as i64) << 10)) != 0) { return 0 - 1; }
+    k = k + 8;
+  }
+  // mov x0, x9
+  if (w1521_rs_a64(elf_ctx, 2852717536) != 0) { return 0 - 1; }
+  return 0;
+}
+
+/**
+ * ldr x0, [x29, #home]. Reloads the sret dest so a later full-size copy
+ * reads the dest itself. @param elf_ctx *u8 — encoder context.
+ * @param home i32 — nonnegative 8-byte-aligned slot of the saved x8.
+ * @return i32 — 0 loaded; 1 bad home; -1 encoder fail.
+ * PLATFORM: MACOS|ARM64.
+ */
+function w1521_rs_load_dest_x0(elf_ctx: *u8, home: i32): i32 {
+  if (home < 0 || home > 32760 || (home % 8) != 0) {
+    return 1;
+  }
+  // ldr x0, [x29, #home]
+  if (w1521_rs_a64(elf_ctx, 4181722016 + (((home / 8) as i64) << 10)) != 0) {
+    return 0 - 1;
+  }
   return 0;
 }
 
@@ -351,8 +451,13 @@ function w1521_rs_mid_named_field(arena: *u8, op: i32): i32 {
  * so both words are in rax and rdx before the epilogue.
  * An ARRAY_LIT operand whose function return type is TYPE_ARRAY calls
  * glue_asm_emit_array_lit_durable_ptr_rax_elf_c first. Success leaves a
- * durable element pointer in rax/x0 and skips emit_expr. Any other result
- * falls through to emit_expr. A VAR return of a small array is unchanged
+ * durable element pointer in rax/x0 and skips emit_expr. When that array's
+ * element is a TYPE_VECTOR of i32 wider than 16 bytes, each element is
+ * filled by glue_emit_vector_type_let_init_elf_c into one element slot
+ * and copied to the sret dest at i * width. The slot stays one element
+ * wide. A let-init miss leaves that element and still returns the dest.
+ * An encoder miss returns -1. It does not fall through to the 8-byte load.
+ * Any other result falls through to emit_expr. A VAR return of a small array is unchanged
  * when the function return type is TYPE_ARRAY (the value stays in rax/x0).
  * A VAR whose declared type is TYPE_ARRAY, returned as TYPE_SLICE, leas
  * that slot and moves the element count into x1 (arm64) or rdx (SysV).
@@ -386,6 +491,8 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
   let act: i32 = 0;
   let home: i32 = 0 - 1;
   let rsz: i32 = 0;
+  /* 1 when a wide i32-vector array already copied each element to *x8. */
+  let wide_copied: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || expr_ref <= 0) {
     return 0 - 1;
   }
@@ -515,6 +622,82 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
               }
               // TYPE_ARRAY = 10. TYPE_SLICE is the arm below.
               if (rk_d == 10) {
+                let wide_bytes: i32 = 0;
+                let wide_n: i32 = 0;
+                let wide_w: i32 = 0;
+                let wide_i: i32 = 0;
+                let wide_slot: i32 = 0;
+                let wide_er: i32 = 0;
+                let wide_rc: i32 = 0;
+                let wide_off: i32 = 0;
+                /*
+                 * [N]Vec8i is wider than 16 bytes. The frame temp is one
+                 * vector. Fill that slot, copy width bytes to the sret
+                 * dest at i * width, then reuse the slot. A let-init miss
+                 * leaves that element. Do not fall through to the 8-byte
+                 * load. PLATFORM: SHARED. The copy encoding is
+                 * MACOS|ARM64 or LINUX x86_64.
+                 */
+                unsafe {
+                  wide_bytes = glue_wide_i32_vec_array_bytes(arena, rty_d);
+                }
+                if (wide_bytes > 16) {
+                  unsafe {
+                    elem_d = pipeline_type_elem_ref_at(arena, rty_d);
+                    wide_n = pipeline_type_array_size_at(arena, rty_d);
+                    wide_w = glue_index_simd_elem_bytes_c(arena, elem_d);
+                  }
+                  if (wide_n <= 0 || wide_w <= 16 || wide_n * wide_w != wide_bytes) {
+                    return 0 - 1;
+                  }
+                  // Same array type the frame walker reserved. Use only
+                  // the base: the second element must not be slot+width.
+                  unsafe {
+                    wide_slot = glue_simd_alloc_vector_temp_slot_c(arena, ctx, rty_d);
+                  }
+                  if (wide_slot < 0) {
+                    return 0 - 1;
+                  }
+                  if (ta == 1) {
+                    unsafe {
+                      act = pipeline_asm_emit_ctx_sret_active_get();
+                      home = pipeline_asm_emit_ctx_sret_home_off_get();
+                      rsz = pipeline_asm_emit_ctx_sret_ret_sz_get();
+                    }
+                  }
+                  wide_i = 0;
+                  while (wide_i < wide_n) {
+                    unsafe {
+                      wide_er = pipeline_expr_array_lit_elem_ref(arena, ret_op, wide_i);
+                    }
+                    if (wide_er > 0) {
+                      unsafe {
+                        wide_rc = glue_emit_vector_type_let_init_elf_c(
+                          arena, elf_ctx, wide_er, ctx, ta, wide_slot, elem_d);
+                      }
+                      if (wide_rc == 0) {
+                        unsafe {
+                          rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, wide_slot, ta);
+                        }
+                        if (rc != 0) {
+                          return 0 - 1;
+                        }
+                        wide_off = wide_i * wide_w;
+                        if (ta == 1) {
+                          wide_rc = w1521_rs_copy_x0_to_dest_off(elf_ctx, home, wide_off, wide_w);
+                        } else {
+                          wide_rc = w1521_rs_copy_x86_off(elf_ctx, home, wide_off, wide_w);
+                        }
+                        if (wide_rc < 0) {
+                          return 0 - 1;
+                        }
+                      }
+                    }
+                    wide_i = wide_i + 1;
+                  }
+                  wide_copied = 1;
+                  dur_ok = 1;
+                } else {
                 unsafe {
                   elem_d = pipeline_type_elem_ref_at(arena, rty_d);
                   esz_d = glue_array_lit_force_esz_from_elem_type_c(arena, elem_d);
@@ -555,6 +738,7 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                       return 0 - 1;
                     }
                   }
+                }
                 }
               }
             }
@@ -1042,6 +1226,14 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
           on_win = link_abi_host_is_windows();
         }
         if (on_win != 0) {
+          if (wide_copied != 0) {
+            unsafe {
+              rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, home, ta);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+          }
           if (w1521_rs_copy_x86(elf_ctx, home, rsz) < 0) {
             return 0 - 1;
           }
@@ -1049,12 +1241,21 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
       }
     }
     if (ta == 1) {
-      unsafe {
-        act = pipeline_asm_emit_ctx_sret_active_get();
-        home = pipeline_asm_emit_ctx_sret_home_off_get();
-        rsz = pipeline_asm_emit_ctx_sret_ret_sz_get();
+      // A wide fill already read home. Let-init of an element must not
+      // replace that slot before the self-copy. PLATFORM: MACOS|ARM64.
+      if (wide_copied == 0) {
+        unsafe {
+          act = pipeline_asm_emit_ctx_sret_active_get();
+          home = pipeline_asm_emit_ctx_sret_home_off_get();
+          rsz = pipeline_asm_emit_ctx_sret_ret_sz_get();
+        }
       }
       if (act != 0 && home >= 0 && rsz > 16) {
+        if (wide_copied != 0) {
+          if (w1521_rs_load_dest_x0(elf_ctx, home) != 0) {
+            return 0 - 1;
+          }
+        }
         if (w1521_rs_copy_to_dest(elf_ctx, home, rsz) < 0) {
           return 0 - 1;
         }

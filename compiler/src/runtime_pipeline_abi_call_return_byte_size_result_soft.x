@@ -16,6 +16,7 @@ export extern function pipe_store_ptr_slot(p: *u8, off: i32, v: *u8): void;
 export extern function pipe_load_ptr_slot(p: *u8, off: i32): *u8;
 export extern function pipeline_module_func_name_len_at(mod: *u8, fi: i32): i32;
 export extern function pipeline_module_func_name_byte_at(mod: *u8, fi: i32, i: i32): i32;
+export extern function glue_wide_i32_vec_array_bytes(arena: *u8, rty: i32): i32;
 
 function call_return_result_producer_name16(mod: *u8, fi: i32): i32 {
   unsafe {
@@ -178,7 +179,14 @@ export function glue_call_return_byte_size_c(arena: *u8, call_expr_ref: i32): i3
     if (k == 16) {
       return 0;
     }
+    // [N] of a TYPE_VECTOR of i32 wider than 16 bytes is the payload,
+    // same rule as glue_func_return_byte_size_c. Other arrays stay 8.
+    // PLATFORM: SHARED.
     if (k == 10) {
+      alt = glue_wide_i32_vec_array_bytes(arena, rty);
+      if (alt > 16) {
+        return alt;
+      }
       return 8;
     }
     sz_mod = pipeline_asm_emit_module_ref_c();
