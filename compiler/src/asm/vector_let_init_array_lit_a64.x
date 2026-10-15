@@ -199,7 +199,10 @@ export extern function pipeline_type_elem_ref_at(arena: *u8, type_ref: i32): i32
  * expr is a non-null INT_LIT is one walk, at most 32 steps, applied
  * inside out, then the same fill. Probes covered one through eight
  * minuses and the seven-deep mixed chain on lane 0 and lane 7.
- * A 33rd step stays declined.
+ * The same walk, when the innermost expr is a VAR, FIELD, lane binop,
+ * CALL, METHOD, INDEX, DEREF, or ARRAY_LIT, materializes that expr
+ * once and applies the chain inside out on each lane. `-(~id(z))`
+ * of 3 is 4 on lane 0 and lane 7. A 33rd step stays declined.
  * A FLOAT_LIT, or one unary minus of a FLOAT_LIT,
  * on an f32 lane is narrowed with glue_ieee_f64_bits_to_f32_bits and
  * splatted before that integer fold. One more unary minus of that
@@ -227,9 +230,9 @@ export extern function pipeline_type_elem_ref_at(arena: *u8, type_ref: i32): i32
  * ARRAY_LIT. A VAR, a FIELD, or an ARRAY_LIT
  * whose lanes are 4 bytes may be wider than 16. The FIELD home is the
  * same slot plus lane times 4, and that helper does not stop at 16.
- * A lane binop, CALL, METHOD, INDEX, and DEREF stay declined past 16
- * bytes: those writers store 16 bytes.
- * Bare CALL and VAR copy stay declined.
+ * A lane binop stores both halves. CALL and METHOD of a let wider
+ * than 16 write the slot through sret. INDEX and DEREF memcpy let_sz.
+ * Bare CALL and bare DEREF stay declined. Bare VAR copy stays declined.
  * PLATFORM: MACOS|ARM64.
  */
 #[no_mangle]
@@ -559,10 +562,11 @@ export function glue_emit_vector_type_let_init_elf_c(
       op_ko = pipeline_expr_kind_ord_at(arena, lit_ref);
     }
     // Walk kind 22 and kind 23, at most 32 steps, outermost first.
-    // The innermost expr must be a non-null INT_LIT. Apply from the
+    // An innermost non-null INT_LIT is the stamp below. Apply from the
     // inside out: kind 22 negates, kind 23 is `-imm - 1`. Kind 24 does
     // not enter. A VAR, a binop, CALL, METHOD, INDEX, DEREF, or
-    // ARRAY_LIT stays on the arm below. Keyword null stays declined.
+    // ARRAY_LIT is classified below, and the same chain is applied
+    // inside out on each lane. Keyword null stays declined.
     // Lane size other than 4, ta other than 1, and an f32 element stay
     // declined. One more than 32 steps stays declined.
     // PLATFORM: MACOS|ARM64.
@@ -656,6 +660,21 @@ export function glue_emit_vector_type_let_init_elf_c(
         }
       }
     }
+    // The first operand of `-(~id(z))` is still kind 23. The walk
+    // already stopped on the call. Classify that innermost expr.
+    // The stamp above returned when it is an INT_LIT. Kind -1 is the
+    // cap or a broken operand and stays declined. Kind 0 stays on the
+    // literal fallback below. PLATFORM: MACOS|ARM64.
+    if (u_n > 0) {
+      if (u_kk > 0) {
+        lit_ref = u_cur;
+        op_ko = u_kk;
+      } else {
+        if (u_kk < 0) {
+          return 0 - 3;
+        }
+      }
+    }
     if (op_ko != 0) {
       // Non-literal NEG. A VAR (kind 3) or a FIELD (kind 44) is
       // lane-addressable here. A lane binop (kinds 4..13 and 51) is
@@ -674,8 +693,8 @@ export function glue_emit_vector_type_let_init_elf_c(
       // Declining that left lane 0 of `let n = -[1, 2, 3, 4]` unequal
       // to -1. The width gate runs before that store, so a decline
       // emits nothing. INDEX, DEREF, CALL, and METHOD wider than 16
-      // copy or sret the whole value, then negate. Bare CALL and bare
-      // DEREF stay declined. ta != 1 stays declined.
+      // copy or sret the whole value, then the chain runs inside out.
+      // Bare CALL and bare DEREF stay declined. ta != 1 stays declined.
       // PLATFORM: MACOS|ARM64.
       if (ta != 1) {
         return 0 - 3;
@@ -703,10 +722,20 @@ export function glue_emit_vector_type_let_init_elf_c(
         rc = glue_vector_elem_is_f32_c(arena, type_ref);
       }
       // Nonzero means Vec4f, the f32x4 spelling, or TYPE_VECTOR of F32.
-      // Unary minus stays in this function and xors bit 31. Bitwise
-      // not of an f32 lane is not that flip, so kind 23 returns -3.
-      // esz other than 4 still returns -3 below. PLATFORM: MACOS|ARM64.
-      if (lane_not != 0) {
+      // Unary minus stays in this function and xors bit 31. Any kind
+      // 23 in the walked chain is bitwise not, which is not that flip,
+      // so an f32 lane returns -3. lane_not stays the outer flag for
+      // the integer-literal fallback below this arm. esz other than 4
+      // still returns -3 below. PLATFORM: MACOS|ARM64.
+      nested_u = 0;
+      u_i = 0;
+      while (u_i < u_n) {
+        if (u_knd[u_i] == 23) {
+          nested_u = 1;
+        }
+        u_i = u_i + 1;
+      }
+      if (nested_u != 0) {
         if (rc != 0) {
           return 0 - 3;
         }
@@ -822,36 +851,38 @@ export function glue_emit_vector_type_let_init_elf_c(
         if (rc != 0) {
           return 0 - 1;
         }
-        if (lane_f32 != 0) {
-          // Load already left the lane in x0 (LDR w0, zero-extended).
-          // MOVZ/MOVK w1 of the sign bit, then eor x0, x0, x1.
-          // lea below clobbers x1, so the eor stays before that lea.
-          // PLATFORM: MACOS|ARM64.
-          unsafe {
-            rc = backend_enc_mov_imm32_to_rbx_arch(elf_ctx, sign_bit, ta);
+        // u_knd is outermost first. Apply from the inside out, the same
+        // order as the integer stamp. Kind 23 is mvn w0. Kind 22 is
+        // neg w0, or one sign-bit xor when the lane is f32. A bitnot
+        // of f32 already returned. Two xors cancel. lea below clobbers
+        // x1, so every xor stays before that lea.
+        // PLATFORM: MACOS|ARM64.
+        u_i = u_n;
+        while (u_i > 0) {
+          u_i = u_i - 1;
+          if (lane_f32 != 0) {
+            unsafe {
+              rc = backend_enc_mov_imm32_to_rbx_arch(elf_ctx, sign_bit, ta);
+            }
+            if (rc == 0) {
+              unsafe {
+                rc = backend_enc_xor_rbx_rax_arch(elf_ctx, ta);
+              }
+            }
+          } else {
+            if (u_knd[u_i] == 23) {
+              unsafe {
+                rc = backend_enc_not_eax_arch(elf_ctx, ta);
+              }
+            } else {
+              unsafe {
+                rc = backend_enc_neg_eax_arch(elf_ctx, ta);
+              }
+            }
           }
           if (rc != 0) {
             return 0 - 1;
           }
-          unsafe {
-            rc = backend_enc_xor_rbx_rax_arch(elf_ctx, ta);
-          }
-        } else {
-          if (lane_not != 0) {
-            // mvn w0, w0. The 4-byte load is LDR w0, so only this
-            // lane's bits flip. neg w0 stays unary minus.
-            // PLATFORM: MACOS|ARM64.
-            unsafe {
-              rc = backend_enc_not_eax_arch(elf_ctx, ta);
-            }
-          } else {
-            unsafe {
-              rc = backend_enc_neg_eax_arch(elf_ctx, ta);
-            }
-          }
-        }
-        if (rc != 0) {
-          return 0 - 1;
         }
         unsafe {
           rc = backend_enc_lea_rbp_to_rbx_arch(elf_ctx, stack_slot_off, ta);
