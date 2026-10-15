@@ -22,7 +22,9 @@
 // inner value. A block that has lets is not peeled. An INDEX with an
 // integer-literal index loads one lane from the base frame. Nested
 // indexes are that same recursion. The stride is the existing index
-// element size. A non-literal index stays on emit_expr. A FIELD whose
+// element size. A non-literal index loads one lane from the address
+// the existing scaled index emitter leaves in rax. Nested indexes are
+// that emitter. A call base and a block base stay on emit_expr. A FIELD whose
 // root is a STRUCT_LIT has no VAR frame. The existing field
 // materializer already fills a temp and leaves that field's address
 // in rax. One recursion finds that root. The lane is then the existing
@@ -75,6 +77,10 @@ export extern function glue_field_access_call_base_rvalue_elf_c(
 ): i32;
 export extern function backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
 export extern function backend_enc_load_i32_indirect_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function glue_emit_index_eff_addr_scaled_elf_c(
+  arena: *u8, elf_ctx: *u8, ix_ref: i32, base_ref: i32, idx_ref: i32,
+  ctx: *u8, ta: i32, esz: i32
+): i32;
 
 /**
  * Flip bit 31 of the f32 lane already in rax.
@@ -580,6 +586,81 @@ function lane_indexed_lane_off(
 }
 
 /**
+ * True when an index chain needs the scaled address emitter.
+ * @param arena *u8 — expression arena. Null returns 0.
+ * @param expr_ref i32 — INDEX, FIELD, or VAR. A transparent block
+ *   returns 0. The scaled emitter does not peel blocks.
+ * @param budget i32 — nodes still allowed. The first call passes 128.
+ *   Zero returns 0 without reading. That stop is only for a chain
+ *   that does not end. Every shorter nest is this one function.
+ * @param saw_scale i32 — 1 when an outer index was not an integer
+ *   literal. The first call passes 0.
+ * @return i32 — 1 when a non-literal index sits on a VAR or FIELD
+ *   root, else 0. A CALL, METHOD, or STRUCT_LIT root returns 0.
+ * One call peels one INDEX or one FIELD and recurses on the base.
+ * This does not emit and does not compute a stride. PLATFORM: SHARED.
+ */
+function lane_index_wants_scaled(
+  arena: *u8, expr_ref: i32, budget: i32, saw_scale: i32
+): i32 {
+  let ko: i32 = 0;
+  let cur: i32 = 0;
+  let base_ref: i32 = 0;
+  let idx_ref: i32 = 0;
+  if (budget <= 0) {
+    return 0;
+  }
+  if (arena == (0 as *u8)) {
+    return 0;
+  }
+  if (expr_ref <= 0) {
+    return 0;
+  }
+  cur = lane_operand_unwrap_block(arena, expr_ref, budget);
+  if (cur <= 0) {
+    return 0;
+  }
+  if (cur != expr_ref) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  }
+  if (ko == 3) {
+    return saw_scale;
+  }
+  if (ko == 44) {
+    unsafe {
+      base_ref = pipeline_expr_field_access_base_ref(arena, expr_ref);
+    }
+    if (base_ref <= 0) {
+      return 0;
+    }
+    return lane_index_wants_scaled(arena, base_ref, budget - 1, saw_scale);
+  }
+  if (ko != 47) {
+    return 0;
+  }
+  unsafe {
+    base_ref = pipeline_expr_index_base_ref(arena, expr_ref);
+    idx_ref = pipeline_expr_index_index_ref(arena, expr_ref);
+  }
+  if (base_ref <= 0) {
+    return 0;
+  }
+  if (idx_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, idx_ref);
+  }
+  if (ko != 0) {
+    saw_scale = 1;
+  }
+  return lane_index_wants_scaled(arena, base_ref, budget - 1, saw_scale);
+}
+
+/**
  * Load one lane of an indexed vector into rax.
  * @param arena *u8 — expression arena.
  * @param elf_ctx *u8 — emit buffer.
@@ -588,21 +669,73 @@ function lane_indexed_lane_off(
  * @param esz i32 — lane bytes.
  * @param ctx *u8 — asm ctx.
  * @param ta i32 — 1 arm64, else x86.
- * @return i32 — 0 when rax holds the lane, the load encoder result
- *   when the encode fails, -2 when lane_indexed_lane_off has no home.
- * The offset already includes lane polarity. This load does not add
- * lane * esz again. PLATFORM: SHARED.
+ * @return i32 — 0 when rax holds the lane, -1 when the scaled
+ *   address or an encode fails, -2 when there is no home.
+ * A literal index uses lane_indexed_lane_off. That offset already
+ * includes lane polarity, so the frame load does not add lane * esz
+ * again. A non-literal index on a VAR or FIELD root calls
+ * glue_emit_index_eff_addr_scaled_elf_c. That leaves the element
+ * address in rax. Lane bytes sit at that address plus lane * esz,
+ * because rax is a pointer, not an rbp frame slot. The element
+ * stride is the existing index size, not the lane size. A call base
+ * and a block base return -2. PLATFORM: SHARED.
  */
 function lane_load_indexed_lane(
   arena: *u8, elf_ctx: *u8, expr_ref: i32, lane: i32, esz: i32, ctx: *u8, ta: i32
 ): i32 {
   let off: i32 = 0;
+  let rc: i32 = 0;
+  let want: i32 = 0;
+  let base_ref: i32 = 0;
+  let idx_ref: i32 = 0;
+  let elem_sz: i32 = 0;
   off = lane_indexed_lane_off(arena, ctx, expr_ref, lane, esz, ta, 128);
-  if (off < 0) {
+  if (off >= 0) {
+    unsafe {
+      return backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, off, esz, ta);
+    }
+  }
+  if (esz != 4) {
+    return 0 - 2;
+  }
+  if (lane < 0) {
+    return 0 - 2;
+  }
+  want = lane_index_wants_scaled(arena, expr_ref, 128, 0);
+  if (want != 1) {
     return 0 - 2;
   }
   unsafe {
-    return backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, off, esz, ta);
+    base_ref = pipeline_expr_index_base_ref(arena, expr_ref);
+    idx_ref = pipeline_expr_index_index_ref(arena, expr_ref);
+    elem_sz = pipeline_asm_index_elem_byte_sz_c(arena, expr_ref);
+  }
+  if (base_ref <= 0) {
+    return 0 - 2;
+  }
+  if (idx_ref <= 0) {
+    return 0 - 2;
+  }
+  if (elem_sz <= 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    rc = glue_emit_index_eff_addr_scaled_elf_c(
+      arena, elf_ctx, expr_ref, base_ref, idx_ref, ctx, ta, elem_sz);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  if (lane != 0) {
+    unsafe {
+      rc = backend_enc_add_imm_to_rax_arch(elf_ctx, lane * esz, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+  }
+  unsafe {
+    return backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta);
   }
 }
 
@@ -981,7 +1114,7 @@ function lane_i32_emit_neg_core(
     }
     return 0;
   }
-  // INDEX=47. A non-literal index is -2 and keeps emit_expr.
+  // INDEX=47. No home is -2 and keeps emit_expr.
   // PLATFORM: SHARED.
   if (ko == 47) {
     rc = lane_load_indexed_lane(arena, elf_ctx, expr_ref, lane, esz, ctx, ta);
