@@ -454,9 +454,12 @@ function w1521_rs_mid_named_field(arena: *u8, op: i32): i32 {
  * durable element pointer in rax/x0 and skips emit_expr. When that array's
  * element is a TYPE_VECTOR of i32 wider than 16 bytes, each element is
  * filled by glue_emit_vector_type_let_init_elf_c into one element slot
- * and copied to the sret dest at i * width. The slot stays one element
- * wide. A let-init miss leaves that element and still returns the dest.
- * An encoder miss returns -1. It does not fall through to the 8-byte load.
+ * and copied to the sret dest at i * width. A VAR element is not that
+ * fill: vector let-init returns -3 so the caller copies. The address
+ * of the VAR is copied the same width. FIELD and INDEX stay declined.
+ * The slot stays one element wide. A miss leaves that element and
+ * still returns the dest. An encoder miss returns -1. It does not
+ * fall through to the 8-byte load.
  * Any other result falls through to emit_expr. A VAR return of a small array is unchanged
  * when the function return type is TYPE_ARRAY (the value stays in rax/x0).
  * A VAR whose declared type is TYPE_ARRAY, returned as TYPE_SLICE, leas
@@ -630,13 +633,15 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                 let wide_er: i32 = 0;
                 let wide_rc: i32 = 0;
                 let wide_off: i32 = 0;
+                let wide_src: i32 = 0;
                 /*
                  * [N]Vec8i is wider than 16 bytes. The frame temp is one
-                 * vector. Fill that slot, copy width bytes to the sret
-                 * dest at i * width, then reuse the slot. A let-init miss
-                 * leaves that element. Do not fall through to the 8-byte
-                 * load. PLATFORM: SHARED. The copy encoding is
-                 * MACOS|ARM64 or LINUX x86_64.
+                 * vector. Fill that slot, or take a VAR's address, then
+                 * copy width bytes to the sret dest at i * width. FIELD
+                 * and INDEX stay declined. A miss leaves that element.
+                 * Do not fall through to the 8-byte load.
+                 * PLATFORM: SHARED. The copy encoding is MACOS|ARM64
+                 * or LINUX x86_64.
                  */
                 unsafe {
                   wide_bytes = glue_wide_i32_vec_array_bytes(arena, rty_d);
@@ -671,17 +676,39 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                       wide_er = pipeline_expr_array_lit_elem_ref(arena, ret_op, wide_i);
                     }
                     if (wide_er > 0) {
+                      wide_src = 0;
                       unsafe {
-                        wide_rc = glue_emit_vector_type_let_init_elf_c(
-                          arena, elf_ctx, wide_er, ctx, ta, wide_slot, elem_d);
+                        wide_rc = pipeline_expr_kind_ord_at(arena, wide_er);
                       }
-                      if (wide_rc == 0) {
+                      // EXPR_VAR = 3. Vector let-init returns -3 and
+                      // emits nothing, so the array-literal store can
+                      // copy the local. The address is the whole vector.
+                      // FIELD (44) and INDEX (47) stay declined: an
+                      // index may be one lane. PLATFORM: SHARED.
+                      if (wide_rc == 3) {
                         unsafe {
-                          rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, wide_slot, ta);
+                          rc = pipeline_asm_emit_lvalue_eff_addr_elf_c(
+                            arena, elf_ctx, wide_er, ctx, ta);
                         }
-                        if (rc != 0) {
-                          return 0 - 1;
+                        if (rc == 0) {
+                          wide_src = 1;
                         }
+                      } else {
+                        unsafe {
+                          wide_rc = glue_emit_vector_type_let_init_elf_c(
+                            arena, elf_ctx, wide_er, ctx, ta, wide_slot, elem_d);
+                        }
+                        if (wide_rc == 0) {
+                          unsafe {
+                            rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, wide_slot, ta);
+                          }
+                          if (rc != 0) {
+                            return 0 - 1;
+                          }
+                          wide_src = 1;
+                        }
+                      }
+                      if (wide_src == 1) {
                         wide_off = wide_i * wide_w;
                         if (ta == 1) {
                           wide_rc = w1521_rs_copy_x0_to_dest_off(elf_ctx, home, wide_off, wide_w);
