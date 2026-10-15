@@ -43,6 +43,8 @@ export extern function glue_simd_alloc_vector_temp_slot_c(arena: *u8, ctx: *u8, 
 export extern function glue_emit_vector_type_let_init_elf_c(
   arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32,
   stack_slot_off: i32, type_ref: i32): i32;
+export extern function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i32): i32;
+export extern function glue_vector_elem_is_f32_c(arena: *u8, type_ref: i32): i32;
 
 function w254_sl_cell_i32(base: *u8): i32 {
   unsafe {
@@ -66,11 +68,14 @@ function w254_sl_cell_i32(base: *u8): i32 {
  * i32x8 is TYPE_NAMED (kind 8) and is 32 bytes. Vec8i is TYPE_VECTOR
  * (kind 13): named-layout returns 0 by contract, and the array helper
  * returns 0 unless kind is 10. pipeline_asm_type_ref_byte_size_c is
- * lanes times the element size (Vec8i is 32). That count replaces
- * `wide`, and the same address copy stores the payload. Kind 13
- * alignment is unchanged. Do not pin a vector name. A width below 8
- * stays on the scalar store: the copy rejects it. Layouts wider than
- * 16 for the other kinds already copy from the address in x0.
+ * lanes times the element size (Vec8i is 32, Vec4f is 16). An integer
+ * literal into a kind-8 integer spelling uses the same let-init splat
+ * as kind 13. A VAR of 9..16 bytes (Vec4f) uses that byte size as
+ * `wide` when the named layout is below 8, then the existing x0:x1
+ * spill. A width above 16 is not that pair. Kind 13 alignment is
+ * unchanged. Do not pin a vector name. A width below 8 stays on the
+ * scalar store: the copy rejects it. Layouts wider than 16 for the
+ * other kinds already copy from the address in x0.
  * @param arena *u8 — expression arena. Null returns -1.
  * @param elf_ctx *u8 — emit context. Null returns -1.
  * @param lit_ref i32 — STRUCT_LIT expression ref. Non-positive returns -1.
@@ -164,14 +169,19 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
     }
     /*
      * INT_LIT, a kind-22 / kind-23 chain, an if (kind 25), or a
-     * ternary (kind 27) into a TYPE_VECTOR of i32 that is wider than
-     * 8 bytes. The scalar store below keeps at most 8 bytes, so lane
-     * 7 of `H { v: 0 }` stayed unset. The same vector let-init a
-     * `let` uses fills a temp. Kind 25 and 27 already branch inside
-     * that let-init. The existing x19 memcpy then copies that temp
-     * onto this field. A -3 decline falls through to the scalar
-     * store. Kind 24 and an f32 element do not enter. ARRAY_LIT stays
-     * on the pointer copy below. PLATFORM: MACOS|ARM64.
+     * ternary (kind 27) into an integer vector wider than 8 bytes.
+     * The scalar store below keeps at most 8 bytes, so lane 7 of
+     * `H { v: 0 }` stayed unset, and `H { v: 3 }` of i32x8 stored one
+     * str x of the scalar. Kind 13 reads the element kind. Kind 8
+     * (i32x8 and the other integer spellings) has no element ref:
+     * asm_type_is_simd_vector_spelling plus glue_vector_elem_is_f32_c
+     * is the split vector let-init already uses. Vec4f stays out.
+     * The same let-init a `let` uses fills a temp. Kind 25 and 27
+     * already branch inside that let-init. The existing x19 memcpy
+     * then copies that temp onto this field. A -3 decline falls
+     * through to the scalar store. Kind 24 and an f32 element do not
+     * enter. ARRAY_LIT stays on the pointer copy below.
+     * PLATFORM: MACOS|ARM64.
      */
     if (ta == 1) {
       fty = 0;
@@ -184,6 +194,9 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
         unsafe {
           splat_tk = pipeline_type_kind_ord_at(arena, fty);
         }
+        // splat_ek == 0 means integer lanes. -1 means this field is
+        // not an integer vector, so the scalar store below runs.
+        splat_ek = 0 - 1;
         if (splat_tk == 13) {
           unsafe {
             splat_elem = pipeline_type_elem_ref_at(arena, fty);
@@ -192,7 +205,22 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
             unsafe {
               splat_ek = pipeline_type_kind_ord_at(arena, splat_elem);
             }
-            if (splat_ek == 0) {
+          }
+        }
+        if (splat_tk == 8) {
+          unsafe {
+            splat_elem = asm_type_is_simd_vector_spelling(arena, fty);
+          }
+          if (splat_elem != 0) {
+            unsafe {
+              splat_go = glue_vector_elem_is_f32_c(arena, fty);
+            }
+            if (splat_go == 0) {
+              splat_ek = 0;
+            }
+          }
+        }
+        if (splat_ek == 0) {
               splat_go = 0;
               if (iko == 0) {
                 splat_go = 1;
@@ -254,8 +282,6 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
                 }
               }
             }
-          }
-        }
       }
     }
     unsafe {
@@ -320,6 +346,39 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
             vec_bytes = pipeline_asm_type_ref_byte_size_c(arena, fty);
           }
           if (vec_bytes >= 8) {
+            wide = vec_bytes;
+          }
+        }
+      }
+      // Named-layout size is 0 for a SIMD spelling that is not a user
+      // struct, so a Vec4f VAR used to miss the 9..16 pair spill and
+      // the scalar store kept one w. The byte-size helper is the same
+      // width the assign path copies (Vec4f is 16). Only that window
+      // is filled here: above 16 is not an x0:x1 pair, and the integer
+      // literal of i32x8 already took the let-init above. ARRAY_LIT
+      // keeps the pointer copy. PLATFORM: MACOS|DARWIN.
+      if (wide < 8 && fty > 0 && iko != 46) {
+        vec_bytes = 0;
+        unsafe {
+          vec_bytes = pipeline_type_kind_ord_at(arena, fty);
+        }
+        splat_go = 0;
+        if (vec_bytes == 13) {
+          splat_go = 1;
+        }
+        if (vec_bytes == 8) {
+          unsafe {
+            splat_elem = asm_type_is_simd_vector_spelling(arena, fty);
+          }
+          if (splat_elem != 0) {
+            splat_go = 1;
+          }
+        }
+        if (splat_go != 0) {
+          unsafe {
+            vec_bytes = pipeline_asm_type_ref_byte_size_c(arena, fty);
+          }
+          if (vec_bytes > 8 && vec_bytes <= 16) {
             wide = vec_bytes;
           }
         }
