@@ -741,16 +741,17 @@ function vlet_f32_array_lanes(
  * emitted when an arm is not a literal chain, a VAR, a FIELD with a
  * lane-0 home, an ARRAY_LIT, a lane binop, a block that still has
  * lets, a nested if or ternary, a unary whose innermost expr is a
- * VAR, a FIELD, an INDEX, a CALL, a METHOD, or a lane binop
- * (kinds 4..13), or a bare INDEX.
+ * VAR, a FIELD, an INDEX, a CALL, a METHOD, a lane binop
+ * (kinds 4..13), or an ARRAY_LIT, or a bare INDEX.
  * That unary is the existing vector let-init, which already applies
  * the chain on every lane. A unary of an INDEX is that let-init's
  * existing copy, then the chain. A unary of a CALL or a METHOD is
  * that let-init's existing sret, then the chain. A unary of a lane
  * binop is that let-init's existing binop writer, then the chain.
- * Kind 51 is excluded before the classifier because it remaps 51 to
- * add. Kind 52 stays off that walk. A unary of an ARRAY_LIT and a
- * unary of a block stay declined.
+ * A unary of an ARRAY_LIT is that let-init's existing lane-byte
+ * writer, then the chain. Kind 51 is excluded before the classifier
+ * because it remaps 51 to add. Kind 52 stays off that walk. A unary
+ * of a block stays declined.
  * A bare FIELD is the same large copy as a VAR. A CALL, a METHOD,
  * or an INDEX is that let-init's existing struct let-init.
  * A nested if is that same call. Kind 51 stays out.
@@ -1785,23 +1786,25 @@ export function glue_emit_vector_type_let_init_elf_c(
  * @return i32 — peeled expr ref when the arm is a non-null INT_LIT,
  *   a kind-22 / kind-23 chain of one, that same chain whose innermost
  *   expr is a VAR or a FIELD with a lane-0 home, an INDEX, a CALL,
- *   a METHOD, or a lane binop (kinds 4..13), a VAR or a FIELD with a
- *   frame home, an ARRAY_LIT, a lane binop
+ *   a METHOD, a lane binop (kinds 4..13), or an ARRAY_LIT, a VAR or
+ *   a FIELD with a frame home, an ARRAY_LIT, a lane binop
  *   (kinds 4..13), a block that still has lets, a nested if
  *   (kind 25) or ternary (kind 27), a CALL (kind 48), a METHOD
  *   (kind 49), or an INDEX (kind 47). 0 means decline this if
  *   before any branch is emitted.
- * A unary of a VAR, a FIELD, an INDEX, a CALL, a METHOD, or a lane
- * binop (kinds 4..13) is the whole chain. The fill passes it to the
- * existing vector let-init, which already applies kind 22 and kind 23
- * inside out on every lane. A VAR or a FIELD needs a lane-0 home.
- * An INDEX does not: that let-init copies it with struct let-init,
- * then applies the chain. A CALL or a METHOD does not: that let-init
- * srets a return wider than 16 bytes, then applies the chain. A lane
- * binop does not: that let-init writes the binop into the slot, then
+ * A unary of a VAR, a FIELD, an INDEX, a CALL, a METHOD, a lane
+ * binop (kinds 4..13), or an ARRAY_LIT is the whole chain. The fill
+ * passes it to the existing vector let-init, which already applies
+ * kind 22 and kind 23 inside out on every lane. A VAR or a FIELD
+ * needs a lane-0 home. An INDEX does not: that let-init copies it
+ * with struct let-init, then applies the chain. A CALL or a METHOD
+ * does not: that let-init srets a return wider than 16 bytes, then
+ * applies the chain. A lane binop does not: that let-init writes the
+ * binop into the slot, then applies the chain. An ARRAY_LIT does not:
+ * that let-init writes the literal with the lane-byte writer, then
  * applies the chain. Kind 51 is excluded before the classifier
  * because it remaps 51 to add. Kind 52 stays off this walk. A unary
- * of an ARRAY_LIT and a unary of a block stay declined. A bare FIELD
+ * of a block stays declined. A bare FIELD
  * is copied like a VAR: lane 0 from
  * glue_vector_var_lane_stack_off_elf_c is the start of the vector.
  * A CALL, a METHOD, or an INDEX is that let-init's struct let-init.
@@ -2041,8 +2044,8 @@ export function glue_vec_if_arm_take_c(
   // before that call. The fill stores this chain with the existing
   // vector let-init, which writes the binop into the slot and applies
   // the chain on every lane. Nested unaries stay that one walk.
-  // Kind 52 stays off. A unary of an ARRAY_LIT and a unary of a
-  // block stay declined. PLATFORM: MACOS|ARM64.
+  // Kind 52 stays off. A unary of a block stays declined.
+  // PLATFORM: MACOS|ARM64.
   go = 0;
   if (op_k != 51) {
     unsafe {
@@ -2050,6 +2053,15 @@ export function glue_vec_if_arm_take_c(
     }
   }
   if (go != 0) {
+    return cur;
+  }
+  // Innermost ARRAY_LIT: return the whole unary. The lane-home
+  // helper does not address a literal. The fill stores this chain
+  // with the existing vector let-init, which writes the literal with
+  // the lane-byte writer and applies the chain on every lane. Nested
+  // unaries stay that one walk. Kind 52 stays off. A unary of a block
+  // stays declined. PLATFORM: MACOS|ARM64.
+  if (op_k == 46) {
     return cur;
   }
   if (op_k != 0) {
@@ -2079,10 +2091,10 @@ export function glue_vec_if_arm_take_c(
  * and glue_copy_large_struct_from_rax_ptr_elf_c. Lane 0 is the start
  * of that vector. A literal chain, an ARRAY_LIT, a lane binop, a
  * block that still has lets, a nested if or ternary, a unary whose
- * innermost expr is a VAR, a FIELD, an INDEX, a CALL, a METHOD, or
- * a lane binop (kinds 4..13), or a bare INDEX call
+ * innermost expr is a VAR, a FIELD, an INDEX, a CALL, a METHOD, a
+ * lane binop (kinds 4..13), or an ARRAY_LIT, or a bare INDEX call
  * glue_emit_vector_type_let_init_elf_c.
- * A unary of an ARRAY_LIT and a unary of a block stay declined.
+ * A unary of a block stays declined.
  * That call is one extra frame, not a second splat. An f32 binop uses
  * that let-init's own fill, not an i32 splat. PLATFORM: MACOS|ARM64.
  */
@@ -2151,13 +2163,14 @@ export function glue_vec_if_arm_fill_c(
  * Both arms are required. Each arm is accepted only by
  * glue_vec_if_arm_take_c before the condition is emitted. A nested if
  * or ternary arm is this function again, through the vector let-init.
- * A unary of a VAR, a FIELD, an INDEX, a CALL, a METHOD, or a lane
- * binop (kinds 4..13) is that let-init's existing per-lane chain.
- * An INDEX is copied first. A CALL or a METHOD is sret first.
- * A lane binop is that let-init's existing binop writer first.
- * Then the chain runs. Kind 51 is excluded before the classifier
- * because it remaps 51 to add. Kind 52 stays off that walk.
- * A unary of an ARRAY_LIT and a unary of a block stay declined.
+ * A unary of a VAR, a FIELD, an INDEX, a CALL, a METHOD, a lane
+ * binop (kinds 4..13), or an ARRAY_LIT is that let-init's existing
+ * per-lane chain. An INDEX is copied first. A CALL or a METHOD is
+ * sret first. A lane binop is that let-init's existing binop writer
+ * first. An ARRAY_LIT is that let-init's existing lane-byte writer
+ * first. Then the chain runs. Kind 51 is excluded before the
+ * classifier because it remaps 51 to add. Kind 52 stays off that
+ * walk. A unary of a block stays declined.
  * A bare FIELD is the same large copy as a VAR.
  * A CALL, METHOD, or INDEX arm is that let-init's existing struct let-init.
  * The condition uses the existing bool-in-eax jump. A SIMD spelling wider
