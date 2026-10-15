@@ -486,6 +486,11 @@ function w1521_rs_mid_named_field(arena: *u8, op: i32): i32 {
  * ARRAY/SLICE ascription peel, uses that same helper and then moves the
  * element count into x1 (arm64) or rdx (SysV). Windows keeps emit_expr.
  * A length-register failure after a successful durable emit returns -1.
+ * Darwin sret of a named SIMD (kind 8) wider than 16 bytes, whose
+ * operand is an INT_LIT, a FLOAT_LIT, or a kind-22 chain, fills that
+ * value with glue_emit_vector_type_let_init_elf_c into a temp and
+ * leas the temp into x0 before the copy. A 16-byte return does not
+ * enter. Kind-13 f32 elements do not enter. Let-init -3 falls through.
  * @param arena *u8 — AST arena; null returns -1
  * @param elf_ctx *u8 — ELF codegen context; null returns -1
  * @param expr_ref i32 — EXPR_RETURN; <=0 returns -1
@@ -617,6 +622,9 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
       let v_ek: i32 = 0;
       let v_opk: i32 = 0;
       let v_go: i32 = 0;
+      let v_go8: i32 = 0;
+      let v_enter: i32 = 0;
+      let v_take: i32 = 0;
       if (ta == 0 || ta == 1) {
         unsafe {
           opk_d = pipeline_expr_kind_ord_at(arena, ret_op);
@@ -1189,15 +1197,21 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
         }
       }
       /*
-       * Darwin sret copies [x0] into the hidden dest. emit_expr of an
-       * INT_LIT leaves the integer in x0, and the copy then reads that
-       * integer as an address (SIGSEGV). A TYPE_VECTOR of i32 whose
-       * operand is a bare INT_LIT, a kind-22 / kind-23 chain, or an
-       * if / ternary (kind 25 / 27) is filled by the same let-init that
-       * `let v: Vec8i = 3` uses, then lea of that slot leaves the source
-       * address in x0. A VAR operand (kind 3) stays on emit_expr: that
-       * path already leaves the local address. Let-init -3 falls through.
-       * Any other failure returns -1. f32 element kinds do not enter.
+       * Darwin sret copies [x0] into the hidden dest. emit_expr of a
+       * scalar literal leaves that scalar in x0, and the copy then
+       * reads it as an address (SIGSEGV). A TYPE_VECTOR (kind 13) of
+       * i32 whose operand is a bare INT_LIT, a kind-22 / kind-23
+       * chain, or an if / ternary (kind 25 / 27) is filled by the
+       * same let-init that `let v: Vec8i = 3` uses. A named SIMD
+       * (kind 8) whose sret size is above 16 bytes uses that same
+       * let-init for an INT_LIT, a FLOAT_LIT (kind 1), or a kind-22
+       * chain: `return 1`, `return 1.0`, `return -1.0` of f32x8, and
+       * `return 3` of i32x8. The let-init already declines a non-simd
+       * name. A 16-byte return does not enter the kind-8 arm, so
+       * f32x4 and Vec4f stay out. A VAR operand (kind 3) stays on
+       * emit_expr: that path already leaves the local address.
+       * Let-init -3 falls through. Any other failure returns -1.
+       * Kind-13 f32 element kinds do not enter.
        * PLATFORM: MACOS|ARM64.
        */
       if (ta == 1) {
@@ -1207,9 +1221,14 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
           }
           if (v_opk == 0) {
             v_go = 1;
+            v_go8 = 1;
+          }
+          if (v_opk == 1) {
+            v_go8 = 1;
           }
           if (v_opk == 22) {
             v_go = 1;
+            v_go8 = 1;
           }
           if (v_opk == 23) {
             v_go = 1;
@@ -1221,6 +1240,12 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
             v_go = 1;
           }
           if (v_go != 0) {
+            v_enter = 1;
+          }
+          if (v_go8 != 0) {
+            v_enter = 1;
+          }
+          if (v_enter != 0) {
             unsafe {
               v_mod = pipeline_asm_emit_module_ref_c();
               v_fi = pipeline_asm_emit_func_index_c();
@@ -1235,37 +1260,52 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                     v_rk = pipeline_type_kind_ord_at(arena, v_rty);
                   }
                   if (v_rk == 13) {
-                    unsafe {
-                      v_elem = pipeline_type_elem_ref_at(arena, v_rty);
-                    }
-                    if (v_elem > 0) {
+                    if (v_go != 0) {
                       unsafe {
-                        v_ek = pipeline_type_kind_ord_at(arena, v_elem);
+                        v_elem = pipeline_type_elem_ref_at(arena, v_rty);
                       }
-                      if (v_ek == 0) {
+                      if (v_elem > 0) {
                         unsafe {
-                          v_slot = glue_simd_alloc_vector_temp_slot_c(arena, ctx, v_rty);
+                          v_ek = pipeline_type_kind_ord_at(arena, v_elem);
                         }
-                        if (v_slot < 0) {
-                          return 0 - 1;
+                        if (v_ek == 0) {
+                          v_take = 1;
                         }
-                        unsafe {
-                          v_rc = glue_emit_vector_type_let_init_elf_c(
-                            arena, elf_ctx, ret_op, ctx, ta, v_slot, v_rty);
-                        }
-                        if (v_rc == 0) {
-                          unsafe {
-                            v_rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, v_slot, ta);
-                          }
-                          if (v_rc != 0) {
-                            return 0 - 1;
-                          }
-                          dur_ok = 1;
-                        } else {
-                          if (v_rc != (0 - 3)) {
-                            return 0 - 1;
-                          }
-                        }
+                      }
+                    }
+                  }
+                  if (v_rk == 8) {
+                    if (v_go8 != 0) {
+                      unsafe {
+                        rsz = pipeline_asm_emit_ctx_sret_ret_sz_get();
+                      }
+                      if (rsz > 16) {
+                        v_take = 1;
+                      }
+                    }
+                  }
+                  if (v_take != 0) {
+                    unsafe {
+                      v_slot = glue_simd_alloc_vector_temp_slot_c(arena, ctx, v_rty);
+                    }
+                    if (v_slot < 0) {
+                      return 0 - 1;
+                    }
+                    unsafe {
+                      v_rc = glue_emit_vector_type_let_init_elf_c(
+                        arena, elf_ctx, ret_op, ctx, ta, v_slot, v_rty);
+                    }
+                    if (v_rc == 0) {
+                      unsafe {
+                        v_rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, v_slot, ta);
+                      }
+                      if (v_rc != 0) {
+                        return 0 - 1;
+                      }
+                      dur_ok = 1;
+                    } else {
+                      if (v_rc != (0 - 3)) {
+                        return 0 - 1;
                       }
                     }
                   }
