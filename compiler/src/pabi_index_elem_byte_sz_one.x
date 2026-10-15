@@ -37,6 +37,7 @@ export extern function glue_field_access_field_type_ref_c(arena: *u8, mod: *u8, 
 export extern function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
 export extern function glue_var_expr_type_ref_with_decl_fallback_c(arena: *u8, expr_ref: i32): i32;
 export extern function glue_index_elem_byte_sz_from_type_ref_c(arena: *u8, tr: i32): i32;
+export extern function glue_index_simd_elem_bytes_c(arena: *u8, ty: i32): i32;
 
 /**
  * True-pack width of one TYPE_NAMED ref inside the INDEX-expr tail.
@@ -389,6 +390,17 @@ function iesz_resolved(arena: *u8, expr_ref: i32, tr: i32): i32 {
   unsafe {
     esz_res = glue_index_elem_byte_sz_from_type_ref_c(arena, tr);
   }
+  if (k == 13) {
+    // Resolved type is the vector element. The peeler's bare kind-13
+    // arm is the lane stride (4). The address stride is the width.
+    // PLATFORM: SHARED.
+    unsafe {
+      asz = glue_index_simd_elem_bytes_c(arena, tr);
+    }
+    if (asz > 0) {
+      esz_res = asz;
+    }
+  }
   unsafe {
     base2 = pipeline_expr_index_base_ref(arena, expr_ref);
   }
@@ -439,14 +451,26 @@ function iesz_resolved(arena: *u8, expr_ref: i32, tr: i32): i32 {
  * @param pk i32 — pointee kind, already loaded
  * @return i32 — decided width, or 0 when the caller keeps pk and falls through
  * Kind 18 does not return 8 here. The type-ref peeler does. Kind 15 does
- * not return 8 here either. PLATFORM: SHARED — local helper.
+ * not return 8 here either. Kind 13 uses the peeler's vector width.
+ * PLATFORM: SHARED — local helper.
  */
 function iesz_tail_pointee(arena: *u8, pointee: i32, pk: i32): i32 {
   let asz: i32 = 0;
   if (pk == 2 || pk == 1) {
     return 1;
   }
-  if (pk == 0 || pk == 3 || pk == 13 || pk == 14) {
+  if (pk == 13) {
+    // Same width as iesz_arr_pointee. A miss keeps stride 4.
+    // PLATFORM: SHARED.
+    unsafe {
+      asz = glue_index_simd_elem_bytes_c(arena, pointee);
+    }
+    if (asz > 0) {
+      return asz;
+    }
+    return 4;
+  }
+  if (pk == 0 || pk == 3 || pk == 14) {
     return 4;
   }
   if (pk == 9) {

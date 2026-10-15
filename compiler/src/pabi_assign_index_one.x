@@ -39,6 +39,22 @@ export extern function pipeline_asm_emit_lvalue_eff_addr_elf_c(
   arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
 ): i32;
 export extern function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
+export extern function pipeline_type_elem_ref_at(arena: *u8, type_ref: i32): i32;
+export extern function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i32): i32;
+export extern function glue_vector_type_lanes_esz_c(
+  arena: *u8, type_ref: i32, out_lanes: *i32, out_esz: *i32
+): i32;
+export extern function pipeline_asm_cmp_expr_lit_i32_at(
+  arena: *u8, expr_ref: i32, out: *i32
+): i32;
+export extern function glue_var_expr_stack_off_elf_c(
+  arena: *u8, ctx: *u8, var_expr_ref: i32
+): i32;
+export extern function glue_emit_vector_type_let_init_elf_c(
+  arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32,
+  stack_slot_off: i32, type_ref: i32
+): i32;
 export extern function pipeline_asm_set_call_expected_ret_ty_c(type_ref: i32): void;
 export extern function pipeline_asm_emit_set_call_sret_reg_shift_c(v: i32): void;
 export extern function backend_enc_mov_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
@@ -391,6 +407,195 @@ function assign_index_one_tail(
 }
 
 /**
+ * Fill a constant-index Vec8i element from an if or a ternary.
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — encoder context
+ * @param left_ref i32 — INDEX lvalue
+ * @param right_ref i32 — RHS; only kind 25 and kind 27 enter
+ * @param ctx *u8 — emit context
+ * @param ta i32 — only 1 (Darwin arm64) enters
+ * @param base_ref i32 — INDEX base; must be a frame VAR
+ * @param idx_ref i32 — INDEX index; must be a non-negative INT_LIT
+ * @return i32 — 0 when every lane was filled; -1 after a fill started
+ *   and failed; -99 when this arm declines and has emitted nothing
+ * The element type is the INDEX resolved type, or the element of an
+ * array, slice, or pointer base. Kind must be 13, the lane size 4,
+ * and the width greater than 16. The home is the base frame slot plus
+ * index times that width. The existing vector let-init fills both
+ * arms, or returns -3 before emitting. A dynamic index, a 16-byte
+ * vector, and a scalar element return -99 so the one-word store runs.
+ * PLATFORM: MACOS|ARM64.
+ */
+function assign_index_one_vec_if(
+  arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8,
+  ta: i32, base_ref: i32, idx_ref: i32
+): i32 {
+  let cell: u8[8];
+  let lanes_s: i32[1] = [];
+  let esz_s: i32[1] = [];
+  let lit_s: i32[1] = [];
+  let rk: i32 = 0;
+  let go: i32 = 0;
+  let ltr: i32 = 0;
+  let tk: i32 = 0;
+  let peel: i32 = 0;
+  let simd: i32 = 0;
+  let lanes: i32 = 0;
+  let esz: i32 = 0;
+  let nbytes: i32 = 0;
+  let lit: i32 = 0;
+  let off: i32 = 0;
+  let span: i32 = 0;
+  let home: i32 = 0;
+  let rc: i32 = 0;
+  if (ta != 1) {
+    return 0 - 99;
+  }
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, pipeline_expr_kind_ord_at(arena, right_ref));
+  }
+  rk = assign_index_cell_i32(&cell[0]);
+  if (rk == 25) {
+    go = 1;
+  }
+  if (rk == 27) {
+    go = 1;
+  }
+  if (go == 0) {
+    return 0 - 99;
+  }
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, pipeline_expr_resolved_type_ref(arena, left_ref));
+  }
+  ltr = assign_index_cell_i32(&cell[0]);
+  if (ltr > 0) {
+    unsafe {
+      pipe_store_i32_le(&cell[0], 0, pipeline_type_kind_ord_at(arena, ltr));
+    }
+    tk = assign_index_cell_i32(&cell[0]);
+    if (tk == 10) {
+      peel = 1;
+    }
+    if (tk == 11) {
+      peel = 1;
+    }
+    if (tk == 9) {
+      peel = 1;
+    }
+    if (peel != 0) {
+      unsafe {
+        pipe_store_i32_le(&cell[0], 0, pipeline_type_elem_ref_at(arena, ltr));
+      }
+      ltr = assign_index_cell_i32(&cell[0]);
+    }
+  }
+  if (ltr <= 0) {
+    unsafe {
+      pipe_store_i32_le(&cell[0], 0, pipeline_expr_resolved_type_ref(arena, base_ref));
+    }
+    ltr = assign_index_cell_i32(&cell[0]);
+    peel = 0;
+    if (ltr > 0) {
+      unsafe {
+        pipe_store_i32_le(&cell[0], 0, pipeline_type_kind_ord_at(arena, ltr));
+      }
+      tk = assign_index_cell_i32(&cell[0]);
+      if (tk == 10) {
+        peel = 1;
+      }
+      if (tk == 11) {
+        peel = 1;
+      }
+      if (tk == 9) {
+        peel = 1;
+      }
+      if (peel != 0) {
+        unsafe {
+          pipe_store_i32_le(&cell[0], 0, pipeline_type_elem_ref_at(arena, ltr));
+        }
+        ltr = assign_index_cell_i32(&cell[0]);
+      } else {
+        ltr = 0;
+      }
+    }
+  }
+  if (ltr <= 0) {
+    return 0 - 99;
+  }
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, pipeline_type_kind_ord_at(arena, ltr));
+  }
+  tk = assign_index_cell_i32(&cell[0]);
+  if (tk != 13) {
+    return 0 - 99;
+  }
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, asm_type_is_simd_vector_spelling(arena, ltr));
+  }
+  simd = assign_index_cell_i32(&cell[0]);
+  if (simd == 0) {
+    return 0 - 99;
+  }
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, glue_vector_type_lanes_esz_c(
+      arena, ltr, &lanes_s[0], &esz_s[0]));
+  }
+  rc = assign_index_cell_i32(&cell[0]);
+  if (rc != 0) {
+    return 0 - 99;
+  }
+  lanes = lanes_s[0];
+  esz = esz_s[0];
+  if (esz != 4) {
+    return 0 - 99;
+  }
+  if (lanes <= 0) {
+    return 0 - 99;
+  }
+  nbytes = lanes * esz;
+  if (nbytes <= 16) {
+    return 0 - 99;
+  }
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, pipeline_asm_cmp_expr_lit_i32_at(
+      arena, idx_ref, &lit_s[0]));
+  }
+  rc = assign_index_cell_i32(&cell[0]);
+  if (rc == 0) {
+    return 0 - 99;
+  }
+  lit = lit_s[0];
+  if (lit < 0) {
+    return 0 - 99;
+  }
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, glue_var_expr_stack_off_elf_c(
+      arena, ctx, base_ref));
+  }
+  off = assign_index_cell_i32(&cell[0]);
+  if (off < 0) {
+    return 0 - 99;
+  }
+  span = lit * nbytes;
+  home = off + span;
+  if (home < 0) {
+    return 0 - 99;
+  }
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, glue_emit_vector_type_let_init_elf_c(
+      arena, elf_ctx, right_ref, ctx, ta, home, ltr));
+  }
+  rc = assign_index_cell_i32(&cell[0]);
+  if (rc == 0) {
+    return 0;
+  }
+  if (rc == (0 - 1)) {
+    return 0 - 1;
+  }
+  return 0 - 99;
+}
+
+/**
  * Emit an INDEX-lvalue assignment, including compound ops and wide copies.
  * @param arena *u8 — AST arena; null returns -1
  * @param elf_ctx *u8 — encoder context; null returns -1
@@ -403,7 +608,10 @@ function assign_index_one_tail(
  *   or an encoder failure. A copy or store return is passed through.
  * x86-64 copies a >8 byte VAR, FIELD, or INDEX with glue_copy slot -3, and
  * emits a CALL into that element via sret. arm64 spills a 9..16 byte pair
- * and copies a >16 byte lvalue instead of one qword store.
+ * and copies a >16 byte lvalue instead of one qword store. A constant
+ * index of a kind-13 i32 vector wider than 16 bytes fills an if or a
+ * ternary with the existing vector let-init. Any other RHS stays on
+ * the store below.
  * Pipe cells hold extern results. Do not write `x = extern()`.
  * PLATFORM: SHARED — one strong T. Linux, Darwin, and Windows link this ahead of the egg.
  */
@@ -473,6 +681,18 @@ export function glue_emit_assign_index_elf_c(
     handled = assign_index_cell_i32(&hcell[0]);
     rc = assign_index_cell_i32(&rccell[0]);
     if (handled != 0) {
+      return rc;
+    }
+  }
+  // Constant index of a wide kind-13 i32 vector. -99 keeps the store
+  // below. PLATFORM: MACOS|ARM64.
+  if (ek == 28 && ta == 1) {
+    unsafe {
+      pipe_store_i32_le(&rccell[0], 0, assign_index_one_vec_if(
+        arena, elf_ctx, left_ref, right_ref, ctx, ta, base_ref, idx_ref));
+    }
+    rc = assign_index_cell_i32(&rccell[0]);
+    if (rc != (0 - 99)) {
       return rc;
     }
   }

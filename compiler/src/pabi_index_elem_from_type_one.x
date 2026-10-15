@@ -18,6 +18,9 @@ export extern function pipeline_type_named_name_into(arena: *u8, ty_ref: i32, ou
 export extern function glue_fixed_array_total_bytes_c(arena: *u8, ty_ref: i32, depth: i32): i32;
 export extern function glue_type_size_simple(mod: *u8, arena: *u8, ty_ref: i32, depth: i32): i32;
 export extern function pipeline_asm_emit_module_ref_c(): *u8;
+export extern function glue_vector_type_lanes_esz_c(
+  arena: *u8, type_ref: i32, out_lanes: *i32, out_esz: *i32
+): i32;
 
 /**
  * True-pack width of a TYPE_NAMED ref.
@@ -109,6 +112,53 @@ function iesz_ptr_named(arena: *u8, pointee: i32): i32 {
 }
 
 /**
+ * Byte width of a TYPE_VECTOR used as an indexed element.
+ * @param arena *u8 — AST arena; null returns 0
+ * @param ty i32 — vector type ref; a non-vector returns 0
+ * @return i32 — lanes times lane size, or 0 so the caller keeps stride 4
+ * This is the element stride of an array, slice, or pointer whose
+ * pointee is the vector. Indexing the vector itself is a lane stride
+ * and stays on the bare kind-13 arm that returns 4. A 0 result is the
+ * old 4-byte fallback, not a hard failure.
+ * PLATFORM: SHARED — one strong T. The INDEX-expr tail calls this
+ * instead of copying the lane multiply.
+ */
+#[no_mangle]
+export function glue_index_simd_elem_bytes_c(arena: *u8, ty: i32): i32 {
+  let lanes_s: i32[1] = [];
+  let esz_s: i32[1] = [];
+  let rc: i32 = 0;
+  let lanes: i32 = 0;
+  let esz: i32 = 0;
+  let n: i32 = 0;
+  if (arena == (0 as *u8)) {
+    return 0;
+  }
+  if (ty <= 0) {
+    return 0;
+  }
+  unsafe {
+    rc = glue_vector_type_lanes_esz_c(arena, ty, &lanes_s[0], &esz_s[0]);
+  }
+  if (rc != 0) {
+    return 0;
+  }
+  lanes = lanes_s[0];
+  esz = esz_s[0];
+  if (lanes <= 0) {
+    return 0;
+  }
+  if (esz <= 0) {
+    return 0;
+  }
+  n = lanes * esz;
+  if (n <= 0) {
+    return 0;
+  }
+  return n;
+}
+
+/**
  * Peel a TYPE_PTR (kind 9). This path always decides. It does not fall
  * through into the ARRAY/SLICE walk.
  * @param arena *u8 — AST arena; caller already rejected null
@@ -132,7 +182,16 @@ function iesz_ptr_peel(arena: *u8, tr: i32): i32 {
     if (kind_ord == 2 || kind_ord == 1) {
       return 1;
     }
-    if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14) {
+    if (kind_ord == 13) {
+      // Pointee is the vector, so the stride is the vector width.
+      // A miss keeps the historic 4. PLATFORM: SHARED.
+      hit = glue_index_simd_elem_bytes_c(arena, pointee);
+      if (hit > 0) {
+        return hit;
+      }
+      return 4;
+    }
+    if (kind_ord == 0 || kind_ord == 3 || kind_ord == 14) {
       return 4;
     }
     if (kind_ord == 15 || kind_ord == 4 || kind_ord == 5 || kind_ord == 6 || kind_ord == 7) {
@@ -167,14 +226,26 @@ function iesz_ptr_peel(arena: *u8, tr: i32): i32 {
  * @return i32 — decided width, or 0 when the caller must keep the pointee kind and fall through
  * Kind 15, 9, and 18 return 8 here. Kind 4, 5, 6, and 7 do not: those
  * fall through and the tail returns 8. Kind 18 is not special in the
- * INDEX-expr tail. PLATFORM: SHARED — local helper, not a link export.
+ * INDEX-expr tail. Kind 13 is the vector width, not a 4-byte lane.
+ * A width of 8 or more falls out of the INDEX early 1..7 window, and
+ * the resolved path returns the same width. PLATFORM: SHARED.
  */
 function iesz_arr_pointee(arena: *u8, pointee: i32, pk: i32): i32 {
   let asz: i32 = 0;
+  let vw: i32 = 0;
   if (pk == 2 || pk == 1) {
     return 1;
   }
-  if (pk == 0 || pk == 3 || pk == 13 || pk == 14) {
+  if (pk == 13) {
+    // Element is the vector. Lane index of that vector is a later INDEX
+    // whose base kind is 13 and whose stride stays 4. PLATFORM: SHARED.
+    vw = glue_index_simd_elem_bytes_c(arena, pointee);
+    if (vw > 0) {
+      return vw;
+    }
+    return 4;
+  }
+  if (pk == 0 || pk == 3 || pk == 14) {
     return 4;
   }
   if (pk == 15) {
