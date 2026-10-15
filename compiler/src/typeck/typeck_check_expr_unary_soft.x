@@ -13,8 +13,8 @@
 // Eight minuses cancel again. Nine minuses apply the sign once more.
 // Ten minuses cancel again. Eleven minuses apply the sign once more.
 // Twelve minuses cancel again. Thirteen minuses apply the sign once
-// more. Fourteen minuses cancel again. A fifteenth unary of that
-// float is not a keep.
+// more. Fourteen minuses cancel again. Fifteen minuses apply the
+// sign once more. A sixteenth unary of that float is not a keep.
 // PLATFORM: SHARED — type rule is the same on macOS, Ubuntu, and Windows.
 // The demote/retarget step that makes this symbol win is Mach-O only.
 
@@ -64,7 +64,8 @@ export extern "C" function pipeline_expr_is_null_keyword_c(arena: *u8, expr_ref:
  * minuses cancel again. Nine minuses apply the sign once more.
  * Ten minuses cancel again. Eleven minuses apply the sign once
  * more. Twelve minuses cancel again. Thirteen minuses apply the
- * sign once more. Fourteen minuses cancel again. A fifteenth
+ * sign once more. Fourteen minuses cancel again. Fifteen minuses
+ * apply the sign once more. A sixteenth
  * unary and a
  * bitwise not are not a keep.
  * A missing pre-stamp falls through and let-init coerce
@@ -251,7 +252,8 @@ export function typeck_check_expr_unary(
                  * the sign once more. Twelve minuses cancel again.
                  * Thirteen minuses apply the sign once more.
                  * Fourteen minuses cancel again.
-                 * A fifteenth unary stays kind 22, so it is not kept.
+                 * Fifteen minuses apply the sign once more.
+                 * A sixteenth unary stays kind 22, so it is not kept.
                  * Bitwise not stays off. The keep below
                  * still typechecks the immediate operand with expected 0.
                  * PLATFORM: SHARED.
@@ -283,6 +285,8 @@ export function typeck_check_expr_unary(
                   let f_tredeca_k: i32 = 0;
                   let f_quattuordeca: i32 = 0;
                   let f_quattuordeca_k: i32 = 0;
+                  let f_quindecim: i32 = 0;
+                  let f_quindecim_k: i32 = 0;
                   if (expr_kind == ord_neg) {
                     if (op_ref > 0) {
                       already_op_k = pipeline_expr_kind_ord_at(arena, op_ref);
@@ -458,6 +462,23 @@ export function typeck_check_expr_unary(
                                                                           f_quattuordeca_k = pipeline_expr_kind_ord_at(arena, f_quattuordeca);
                                                                           if (f_quattuordeca_k == 1) {
                                                                             already_keep = 1;
+                                                                          }
+                                                                          /*
+                                                                           * Fifteen minuses: the innermost is a
+                                                                           * FLOAT_LIT. The emitter applies the
+                                                                           * sign once. A sixteenth unary is kind
+                                                                           * 22 here, not kind 1. Load the operand
+                                                                           * of f_quattuordeca only.
+                                                                           * PLATFORM: SHARED.
+                                                                           */
+                                                                          if (f_quattuordeca_k == 22) {
+                                                                            f_quindecim = pipeline_expr_unary_operand_ref_at(arena, f_quattuordeca);
+                                                                            if (f_quindecim > 0) {
+                                                                              f_quindecim_k = pipeline_expr_kind_ord_at(arena, f_quindecim);
+                                                                              if (f_quindecim_k == 1) {
+                                                                                already_keep = 1;
+                                                                              }
+                                                                            }
                                                                           }
                                                                         }
                                                                       }

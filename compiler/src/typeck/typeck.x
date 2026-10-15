@@ -11859,8 +11859,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
  * once more. Eight minuses cancel again. Nine minuses apply the sign
  * once more. Ten minuses cancel again. Eleven minuses apply the sign
  * once more. Twelve minuses cancel again. Thirteen minuses apply the
- * sign once more. Fourteen minuses cancel again. The float-lit checker keeps an
- * already-resolved type. A fifteenth unary and a bitwise not stay
+ * sign once more. Fourteen minuses cancel again. Fifteen minuses
+ * apply the sign once more. The float-lit checker keeps an
+ * already-resolved type. A sixteenth unary and a bitwise not stay
  * unstamped. The linked body
  * is the assign thin;
  * this function is the source authority.
@@ -12041,9 +12042,10 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      * again. Nine minuses apply the sign once more. Ten minuses cancel
      * again. Eleven minuses apply the sign once more. Twelve minuses
      * cancel again. Thirteen minuses apply the sign once more.
-     * Fourteen minuses cancel again. The
+     * Fourteen minuses cancel again. Fifteen minuses apply the sign
+     * once more. The
      * float-lit
-     * checker keeps an already-resolved type. A fifteenth unary and a
+     * checker keeps an already-resolved type. A sixteenth unary and a
      * bitwise not of that float are not stamped.
      * Two compares, not a chained && : the bootstrap image clobbers
      * the register a chained compare reuses.
@@ -12237,7 +12239,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                  * The unary checker keeps the one-deep, two-deep,
                  * three-deep, four-deep, five-deep, six-deep,
                  * seven-deep, eight-deep, nine-deep, ten-deep, eleven-deep,
-                 * twelve-deep, thirteen-deep, and fourteen-deep stamps. A fifteenth unary
+                 * twelve-deep, thirteen-deep, fourteen-deep, and fifteen-deep stamps. A sixteenth unary
                  * stays kind 22.
                  * Bitwise not stays off. The unary operand ref
                  * is range-checked. An i32 element does not enter.
@@ -12272,6 +12274,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                   let f_tredeca_k: i32 = 0;
                   let f_quattuordeca: i32 = 0;
                   let f_quattuordeca_k: i32 = 0;
+                  let f_quindecim: i32 = 0;
+                  let f_quindecim_k: i32 = 0;
                   splat_lhs_k = pipeline_expr_kind_ord_at(arena, left_ref);
                   splat_rhs_k = pipeline_expr_kind_ord_at(arena, right_ref);
                   if (splat_rhs_k == 22) {
@@ -12535,6 +12539,30 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                                                                                                       }
                                                                                                       if (splat_lhs_k == ord_field) {
                                                                                                         splat_ok = 1;
+                                                                                                      }
+                                                                                                    }
+                                                                                                    /*
+                                                                                                     * Fifteen minuses: the innermost is a
+                                                                                                     * FLOAT_LIT. The emitter applies the
+                                                                                                     * sign once. A sixteenth unary is kind
+                                                                                                     * 22 here, not kind 1. Load the operand
+                                                                                                     * of f_quattuordeca only. The new ref
+                                                                                                     * is range-checked. PLATFORM: SHARED.
+                                                                                                     */
+                                                                                                    if (f_quattuordeca_k == 22) {
+                                                                                                      f_quindecim = pipeline_expr_unary_operand_ref_at(arena, f_quattuordeca);
+                                                                                                      if (f_quindecim > 0) {
+                                                                                                        if (f_quindecim <= arena.num_exprs) {
+                                                                                                          f_quindecim_k = pipeline_expr_kind_ord_at(arena, f_quindecim);
+                                                                                                          if (f_quindecim_k == 1) {
+                                                                                                            if (splat_lhs_k == ord_var) {
+                                                                                                              splat_ok = 1;
+                                                                                                            }
+                                                                                                            if (splat_lhs_k == ord_field) {
+                                                                                                              splat_ok = 1;
+                                                                                                            }
+                                                                                                          }
+                                                                                                        }
                                                                                                       }
                                                                                                     }
                                                                                                   }
@@ -16692,7 +16720,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      * apply the sign once more. Twelve minuses cancel
      * again. Thirteen minuses apply the sign once more.
      * Fourteen minuses cancel again.
-     * A fifteenth unary falls through.
+     * Fifteen minuses apply the sign once more.
+     * A sixteenth unary falls through.
      * Let-init does not pre-stamp,
      * so it falls through to coerce. LOGNOT never sets the keep flag.
      * Two compares, not a chained && : the bootstrap image
@@ -16848,7 +16877,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                  * more. Twelve minuses cancel again.
                  * Thirteen minuses apply the sign once more.
                  * Fourteen minuses cancel again.
-                 * A fifteenth unary stays kind 22, so
+                 * Fifteen minuses apply the sign once more.
+                 * A sixteenth unary stays kind 22, so
                  * it is not kept.
                  * Bitwise not stays
                  * off. The operand ref
@@ -16882,6 +16912,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                   let f_tredeca_k: i32 = 0;
                   let f_quattuordeca: i32 = 0;
                   let f_quattuordeca_k: i32 = 0;
+                  let f_quindecim: i32 = 0;
+                  let f_quindecim_k: i32 = 0;
                   if (expr_kind == ord_neg) {
                     if (op_ref > 0) {
                       if (op_ref <= arena.num_exprs) {
@@ -17072,6 +17104,25 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                                                                                                       f_quattuordeca_k = pipeline_expr_kind_ord_at(arena, f_quattuordeca);
                                                                                                       if (f_quattuordeca_k == 1) {
                                                                                                         pre_keep = 1;
+                                                                                                      }
+                                                                                                      /*
+                                                                                                       * Fifteen minuses: the innermost is a
+                                                                                                       * FLOAT_LIT. The emitter applies the
+                                                                                                       * sign once. A sixteenth unary is kind
+                                                                                                       * 22 here, not kind 1. Load the operand
+                                                                                                       * of f_quattuordeca only. The new ref
+                                                                                                       * is range-checked. PLATFORM: SHARED.
+                                                                                                       */
+                                                                                                      if (f_quattuordeca_k == 22) {
+                                                                                                        f_quindecim = pipeline_expr_unary_operand_ref_at(arena, f_quattuordeca);
+                                                                                                        if (f_quindecim > 0) {
+                                                                                                          if (f_quindecim <= arena.num_exprs) {
+                                                                                                            f_quindecim_k = pipeline_expr_kind_ord_at(arena, f_quindecim);
+                                                                                                            if (f_quindecim_k == 1) {
+                                                                                                              pre_keep = 1;
+                                                                                                            }
+                                                                                                          }
+                                                                                                        }
                                                                                                       }
                                                                                                     }
                                                                                                   }
