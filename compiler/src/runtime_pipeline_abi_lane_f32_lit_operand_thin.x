@@ -19,7 +19,10 @@
 // stay on emit_expr. A transparent block, a nested block, and
 // unsafe { e } are one recursion over the existing
 // glue_expr_block_transparent_value_ref_at. The lane op then sees the
-// inner value. A block that has lets is not peeled. An INDEX with an
+// inner value. A block that still has lets is one recursion:
+// lane_emit_block_lets_value_ref emits those lets, and this function
+// continues on the value expr. The helper does not emit the value.
+// An INDEX with an
 // integer-literal index loads one lane from the base frame. Nested
 // indexes are that same recursion. The stride is the existing index
 // element size. A non-literal index loads one lane from the address
@@ -30,9 +33,9 @@
 // in rax. One recursion finds that root. A transparent block under a
 // field is peeled by one recursion before that materializer. Nested
 // fields are the same recursion. A block with lets is not peeled
-// away. The same recursion emits that block's lets through
-// pipeline_asm_emit_block_prefix_elf, then retargets the field at
-// the block's value expr so the existing materializer emits it once.
+// away. That recursion calls lane_emit_block_lets_value_ref, then
+// retargets the field at the value expr so the existing materializer
+// emits the value once.
 // The lane is then the existing indirect i32 load at lane * esz. A
 // call or method root stays on emit_expr. The 128 stop is only for a
 // chain that does not end. This
@@ -401,6 +404,108 @@ function field_chain_retarget(arena: *u8, field_ref: i32, new_base: i32): void {
 }
 
 /**
+ * Emit one block's lets and return the value expr.
+ * @param arena *u8 — expression arena. Null returns -1.
+ * @param elf_ctx *u8 — emit buffer. Null returns -1.
+ * @param expr_ref i32 — EXPR_BLOCK that unwrap left in place. Not
+ *   positive returns -1.
+ * @param ctx *u8 — asm function context. Null returns -1.
+ * @param ta i32 — 1 arm64, else x86.
+ * @return i32 — the block's value expr. -1 when the prefix fails, the
+ *   block has no value, or the value is this same expr.
+ * This does not emit the value. The caller emits it once: a field
+ * retargets onto it, and a lane operand continues on it. The lets use
+ * pipeline_asm_emit_block_prefix_elf, the same slots as body_sync.
+ * Calling this and the full body_sync on the same block emits the lets
+ * twice. A lane walk calls this again for each lane. That stores the
+ * same slots again, which is the existing per-lane rematerialize.
+ * PLATFORM: SHARED.
+ */
+function lane_emit_block_lets_value_ref(
+  arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
+): i32 {
+  let br: i32 = 0;
+  let fin: i32 = 0;
+  let rc: i32 = 0;
+  if (arena == (0 as *u8)) {
+    return 0 - 1;
+  }
+  if (elf_ctx == (0 as *u8)) {
+    return 0 - 1;
+  }
+  if (ctx == (0 as *u8)) {
+    return 0 - 1;
+  }
+  if (expr_ref <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    br = pipeline_expr_block_ref_at(arena, expr_ref);
+  }
+  if (br <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    backend_ensure_block_local_slots(ctx, arena, br);
+    rc = pipeline_asm_emit_block_prefix_elf(arena, elf_ctx, br, ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    fin = ast_ast_block_final_expr_ref(arena, br);
+  }
+  if (fin <= 0) {
+    return 0 - 1;
+  }
+  if (fin == expr_ref) {
+    return 0 - 1;
+  }
+  return fin;
+}
+
+/**
+ * Emit every nested let-block and return the value under them.
+ * @param arena *u8 — expression arena. Null is passed through to the
+ *   one-block helper, which returns -1.
+ * @param elf_ctx *u8 — emit buffer.
+ * @param expr_ref i32 — current expr. A non-block returns expr_ref.
+ * @param ctx *u8 — asm function context.
+ * @param ta i32 — 1 arm64, else x86.
+ * @param budget i32 — blocks still allowed. The first call passes 128.
+ *   Zero returns -1 without reading. That stop is only for a chain
+ *   that does not end. Every shorter nest is this one function.
+ * @return i32 — the expr under the let-blocks, or -1 on failure.
+ * One call emits one block's lets and recurses on that block's value.
+ * `{ let a; { let b; ~b } }` is this function, not a second walker.
+ * PLATFORM: SHARED.
+ */
+function lane_operand_emit_let_block_chain(
+  arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, budget: i32
+): i32 {
+  let ko: i32 = 0;
+  let fin: i32 = 0;
+  if (budget <= 0) {
+    return 0 - 1;
+  }
+  if (expr_ref <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  }
+  if (ko != 26) {
+    return expr_ref;
+  }
+  fin = lane_emit_block_lets_value_ref(arena, elf_ctx, expr_ref, ctx, ta);
+  if (fin <= 0) {
+    return 0 - 1;
+  }
+  return lane_operand_emit_let_block_chain(
+    arena, elf_ctx, fin, ctx, ta, budget - 1);
+}
+
+/**
  * Point each field in a chain at the value under its base block.
  * @param arena *u8 — expression arena. Null returns 0 without writing.
  * @param elf_ctx *u8 — emit buffer. Used when a base still has lets.
@@ -415,10 +520,10 @@ function field_chain_retarget(arena: *u8, field_ref: i32, new_base: i32): void {
  *   cannot be emitted or has no value expr.
  * One call peels transparent `{ e }` and `unsafe { e }` with
  * lane_operand_unwrap_block. A block that still has lets is not
- * transparent: this emits that block's consts, lets, and statements
- * through pipeline_asm_emit_block_prefix_elf, then retargets the base
- * at the block's value expr and recurses. A nested block or a nested
- * field is that same call. The value expr itself is not emitted here.
+ * transparent: lane_emit_block_lets_value_ref emits that block's
+ * consts, lets, and statements, then this retargets the base at the
+ * value expr and recurses. A nested block or a nested field is that
+ * same call. The value expr itself is not emitted here.
  * PLATFORM: SHARED.
  */
 function field_chain_peel_block(
@@ -427,9 +532,7 @@ function field_chain_peel_block(
   let base_ref: i32 = 0;
   let inner: i32 = 0;
   let ko: i32 = 0;
-  let br: i32 = 0;
   let fin: i32 = 0;
-  let rc: i32 = 0;
   if (budget <= 0) {
     return 0;
   }
@@ -468,34 +571,10 @@ function field_chain_peel_block(
     return 0;
   }
   // EXPR_BLOCK that unwrap left in place still has lets or loops.
-  // Emit those, then point this field at the value expr. Recurse so
+  // The helper emits those and returns the value expr. Recurse so
   // `{ let a; { let b; H { v: a + b } } }.v` is the same function.
-  if (elf_ctx == (0 as *u8)) {
-    return 0 - 1;
-  }
-  if (ctx == (0 as *u8)) {
-    return 0 - 1;
-  }
-  unsafe {
-    br = pipeline_expr_block_ref_at(arena, base_ref);
-  }
-  if (br <= 0) {
-    return 0 - 1;
-  }
-  unsafe {
-    backend_ensure_block_local_slots(ctx, arena, br);
-    rc = pipeline_asm_emit_block_prefix_elf(arena, elf_ctx, br, ctx, ta);
-  }
-  if (rc != 0) {
-    return 0 - 1;
-  }
-  unsafe {
-    fin = ast_ast_block_final_expr_ref(arena, br);
-  }
+  fin = lane_emit_block_lets_value_ref(arena, elf_ctx, base_ref, ctx, ta);
   if (fin <= 0) {
-    return 0 - 1;
-  }
-  if (fin == base_ref) {
     return 0 - 1;
   }
   field_chain_retarget(arena, field_ref, fin);
@@ -1409,7 +1488,9 @@ function lane_i32_emit_neg_core(
  * scalar binop (kinds 4..13) is one recursion. A transparent block
  * around that operand is lane_operand_unwrap_block, then this function
  * again on the inner value, so `{ e }`, nested blocks, and unsafe { e }
- * share the arms below. A block with lets is not peeled. When the f32
+ * share the arms below. A block that still has lets is
+ * lane_operand_emit_let_block_chain: one recursion emits each block's
+ * lets and this function then loads the value expr. When the f32
  * gate is set, an odd negation count xors the f32 sign and kinds 8..13
  * stay out of that xor. When the gate is 0, each negation is neg w0
  * then a sign-extend, and each bitwise not uses the existing not
@@ -1444,6 +1525,20 @@ export function glue_emit_vector_operand_lane_elf_c(
   }
   unsafe {
     ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  }
+  // EXPR_BLOCK that unwrap left in place still has lets or loops.
+  // One recursion emits those lets and returns the value expr. This
+  // tail call then uses the arms below, so i32 and f32 share it.
+  // `{ let a; { let b; ~b } } / 2` is that one function. The value is
+  // not emitted by the helper. PLATFORM: SHARED.
+  if (ko == 26) {
+    cur = lane_operand_emit_let_block_chain(
+      arena, elf_ctx, expr_ref, ctx, ta, 128);
+    if (cur <= 0) {
+      return 0 - 1;
+    }
+    return glue_emit_vector_operand_lane_elf_c(
+      arena, elf_ctx, cur, lane, esz, ctx, ta);
   }
   // Gate is 1 for an f32 dest on add, sub, mul, div, and compare.
   // A 4-byte FLOAT_LIT is then the f32 pattern, not the f64 bits.
