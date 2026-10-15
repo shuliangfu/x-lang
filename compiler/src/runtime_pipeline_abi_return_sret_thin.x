@@ -73,6 +73,9 @@ export extern function glue_simd_alloc_vector_temp_slot_c(arena: *u8, ctx: *u8, 
 export extern function glue_emit_vector_type_let_init_elf_c(
   arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32,
   stack_off: i32, type_ref: i32): i32;
+export extern function glue_emit_struct_type_let_init_elf_c(
+  arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32,
+  let_ty_ref: i32, stack_slot_off: i32): i32;
 export extern function glue_wide_i32_vec_array_bytes(arena: *u8, rty: i32): i32;
 export extern function glue_index_simd_elem_bytes_c(arena: *u8, ty: i32): i32;
 export extern function pipeline_expr_array_lit_elem_ref(arena: *u8, expr_ref: i32, index: i32): i32;
@@ -458,6 +461,10 @@ function w1521_rs_mid_named_field(arena: *u8, op: i32): i32 {
  * not that fill: vector let-init returns -3 and emits nothing. The
  * address of the local, the field, or the indexed element is copied
  * the same width. A lane index is i32 and does not enter this arm.
+ * A CALL element is filled by glue_emit_struct_type_let_init_elf_c
+ * into that same one-vector slot, then copied the same width.
+ * Vector let-init still declines a CALL wider than 16 bytes.
+ * METHOD stays on that fill.
  * The slot stays one element wide. A miss leaves that element and
  * still returns the dest. An encoder miss returns -1. It does not
  * fall through to the 8-byte load.
@@ -637,10 +644,11 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                 let wide_src: i32 = 0;
                 /*
                  * [N]Vec8i is wider than 16 bytes. The frame temp is one
-                 * vector. Fill that slot, or take a VAR, FIELD, or INDEX
-                 * address, then copy width bytes to the sret dest at
-                 * i * width. The index is one element of this array, not
-                 * one lane. A miss leaves that element.
+                 * vector. Fill that slot, take a VAR, FIELD, or INDEX
+                 * address, or let a CALL write the slot, then copy width
+                 * bytes to the sret dest at i * width. The index is one
+                 * element of this array, not one lane. METHOD stays on
+                 * the vector fill. A miss leaves that element.
                  * Do not fall through to the 8-byte load.
                  * PLATFORM: SHARED. The copy encoding is MACOS|ARM64
                  * or LINUX x86_64.
@@ -683,23 +691,18 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                         wide_rc = pipeline_expr_kind_ord_at(arena, wide_er);
                       }
                       // EXPR_VAR = 3. EXPR_FIELD = 44. EXPR_INDEX = 47.
-                      // Vector let-init returns -3 and emits nothing, so
-                      // the array-literal store copies from the address
-                      // lvalue leaves in x0. Let already copies these
-                      // three kinds at this width. A lane index is i32
-                      // and is rejected before emit. PLATFORM: SHARED.
-                      if (wide_rc == 3 || wide_rc == 44 || wide_rc == 47) {
+                      // EXPR_CALL = 48. Vector let-init returns -3 for a
+                      // bare VAR and for a CALL wider than 16 bytes, and
+                      // emits nothing. VAR, FIELD, and INDEX copy from
+                      // the address lvalue leaves in x0. CALL reuses the
+                      // struct let-init that already fills one vector
+                      // slot for an array let. METHOD (49) stays on the
+                      // vector fill. A lane index is i32 and is rejected
+                      // before emit. PLATFORM: SHARED.
+                      if (wide_rc == 48) {
                         unsafe {
-                          rc = pipeline_asm_emit_lvalue_eff_addr_elf_c(
-                            arena, elf_ctx, wide_er, ctx, ta);
-                        }
-                        if (rc == 0) {
-                          wide_src = 1;
-                        }
-                      } else {
-                        unsafe {
-                          wide_rc = glue_emit_vector_type_let_init_elf_c(
-                            arena, elf_ctx, wide_er, ctx, ta, wide_slot, elem_d);
+                          wide_rc = glue_emit_struct_type_let_init_elf_c(
+                            arena, elf_ctx, wide_er, ctx, ta, elem_d, wide_slot);
                         }
                         if (wide_rc == 0) {
                           unsafe {
@@ -709,6 +712,34 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                             return 0 - 1;
                           }
                           wide_src = 1;
+                        } else {
+                          if (wide_rc == (0 - 1)) {
+                            return 0 - 1;
+                          }
+                        }
+                      } else {
+                        if (wide_rc == 3 || wide_rc == 44 || wide_rc == 47) {
+                          unsafe {
+                            rc = pipeline_asm_emit_lvalue_eff_addr_elf_c(
+                              arena, elf_ctx, wide_er, ctx, ta);
+                          }
+                          if (rc == 0) {
+                            wide_src = 1;
+                          }
+                        } else {
+                          unsafe {
+                            wide_rc = glue_emit_vector_type_let_init_elf_c(
+                              arena, elf_ctx, wide_er, ctx, ta, wide_slot, elem_d);
+                          }
+                          if (wide_rc == 0) {
+                            unsafe {
+                              rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, wide_slot, ta);
+                            }
+                            if (rc != 0) {
+                              return 0 - 1;
+                            }
+                            wide_src = 1;
+                          }
                         }
                       }
                       if (wide_src == 1) {
