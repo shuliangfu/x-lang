@@ -38,6 +38,7 @@ export extern function pipeline_asm_try_emit_dyn_coerce_let(arena: *u8, elf_ctx:
 export extern function pipeline_block_let_type_ref(arena: *u8, block_ref: i32, let_idx: i32): i32;
 export extern function pipeline_block_resolve_var_type_ref(arena: *u8, block_ref: i32, name: *u8, nlen: i32): i32;
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
+export extern function glue_expr_block_transparent_value_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_var_name_into(arena: *u8, expr_ref: i32, out: *u8): void;
 export extern function pipeline_expr_var_name_len(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
@@ -82,6 +83,9 @@ export function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_re
   let rc: i32 = 0;
   let slot_off: i32 = 0;
   let init_f32_lit: i32 = 0;
+  let copy_ref: i32 = 0;
+  let peel_n: i32 = 0;
+  let peeled: i32 = 0;
 
   unsafe {
     slot_off = backend_asm_ctx_slot_offset(ctx, slot);
@@ -179,10 +183,37 @@ export function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_re
       if (vst == 0 - 1) {
         return 0 - 1;
       }
-      /* -2: METHOD_CALL/CALL — G.7 reuse struct CALL sret/dual-GP authority. */
+      /* -2: METHOD_CALL/CALL — G.7 reuse struct CALL sret/dual-GP authority.
+       * `let v = unsafe { *p }` is a block. The vector face peels it,
+       * sees a bare DEREF, and returns -3. Passing the block into
+       * struct let-init misses the DEREF and FIELD copies. A transparent
+       * block (no lets or loops) is replaced by its value, at most four
+       * times, and only a DEREF or a FIELD uses that value. The store
+       * is not through the pointer. PLATFORM: SHARED. */
+      copy_ref = init_ref;
+      peel_n = 0;
+      while (peel_n < 4) {
+        peeled = glue_expr_block_transparent_value_ref_at(arena, copy_ref);
+        if (peeled <= 0) {
+          peel_n = 4;
+        } else {
+          if (peeled == copy_ref) {
+            peel_n = 4;
+          } else {
+            copy_ref = peeled;
+            peel_n = peel_n + 1;
+          }
+        }
+      }
+      init_ko = pipeline_expr_kind_ord_at(arena, copy_ref);
+      if (init_ko != 52) {
+        if (init_ko != 44) {
+          copy_ref = init_ref;
+        }
+      }
       glue_index_assign_addr_cache_clear();
       rc = glue_emit_struct_type_let_init_elf_c(
-          arena, elf_ctx, init_ref, ctx, ta, vtype_ref, slot_off);
+          arena, elf_ctx, copy_ref, ctx, ta, vtype_ref, slot_off);
       if (rc == 0) {
         return 0;
       }
