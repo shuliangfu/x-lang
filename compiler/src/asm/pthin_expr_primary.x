@@ -1842,8 +1842,11 @@ function parser_asm_primary_array_x_into_c(arena: *u8, lex_inout: *u8, source: *
 
 /**
  * Bare `{` primary: block expression vs anonymous struct lit, then
- * suffix loop on the struct path only (C twin). Block wrap is P5f
+ * the one suffix loop on both paths. Block wrap is P5f
  * (G.7; type_ref=0). Anonymous fields stay the C ptr shim.
+ * `{ e }.v` / `{ e }[i]` / `{ e }()` are the same loop the struct
+ * arm already calls. Returning before that loop left the dot
+ * unparsed and dropped the function.
  * @return i32 — 1 handled; 0 not LBRACE
  * PLATFORM: SHARED — P4bh LBRACE arm.
  */
@@ -1880,6 +1883,9 @@ function parser_asm_primary_lbrace_x_into_c(arena: *u8, lex_inout: *u8, source: 
       }
       out_ok[0] = 1;
       out_expr_ref[0] = wrap;
+      /* Same suffix loop as the struct-lit arm. One loop covers
+       * every postfix depth. PLATFORM: SHARED. */
+      parser_asm_primary_suffix_loop_x_into_c(arena, source, lex_inout, out_ok, out_expr_ref, mc_arg_buf, arg_buf, parsed_refs, pending_refs, mangled, name_buf);
       return 1;
     }
     eok = 0;

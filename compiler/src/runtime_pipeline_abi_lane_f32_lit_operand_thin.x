@@ -27,9 +27,12 @@
 // that emitter. A call base and a block base stay on emit_expr. A FIELD whose
 // root is a STRUCT_LIT has no VAR frame. The existing field
 // materializer already fills a temp and leaves that field's address
-// in rax. One recursion finds that root. The lane is then the existing
-// indirect i32 load at lane * esz. A call or method root stays on
-// emit_expr. The 128 stop is only for a chain that does not end. This
+// in rax. One recursion finds that root. A transparent block under a
+// field is peeled by one recursion before that materializer. Nested
+// fields are the same recursion. A block with lets is not peeled.
+// The lane is then the existing indirect i32 load at lane * esz. A
+// call or method root stays on emit_expr. The 128 stop is only for a
+// chain that does not end. This
 // file then matches the old body. Do not add a second divss.
 // PLATFORM: SHARED.
 
@@ -72,9 +75,16 @@ export extern function pipeline_expr_index_index_ref(arena: *u8, expr_ref: i32):
 export extern function pipeline_asm_index_elem_byte_sz_c(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_int_val_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_field_access_base_ref(arena: *u8, expr_ref: i32): i32;
-export extern function glue_field_access_call_base_rvalue_elf_c(
+export extern function glue_field_access_call_base_rvalue_elf_c__demoted(
   arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, leave_addr: i32
 ): i32;
+export extern function pipeline_expr_field_access_name_len(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_field_access_name_into(
+  arena: *u8, expr_ref: i32, out: *u8
+): void;
+export extern function pipeline_expr_set_field_access_c(
+  arena: *u8, expr_ref: i32, base_ref: i32, nm: *u8, nlen: i32
+): void;
 export extern function backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
 export extern function backend_enc_load_i32_indirect_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function glue_emit_index_eff_addr_scaled_elf_c(
@@ -342,6 +352,129 @@ function lane_operand_unwrap_block(arena: *u8, expr_ref: i32, budget: i32): i32 
     return expr_ref;
   }
   return lane_operand_unwrap_block(arena, inner, budget - 1);
+}
+
+/**
+ * Point each field in a chain at the value under a transparent block.
+ * @param arena *u8 — expression arena. Null returns without writing.
+ * @param field_ref i32 — FIELD expr, or a base that is not a field.
+ *   Not positive returns without writing.
+ * @param budget i32 — fields still allowed. The first call passes 128.
+ *   Zero returns without reading. That stop is only for a chain that
+ *   does not end. Every shorter nest is this one function.
+ * One call peels the blocks around this field's base with
+ * lane_operand_unwrap_block, retargets the base at that value, and
+ * recurses when the value is another FIELD. The existing setter keeps
+ * the field name. A block with lets is not a transparent value, so
+ * the base stays the block and the demoted materializer still returns
+ * -99. This does not allocate a slot and does not emit.
+ * PLATFORM: SHARED.
+ */
+function field_chain_peel_block(arena: *u8, field_ref: i32, budget: i32): void {
+  let base_ref: i32 = 0;
+  let inner: i32 = 0;
+  let ko: i32 = 0;
+  let nlen: i32 = 0;
+  let name: u8[256] = [];
+  if (budget <= 0) {
+    return;
+  }
+  if (arena == (0 as *u8)) {
+    return;
+  }
+  if (field_ref <= 0) {
+    return;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, field_ref);
+  }
+  if (ko != 44) {
+    return;
+  }
+  unsafe {
+    base_ref = pipeline_expr_field_access_base_ref(arena, field_ref);
+  }
+  if (base_ref <= 0) {
+    return;
+  }
+  inner = lane_operand_unwrap_block(arena, base_ref, budget);
+  if (inner > 0) {
+    if (inner != base_ref) {
+      unsafe {
+        nlen = pipeline_expr_field_access_name_len(arena, field_ref);
+      }
+      if (nlen < 0) {
+        nlen = 0;
+      }
+      if (nlen > 255) {
+        nlen = 255;
+      }
+      unsafe {
+        pipeline_expr_field_access_name_into(arena, field_ref, &name[0]);
+        pipeline_expr_set_field_access_c(arena, field_ref, inner, &name[0], nlen);
+      }
+      base_ref = inner;
+    }
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, base_ref);
+  }
+  if (ko == 44) {
+    field_chain_peel_block(arena, base_ref, budget - 1);
+  }
+}
+
+/**
+ * Materialize a field rvalue, after peeling transparent block bases.
+ * @param arena *u8 — expression arena.
+ * @param elf_ctx *u8 — emit buffer.
+ * @param expr_ref i32 — FIELD expr.
+ * @param ctx *u8 — asm ctx.
+ * @param ta i32 — 1 arm64, else x86.
+ * @param leave_addr i32 — 1 leaves the field address in rax. 0 loads
+ *   the field value, which is what the existing body already does.
+ * @return i32 — the demoted materializer's result. -99 means it did
+ *   not take the call, method, or struct-literal root.
+ * The Cap-tip link renames the mega body to the demoted symbol.
+ * This definition is that public symbol, so every caller peels first.
+ * #[no_mangle] keeps the existing link name. A block with lets is not
+ * peeled. Leaving that block as the base used to return -99, and the
+ * field fast path then loaded some other slot. Return -1 so the
+ * function is dropped instead of publishing that slot. A peeled
+ * struct literal or variable still goes to the demoted body.
+ * PLATFORM: SHARED. The rename is Mach-O Cap tip only.
+ */
+#[no_mangle]
+export function glue_field_access_call_base_rvalue_elf_c(
+  arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, leave_addr: i32
+): i32 {
+  let base_ref: i32 = 0;
+  let ko: i32 = 0;
+  field_chain_peel_block(arena, expr_ref, 128);
+  if (arena != (0 as *u8)) {
+    if (expr_ref > 0) {
+      unsafe {
+        ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+      }
+      if (ko == 44) {
+        unsafe {
+          base_ref = pipeline_expr_field_access_base_ref(arena, expr_ref);
+        }
+        if (base_ref > 0) {
+          unsafe {
+            ko = pipeline_expr_kind_ord_at(arena, base_ref);
+          }
+          if (ko == 26) {
+            return 0 - 1;
+          }
+        }
+      }
+    }
+  }
+  unsafe {
+    return glue_field_access_call_base_rvalue_elf_c__demoted(
+      arena, elf_ctx, expr_ref, ctx, ta, leave_addr);
+  }
 }
 
 /**
