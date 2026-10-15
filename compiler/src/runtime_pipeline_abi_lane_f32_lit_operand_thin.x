@@ -9,9 +9,11 @@
 // as imm32. The same peel covers a VAR, a FIELD, and add/sub/mul/div.
 // An odd count xors the f32 sign. One peel handles every depth. The
 // 128 stop is only for a chain that does not end. When the gate stays
-// 0, the same peel loads the i32 lane, uses neg w0 on an odd count,
-// then sign-extends. Lane div is a 64-bit sdiv, and a 32-bit neg
-// zeros the high half. An i32 INT_LIT chain stays on emit_expr. This
+// 0, the same peel loads the i32 lane. Its core may also be a lane
+// scalar binop of kinds 4..13 (mod, shifts, and, or, xor). An odd
+// count uses neg w0 and then sign-extends. Lane div is a 64-bit sdiv,
+// and a 32-bit neg zeros the high half. Kind 51 and an i32 INT_LIT
+// chain stay on emit_expr. This
 // file then matches the old body. Do not add a second divss.
 // PLATFORM: SHARED.
 
@@ -379,15 +381,16 @@ function lane_f32_emit_neg_core(
  * @param ctx *u8 — asm ctx.
  * @param ta i32 — 1 arm64, else x86.
  * @return i32 — 0 when rax holds the lane, -1 when a load or encode
- *   fails, -2 when the core is not a VAR, FIELD, or add/sub/mul/div.
- *   An INT_LIT core returns -2 so the existing literal path stays.
- *   A missing field home returns -2.
- * The peel is the same lane_f32_neg_depth used for f32. An odd count
- * emits neg w0 and then glue_enc_sxt_i32_result_to_rax_elf_c. Lane div
- * is 64-bit sdiv, and a 32-bit neg zeros the high half of x0. An even
- * count is the loaded lane with no extra extend. This is not the f32
- * sign-bit xor. The f32 gate must be 0 here. Kind 23 and kinds 8..13
- * return -2. PLATFORM: SHARED.
+ *   fails, -2 when the core is not a VAR, FIELD, or a lane scalar
+ *   binop of kinds 4..13. An INT_LIT core returns -2 so the existing
+ *   literal path stays. A missing field home returns -2.
+ * The peel is the same lane_f32_neg_depth used for f32. Kinds 8..13
+ * use the existing glue_is_vector_lane_scalar_binop_ko. Kind 51 is in
+ * that helper but is not applied here. An odd count emits neg w0 and
+ * then glue_enc_sxt_i32_result_to_rax_elf_c. Lane div is 64-bit sdiv,
+ * and a 32-bit neg zeros the high half of x0. An even count is the
+ * loaded lane with no extra extend. This is not the f32 sign-bit xor.
+ * The f32 gate must be 0 here. Kind 23 returns -2. PLATFORM: SHARED.
  */
 function lane_i32_emit_neg_core(
   arena: *u8, elf_ctx: *u8, expr_ref: i32, lane: i32, esz: i32, ctx: *u8, ta: i32
@@ -427,19 +430,15 @@ function lane_i32_emit_neg_core(
         return 0 - 1;
       }
     } else {
-      // Kinds 8..13 and an INT_LIT stay out. PLATFORM: SHARED.
+      // Kinds 4..13, including mod, shifts, and, or, xor. Kind 51
+      // stays out: the lane emitter does not apply it. INT_LIT and
+      // kind 23 return -2. PLATFORM: SHARED.
       arith = 0;
-      if (ko == 4) {
-        arith = 1;
+      unsafe {
+        arith = glue_is_vector_lane_scalar_binop_ko(ko);
       }
-      if (ko == 5) {
-        arith = 1;
-      }
-      if (ko == 6) {
-        arith = 1;
-      }
-      if (ko == 7) {
-        arith = 1;
+      if (ko == 51) {
+        arith = 0;
       }
       if (arith == 0) {
         return 0 - 2;
@@ -485,10 +484,11 @@ function lane_i32_emit_neg_core(
  * @param ta i32 — 1 arm64, else x86. Arm64 lane slots grow up from rbp.
  * @return i32 — 0 when rax holds the lane, -1 on failure.
  * VAR, FIELD, ARRAY_LIT, and nested binop match the previous body.
- * A chain of EXPR_NEG over a VAR, a FIELD, or add/sub/mul/div is one
- * peel. When the f32 gate is set, an odd count xors the f32 sign.
- * When the gate is 0, an odd count is neg w0 then a sign-extend
- * on that i32 lane, so the 64-bit lane div sees a signed i32.
+ * A chain of EXPR_NEG over a VAR, a FIELD, or a lane scalar binop
+ * (kinds 4..13) is one peel. When the f32 gate is set, an odd count
+ * xors the f32 sign and kinds 8..13 stay out of that xor. When the
+ * gate is 0, an odd count is neg w0 then a sign-extend on that i32
+ * lane, so the 64-bit lane div sees a signed i32.
  * A FLOAT_LIT chain is the literal peel above. An i32 INT_LIT chain
  * stays on emit_expr. Kind 23, kinds 8..13, and a chain that does not
  * end stay on emit_expr. PLATFORM: SHARED.
@@ -539,8 +539,9 @@ export function glue_emit_vector_operand_lane_elf_c(
     }
   }
   // i32 lane. The f32 gate stays 0, so the sign-xor peel did not run.
-  // Same NEG recursion. An odd count is neg w0 then sign-extend.
-  // An INT_LIT core returns -2 and keeps the existing literal path.
+  // Same NEG recursion. Kinds 4..13 are lane binops. An odd count is
+  // neg w0 then sign-extend. Kind 51, kind 23, and an INT_LIT core
+  // return -2 and keep the existing literal path.
   // PLATFORM: SHARED.
   if (ko == 22) {
     if (esz == 4) {
