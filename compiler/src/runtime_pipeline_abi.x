@@ -41594,7 +41594,32 @@ export function pipeline_asm_array_lit_leaf_elem_byte_sz_c(arena: *u8, init_ref:
 }
 
 /**
+ * Wide array element store already used by a one-level vector literal.
+ * The body is file-private in pabi_vector_let_init_nested_one.x, so the
+ * linked name keeps that unit prefix. One body fills an f32 lane, splats
+ * an i32 lane (including lane 7 of i32x8), or copies a VAR / FIELD / INDEX.
+ * @param arena *u8 — AST arena.
+ * @param elf_ctx *u8 — object writer.
+ * @param elem_ref i32 — element expr; caller already skipped 0.
+ * @param ctx *u8 — AsmFuncCtx.
+ * @param ta i32 — 0 x86, 1 arm64.
+ * @param stack_slot_off i32 — array base slot.
+ * @param esz i32 — element stride in bytes.
+ * @param ai i32 — flat slot index; arm64 home is base+ai*esz.
+ * @param elem_ty i32 — element type ref; 0 declines the splat.
+ * @return i32 — 0 stored, 1 not handled, -1 encoder failure.
+ * PLATFORM: SHARED.
+ */
+export extern function pabi_vector_let_init_nested_one_vlet_wide_elem(
+  arena: *u8, elf_ctx: *u8, elem_ref: i32, ctx: *u8, ta: i32,
+  stack_slot_off: i32, esz: i32, ai: i32, elem_ty: i32
+): i32;
+
+/**
  * Flatten nested ARRAY_LIT to row-major scalar/struct stores at base+flat_i*leaf_esz.
+ * A leaf wider than 8 bytes that is not a STRUCT_LIT asks vlet_wide_elem
+ * to fill that slot. That is the same store a one-level i32x8 literal uses.
+ * A decline keeps the 4-byte store. Kind 46 still recurses here.
  * STRUCT_LIT / >8B leaves use in-place glue_emit_struct_type_let_init at arch home.
  * dest extras dest-ARRAY of ARRAY extra `[K][N][]T`: dest elem is TYPE_ARRAY
  * of SLICE. Flatten used to write i32 leaves (asg run=1 / extra SIGSEGV 139)
@@ -41799,7 +41824,34 @@ export function pipeline_asm_emit_array_lit_flat_elf_c(arena: *u8, elf_ctx: *u8,
       if (st == 0 - 1) {
         return 0 - 1;
       }
-      // st == -2: fall through to scalar store
+      /* st is -2: not a struct. leaf_esz 32 is one i32x8. The scalar
+       * store below writes 4 bytes at fi*leaf_esz, so lane 7 stayed 0.
+       * vlet_wide_elem is the one-level splat. fi is the flat slot, not
+       * the row index. Kind 45 stays on the scalar store: that helper
+       * turns a field-emit failure into -1. A return of 1 keeps the
+       * 4-byte store. The kind-46 arm above is the only recursion.
+       * G.7: same leaf as runtime_pipeline_abi_fixed_array_copy_thin.x.
+       * PLATFORM: SHARED. */
+      if (leaf_esz > 8) {
+        if (ko != 45) {
+          unsafe {
+            fi = flat_i[0];
+            st = pabi_vector_let_init_nested_one_vlet_wide_elem(
+              arena, elf_ctx, elem_ref, ctx, ta, stack_slot_off, leaf_esz, fi, dest_elem);
+          }
+          if (st == 0) {
+            unsafe {
+              fi = flat_i[0];
+              flat_i[0] = fi + 1;
+            }
+            ai = ai + 1;
+            continue;
+          }
+          if (st == 0 - 1) {
+            return 0 - 1;
+          }
+        }
+      }
     }
     unsafe {
       rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, stack_slot_off, ta);
