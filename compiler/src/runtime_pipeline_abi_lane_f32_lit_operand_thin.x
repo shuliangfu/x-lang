@@ -39,6 +39,63 @@ export extern function backend_enc_mov_imm32_to_rbx_arch(elf_ctx: *u8, imm: i32,
 export extern function backend_enc_xor_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
 
 /**
+ * Flip bit 31 of the f32 lane already in rax.
+ * @param elf_ctx *u8 — emit buffer. The caller has just filled rax.
+ * @param ta i32 — 1 arm64, else x86.
+ * @return i32 — 0 when rax holds the flipped lane, -1 when an encode fails.
+ * The immediate is the same host constant the FLOAT_LIT peel xors into
+ * the f64 high half. rbx is scratch. PLATFORM: SHARED.
+ */
+function lane_f32_xor_sign_rax(elf_ctx: *u8, ta: i32): i32 {
+  let rc: i32 = 0;
+  unsafe {
+    rc = backend_enc_mov_imm32_to_rbx_arch(elf_ctx, 0 - 2147483647 - 1, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_xor_rbx_rax_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  return 0;
+}
+
+/**
+ * Load one VAR lane into rax.
+ * @param arena *u8 — expression arena.
+ * @param elf_ctx *u8 — emit buffer.
+ * @param var_ref i32 — VAR expr. A missing frame home returns -1.
+ * @param lane i32 — lane index.
+ * @param esz i32 — lane bytes.
+ * @param ctx *u8 — asm ctx.
+ * @param ta i32 — 1 arm64, else x86. Arm64 lane slots grow up from rbp.
+ * @return i32 — the load encoder result, or -1 when the home is missing.
+ * PLATFORM: SHARED.
+ */
+function lane_f32_load_var_lane(
+  arena: *u8, elf_ctx: *u8, var_ref: i32, lane: i32, esz: i32, ctx: *u8, ta: i32
+): i32 {
+  let off: i32 = 0;
+  unsafe {
+    off = glue_asm_local_var_stack_off_scoped(arena, ctx, var_ref);
+  }
+  if (off < 0) {
+    return 0 - 1;
+  }
+  if (ta == 1) {
+    unsafe {
+      return backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, off + lane * esz, esz, ta);
+    }
+  }
+  unsafe {
+    return backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, off - lane * esz, esz, ta);
+  }
+}
+
+/**
  * Move one f32 lane immediate for a FLOAT_LIT, or one or two NEG of one.
  * @param arena *u8 — expression arena. Null is not a literal.
  * @param elf_ctx *u8 — emit buffer.
@@ -127,9 +184,9 @@ function lane_f32_emit_lit_lane(arena: *u8, elf_ctx: *u8, expr_ref: i32, ta: i32
  * @param ta i32 — 1 arm64, else x86. Arm64 lane slots grow up from rbp.
  * @return i32 — 0 when rax holds the lane, -1 on failure.
  * VAR, FIELD, ARRAY_LIT, and nested binop match the previous body.
- * One EXPR_NEG of add, sub, mul, or div emits that lane, then xors
- * the f32 sign bit. A second NEG of a binop stays on emit_expr.
- * Kind 23 does not enter. PLATFORM: SHARED.
+ * One EXPR_NEG of add, sub, mul, div, or a VAR emits that lane, then
+ * xors the f32 sign bit. A second NEG, a FIELD, and kind 23 stay on
+ * emit_expr. PLATFORM: SHARED.
  */
 #[no_mangle]
 export function glue_emit_vector_operand_lane_elf_c(
@@ -164,12 +221,12 @@ export function glue_emit_vector_operand_lane_elf_c(
       if (lit < 0) {
         return 0 - 1;
       }
-      // -(4.0 / 2.0) is kind 22 of kind 7. The literal peel returns 0,
-      // so the outer div saw f64 bits and the lane was not -1.0.
-      // Emit the inner add, sub, mul, or div, then xor the f32 sign
-      // bit already used by let-init. A second NEG stays out. Kind 23
-      // and kinds 8..13 do not enter. i32 leaves the gate at 0.
-      // PLATFORM: SHARED.
+      // -(4.0 / 2.0) is kind 22 of kind 7. -a / 2.0 is kind 22 of a
+      // VAR. The literal peel returns 0, so the outer div saw f64 bits
+      // and neither lane was the f32 quotient. Emit the inner lane,
+      // then xor the f32 sign bit. A second NEG stays out. A FIELD
+      // stays out. Kind 23 and kinds 8..13 do not enter. i32 leaves
+      // the gate at 0. PLATFORM: SHARED.
       if (ko == 22) {
         unsafe {
           elem_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
@@ -203,43 +260,24 @@ export function glue_emit_vector_operand_lane_elf_c(
             if (rc != 0) {
               return 0 - 1;
             }
-            // f32 sign bit 0x80000000. This thin already folds the
-            // same host constant for a negative FLOAT_LIT.
-            // PLATFORM: SHARED.
-            unsafe {
-              rc = backend_enc_mov_imm32_to_rbx_arch(
-                elf_ctx, 0 - 2147483647 - 1, ta);
-            }
+            return lane_f32_xor_sign_rax(elf_ctx, ta);
+          }
+          // -a is kind 22 of kind 3. Load that VAR lane, then the
+          // same sign xor. A FIELD is not kind 3. PLATFORM: SHARED.
+          if (lit == 3) {
+            rc = lane_f32_load_var_lane(
+              arena, elf_ctx, elem_ref, lane, esz, ctx, ta);
             if (rc != 0) {
               return 0 - 1;
             }
-            unsafe {
-              rc = backend_enc_xor_rbx_rax_arch(elf_ctx, ta);
-            }
-            if (rc != 0) {
-              return 0 - 1;
-            }
-            return 0;
+            return lane_f32_xor_sign_rax(elf_ctx, ta);
           }
         }
       }
     }
   }
   if (ko == 3) {
-    unsafe {
-      off = glue_asm_local_var_stack_off_scoped(arena, ctx, expr_ref);
-    }
-    if (off < 0) {
-      return 0 - 1;
-    }
-    if (ta == 1) {
-      unsafe {
-        return backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, off + lane * esz, esz, ta);
-      }
-    }
-    unsafe {
-      return backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, off - lane * esz, esz, ta);
-    }
+    return lane_f32_load_var_lane(arena, elf_ctx, expr_ref, lane, esz, ctx, ta);
   }
   // FIELD=44. off already includes lane polarity.
   if (ko == 44) {
