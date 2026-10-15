@@ -45617,77 +45617,12 @@ export function glue_emit_vector_lane_scalar_binop_elf_c(arena: *u8, elf_ctx: *u
   return 0 - 1;
 }
 
-/**
- * Emit vector operand lane scalar into rax (VAR / ARRAY_LIT / nested binop / other).
- * wave148 pure: G.7 authority (was static glue_emit_vector_operand_lane_elf_c).
- * PLATFORM: SHARED freestanding · uses public pipeline_asm_emit_expr_elf_c (not static _rec).
- */
-#[no_mangle]
-export function glue_emit_vector_operand_lane_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, lane: i32, esz: i32, ctx: *u8, ta: i32): i32 {
-  let ko: i32 = 0;
-  let off: i32 = 0;
-  let elem_ref: i32 = 0;
-  let left_ref: i32 = 0;
-  let right_ref: i32 = 0;
-  let rc: i32 = 0;
-  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || expr_ref <= 0 || lane < 0) {
-    return 0 - 1;
-  }
-  unsafe {
-    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
-  }
-  if (ko == 3) {
-    off = glue_asm_local_var_stack_off_scoped(arena, ctx, expr_ref);
-    if (off < 0) {
-      return 0 - 1;
-    }
-    if (ta == 1) {
-      unsafe {
-        return backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, off + lane * esz, esz, ta);
-      }
-    }
-    unsafe {
-      return backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, off - lane * esz, esz, ta);
-    }
-  }
-  /* FIELD=44: reuse stack-off authority (VAR root, depth-1 or chain).
-   * off already includes lane polarity — do not add lane*esz again.
-   * Miss (pointer / mid-chain *T / enum) falls through to emit_expr. */
-  if (ko == 44) {
-    off = glue_vector_var_lane_stack_off_elf_c(arena, ctx, expr_ref, lane, esz, ta);
-    if (off >= 0) {
-      unsafe {
-        return backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, off, esz, ta);
-      }
-    }
-  }
-  if (ko == 46) {
-    unsafe {
-      elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, lane);
-    }
-    if (elem_ref == 0) {
-      unsafe {
-        return backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta);
-      }
-    }
-    unsafe {
-      return pipeline_asm_emit_expr_elf_c(arena, elf_ctx, elem_ref, ctx, ta);
-    }
-  }
-  unsafe {
-    rc = glue_is_vector_lane_scalar_binop_ko(ko);
-  }
-  if (rc != 0) {
-    unsafe {
-      left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
-      right_ref = pipeline_expr_binop_right_ref_at(arena, expr_ref);
-    }
-    return glue_emit_vector_lane_scalar_binop_elf_c(arena, elf_ctx, ko, left_ref, right_ref, lane, esz, ctx, ta);
-  }
-  unsafe {
-    return pipeline_asm_emit_expr_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
-  }
-}
+// Body moved to runtime_pipeline_abi_lane_f32_lit_operand_thin.x.
+// pabi_weak still defines the old T. Link weakens that symbol so the
+// thin is the one definition. The thin narrows a FLOAT_LIT lane to f32
+// bits when the f32-literal gate is set. Do not restore a second body.
+// PLATFORM: SHARED.
+export extern function glue_emit_vector_operand_lane_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, lane: i32, esz: i32, ctx: *u8, ta: i32): i32;
 
 /**
  * Per-lane copy of a vector VAR / FIELD / FIELD-chain into dest slot.

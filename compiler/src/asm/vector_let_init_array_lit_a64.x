@@ -97,6 +97,7 @@ export extern function pipeline_asm_emit_vector_binop_let_init_elf_c(
   arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32,
   stack_slot_off: i32, type_ref: i32
 ): i32;
+export extern function glue_lane_f32_lit_dest_set(v: i32): i32;
 export extern function glue_emit_struct_type_let_init_elf_c(
   arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32,
   let_ty_ref: i32, stack_slot_off: i32
@@ -867,6 +868,8 @@ export function glue_emit_vector_type_let_init_elf_c(
   let f_quattuordeca_k: i32 = 0;
   let f_quindecim: i32 = 0;
   let f_quindecim_k: i32 = 0;
+  let lit_gate: i32 = 0;
+  let lit_prev: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || init_ref <= 0) {
     return 0 - 3;
   }
@@ -952,13 +955,32 @@ export function glue_emit_vector_type_let_init_elf_c(
     return rc;
   }
   // Lane binop. Do not decline into the dual-GP pair store.
+  // Add, sub, mul, and div of an f32 vector set the literal gate so a
+  // FLOAT_LIT operand is f32 bits and takes divss, not integer div of
+  // the f64 low half. i32x8 does not set it. The previous gate is
+  // restored before return. PLATFORM: MACOS|ARM64. The gate symbol is SHARED.
   unsafe {
     rc = glue_is_vector_lane_scalar_binop_ko(ko);
   }
   if (rc != 0) {
+    lit_gate = 0;
+    lit_prev = 0;
+    if (ko == 4 || ko == 5 || ko == 6 || ko == 7) {
+      if (vlet_f32_fill_lane(arena, type_ref) != 0) {
+        unsafe {
+          lit_prev = glue_lane_f32_lit_dest_set(1);
+        }
+        lit_gate = 1;
+      }
+    }
     unsafe {
       rc = pipeline_asm_emit_vector_binop_let_init_elf_c(
         arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, type_ref);
+    }
+    if (lit_gate != 0) {
+      unsafe {
+        lit_prev = glue_lane_f32_lit_dest_set(lit_prev);
+      }
     }
     return rc;
   }

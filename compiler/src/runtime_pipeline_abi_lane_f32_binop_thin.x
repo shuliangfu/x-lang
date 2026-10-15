@@ -11,9 +11,41 @@
 
 export extern function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function glue_var_decl_type_ref_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
 export extern function glue_vector_elem_is_f32_c(arena: *u8, type_ref: i32): i32;
 export extern function vector_let_init_array_lit_a64_vlet_f32_fill_lane(arena: *u8, type_ref: i32): i32;
+
+// 1 while an f32-lane add, sub, mul, or div is being emitted.
+// The operand materializer reads this and narrows a FLOAT_LIT to f32
+// bits. i32x8 leaves it at 0, so 4.0 / 2.0 there stays on the old path.
+// PLATFORM: SHARED.
+let g_lane_f32_lit_dest: i32 = 0;
+
+/**
+ * Read the f32-literal lane gate.
+ * @return i32 — 1 when the current lane binop's dest element is f32
+ *   and the opcode is add, sub, mul, or div; 0 otherwise.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_lane_f32_lit_dest_get(): i32 {
+  return g_lane_f32_lit_dest;
+}
+
+/**
+ * Set the f32-literal lane gate.
+ * @param v i32 — 1 to narrow FLOAT_LIT lane operands, 0 to leave them.
+ * @return i32 — the previous gate, so the caller can restore it.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_lane_f32_lit_dest_set(v: i32): i32 {
+  let prev: i32 = 0;
+  prev = g_lane_f32_lit_dest;
+  g_lane_f32_lit_dest = v;
+  return prev;
+}
 
 /**
  * True when a vector-lane binop's left operand has f32 lanes.
@@ -31,6 +63,7 @@ export function glue_lane_binop_lhs_is_f32_c(arena: *u8, ctx: *u8, left_ref: i32
   let tr: i32 = 0;
   let ko: i32 = 0;
   let is_f32: i32 = 0;
+  let op: i32 = 0;
   if (arena == (0 as *u8) || left_ref <= 0) {
     return 0;
   }
@@ -59,6 +92,34 @@ export function glue_lane_binop_lhs_is_f32_c(arena: *u8, ctx: *u8, left_ref: i32
   if (is_f32 == 0) {
     unsafe {
       is_f32 = vector_let_init_array_lit_a64_vlet_f32_fill_lane(arena, tr);
+    }
+  }
+  // A FLOAT_LIT has no vector type, so both checks above stay 0.
+  // f32x8 `4.0 / 2.0` then took integer div of the f64 bit pattern
+  // (low half of 4.0 and 2.0 is 0, so the lane stored 0). The gate
+  // is set only for an f32 dest and only for add, sub, mul, and div.
+  // i32x8 `4.0 / 2.0` leaves the gate at 0. One EXPR_NEG over a
+  // FLOAT_LIT is that same literal. Kind 23 does not enter.
+  // PLATFORM: SHARED.
+  if (is_f32 == 0 && g_lane_f32_lit_dest != 0) {
+    unsafe {
+      ko = pipeline_expr_kind_ord_at(arena, left_ref);
+    }
+    if (ko == 1) {
+      return 1;
+    }
+    if (ko == 22) {
+      unsafe {
+        op = pipeline_expr_unary_operand_ref_at(arena, left_ref);
+      }
+      if (op > 0) {
+        unsafe {
+          ko = pipeline_expr_kind_ord_at(arena, op);
+        }
+        if (ko == 1) {
+          return 1;
+        }
+      }
     }
   }
   return is_f32;
