@@ -214,9 +214,10 @@ function lane_f32_emit_lit_lane(arena: *u8, elf_ctx: *u8, expr_ref: i32, ta: i32
  * @return i32 — 0 when rax holds the lane, -1 on failure.
  * VAR, FIELD, ARRAY_LIT, and nested binop match the previous body.
  * One EXPR_NEG of add, sub, mul, div, a VAR, or a FIELD emits that
- * lane, then xors the f32 sign bit. Two EXPR_NEG of a VAR or a FIELD
- * load that lane and do not xor: the two sign flips cancel. A second
- * NEG of a binop, and kind 23, stay on emit_expr. PLATFORM: SHARED.
+ * lane, then xors the f32 sign bit. Two EXPR_NEG of a VAR, a FIELD,
+ * or add/sub/mul/div emit that lane and do not xor: the two sign
+ * flips cancel. Kind 23, kinds 8..13 under a NEG, and a third NEG
+ * stay on emit_expr. PLATFORM: SHARED.
  */
 #[no_mangle]
 export function glue_emit_vector_operand_lane_elf_c(
@@ -254,11 +255,12 @@ export function glue_emit_vector_operand_lane_elf_c(
       // -(4.0 / 2.0) is kind 22 of kind 7. -a / 2.0 is kind 22 of a
       // VAR. -h.v / 2.0 is kind 22 of a FIELD. -(-a) / 2.0 is kind 22
       // of kind 22 of a VAR. -(-h.v) / 2.0 is kind 22 of kind 22 of a
-      // FIELD. The literal peel returns 0, so the outer div saw f64
-      // bits and the lane was not the f32 quotient. One NEG emits the
-      // inner lane, then xors the f32 sign bit. Two NEG of a VAR or a
-      // FIELD load that lane and do not xor. A second NEG of a binop
-      // stays out. Kind 23 and kinds 8..13 do not enter.
+      // FIELD. -(-(4.0 / 2.0)) / 2.0 is kind 22 of kind 22 of kind 7.
+      // The literal peel returns 0, so the outer div saw f64 bits and
+      // the lane was not the f32 quotient. One NEG emits the inner
+      // lane, then xors the f32 sign bit. Two NEG of a VAR, a FIELD,
+      // or add/sub/mul/div emit that lane and do not xor. Kinds 8..13
+      // and a third NEG stay out. Kind 23 does not enter.
       // i32 leaves the gate at 0. PLATFORM: SHARED.
       if (ko == 22) {
         unsafe {
@@ -321,11 +323,11 @@ export function glue_emit_vector_operand_lane_elf_c(
             }
           }
           // -(-a) is kind 22 of kind 22 of kind 3. -(-h.v) is kind 22
-          // of kind 22 of kind 44. Two sign flips cancel, so rax keeps
-          // the lane and this does not xor. A missing VAR home is -1.
-          // A FIELD with no frame home is -2 and falls through. A
-          // binop under this peel stays out. A third NEG stays out.
-          // PLATFORM: SHARED.
+          // of kind 22 of kind 44. -(-(4.0 / 2.0)) is kind 22 of kind
+          // 22 of kind 7. Two sign flips cancel, so rax keeps the lane
+          // and this does not xor. A missing VAR home is -1. A FIELD
+          // with no frame home is -2 and falls through. Kinds 8..13
+          // stay out. A third NEG stays out. PLATFORM: SHARED.
           if (lit == 22) {
             unsafe {
               left_ref = pipeline_expr_unary_operand_ref_at(arena, elem_ref);
@@ -354,6 +356,36 @@ export function glue_emit_vector_operand_lane_elf_c(
                   }
                   return 0;
                 }
+              }
+              // Two sign flips cancel, so the lane op is not xored.
+              // Kinds 8..13 are not 4..7. PLATFORM: SHARED.
+              off = 0;
+              if (rc == 4) {
+                off = 1;
+              }
+              if (rc == 5) {
+                off = 1;
+              }
+              if (rc == 6) {
+                off = 1;
+              }
+              if (rc == 7) {
+                off = 1;
+              }
+              if (off != 0) {
+                lit = rc;
+                unsafe {
+                  elem_ref = pipeline_expr_binop_left_ref_at(arena, left_ref);
+                  right_ref = pipeline_expr_binop_right_ref_at(arena, left_ref);
+                }
+                unsafe {
+                  rc = glue_emit_vector_lane_scalar_binop_elf_c(
+                    arena, elf_ctx, lit, elem_ref, right_ref, lane, esz, ctx, ta);
+                }
+                if (rc != 0) {
+                  return 0 - 1;
+                }
+                return 0;
               }
             }
           }
