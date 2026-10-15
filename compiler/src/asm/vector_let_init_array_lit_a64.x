@@ -738,8 +738,9 @@ function vlet_f32_array_lanes(
  * at most four times. Kind 25 (IF) and kind 27 (TERNARY) of a SIMD
  * spelling wider than 16 bytes call glue_emit_vector_if_let_init_elf_c.
  * Named i32x8 is that spelling. That sibling returns -3 with no bytes
- * emitted when an arm is not a literal chain, a VAR, an ARRAY_LIT, or
- * a lane binop. Kind 51 stays out. Vec4f stays declined because it is
+ * emitted when an arm is not a literal chain, a VAR, an ARRAY_LIT, a
+ * lane binop, or a block that still has lets. Kind 51 stays out.
+ * Vec4f stays declined because it is
  * 16 bytes. Kind 22 of an ARRAY_LIT (kind 46) stores that literal
  * with pipeline_asm_emit_vector_let_init_elf_c, then negates each
  * destination lane in place. Kind 23 (EXPR_BITNOT) uses that same
@@ -1736,8 +1737,8 @@ export function glue_emit_vector_type_let_init_elf_c(
  * @param ta i32 — 1 is arm64. Other values return 0
  * @return i32 — peeled expr ref when the arm is a non-null INT_LIT,
  *   a kind-22 / kind-23 chain of one, a VAR with a frame home, an
- *   ARRAY_LIT, or a lane binop (kinds 4..13). 0 means decline this if
- *   before any branch is emitted.
+ *   ARRAY_LIT, a lane binop (kinds 4..13), or a block that still has
+ *   lets. 0 means decline this if before any branch is emitted.
  * A unary of a VAR stays 0: the vector let-init can negate that VAR,
  * but only after it has already been chosen. Kind 51 is an address.
  * The lane-binop predicate remaps 51 to add, so it is excluded before
@@ -1824,6 +1825,14 @@ export function glue_vec_if_arm_take_c(
   if (go != 0) {
     return cur;
   }
+  // A block that still has lets is not transparent. The fill stores
+  // it with the existing vector let-init, which emits those lets
+  // through the lane chain and then stores the value. Nested blocks
+  // are that one call. 128 stops a chain that does not end.
+  // PLATFORM: MACOS|ARM64.
+  if (ko == 26) {
+    return cur;
+  }
   if (ko == 22) {
     go = 1;
   }
@@ -1894,7 +1903,8 @@ export function glue_vec_if_arm_take_c(
  * @return i32 — 0 when the slot holds every lane; -1 on encode failure
  * A VAR is copied with glue_vector_var_lane_stack_off_elf_c and
  * glue_copy_large_struct_from_rax_ptr_elf_c. A literal chain, an
- * ARRAY_LIT, and a lane binop call glue_emit_vector_type_let_init_elf_c.
+ * ARRAY_LIT, a lane binop, and a block that still has lets call
+ * glue_emit_vector_type_let_init_elf_c.
  * That call is one extra frame, not a second splat. An f32 binop uses
  * that let-init's own fill, not an i32 splat. PLATFORM: MACOS|ARM64.
  */
