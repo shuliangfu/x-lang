@@ -1,0 +1,94 @@
+// knife256/10.2 Cap tip linked body of typeck_check_expr_if_ternary.
+// `let v: Vec8i = c != 0 ? 3 : -3` checks both arms with the Vec8i
+// decl. Each arm stays i32, the ternary stays i32, and the let
+// reports expected ?, found i32. The same miss is a return mismatch
+// and a call-argument mismatch. An if expr is kind 25: its arms are
+// blocks, and the block checker already stamps those tails. This
+// thin does not stamp kind 25. After the demoted ternary check
+// accepts two i32 arms, the same typeck_stamp_i32_vector_int_splat
+// used by let, return, call, struct fields, and blocks runs on each
+// arm. Both hits set this ternary's resolved type to the expected
+// vector. One miss leaves the demoted i32 type. Kind 24 and a float
+// literal are not stamped. Stamping inside int_lit would mark every
+// literal. This function does not.
+// PLATFORM: SHARED — the type rule is the same on macOS, Ubuntu, and
+// Windows. The demote step that makes this symbol win is Mach-O only.
+
+export extern "C" function typeck_check_expr_if_ternary__demoted(
+  module: *u8, arena: *u8, expr_ref: i32, return_type_ref: i32, ctx: *u8): i32;
+export extern "C" function typeck_stamp_i32_vector_int_splat(
+  arena: *u8, init_ref: i32, decl_ty_ref: i32): i32;
+export extern "C" function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_if_then_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_if_else_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_set_resolved_type_ref(
+  arena: *u8, expr_ref: i32, ty: i32): void;
+
+/**
+ * Stamp both arms of a Vec8i integer-literal ternary.
+ * @param module *u8 — caller module; passed through to the demoted body
+ * @param arena *u8 — AST arena; null defers to the demoted body
+ * @param expr_ref i32 — EXPR_IF or EXPR_TERNARY; <= 0 defers
+ * @param return_type_ref i32 — expected type. The stamp runs only when
+ *   that type is a TYPE_VECTOR of i32 and this expr is kind 27.
+ * @param ctx *u8 — dep context; passed through
+ * @return i32 — the demoted check result. 0 is success. -1 is failure.
+ * A kind-25 if returns the demoted result with no extra write. A
+ * ternary whose arms are not both a non-null INT_LIT or a kind-22 /
+ * kind-23 chain keeps the demoted type. The stamp does not walk kind
+ * 24, a float, or a 33rd unary. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function typeck_check_expr_if_ternary(
+  module: *u8, arena: *u8, expr_ref: i32, return_type_ref: i32, ctx: *u8): i32 {
+  unsafe {
+    let ord_ternary: i32 = 27;
+    let rc: i32 = 0;
+    let kind: i32 = 0;
+    let then_ref: i32 = 0;
+    let else_ref: i32 = 0;
+    let stamped_then: i32 = 0;
+    let stamped_else: i32 = 0;
+    rc = typeck_check_expr_if_ternary__demoted(
+      module, arena, expr_ref, return_type_ref, ctx);
+    if (rc != 0) {
+      return rc;
+    }
+    if (arena == 0 as *u8) {
+      return 0;
+    }
+    if (expr_ref <= 0) {
+      return 0;
+    }
+    if (return_type_ref <= 0) {
+      return 0;
+    }
+    kind = pipeline_expr_kind_ord_at(arena, expr_ref);
+    if (kind != ord_ternary) {
+      return 0;
+    }
+    then_ref = pipeline_expr_if_then_ref_at(arena, expr_ref);
+    else_ref = pipeline_expr_if_else_ref_at(arena, expr_ref);
+    /*
+     * The demoted body already required the two arm types to match
+     * and stored that i32 on this ternary. The stamp returns 1 only
+     * for a non-null INT_LIT or a kind-22 / kind-23 chain, and it
+     * rewrites that arm. Overwrite the ternary only when both arms
+     * hit, so a binop arm stays the demoted i32. PLATFORM: SHARED.
+     */
+    if (then_ref > 0) {
+      stamped_then = typeck_stamp_i32_vector_int_splat(
+        arena, then_ref, return_type_ref);
+    }
+    if (else_ref > 0) {
+      stamped_else = typeck_stamp_i32_vector_int_splat(
+        arena, else_ref, return_type_ref);
+    }
+    if (stamped_then == 1) {
+      if (stamped_else == 1) {
+        pipeline_expr_set_resolved_type_ref(arena, expr_ref, return_type_ref);
+      }
+    }
+    return 0;
+  }
+}
