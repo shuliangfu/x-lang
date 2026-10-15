@@ -58,11 +58,12 @@ export function glue_lane_f32_lit_dest_set(v: i32): i32 {
  * Vec4f, f32x4, and a TYPE_VECTOR of f32 come from the classifier.
  * f32x8 comes from the fill helper. An integer spelling returns 0.
  * When the f32 literal gate is set and those checks stay 0, a FLOAT_LIT,
- * one or two EXPR_NEG of a FLOAT_LIT, one or two EXPR_NEG of
+ * one, two, or three EXPR_NEG of a FLOAT_LIT, one or two EXPR_NEG of
  * add/sub/mul/div (kinds 4..7), one or two EXPR_NEG of a VAR (kind 3),
  * one or two EXPR_NEG of a FIELD (kind 44), or a lane scalar binop
  * (kinds 4..13 or 51) also returns 1. Kind 23, kinds 8..13 under a
- * NEG, and a third EXPR_NEG do not. i32 leaves the gate at 0.
+ * NEG, a fourth EXPR_NEG, and a third EXPR_NEG of a VAR, FIELD, or
+ * binop do not. i32 leaves the gate at 0.
  * The operand peeler accepts the same shapes.
  * PLATFORM: SHARED.
  */
@@ -114,8 +115,11 @@ export function glue_lane_binop_lhs_is_f32_c(arena: *u8, ctx: *u8, left_ref: i32
   // -h.v / 2.0 was not -2.0. Two EXPR_NEG of a VAR is still f32:
   // -(-a) / 2.0 was not 2.0. Two EXPR_NEG of a FIELD is the same:
   // -(-h.v) / 2.0 was not 2.0. Two EXPR_NEG of add, sub, mul, or
-  // div is the same: -(-(4.0 / 2.0)) / 2.0 was not 1.0. Kinds 8..13
-  // under a NEG stay out. The operand peeler accepts
+  // div is the same: -(-(4.0 / 2.0)) / 2.0 was not 1.0. Three
+  // EXPR_NEG of a FLOAT_LIT is still f32: -(-(-4.0)) / 2.0 was not
+  // -2.0. A fourth NEG stays out. A third NEG of a VAR, FIELD, or
+  // binop stays out. Kinds 8..13 under a NEG stay out. The operand
+  // peeler accepts
   // the same shapes.
   // PLATFORM: SHARED.
   if (is_f32 == 0 && g_lane_f32_lit_dest != 0) {
@@ -167,8 +171,9 @@ export function glue_lane_binop_lhs_is_f32_c(arena: *u8, ctx: *u8, left_ref: i32
           return 1;
         }
         // Second EXPR_NEG of a FLOAT_LIT, a VAR, a FIELD, or add,
-        // sub, mul, div. Kinds 8..13 stay out. A third NEG stays out.
-        // Kind 23 does not enter. PLATFORM: SHARED.
+        // sub, mul, div. A third NEG of a FLOAT_LIT is peeled below.
+        // Kinds 8..13 stay out. Kind 23 does not enter.
+        // PLATFORM: SHARED.
         if (ko == 22) {
           unsafe {
             op = pipeline_expr_unary_operand_ref_at(arena, op);
@@ -204,6 +209,22 @@ export function glue_lane_binop_lhs_is_f32_c(arena: *u8, ctx: *u8, left_ref: i32
             }
             if (ko == 7) {
               return 1;
+            }
+            // Three NEG of a FLOAT_LIT. The literal peel xors the
+            // sign once. A fourth NEG, and a third NEG of a VAR,
+            // FIELD, or binop, stay out. PLATFORM: SHARED.
+            if (ko == 22) {
+              unsafe {
+                op = pipeline_expr_unary_operand_ref_at(arena, op);
+              }
+              if (op > 0) {
+                unsafe {
+                  ko = pipeline_expr_kind_ord_at(arena, op);
+                }
+                if (ko == 1) {
+                  return 1;
+                }
+              }
             }
           }
         }

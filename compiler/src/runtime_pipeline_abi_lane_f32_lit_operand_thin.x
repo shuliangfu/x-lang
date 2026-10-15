@@ -4,10 +4,11 @@
 // FLOAT_LIT through pipeline_asm_emit_expr, which moves the f64 bits
 // into x0. The low half of f64 4.0 and f64 2.0 is 0, so an f32 lane
 // div of those literals stored 0. When the f32-literal gate is set,
-// a FLOAT_LIT, or one or two EXPR_NEG of one, at lane size 4 is narrowed
-// with the existing glue_ieee_f64_bits_to_f32_bits and moved as imm32.
-// Two EXPR_NEG of that literal cancel the sign xor. A third NEG
-// returns 0. The gate stays 0 for i32 lanes, and this file then
+// a FLOAT_LIT, or one, two, or three EXPR_NEG of one, at lane size 4
+// is narrowed with the existing glue_ieee_f64_bits_to_f32_bits and
+// moved as imm32. Two EXPR_NEG of that literal cancel the sign xor.
+// Three leave the sign set. A fourth returns 0. The gate stays 0 for
+// i32 lanes, and this file then
 // matches the old body. Do not add a second divss. PLATFORM: SHARED.
 
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
@@ -125,7 +126,8 @@ function lane_f32_load_field_lane(
 }
 
 /**
- * Move one f32 lane immediate for a FLOAT_LIT, or one or two NEG of one.
+ * Move one f32 lane immediate for a FLOAT_LIT, or one, two, or three
+ * NEG of one.
  * @param arena *u8 — expression arena. Null is not a literal.
  * @param elf_ctx *u8 — emit buffer.
  * @param expr_ref i32 — operand expr.
@@ -134,7 +136,8 @@ function lane_f32_load_field_lane(
  *   shape, -1 when the move fails.
  * The f64 sign bit is xored into the high half before the existing
  * narrow, so one NEG of 4.0 stays negative. Two EXPR_NEG cancel that
- * xor. A third NEG returns 0. Kind 23 does not enter.
+ * xor. Three leave the sign set. A fourth NEG returns 0. Kind 23
+ * does not enter.
  * PLATFORM: SHARED.
  */
 function lane_f32_emit_lit_lane(arena: *u8, elf_ctx: *u8, expr_ref: i32, ta: i32): i32 {
@@ -165,8 +168,7 @@ function lane_f32_emit_lit_lane(arena: *u8, elf_ctx: *u8, expr_ref: i32, ta: i32
     neg = 1;
     // -(-4.0) is kind 22 of kind 22. One peel left the f64 bits, and
     // the low half of f64 4.0 is 0. Two sign flips cancel. A third
-    // NEG is not a FLOAT_LIT and returns 0 below. Kind 23 does not
-    // enter. PLATFORM: SHARED.
+    // NEG is peeled below. Kind 23 does not enter. PLATFORM: SHARED.
     if (ko == 22) {
       unsafe {
         op = pipeline_expr_unary_operand_ref_at(arena, op);
@@ -178,6 +180,21 @@ function lane_f32_emit_lit_lane(arena: *u8, elf_ctx: *u8, expr_ref: i32, ta: i32
         ko = pipeline_expr_kind_ord_at(arena, op);
       }
       neg = 0;
+      // -(-(-4.0)) is one more NEG. Three sign flips leave the sign
+      // set. A fourth NEG is not a FLOAT_LIT and returns 0 below.
+      // A VAR under this peel is not kind 1. PLATFORM: SHARED.
+      if (ko == 22) {
+        unsafe {
+          op = pipeline_expr_unary_operand_ref_at(arena, op);
+        }
+        if (op <= 0) {
+          return 0;
+        }
+        unsafe {
+          ko = pipeline_expr_kind_ord_at(arena, op);
+        }
+        neg = 1;
+      }
     }
   }
   if (ko != 1) {
@@ -216,8 +233,10 @@ function lane_f32_emit_lit_lane(arena: *u8, elf_ctx: *u8, expr_ref: i32, ta: i32
  * One EXPR_NEG of add, sub, mul, div, a VAR, or a FIELD emits that
  * lane, then xors the f32 sign bit. Two EXPR_NEG of a VAR, a FIELD,
  * or add/sub/mul/div emit that lane and do not xor: the two sign
- * flips cancel. Kind 23, kinds 8..13 under a NEG, and a third NEG
- * stay on emit_expr. PLATFORM: SHARED.
+ * flips cancel. A third NEG of a FLOAT_LIT is the literal peel:
+ * three sign flips leave the sign set. Kind 23, kinds 8..13 under a
+ * NEG, a fourth NEG, and a third NEG of a VAR, FIELD, or binop stay
+ * on emit_expr. PLATFORM: SHARED.
  */
 #[no_mangle]
 export function glue_emit_vector_operand_lane_elf_c(
@@ -259,8 +278,10 @@ export function glue_emit_vector_operand_lane_elf_c(
       // The literal peel returns 0, so the outer div saw f64 bits and
       // the lane was not the f32 quotient. One NEG emits the inner
       // lane, then xors the f32 sign bit. Two NEG of a VAR, a FIELD,
-      // or add/sub/mul/div emit that lane and do not xor. Kinds 8..13
-      // and a third NEG stay out. Kind 23 does not enter.
+      // or add/sub/mul/div emit that lane and do not xor. A third NEG
+      // of a FLOAT_LIT is the literal peel above. Kinds 8..13, a
+      // fourth NEG, and a third NEG of a VAR, FIELD, or binop stay
+      // out. Kind 23 does not enter.
       // i32 leaves the gate at 0. PLATFORM: SHARED.
       if (ko == 22) {
         unsafe {
@@ -327,7 +348,8 @@ export function glue_emit_vector_operand_lane_elf_c(
           // 22 of kind 7. Two sign flips cancel, so rax keeps the lane
           // and this does not xor. A missing VAR home is -1. A FIELD
           // with no frame home is -2 and falls through. Kinds 8..13
-          // stay out. A third NEG stays out. PLATFORM: SHARED.
+          // stay out. A third NEG of a VAR, FIELD, or binop stays out
+          // of this arm. PLATFORM: SHARED.
           if (lit == 22) {
             unsafe {
               left_ref = pipeline_expr_unary_operand_ref_at(arena, elem_ref);
