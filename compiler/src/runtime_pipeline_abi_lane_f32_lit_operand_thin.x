@@ -9,12 +9,15 @@
 // as imm32. The same peel covers a VAR, a FIELD, and add/sub/mul/div.
 // An odd count xors the f32 sign. One peel handles every depth. The
 // 128 stop is only for a chain that does not end. When the gate stays
-// 0, the same peel loads the i32 lane. Its core may also be a lane
-// scalar binop of kinds 4..13 (mod, shifts, and, or, xor). An odd
-// count uses neg w0 and then sign-extends. Lane div is a 64-bit sdiv,
-// and a 32-bit neg zeros the high half. Kind 51 and an i32 INT_LIT
-// chain stay on emit_expr. This
-// file then matches the old body. Do not add a second divss.
+// 0, one recursion walks a chain of negation and bitwise not from the
+// inside out. The core may be a VAR, a FIELD, or a lane scalar binop
+// of kinds 4..13 (mod, shifts, and, or, xor). Kind 23 uses the
+// existing not encoder. A signed i32 lane is then sign-extended,
+// because lane div is a 64-bit sdiv and a 32-bit not zeros the high
+// half. A u32 lane stays zero-extended. Kind 22 uses neg w0 and then
+// the same sign-extend as before. Kind 24, kind 51, and an i32 INT_LIT
+// stay on emit_expr. The 128 stop is only for a chain that does not
+// end. This file then matches the old body. Do not add a second divss.
 // PLATFORM: SHARED.
 
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
@@ -45,7 +48,11 @@ export extern function backend_enc_mov_imm32_to_w0_arch(elf_ctx: *u8, imm: i32, 
 export extern function backend_enc_mov_imm32_to_rbx_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
 export extern function backend_enc_xor_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_neg_eax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_not_eax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx: *u8, ta: i32): i32;
+export extern function pipeline_lane_shr_is_arith(
+  arena: *u8, ctx: *u8, left_ref: i32, right_ref: i32
+): i32;
 
 /**
  * Flip bit 31 of the f32 lane already in rax.
@@ -372,91 +379,165 @@ function lane_f32_emit_neg_core(
 }
 
 /**
- * Emit an i32 NEG chain's core lane into rax, then neg w0 if odd.
+ * 1 when a bitwise complement of this lane must sign-extend.
+ * @param arena *u8 — expression arena. Null returns 0.
+ * @param ctx *u8 — asm ctx. Forwarded to the signed-lane helper.
+ * @param expr_ref i32 — current expr. Not positive returns 0.
+ * @param budget i32 — nodes still allowed. The first call passes 128.
+ *   Zero returns 0 without reading. That stop is only for a chain
+ *   that does not end.
+ * @return i32 — 1 when the lane is a signed i32, 0 otherwise.
+ * One call asks the existing pipeline_lane_shr_is_arith. A negation
+ * or a bitwise not has often no resolved type, so a 0 walks to the
+ * operand and asks again. A lane binop walks to its left. Kind 51
+ * does not. A u32 name stays 0, so the complement is left
+ * zero-extended. This does not copy the spelling test.
+ * PLATFORM: SHARED.
+ */
+function lane_i32_not_is_signed(arena: *u8, ctx: *u8, expr_ref: i32, budget: i32): i32 {
+  let ko: i32 = 0;
+  let op: i32 = 0;
+  let signed_lane: i32 = 0;
+  let left_ref: i32 = 0;
+  let arith: i32 = 0;
+  let step: i32 = 0;
+  if (budget <= 0) {
+    return 0;
+  }
+  if (arena == (0 as *u8)) {
+    return 0;
+  }
+  if (expr_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    signed_lane = pipeline_lane_shr_is_arith(arena, ctx, expr_ref, 0);
+  }
+  if (signed_lane != 0) {
+    return 1;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  }
+  if (ko == 22) {
+    step = 1;
+  }
+  if (ko == 23) {
+    step = 1;
+  }
+  if (step != 0) {
+    unsafe {
+      op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+    }
+    if (op <= 0) {
+      return 0;
+    }
+    return lane_i32_not_is_signed(arena, ctx, op, budget - 1);
+  }
+  arith = 0;
+  unsafe {
+    arith = glue_is_vector_lane_scalar_binop_ko(ko);
+  }
+  if (ko == 51) {
+    arith = 0;
+  }
+  if (arith != 0) {
+    unsafe {
+      left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+    }
+    if (left_ref <= 0) {
+      return 0;
+    }
+    return lane_i32_not_is_signed(arena, ctx, left_ref, budget - 1);
+  }
+  return 0;
+}
+
+/**
+ * Emit one i32 negation or bitwise-not chain into rax.
  * @param arena *u8 — expression arena.
  * @param elf_ctx *u8 — emit buffer.
- * @param expr_ref i32 — outer EXPR_NEG.
+ * @param expr_ref i32 — current expr. The first call is the outer
+ *   kind 22 or kind 23.
  * @param lane i32 — lane index.
  * @param esz i32 — lane bytes. Caller passes 4.
  * @param ctx *u8 — asm ctx.
  * @param ta i32 — 1 arm64, else x86.
+ * @param budget i32 — nodes still allowed. The first call passes 128.
+ *   Zero returns -2 without reading. That stop is only for a chain
+ *   that does not end.
  * @return i32 — 0 when rax holds the lane, -1 when a load or encode
  *   fails, -2 when the core is not a VAR, FIELD, or a lane scalar
  *   binop of kinds 4..13. An INT_LIT core returns -2 so the existing
- *   literal path stays. A missing field home returns -2.
- * The peel is the same lane_f32_neg_depth used for f32. Kinds 8..13
- * use the existing glue_is_vector_lane_scalar_binop_ko. Kind 51 is in
- * that helper but is not applied here. An odd count emits neg w0 and
- * then glue_enc_sxt_i32_result_to_rax_elf_c. Lane div is 64-bit sdiv,
- * and a 32-bit neg zeros the high half of x0. An even count is the
- * loaded lane with no extra extend. This is not the f32 sign-bit xor.
- * The f32 gate must be 0 here. Kind 23 returns -2. PLATFORM: SHARED.
+ *   literal path stays. A missing field home returns -2. Kind 24
+ *   returns -2.
+ * One call peels one node and recurses on its operand, then applies
+ * this node on the way out. Negation and bitwise not do not commute,
+ * so the walk does not count them apart. Kind 23 emits the existing
+ * not encoder. A signed i32 complement is then sign-extended: mvn w0
+ * zeros the high half, and the lane div is sdiv x0. A u32 complement
+ * is not sign-extended. Kind 22 emits neg w0 and then the existing
+ * sign-extend, matching the previous odd negation. Kinds 4..13 use
+ * the existing lane binop. Kind 51 is not applied. This is not the
+ * f32 sign-bit xor. The f32 gate must be 0 here. PLATFORM: SHARED.
  */
 function lane_i32_emit_neg_core(
-  arena: *u8, elf_ctx: *u8, expr_ref: i32, lane: i32, esz: i32, ctx: *u8, ta: i32
+  arena: *u8, elf_ctx: *u8, expr_ref: i32, lane: i32, esz: i32, ctx: *u8, ta: i32,
+  budget: i32
 ): i32 {
-  let n: i32 = 0;
-  let core: i32 = 0;
   let ko: i32 = 0;
+  let op: i32 = 0;
   let rc: i32 = 0;
   let left_ref: i32 = 0;
   let right_ref: i32 = 0;
-  let odd: i32 = 0;
   let arith: i32 = 0;
-  n = lane_f32_neg_depth(arena, expr_ref, 128);
-  if (n <= 0) {
+  let step: i32 = 0;
+  let signed_lane: i32 = 0;
+  if (budget <= 0) {
     return 0 - 2;
   }
-  core = lane_f32_neg_core(arena, expr_ref, n);
-  if (core <= 0) {
+  if (expr_ref <= 0) {
     return 0 - 2;
   }
   unsafe {
-    ko = pipeline_expr_kind_ord_at(arena, core);
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
   }
-  odd = lane_f32_neg_is_odd(n);
-  if (ko == 3) {
-    rc = lane_f32_load_var_lane(arena, elf_ctx, core, lane, esz, ctx, ta);
-    if (rc != 0) {
+  if (ko == 22) {
+    step = 22;
+  }
+  if (ko == 23) {
+    step = 23;
+  }
+  if (step != 0) {
+    unsafe {
+      op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+    }
+    if (op <= 0) {
       return 0 - 1;
     }
-  } else {
-    if (ko == 44) {
-      rc = lane_f32_load_field_lane(arena, elf_ctx, core, lane, esz, ctx, ta);
-      if (rc == (0 - 2)) {
-        return 0 - 2;
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-    } else {
-      // Kinds 4..13, including mod, shifts, and, or, xor. Kind 51
-      // stays out: the lane emitter does not apply it. INT_LIT and
-      // kind 23 return -2. PLATFORM: SHARED.
-      arith = 0;
-      unsafe {
-        arith = glue_is_vector_lane_scalar_binop_ko(ko);
-      }
-      if (ko == 51) {
-        arith = 0;
-      }
-      if (arith == 0) {
-        return 0 - 2;
-      }
-      unsafe {
-        left_ref = pipeline_expr_binop_left_ref_at(arena, core);
-        right_ref = pipeline_expr_binop_right_ref_at(arena, core);
-      }
-      unsafe {
-        rc = glue_emit_vector_lane_scalar_binop_elf_c(
-          arena, elf_ctx, ko, left_ref, right_ref, lane, esz, ctx, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
+    rc = lane_i32_emit_neg_core(
+      arena, elf_ctx, op, lane, esz, ctx, ta, budget - 1);
+    if (rc != 0) {
+      return rc;
     }
-  }
-  if (odd != 0) {
+    if (step == 23) {
+      // mvn w0 zeros the high half. Sign-extend only a signed i32
+      // so u32 ~4 / 2 stays the zero-extended quotient.
+      // PLATFORM: SHARED.
+      unsafe {
+        rc = backend_enc_not_eax_arch(elf_ctx, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      signed_lane = lane_i32_not_is_signed(arena, ctx, expr_ref, 128);
+      if (signed_lane != 0) {
+        unsafe {
+          return glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx, ta);
+        }
+      }
+      return 0;
+    }
     // neg w0 zeros the high half. The following lane div is sdiv x0.
     // Sign-extend so a negative lane stays negative. PLATFORM: SHARED.
     unsafe {
@@ -468,6 +549,46 @@ function lane_i32_emit_neg_core(
     unsafe {
       return glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx, ta);
     }
+  }
+  if (ko == 3) {
+    rc = lane_f32_load_var_lane(arena, elf_ctx, expr_ref, lane, esz, ctx, ta);
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    return 0;
+  }
+  if (ko == 44) {
+    rc = lane_f32_load_field_lane(arena, elf_ctx, expr_ref, lane, esz, ctx, ta);
+    if (rc == (0 - 2)) {
+      return 0 - 2;
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    return 0;
+  }
+  // Kinds 4..13, including mod, shifts, and, or, xor. Kind 51 stays
+  // out. INT_LIT and kind 24 return -2. PLATFORM: SHARED.
+  arith = 0;
+  unsafe {
+    arith = glue_is_vector_lane_scalar_binop_ko(ko);
+  }
+  if (ko == 51) {
+    arith = 0;
+  }
+  if (arith == 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+    right_ref = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+  }
+  unsafe {
+    rc = glue_emit_vector_lane_scalar_binop_elf_c(
+      arena, elf_ctx, ko, left_ref, right_ref, lane, esz, ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
   }
   return 0;
 }
@@ -484,14 +605,15 @@ function lane_i32_emit_neg_core(
  * @param ta i32 — 1 arm64, else x86. Arm64 lane slots grow up from rbp.
  * @return i32 — 0 when rax holds the lane, -1 on failure.
  * VAR, FIELD, ARRAY_LIT, and nested binop match the previous body.
- * A chain of EXPR_NEG over a VAR, a FIELD, or a lane scalar binop
- * (kinds 4..13) is one peel. When the f32 gate is set, an odd count
- * xors the f32 sign and kinds 8..13 stay out of that xor. When the
- * gate is 0, an odd count is neg w0 then a sign-extend on that i32
- * lane, so the 64-bit lane div sees a signed i32.
- * A FLOAT_LIT chain is the literal peel above. An i32 INT_LIT chain
- * stays on emit_expr. Kind 23, kinds 8..13, and a chain that does not
- * end stay on emit_expr. PLATFORM: SHARED.
+ * A chain of negation or bitwise not over a VAR, a FIELD, or a lane
+ * scalar binop (kinds 4..13) is one recursion. When the f32 gate is
+ * set, an odd negation count xors the f32 sign and kinds 8..13 stay
+ * out of that xor. When the gate is 0, each negation is neg w0 then
+ * a sign-extend, and each bitwise not uses the existing not encoder.
+ * A signed i32 complement is sign-extended so the 64-bit lane div
+ * sees it. A u32 complement is not. A FLOAT_LIT chain is the literal
+ * peel above. An i32 INT_LIT chain stays on emit_expr. Kind 24 and a
+ * chain that does not end stay on emit_expr. PLATFORM: SHARED.
  */
 #[no_mangle]
 export function glue_emit_vector_operand_lane_elf_c(
@@ -539,9 +661,10 @@ export function glue_emit_vector_operand_lane_elf_c(
     }
   }
   // i32 lane. The f32 gate stays 0, so the sign-xor peel did not run.
-  // Same NEG recursion. Kinds 4..13 are lane binops. An odd count is
-  // neg w0 then sign-extend. Kind 51, kind 23, and an INT_LIT core
-  // return -2 and keep the existing literal path.
+  // One recursion walks kind 22 and kind 23 from the inside out.
+  // Kind 22 is neg w0 then sign-extend. Kind 23 is the existing not
+  // encoder, then a sign-extend only for a signed i32 lane. Kind 51,
+  // kind 24, and an INT_LIT core return -2 and keep the existing path.
   // PLATFORM: SHARED.
   if (ko == 22) {
     if (esz == 4) {
@@ -550,7 +673,21 @@ export function glue_emit_vector_operand_lane_elf_c(
       }
       if (lit == 0) {
         rc = lane_i32_emit_neg_core(
-          arena, elf_ctx, expr_ref, lane, esz, ctx, ta);
+          arena, elf_ctx, expr_ref, lane, esz, ctx, ta, 128);
+        if (rc != (0 - 2)) {
+          return rc;
+        }
+      }
+    }
+  }
+  if (ko == 23) {
+    if (esz == 4) {
+      unsafe {
+        lit = glue_lane_f32_lit_dest_get();
+      }
+      if (lit == 0) {
+        rc = lane_i32_emit_neg_core(
+          arena, elf_ctx, expr_ref, lane, esz, ctx, ta, 128);
         if (rc != (0 - 2)) {
           return rc;
         }
