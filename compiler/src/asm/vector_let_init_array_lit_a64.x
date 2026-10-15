@@ -743,7 +743,7 @@ function vlet_f32_array_lanes(
  * lets, a nested if or ternary, a unary whose innermost expr is a
  * VAR, a FIELD, an INDEX, a CALL, a METHOD, a lane binop
  * (kinds 4..13), an ARRAY_LIT, a block that still has lets, or a
- * DEREF, or a bare INDEX.
+ * DEREF, a bare INDEX, or a bare DEREF.
  * That unary is the existing vector let-init, which already applies
  * the chain on every lane. A unary of an INDEX is that let-init's
  * existing copy, then the chain. A unary of a CALL or a METHOD is
@@ -755,9 +755,12 @@ function vlet_f32_array_lanes(
  * not made transparent. A unary of a DEREF is that let-init's existing
  * struct let-init copy of the target, then the chain. The store is
  * not through the pointer. Kind 51 is excluded before the classifier
- * because it remaps 51 to add. A bare deref stays off that walk.
+ * because it remaps 51 to add. A bare deref is not that unary walk.
+ * It is that let-init's existing struct let-init copy of the target.
+ * The store is not through the pointer. A deref under lets stays off
+ * that with-lets call.
  * A bare FIELD is the same large copy as a VAR. A CALL, a METHOD,
- * or an INDEX is that let-init's existing struct let-init.
+ * an INDEX, or a bare DEREF is that let-init's existing struct let-init.
  * A nested if is that same call. Kind 51 stays out.
  * Vec4f stays declined because it is
  * 16 bytes. Kind 22 of an ARRAY_LIT (kind 46) stores that literal
@@ -802,7 +805,9 @@ function vlet_f32_array_lanes(
  * same slot plus lane times 4, and that helper does not stop at 16.
  * A lane binop stores both halves. CALL and METHOD of a let wider
  * than 16 write the slot through sret. INDEX and DEREF memcpy let_sz.
- * Bare CALL and bare DEREF stay declined. Bare VAR copy stays declined.
+ * A bare DEREF with no lets is that struct let-init copy. The store
+ * is not through the pointer. A deref under lets stays off. Bare VAR
+ * copy stays declined.
  * A block that still has lets is not one of those four transparent
  * peels. pipeline_lane_operand_emit_let_block_chain emits each
  * block's lets and returns the value expr. Nested blocks are that
@@ -1405,7 +1410,8 @@ export function glue_emit_vector_type_let_init_elf_c(
       // to -1. The width gate runs before that store, so a decline
       // emits nothing. INDEX, DEREF, CALL, and METHOD wider than 16
       // copy or sret the whole value, then the chain runs inside out.
-      // Bare CALL and bare DEREF stay declined. ta != 1 stays declined.
+      // A bare CALL or a bare DEREF is not this unary. A bare DEREF
+      // with no lets is stored below. ta != 1 stays declined.
       // PLATFORM: MACOS|ARM64.
       if (ta != 1) {
         return 0 - 3;
@@ -1711,8 +1717,8 @@ export function glue_emit_vector_type_let_init_elf_c(
   // `{ let k; id(k) }` and `{ let t; t[i] }` were CG002. Those kinds
   // are the same struct let-init. Kind 52 stays off this call. A
   // decline still returns -1: the caller must not emit this block a
-  // second time. A bare CALL, METHOD, or INDEX is stored below.
-  // Kind 52 stays off. Another bare initializer still returns -3.
+  // second time. A bare CALL, METHOD, INDEX, or DEREF is stored
+  // below. Another bare initializer still returns -3.
   // PLATFORM: MACOS|ARM64.
   if (saw_lets != 0) {
     store_go = 0;
@@ -1750,11 +1756,13 @@ export function glue_emit_vector_type_let_init_elf_c(
   // let-init only after this function returns -3. An if arm has no
   // second chance: its fill turns -3 into -1 after the branch is
   // already emitted. Call that same struct let-init here for kind
-  // 48, kind 49, and kind 47. A return wider than 16 bytes is sret
-  // into this slot. An INDEX wider than 16 bytes is that writer's
-  // existing copy. Kind 51 is not one of these kinds. Kind 52 stays
-  // off. Another return code has not committed a store, so the old
-  // -3 fallback still runs. PLATFORM: MACOS|ARM64.
+  // 48, kind 49, kind 47, and kind 52. A return wider than 16
+  // bytes is sret into this slot. An INDEX or a DEREF wider than 16
+  // bytes is that writer's existing copy. The deref store is not
+  // through the pointer. Kind 51 is not one of these kinds. A deref
+  // under lets stays off the block above. Another return code has
+  // not committed a store, so the old -3 fallback still runs.
+  // PLATFORM: MACOS|ARM64.
   store_go = 0;
   if (ko == 48) {
     store_go = 1;
@@ -1763,6 +1771,9 @@ export function glue_emit_vector_type_let_init_elf_c(
     store_go = 1;
   }
   if (ko == 47) {
+    store_go = 1;
+  }
+  if (ko == 52) {
     store_go = 1;
   }
   if (store_go != 0) {
@@ -1795,8 +1806,8 @@ export function glue_emit_vector_type_let_init_elf_c(
  *   home, an ARRAY_LIT, a lane binop (kinds 4..13), a block that
  *   still has lets, a nested if
  *   (kind 25) or ternary (kind 27), a CALL (kind 48), a METHOD
- *   (kind 49), or an INDEX (kind 47). 0 means decline this if
- *   before any branch is emitted.
+ *   (kind 49), an INDEX (kind 47), or a DEREF (kind 52). 0 means
+ *   decline this if before any branch is emitted.
  * A unary of a VAR, a FIELD, an INDEX, a CALL, a METHOD, a lane
  * binop (kinds 4..13), an ARRAY_LIT, a block that still has lets,
  * or a DEREF is the whole chain. The fill passes it to the existing
@@ -1813,11 +1824,14 @@ export function glue_emit_vector_type_let_init_elf_c(
  * made transparent. A DEREF does not: that let-init copies the target
  * with struct let-init, then applies the chain. The store is not
  * through the pointer. Kind 51 is excluded before the classifier
- * because it remaps 51 to add. A bare deref stays off this walk.
+ * because it remaps 51 to add. A bare deref is not this unary walk.
+ * It is that let-init's struct let-init copy of the target. The store
+ * is not through the pointer. A deref under lets stays off that
+ * with-lets call.
  * A bare FIELD is copied like a VAR: lane 0 from
  * glue_vector_var_lane_stack_off_elf_c is the start of the vector.
- * A CALL, a METHOD, or an INDEX is that let-init's struct let-init.
- * Kind 51 is an address. A bare deref stays off.
+ * A CALL, a METHOD, an INDEX, or a bare DEREF is that let-init's
+ * struct let-init. Kind 51 is an address.
  * The lane-binop predicate remaps 51 to add, so it is excluded before
  * that call. Kind 24 does not enter.
  * The walk stops at 32 steps and sets the cursor kind to -1, because
@@ -1883,7 +1897,7 @@ export function glue_vec_if_arm_take_c(
   // home is the start of the vector. The fill copies nbytes from
   // there. A missing home declines before any branch. Nested fields
   // are the existing home walk. Kind 51 is not kind 3 or kind 44.
-  // Kind 52 stays off. PLATFORM: MACOS|ARM64.
+  // PLATFORM: MACOS|ARM64.
   go = 0;
   if (ko == 3) {
     go = 1;
@@ -1936,8 +1950,8 @@ export function glue_vec_if_arm_take_c(
   // A call or a method is not a VAR. The fill passes it to the
   // existing vector let-init, which stores it with the existing
   // struct let-init. That writer puts a return wider than 16 bytes
-  // into this slot through sret. Kind 51 is not a call. Kind 52
-  // stays off. PLATFORM: MACOS|ARM64.
+  // into this slot through sret. Kind 51 is not a call.
+  // PLATFORM: MACOS|ARM64.
   if (ko == 48) {
     return cur;
   }
@@ -1947,10 +1961,20 @@ export function glue_vec_if_arm_take_c(
   // An index is not a call. The fill passes it to the existing
   // vector let-init, which stores it with the existing struct
   // let-init. That writer copies a value wider than 16 bytes into
-  // this slot. Kind 51 is not an index. Kind 52 stays off. A unary
-  // of an index is kind 22 or kind 23. The walk below returns that
-  // chain. PLATFORM: MACOS|ARM64.
+  // this slot. Kind 51 is not an index. A unary of an index is
+  // kind 22 or kind 23. The walk below returns that chain.
+  // PLATFORM: MACOS|ARM64.
   if (ko == 47) {
+    return cur;
+  }
+  // A deref is not an index. The fill passes it to the existing
+  // vector let-init, which stores it with the existing struct
+  // let-init. That writer copies the target into this slot. The
+  // store is not through the pointer. Kind 51 is an address. A
+  // unary of a deref is kind 22 or kind 23. The walk below returns
+  // that chain. A deref under lets stays off the with-lets store.
+  // PLATFORM: MACOS|ARM64.
+  if (ko == 52) {
     return cur;
   }
   if (ko == 22) {
@@ -2121,7 +2145,7 @@ export function glue_vec_if_arm_take_c(
  * block that still has lets, a nested if or ternary, a unary whose
  * innermost expr is a VAR, a FIELD, an INDEX, a CALL, a METHOD, a
  * lane binop (kinds 4..13), an ARRAY_LIT, a block that still has
- * lets, or a DEREF, or a bare INDEX call glue_emit_vector_type_let_init_elf_c.
+ * lets, or a DEREF, or a bare INDEX, or a bare DEREF, call glue_emit_vector_type_let_init_elf_c.
  * That block is not made transparent.
  * That call is one extra frame, not a second splat. An f32 binop uses
  * that let-init's own fill, not an i32 splat. PLATFORM: MACOS|ARM64.
@@ -2201,7 +2225,8 @@ export function glue_vec_if_arm_fill_c(
  * A DEREF copies the target with struct let-init first. The store is
  * not through the pointer. Then the chain runs. Kind 51 is excluded
  * before the classifier because it remaps 51 to add. A bare deref
- * stays off that walk.
+ * is that same struct let-init copy, not that unary walk. The store
+ * is not through the pointer. A deref under lets stays off.
  * A bare FIELD is the same large copy as a VAR.
  * A CALL, METHOD, or INDEX arm is that let-init's existing struct let-init.
  * The condition uses the existing bool-in-eax jump. A SIMD spelling wider
