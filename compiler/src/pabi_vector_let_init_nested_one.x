@@ -45,6 +45,7 @@ export extern function glue_emit_vector_type_let_init_elf_c(
   arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32,
   stack_slot_off: i32, type_ref: i32
 ): i32;
+export extern function glue_is_vector_lane_scalar_binop_ko(ko: i32): i32;
 export extern function glue_vector_elem_is_f32_c(arena: *u8, type_ref: i32): i32;
 export extern function glue_vector_type_lanes_esz_c(
   arena: *u8, type_ref: i32, out_lanes: *i32, out_esz: *i32
@@ -59,7 +60,7 @@ export extern function pipeline_type_named_name_into(
  * Splat an integer literal into one wide i32 vector array element.
  * @param arena *u8 — AST arena; caller already rejected null
  * @param elf_ctx *u8 — object writer; caller already rejected null
- * @param elem_ref i32 — element expr; kind 0, 22, or 23
+ * @param elem_ref i32 — element expr; kind 0, 22, 23, or a lane binop
  * @param ctx *u8 — AsmFuncCtx; caller already rejected null
  * @param ta i32 — target arch, forwarded to the vector let-init
  * @param home i32 — frame slot of this element; caller already rejected < 0
@@ -70,7 +71,8 @@ export extern function pipeline_type_named_name_into(
  *   scalar store
  * The scalar store writes 4 bytes. An i32x8 element is 32 bytes, so
  * lane 7 stayed 0. glue_emit_vector_type_let_init_elf_c already splats
- * an INT_LIT and a kind 22 / 23 chain of one. Lane size must be 4 and
+ * an INT_LIT and a kind 22 / 23 chain of one, and already stores a
+ * lane binop (kinds 4..13 and 51) into that same slot. Lane size must be 4 and
  * lanes times 4 must be greater than 16, so an i32x4 element stays on
  * the scalar store. glue_vector_elem_is_f32_c declines Vec4f, f32x4,
  * and a TYPE_VECTOR of f32. It does not list the f32x8 spelling. A
@@ -163,9 +165,11 @@ function vlet_wide_i32_splat(
  * @param elem_ty i32 — element type ref; 0 when the caller did not load one
  * @return i32 — 0 stored, 1 not handled here, -1 error
  * STRUCT_LIT (kind 45) writes fields at home. Other kinds try struct
- * let-init at home. An INT_LIT or a kind 22 / 23 chain of a wide i32
- * vector then uses vlet_wide_i32_splat. When that also declines, VAR,
- * FIELD, and INDEX (kinds 3, 44, 47) copy esz bytes from the element's
+ * let-init at home. An INT_LIT, a kind 22 / 23 chain, or a lane binop
+ * of a wide i32 vector then uses vlet_wide_i32_splat. The binop is
+ * kinds 4..13 and 51. A 4-byte scalar store left lane 0 of `a + b`
+ * as the sum and lane 7 unset. When that also declines, VAR, FIELD,
+ * and INDEX (kinds 3, 44, 47) copy esz bytes from the element's
  * address. The copy lea uses stack_slot_off, then adds ai*esz only
  * when ai > 0.
  * PLATFORM: SHARED.
@@ -178,6 +182,7 @@ function vlet_wide_elem(
   let ek: i32 = 0;
   let st: i32 = 0;
   let rc: i32 = 0;
+  let lane_bin: i32 = 0;
   if (ta != 0 && ta != 1) {
     return 1;
   }
@@ -191,6 +196,7 @@ function vlet_wide_elem(
   }
   unsafe {
     ek = pipeline_expr_kind_ord_at(arena, elem_ref);
+    lane_bin = glue_is_vector_lane_scalar_binop_ko(ek);
   }
   if (ek == 45) {
     unsafe {
@@ -211,11 +217,14 @@ function vlet_wide_elem(
   if (st == (0 - 1)) {
     return 0 - 1;
   }
-  // Kind 0 is INT_LIT. Kinds 22 and 23 are the unary chain. The scalar
-  // store below writes one word at a stride of esz, so lane 7 of an
-  // i32x8 element stayed 0. A decline (return 1) keeps that store.
+  // Kind 0 is INT_LIT. Kinds 22 and 23 are the unary chain. lane_bin
+  // is a lane binop (kinds 4..13 and 51). The scalar store below
+  // writes one word at a stride of esz, so lane 7 of an i32x8 element
+  // stayed 0. `-(a + b)` already reached the vector let-init through
+  // the unary arm. A bare `a + b` did not, so lane 0 was the sum and
+  // lane 7 stayed unset. A decline (return 1) keeps that store.
   // PLATFORM: SHARED.
-  if (ek == 0 || ek == 22 || ek == 23) {
+  if (ek == 0 || ek == 22 || ek == 23 || lane_bin != 0) {
     st = vlet_wide_i32_splat(
       arena, elf_ctx, elem_ref, ctx, ta, home, elem_ty, esz);
     if (st != 1) {
