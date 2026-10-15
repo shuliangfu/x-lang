@@ -190,12 +190,13 @@ function vlet_wide_i32_splat(
  * integer splat cannot write i32 bits into an f32 lane. Kind 1
  * (FLOAT_LIT), and a chain of only kind 22 that ends at kind 1, call
  * glue_emit_vector_type_let_init_elf_c on the original element. That
- * let-init already folds the minuses and fills f32x8. Kinds 4..13 of
- * f32x8 are that same call on the original element. The classifier
- * returns 0 for that spelling, so f32x4 and Vec4f stay on the later
- * path. Kind 51 is an address and does not enter. A kind-22 chain in
- * front of the binop stays on the original element, and the let-init
- * folds those minuses. Kind 0
+ * let-init already folds the minuses and fills f32x8. Kinds 4..13 are
+ * that same call on the original element. The fill helper already
+ * accepted the type, so this covers f32x8, f32x4, and Vec4f. Requiring
+ * the classifier to return 0 left f32x4 and Vec4f on the 4-byte store,
+ * and lane 3 was not the sum. Kind 51 is an address and does not enter.
+ * A kind-22 chain in front of the binop stays on the original element,
+ * and the let-init folds those minuses. Kind 0
  * (INT_LIT), and a chain of only kind 22 that ends at kind 0, converts
  * with glue_i32_to_f32_bits and fills through
  * glue_simd_emit_imm_fill_slot_c. The integer arm of the vector
@@ -278,35 +279,31 @@ function vlet_f32_elem_lit(
       return 1;
     }
   }
-  // Kinds 4..13 are a lane binop. f32x8 is absent from the classifier,
-  // so the integer splat declines a leading 'f' and the caller stores
-  // 4 bytes. Lane 7 of `[{ let k; k + k }]` stayed unset. The
-  // float-literal arm below already calls the vector let-init. This
-  // is that same call. The original element keeps a leading kind-22
-  // chain, which that let-init folds. Kind 51 is an address and stays
-  // off. Classifier 1 is f32x4 or Vec4f and stays on the later path.
+  // Kinds 4..13 are a lane binop. This function already returned
+  // when the f32 fill helper is 0, so the type is f32x8, f32x4, or
+  // Vec4f. The classifier is 0 only for f32x8. Requiring that left
+  // f32x4 and Vec4f on the 4-byte store, so lane 3 of
+  // `[{ let k; k + k }]` was not the sum. The float-literal arm
+  // below already calls the vector let-init. This is that same
+  // call. The original element keeps a leading kind-22 chain, which
+  // that let-init folds. Kind 51 is an address and stays off.
   // PLATFORM: SHARED.
   if (ek != 51) {
     unsafe {
-      rc = glue_vector_elem_is_f32_c(arena, elem_ty);
+      rc = glue_is_vector_lane_scalar_binop_ko(ek);
     }
-    if (rc == 0) {
+    if (rc != 0) {
       unsafe {
-        rc = glue_is_vector_lane_scalar_binop_ko(ek);
+        rc = glue_emit_vector_type_let_init_elf_c(
+          arena, elf_ctx, elem_ref, ctx, ta, home, elem_ty);
       }
-      if (rc != 0) {
-        unsafe {
-          rc = glue_emit_vector_type_let_init_elf_c(
-            arena, elf_ctx, elem_ref, ctx, ta, home, elem_ty);
-        }
-        if (rc == 0) {
-          return 0;
-        }
-        if (rc == (0 - 1)) {
-          return 0 - 1;
-        }
-        return 1;
+      if (rc == 0) {
+        return 0;
       }
+      if (rc == (0 - 1)) {
+        return 0 - 1;
+      }
+      return 1;
     }
   }
   if (ek == 1) {
@@ -369,8 +366,8 @@ function vlet_f32_elem_lit(
  * @return i32 — 0 stored, 1 not handled here, -1 error
  * STRUCT_LIT (kind 45) writes fields at home. Other kinds try struct
  * let-init at home. An f32 literal, a kind 22 chain of one, or an
- * f32x8 lane binop (kinds 4..13, not kind 51) then uses
- * vlet_f32_elem_lit. An INT_LIT, a kind 22 / 23 chain, or a lane
+ * f32 lane binop (f32x8, f32x4, or Vec4f; kinds 4..13, not kind 51)
+ * then uses vlet_f32_elem_lit. An INT_LIT, a kind 22 / 23 chain, or a lane
  * binop of a wide i32 vector then uses vlet_wide_i32_splat. The binop
  * is kinds 4..13 and 51. A 4-byte scalar store left lane 0 of `a + b`
  * as the sum and lane 7 unset. When that also declines, VAR, FIELD,
