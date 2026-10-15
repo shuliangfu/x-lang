@@ -65,16 +65,17 @@ export extern function pipeline_type_named_name_into(
  * @param ta i32 — target arch, forwarded to the vector let-init
  * @param home i32 — frame slot of this element; caller already rejected < 0
  * @param elem_ty i32 — element type ref; <= 0 returns 1
- * @param stride i32 — array element stride in bytes; <= 16 returns 1
+ * @param stride i32 — array element stride in bytes; below 16 returns 1
  * @return i32 — 0 when the vector let-init filled the slot, -1 when that
  *   fill reports an encoder failure, 1 when this element stays on the
  *   scalar store
  * The scalar store writes 4 bytes. An i32x8 element is 32 bytes, so
  * lane 7 stayed 0. glue_emit_vector_type_let_init_elf_c already splats
  * an INT_LIT and a kind 22 / 23 chain of one, and already stores a
- * lane binop (kinds 4..13 and 51) into that same slot. Lane size must be 4 and
- * lanes times 4 must be greater than 16, so an i32x4 element stays on
- * the scalar store. glue_vector_elem_is_f32_c declines Vec4f, f32x4,
+ * lane binop (kinds 4..13 and 51) into that same slot. Lane size must
+ * be 4. A width below 16 stays on the scalar store. Exactly 16 is
+ * i32x4: `let v: i32x4 = 3` already fills lane 3 through that let-init,
+ * and the 4-byte store left `a[0][3]` at 0. glue_vector_elem_is_f32_c declines Vec4f, f32x4,
  * and a TYPE_VECTOR of f32. It does not list the f32x8 spelling. A
  * named type whose first byte is 'f' (ASCII 102) also returns 1, so
  * f32x8 = [1, -1] keeps the one-word store. Any other let-init result
@@ -94,7 +95,11 @@ function vlet_wide_i32_splat(
   let lanes_s: i32[1] = [];
   let esz_s: i32[1] = [];
   let sn: u8[64] = [];
-  if (elem_ty <= 0 || stride <= 16) {
+  // Below 16 bytes is still a scalar or a narrower vector. Exactly
+  // 16 is i32x4. The let-init already fills that width; the scalar
+  // store below this helper writes 4 bytes and leaves lane 3 at 0.
+  // PLATFORM: SHARED.
+  if (elem_ty <= 0 || stride < 16) {
     return 1;
   }
   unsafe {
@@ -136,7 +141,10 @@ function vlet_wide_i32_splat(
   if (lesz != 4 || lanes <= 0) {
     return 1;
   }
-  if ((lanes * lesz) <= 16) {
+  // Same width rule as the stride check. i32x4 is 16. A wider
+  // integer vector (i32x8 is 32) already took this let-init.
+  // PLATFORM: SHARED.
+  if ((lanes * lesz) < 16) {
     return 1;
   }
   unsafe {
