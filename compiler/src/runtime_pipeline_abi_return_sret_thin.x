@@ -78,6 +78,7 @@ export extern function glue_emit_struct_type_let_init_elf_c(
   let_ty_ref: i32, stack_slot_off: i32): i32;
 export extern function glue_wide_i32_vec_array_bytes(arena: *u8, rty: i32): i32;
 export extern function glue_index_simd_elem_bytes_c(arena: *u8, ty: i32): i32;
+export extern function glue_is_vector_lane_scalar_binop_ko(ko: i32): i32;
 export extern function pipeline_expr_array_lit_elem_ref(arena: *u8, expr_ref: i32, index: i32): i32;
 
 /**
@@ -487,10 +488,13 @@ function w1521_rs_mid_named_field(arena: *u8, op: i32): i32 {
  * element count into x1 (arm64) or rdx (SysV). Windows keeps emit_expr.
  * A length-register failure after a successful durable emit returns -1.
  * Darwin sret of a named SIMD (kind 8) wider than 16 bytes, whose
- * operand is an INT_LIT, a FLOAT_LIT, or a kind-22 chain, fills that
- * value with glue_emit_vector_type_let_init_elf_c into a temp and
- * leas the temp into x0 before the copy. A 16-byte return does not
- * enter. Kind-13 f32 elements do not enter. Let-init -3 falls through.
+ * operand is an INT_LIT, a FLOAT_LIT, a BOOL_LIT, a kind-22 chain,
+ * a kind-23 chain, or a lane binop, fills that value with
+ * glue_emit_vector_type_let_init_elf_c into a temp and leas the temp
+ * into x0 before the copy. A kind-13 i32 vector uses that same fill
+ * for a lane binop. A 16-byte return does not enter. Kind-13 f32
+ * elements do not enter. Let-init -3 falls through. BOOL_LIT and
+ * kind 23 on an f32 fill stay integer bits.
  * @param arena *u8 — AST arena; null returns -1
  * @param elf_ctx *u8 — ELF codegen context; null returns -1
  * @param expr_ref i32 — EXPR_RETURN; <=0 returns -1
@@ -625,6 +629,7 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
       let v_go8: i32 = 0;
       let v_enter: i32 = 0;
       let v_take: i32 = 0;
+      let v_bin: i32 = 0;
       if (ta == 0 || ta == 1) {
         unsafe {
           opk_d = pipeline_expr_kind_ord_at(arena, ret_op);
@@ -1202,16 +1207,20 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
        * reads it as an address (SIGSEGV). A TYPE_VECTOR (kind 13) of
        * i32 whose operand is a bare INT_LIT, a kind-22 / kind-23
        * chain, or an if / ternary (kind 25 / 27) is filled by the
-       * same let-init that `let v: Vec8i = 3` uses. A named SIMD
-       * (kind 8) whose sret size is above 16 bytes uses that same
-       * let-init for an INT_LIT, a FLOAT_LIT (kind 1), or a kind-22
-       * chain: `return 1`, `return 1.0`, `return -1.0` of f32x8, and
-       * `return 3` of i32x8. The let-init already declines a non-simd
-       * name. A 16-byte return does not enter the kind-8 arm, so
-       * f32x4 and Vec4f stay out. A VAR operand (kind 3) stays on
-       * emit_expr: that path already leaves the local address.
-       * Let-init -3 falls through. Any other failure returns -1.
-       * Kind-13 f32 element kinds do not enter.
+       * same let-init that `let v: Vec8i = 3` uses. A lane binop
+       * (the existing glue_is_vector_lane_scalar_binop_ko set) is
+       * the same fill: emit_expr subtracted the first qword and the
+       * copy read that integer as an address. A named SIMD (kind 8)
+       * whose sret size is above 16 bytes uses that same let-init
+       * for an INT_LIT, a FLOAT_LIT (kind 1), a BOOL_LIT (kind 2),
+       * a kind-22 chain, a kind-23 chain, or a lane binop.
+       * `return ~1` and `return true` of f32x8 keep the integer bits
+       * the let-init already stores. A 16-byte return does not enter
+       * the kind-8 arm, so f32x4 and i32x4 stay out. Vec4f is kind 13
+       * with an f32 element, so it stays out. A VAR operand (kind 3)
+       * stays on emit_expr: that path already leaves the local
+       * address. Let-init -3 falls through. Any other failure
+       * returns -1. Kind-13 f32 element kinds do not enter.
        * PLATFORM: MACOS|ARM64.
        */
       if (ta == 1) {
@@ -1230,14 +1239,25 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
             v_go = 1;
             v_go8 = 1;
           }
+          if (v_opk == 2) {
+            v_go8 = 1;
+          }
           if (v_opk == 23) {
             v_go = 1;
+            v_go8 = 1;
           }
           if (v_opk == 25) {
             v_go = 1;
           }
           if (v_opk == 27) {
             v_go = 1;
+          }
+          unsafe {
+            v_bin = glue_is_vector_lane_scalar_binop_ko(v_opk);
+          }
+          if (v_bin != 0) {
+            v_go = 1;
+            v_go8 = 1;
           }
           if (v_go != 0) {
             v_enter = 1;
