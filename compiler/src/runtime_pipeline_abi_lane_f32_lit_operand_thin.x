@@ -8,8 +8,10 @@
 // narrowed with the existing glue_ieee_f64_bits_to_f32_bits and moved
 // as imm32. The same peel covers a VAR, a FIELD, and add/sub/mul/div.
 // An odd count xors the f32 sign. One peel handles every depth. The
-// 128 stop is only for a chain that does not end. The gate stays 0
-// for i32 lanes, and this
+// 128 stop is only for a chain that does not end. When the gate stays
+// 0, the same peel loads the i32 lane, uses neg w0 on an odd count,
+// then sign-extends. Lane div is a 64-bit sdiv, and a 32-bit neg
+// zeros the high half. An i32 INT_LIT chain stays on emit_expr. This
 // file then matches the old body. Do not add a second divss.
 // PLATFORM: SHARED.
 
@@ -40,6 +42,8 @@ export extern function backend_enc_load_rbp_lane_to_rax_arch(
 export extern function backend_enc_mov_imm32_to_w0_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
 export extern function backend_enc_mov_imm32_to_rbx_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
 export extern function backend_enc_xor_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_neg_eax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx: *u8, ta: i32): i32;
 
 /**
  * Flip bit 31 of the f32 lane already in rax.
@@ -366,6 +370,110 @@ function lane_f32_emit_neg_core(
 }
 
 /**
+ * Emit an i32 NEG chain's core lane into rax, then neg w0 if odd.
+ * @param arena *u8 — expression arena.
+ * @param elf_ctx *u8 — emit buffer.
+ * @param expr_ref i32 — outer EXPR_NEG.
+ * @param lane i32 — lane index.
+ * @param esz i32 — lane bytes. Caller passes 4.
+ * @param ctx *u8 — asm ctx.
+ * @param ta i32 — 1 arm64, else x86.
+ * @return i32 — 0 when rax holds the lane, -1 when a load or encode
+ *   fails, -2 when the core is not a VAR, FIELD, or add/sub/mul/div.
+ *   An INT_LIT core returns -2 so the existing literal path stays.
+ *   A missing field home returns -2.
+ * The peel is the same lane_f32_neg_depth used for f32. An odd count
+ * emits neg w0 and then glue_enc_sxt_i32_result_to_rax_elf_c. Lane div
+ * is 64-bit sdiv, and a 32-bit neg zeros the high half of x0. An even
+ * count is the loaded lane with no extra extend. This is not the f32
+ * sign-bit xor. The f32 gate must be 0 here. Kind 23 and kinds 8..13
+ * return -2. PLATFORM: SHARED.
+ */
+function lane_i32_emit_neg_core(
+  arena: *u8, elf_ctx: *u8, expr_ref: i32, lane: i32, esz: i32, ctx: *u8, ta: i32
+): i32 {
+  let n: i32 = 0;
+  let core: i32 = 0;
+  let ko: i32 = 0;
+  let rc: i32 = 0;
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let odd: i32 = 0;
+  let arith: i32 = 0;
+  n = lane_f32_neg_depth(arena, expr_ref, 128);
+  if (n <= 0) {
+    return 0 - 2;
+  }
+  core = lane_f32_neg_core(arena, expr_ref, n);
+  if (core <= 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, core);
+  }
+  odd = lane_f32_neg_is_odd(n);
+  if (ko == 3) {
+    rc = lane_f32_load_var_lane(arena, elf_ctx, core, lane, esz, ctx, ta);
+    if (rc != 0) {
+      return 0 - 1;
+    }
+  } else {
+    if (ko == 44) {
+      rc = lane_f32_load_field_lane(arena, elf_ctx, core, lane, esz, ctx, ta);
+      if (rc == (0 - 2)) {
+        return 0 - 2;
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+    } else {
+      // Kinds 8..13 and an INT_LIT stay out. PLATFORM: SHARED.
+      arith = 0;
+      if (ko == 4) {
+        arith = 1;
+      }
+      if (ko == 5) {
+        arith = 1;
+      }
+      if (ko == 6) {
+        arith = 1;
+      }
+      if (ko == 7) {
+        arith = 1;
+      }
+      if (arith == 0) {
+        return 0 - 2;
+      }
+      unsafe {
+        left_ref = pipeline_expr_binop_left_ref_at(arena, core);
+        right_ref = pipeline_expr_binop_right_ref_at(arena, core);
+      }
+      unsafe {
+        rc = glue_emit_vector_lane_scalar_binop_elf_c(
+          arena, elf_ctx, ko, left_ref, right_ref, lane, esz, ctx, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+    }
+  }
+  if (odd != 0) {
+    // neg w0 zeros the high half. The following lane div is sdiv x0.
+    // Sign-extend so a negative lane stays negative. PLATFORM: SHARED.
+    unsafe {
+      rc = backend_enc_neg_eax_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      return glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx, ta);
+    }
+  }
+  return 0;
+}
+
+/**
  * Emit one vector operand lane into rax.
  * @param arena *u8 — expression arena. Null returns -1.
  * @param elf_ctx *u8 — emit buffer. Null returns -1.
@@ -378,8 +486,11 @@ function lane_f32_emit_neg_core(
  * @return i32 — 0 when rax holds the lane, -1 on failure.
  * VAR, FIELD, ARRAY_LIT, and nested binop match the previous body.
  * A chain of EXPR_NEG over a VAR, a FIELD, or add/sub/mul/div is one
- * peel. An odd count xors the f32 sign. A FLOAT_LIT chain is the
- * literal peel above. Kind 23, kinds 8..13, and a chain that does not
+ * peel. When the f32 gate is set, an odd count xors the f32 sign.
+ * When the gate is 0, an odd count is neg w0 then a sign-extend
+ * on that i32 lane, so the 64-bit lane div sees a signed i32.
+ * A FLOAT_LIT chain is the literal peel above. An i32 INT_LIT chain
+ * stays on emit_expr. Kind 23, kinds 8..13, and a chain that does not
  * end stay on emit_expr. PLATFORM: SHARED.
  */
 #[no_mangle]
@@ -420,6 +531,24 @@ export function glue_emit_vector_operand_lane_elf_c(
       // PLATFORM: SHARED.
       if (ko == 22) {
         rc = lane_f32_emit_neg_core(
+          arena, elf_ctx, expr_ref, lane, esz, ctx, ta);
+        if (rc != (0 - 2)) {
+          return rc;
+        }
+      }
+    }
+  }
+  // i32 lane. The f32 gate stays 0, so the sign-xor peel did not run.
+  // Same NEG recursion. An odd count is neg w0 then sign-extend.
+  // An INT_LIT core returns -2 and keeps the existing literal path.
+  // PLATFORM: SHARED.
+  if (ko == 22) {
+    if (esz == 4) {
+      unsafe {
+        lit = glue_lane_f32_lit_dest_get();
+      }
+      if (lit == 0) {
+        rc = lane_i32_emit_neg_core(
           arena, elf_ctx, expr_ref, lane, esz, ctx, ta);
         if (rc != (0 - 2)) {
           return rc;
