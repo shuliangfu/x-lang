@@ -19,6 +19,7 @@ extern int32_t pipeline_type_elem_ref_at(void *arena, int32_t ty_ref);
 extern int32_t pipeline_type_named_name_into(void *arena, int32_t ty_ref, uint8_t *out);
 extern void *pipeline_asm_emit_module_ref_c(void);
 extern int32_t glue_type_size_simple(void *m, void *a, int32_t ty_ref, int32_t depth);
+extern int32_t glue_index_simd_elem_bytes_c(void *arena, int32_t ty);
 
 /**
  * Total bytes for TYPE_ARRAY [N]T with true-pack leaf widths.
@@ -51,7 +52,14 @@ int32_t glue_fixed_array_total_bytes_c(void *arena, int32_t ty_ref, int32_t dept
   }
   if (ek == 2 || ek == 1)
     esz = 1;
-  else if (ek == 0 || ek == 3 || ek == 13 || ek == 14)
+  /* Kind 13 is the vector width (lanes * lane size), not one i32.
+   * A 0 from the helper keeps the old 4. i32, u32, and f32 stay 4.
+   * PLATFORM: SHARED. Darwin links the .x twin, not this seed. */
+  else if (ek == 13) {
+    esz = glue_index_simd_elem_bytes_c(arena, elem);
+    if (esz <= 0)
+      esz = 4;
+  } else if (ek == 0 || ek == 3 || ek == 14)
     esz = 4;
   else if (ek == 15 || ek == 4 || ek == 5 || ek == 6 || ek == 7 || ek == 9 || ek == 18)
     esz = 8;
