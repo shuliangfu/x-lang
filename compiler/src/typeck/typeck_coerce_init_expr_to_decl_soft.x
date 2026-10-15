@@ -24,6 +24,8 @@ export extern "C" function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32):
 export extern "C" function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_is_null_keyword_c(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_set_resolved_type_ref(arena: *u8, expr_ref: i32, ty: i32): void;
+export extern "C" function pipeline_expr_array_lit_num_elems_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_array_lit_elem_ref(arena: *u8, expr_ref: i32, index: i32): i32;
 
 /**
  * Stamp a bare INT_LIT, or a kind-22 / kind-23 chain of one, as a
@@ -159,6 +161,95 @@ export function typeck_stamp_i32_vector_int_splat(
 }
 
 /**
+ * Stamp each integer element of an array or slice literal whose element
+ * type is a TYPE_VECTOR of i32.
+ * @param arena *u8 — AST arena; null returns 0
+ * @param init_ref i32 — initializer expr; not an ARRAY_LIT returns 0
+ * @param decl_ty_ref i32 — declared array or slice type; other kinds return 0
+ * @return i32 — always 0. The caller still runs the demoted body, which
+ *   checks element equality and stamps the outer literal
+ * Each element is passed to typeck_stamp_i32_vector_int_splat. A VAR, a
+ * binop, an if, a nested ARRAY_LIT, kind 24, and a 33rd unary stay
+ * unstamped. Count outside 1..1024 stays unstamped. Named i32x8 is kind
+ * 8 and is not this helper. A TYPE_VECTOR of f32 is not this helper.
+ * PLATFORM: SHARED — same type rule on every host.
+ */
+function typeck_stamp_arr_i32_vec_elems(
+  arena: *u8, init_ref: i32, decl_ty_ref: i32): i32 {
+  unsafe {
+    let ord_array: i32 = 10;
+    let ord_slice: i32 = 11;
+    let ord_alit: i32 = 46;
+    let ord_vector: i32 = 13;
+    let ord_i32: i32 = 0;
+    let decl_k: i32 = 0;
+    let init_k: i32 = 0;
+    let elem_ty: i32 = 0;
+    let elem_k: i32 = 0;
+    let inner: i32 = 0;
+    let inner_k: i32 = 0;
+    let ntypes: i32 = 0;
+    let n: i32 = 0;
+    let i: i32 = 0;
+    let er: i32 = 0;
+    if (arena == 0 as *u8 || init_ref <= 0 || decl_ty_ref <= 0) {
+      return 0;
+    }
+    ntypes = pipeline_arena_num_types(arena);
+    if (decl_ty_ref > ntypes) {
+      return 0;
+    }
+    decl_k = pipeline_type_kind_ord_at(arena, decl_ty_ref);
+    if (decl_k != ord_array) {
+      if (decl_k != ord_slice) {
+        return 0;
+      }
+    }
+    init_k = pipeline_expr_kind_ord_at(arena, init_ref);
+    if (init_k != ord_alit) {
+      return 0;
+    }
+    elem_ty = pipeline_type_elem_ref_at(arena, decl_ty_ref);
+    if (elem_ty <= 0) {
+      return 0;
+    }
+    if (elem_ty > ntypes) {
+      return 0;
+    }
+    elem_k = pipeline_type_kind_ord_at(arena, elem_ty);
+    if (elem_k != ord_vector) {
+      return 0;
+    }
+    inner = pipeline_type_elem_ref_at(arena, elem_ty);
+    if (inner <= 0) {
+      return 0;
+    }
+    if (inner > ntypes) {
+      return 0;
+    }
+    inner_k = pipeline_type_kind_ord_at(arena, inner);
+    if (inner_k != ord_i32) {
+      return 0;
+    }
+    n = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+    if (n <= 0) {
+      return 0;
+    }
+    if (n > 1024) {
+      return 0;
+    }
+    while (i < n) {
+      er = pipeline_expr_array_lit_elem_ref(arena, init_ref, i);
+      if (er > 0) {
+        typeck_stamp_i32_vector_int_splat(arena, er, elem_ty);
+      }
+      i = i + 1;
+    }
+    return 0;
+  }
+}
+
+/**
  * Stamp an i32 scalar splat onto a TYPE_VECTOR, else call demoted.
  * @param module *u8 — caller module; passed through, may be null
  * @param arena *u8 — AST arena; null defers to the demoted body
@@ -171,7 +262,10 @@ export function typeck_stamp_i32_vector_int_splat(
  * already splats INT_LIT and a kind 22 / kind 23 chain around it.
  * Probes covered one through eight minuses and the seven-deep mixed
  * chain. A 33rd step, a variable, a binop,
- * and keyword null stay on the demoted body. A TYPE_VECTOR of f32
+ * and keyword null stay on the demoted body. An ARRAY_LIT whose
+ * element type is a TYPE_VECTOR of i32 stamps each integer element
+ * with that vector type, then still calls the demoted body so the
+ * outer array check runs. A TYPE_VECTOR of f32
  * stamps a FLOAT_LIT and a chain of at most 32 unary minuses of that
  * literal. An odd count applies the sign once. An even count cancels.
  * One more unary of that float stays on the demoted body.
@@ -338,6 +432,11 @@ export function typeck_coerce_init_expr_to_decl(
       pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
       return 1;
     }
+    // Kind 13 elements of an array literal. The demoted walker only
+    // stamps integer 0 onto a vector, so [3, -3] stayed i32. Stamp
+    // first. The walker does not clear a non-zero literal. Nested
+    // array literals are left to that walker. PLATFORM: SHARED.
+    typeck_stamp_arr_i32_vec_elems(arena, init_ref, decl_ty_ref);
     return typeck_coerce_init_expr_to_decl__demoted(
       module, arena, init_ref, decl_ty_ref);
   }
