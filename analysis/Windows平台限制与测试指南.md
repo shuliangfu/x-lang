@@ -292,11 +292,11 @@ export MSYS2_ARG_CONV_EXCL="*"
 
 ```bash
 # SSH 默认进入 cmd.exe，需显式调用 bash：
-ssh windows-server "\"C:/Program Files/Git/bin/bash.exe\" -lc 'command'"
+ssh windows-remote-server "\"C:/Program Files/Git/bin/bash.exe\" -lc 'command'"
 
 # 复杂脚本用 base64 / scp 传递（避免引号冲突）：
-scp script.sh windows-server:"C:/xlang_tmp/script.sh"
-ssh windows-server "\"C:/Program Files/Git/bin/bash.exe\" -lc \"bash /c/xlang_tmp/script.sh\""
+scp script.sh windows-remote-server:"C:/xlang_tmp/script.sh"
+ssh windows-remote-server "\"C:/Program Files/Git/bin/bash.exe\" -lc \"bash /c/xlang_tmp/script.sh\""
 ```
 
 ### 3.3 完整 gate 测试
