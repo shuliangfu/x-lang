@@ -4,7 +4,9 @@
 // is what the link runs. Plain ASSIGN (kind 28) of an INT_LIT, of
 // unary minus / bitwise not of an INT_LIT, or of one, two, three, or
 // five more unaries of that unary, onto a TYPE_VECTOR of i32 stamps the RHS
-// with the LHS type, then calls the demoted body. The walk accepts
+// with the LHS type, then calls the demoted body. A constant non-negative
+// INDEX of that vector is stamped the same way. A dynamic index is not:
+// its store is still one word. The walk accepts
 // kind 22 and kind 23 through 32 steps. Probes covered one through
 // eight minuses and the seven-deep mixed chain. A 33rd step calls
 // the demoted body with no stamp. A TYPE_VECTOR of f32 also
@@ -33,6 +35,8 @@ export extern "C" function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32):
 export extern "C" function pipeline_expr_binop_left_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_binop_right_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_index_index_ref(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_int_val_at(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_is_null_keyword_c(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
@@ -55,14 +59,17 @@ export extern "C" function pipeline_expr_set_resolved_type_ref(arena: *u8, expr_
  * demoted assign. The unary checker keeps the stamp for an INT_LIT
  * operand, for one more unary of that lit, and for one, two, three, or four
  * unaries beyond that. A bare INT_LIT
- * is stamped when the LHS is a VAR or a FIELD.
+ * is stamped when the LHS is a VAR, a FIELD, or a constant
+ * non-negative INDEX. A dynamic or negative index stays unstamped.
  * The field assign emitter fills every lane of an INT_LIT wider than
  * 16 bytes, and kind 22 or 23 calls the same let-init, so
  * `h.v = ~(-3)` on Vec8i is the same splat as `v = ~(-3)`.
+ * The index emitter fills that same RHS when the index is a
+ * non-negative INT_LIT and the element is wider than 16 bytes.
  * Keyword null stays unstamped. Unary minus / bitwise not of an
  * INT_LIT, and a kind 22 / kind 23 chain around it, is stamped for a
- * VAR or a FIELD. Probes covered one through eight minuses and the
- * seven-deep mixed assign. A 33rd step, a binop, LOGNOT, compound
+ * VAR, a FIELD, or that constant INDEX. Probes covered one through
+ * eight minuses and the seven-deep mixed assign. A 33rd step, a binop, LOGNOT, compound
  * assign, and deref are not stamped. A TYPE_VECTOR of f32 stamps a bare FLOAT_LIT, one
  * unary minus of a FLOAT_LIT, one more unary minus of that, one unary
  * beyond that, one unary beyond that, and one unary beyond that, for
@@ -97,6 +104,7 @@ export function typeck_check_expr_assign(
     let ord_neg: i32 = 22;
     let ord_bitnot: i32 = 23;
     let ord_field: i32 = 44;
+    let ord_index: i32 = 47;
     let ord_vector: i32 = 13;
     let ord_i32: i32 = 0;
     let expr_kind: i32 = 0;
@@ -126,6 +134,10 @@ export function typeck_check_expr_assign(
     let u_stop: i32 = 0;
     let lhs_ok: i32 = 0;
     let splat_ok: i32 = 0;
+    let idx_ref: i32 = 0;
+    let idx_k: i32 = 0;
+    let idx_lit: i32 = 0;
+    let idx_val: i32 = 0;
     if (module == 0 as *u8 || arena == 0 as *u8 || expr_ref <= 0) {
       return typeck_check_expr_assign__demoted(
         module, arena, expr_ref, return_type_ref, ctx);
@@ -152,9 +164,9 @@ export function typeck_check_expr_assign(
     }
     /*
      * Only a real TYPE_VECTOR of i32. Out-of-range element refs stay
-     * unstamped. A non-null INT_LIT is stamped for a VAR or a FIELD.
-     * Unary minus / bitwise not of one, and exactly one more unary of
-     * that lit, is stamped for a VAR or a FIELD. The walk stops at 32.
+     * unstamped. A non-null INT_LIT is stamped for a VAR, a FIELD, or
+     * a constant non-negative INDEX. Unary minus / bitwise not of one
+     * is stamped for those same left sides. The walk stops at 32.
      * Probes covered through eight minuses. A 33rd step stays
      * unstamped.
      * PLATFORM: SHARED — element kind is the type rule, not a host ABI.
@@ -172,6 +184,28 @@ export function typeck_check_expr_assign(
                 if (right_ref > 0) {
                   lhs_kind = pipeline_expr_kind_ord_at(arena, left_ref);
                   rhs_kind = pipeline_expr_kind_ord_at(arena, right_ref);
+                  /*
+                   * INDEX is stamped only when its index expr is a
+                   * non-negative INT_LIT. That is the arm the Darwin
+                   * filler splats. A VAR index stays on the demoted
+                   * mismatch instead of a one-word store.
+                   * PLATFORM: SHARED — the type rule, not the store.
+                   */
+                  idx_lit = 0;
+                  if (lhs_kind == ord_index) {
+                    idx_ref = pipeline_expr_index_index_ref(arena, left_ref);
+                    if (idx_ref > 0) {
+                      idx_k = pipeline_expr_kind_ord_at(arena, idx_ref);
+                      if (idx_k == ord_lit) {
+                        if (pipeline_expr_is_null_keyword_c(arena, idx_ref) == 0) {
+                          idx_val = pipeline_expr_int_val_at(arena, idx_ref);
+                          if (idx_val >= 0) {
+                            idx_lit = 1;
+                          }
+                        }
+                      }
+                    }
+                  }
                   if (rhs_kind == ord_lit) {
                     if (pipeline_expr_is_null_keyword_c(arena, right_ref) == 0) {
                       if (lhs_kind == ord_var) {
@@ -180,12 +214,16 @@ export function typeck_check_expr_assign(
                       if (lhs_kind == ord_field) {
                         splat_ok = 1;
                       }
+                      if (idx_lit == 1) {
+                        splat_ok = 1;
+                      }
                     }
                   }
                   /*
                    * Walk kind 22 and kind 23 together, at most 32 steps.
                    * The innermost expr must be a non-null INT_LIT, and
-                   * the left side must be a VAR or a FIELD. Kind 24 does
+                   * the left side must be a VAR, a FIELD, or a constant
+                   * non-negative INDEX. Kind 24 does
                    * not enter. A longer chain stays unstamped. Probes covered
                    * through eight minuses. Depth 32 was not run. One loop,
                    * not a seventh local. PLATFORM: SHARED.
@@ -200,6 +238,9 @@ export function typeck_check_expr_assign(
                     lhs_ok = 1;
                   }
                   if (lhs_kind == ord_field) {
+                    lhs_ok = 1;
+                  }
+                  if (idx_lit == 1) {
                     lhs_ok = 1;
                   }
                   if (u_go != 0) {
