@@ -459,9 +459,12 @@ function w1521_rs_mid_named_field(arena: *u8, op: i32): i32 {
  * filled by glue_emit_vector_type_let_init_elf_c into one element slot
  * and copied to the sret dest at i * width. A VAR or FIELD element is
  * not that fill: vector let-init returns -3 and emits nothing. The
- * address of the local, the field, or the indexed element is copied
- * the same width. A lane index is i32 and does not enter this arm.
- * A CALL or METHOD element is filled by
+ * address of the local, the field, the indexed element, or the
+ * pointee of a DEREF is copied the same width. A lane index is i32
+ * and does not enter this arm. A DEREF element (*Vec8i) copies the
+ * pointee address that lvalue leaves in x0. It does not store through
+ * the pointer. Vector let-init still declines a DEREF wider than 16
+ * bytes. A CALL or METHOD element is filled by
  * glue_emit_struct_type_let_init_elf_c into that same one-vector
  * slot, then copied the same width. Vector let-init still declines
  * a CALL or METHOD wider than 16 bytes.
@@ -644,11 +647,12 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                 let wide_src: i32 = 0;
                 /*
                  * [N]Vec8i is wider than 16 bytes. The frame temp is one
-                 * vector. Fill that slot, take a VAR, FIELD, or INDEX
-                 * address, or let a CALL or METHOD write the slot, then
-                 * copy width bytes to the sret dest at i * width. The
-                 * index is one element of this array, not one lane.
-                 * A miss leaves that element.
+                 * vector. Fill that slot, take a VAR, FIELD, INDEX, or
+                 * DEREF address, or let a CALL or METHOD write the slot,
+                 * then copy width bytes to the sret dest at i * width.
+                 * The index is one element of this array, not one lane.
+                 * A *Vec8i deref copies that whole pointee. It does not
+                 * store through the pointer. A miss leaves that element.
                  * Do not fall through to the 8-byte load.
                  * PLATFORM: SHARED. The copy encoding is MACOS|ARM64
                  * or LINUX x86_64.
@@ -691,14 +695,16 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                         wide_rc = pipeline_expr_kind_ord_at(arena, wide_er);
                       }
                       // EXPR_VAR = 3. EXPR_FIELD = 44. EXPR_INDEX = 47.
-                      // EXPR_CALL = 48. EXPR_METHOD = 49. Vector let-init
-                      // returns -3 for a bare VAR and for a CALL or
-                      // METHOD wider than 16 bytes, and emits nothing.
-                      // VAR, FIELD, and INDEX copy from the address
-                      // lvalue leaves in x0. CALL and METHOD reuse the
-                      // struct let-init that already fills one vector
-                      // slot for an array let. A lane index is i32 and
-                      // is rejected before emit. PLATFORM: SHARED.
+                      // EXPR_DEREF = 52. EXPR_CALL = 48. EXPR_METHOD = 49.
+                      // Vector let-init returns -3 for a bare VAR and for
+                      // a CALL, METHOD, or DEREF wider than 16 bytes, and
+                      // emits nothing. VAR, FIELD, INDEX, and DEREF copy
+                      // from the address lvalue leaves in x0. A *Vec8i
+                      // deref is that pointee address, not a store through
+                      // the pointer. CALL and METHOD reuse the struct
+                      // let-init that already fills one vector slot for an
+                      // array let. A lane index is i32 and is rejected
+                      // before emit. PLATFORM: SHARED.
                       if (wide_rc == 48 || wide_rc == 49) {
                         unsafe {
                           wide_rc = glue_emit_struct_type_let_init_elf_c(
@@ -718,7 +724,7 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                           }
                         }
                       } else {
-                        if (wide_rc == 3 || wide_rc == 44 || wide_rc == 47) {
+                        if (wide_rc == 3 || wide_rc == 44 || wide_rc == 47 || wide_rc == 52) {
                           unsafe {
                             rc = pipeline_asm_emit_lvalue_eff_addr_elf_c(
                               arena, elf_ctx, wide_er, ctx, ta);
