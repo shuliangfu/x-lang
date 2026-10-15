@@ -735,11 +735,12 @@ function vlet_f32_array_lanes(
  * value with glue_emit_struct_type_let_init_elf_c, then negates each destination
  * lane in place. A transparent EXPR_BLOCK (kind 26) is replaced by
  * its value expr first, using glue_expr_block_transparent_value_ref_at,
- * at most four times. Kind 25 (IF) and kind 27 (TERNARY) of an i32
- * vector wider than 16 bytes call glue_emit_vector_if_let_init_elf_c.
- * That sibling returns -3 with no bytes emitted when an arm is not a
- * literal chain, a VAR, or an ARRAY_LIT. Vec4f stays here because it
- * is 16 bytes. Kind 22 of an ARRAY_LIT (kind 46) stores that literal
+ * at most four times. Kind 25 (IF) and kind 27 (TERNARY) of a SIMD
+ * spelling wider than 16 bytes call glue_emit_vector_if_let_init_elf_c.
+ * Named i32x8 is that spelling. That sibling returns -3 with no bytes
+ * emitted when an arm is not a literal chain, a VAR, an ARRAY_LIT, or
+ * a lane binop. Kind 51 stays out. Vec4f stays declined because it is
+ * 16 bytes. Kind 22 of an ARRAY_LIT (kind 46) stores that literal
  * with pipeline_asm_emit_vector_let_init_elf_c, then negates each
  * destination lane in place. Kind 23 (EXPR_BITNOT) uses that same
  * classification and emits mvn w0 on each i32 lane. f32 bitwise not
@@ -1734,10 +1735,13 @@ export function glue_emit_vector_type_let_init_elf_c(
  * @param esz i32 — lane size in bytes; not 4 returns 0
  * @param ta i32 — 1 is arm64. Other values return 0
  * @return i32 — peeled expr ref when the arm is a non-null INT_LIT,
- *   a kind-22 / kind-23 chain of one, a VAR with a frame home, or an
- *   ARRAY_LIT. 0 means decline this if before any branch is emitted.
+ *   a kind-22 / kind-23 chain of one, a VAR with a frame home, an
+ *   ARRAY_LIT, or a lane binop (kinds 4..13). 0 means decline this if
+ *   before any branch is emitted.
  * A unary of a VAR stays 0: the vector let-init can negate that VAR,
- * but only after it has already been chosen. Kind 24 does not enter.
+ * but only after it has already been chosen. Kind 51 is an address.
+ * The lane-binop predicate remaps 51 to add, so it is excluded before
+ * that call. Kind 24 does not enter.
  * The walk stops at 32 steps and sets the cursor kind to -1, because
  * kind 0 is INT_LIT. Depth 32 was not probed. PLATFORM: MACOS|ARM64.
  */
@@ -1809,6 +1813,17 @@ export function glue_vec_if_arm_take_c(
   if (ko == 46) {
     return cur;
   }
+  // Lane binop. The fill stores this arm with the existing vector
+  // let-init. Kind 51 is an address; the classifier remaps it to add.
+  // PLATFORM: MACOS|ARM64.
+  if (ko != 51) {
+    unsafe {
+      go = glue_is_vector_lane_scalar_binop_ko(ko);
+    }
+  }
+  if (go != 0) {
+    return cur;
+  }
   if (ko == 22) {
     go = 1;
   }
@@ -1878,9 +1893,10 @@ export function glue_vec_if_arm_take_c(
  * @param nbytes i32 — lane count times 4. Must be greater than 16.
  * @return i32 — 0 when the slot holds every lane; -1 on encode failure
  * A VAR is copied with glue_vector_var_lane_stack_off_elf_c and
- * glue_copy_large_struct_from_rax_ptr_elf_c. A literal chain and an
- * ARRAY_LIT call glue_emit_vector_type_let_init_elf_c. That call is
- * one extra frame, not a second splat. PLATFORM: MACOS|ARM64.
+ * glue_copy_large_struct_from_rax_ptr_elf_c. A literal chain, an
+ * ARRAY_LIT, and a lane binop call glue_emit_vector_type_let_init_elf_c.
+ * That call is one extra frame, not a second splat. An f32 binop uses
+ * that let-init's own fill, not an i32 splat. PLATFORM: MACOS|ARM64.
  */
 #[no_mangle]
 export function glue_vec_if_arm_fill_c(
@@ -1936,18 +1952,18 @@ export function glue_vec_if_arm_fill_c(
  *   has emitted nothing
  * Both arms are required. Each arm is accepted only by
  * glue_vec_if_arm_take_c before the condition is emitted. The
- * condition uses the existing bool-in-eax jump. Kind 24, f32, and a
- * vector of 16 bytes or fewer stay on the caller decline. Vec4f is
- * that 16-byte case. PLATFORM: MACOS|ARM64.
+ * condition uses the existing bool-in-eax jump. A SIMD spelling wider
+ * than 16 bytes enters, including named i32x8 and f32x8. The lane
+ * count comes from glue_vector_type_lanes_esz_c. A vector of 16 bytes
+ * or fewer stays declined. Vec4f and f32x4 are that case. Kind 24 is
+ * not a SIMD spelling and stays declined. PLATFORM: MACOS|ARM64.
  */
 #[no_mangle]
 export function glue_emit_vector_if_let_init_elf_c(
   arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32,
   stack_slot_off: i32, type_ref: i32
 ): i32 {
-  let tk: i32 = 0;
-  let elem: i32 = 0;
-  let ek: i32 = 0;
+  let simd: i32 = 0;
   let lanes_s: i32[1] = [];
   let esz_s: i32[1] = [];
   let rc: i32 = 0;
@@ -1974,22 +1990,14 @@ export function glue_emit_vector_if_let_init_elf_c(
   if (stack_slot_off == (0 - 3)) {
     return 0 - 3;
   }
+  // Named i32x8 is kind 8, not TYPE_VECTOR 13. The spelling authority
+  // already accepts it. A 16-byte spelling still declines below.
+  // f32x8 is 32 bytes; a non-VAR arm is stored by the existing
+  // let-init, which already fills f32 lanes. PLATFORM: MACOS|ARM64.
   unsafe {
-    tk = pipeline_type_kind_ord_at(arena, type_ref);
+    simd = asm_type_is_simd_vector_spelling(arena, type_ref);
   }
-  if (tk != 13) {
-    return 0 - 3;
-  }
-  unsafe {
-    elem = pipeline_type_elem_ref_at(arena, type_ref);
-  }
-  if (elem <= 0) {
-    return 0 - 3;
-  }
-  unsafe {
-    ek = pipeline_type_kind_ord_at(arena, elem);
-  }
-  if (ek != 0) {
+  if (simd == 0) {
     return 0 - 3;
   }
   unsafe {
