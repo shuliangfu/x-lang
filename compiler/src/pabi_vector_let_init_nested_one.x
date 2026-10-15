@@ -55,6 +55,15 @@ export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32
 export extern function pipeline_type_named_name_into(
   arena: *u8, type_ref: i32, out: *u8
 ): i32;
+export extern function vector_let_init_array_lit_a64_vlet_f32_fill_lane(
+  arena: *u8, type_ref: i32
+): i32;
+export extern function glue_i32_to_f32_bits(v: i32): i32;
+export extern function glue_simd_emit_imm_fill_slot_c(
+  elf_ctx: *u8, stack_slot_off: i32, lanes: i32, esz: i32, ta: i32, imm_bits: i32
+): i32;
+export extern function pipeline_expr_int_val_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
 
 /**
  * Splat an integer literal into one wide i32 vector array element.
@@ -78,9 +87,10 @@ export extern function pipeline_type_named_name_into(
  * and the 4-byte store left `a[0][3]` at 0. glue_vector_elem_is_f32_c declines Vec4f, f32x4,
  * and a TYPE_VECTOR of f32. It does not list the f32x8 spelling. A
  * named type whose first byte is 'f' (ASCII 102) also returns 1, so
- * f32x8 = [1, -1] keeps the one-word store. Any other let-init result
- * returns 1 and emits nothing from this helper. Kind 24 does not call
- * this helper.
+ * an f32 spelling never takes this integer splat. f32x8 literals are
+ * filled by vlet_f32_elem_lit before this helper runs. Any other
+ * let-init result returns 1 and emits nothing from this helper.
+ * Kind 24 does not call this helper.
  * PLATFORM: SHARED. The lane loop stays in the existing let-init.
  */
 function vlet_wide_i32_splat(
@@ -161,6 +171,152 @@ function vlet_wide_i32_splat(
 }
 
 /**
+ * Splat one f32 literal into a wide f32 array element.
+ * @param arena *u8 — AST arena; null returns 1
+ * @param elf_ctx *u8 — object writer; null returns 1
+ * @param elem_ref i32 — element expr; not positive returns 1
+ * @param ctx *u8 — AsmFuncCtx; forwarded to the float let-init
+ * @param ta i32 — target arch; a value other than 1 returns 1
+ * @param home i32 — frame slot of this element; below 0 returns 1
+ * @param elem_ty i32 — element type; not an f32 fill target returns 1
+ * @return i32 — 0 when every lane is filled, -1 when the fill reports
+ *   an encoder failure, 1 when this element stays on the later path
+ * vector_let_init_array_lit_a64_vlet_f32_fill_lane is the live f32x8
+ * check. The linked glue_vector_elem_is_f32_c still misses that
+ * spelling, and vlet_wide_i32_splat declines a leading 'f' so an
+ * integer splat cannot write i32 bits into an f32 lane. Kind 1
+ * (FLOAT_LIT), and a chain of only kind 22 that ends at kind 1, call
+ * glue_emit_vector_type_let_init_elf_c on the original element. That
+ * let-init already folds the minuses and fills f32x8. Kind 0
+ * (INT_LIT), and a chain of only kind 22 that ends at kind 0, converts
+ * with glue_i32_to_f32_bits and fills through
+ * glue_simd_emit_imm_fill_slot_c. The integer arm of the vector
+ * let-init writes i32 bits, so kind 0 does not call it. An odd count
+ * of kind 22 negates the integer before the conversion. Kind 23
+ * anywhere in the chain returns 1. The walk is at most 32 steps. One
+ * more returns 1. A lane size other than 4 returns 1. i32x4 and i32x8
+ * fail the f32 check and stay on vlet_wide_i32_splat.
+ * PLATFORM: SHARED.
+ */
+function vlet_f32_elem_lit(
+  arena: *u8, elf_ctx: *u8, elem_ref: i32, ctx: *u8, ta: i32,
+  home: i32, elem_ty: i32
+): i32 {
+  let is_f: i32 = 0;
+  let ek: i32 = 0;
+  let cur: i32 = 0;
+  let step: i32 = 0;
+  let n: i32 = 0;
+  let stop: i32 = 0;
+  let neg: i32 = 0;
+  let imm: i32 = 0;
+  let bits: i32 = 0;
+  let rc: i32 = 0;
+  let lanes: i32 = 0;
+  let lesz: i32 = 0;
+  let lanes_s: i32[1] = [];
+  let esz_s: i32[1] = [];
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || elem_ref <= 0) {
+    return 1;
+  }
+  if (elem_ty <= 0 || home < 0 || ta != 1) {
+    return 1;
+  }
+  unsafe {
+    is_f = vector_let_init_array_lit_a64_vlet_f32_fill_lane(arena, elem_ty);
+  }
+  if (is_f == 0) {
+    return 1;
+  }
+  unsafe {
+    ek = pipeline_expr_kind_ord_at(arena, elem_ref);
+  }
+  // Kind 22 is unary minus. Kind 23 is bitwise not and stays off this
+  // fill. The counter advances on every minus, and cur moves to the
+  // operand, so the loop is not a hollow zero. Thirty-two steps match
+  // the vector let-init walk. The next step returns 1.
+  // PLATFORM: SHARED.
+  cur = elem_ref;
+  n = 0;
+  stop = 0;
+  neg = 0;
+  while (stop == 0) {
+    if (n < 32) {
+      if (ek == 23) {
+        return 1;
+      } else {
+        if (ek == 22) {
+          if (neg == 0) {
+            neg = 1;
+          } else {
+            neg = 0;
+          }
+          n = n + 1;
+          unsafe {
+            step = pipeline_expr_unary_operand_ref_at(arena, cur);
+          }
+          if (step <= 0) {
+            return 1;
+          }
+          cur = step;
+          unsafe {
+            ek = pipeline_expr_kind_ord_at(arena, cur);
+          }
+        } else {
+          stop = 1;
+        }
+      }
+    } else {
+      return 1;
+    }
+  }
+  if (ek == 1) {
+    unsafe {
+      rc = glue_emit_vector_type_let_init_elf_c(
+        arena, elf_ctx, elem_ref, ctx, ta, home, elem_ty);
+    }
+    if (rc == 0) {
+      return 0;
+    }
+    if (rc == (0 - 1)) {
+      return 0 - 1;
+    }
+    return 1;
+  }
+  if (ek != 0) {
+    return 1;
+  }
+  unsafe {
+    imm = pipeline_expr_int_val_at(arena, cur);
+  }
+  if (neg != 0) {
+    imm = 0 - imm;
+  }
+  unsafe {
+    bits = glue_i32_to_f32_bits(imm);
+    rc = glue_vector_type_lanes_esz_c(arena, elem_ty, &lanes_s[0], &esz_s[0]);
+  }
+  if (rc != 0) {
+    return 1;
+  }
+  lanes = lanes_s[0];
+  lesz = esz_s[0];
+  if (lesz != 4 || lanes <= 0) {
+    return 1;
+  }
+  unsafe {
+    rc = glue_simd_emit_imm_fill_slot_c(elf_ctx, home, lanes, lesz, ta, bits);
+  }
+  if (rc == 0) {
+    return 0;
+  }
+  if (rc == (0 - 1)) {
+    return 0 - 1;
+  }
+  return 1;
+}
+
+/**
  * Store one element whose size is not 1, 2, 4, or 8 bytes.
  * @param arena *u8 — AST arena; caller already rejected null
  * @param elf_ctx *u8 — object writer; caller already rejected null
@@ -173,9 +329,10 @@ function vlet_wide_i32_splat(
  * @param elem_ty i32 — element type ref; 0 when the caller did not load one
  * @return i32 — 0 stored, 1 not handled here, -1 error
  * STRUCT_LIT (kind 45) writes fields at home. Other kinds try struct
- * let-init at home. An INT_LIT, a kind 22 / 23 chain, or a lane binop
- * of a wide i32 vector then uses vlet_wide_i32_splat. The binop is
- * kinds 4..13 and 51. A 4-byte scalar store left lane 0 of `a + b`
+ * let-init at home. An f32 literal, or a kind 22 chain of one, then
+ * uses vlet_f32_elem_lit. An INT_LIT, a kind 22 / 23 chain, or a lane
+ * binop of a wide i32 vector then uses vlet_wide_i32_splat. The binop
+ * is kinds 4..13 and 51. A 4-byte scalar store left lane 0 of `a + b`
  * as the sum and lane 7 unset. When that also declines, VAR, FIELD,
  * and INDEX (kinds 3, 44, 47) copy esz bytes from the element's
  * address. The copy lea uses stack_slot_off, then adds ai*esz only
@@ -224,6 +381,16 @@ function vlet_wide_elem(
   }
   if (st == (0 - 1)) {
     return 0 - 1;
+  }
+  // f32x8 [1, -1] and [1.0, -1.0] used to fall through to one 4-byte
+  // store. The integer splat declines a leading 'f', and a float
+  // literal never entered it. vlet_f32_elem_lit fills those lanes.
+  // Return 1 keeps the integer splat and the scalar store.
+  // PLATFORM: SHARED.
+  st = vlet_f32_elem_lit(
+    arena, elf_ctx, elem_ref, ctx, ta, home, elem_ty);
+  if (st != 1) {
+    return st;
   }
   // Kind 0 is INT_LIT. Kinds 22 and 23 are the unary chain. lane_bin
   // is a lane binop (kinds 4..13 and 51). The scalar store below
