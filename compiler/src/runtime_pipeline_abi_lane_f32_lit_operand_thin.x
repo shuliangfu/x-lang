@@ -22,9 +22,13 @@
 // inner value. A block that has lets is not peeled. An INDEX with an
 // integer-literal index loads one lane from the base frame. Nested
 // indexes are that same recursion. The stride is the existing index
-// element size. A non-literal index stays on emit_expr. The 128 stop
-// is only for a chain that does not end. This file then matches the old
-// body. Do not add a second divss.
+// element size. A non-literal index stays on emit_expr. A FIELD whose
+// root is a STRUCT_LIT has no VAR frame. The existing field
+// materializer already fills a temp and leaves that field's address
+// in rax. One recursion finds that root. The lane is then the existing
+// indirect i32 load at lane * esz. A call or method root stays on
+// emit_expr. The 128 stop is only for a chain that does not end. This
+// file then matches the old body. Do not add a second divss.
 // PLATFORM: SHARED.
 
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
@@ -65,6 +69,12 @@ export extern function pipeline_expr_index_base_ref(arena: *u8, expr_ref: i32): 
 export extern function pipeline_expr_index_index_ref(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_asm_index_elem_byte_sz_c(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_int_val_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_field_access_base_ref(arena: *u8, expr_ref: i32): i32;
+export extern function glue_field_access_call_base_rvalue_elf_c(
+  arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, leave_addr: i32
+): i32;
+export extern function backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
+export extern function backend_enc_load_i32_indirect_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
 
 /**
  * Flip bit 31 of the f32 lane already in rax.
@@ -329,6 +339,129 @@ function lane_operand_unwrap_block(arena: *u8, expr_ref: i32, budget: i32): i32 
 }
 
 /**
+ * True when a field chain is rooted at a STRUCT_LIT.
+ * @param arena *u8 — expression arena. Null returns 0.
+ * @param expr_ref i32 — FIELD, STRUCT_LIT, or a transparent block
+ *   around one of those. Not positive returns 0.
+ * @param budget i32 — nodes still allowed. The first call passes 128.
+ *   Zero returns 0 without reading. That stop is only for a chain
+ *   that does not end. Every shorter nest is this one function.
+ * @return i32 — 1 when the root is kind 45, else 0.
+ * One call peels one transparent block or one FIELD and recurses on
+ * the inner expr or the field base. A VAR, CALL, or METHOD root
+ * returns 0 so the caller does not materialize those. This does not
+ * allocate a frame slot and does not walk field offsets. PLATFORM: SHARED.
+ */
+function lane_field_root_is_struct_lit(arena: *u8, expr_ref: i32, budget: i32): i32 {
+  let ko: i32 = 0;
+  let cur: i32 = 0;
+  let base_ref: i32 = 0;
+  if (budget <= 0) {
+    return 0;
+  }
+  if (arena == (0 as *u8)) {
+    return 0;
+  }
+  if (expr_ref <= 0) {
+    return 0;
+  }
+  cur = lane_operand_unwrap_block(arena, expr_ref, budget);
+  if (cur <= 0) {
+    return 0;
+  }
+  if (cur != expr_ref) {
+    return lane_field_root_is_struct_lit(arena, cur, budget - 1);
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  }
+  if (ko == 45) {
+    return 1;
+  }
+  if (ko != 44) {
+    return 0;
+  }
+  unsafe {
+    base_ref = pipeline_expr_field_access_base_ref(arena, expr_ref);
+  }
+  if (base_ref <= 0) {
+    return 0;
+  }
+  return lane_field_root_is_struct_lit(arena, base_ref, budget - 1);
+}
+
+/**
+ * Load one lane of a STRUCT_LIT field into rax.
+ * @param arena *u8 — expression arena. Null returns -2.
+ * @param elf_ctx *u8 — emit buffer. Null returns -2.
+ * @param field_ref i32 — FIELD expr. A root that is not a STRUCT_LIT
+ *   returns -2 and the caller keeps emit_expr.
+ * @param lane i32 — lane index. Negative returns -2.
+ * @param esz i32 — lane bytes. Anything other than 4 returns -2.
+ *   The indirect load is the same signed 32-bit load the frame lane
+ *   uses. A wider lane stays on emit_expr.
+ * @param ctx *u8 — asm ctx. Null returns -2.
+ * @param ta i32 — 1 arm64, else x86.
+ * @return i32 — 0 when rax holds the lane, -1 when the materializer
+ *   or an encode fails, -2 when this is not a 4-byte STRUCT_LIT field.
+ * The existing glue_field_access_call_base_rvalue_elf_c with
+ * leave_addr 1 fills the temp and leaves the field address in rax.
+ * Lane bytes sit at that address plus lane * esz on every target,
+ * because rax is a pointer, not an rbp frame slot. This does not
+ * allocate a second home and does not walk field offsets.
+ * PLATFORM: SHARED.
+ */
+function lane_load_struct_lit_field_lane(
+  arena: *u8, elf_ctx: *u8, field_ref: i32, lane: i32, esz: i32, ctx: *u8, ta: i32
+): i32 {
+  let rc: i32 = 0;
+  let lit: i32 = 0;
+  if (arena == (0 as *u8)) {
+    return 0 - 2;
+  }
+  if (elf_ctx == (0 as *u8)) {
+    return 0 - 2;
+  }
+  if (ctx == (0 as *u8)) {
+    return 0 - 2;
+  }
+  if (field_ref <= 0) {
+    return 0 - 2;
+  }
+  if (lane < 0) {
+    return 0 - 2;
+  }
+  if (esz != 4) {
+    return 0 - 2;
+  }
+  lit = lane_field_root_is_struct_lit(arena, field_ref, 128);
+  if (lit != 1) {
+    return 0 - 2;
+  }
+  unsafe {
+    rc = glue_field_access_call_base_rvalue_elf_c(
+      arena, elf_ctx, field_ref, ctx, ta, 1);
+  }
+  if (rc == (0 - 99)) {
+    return 0 - 2;
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  if (lane != 0) {
+    unsafe {
+      rc = backend_enc_add_imm_to_rax_arch(elf_ctx, lane * esz, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+  }
+  unsafe {
+    return backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta);
+  }
+}
+
+/**
  * Frame offset of one lane of an indexed vector.
  * @param arena *u8 — expression arena. Null returns -1.
  * @param ctx *u8 — asm ctx. Null returns -1.
@@ -566,9 +699,15 @@ function lane_f32_emit_neg_core(
     }
     return 0;
   }
-  // No frame home is -2 and falls through. PLATFORM: SHARED.
+  // No VAR frame is -2. A STRUCT_LIT root then loads from the
+  // temp the existing materializer already filled. Still -2 falls
+  // through. PLATFORM: SHARED.
   if (ko == 44) {
     rc = lane_f32_load_field_lane(arena, elf_ctx, core, lane, esz, ctx, ta);
+    if (rc == (0 - 2)) {
+      rc = lane_load_struct_lit_field_lane(
+        arena, elf_ctx, core, lane, esz, ctx, ta);
+    }
     if (rc == (0 - 2)) {
       return 0 - 2;
     }
@@ -831,6 +970,10 @@ function lane_i32_emit_neg_core(
   if (ko == 44) {
     rc = lane_f32_load_field_lane(arena, elf_ctx, expr_ref, lane, esz, ctx, ta);
     if (rc == (0 - 2)) {
+      rc = lane_load_struct_lit_field_lane(
+        arena, elf_ctx, expr_ref, lane, esz, ctx, ta);
+    }
+    if (rc == (0 - 2)) {
       return 0 - 2;
     }
     if (rc != 0) {
@@ -995,9 +1138,14 @@ export function glue_emit_vector_operand_lane_elf_c(
     return lane_f32_load_var_lane(arena, elf_ctx, expr_ref, lane, esz, ctx, ta);
   }
   // FIELD=44. The helper's offset already includes lane polarity.
-  // -2 means no frame home and falls through. PLATFORM: SHARED.
+  // No VAR frame tries the STRUCT_LIT temp. Still no home falls
+  // through. PLATFORM: SHARED.
   if (ko == 44) {
     rc = lane_f32_load_field_lane(arena, elf_ctx, expr_ref, lane, esz, ctx, ta);
+    if (rc == (0 - 2)) {
+      rc = lane_load_struct_lit_field_lane(
+        arena, elf_ctx, expr_ref, lane, esz, ctx, ta);
+    }
     if (rc != (0 - 2)) {
       return rc;
     }
