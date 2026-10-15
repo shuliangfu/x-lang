@@ -29,7 +29,10 @@
 // materializer already fills a temp and leaves that field's address
 // in rax. One recursion finds that root. A transparent block under a
 // field is peeled by one recursion before that materializer. Nested
-// fields are the same recursion. A block with lets is not peeled.
+// fields are the same recursion. A block with lets is not peeled
+// away. The same recursion emits that block's lets through
+// pipeline_asm_emit_block_prefix_elf, then retargets the field at
+// the block's value expr so the existing materializer emits it once.
 // The lane is then the existing indirect i32 load at lane * esz. A
 // call or method root stays on emit_expr. The 128 stop is only for a
 // chain that does not end. This
@@ -85,6 +88,12 @@ export extern function pipeline_expr_field_access_name_into(
 export extern function pipeline_expr_set_field_access_c(
   arena: *u8, expr_ref: i32, base_ref: i32, nm: *u8, nlen: i32
 ): void;
+export extern function pipeline_expr_block_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function ast_ast_block_final_expr_ref(arena: *u8, block_ref: i32): i32;
+export extern function backend_ensure_block_local_slots(ctx: *u8, arena: *u8, block_ref: i32): void;
+export extern function pipeline_asm_emit_block_prefix_elf(
+  arena: *u8, elf_ctx: *u8, block_ref: i32, ctx: *u8, ta: i32
+): i32;
 export extern function backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
 export extern function backend_enc_load_i32_indirect_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function glue_emit_index_eff_addr_scaled_elf_c(
@@ -355,64 +364,97 @@ function lane_operand_unwrap_block(arena: *u8, expr_ref: i32, budget: i32): i32 
 }
 
 /**
- * Point each field in a chain at the value under a transparent block.
+ * Keep this field's name and point its base at new_base.
  * @param arena *u8 — expression arena. Null returns without writing.
- * @param field_ref i32 — FIELD expr, or a base that is not a field.
- *   Not positive returns without writing.
- * @param budget i32 — fields still allowed. The first call passes 128.
- *   Zero returns without reading. That stop is only for a chain that
- *   does not end. Every shorter nest is this one function.
- * One call peels the blocks around this field's base with
- * lane_operand_unwrap_block, retargets the base at that value, and
- * recurses when the value is another FIELD. The existing setter keeps
- * the field name. A block with lets is not a transparent value, so
- * the base stays the block and the demoted materializer still returns
- * -99. This does not allocate a slot and does not emit.
+ * @param field_ref i32 — FIELD expr. Not positive returns without writing.
+ * @param new_base i32 — expr that replaces the base. Not positive returns
+ *   without writing.
+ * The existing pipeline_expr_set_field_access_c keeps the field name.
+ * The name buffer dies with this call, before the chain recurses.
  * PLATFORM: SHARED.
  */
-function field_chain_peel_block(arena: *u8, field_ref: i32, budget: i32): void {
-  let base_ref: i32 = 0;
-  let inner: i32 = 0;
-  let ko: i32 = 0;
+function field_chain_retarget(arena: *u8, field_ref: i32, new_base: i32): void {
   let nlen: i32 = 0;
   let name: u8[256] = [];
-  if (budget <= 0) {
-    return;
-  }
   if (arena == (0 as *u8)) {
     return;
   }
   if (field_ref <= 0) {
     return;
   }
+  if (new_base <= 0) {
+    return;
+  }
+  unsafe {
+    nlen = pipeline_expr_field_access_name_len(arena, field_ref);
+  }
+  if (nlen < 0) {
+    nlen = 0;
+  }
+  if (nlen > 255) {
+    nlen = 255;
+  }
+  unsafe {
+    pipeline_expr_field_access_name_into(arena, field_ref, &name[0]);
+    pipeline_expr_set_field_access_c(arena, field_ref, new_base, &name[0], nlen);
+  }
+}
+
+/**
+ * Point each field in a chain at the value under its base block.
+ * @param arena *u8 — expression arena. Null returns 0 without writing.
+ * @param elf_ctx *u8 — emit buffer. Used when a base still has lets.
+ * @param field_ref i32 — FIELD expr, or a base that is not a field.
+ *   Not positive returns 0 without writing.
+ * @param ctx *u8 — asm function context. Used when a base still has lets.
+ * @param ta i32 — 1 arm64, else x86.
+ * @param budget i32 — nodes still allowed. The first call passes 128.
+ *   Zero returns 0 without reading. That stop is only for a chain that
+ *   does not end. Every shorter nest is this one function.
+ * @return i32 — 0 when the chain is retargeted, -1 when a let block
+ *   cannot be emitted or has no value expr.
+ * One call peels transparent `{ e }` and `unsafe { e }` with
+ * lane_operand_unwrap_block. A block that still has lets is not
+ * transparent: this emits that block's consts, lets, and statements
+ * through pipeline_asm_emit_block_prefix_elf, then retargets the base
+ * at the block's value expr and recurses. A nested block or a nested
+ * field is that same call. The value expr itself is not emitted here.
+ * PLATFORM: SHARED.
+ */
+function field_chain_peel_block(
+  arena: *u8, elf_ctx: *u8, field_ref: i32, ctx: *u8, ta: i32, budget: i32
+): i32 {
+  let base_ref: i32 = 0;
+  let inner: i32 = 0;
+  let ko: i32 = 0;
+  let br: i32 = 0;
+  let fin: i32 = 0;
+  let rc: i32 = 0;
+  if (budget <= 0) {
+    return 0;
+  }
+  if (arena == (0 as *u8)) {
+    return 0;
+  }
+  if (field_ref <= 0) {
+    return 0;
+  }
   unsafe {
     ko = pipeline_expr_kind_ord_at(arena, field_ref);
   }
   if (ko != 44) {
-    return;
+    return 0;
   }
   unsafe {
     base_ref = pipeline_expr_field_access_base_ref(arena, field_ref);
   }
   if (base_ref <= 0) {
-    return;
+    return 0;
   }
   inner = lane_operand_unwrap_block(arena, base_ref, budget);
   if (inner > 0) {
     if (inner != base_ref) {
-      unsafe {
-        nlen = pipeline_expr_field_access_name_len(arena, field_ref);
-      }
-      if (nlen < 0) {
-        nlen = 0;
-      }
-      if (nlen > 255) {
-        nlen = 255;
-      }
-      unsafe {
-        pipeline_expr_field_access_name_into(arena, field_ref, &name[0]);
-        pipeline_expr_set_field_access_c(arena, field_ref, inner, &name[0], nlen);
-      }
+      field_chain_retarget(arena, field_ref, inner);
       base_ref = inner;
     }
   }
@@ -420,8 +462,44 @@ function field_chain_peel_block(arena: *u8, field_ref: i32, budget: i32): void {
     ko = pipeline_expr_kind_ord_at(arena, base_ref);
   }
   if (ko == 44) {
-    field_chain_peel_block(arena, base_ref, budget - 1);
+    return field_chain_peel_block(arena, elf_ctx, base_ref, ctx, ta, budget - 1);
   }
+  if (ko != 26) {
+    return 0;
+  }
+  // EXPR_BLOCK that unwrap left in place still has lets or loops.
+  // Emit those, then point this field at the value expr. Recurse so
+  // `{ let a; { let b; H { v: a + b } } }.v` is the same function.
+  if (elf_ctx == (0 as *u8)) {
+    return 0 - 1;
+  }
+  if (ctx == (0 as *u8)) {
+    return 0 - 1;
+  }
+  unsafe {
+    br = pipeline_expr_block_ref_at(arena, base_ref);
+  }
+  if (br <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    backend_ensure_block_local_slots(ctx, arena, br);
+    rc = pipeline_asm_emit_block_prefix_elf(arena, elf_ctx, br, ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    fin = ast_ast_block_final_expr_ref(arena, br);
+  }
+  if (fin <= 0) {
+    return 0 - 1;
+  }
+  if (fin == base_ref) {
+    return 0 - 1;
+  }
+  field_chain_retarget(arena, field_ref, fin);
+  return field_chain_peel_block(arena, elf_ctx, field_ref, ctx, ta, budget - 1);
 }
 
 /**
@@ -437,12 +515,14 @@ function field_chain_peel_block(arena: *u8, field_ref: i32, budget: i32): void {
  *   not take the call, method, or struct-literal root.
  * The Cap-tip link renames the mega body to the demoted symbol.
  * This definition is that public symbol, so every caller peels first.
- * #[no_mangle] keeps the existing link name. A block with lets is not
- * peeled. Leaving that block as the base used to return -99, and the
- * field fast path then loaded some other slot. Return -1 so the
- * function is dropped instead of publishing that slot. A peeled
- * struct literal or variable still goes to the demoted body.
- * PLATFORM: SHARED. The rename is Mach-O Cap tip only.
+ * #[no_mangle] keeps the existing link name. A block with lets is
+ * emitted by field_chain_peel_block, which retargets this field at
+ * the value expr. The demoted body then emits that value once.
+ * Leaving a block as the base used to return -99, and the field fast
+ * path then loaded some other slot. If a block is still the base,
+ * return -1 so the function is dropped instead of publishing that
+ * slot. A peeled struct literal or variable still goes to the demoted
+ * body. PLATFORM: SHARED. The rename is Mach-O Cap tip only.
  */
 #[no_mangle]
 export function glue_field_access_call_base_rvalue_elf_c(
@@ -450,7 +530,11 @@ export function glue_field_access_call_base_rvalue_elf_c(
 ): i32 {
   let base_ref: i32 = 0;
   let ko: i32 = 0;
-  field_chain_peel_block(arena, expr_ref, 128);
+  let rc: i32 = 0;
+  rc = field_chain_peel_block(arena, elf_ctx, expr_ref, ctx, ta, 128);
+  if (rc != 0) {
+    return 0 - 1;
+  }
   if (arena != (0 as *u8)) {
     if (expr_ref > 0) {
       unsafe {
@@ -480,21 +564,25 @@ export function glue_field_access_call_base_rvalue_elf_c(
 /**
  * True when a field chain is rooted at a STRUCT_LIT.
  * @param arena *u8 — expression arena. Null returns 0.
- * @param expr_ref i32 — FIELD, STRUCT_LIT, or a transparent block
- *   around one of those. Not positive returns 0.
+ * @param expr_ref i32 — FIELD, STRUCT_LIT, or a block around one of
+ *   those. Not positive returns 0.
  * @param budget i32 — nodes still allowed. The first call passes 128.
  *   Zero returns 0 without reading. That stop is only for a chain
  *   that does not end. Every shorter nest is this one function.
  * @return i32 — 1 when the root is kind 45, else 0.
- * One call peels one transparent block or one FIELD and recurses on
- * the inner expr or the field base. A VAR, CALL, or METHOD root
- * returns 0 so the caller does not materialize those. This does not
- * allocate a frame slot and does not walk field offsets. PLATFORM: SHARED.
+ * One call peels one transparent block, one FIELD, or one block's
+ * value expr, and recurses. A block that has lets is not transparent,
+ * so the value expr is read here without emitting. The field
+ * materializer emits those lets. A VAR, CALL, or METHOD root returns
+ * 0 so the caller does not materialize those. This does not allocate
+ * a frame slot and does not walk field offsets. PLATFORM: SHARED.
  */
 function lane_field_root_is_struct_lit(arena: *u8, expr_ref: i32, budget: i32): i32 {
   let ko: i32 = 0;
   let cur: i32 = 0;
   let base_ref: i32 = 0;
+  let br: i32 = 0;
+  let fin: i32 = 0;
   if (budget <= 0) {
     return 0;
   }
@@ -516,6 +604,26 @@ function lane_field_root_is_struct_lit(arena: *u8, expr_ref: i32, budget: i32): 
   }
   if (ko == 45) {
     return 1;
+  }
+  // EXPR_BLOCK whose value is the struct literal. Lets stay for the
+  // materializer. Nested blocks are this same call. PLATFORM: SHARED.
+  if (ko == 26) {
+    unsafe {
+      br = pipeline_expr_block_ref_at(arena, expr_ref);
+    }
+    if (br <= 0) {
+      return 0;
+    }
+    unsafe {
+      fin = ast_ast_block_final_expr_ref(arena, br);
+    }
+    if (fin <= 0) {
+      return 0;
+    }
+    if (fin == expr_ref) {
+      return 0;
+    }
+    return lane_field_root_is_struct_lit(arena, fin, budget - 1);
   }
   if (ko != 44) {
     return 0;

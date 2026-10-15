@@ -134,7 +134,15 @@ function w1009_emit_let(
  * Two-pass block body ELF emit with pass1-deferred lets (wave1009).
  * Pass0 consts of slice or fixed-array type call the same let-init writers
  * as the mega const loop. Other consts store rax into the slot.
+ * @param arena *u8 — expression arena. Null returns -1.
+ * @param elf_ctx *u8 — emit buffer. Null returns -1.
+ * @param block_ref i32 — block node, not the EXPR_BLOCK expr. Not positive returns -1.
+ * @param ctx *u8 — asm function context. Null returns -1.
+ * @param ta i32 — 1 arm64, else x86.
  * @param dm *u8 — this level's pass1-let mask (0: no deferral). Not the language defer pool.
+ * @param skip_final i32 — 0 emits the value expr. Non-zero stops after
+ *   consts, lets, statements, and language defers. The caller emits the
+ *   value once. Same slots either way.
  * @return i32 — 0 ok; -1 fail
  * Language `defer { }` is not a statement-order kind. It is emitted, LIFO,
  * before the final expression. A trailing return is that final expression,
@@ -142,7 +150,8 @@ function w1009_emit_let(
  * PLATFORM: SHARED — G.7 twin of pre-wave703 mega body_sync (+ leftover walk).
  */
 function w1009_body_sync_level(
-  arena: *u8, elf_ctx: *u8, block_ref: i32, ctx: *u8, ta: i32, dm: *u8
+  arena: *u8, elf_ctx: *u8, block_ref: i32, ctx: *u8, ta: i32, dm: *u8,
+  skip_final: i32
 ): i32 {
   let slot_base: i32 = 0;
   let nconst: i32 = 0;
@@ -422,8 +431,13 @@ function w1009_body_sync_level(
     if (glue_emit_run_language_defers_elf(arena, elf_ctx, block_ref, ctx, ta) != 0) {
       return 0 - 1;
     }
-    if (glue_emit_block_final_expr_elf(arena, elf_ctx, block_ref, ctx, ta) != 0) {
-      return 0 - 1;
+    // skip_final leaves the value expr for the caller (a field rvalue
+    // emits that struct literal once). Defers already ran, matching
+    // the full path's order. PLATFORM: SHARED.
+    if (skip_final == 0) {
+      if (glue_emit_block_final_expr_elf(arena, elf_ctx, block_ref, ctx, ta) != 0) {
+        return 0 - 1;
+      }
     }
     return 0;
   }
@@ -450,7 +464,45 @@ export function pipeline_asm_emit_block_body_sync_elf(
       dm = &g_w1009_let_defer[d * 512];
     }
     g_w1009_depth = d + 1;
-    rc = w1009_body_sync_level(arena, elf_ctx, block_ref, ctx, ta, dm);
+    rc = w1009_body_sync_level(arena, elf_ctx, block_ref, ctx, ta, dm, 0);
+    g_w1009_depth = d;
+  }
+  return rc;
+}
+
+/**
+ * Emit a block's consts, lets, and statements, and not its value expr.
+ * @param arena *u8 — expression arena. Null returns -1.
+ * @param elf_ctx *u8 — emit buffer. Null returns -1.
+ * @param block_ref i32 — block node, not the EXPR_BLOCK expr. Not positive returns -1.
+ * @param ctx *u8 — asm function context. Null returns -1.
+ * @param ta i32 — 1 arm64, else x86.
+ * @return i32 — 0 when the prefix is emitted, -1 on failure.
+ * This is w1009_body_sync_level with the value step skipped, so the
+ * lets occupy the same slots as pipeline_asm_emit_block_body_sync_elf.
+ * A field rvalue retargets onto that value and emits it once. Calling
+ * this and the full body_sync on the same block emits the lets twice.
+ * #[no_mangle] keeps the link name equal to this declaration.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_block_prefix_elf(
+  arena: *u8, elf_ctx: *u8, block_ref: i32, ctx: *u8, ta: i32
+): i32 {
+  let d: i32 = 0;
+  let rc: i32 = 0;
+  let dm: *u8 = 0 as *u8;
+  // PLATFORM: SHARED — same nesting level as body_sync, so the let-name
+  // buffer and the pass1 mask are not the caller's level.
+  unsafe {
+    d = g_w1009_depth;
+    if (d >= 0) {
+      if (d < 64) {
+        dm = &g_w1009_let_defer[d * 512];
+      }
+    }
+    g_w1009_depth = d + 1;
+    rc = w1009_body_sync_level(arena, elf_ctx, block_ref, ctx, ta, dm, 1);
     g_w1009_depth = d;
   }
   return rc;
