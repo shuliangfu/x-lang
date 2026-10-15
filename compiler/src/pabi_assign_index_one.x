@@ -407,11 +407,11 @@ function assign_index_one_tail(
 }
 
 /**
- * Fill a constant-index Vec8i element from an if or a ternary.
+ * Fill a constant-index wide i32 vector element.
  * @param arena *u8 — AST arena
  * @param elf_ctx *u8 — encoder context
  * @param left_ref i32 — INDEX lvalue
- * @param right_ref i32 — RHS; only kind 25 and kind 27 enter
+ * @param right_ref i32 — RHS. Kind 0, 22, 23, 25, and 27 enter
  * @param ctx *u8 — emit context
  * @param ta i32 — only 1 (Darwin arm64) enters
  * @param base_ref i32 — INDEX base; must be a frame VAR
@@ -419,11 +419,15 @@ function assign_index_one_tail(
  * @return i32 — 0 when every lane was filled; -1 after a fill started
  *   and failed; -99 when this arm declines and has emitted nothing
  * The element type is the INDEX resolved type, or the element of an
- * array, slice, or pointer base. Kind must be 13, the lane size 4,
- * and the width greater than 16. The home is the base frame slot plus
- * index times that width. The existing vector let-init fills both
- * arms, or returns -3 before emitting. A dynamic index, a 16-byte
- * vector, and a scalar element return -99 so the one-word store runs.
+ * array, slice, or pointer base. Kind 13 is a TYPE_VECTOR. Kind 8 is
+ * a named spelling such as i32x8. The lane size is 4 and the width is
+ * greater than 16. The home is the base frame slot plus index times
+ * that width. The existing vector let-init splats an INT_LIT, walks a
+ * kind 22 / 23 chain (cap 32), or fills an if or a ternary. It returns
+ * -3 before emitting when the element is f32, the chain is not an
+ * INT_LIT, or the width is not a splat it owns. A dynamic index, a
+ * 16-byte vector, and a scalar element return -99 so the store below
+ * runs. LOGNOT does not enter.
  * PLATFORM: MACOS|ARM64.
  */
 function assign_index_one_vec_if(
@@ -455,6 +459,17 @@ function assign_index_one_vec_if(
     pipe_store_i32_le(&cell[0], 0, pipeline_expr_kind_ord_at(arena, right_ref));
   }
   rk = assign_index_cell_i32(&cell[0]);
+  // INT_LIT, unary chain, if, ternary. Let-init owns the splat.
+  // PLATFORM: MACOS|ARM64.
+  if (rk == 0) {
+    go = 1;
+  }
+  if (rk == 22) {
+    go = 1;
+  }
+  if (rk == 23) {
+    go = 1;
+  }
   if (rk == 25) {
     go = 1;
   }
@@ -526,8 +541,13 @@ function assign_index_one_vec_if(
     pipe_store_i32_le(&cell[0], 0, pipeline_type_kind_ord_at(arena, ltr));
   }
   tk = assign_index_cell_i32(&cell[0]);
+  // Kind 13 is TYPE_VECTOR. Kind 8 is i32x8 and the other spellings.
+  // The spelling check below rejects a named type that is not a vector.
+  // PLATFORM: MACOS|ARM64.
   if (tk != 13) {
-    return 0 - 99;
+    if (tk != 8) {
+      return 0 - 99;
+    }
   }
   unsafe {
     pipe_store_i32_le(&cell[0], 0, asm_type_is_simd_vector_spelling(arena, ltr));
@@ -609,9 +629,9 @@ function assign_index_one_vec_if(
  * x86-64 copies a >8 byte VAR, FIELD, or INDEX with glue_copy slot -3, and
  * emits a CALL into that element via sret. arm64 spills a 9..16 byte pair
  * and copies a >16 byte lvalue instead of one qword store. A constant
- * index of a kind-13 i32 vector wider than 16 bytes fills an if or a
- * ternary with the existing vector let-init. Any other RHS stays on
- * the store below.
+ * index of a kind-13 or named i32 vector wider than 16 bytes fills an
+ * INT_LIT, a kind 22 / 23 chain, an if, or a ternary with the existing
+ * vector let-init. Any other RHS stays on the store below.
  * Pipe cells hold extern results. Do not write `x = extern()`.
  * PLATFORM: SHARED — one strong T. Linux, Darwin, and Windows link this ahead of the egg.
  */
@@ -684,8 +704,8 @@ export function glue_emit_assign_index_elf_c(
       return rc;
     }
   }
-  // Constant index of a wide kind-13 i32 vector. -99 keeps the store
-  // below. PLATFORM: MACOS|ARM64.
+  // Constant index of a wide i32 vector. -99 keeps the store below.
+  // PLATFORM: MACOS|ARM64.
   if (ek == 28 && ta == 1) {
     unsafe {
       pipe_store_i32_le(&rccell[0], 0, assign_index_one_vec_if(
