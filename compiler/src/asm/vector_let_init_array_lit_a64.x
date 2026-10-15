@@ -948,10 +948,26 @@ export function glue_emit_vector_type_let_init_elf_c(
   // EXPR_EQ..GE are 14..19. The lane-binop set stops at 13, so the
   // first qword was compared once. An i32 lane uses sxtw, cmp, and
   // cset. An f32 lane uses the existing fcmp and FP setcc. Both store
-  // 0 or 1. PLATFORM: MACOS|ARM64.
+  // 0 or 1. A FLOAT_LIT still arrived as f64 bits, so 1.0 and 2.0
+  // both had a zero low half and compared equal. The same gate as
+  // add/sub/mul/div narrows that literal before fcmp. i32 does not
+  // set it. PLATFORM: MACOS|ARM64. The gate symbol is SHARED.
   if (vlet_lane_cmp_ko(ko) != 0) {
+    lit_gate = 0;
+    lit_prev = 0;
+    if (vlet_f32_fill_lane(arena, type_ref) != 0) {
+      unsafe {
+        lit_prev = glue_lane_f32_lit_dest_set(1);
+      }
+      lit_gate = 1;
+    }
     rc = vlet_emit_i32_lane_cmp(
       arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, type_ref);
+    if (lit_gate != 0) {
+      unsafe {
+        lit_prev = glue_lane_f32_lit_dest_set(lit_prev);
+      }
+    }
     return rc;
   }
   // Lane binop. Do not decline into the dual-GP pair store.
