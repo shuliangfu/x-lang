@@ -10290,11 +10290,11 @@ decl_ty_ref: i32): i32 {
      * INT_LIT and one, two, three, four, or five more unaries of that lit into
      * that slot. Stamp the declared vector type so the
      * let equal-check sees one type. A TYPE_VECTOR of f32 stamps a
-     * FLOAT_LIT and one through thirteen unary minuses of that literal.
-     * Two, four, six, eight, ten, and twelve minuses cancel. Three,
-     * five, seven, nine, eleven, and thirteen apply the sign once. A
-     * fourteenth f32 unary, a bitwise not, a seventh i32 unary, a VAR,
-     * or a binop stays on the later coerces.
+     * FLOAT_LIT and one through fourteen unary minuses of that literal.
+     * Two, four, six, eight, ten, twelve, and fourteen minuses cancel.
+     * Three, five, seven, nine, eleven, and thirteen apply the sign
+     * once. A fifteenth f32 unary, a bitwise not, a seventh i32 unary,
+     * a VAR, or a binop stays on the later coerces.
      * Keyword null stays rejected. Two compares, not a chained &&.
      * The linked body is the thin: cap tip -c of this mega is hollow.
      * PLATFORM: SHARED — type rule, not a host ABI.
@@ -10440,8 +10440,9 @@ decl_ty_ref: i32): i32 {
            * apply the sign once. Kind 1 and kind 22 are separate
            * compares. Ten minuses cancel again. Eleven minuses apply
            * the sign once more. Twelve minuses cancel again. Thirteen
-           * minuses apply the sign once more. A fourteenth unary
-           * stays kind 22 at the inner operand, so it is not stamped.
+           * minuses apply the sign once more. Fourteen minuses cancel
+           * again. A fifteenth unary stays kind 22 at the inner
+           * operand, so it is not stamped.
            * Bitwise not stays off. An i32 element does not enter. The
            * operand refs are range-checked. PLATFORM: SHARED.
            */
@@ -10472,6 +10473,8 @@ decl_ty_ref: i32): i32 {
             let f_duodeca_k: i32 = 0;
             let f_tredeca: i32 = 0;
             let f_tredeca_k: i32 = 0;
+            let f_quattuordeca: i32 = 0;
+            let f_quattuordeca_k: i32 = 0;
             if (init_kind == 1) {
               splat_ok = 1;
             }
@@ -10665,6 +10668,25 @@ decl_ty_ref: i32): i32 {
                                                                                         f_tredeca_k = pipeline_expr_kind_ord_at(arena, f_tredeca);
                                                                                         if (f_tredeca_k == 1) {
                                                                                           splat_ok = 1;
+                                                                                        }
+                                                                                        /*
+                                                                                         * Fourteen minuses: the innermost is a
+                                                                                         * FLOAT_LIT. Seven pairs cancel, so the
+                                                                                         * sign bit stays clear. A fifteenth unary
+                                                                                         * is kind 22 here, not kind 1. Load the
+                                                                                         * operand of f_tredeca only. The new ref
+                                                                                         * is range-checked. PLATFORM: SHARED.
+                                                                                         */
+                                                                                        if (f_tredeca_k == 22) {
+                                                                                          f_quattuordeca = pipeline_expr_unary_operand_ref_at(arena, f_tredeca);
+                                                                                          if (f_quattuordeca > 0) {
+                                                                                            if (f_quattuordeca <= arena.num_exprs) {
+                                                                                              f_quattuordeca_k = pipeline_expr_kind_ord_at(arena, f_quattuordeca);
+                                                                                              if (f_quattuordeca_k == 1) {
+                                                                                                splat_ok = 1;
+                                                                                              }
+                                                                                            }
+                                                                                          }
                                                                                         }
                                                                                       }
                                                                                     }
