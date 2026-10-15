@@ -4,6 +4,7 @@
 // uses the existing vector let-init, for 16 bytes and for a wider
 // 4-byte lane. A bare FLOAT_LIT uses that fill on the 16-byte arm.
 // An INT_LIT wider than 16 bytes uses that same fill.
+// An if or a ternary of that same width uses that same fill.
 // A
 // frame-homed VAR or FIELD wider than 16 uses the existing frame
 // memcpy. An ARRAY_LIT of at least 16 bytes uses that same let-init
@@ -507,6 +508,7 @@ function assign_field_one_scalar(
  * @param right_ref i32 — RHS. A non-minus 16-byte value is evaluated
  *   into x0:x1. Unary minus and bitwise not go to the vector
  *   let-init. An INT_LIT wider than 16 bytes uses that same let-init.
+ *   An if or a ternary of that same width uses that same let-init.
  *   An ARRAY_LIT
  *   of at least 16 bytes uses that same let-init at the field home.
  *   A frame VAR or FIELD wider than 16 is copied with the existing
@@ -532,6 +534,7 @@ function assign_field_one_simd16(
   let home: i32 = 0;
   let src: i32 = 0;
   let unary_lane: i32 = 0;
+  let if_lane: i32 = 0;
   if (ta != 1) {
     return 0 - 99;
   }
@@ -721,6 +724,43 @@ function assign_field_one_simd16(
           }
         }
       }
+      // EXPR_IF = 25 and EXPR_TERNARY = 27. Wider than 16 missed the
+      // arms above, so `h.v = if (c) { 3 } else { -3 }` and
+      // `h.v = c != 0 ? 3 : -3` stored one str w. Lane 0 became 3 and
+      // lane 7 stayed 0. The existing vector let-init already fills
+      // both arms of a kind-13 i32 vector into the slot it is given,
+      // or returns -3 before emitting. That slot is the destination
+      // field. A negative home emits nothing and keeps the scalar
+      // store. A -3 decline does too. -1 may already have emitted.
+      // A 16-byte vector stays on the pair store. Kind 24 stays on
+      // the sibling decline. PLATFORM: MACOS|ARM64.
+      if_lane = 0;
+      if (rk == 25) {
+        if_lane = 1;
+      }
+      if (rk == 27) {
+        if_lane = 1;
+      }
+      if (if_lane != 0) {
+        unsafe {
+          pipe_store_i32_le(&cell[0], 0, glue_vector_var_lane_stack_off_elf_c(
+            arena, ctx, left_ref, 0, esz, ta));
+        }
+        home = assign_field_cell_i32(&cell[0]);
+        if (home >= 0) {
+          unsafe {
+            pipe_store_i32_le(&cell[0], 0, glue_emit_vector_type_let_init_elf_c(
+              arena, elf_ctx, right_ref, ctx, ta, home, fty));
+          }
+          rc = assign_field_cell_i32(&cell[0]);
+          if (rc == 0) {
+            return 0;
+          }
+          if (rc == (0 - 1)) {
+            return 0 - 1;
+          }
+        }
+      }
     }
     return 0 - 99;
   }
@@ -871,8 +911,8 @@ function assign_field_one_simd16(
  * a FIELD. On arm64 a 16-byte SIMD field stores x0 and x1, unless
  * the RHS is unary minus: that uses the existing vector let-init
  * into the field home. A wider SIMD whose lane is 4 bytes and whose
- * RHS is unary minus, bitwise not, or an INT_LIT uses that same
- * let-init. An ARRAY_LIT of at
+ * RHS is unary minus, bitwise not, an INT_LIT, an if, or a ternary
+ * uses that same let-init. An ARRAY_LIT of at
  * least 16 bytes whose lane is 4 bytes uses that let-init too. The
  * same wider width whose RHS is a frame-homed VAR or FIELD uses the
  * existing frame memcpy.
