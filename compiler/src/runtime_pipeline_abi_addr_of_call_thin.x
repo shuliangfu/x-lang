@@ -426,7 +426,9 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
  * A ternary (kind 27), an if-expr (kind 25), or a match (kind 43)
  * selects one named SIMD arm into that temp.
  * An integer literal (kind 0) uses the pointer pointee as the slot
- * type. The existing fill splats that integer. Kind 1 stays declined.
+ * type. The existing fill splats that integer. A float literal
+ * (kind 1) uses that same pointee. The existing fill narrows f64
+ * to f32 and splats. Kind 2 stays declined.
  */
 #[no_mangle]
 export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -578,12 +580,13 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
       vty = glue_addr_simd_lane_type_c(arena, op);
     }
     // Kind 43 upgrades only when the helper result is nonzero.
-    // Kind 0 is a bare integer literal. The helper returns 0
-    // because that literal has no lane and no arm. The ADDR_OF
-    // node is the pointer the user wrote. A named SIMD pointee
-    // (kind 8), or a kind-13 pointee of 4 lanes of 4 bytes, is
-    // the slot type. The existing fill splats the integer.
-    // A wider kind 13 stays declined. Kind 1 stays declined.
+    // Kind 0 is a bare integer literal. Kind 1 is a bare float
+    // literal. The helper returns 0 because that literal has no
+    // lane and no arm. The ADDR_OF node is the pointer the user
+    // wrote. A named SIMD pointee (kind 8), or a kind-13 pointee
+    // of 4 lanes of 4 bytes, is the slot type. The existing fill
+    // splats the integer, and narrows an f64 literal to f32.
+    // A wider kind 13 stays declined. Kind 2 stays declined.
     // PLATFORM: MACOS|ARM64.
     need_pointee = 0;
     if (ok == 43) {
@@ -592,6 +595,11 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
       }
     }
     if (ok == 0) {
+      if (vty == 0) {
+        need_pointee = 1;
+      }
+    }
+    if (ok == 1) {
       if (vty == 0) {
         need_pointee = 1;
       }
