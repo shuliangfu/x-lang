@@ -42,6 +42,10 @@ export extern function glue_expr_block_transparent_value_ref_at(arena: *u8, expr
 export extern function pipeline_expr_var_name_into(arena: *u8, expr_ref: i32, out: *u8): void;
 export extern function pipeline_expr_var_name_len(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
+export extern function pipeline_type_elem_ref_at(arena: *u8, type_ref: i32): i32;
+export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_set_resolved_type_ref(arena: *u8, expr_ref: i32, ty: i32): void;
+export extern function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i32): i32;
 
 let g_w2060_emit_let_vn: u8[256] = [];
 
@@ -61,7 +65,12 @@ let g_w2060_emit_let_vn: u8[256] = [];
  * @param lnb *u8 — let name bytes; may be unused by a given arm
  * @param llen i32 — let name length
  * @return i32 — 0 ok; -1 fail
- * PLATFORM: SHARED freestanding emit.
+ * An integer literal under ADDR_OF is stamped as a pointer to i32.
+ * Named soft equality then accepts that pointer as *i32x4. This
+ * emitter writes the declared pointer onto that ADDR_OF before
+ * emit, so the addr peel can see the SIMD pointee. Kind 1 stays
+ * declined. The splat store stays in the addr emitter.
+ * PLATFORM: SHARED freestanding emit. Darwin ARM64 measured.
  */
 #[no_mangle]
 export function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_ref: i32, idx: i32, init_ref: i32, slot: i32, ctx: *u8, ta: i32, lnb: *u8, llen: i32): i32 {
@@ -83,6 +92,11 @@ export function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_re
   let rc: i32 = 0;
   let slot_off: i32 = 0;
   let init_f32_lit: i32 = 0;
+  let addr_op: i32 = 0;
+  let addr_ok: i32 = 0;
+  let addr_pk: i32 = 0;
+  let addr_pt: i32 = 0;
+  let addr_sp: i32 = 0;
   let copy_ref: i32 = 0;
   let peel_n: i32 = 0;
   let peeled: i32 = 0;
@@ -294,6 +308,32 @@ export function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_re
         init_f32_lit = 1;
         rc = glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, init_ref, ta, let_ty, 0);
       } else {
+        // Kind 51 is ADDR_OF. Kind 0 is the integer literal.
+        // The operand stamp is a pointer to i32. The declared
+        // pointer is the slot type when its pointee spells a SIMD
+        // vector. Kind 1 stays declined. The addr peel still
+        // accepts kind 8, and kind 13 only for 4 lanes of 4 bytes.
+        // PLATFORM: SHARED.
+        if (init_ko == 51) {
+          addr_op = pipeline_expr_unary_operand_ref_at(arena, init_ref);
+          if (addr_op > 0) {
+            addr_ok = pipeline_expr_kind_ord_at(arena, addr_op);
+            if (addr_ok == 0) {
+              if (let_ty > 0) {
+                addr_pk = pipeline_type_kind_ord_at(arena, let_ty);
+                if (addr_pk == 9) {
+                  addr_pt = pipeline_type_elem_ref_at(arena, let_ty);
+                  if (addr_pt > 0) {
+                    addr_sp = asm_type_is_simd_vector_spelling(arena, addr_pt);
+                    if (addr_sp != 0) {
+                      pipeline_expr_set_resolved_type_ref(arena, init_ref, let_ty);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
         rc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta);
       }
     }
