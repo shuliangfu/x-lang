@@ -110,7 +110,9 @@ export extern function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf_c
  * let-init already stores 0 or 1 on each lane of that not.
  * Logical and (kind 20) is not a local. That same writer
  * already stores 0 or 1 on each lane of that and.
- * Kind 21 stays out of this gate. The existing vector
+ * Logical or (kind 21) is not a local. That same writer
+ * already stores 0 or 1 on each lane of that or.
+ * The existing vector
  * let-init writes each value into one slot from
  * asm_local_slot_reg_offset. Kind 23 applies mvn on each
  * i32 lane. An f32 lane with kind 23 still declines inside that
@@ -663,7 +665,8 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   // into the slot, including an f32x8 literal. Kind 24 is
   // logical not. That writer stores 0 or 1 on each lane.
   // Kind 20 is logical and. That writer stores 0 or 1
-  // on each lane of that and. Kind 21 is not this gate.
+  // on each lane of that and. Kind 21 is logical or.
+  // That writer stores 0 or 1 on each lane of that or.
   // Kind 45 is not
   // this gate. Park the dest pointer first, because that writer
   // loads the slot into rbx. Restore the pointer, then the VAR copy
@@ -715,7 +718,7 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
     }
   }
   // Kind 24 reuses the park, the vector let-init, and the VAR
-  // copy above. Kind 21 stays declined. Kind 51 stays
+  // copy above. Kind 51 stays
   // declined. PLATFORM: MACOS|ARM64 dest-in-rbx logical not.
   if (dest_in_rbx != 0) {
     if (ko == 24) {
@@ -728,10 +731,23 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
     }
   }
   // Kind 20 reuses the park, the vector let-init, and the VAR
-  // copy above. Kind 21 stays declined. Kind 51 stays
+  // copy above. Kind 51 stays
   // declined. PLATFORM: MACOS|ARM64 dest-in-rbx logical and.
   if (dest_in_rbx != 0) {
     if (ko == 20) {
+      if (ta == 0) {
+        lane_binop = 1;
+      }
+      if (ta == 1) {
+        lane_binop = 1;
+      }
+    }
+  }
+  // Kind 21 reuses the park, the vector let-init, and the VAR
+  // copy above. Kind 51 stays declined. Kind 45 stays
+  // declined. PLATFORM: MACOS|ARM64 dest-in-rbx logical or.
+  if (dest_in_rbx != 0) {
+    if (ko == 21) {
       if (ta == 0) {
         lane_binop = 1;
       }
