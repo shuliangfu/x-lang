@@ -74,6 +74,10 @@ export extern function pipeline_expr_if_then_ref_at(arena: *u8, expr_ref: i32): 
 export extern function pipeline_expr_index_base_ref(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_index_index_ref(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_match_arm_guard_ref(arena: *u8, expr_ref: i32, i: i32): i32;
+export extern function pipeline_expr_match_arm_result_ref(arena: *u8, expr_ref: i32, i: i32): i32;
+export extern function pipeline_expr_match_matched_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_match_num_arms_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_method_call_arg_ref(arena: *u8, expr_ref: i32, idx: i32): i32;
 export extern function pipeline_expr_method_call_base_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_method_call_name_into(arena: *u8, expr_ref: i32, out64: *u8): void;
@@ -106,6 +110,12 @@ function asm_wpo_ek_block(): i32 { return 26; }
 function asm_wpo_ek_ternary(): i32 { return 27; }
 function asm_wpo_ek_return(): i32 { return 41; }
 function asm_wpo_ek_panic(): i32 { return 42; }
+/**
+ * ExprKind ordinal for match.
+ * @return i32 - 43, the product-pool MATCH ordinal
+ * PLATFORM: SHARED.
+ */
+function asm_wpo_ek_match(): i32 { return 43; }
 function asm_wpo_ek_field(): i32 { return 44; }
 function asm_wpo_ek_struct_lit(): i32 { return 45; }
 function asm_wpo_ek_array_lit(): i32 { return 46; }
@@ -524,6 +534,8 @@ function asm_wpo_call_callee_id(a: *u8, call_expr_ref: i32, caller_mod: *u8, ctx
  * @param ctx *u8 — dep context passed to nested walks
  * @param depth i32 — expression recursion depth; capped at 64
  * @return void
+ * A match walks its scrutinee, each arm result, and each arm guard
+ * through this same function. Patterns are not expressions.
  * PLATFORM: SHARED — statement-pool counts are read before idx is compared.
  */
 function asm_wpo_collect_walk(is_block: i32, a: *u8, ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8, depth: i32): void {
@@ -841,6 +853,38 @@ function asm_wpo_collect_walk(is_block: i32, a: *u8, ref: i32, caller_id: i32, c
       let br: i32 = pipeline_expr_block_ref_at(a, expr_ref);
       if (br > 0) {
         asm_wpo_collect_walk(1, a, br, caller_id, caller_mod, ctx, 0);
+      }
+      return;
+    }
+    // MATCH = 43. A call that lives only in the scrutinee, an arm
+    // result, or an arm guard is still a reach edge. Patterns are a
+    // literal or a variant index, not an expression. A missing guard
+    // is not positive, so the recursive walk returns. Checked before
+    // the binop getters so a stale left or right slot cannot hide the
+    // arms. PLATFORM: SHARED.
+    if (ko == asm_wpo_ek_match()) {
+      let mref: i32 = pipeline_expr_match_matched_ref_at(a, expr_ref);
+      if (mref > 0) {
+        if (mref != expr_ref) {
+          asm_wpo_collect_walk(0, a, mref, caller_id, caller_mod, ctx, depth + 1);
+        }
+      }
+      let narm: i32 = pipeline_expr_match_num_arms_at(a, expr_ref);
+      i2 = 0;
+      while (i2 < narm) {
+        let ares: i32 = pipeline_expr_match_arm_result_ref(a, expr_ref, i2);
+        let agd: i32 = pipeline_expr_match_arm_guard_ref(a, expr_ref, i2);
+        if (ares > 0) {
+          if (ares != expr_ref) {
+            asm_wpo_collect_walk(0, a, ares, caller_id, caller_mod, ctx, depth + 1);
+          }
+        }
+        if (agd > 0) {
+          if (agd != expr_ref) {
+            asm_wpo_collect_walk(0, a, agd, caller_id, caller_mod, ctx, depth + 1);
+          }
+        }
+        i2 = i2 + 1;
       }
       return;
     }
