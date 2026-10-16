@@ -77,6 +77,7 @@ export extern function glue_emit_float_lit_to_rax_elf_c(arena: *u8, elf_ctx: *u8
 export extern function glue_emit_sret_memcpy_rbx_to_home_elf_c(elf_ctx: *u8, sz: i32, ta: i32): i32;
 export extern function glue_emit_vector_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32, type_ref: i32): i32;
 export extern function glue_is_vector_lane_scalar_binop_ko(ko: i32): i32;
+export extern function vlet_lane_cmp_ko(ko: i32): i32;
 export extern function asm_local_slot_reg_offset(arena: *u8, type_ref: i32, off: i32, inout_off: *i32): i32;
 export extern function glue_struct_field_frame_mag_c(base_off: i32, foff: i32, ta: i32): i32;
 export extern function glue_struct_lit_dest_in_rbx(): i32;
@@ -112,6 +113,10 @@ export extern function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf_c
  * already stores 0 or 1 on each lane of that and.
  * Logical or (kind 21) is not a local. That same writer
  * already stores 0 or 1 on each lane of that or.
+ * A relational compare (kinds 14 through 19) is not a local.
+ * The existing compare writer already stores 0 or 1 on each
+ * lane. The predicate is vlet_lane_cmp_ko. Kind 0 stays
+ * declined.
  * The existing vector
  * let-init writes each value into one slot from
  * asm_local_slot_reg_offset. Kind 23 applies mvn on each
@@ -166,6 +171,7 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   let arm_rc: i32 = 0;
   let saved_sret_home: i32 = 0;
   let lane_binop: i32 = 0;
+  let lane_cmp: i32 = 0;
   let copy_arm: i32 = 0;
   let slot_cur: i32 = 0;
   let slot_io: i32[1] = [];
@@ -667,6 +673,9 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   // Kind 20 is logical and. That writer stores 0 or 1
   // on each lane of that and. Kind 21 is logical or.
   // That writer stores 0 or 1 on each lane of that or.
+  // Kinds 14 through 19 are a relational compare. The predicate
+  // vlet_lane_cmp_ko selects them. That writer stores 0 or 1
+  // on each lane. Kind 0 stays declined.
   // Kind 45 is not
   // this gate. Park the dest pointer first, because that writer
   // loads the slot into rbx. Restore the pointer, then the VAR copy
@@ -748,6 +757,23 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   // declined. PLATFORM: MACOS|ARM64 dest-in-rbx logical or.
   if (dest_in_rbx != 0) {
     if (ko == 21) {
+      if (ta == 0) {
+        lane_binop = 1;
+      }
+      if (ta == 1) {
+        lane_binop = 1;
+      }
+    }
+  }
+  // Kinds 14 through 19 reuse the park, the vector let-init,
+  // and the VAR copy above. The predicate is vlet_lane_cmp_ko.
+  // Kind 45 stays declined. Kind 51 stays declined. Kind 0
+  // stays declined. PLATFORM: MACOS|ARM64 dest-in-rbx compare.
+  if (dest_in_rbx != 0) {
+    unsafe {
+      lane_cmp = vlet_lane_cmp_ko(ko);
+    }
+    if (lane_cmp != 0) {
       if (ta == 0) {
         lane_binop = 1;
       }
