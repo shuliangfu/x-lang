@@ -10,7 +10,9 @@
 // block getters. Every unsafe region in that block is the same block
 // walk, including when a let shares the block. A match walks its
 // scrutinee, each arm result, and each arm guard through this same
-// function. Patterns are not expressions. Do not add a second walker.
+// function. Patterns are not expressions. A dereference walks its
+// operand through this same function. Kind 51 stays out. Do not add
+// a second walker.
 // PLATFORM: SHARED.
 
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
@@ -154,7 +156,9 @@ function glue_has_call_block_c(arena: *u8, br: i32, expr_ref: i32): i32 {
  * is that same block walk, including when a let shares the block.
  * A match walks its scrutinee, each arm result, and each arm guard
  * through this same function. Patterns are not expressions.
- * Nested nodes are this same function. Kind 51 is not a call. A global
+ * A dereference (kind 52) shares the unary operand slot and walks
+ * that operand through this same function. Kind 51 is not a call.
+ * Nested nodes are this same function. A global
  * read with no call is not this function.
  * PLATFORM: SHARED.
  */
@@ -202,7 +206,9 @@ export function glue_expr_tree_has_call_index_c(arena: *u8, expr_ref: i32): i32 
       return glue_expr_tree_has_call_index_c(arena, right_ref);
     }
   }
-  // Unary, bitwise not, logical not, or a return operand.
+  // Unary, bitwise not, logical not, a return operand, or a
+  // dereference. Kind 52 shares the unary operand slot. Kind 51
+  // stays out: an address is not a call. PLATFORM: SHARED.
   step = 0;
   if (ko == 22) {
     step = 1;
@@ -214,6 +220,9 @@ export function glue_expr_tree_has_call_index_c(arena: *u8, expr_ref: i32): i32 
     step = 1;
   }
   if (ko == 41) {
+    step = 1;
+  }
+  if (ko == 52) {
     step = 1;
   }
   if (step != 0) {
