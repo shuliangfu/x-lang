@@ -1816,8 +1816,8 @@ export function glue_emit_vector_type_let_init_elf_c(
  *   still has lets, a nested if
  *   (kind 25) or ternary (kind 27), a CALL (kind 48), a METHOD
  *   (kind 49), an INDEX (kind 47), a DEREF (kind 52), a FLOAT_LIT
- *   (kind 1), or a kind-22 chain whose innermost expr is a FLOAT_LIT
- *   and which contains no kind 23. 0 means
+ *   (kind 1), a BOOL_LIT (kind 2), or a kind-22 chain whose innermost
+ *   expr is a FLOAT_LIT and which contains no kind 23. 0 means
  *   decline this if before any branch is emitted.
  * A unary of a VAR, a FIELD, an INDEX, a CALL, a METHOD, a lane
  * binop (kinds 4..13), an ARRAY_LIT, a block that still has lets,
@@ -1842,6 +1842,9 @@ export function glue_emit_vector_type_let_init_elf_c(
  * A FLOAT_LIT is that let-init's existing f32 narrow-and-splat.
  * A kind-22 chain of a FLOAT_LIT is that same splat: an odd count
  * applies the sign once. A kind 23 in that chain stays declined.
+ * A BOOL_LIT is that let-init's existing integer 0-or-1 splat.
+ * An f32 lane keeps those integer bits. A unary of a bool stays
+ * declined: that let-init does not splat it.
  * A bare FIELD is copied like a VAR: lane 0 from
  * glue_vector_var_lane_stack_off_elf_c is the start of the vector.
  * A CALL, a METHOD, an INDEX, or a bare DEREF is that let-init's
@@ -1906,6 +1909,14 @@ export function glue_vec_if_arm_take_c(
     if (is_null != 0) {
       return 0;
     }
+    return cur;
+  }
+  // A BOOL_LIT is not an INT_LIT. true is 1 and false is 0. The fill
+  // passes it to the existing vector let-init, which splats those
+  // integer bits on every lane. An f32 lane keeps the integer bits.
+  // A unary of a bool stays on the walk below and is declined.
+  // PLATFORM: MACOS|ARM64.
+  if (ko == 2) {
     return cur;
   }
   // A VAR or a FIELD already lives in one frame slot. Lane 0 of that
