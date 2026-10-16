@@ -9,9 +9,9 @@
 // an expr statement, or one unsafe region is walked here with the
 // existing block getters. Every unsafe region in that block is the
 // same block walk, including when a let shares the block. A
-// dereference (kind 52) uses the same unary operand slot as kinds 22,
-// 23, 24, and 41. Kind 51 is an address and is not entered. A call is
-// not this function. Do not add a second walker.
+// dereference (kind 52) and an address (kind 51) use the same unary
+// operand slot as kinds 22, 23, 24, and 41. A call is not this
+// function. Do not add a second walker.
 // PLATFORM: SHARED.
 
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
@@ -159,9 +159,8 @@ function glue_has_nonlocal_block_c(arena: *u8, ctx: *u8, br: i32, expr_ref: i32)
  * region (stmt kind 6) is that same block walk, including when a let
  * shares the block. A match (kind 43) walks the scrutinee, each arm
  * result, and each arm guard before the AS getter. A dereference
- * (kind 52) walks
- * its operand through the existing unary getter. Kind 51 is an address
- * and is not entered. Nested nodes are this same function. A call is
+ * (kind 52) and an address (kind 51) walk that operand through the
+ * existing unary getter. Nested nodes are this same function. A call is
  * claimed by glue_expr_tree_has_call_index_c and is not a hit here.
  * PLATFORM: SHARED.
  */
@@ -213,8 +212,8 @@ export function glue_expr_tree_has_nonlocal_var_c(arena: *u8, ctx: *u8, expr_ref
       return glue_expr_tree_has_nonlocal_var_c(arena, ctx, right_ref);
     }
   }
-  // Unary, bitwise not, logical not, a return operand, or a dereference.
-  // Kind 52 shares the unary operand slot. Kind 51 is not entered.
+  // Unary, bitwise not, logical not, a return operand, a dereference,
+  // or an address. Kinds 51 and 52 share the unary operand slot.
   step = 0;
   if (ko == 22) {
     step = 1;
@@ -226,6 +225,9 @@ export function glue_expr_tree_has_nonlocal_var_c(arena: *u8, ctx: *u8, expr_ref
     step = 1;
   }
   if (ko == 41) {
+    step = 1;
+  }
+  if (ko == 51) {
     step = 1;
   }
   if (ko == 52) {

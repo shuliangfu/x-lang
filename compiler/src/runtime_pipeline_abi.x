@@ -53503,8 +53503,8 @@ export extern function glue_expr_tree_has_call_index_c(arena: *u8, expr_ref: i32
  * copy is an extern so a rebuild does not grow a second body.
  * pabi_weak still contains the old strong definition; the thin object
  * is linked first and wins. The walk now enters an if, a ternary, a
- * block, a match, and a dereference. An unsafe region is walked
- * even when the block still has lets. A call is claimed by
+ * block, a match, a dereference, and an address. An unsafe region
+ * is walked even when the block still has lets. A call is claimed by
  * glue_expr_tree_has_call_index_c.
  * @param arena *u8 - ASTArena*; null returns 0
  * @param ctx *u8 - AsmFuncCtx; null returns 0
