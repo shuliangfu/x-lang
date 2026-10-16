@@ -1,14 +1,13 @@
 // Thin overlay of pipeline_asm_emit_addr_of_elf_c.
 // The frozen pabi body handles VAR, INDEX, FIELD, DEREF, and ARRAY_LIT.
-// A CALL or METHOD operand fell through to -99, which is CG002
-// (Darwin `&pick()` where pick returns i32). This overlay is that same
-// body, plus a frame slot for a register-sized call result: emit the
-// call, store x0 into the slot, then lea the slot into x0. The slot
-// comes from the existing next_offset allocator, so it stays live for
-// the function. Float results stay in the SIMD register and still
-// return -99. A result wider than 8 bytes still returns -99.
+// A CALL or METHOD operand is not spilled here. The lvalue emitter
+// already stores a 1..8 byte integer, a 9..16 byte named struct, a
+// wider named-struct address left in x0 by the x8 wrapper, and an f32
+// word harvested from s0. This overlay forwards that operand.
+// f64 and SIMD names stay the lvalue failure. A second spill here
+// would be a second authority for the same address.
 // Linked before pabi_weak. That copy of this symbol is weakened.
-// PLATFORM: MACOS|DARWIN link. The spill runs only for ta == 1.
+// PLATFORM: MACOS|DARWIN link. The forward runs only for ta == 1.
 // x86_64 keeps the old -99 for a call operand.
 
 export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
@@ -32,34 +31,27 @@ export extern function pipeline_asm_emit_lvalue_eff_addr_elf_c(
 export extern function pipeline_asm_emit_array_lit_elf_c(
   arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
 ): i32;
-export extern function pipeline_asm_emit_expr_elf_c(
-  arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
-): i32;
-export extern function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
-export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
-export extern function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): i32;
-export extern function glue_simd_alloc_vector_temp_slot_c(arena: *u8, ctx: *u8, type_ref: i32): i32;
-export extern function backend_enc_store_rax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
 
 /**
  * Emit ADDR_OF into x0.
  * VAR is the local slot or the module-let cell. INDEX is the scaled
  * element address. FIELD and DEREF use the lvalue address. ARRAY_LIT
  * dest-stamps into a temp and leaves that address in x0.
- * CALL (48) and METHOD (49) on arm64: when the result is an integer
- * or pointer of 1 to 8 bytes, it is stored into a frame slot allocated
- * from next_offset and x0 becomes that slot. emit_expr left the bits
- * in x0, and there was no address to take (Darwin `&pick()` CG002).
- * f32 and f64 stay -99. Wider than 8 bytes stays -99.
+ * CALL (48) and METHOD (49) on arm64 forward the operand to
+ * pipeline_asm_emit_lvalue_eff_addr_elf_c. That function stores a
+ * 1..8 byte integer, a 9..16 byte named struct, a wider named-struct
+ * address, or an f32 word from s0, and leaves the address in x0.
+ * f64 and SIMD names stay that function's failure. ta != 1 keeps -99.
  * @param arena *u8 - AST arena; null is not expected
  * @param elf_ctx *u8 - encoder context
  * @param expr_ref i32 - ADDR_OF expression
  * @param ctx *u8 - asm function context; null is not expected
  * @param ta i32 - 0 x86_64, 1 arm64
- * @return i32 - 0 when x0 holds the address; -1 on encode failure;
- *   -99 when the operand kind is still unhandled
+ * @return i32 - 0 when x0 holds the address; the lvalue status for a
+ *   call operand on arm64; -1 on encode failure; -99 when the operand
+ *   kind is still unhandled, including a call when ta != 1
  * PLATFORM: SHARED body for the kinds the pabi already handled.
- * The call-result slot is ta == 1 only. Darwin ARM64 measured `&pick()`.
+ * The call forward is ta == 1 only. Darwin ARM64 measured `&pick()`.
  */
 #[no_mangle]
 export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -73,10 +65,6 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
   let base_ref: i32 = 0;
   let idx_ref: i32 = 0;
   let esz: i32 = 0;
-  let tr: i32 = 0;
-  let trk: i32 = 0;
-  let sz: i32 = 0;
-  let slot: i32 = 0;
   let call_op: i32 = 0;
   unsafe {
     op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
@@ -165,10 +153,12 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
     }
     return rc;
   }
-  // CALL = 48, METHOD = 49. Materialize a 1..8 byte integer or pointer
-  // result into a frame slot, then take that address. f32 (14) and f64
-  // (15) are not in x0. Wider results stay unhandled.
-  // PLATFORM: MACOS|ARM64. ta != 1 keeps -99.
+  // CALL = 48, METHOD = 49. One forward to the lvalue emitter.
+  // That function owns the integer spill, the pair store, the wide
+  // x8 address, and the f32 word from s0. Copying any of those here
+  // would split the authority. Pass the call, not this ADDR_OF.
+  // f64 stays the lvalue failure. PLATFORM: MACOS|ARM64.
+  // ta != 1 keeps -99.
   if (ok == 48) {
     call_op = 1;
   }
@@ -178,47 +168,9 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
   if (call_op != 0) {
     if (ta == 1) {
       unsafe {
-        tr = pipeline_expr_resolved_type_ref(arena, op);
+        rc = pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, op, ctx, ta);
       }
-      if (tr > 0) {
-        unsafe {
-          trk = pipeline_type_kind_ord_at(arena, tr);
-          gmod = pipeline_asm_emit_module_ref_c();
-          sz = glue_type_size_simple(gmod, arena, tr, 0);
-        }
-      }
-      if (trk == 14) {
-        sz = 0;
-      }
-      if (trk == 15) {
-        sz = 0;
-      }
-      if (sz > 0) {
-        if (sz <= 8) {
-          unsafe {
-            slot = glue_simd_alloc_vector_temp_slot_c(arena, ctx, tr);
-          }
-          if (slot < 0) {
-            return 0 - 1;
-          }
-          unsafe {
-            rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta);
-          }
-          if (rc != 0) {
-            return 0 - 1;
-          }
-          unsafe {
-            rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, slot, ta);
-          }
-          if (rc != 0) {
-            return 0 - 1;
-          }
-          unsafe {
-            rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, slot, ta);
-          }
-          return rc;
-        }
-      }
+      return rc;
     }
     return 0 - 99;
   }
