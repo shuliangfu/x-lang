@@ -1141,6 +1141,9 @@ function vlet_emit_lane_log(
  * not through the pointer. A decline returns -1 so the block is not
  * emitted again.
  * 128 stops only a chain that does not end.
+ * A match (kind 43) is the existing struct let-init dest-in-rbx
+ * match. Kind 43 is not sent to the if let-init. A decline other
+ * than -1 still returns -3, and that path has not stored.
  * PLATFORM: MACOS|ARM64.
  */
 #[no_mangle]
@@ -1324,6 +1327,25 @@ export function glue_emit_vector_type_let_init_elf_c(
         arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, type_ref);
     }
     return rc;
+  }
+  // EXPR_MATCH = 43. The value form already stores each arm through
+  // struct let-init. That copy is the full spelling, including a
+  // vector wider than 16 bytes. Returning -3 here made an address
+  // of the match fail before that store. A code other than 0 or -1
+  // has not committed a store, so the caller still falls through.
+  // Do not send kind 43 into the if let-init. PLATFORM: MACOS|ARM64.
+  if (ko == 43) {
+    unsafe {
+      rc = glue_emit_struct_type_let_init_elf_c(
+        arena, elf_ctx, init_ref, ctx, ta, type_ref, stack_slot_off);
+    }
+    if (rc == 0) {
+      return 0;
+    }
+    if (rc == (0 - 1)) {
+      return 0 - 1;
+    }
+    return 0 - 3;
   }
   // EXPR_ARRAY_LIT = 46. Store the lane bytes, not the buffer address.
   // f32x8 used to store each lane as a 4-byte scalar. `1` stayed the
