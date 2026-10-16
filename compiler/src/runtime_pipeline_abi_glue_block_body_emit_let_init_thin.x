@@ -79,7 +79,7 @@ let g_w2060_emit_let_vn: u8[256] = [];
  * pointer as *i32x4 or *f32x4 or *Vec8i. This emitter writes the declared
  * pointer onto that ADDR_OF before emit, so the addr peel can
  * see the SIMD pointee. Kind 25 stamps when the pointee is
- * Vec8i or the named spelling i32x8. f32x4 and u32x8 stay on
+ * Vec8i, named i32x8, or named u32x8. f32x4 and f32x8 stay on
  * their own types. The splat store
  * stays in the addr emitter.
  * PLATFORM: SHARED freestanding emit. Darwin ARM64 measured.
@@ -425,11 +425,11 @@ export function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_re
             // Kind 25 is an if-expr. Both array-literal arms leave
             // the ADDR_OF pointee as a non-SIMD type, so the peel
             // never sees the declared vector. The declared pointer
-            // is that type. Stamp it for Vec8i or named i32x8:
-            // kind 8 whose name is Vec8i or i32x8, or kind 13 with
-            // 8 lanes of 4-byte i32. f32x4 and u32x8 stay
-            // unstamped. The addr emitter stores the if with the
-            // existing wide let-init. The value form of i32x8
+            // is that type. Stamp it for Vec8i, named i32x8, or
+            // named u32x8: kind 8 whose name is one of those, or
+            // kind 13 with 8 lanes of 4-byte i32. f32x4 and f32x8
+            // stay unstamped. The addr emitter stores the if with
+            // the existing wide let-init. The value form of u32x8
             // already returns the lane checks.
             // PLATFORM: MACOS|ARM64. The type rule is SHARED.
             if (addr_ok == 25) {
@@ -456,12 +456,25 @@ export function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_re
                               }
                             }
                           }
-                          // ASCII i 3 2 x 8. Same 8 lanes of i32 as
-                          // Vec8i, named kind 8. f32x4 is f 3 2 x 4
-                          // and u32x8 is u 3 2 x 8. Both stay declined.
+                          // ASCII i 3 2 x 8, then u 3 2 x 8. Named
+                          // kind 8. f32x8 is f 3 2 x 8 and f32x4 is
+                          // f 3 2 x 4. Both stay declined.
                           // PLATFORM: MACOS|ARM64.
                           if (bt == 0) {
                             if (vn[0] == 105) {
+                              if (vn[1] == 51) {
+                                if (vn[2] == 50) {
+                                  if (vn[3] == 120) {
+                                    if (vn[4] == 56) {
+                                      bt = 1;
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                          if (bt == 0) {
+                            if (vn[0] == 117) {
                               if (vn[1] == 51) {
                                 if (vn[2] == 50) {
                                   if (vn[3] == 120) {
