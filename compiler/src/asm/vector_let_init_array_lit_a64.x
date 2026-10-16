@@ -788,7 +788,9 @@ function vlet_f32_array_lanes(
  * Leave one lane of a compare or a logical binop in x0 as 0 or 1.
  * Kinds 14..19 call vlet_lane_cmp_one. Kind 20 combines the two
  * child lanes with and x0, x0, x1. Kind 21 combines them with
- * orr x0, x0, x1. A child is this same function. Depth above 32
+ * orr x0, x0, x1. Kind 24 evaluates its unary operand with this
+ * same function, then eor x0, x0, x1 with 1 in x1, so 0 and 1
+ * swap. A child is this same function. Depth above 32
  * returns -3 before any encode. Any other kind returns -3.
  * This function does not store and does not allocate a temp.
  * @param arena *u8 - AST arena; null returns -3
@@ -834,6 +836,32 @@ function vlet_lane_log_one(
   if (vlet_lane_cmp_ko(ko) != 0) {
     return vlet_lane_cmp_one(
       arena, elf_ctx, expr_ref, lane, esz, ctx, ta, lane_f32);
+  }
+  if (ko == 24) {
+    unsafe {
+      left_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+    }
+    if (left_ref <= 0) {
+      return 0 - 1;
+    }
+    rc = vlet_lane_log_one(
+      arena, elf_ctx, left_ref, lane, esz, ctx, ta, lane_f32, depth + 1);
+    if (rc != 0) {
+      return rc;
+    }
+    unsafe {
+      rc = backend_enc_mov_imm32_to_rbx_arch(elf_ctx, 1, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_xor_rbx_rax_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    return 0;
   }
   if (ko == 20) {
     is_log = 1;
@@ -901,11 +929,12 @@ function vlet_lane_log_one(
 }
 
 /**
- * Store each lane of a logical and (kind 20) or a logical or (kind 21).
- * The 0 or 1 in x0 is vlet_lane_log_one. This loop only stores that
- * word at lane times esz. A lane size other than 4, and ta other than
- * 1, return -3 before any store. A child that is not a compare and
- * not kind 20 or 21 returns -3. No second vector temp is allocated.
+ * Store each lane of a logical and (kind 20), a logical or (kind 21),
+ * or a logical not (kind 24). The 0 or 1 in x0 is vlet_lane_log_one.
+ * This loop only stores that word at lane times esz. A lane size
+ * other than 4, and ta other than 1, return -3 before any store.
+ * A child that is not a compare, not kind 20, not kind 21, and not
+ * kind 24 returns -3. No second vector temp is allocated.
  * @param arena *u8 - AST arena; null returns -3
  * @param elf_ctx *u8 - emit context; null returns -3
  * @param init_ref i32 - logical expr; not positive returns -3
@@ -1001,7 +1030,8 @@ function vlet_emit_lane_log(
  * Kinds 4..13 call pipeline_asm_emit_vector_binop_let_init_elf_c
  * (kind 51 is add). Kinds 20 and 21 call vlet_emit_lane_log.
  * Each lane is 0 or 1 from vlet_lane_cmp_one, combined with and
- * or with orr. Kind 24 stays on the decline. Kind 0 (INT_LIT)
+ * or with orr. Kind 24 calls that same emitter and inverts each
+ * lane. Kind 0 (INT_LIT)
  * and kind 2 (BOOL_LIT) call
  * glue_simd_emit_imm_fill_slot_c. On an f32 fill target the kind 0
  * value is converted with glue_i32_to_f32_bits first. Kind 23 in that
@@ -1329,16 +1359,21 @@ export function glue_emit_vector_type_let_init_elf_c(
     }
     return rc;
   }
-  // Kind 20 is logical and. Kind 21 is logical or. Each lane stores
-  // 0 or 1 from vlet_lane_cmp_one, combined with and or with orr.
-  // The f32 literal gate matches the compare arm. A child that is
-  // not a compare and not kind 20 or 21 returns -3. No second temp.
+  // Kind 20 is logical and. Kind 21 is logical or. Kind 24 is
+  // logical not. Each lane stores 0 or 1 from vlet_lane_cmp_one.
+  // Kind 20 and kind 21 combine with and or with orr. Kind 24
+  // inverts that bit. The f32 literal gate matches the compare
+  // arm. A child that is not a compare, not kind 20, not kind 21,
+  // and not kind 24 returns -3. No second temp.
   // PLATFORM: MACOS|ARM64.
   log_k = 0;
   if (ko == 20) {
     log_k = 1;
   }
   if (ko == 21) {
+    log_k = 1;
+  }
+  if (ko == 24) {
     log_k = 1;
   }
   if (log_k != 0) {
