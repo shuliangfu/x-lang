@@ -104,12 +104,14 @@ export extern function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf_c
  * Store one struct or vector initializer into a frame slot, or
  * through the dest pointer when stack_slot_off is -3.
  * A match arm that is a lane binop (kinds 4 through 13) is not a
- * local. Unary minus (kind 22) is not a local either. The existing
- * vector let-init writes that value into one slot from
- * asm_local_slot_reg_offset. The existing VAR copy then moves that
- * slot through the dest pointer. Kind 51 is not a binop here.
- * Kind 23 stays on the old decline. A decline before that store
- * returns -2. An encoder or let-init failure returns -1.
+ * local. Unary minus (kind 22) and bitwise not (kind 23) are not
+ * locals either. The existing vector let-init writes each value
+ * into one slot from asm_local_slot_reg_offset. Kind 23 applies
+ * mvn on each i32 lane. An f32 lane with kind 23 still declines
+ * inside that writer. The existing VAR copy then moves that slot
+ * through the dest pointer. Kind 51 is not a binop here.
+ * A decline before that store returns -2. An encoder or let-init
+ * failure returns -1.
  * @param arena *u8 - AST arena. Null returns -2.
  * @param elf_ctx *u8 - code buffer. Null returns -2.
  * @param init_ref i32 - initializer expr. Values <= 0 return -2.
@@ -647,10 +649,13 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   // the predicate remaps an address to add. Kind 22 is unary minus.
   // The existing vector let-init already negates each lane into one
   // frame slot, including a VAR, a field, and a lane binop under the
-  // minus. Kind 23 is not this gate. Park the dest pointer first,
-  // because that writer loads the slot into rbx. Restore the pointer,
-  // then the VAR copy below moves the slot. The slot size comes from
-  // asm_local_slot_reg_offset. A frame dest is not this path.
+  // minus. Kind 23 is bitwise not. That writer applies mvn to each
+  // i32 lane, including a VAR, a field, and a lane binop under the
+  // not. An f32 lane with kind 23 still declines in that writer.
+  // Park the dest pointer first, because that writer loads the slot
+  // into rbx. Restore the pointer, then the VAR copy below moves
+  // the slot. The slot size comes from asm_local_slot_reg_offset.
+  // A frame dest is not this path.
   // PLATFORM: MACOS|ARM64. The copy is SHARED.
   lane_binop = 0;
   if (dest_in_rbx != 0) {
@@ -667,6 +672,16 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   }
   if (dest_in_rbx != 0) {
     if (ko == 22) {
+      if (ta == 0) {
+        lane_binop = 1;
+      }
+      if (ta == 1) {
+        lane_binop = 1;
+      }
+    }
+  }
+  if (dest_in_rbx != 0) {
+    if (ko == 23) {
       if (ta == 0) {
         lane_binop = 1;
       }
