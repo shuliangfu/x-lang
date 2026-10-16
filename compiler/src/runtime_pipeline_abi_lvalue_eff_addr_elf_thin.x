@@ -5,10 +5,11 @@
 // stores s.field through the old field value (Set_i32.keys SEGV at 0).
 // VAR(3): stack_off → glue_enc_local_slot_ptr_or_addr_elf_c (LEA/LDR).
 // CALL(48) / METHOD(49): a field base such as `&pick().v` recurses here.
-// The result is in x0, same as `let s = pick()`. Spill that register
-// into a frame slot and leave the slot address in x0. The FIELD arm
-// adds the field offset. Float results and results wider than 8 bytes
-// stay unhandled. The spill runs only for ta == 1.
+// The result is in x0, same as `let s = pick()`. A 9..16 byte named
+// struct also returns the high half in x1. Spill those registers into
+// a frame slot and leave the slot address in x0. The FIELD arm adds
+// the field offset. Float results, SIMD names, and results wider than
+// 16 bytes stay unhandled. The spill runs only for ta == 1.
 // PLATFORM: SHARED freestanding · MACOS tip cold · LINUX gold.
 // The call spill is MACOS|ARM64.
 
@@ -36,13 +37,17 @@ export extern function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth:
 export extern function glue_simd_alloc_vector_temp_slot_c(arena: *u8, ctx: *u8, type_ref: i32): i32;
 export extern function backend_enc_store_rax_to_rbp_arch(elf_ctx: *u8, slot: i32, ta: i32): i32;
 export extern function backend_enc_lea_rbp_to_rax_arch(elf_ctx: *u8, slot: i32, ta: i32): i32;
+export extern function glue_store_retval_pair_to_rbp_elf_c(
+  m: *u8, arena: *u8, elf_ctx: *u8, ty_ref: i32, slot_off: i32, ta: i32, init_ref: i32, ctx: *u8): i32;
+export extern function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i32): i32;
 
 /**
  * ELF lvalue effective address in x0.
  * FIELD recurses into the base, then adds the field offset.
  * A CALL or METHOD base spills a 1..8 byte non-float result into a
- * frame slot and returns that slot. Float results and results wider
- * than 8 bytes return -1. x86_64 does not spill a call.
+ * frame slot and returns that slot. A 9..16 byte named struct also
+ * stores the x1 half. Float results, SIMD names, and results wider
+ * than 16 bytes return -1. x86_64 does not spill a call.
  * @param arena *u8 - AST arena; null returns -1
  * @param elf_ctx *u8 - codegen context; null returns -1
  * @param expr_ref i32 - lvalue expr; <=0 returns -1
@@ -167,9 +172,10 @@ export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8
         arena, elf_ctx, expr_ref, ib, ii, ctx, ta, esz);
     }
     // CALL = 48, METHOD = 49. `pick().v` is FIELD whose base is the
-    // call. The result bits are in x0. A frame slot keeps them alive
-    // for the field offset add. f32 (14) and f64 (15) are not in x0.
-    // PLATFORM: MACOS|ARM64. ta != 1 returns -1.
+    // call. A 1..8 byte result is in x0. A 9..16 byte named struct is
+    // in x0 and x1, same as `let s = pick()`. The pair store is the
+    // existing retval helper. SIMD names stay out. f32 (14) and f64
+    // (15) are not in x0. PLATFORM: MACOS|ARM64. ta != 1 returns -1.
     let call_op: i32 = 0;
     if (k == 48) {
       call_op = 1;
@@ -211,6 +217,29 @@ export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8
               return 0 - 1;
             }
             return backend_enc_lea_rbp_to_rax_arch(elf_ctx, slot, ta);
+          }
+        }
+        // Named struct, 9..16 bytes. Not a SIMD spelling. The high
+        // half is x1 at slot + 8. Wider than 16 stays -1.
+        if (sz > 8) {
+          if (sz <= 16) {
+            if (trk == 8) {
+              let simd: i32 = asm_type_is_simd_vector_spelling(arena, tr);
+              if (simd == 0) {
+                slot = glue_simd_alloc_vector_temp_slot_c(arena, ctx, tr);
+                if (slot < 0) {
+                  return 0 - 1;
+                }
+                if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, expr_ref, ctx, ta) != 0) {
+                  return 0 - 1;
+                }
+                if (glue_store_retval_pair_to_rbp_elf_c(
+                    gmod, arena, elf_ctx, tr, slot, ta, expr_ref, ctx) != 0) {
+                  return 0 - 1;
+                }
+                return backend_enc_lea_rbp_to_rax_arch(elf_ctx, slot, ta);
+              }
+            }
           }
         }
       }
