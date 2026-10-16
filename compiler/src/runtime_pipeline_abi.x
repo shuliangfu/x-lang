@@ -53388,6 +53388,7 @@ function glue_block_let_defer_max(): i32 {
  * pabi_weak still contains the old strong definition; the thin object
  * is linked first and wins. The walk now enters an if, a ternary, a
  * block that still has lets, a match, and a dereference.
+ * An unsafe region is walked even when the block still has lets.
  * @param arena *u8 - ASTArena*
  * @param ctx *u8 - AsmFuncCtx*
  * @param expr_ref i32 - expr pool ref

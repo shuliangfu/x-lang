@@ -6,9 +6,10 @@
 // a match was invisible, so `let n = match c { 1 => 4; _ => 9; }`
 // stayed in pass 0 and read c before `c = 1`. This is the one walk.
 // A transparent block is peeled by the existing helper. A block that
-// still has lets is then walked with the existing block getters. A
-// dereference uses the same unary operand getter. Do not add a
-// second walker.
+// still has lets is then walked with the existing block getters.
+// Every unsafe region in that block is the same block walk, including
+// when a let shares the block. A dereference uses the same unary
+// operand getter. Do not add a second walker.
 // PLATFORM: SHARED.
 
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
@@ -45,6 +46,108 @@ export extern function ast_ast_block_stmt_order_idx(arena: *u8, block_ref: i32, 
 export extern function pipeline_block_region_body_ref(arena: *u8, block_ref: i32, ri: i32): i32;
 
 /**
+ * Record stack slots read inside one block, for the pass-1 defer mask.
+ * @param arena *u8 - AST arena; null returns without writing
+ * @param ctx *u8 - AsmFuncCtx; null returns without writing
+ * @param br i32 - block pool ref; not positive returns
+ * @param expr_ref i32 - expr that owns this walk; a child equal to it is skipped
+ * @param gen *u8 - GlueBlockLiveFwd overlay (u8[136]); null returns
+ * @param peeled i32 - value already recorded by the transparent peel; skipped
+ * Every unsafe region (stmt kind 6) uses the existing region getter.
+ * A region body is this same function, with no peel to skip. A let
+ * init, the final expr, and an expr statement are
+ * glue_live_fwd_collect_expr_uses_for_defer. The same block ref is
+ * not entered again. A repeated slot is one entry.
+ * PLATFORM: SHARED.
+ */
+function glue_live_fwd_collect_block_for_defer(
+  arena: *u8, ctx: *u8, br: i32, expr_ref: i32, gen: *u8, peeled: i32
+): void {
+  let i: i32 = 0;
+  let n: i32 = 0;
+  let nso: i32 = 0;
+  let sk: i32 = 0;
+  let idx: i32 = 0;
+  let inner: i32 = 0;
+  let child: i32 = 0;
+  if (arena == (0 as *u8)) {
+    return;
+  }
+  if (ctx == (0 as *u8)) {
+    return;
+  }
+  if (gen == (0 as *u8)) {
+    return;
+  }
+  if (br <= 0) {
+    return;
+  }
+  unsafe {
+    nso = ast_ast_block_num_stmt_order(arena, br);
+  }
+  i = 0;
+  while (i < nso) {
+    unsafe {
+      sk = ast_ast_block_stmt_order_kind(arena, br, i);
+      idx = ast_ast_block_stmt_order_idx(arena, br, i);
+    }
+    if (sk == 6) {
+      if (idx >= 0) {
+        unsafe {
+          inner = pipeline_block_region_body_ref(arena, br, idx);
+        }
+        if (inner > 0) {
+          if (inner != br) {
+            glue_live_fwd_collect_block_for_defer(arena, ctx, inner, expr_ref, gen, 0);
+          }
+        }
+      }
+    }
+    i = i + 1;
+  }
+  unsafe {
+    n = ast_ast_block_num_lets(arena, br);
+  }
+  i = 0;
+  while (i < n) {
+    unsafe {
+      child = ast_pipeline_block_let_init_ref(arena, br, i);
+    }
+    if (child > 0) {
+      if (child != expr_ref) {
+        glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, child, gen);
+      }
+    }
+    i = i + 1;
+  }
+  unsafe {
+    child = ast_ast_block_final_expr_ref(arena, br);
+  }
+  if (child > 0) {
+    if (child != expr_ref) {
+      if (child != peeled) {
+        glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, child, gen);
+      }
+    }
+  }
+  unsafe {
+    n = ast_ast_block_num_expr_stmts(arena, br);
+  }
+  i = 0;
+  while (i < n) {
+    unsafe {
+      child = ast_pipeline_block_expr_stmt_ref(arena, br, i);
+    }
+    if (child > 0) {
+      if (child != expr_ref) {
+        glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, child, gen);
+      }
+    }
+    i = i + 1;
+  }
+}
+
+/**
  * Record stack slots read by one expr, for the pass-1 defer mask.
  * @param arena *u8 - AST arena; null returns without writing
  * @param ctx *u8 - AsmFuncCtx; null returns without writing
@@ -57,8 +160,9 @@ export extern function pipeline_block_region_body_ref(arena: *u8, block_ref: i32
  * then arm, and the else arm. A transparent block (kind 26) walks
  * the value the existing peel returns. A block that still has lets
  * is not peeled; this walk then records let inits, the final expr,
- * and expr statements with the existing block getters. One unsafe
- * region is that inner block. A match (kind 43) walks
+ * and expr statements with the existing block getters. Every unsafe
+ * region (stmt kind 6) is that same block walk, including when a let
+ * shares the block. A match (kind 43) walks
  * the scrutinee, each arm result, and each arm guard before the AS
  * getter. A dereference (kind 52) walks its operand through the same
  * unary getter. Nested nodes are this same function. Kind 51 is not
@@ -80,10 +184,6 @@ export function glue_live_fwd_collect_expr_uses_for_defer(
   let arm: i32 = 0;
   let peeled: i32 = 0;
   let br: i32 = 0;
-  let nso: i32 = 0;
-  let sk: i32 = 0;
-  let idx: i32 = 0;
-  let inner: i32 = 0;
   if (arena == (0 as *u8)) {
     return;
   }
@@ -177,12 +277,9 @@ export function glue_live_fwd_collect_expr_uses_for_defer(
   }
   // BLOCK = 26. The existing peel sees a transparent block and
   // returns 0 when the block still has lets or loops. This walk does
-  // not replace that peel. Let inits, the final expr, and expr
-  // statements are uses, so a block the peel skips is still visible.
-  // One unsafe region (stmt kind 6) is the inner block from the
-  // existing region getter. The same ref is not walked again.
-  // A repeated slot is one entry: glue_live_fwd_add_u8 dedups.
-  // PLATFORM: SHARED.
+  // not replace that peel. Every unsafe region is the same block walk,
+  // including when a let shares the block. A repeated slot is one
+  // entry: glue_live_fwd_add_u8 dedups. PLATFORM: SHARED.
   if (ko == 26) {
     unsafe {
       peeled = glue_expr_block_transparent_value_ref_at(arena, expr_ref);
@@ -195,68 +292,7 @@ export function glue_live_fwd_collect_expr_uses_for_defer(
     unsafe {
       br = pipeline_expr_block_ref_at(arena, expr_ref);
     }
-    if (br <= 0) {
-      return;
-    }
-    unsafe {
-      nso = ast_ast_block_num_stmt_order(arena, br);
-    }
-    if (nso == 1) {
-      unsafe {
-        sk = ast_ast_block_stmt_order_kind(arena, br, 0);
-        idx = ast_ast_block_stmt_order_idx(arena, br, 0);
-      }
-      if (sk == 6) {
-        if (idx >= 0) {
-          unsafe {
-            inner = pipeline_block_region_body_ref(arena, br, idx);
-          }
-          if (inner > 0) {
-            br = inner;
-          }
-        }
-      }
-    }
-    unsafe {
-      n = ast_ast_block_num_lets(arena, br);
-    }
-    i = 0;
-    while (i < n) {
-      unsafe {
-        left_ref = ast_pipeline_block_let_init_ref(arena, br, i);
-      }
-      if (left_ref > 0) {
-        if (left_ref != expr_ref) {
-          glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, left_ref, gen);
-        }
-      }
-      i = i + 1;
-    }
-    unsafe {
-      left_ref = ast_ast_block_final_expr_ref(arena, br);
-    }
-    if (left_ref > 0) {
-      if (left_ref != expr_ref) {
-        if (left_ref != peeled) {
-          glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, left_ref, gen);
-        }
-      }
-    }
-    unsafe {
-      n = ast_ast_block_num_expr_stmts(arena, br);
-    }
-    i = 0;
-    while (i < n) {
-      unsafe {
-        left_ref = ast_pipeline_block_expr_stmt_ref(arena, br, i);
-      }
-      if (left_ref > 0) {
-        if (left_ref != expr_ref) {
-          glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, left_ref, gen);
-        }
-      }
-      i = i + 1;
-    }
+    glue_live_fwd_collect_block_for_defer(arena, ctx, br, expr_ref, gen, peeled);
     return;
   }
   // MATCH = 43. Checked before the AS getter so a stale AS slot
