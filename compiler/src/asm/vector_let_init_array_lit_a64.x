@@ -707,20 +707,24 @@ function vlet_f32_store_lane(
 }
 
 /**
- * Store eight f32 lanes of an f32x8 ARRAY_LIT.
- * @param arena *u8 — AST arena
- * @param elf_ctx *u8 — object writer
- * @param init_ref i32 — kind 46 expr
- * @param ctx *u8 — AsmFuncCtx; unused, the lane fill does not need it
- * @param ta i32 — a value other than 1 returns 1
- * @param stack_slot_off i32 — lane 0 slot
- * @param type_ref i32 — let type
- * @return i32 — 0 when all eight lanes are stored, -1 on an encoder
+ * Store f32 lanes of an all-literal ARRAY_LIT.
+ * @param arena *u8 - AST arena
+ * @param elf_ctx *u8 - object writer
+ * @param init_ref i32 - kind 46 expr
+ * @param ctx *u8 - AsmFuncCtx; unused, the lane fill does not need it
+ * @param ta i32 - a value other than 1 returns 1
+ * @param stack_slot_off i32 - lane 0 slot
+ * @param type_ref i32 - let type
+ * @return i32 - 0 when every lane is stored, -1 on an encoder
  *   failure after the lane list was accepted, 1 when the typeless
  *   lane store should run
- * f32x4 and Vec4f are four lanes. Their existing store already writes
- * f32 bits, so a lane count other than 8 returns 1. A non-literal lane
- * returns 1 before any byte is emitted. PLATFORM: MACOS|ARM64.
+ * Lane size must be 4. Lane count must be 4, 8, or 16: f32x4,
+ * Vec4f, f32x8, f32x16. The element count must equal that lane
+ * count. An unstamped lit under address-of keeps integer bits in
+ * the typeless store, so those counts are stored here from the
+ * destination type. A non-literal lane returns 1 before any byte
+ * is emitted. An integer spelling returns 1 from vlet_f32_fill_lane.
+ * PLATFORM: MACOS|ARM64.
  */
 function vlet_f32_array_lanes(
   arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32,
@@ -754,13 +758,23 @@ function vlet_f32_array_lanes(
   }
   lanes = lanes_s[0];
   lesz = esz_s[0];
-  if (lesz != 4 || lanes != 8) {
+  if (lesz != 4) {
     return 1;
+  }
+  // Four, eight, and sixteen lanes only. f32x8 already stored here.
+  // f32x4, Vec4f, and f32x16 used to fall through. Any other count
+  // still returns 1 before a store. PLATFORM: MACOS|ARM64.
+  if (lanes != 4) {
+    if (lanes != 8) {
+      if (lanes != 16) {
+        return 1;
+      }
+    }
   }
   unsafe {
     n = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
   }
-  if (n != 8) {
+  if (n != lanes) {
     return 1;
   }
   ai = 0;
@@ -1350,8 +1364,9 @@ export function glue_emit_vector_type_let_init_elf_c(
   // EXPR_ARRAY_LIT = 46. Store the lane bytes, not the buffer address.
   // f32x8 used to store each lane as a 4-byte scalar. `1` stayed the
   // integer 1. `-1.0` was the low half of the f64 bits, so lane 1 read
-  // as 0. Eight f32 lanes are stored here. Any other vector, including
-  // f32x4 and Vec4f, keeps the typeless lane store. PLATFORM: MACOS|ARM64.
+  // as 0. Four, eight, and sixteen f32 lanes are stored here from the
+  // destination type. An integer spelling keeps the typeless lane
+  // store. PLATFORM: MACOS|ARM64.
   if (ko == 46) {
     rc = vlet_f32_array_lanes(
       arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, type_ref);

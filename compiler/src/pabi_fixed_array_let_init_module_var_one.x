@@ -30,6 +30,11 @@ export extern function glue_emit_bulk_mem_copy_spills_elf_c(
 export extern function glue_copy_large_struct_from_rax_ptr_elf_c(
   elf_ctx: *u8, slot_off: i32, sz: i32, ta: i32
 ): i32;
+export extern function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i32): i32;
+export extern function glue_emit_struct_type_let_init_elf_c(
+  arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32,
+  let_ty_ref: i32, stack_slot_off: i32
+): i32;
 
 /**
  * Read the little-endian i32 at byte offset off.
@@ -247,10 +252,14 @@ function fa_modvar_copy_local(
  * @param init_ref i32 — initializer expr; <= 0 returns -2
  * @param ctx *u8 — AsmFuncCtx; null returns -2
  * @param ta i32 — target arch forwarded to the helpers
- * @param type_ref i32 — destination type; not a fixed array returns -2
+ * @param type_ref i32 - destination type. A non-array returns -2,
+ *   except a SIMD vector whose init is an array literal and whose
+ *   slot is -3. That shape uses the existing struct let-init.
  * @param stack_slot_off i32 — frame slot, or -3 when rbx already holds dest
  * @return i32 — 0 ok, -1 hard fail, -2 not a fixed array or not this shape
- * -3 tries the local VAR copy first. Any result other than -2 is final.
+ * A SIMD array literal with slot -3 returns the struct let-init code.
+ * -3 on a fixed array tries the local VAR copy first. Any result other
+ * than -2 is final.
  * The struct-lit store then runs. 0 and -1 return immediately. -2 with
  * a non-local VAR and a real frame slot copies through two spills.
  * Any other store code is returned unchanged when that VAR shape misses.
@@ -264,6 +273,7 @@ export function glue_emit_fixed_array_type_let_init_elf_c(
   let st: i32 = 0;
   let kind: i32 = 0;
   let voff: i32 = 0;
+  let simd: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8)
       || init_ref <= 0 || type_ref <= 0) {
     return 0 - 2;
@@ -272,6 +282,31 @@ export function glue_emit_fixed_array_type_let_init_elf_c(
     st = glue_type_is_fixed_array(arena, type_ref);
   }
   if (st == 0) {
+    // A SIMD type is not TYPE_ARRAY. A match arm of an array
+    // literal arrives here with the dest pointer in rbx and
+    // slot -3. The existing struct let-init parks that pointer,
+    // stores each lane with the vector let-init into one slot
+    // from asm_local_slot_reg_offset, then the existing VAR copy.
+    // Kind 45 is not this handoff. A real frame slot stays a
+    // decline. A true fixed array never enters here.
+    // PLATFORM: SHARED dest-in-rbx ARRAY_LIT. MACOS|ARM64 live.
+    if (stack_slot_off == (0 - 3)) {
+      unsafe {
+        kind = pipeline_expr_kind_ord_at(arena, init_ref);
+      }
+      if (kind == 46) {
+        unsafe {
+          simd = asm_type_is_simd_vector_spelling(arena, type_ref);
+        }
+        if (simd != 0) {
+          unsafe {
+            st = glue_emit_struct_type_let_init_elf_c(
+                arena, elf_ctx, init_ref, ctx, ta, type_ref, stack_slot_off);
+          }
+          return st;
+        }
+      }
+    }
     return 0 - 2;
   }
   // -3 is dest-in-rbx, not a frame magnitude. A local VAR copies

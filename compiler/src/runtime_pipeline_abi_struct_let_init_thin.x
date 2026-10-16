@@ -105,11 +105,13 @@ export extern function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf_c
  * through the dest pointer when stack_slot_off is -3.
  * A match arm that is a lane binop (kinds 4 through 13) is not a
  * local. Unary minus (kind 22) and bitwise not (kind 23) are not
- * locals either. The existing vector let-init writes each value
- * into one slot from asm_local_slot_reg_offset. Kind 23 applies
- * mvn on each i32 lane. An f32 lane with kind 23 still declines
- * inside that writer. The existing VAR copy then moves that slot
- * through the dest pointer. Kind 51 is not a binop here.
+ * locals either. An array literal (kind 46) is not a local.
+ * The existing vector let-init writes each value into one slot
+ * from asm_local_slot_reg_offset. Kind 23 applies mvn on each
+ * i32 lane. An f32 lane with kind 23 still declines inside that
+ * writer. Kind 46 stores each lane with that same writer.
+ * Kind 45 is not this gate. The existing VAR copy then moves
+ * that slot through the dest pointer. Kind 51 is not a binop here.
  * A decline before that store returns -2. An encoder or let-init
  * failure returns -1.
  * @param arena *u8 - AST arena. Null returns -2.
@@ -652,8 +654,11 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   // minus. Kind 23 is bitwise not. That writer applies mvn to each
   // i32 lane, including a VAR, a field, and a lane binop under the
   // not. An f32 lane with kind 23 still declines in that writer.
-  // Park the dest pointer first, because that writer loads the slot
-  // into rbx. Restore the pointer, then the VAR copy below moves
+  // Kind 46 is an array literal. That writer stores each lane
+  // into the slot, including an f32x8 literal. Kind 45 is not
+  // this gate. Park the dest pointer first, because that writer
+  // loads the slot into rbx. Restore the pointer, then the VAR copy
+  // below moves
   // the slot. The slot size comes from asm_local_slot_reg_offset.
   // A frame dest is not this path.
   // PLATFORM: MACOS|ARM64. The copy is SHARED.
@@ -682,6 +687,16 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   }
   if (dest_in_rbx != 0) {
     if (ko == 23) {
+      if (ta == 0) {
+        lane_binop = 1;
+      }
+      if (ta == 1) {
+        lane_binop = 1;
+      }
+    }
+  }
+  if (dest_in_rbx != 0) {
+    if (ko == 46) {
       if (ta == 0) {
         lane_binop = 1;
       }

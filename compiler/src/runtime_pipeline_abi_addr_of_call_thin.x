@@ -56,6 +56,7 @@ export extern function pipeline_expr_binop_left_ref_at(arena: *u8, expr_ref: i32
 export extern function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_match_arm_result_ref(arena: *u8, expr_ref: i32, arm_i: i32): i32;
 export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
+export extern function pipeline_type_elem_ref_at(arena: *u8, ref: i32): i32;
 export extern function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i32): i32;
 export extern function glue_vector_type_lanes_esz_c(
   arena: *u8, type_ref: i32, out_lanes: *i32, out_esz: *i32
@@ -78,7 +79,10 @@ export extern function glue_emit_vector_type_let_init_elf_c(
  * chain. A ternary (kind 27) and an if-expr (kind 25) keep the
  * named SIMD type already stamped on that node. A match (kind 43)
  * under addr-of is stamped with the pointer type, so the helper
- * reads the first arm until that type is a vector. It does not
+ * reads the first arm until that type is a vector. An array
+ * literal arm may carry no vector. One TYPE_PTR pointee that is a
+ * SIMD spelling is the slot type then. A kind-13 arm is left for
+ * the gate below. It does not
  * read the scrutinee. A kind-13 if-expr, ternary, or
  * match of 4 lanes of 4 bytes keeps that vector type. Wider kind
  * 13 still returns 0.
@@ -105,6 +109,8 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
   let esz_s: i32[1] = [];
   let lrc: i32 = 0;
   let arm: i32 = 0;
+  let match_ptr: i32 = 0;
+  let pointee: i32 = 0;
   if (op <= 0) {
     return 0;
   }
@@ -189,6 +195,9 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
   // stop the walk. cmp stays 0, so the scrutinee is not read.
   // PLATFORM: MACOS|ARM64. The type rule is SHARED.
   if (opk == 43) {
+    if (vtk == 9) {
+      match_ptr = vty;
+    }
     if (vtk != 8) {
       if (vtk != 13) {
         left = op;
@@ -227,6 +236,35 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
                 } else {
                   step = step + 1;
                 }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  // An array-literal arm may have no vector stamp. The match
+  // node holds the pointer expected type. Peel one TYPE_PTR when
+  // the arm walk did not find kind 8 or kind 13. A kind-13 arm
+  // stays on the gate below, so a wider Vec8i is not renamed into
+  // a named spelling here. Do not read the scrutinee.
+  // PLATFORM: MACOS|ARM64. The type rule is SHARED.
+  if (opk == 43) {
+    if (match_ptr > 0) {
+      if (vtk != 8) {
+        if (vtk != 13) {
+          unsafe {
+            pointee = pipeline_type_elem_ref_at(arena, match_ptr);
+          }
+          if (pointee > 0) {
+            unsafe {
+              lrc = asm_type_is_simd_vector_spelling(arena, pointee);
+            }
+            if (lrc != 0) {
+              vty = pointee;
+              vtk = 0;
+              unsafe {
+                vtk = pipeline_type_kind_ord_at(arena, vty);
               }
             }
           }
@@ -403,6 +441,12 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
   let call_op: i32 = 0;
   let vty: i32 = 0;
   let vslot: i32 = 0;
+  let aty: i32 = 0;
+  let pt: i32 = 0;
+  let pk: i32 = 0;
+  let pspell: i32 = 0;
+  let planes: i32[1] = [];
+  let pesz: i32[1] = [];
   unsafe {
     op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
   }
@@ -529,6 +573,54 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
   if (ta == 1) {
     unsafe {
       vty = glue_addr_simd_lane_type_c(arena, op);
+    }
+    // Kind 43: the operand helper can return a kind-13 arm type.
+    // The ADDR_OF node is the pointer the user wrote. A named SIMD
+    // pointee (kind 8), or a kind-13 pointee of 4 lanes of 4 bytes,
+    // is the slot type. A wider kind 13 stays declined. A helper
+    // result of 0 is not upgraded.
+    // PLATFORM: MACOS|ARM64.
+    if (ok == 43) {
+      if (vty != 0) {
+        unsafe {
+          aty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+        }
+        if (aty > 0) {
+          unsafe {
+            pk = pipeline_type_kind_ord_at(arena, aty);
+          }
+          if (pk == 9) {
+            unsafe {
+              pt = pipeline_type_elem_ref_at(arena, aty);
+            }
+            if (pt > 0) {
+              unsafe {
+                pspell = asm_type_is_simd_vector_spelling(arena, pt);
+              }
+              if (pspell != 0) {
+                unsafe {
+                  pk = pipeline_type_kind_ord_at(arena, pt);
+                }
+                if (pk == 8) {
+                  vty = pt;
+                }
+                if (pk == 13) {
+                  unsafe {
+                    pspell = glue_vector_type_lanes_esz_c(arena, pt, &planes[0], &pesz[0]);
+                  }
+                  if (pspell == 0) {
+                    if (pesz[0] == 4) {
+                      if (planes[0] == 4) {
+                        vty = pt;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
     if (vty != 0) {
       unsafe {
