@@ -1076,7 +1076,8 @@ function vlet_emit_lane_log(
  * its value expr first, using glue_expr_block_transparent_value_ref_at,
  * at most four times. Kind 25 (IF) and kind 27 (TERNARY) call
  * glue_emit_vector_if_let_init_elf_c. Wider than 16 bytes fills
- * every lane. 16 bytes uses emit_expr and the existing retval pair.
+ * every lane. 16 bytes uses the retval pair, except an ARRAY_LIT
+ * arm, which uses the existing lane writer.
  * Named i32x8 is the wide spelling. That sibling returns -3 with no bytes
  * emitted when an arm is not a literal chain, a VAR, a FIELD with a
  * lane-0 home, an ARRAY_LIT, a lane binop, a block that still has
@@ -2667,7 +2668,8 @@ export function glue_vec_if_arm_take_c(
  * @param ta i32 — 1 is arm64
  * @param stack_slot_off i32 — destination slot of lane 0. Not -3.
  * @param type_ref i32 — Vec8i type passed to the vector let-init
- * @param nbytes i32 — lane count times 4. Must be greater than 16.
+ * @param nbytes i32 - lane count times 4. Wider than 16 uses the
+ *   large copy for a VAR. 16 bytes uses the retval pair for a VAR.
  * @return i32 — 0 when the slot holds every lane; -1 on encode failure
  * A VAR or a FIELD is copied with glue_vector_var_lane_stack_off_elf_c
  * and glue_copy_large_struct_from_rax_ptr_elf_c. Lane 0 is the start
@@ -2689,6 +2691,7 @@ export function glue_vec_if_arm_fill_c(
   let src_off: i32 = 0;
   let rc: i32 = 0;
   let go: i32 = 0;
+  let modp: *u8 = 0 as *u8;
   unsafe {
     ko = pipeline_expr_kind_ord_at(arena, arm_ref);
   }
@@ -2703,6 +2706,30 @@ export function glue_vec_if_arm_fill_c(
     go = 1;
   }
   if (go != 0) {
+    // 16 bytes is the retval pair. The large copy is for a payload
+    // wider than 16. A VAR arm of that pair is emitted as a value
+    // and stored with the existing pair store. An ARRAY_LIT arm is
+    // not this kind.
+    // PLATFORM: MACOS|ARM64.
+    if (nbytes <= 16) {
+      unsafe {
+        rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, arm_ref, ctx, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        modp = glue_emit_module_from_ctx(ctx);
+      }
+      unsafe {
+        rc = glue_store_retval_pair_to_rbp_elf_c(
+          modp, arena, elf_ctx, type_ref, stack_slot_off, ta, arm_ref, ctx);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      return 0;
+    }
     unsafe {
       src_off = glue_vector_var_lane_stack_off_elf_c(arena, ctx, arm_ref, 0, 4, ta);
     }
@@ -2763,8 +2790,9 @@ export function glue_vec_if_arm_fill_c(
  * The condition uses the existing bool-in-eax jump. A SIMD spelling wider
  * than 16 bytes enters, including named i32x8 and f32x8. The lane
  * count comes from glue_vector_type_lanes_esz_c. A vector of 16 bytes
- * or fewer is not the wide copy. emit_expr leaves that value in x0
- * and x1, and glue_store_retval_pair_to_rbp_elf_c writes the slot.
+ * or fewer is not the wide copy. emit_expr of a VAR leaves that
+ * value in x0 and x1, and glue_store_retval_pair_to_rbp_elf_c
+ * writes the slot. An ARRAY_LIT arm uses the existing lane writer.
  * A spelling the gate above rejects still returns -3. Kind 24 is
  * not a SIMD spelling and stays declined. PLATFORM: MACOS|ARM64.
  */
@@ -2789,6 +2817,8 @@ export function glue_emit_vector_if_let_init_elf_c(
   let else_len: i32 = 0;
   let done_len: i32 = 0;
   let modp: *u8 = 0 as *u8;
+  let saw_arr: i32 = 0;
+  let arm_ko: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8)) {
     return 0 - 3;
   }
@@ -2830,30 +2860,59 @@ export function glue_emit_vector_if_let_init_elf_c(
     ni = ni + 1;
   }
   // 16 bytes is the frame pair. The wide copy is for a payload
-  // wider than 16, so this arm does not call it. emit_expr leaves
-  // the value in x0 and x1. The existing pair store writes both
-  // halves into this slot. Nothing is emitted before that call.
-  // A spelling rejected above never reaches here.
+  // wider than 16. emit_expr of a VAR leaves the value in x0 and
+  // x1, and the existing pair store writes the slot. An ARRAY_LIT
+  // arm leaves a temp address, not that pair. The existing lane
+  // writer already stores a direct array literal of this type.
+  // When either peeled arm is an ARRAY_LIT, use that writer and
+  // keep the pair store for a VAR arm. Otherwise the whole if is
+  // still one pair store. Nothing is emitted before the decision.
   // PLATFORM: MACOS|ARM64.
   if (nbytes <= 16) {
     unsafe {
-      rc = pipeline_asm_emit_expr_elf_c(
-        arena, elf_ctx, init_ref, ctx, ta);
+      if_then = pipeline_expr_if_then_ref_at(arena, init_ref);
+      if_else = pipeline_expr_if_else_ref_at(arena, init_ref);
     }
-    if (rc != 0) {
-      return 0 - 1;
+    then_arm = glue_vec_if_arm_take_c(arena, ctx, if_then, esz_s[0], ta);
+    else_arm = glue_vec_if_arm_take_c(arena, ctx, if_else, esz_s[0], ta);
+    arm_ko = 0;
+    if (then_arm > 0) {
+      unsafe {
+        arm_ko = pipeline_expr_kind_ord_at(arena, then_arm);
+      }
     }
-    unsafe {
-      modp = glue_emit_module_from_ctx(ctx);
+    if (arm_ko == 46) {
+      saw_arr = 1;
     }
-    unsafe {
-      rc = glue_store_retval_pair_to_rbp_elf_c(
-        modp, arena, elf_ctx, type_ref, stack_slot_off, ta, init_ref, ctx);
+    arm_ko = 0;
+    if (else_arm > 0) {
+      unsafe {
+        arm_ko = pipeline_expr_kind_ord_at(arena, else_arm);
+      }
     }
-    if (rc != 0) {
-      return 0 - 1;
+    if (arm_ko == 46) {
+      saw_arr = 1;
     }
-    return 0;
+    if (saw_arr == 0) {
+      unsafe {
+        rc = pipeline_asm_emit_expr_elf_c(
+          arena, elf_ctx, init_ref, ctx, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        modp = glue_emit_module_from_ctx(ctx);
+      }
+      unsafe {
+        rc = glue_store_retval_pair_to_rbp_elf_c(
+          modp, arena, elf_ctx, type_ref, stack_slot_off, ta, init_ref, ctx);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      return 0;
+    }
   }
   unsafe {
     if_cond = pipeline_expr_if_cond_ref_at(arena, init_ref);
