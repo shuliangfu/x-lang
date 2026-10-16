@@ -8,7 +8,9 @@
 // is peeled by the existing helper. A block that still has lets, an
 // expr statement, or an unsafe region is walked here with the existing
 // block getters. Every unsafe region in that block is the same block
-// walk, including when a let shares the block. Do not add a second walker.
+// walk, including when a let shares the block. A match walks its
+// scrutinee, each arm result, and each arm guard through this same
+// function. Patterns are not expressions. Do not add a second walker.
 // PLATFORM: SHARED.
 
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
@@ -37,6 +39,10 @@ export extern function ast_ast_block_num_stmt_order(arena: *u8, block_ref: i32):
 export extern function ast_ast_block_stmt_order_kind(arena: *u8, block_ref: i32, si: i32): i32;
 export extern function ast_ast_block_stmt_order_idx(arena: *u8, block_ref: i32, si: i32): i32;
 export extern function pipeline_block_region_body_ref(arena: *u8, block_ref: i32, ri: i32): i32;
+export extern function pipeline_expr_match_matched_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_match_num_arms_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_match_arm_result_ref(arena: *u8, expr_ref: i32, i: i32): i32;
+export extern function pipeline_expr_match_arm_guard_ref(arena: *u8, expr_ref: i32, i: i32): i32;
 
 /**
  * True when a block contains an index, a call, or a method call.
@@ -146,6 +152,8 @@ function glue_has_call_block_c(arena: *u8, br: i32, expr_ref: i32): i32 {
  * 26) asks the existing transparent peel, then walks let inits, the
  * final expr, and expr statements. Every unsafe region (stmt kind 6)
  * is that same block walk, including when a let shares the block.
+ * A match walks its scrutinee, each arm result, and each arm guard
+ * through this same function. Patterns are not expressions.
  * Nested nodes are this same function. Kind 51 is not a call. A global
  * read with no call is not this function.
  * PLATFORM: SHARED.
@@ -258,6 +266,49 @@ export function glue_expr_tree_has_call_index_c(arena: *u8, expr_ref: i32): i32 
       br = pipeline_expr_block_ref_at(arena, expr_ref);
     }
     return glue_has_call_block_c(arena, br, expr_ref);
+  }
+  // MATCH = 43. Checked before the AS getter so a stale AS slot
+  // cannot hide the scrutinee or the arms. The scrutinee, each arm
+  // result, and each arm guard are this same walk. A missing guard
+  // is not positive and the recursive call returns 0. Patterns are
+  // a literal or a variant index, not an expr. PLATFORM: SHARED.
+  if (ko == 43) {
+    unsafe {
+      left_ref = pipeline_expr_match_matched_ref_at(arena, expr_ref);
+    }
+    if (left_ref > 0) {
+      if (left_ref != expr_ref) {
+        if (glue_expr_tree_has_call_index_c(arena, left_ref) != 0) {
+          return 1;
+        }
+      }
+    }
+    unsafe {
+      n = pipeline_expr_match_num_arms_at(arena, expr_ref);
+    }
+    i = 0;
+    while (i < n) {
+      unsafe {
+        left_ref = pipeline_expr_match_arm_result_ref(arena, expr_ref, i);
+        right_ref = pipeline_expr_match_arm_guard_ref(arena, expr_ref, i);
+      }
+      if (left_ref > 0) {
+        if (left_ref != expr_ref) {
+          if (glue_expr_tree_has_call_index_c(arena, left_ref) != 0) {
+            return 1;
+          }
+        }
+      }
+      if (right_ref > 0) {
+        if (right_ref != expr_ref) {
+          if (glue_expr_tree_has_call_index_c(arena, right_ref) != 0) {
+            return 1;
+          }
+        }
+      }
+      i = i + 1;
+    }
+    return 0;
   }
   // EXPR_AS. A positive operand is the child. Kind 54 may still
   // report that operand through this getter.
