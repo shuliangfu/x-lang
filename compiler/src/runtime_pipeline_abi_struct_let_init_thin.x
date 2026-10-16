@@ -76,6 +76,8 @@ export extern function glue_emit_fixed_array_type_let_init_elf_c(arena: *u8, elf
 export extern function glue_emit_float_lit_to_rax_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ta: i32, force_ty_ref: i32, call_abi_widen_f64: i32): i32;
 export extern function glue_emit_sret_memcpy_rbx_to_home_elf_c(elf_ctx: *u8, sz: i32, ta: i32): i32;
 export extern function glue_emit_vector_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32, type_ref: i32): i32;
+export extern function glue_is_vector_lane_scalar_binop_ko(ko: i32): i32;
+export extern function asm_local_slot_reg_offset(arena: *u8, type_ref: i32, off: i32, inout_off: *i32): i32;
 export extern function glue_struct_field_frame_mag_c(base_off: i32, foff: i32, ta: i32): i32;
 export extern function glue_struct_lit_dest_in_rbx(): i32;
 export extern function glue_struct_lit_field_store_sz(arena: *u8, expr_ref: i32, fi: i32): i32;
@@ -98,6 +100,25 @@ export extern function pipeline_asm_emit_struct_lit_fields_elf_c(arena: *u8, elf
 export extern function pipeline_asm_emit_struct_lit_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 export extern function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32): i32;
 
+/**
+ * Store one struct or vector initializer into a frame slot, or
+ * through the dest pointer when stack_slot_off is -3.
+ * A match arm that is a lane binop (kinds 4 through 13) is not a
+ * local. The existing vector let-init writes that binop into one
+ * slot from asm_local_slot_reg_offset. The existing VAR copy then
+ * moves that slot through the dest pointer. Kind 51 is not a binop
+ * here. A decline before that store returns -2. An encoder or
+ * let-init failure returns -1.
+ * @param arena *u8 - AST arena. Null returns -2.
+ * @param elf_ctx *u8 - code buffer. Null returns -2.
+ * @param init_ref i32 - initializer expr. Values <= 0 return -2.
+ * @param ctx *u8 - function frame. Null returns -2.
+ * @param ta i32 - 0 is x86, 1 is ARM64.
+ * @param let_ty_ref i32 - destination type. 0 reads the expr type.
+ * @param stack_slot_off i32 - frame slot, or -3 when dest is in rbx.
+ * @return i32 - 0 stored, -1 encode or arm failure, -2 not this store.
+ * PLATFORM: MACOS|ARM64 live path. The copy rule is SHARED.
+ */
 #[no_mangle]
 export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, let_ty_ref: i32, stack_slot_off: i32): i32 {
   // The wave713 body called externs outside unsafe (legacy pabi mode).
@@ -132,6 +153,10 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   let done_len: i32 = 0;
   let arm_rc: i32 = 0;
   let saved_sret_home: i32 = 0;
+  let lane_binop: i32 = 0;
+  let copy_arm: i32 = 0;
+  let slot_cur: i32 = 0;
+  let slot_io: i32[1] = [];
   if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || init_ref <= 0) {
     return 0 - 2;
   }
@@ -616,6 +641,103 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
     }
     return 0;
   }
+  // A match arm that is a lane binop arrives with the dest pointer
+  // in rbx. Kinds 4 through 13 are that binop. Kind 51 stays out:
+  // the predicate remaps an address to add. The existing vector
+  // let-init writes every lane into one frame slot. Park the dest
+  // pointer first, because that writer loads the slot into rbx.
+  // Restore the pointer, then the VAR copy below moves the slot.
+  // The slot size comes from asm_local_slot_reg_offset. A frame
+  // dest is not this path. PLATFORM: MACOS|ARM64. The copy is SHARED.
+  lane_binop = 0;
+  if (dest_in_rbx != 0) {
+    if (ko != 51) {
+      unsafe {
+        lane_binop = glue_is_vector_lane_scalar_binop_ko(ko);
+      }
+    }
+  }
+  if (ta != 0) {
+    if (ta != 1) {
+      lane_binop = 0;
+    }
+  }
+  if (lane_binop != 0) {
+    ty_ref = let_ty_ref;
+    if (ty_ref <= 0) {
+      unsafe {
+        ty_ref = pipeline_expr_resolved_type_ref(arena, init_ref);
+      }
+    }
+    if (ty_ref <= 0) {
+      return 0 - 2;
+    }
+    unsafe {
+      modp = glue_emit_module_from_ctx(ctx);
+      let_sz = glue_type_size_simple(modp, arena, ty_ref, 0);
+      named_sz = glue_type_named_layout_size_any_module_elf_c(arena, ty_ref);
+    }
+    if (named_sz > let_sz) {
+      let_sz = named_sz;
+    }
+    if (let_sz < 8) {
+      return 0 - 2;
+    }
+    glue_align_next_offset(ctx);
+    dest_spill = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+    if (ta == 1) {
+      pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), dest_spill + 8);
+    } else {
+      dest_spill = dest_spill + 8;
+      pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), dest_spill);
+    }
+    if (ta == 1) {
+      rc = glue_arm64_mov_x19_to_x0_elf_c(elf_ctx);
+    } else {
+      unsafe {
+        rc = backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
+      }
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, dest_spill, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    glue_align_next_offset(ctx);
+    slot_cur = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+    slot_io[0] = slot_cur;
+    unsafe {
+      src_off = asm_local_slot_reg_offset(arena, ty_ref, slot_cur, &slot_io[0]);
+    }
+    pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), slot_io[0]);
+    if (src_off < 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = glue_emit_vector_type_let_init_elf_c(
+        arena, elf_ctx, init_ref, ctx, ta, src_off, ty_ref);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, dest_spill, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    bind_foff = 0;
+  }
   /* EXPR_VAR (3): slot-to-slot copy of a named struct.
    * Frame dest 9–16B: lea src + deref_struct16 + store_retval_pair
    * (same as FIELD frame dest). ARRAY_LIT `[w]` of a 16B named VAR
@@ -628,11 +750,24 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
    * lower the frame dest ≤16 memcpy gate. Do not change FIELD
    * emit_expr. Do not change enc_store /8.
    * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
-  if (ko == 3 && (ta == 0 || ta == 1)) {
-    unsafe {
-      src_off = glue_var_expr_stack_off_elf_c(arena, ctx, init_ref);
+  copy_arm = 0;
+  if (ko == 3) {
+    if (ta == 0) {
+      copy_arm = 1;
     }
-    bind_foff = 0;
+    if (ta == 1) {
+      copy_arm = 1;
+    }
+  }
+  if (lane_binop != 0) {
+    copy_arm = 1;
+  }
+  if (copy_arm != 0) {
+    if (lane_binop == 0) {
+      unsafe {
+        src_off = glue_var_expr_stack_off_elf_c(arena, ctx, init_ref);
+      }
+      bind_foff = 0;
     /* dest-in-rbx MATCH field-bind: `h` in `Wrap { h } => h`
      * is not a local. dest-in-rbx VAR used to return −2
      * (Darwin CG002). G.7: same subject.field lea as
@@ -680,6 +815,7 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
       if (src_off < 0) {
         return 0 - 2;
       }
+    }
     }
     ty_ref = let_ty_ref;
     if (ty_ref <= 0) {
