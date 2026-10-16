@@ -117,8 +117,10 @@ export extern function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf_c
  * The existing compare writer already stores 0 or 1 on each
  * lane. The predicate is vlet_lane_cmp_ko.
  * An integer literal (kind 0) is not a local. The existing
- * fill already splats that value on each lane. Kind 1 stays
- * declined. Kind 2 stays declined.
+ * fill already splats that value on each lane.
+ * A boolean literal (kind 2) is not a local. That same fill
+ * already splats 1 for true and 0 for false on each lane.
+ * Kind 1 stays declined.
  * The existing vector
  * let-init writes each value into one slot from
  * asm_local_slot_reg_offset. Kind 23 applies mvn on each
@@ -678,8 +680,9 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   // Kinds 14 through 19 are a relational compare. The predicate
   // vlet_lane_cmp_ko selects them. That writer stores 0 or 1
   // on each lane. Kind 0 is an integer literal. The existing
-  // fill splats that value on each lane. Kind 1 stays declined.
-  // Kind 2 stays declined.
+  // fill splats that value on each lane. Kind 2 is a boolean
+  // literal. That same fill splats 1 for true and 0 for false
+  // on each lane. Kind 1 stays declined.
   // Kind 45 is not
   // this gate. Park the dest pointer first, because that writer
   // loads the slot into rbx. Restore the pointer, then the VAR copy
@@ -788,11 +791,26 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   }
   // Kind 0 reuses the park, the vector let-init, and the VAR
   // copy above. The existing fill splats that integer on each
-  // lane. Kind 1 stays declined. Kind 2 stays declined.
+  // lane. Kind 1 stays declined.
   // Kind 45 stays declined. Kind 51 stays declined.
   // PLATFORM: MACOS|ARM64 dest-in-rbx integer literal.
   if (dest_in_rbx != 0) {
     if (ko == 0) {
+      if (ta == 0) {
+        lane_binop = 1;
+      }
+      if (ta == 1) {
+        lane_binop = 1;
+      }
+    }
+  }
+  // Kind 2 reuses the park, the vector let-init, and the VAR
+  // copy above. The existing fill splats 1 for true and 0
+  // for false on each lane. Kind 1 stays declined.
+  // Kind 45 stays declined. Kind 51 stays declined.
+  // PLATFORM: MACOS|ARM64 dest-in-rbx boolean literal.
+  if (dest_in_rbx != 0) {
+    if (ko == 2) {
       if (ta == 0) {
         lane_binop = 1;
       }
