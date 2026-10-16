@@ -7,9 +7,11 @@
 // CALL(48) / METHOD(49): a field base such as `&pick().v` recurses here.
 // The result is in x0, same as `let s = pick()`. A 9..16 byte named
 // struct also returns the high half in x1. Spill those registers into
-// a frame slot and leave the slot address in x0. The FIELD arm adds
-// the field offset. Float results, SIMD names, and results wider than
-// 16 bytes stay unhandled. The spill runs only for ta == 1.
+// a frame slot and leave the slot address in x0. A named struct wider
+// than 16 bytes is already written through x8 into the call wrapper's
+// frame temp; x0 is that address, so this arm only emits the call.
+// The FIELD arm adds the field offset. Float results and SIMD names
+// stay unhandled. The spill runs only for ta == 1.
 // PLATFORM: SHARED freestanding · MACOS tip cold · LINUX gold.
 // The call spill is MACOS|ARM64.
 
@@ -46,8 +48,9 @@ export extern function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i3
  * FIELD recurses into the base, then adds the field offset.
  * A CALL or METHOD base spills a 1..8 byte non-float result into a
  * frame slot and returns that slot. A 9..16 byte named struct also
- * stores the x1 half. Float results, SIMD names, and results wider
- * than 16 bytes return -1. x86_64 does not spill a call.
+ * stores the x1 half. A named struct wider than 16 bytes is emitted
+ * as the call: the wrapper leaves the x8 temp address in x0. Float
+ * results and SIMD names return -1. x86_64 does not spill a call.
  * @param arena *u8 - AST arena; null returns -1
  * @param elf_ctx *u8 - codegen context; null returns -1
  * @param expr_ref i32 - lvalue expr; <=0 returns -1
@@ -174,8 +177,10 @@ export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8
     // CALL = 48, METHOD = 49. `pick().v` is FIELD whose base is the
     // call. A 1..8 byte result is in x0. A 9..16 byte named struct is
     // in x0 and x1, same as `let s = pick()`. The pair store is the
-    // existing retval helper. SIMD names stay out. f32 (14) and f64
-    // (15) are not in x0. PLATFORM: MACOS|ARM64. ta != 1 returns -1.
+    // existing retval helper. Wider than 16, the call wrapper already
+    // materializes the named struct through x8 and leaves its address
+    // in x0. SIMD names stay out. f32 (14) and f64 (15) are not in x0.
+    // PLATFORM: MACOS|ARM64. ta != 1 returns -1.
     let call_op: i32 = 0;
     if (k == 48) {
       call_op = 1;
@@ -239,6 +244,20 @@ export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8
                 }
                 return backend_enc_lea_rbp_to_rax_arch(elf_ctx, slot, ta);
               }
+            }
+          }
+        }
+        // Named struct wider than 16 bytes. Not a SIMD spelling.
+        // pipeline_asm_emit_call_elf_c writes x8's temp and leaves
+        // that address in x0. No second copy. PLATFORM: MACOS|ARM64.
+        if (sz > 16) {
+          if (trk == 8) {
+            let wide_simd: i32 = asm_type_is_simd_vector_spelling(arena, tr);
+            if (wide_simd == 0) {
+              if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, expr_ref, ctx, ta) != 0) {
+                return 0 - 1;
+              }
+              return 0;
             }
           }
         }
