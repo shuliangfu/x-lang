@@ -79,8 +79,8 @@ let g_w2060_emit_let_vn: u8[256] = [];
  * pointer as *i32x4 or *f32x4 or *Vec8i. This emitter writes the declared
  * pointer onto that ADDR_OF before emit, so the addr peel can
  * see the SIMD pointee. Kind 25 stamps when the pointee is
- * Vec8i, named i32x8, or named u32x8. f32x4 and f32x8 stay on
- * their own types. The splat store
+ * Vec8i, named i32x8, named u32x8, or named f32x8. f32x4
+ * stays on its own type. The splat store
  * stays in the addr emitter.
  * PLATFORM: SHARED freestanding emit. Darwin ARM64 measured.
  */
@@ -425,12 +425,13 @@ export function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_re
             // Kind 25 is an if-expr. Both array-literal arms leave
             // the ADDR_OF pointee as a non-SIMD type, so the peel
             // never sees the declared vector. The declared pointer
-            // is that type. Stamp it for Vec8i, named i32x8, or
-            // named u32x8: kind 8 whose name is one of those, or
-            // kind 13 with 8 lanes of 4-byte i32. f32x4 and f32x8
-            // stay unstamped. The addr emitter stores the if with
-            // the existing wide let-init. The value form of u32x8
-            // already returns the lane checks.
+            // is that type. Stamp it for Vec8i, named i32x8,
+            // named u32x8, or named f32x8: kind 8 whose name is
+            // one of those, or kind 13 with 8 lanes of 4-byte i32.
+            // f32x4 stays unstamped. The addr emitter stores the
+            // if with the existing wide let-init. The value form
+            // of f32x8 already returns the lane checks for c == 1
+            // and c == 0.
             // PLATFORM: MACOS|ARM64. The type rule is SHARED.
             if (addr_ok == 25) {
               if (let_ty > 0) {
@@ -456,9 +457,9 @@ export function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_re
                               }
                             }
                           }
-                          // ASCII i 3 2 x 8, then u 3 2 x 8. Named
-                          // kind 8. f32x8 is f 3 2 x 8 and f32x4 is
-                          // f 3 2 x 4. Both stay declined.
+                          // ASCII i 3 2 x 8, then u 3 2 x 8, then
+                          // f 3 2 x 8. Named kind 8. f32x4 is
+                          // f 3 2 x 4 and stays declined.
                           // PLATFORM: MACOS|ARM64.
                           if (bt == 0) {
                             if (vn[0] == 105) {
@@ -475,6 +476,24 @@ export function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_re
                           }
                           if (bt == 0) {
                             if (vn[0] == 117) {
+                              if (vn[1] == 51) {
+                                if (vn[2] == 50) {
+                                  if (vn[3] == 120) {
+                                    if (vn[4] == 56) {
+                                      bt = 1;
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                          // f32x8 is f 3 2 x 8. The last byte is ASCII 8.
+                          // f32x4 ends in ASCII 4 and stays unstamped.
+                          // The wide if let-init already stores both
+                          // float array literals.
+                          // PLATFORM: MACOS|ARM64.
+                          if (bt == 0) {
+                            if (vn[0] == 102) {
                               if (vn[1] == 51) {
                                 if (vn[2] == 50) {
                                   if (vn[3] == 120) {
