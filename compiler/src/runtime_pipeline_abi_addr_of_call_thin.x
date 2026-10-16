@@ -4,7 +4,8 @@
 // already stores a 1..8 byte integer, a 9..16 byte named struct, a
 // wider named-struct address left in x0 by the x8 wrapper, and an f32
 // word harvested from s0. This overlay forwards that operand.
-// f64 and SIMD names stay the lvalue failure. A second spill here
+// An f64 result is harvested from d0 by that function. SIMD names
+// stay its failure. A second spill here
 // would be a second authority for the same address.
 // Linked before pabi_weak. That copy of this symbol is weakened.
 // PLATFORM: MACOS|DARWIN link. The forward runs only for ta == 1.
@@ -40,8 +41,9 @@ export extern function pipeline_asm_emit_array_lit_elf_c(
  * CALL (48) and METHOD (49) on arm64 forward the operand to
  * pipeline_asm_emit_lvalue_eff_addr_elf_c. That function stores a
  * 1..8 byte integer, a 9..16 byte named struct, a wider named-struct
- * address, or an f32 word from s0, and leaves the address in x0.
- * f64 and SIMD names stay that function's failure. ta != 1 keeps -99.
+ * address, an f32 word from s0, or an f64 word from d0, and leaves
+ * the address in x0. SIMD names stay that function's failure.
+ * ta != 1 keeps -99.
  * @param arena *u8 - AST arena; null is not expected
  * @param elf_ctx *u8 - encoder context
  * @param expr_ref i32 - ADDR_OF expression
@@ -155,9 +157,10 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
   }
   // CALL = 48, METHOD = 49. One forward to the lvalue emitter.
   // That function owns the integer spill, the pair store, the wide
-  // x8 address, and the f32 word from s0. Copying any of those here
-  // would split the authority. Pass the call, not this ADDR_OF.
-  // f64 stays the lvalue failure. PLATFORM: MACOS|ARM64.
+  // x8 address, the f32 word from s0, and the f64 word from d0.
+  // Copying any of those here would split the authority. Pass the
+  // call, not this ADDR_OF. SIMD names stay the lvalue failure.
+  // PLATFORM: MACOS|ARM64.
   // ta != 1 keeps -99.
   if (ok == 48) {
     call_op = 1;
