@@ -120,7 +120,9 @@ export extern function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf_c
  * fill already splats that value on each lane.
  * A boolean literal (kind 2) is not a local. That same fill
  * already splats 1 for true and 0 for false on each lane.
- * Kind 1 stays declined.
+ * A float literal (kind 1) is not a local. The existing
+ * fill already narrows those f64 bits and splats them on
+ * each f32 lane. An integer lane stays outside that fill.
  * The existing vector
  * let-init writes each value into one slot from
  * asm_local_slot_reg_offset. Kind 23 applies mvn on each
@@ -682,7 +684,8 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   // on each lane. Kind 0 is an integer literal. The existing
   // fill splats that value on each lane. Kind 2 is a boolean
   // literal. That same fill splats 1 for true and 0 for false
-  // on each lane. Kind 1 stays declined.
+  // on each lane. Kind 1 is a float literal. That fill
+  // narrows the f64 bits and splats them on each f32 lane.
   // Kind 45 is not
   // this gate. Park the dest pointer first, because that writer
   // loads the slot into rbx. Restore the pointer, then the VAR copy
@@ -791,7 +794,7 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   }
   // Kind 0 reuses the park, the vector let-init, and the VAR
   // copy above. The existing fill splats that integer on each
-  // lane. Kind 1 stays declined.
+  // lane.
   // Kind 45 stays declined. Kind 51 stays declined.
   // PLATFORM: MACOS|ARM64 dest-in-rbx integer literal.
   if (dest_in_rbx != 0) {
@@ -806,11 +809,27 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   }
   // Kind 2 reuses the park, the vector let-init, and the VAR
   // copy above. The existing fill splats 1 for true and 0
-  // for false on each lane. Kind 1 stays declined.
+  // for false on each lane.
   // Kind 45 stays declined. Kind 51 stays declined.
   // PLATFORM: MACOS|ARM64 dest-in-rbx boolean literal.
   if (dest_in_rbx != 0) {
     if (ko == 2) {
+      if (ta == 0) {
+        lane_binop = 1;
+      }
+      if (ta == 1) {
+        lane_binop = 1;
+      }
+    }
+  }
+  // Kind 1 reuses the park, the vector let-init, and the VAR
+  // copy above. The existing fill narrows the f64 bits and
+  // splats them on each f32 lane. An integer lane stays
+  // outside that fill.
+  // Kind 45 stays declined. Kind 51 stays declined.
+  // PLATFORM: MACOS|ARM64 dest-in-rbx float literal.
+  if (dest_in_rbx != 0) {
+    if (ko == 1) {
       if (ta == 0) {
         lane_binop = 1;
       }
