@@ -8,8 +8,8 @@
 // A transparent block is peeled by the existing helper. A block that
 // still has lets is then walked with the existing block getters.
 // Every unsafe region in that block is the same block walk, including
-// when a let shares the block. A dereference uses the same unary
-// operand getter. Do not add a second walker.
+// when a let shares the block. A dereference (kind 52) and an address
+// (kind 51) use the same unary operand getter. Do not add a second walker.
 // PLATFORM: SHARED.
 
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
@@ -164,9 +164,9 @@ function glue_live_fwd_collect_block_for_defer(
  * region (stmt kind 6) is that same block walk, including when a let
  * shares the block. A match (kind 43) walks
  * the scrutinee, each arm result, and each arm guard before the AS
- * getter. A dereference (kind 52) walks its operand through the same
- * unary getter. Nested nodes are this same function. Kind 51 is not
- * a VAR.
+ * getter. A dereference (kind 52) and an address (kind 51) walk that
+ * operand through the same unary getter. Nested nodes are this same
+ * function.
  * PLATFORM: SHARED.
  */
 #[no_mangle]
@@ -224,10 +224,10 @@ export function glue_live_fwd_collect_expr_uses_for_defer(
       return;
     }
   }
-  // Unary, bitwise not, logical not, a return operand, or a
-  // dereference. Kind 52 stores its operand in the same unary slot
-  // the existing getter reads. The walk records that operand. This
-  // is not the assign-deref store, and the kind-52 emit stub stays.
+  // Unary, bitwise not, logical not, a return operand, a dereference,
+  // or an address. Kinds 51 and 52 share the unary operand slot.
+  // The walk records that operand. This is not the assign-deref store,
+  // and the kind-52 emit stub stays.
   // PLATFORM: SHARED.
   step = 0;
   if (ko == 22) {
@@ -240,6 +240,9 @@ export function glue_live_fwd_collect_expr_uses_for_defer(
     step = 1;
   }
   if (ko == 41) {
+    step = 1;
+  }
+  if (ko == 51) {
     step = 1;
   }
   if (ko == 52) {
