@@ -82,6 +82,8 @@ export extern function glue_is_vector_lane_scalar_binop_ko(ko: i32): i32;
 export extern function vlet_lane_cmp_ko(ko: i32): i32;
 export extern function pipeline_expr_array_lit_elem_ref(arena: *u8, expr_ref: i32, index: i32): i32;
 export extern function pipeline_type_named_name_into(arena: *u8, type_ref: i32, out: *u8): i32;
+export extern function glue_vector_elem_is_f32_c(arena: *u8, type_ref: i32): i32;
+export extern function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): i32;
 
 /**
  * `return f(...)` forwarding a > 16-byte result: pass this function's own
@@ -489,6 +491,11 @@ function w1521_rs_mid_named_field(arena: *u8, op: i32): i32 {
  * ARRAY/SLICE ascription peel, uses that same helper and then moves the
  * element count into x1 (arm64) or rdx (SysV). Windows keeps emit_expr.
  * A length-register failure after a successful durable emit returns -1.
+ * A named i32x4 or f32x4 ARRAY_LIT is kind 8, so it misses the kind-10
+ * arm. The same durable helper writes 4-byte lanes. Float literals pack
+ * as f32 bits in that helper when the element kind is not f32 or f64.
+ * The 16-byte pair load then leaves the payload in x0 and x1. u32x4,
+ * Vec4f, and a lane binop stay on emit_expr.
  * Darwin sret of a named SIMD (kind 8) wider than 16 bytes, whose
  * operand is an INT_LIT, a FLOAT_LIT, a BOOL_LIT, a kind-22 chain,
  * a kind-23 chain, or a lane binop, fills that value with
@@ -633,6 +640,7 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
       let v_take: i32 = 0;
       let v_bin: i32 = 0;
       let v_cmp: i32 = 0;
+      let vec_hit: i32 = 0;
       if (ta == 0 || ta == 1) {
         unsafe {
           opk_d = pipeline_expr_kind_ord_at(arena, ret_op);
@@ -824,12 +832,15 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                 }
                 }
               }
-              // Named i32x4 array literal. Kind 10 already loads a
-              // 16-byte array into x0:x1. This name is kind 8, so it
-              // missed that arm and emit_expr left the callee frame
-              // address. Same durable helper (4-byte lanes), then the
-              // same pair load, while the slot is live. f32x4 and a
-              // lane binop do not enter. PLATFORM: MACOS|ARM64.
+              // Named i32x4 or f32x4, or a 16-byte TYPE_VECTOR whose
+              // element is f32. Kind 10 already loads a 16-byte array
+              // into x0 and x1. A named spelling is kind 8, so it
+              // missed that arm. User f32x4 is kind 13 of f32, so the
+              // name test missed it too. Same durable helper (4-byte
+              // lanes), then the same pair load, while the slot is
+              // live. A lane binop does not enter. f32x8 is wider
+              // than 16. Integer vectors stay on emit_expr.
+              // PLATFORM: MACOS|ARM64.
               if (rk_d == 8) {
                 let nb: u8[8] = [];
                 let nl: i32 = 0;
@@ -838,11 +849,14 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                   nl = pipeline_type_named_name_into(arena, rty_d, &nb[0]);
                 }
                 if (nl == 5) {
-                  if (nb[0] == 105) {
-                    if (nb[1] == 51) {
-                      if (nb[2] == 50) {
-                        if (nb[3] == 120) {
-                          if (nb[4] == 52) {
+                  if (nb[1] == 51) {
+                    if (nb[2] == 50) {
+                      if (nb[3] == 120) {
+                        if (nb[4] == 52) {
+                          if (nb[0] == 105) {
+                            hit = 1;
+                          }
+                          if (nb[0] == 102) {
                             hit = 1;
                           }
                         }
@@ -851,20 +865,38 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                   }
                 }
                 if (hit != 0) {
-                  if (ta == 1) {
+                  vec_hit = 1;
+                }
+              }
+              if (rk_d == 13) {
+                let f32v: i32 = 0;
+                let vsz: i32 = 0;
+                unsafe {
+                  f32v = glue_vector_elem_is_f32_c(arena, rty_d);
+                }
+                if (f32v != 0) {
+                  unsafe {
+                    vsz = glue_type_size_simple(mod_d, arena, rty_d, 0);
+                  }
+                  if (vsz == 16) {
+                    vec_hit = 1;
+                  }
+                }
+              }
+              if (vec_hit != 0) {
+                if (ta == 1) {
+                  unsafe {
+                    rc = glue_asm_emit_array_lit_durable_ptr_rax_elf_c(
+                      arena, elf_ctx, ret_op, 4, ta, ctx, 0);
+                  }
+                  if (rc == 0) {
                     unsafe {
-                      rc = glue_asm_emit_array_lit_durable_ptr_rax_elf_c(
-                        arena, elf_ctx, ret_op, 4, ta, ctx, 0);
+                      rc = pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta);
                     }
-                    if (rc == 0) {
-                      unsafe {
-                        rc = pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta);
-                      }
-                      if (rc != 0) {
-                        return 0 - 1;
-                      }
-                      dur_ok = 1;
+                    if (rc != 0) {
+                      return 0 - 1;
                     }
+                    dur_ok = 1;
                   }
                 }
               }

@@ -14,8 +14,9 @@
 // those bits into w0, store the word, and leave the slot address in
 // x0. An f64 result is in d0: move those bits into x0, store the
 // 8-byte word, and leave the slot address in x0. A 16-byte i32
-// vector is already in x0 and x1: store both words. Other SIMD
-// names stay unhandled. The spill runs only for ta == 1.
+// or f32 vector is already in x0 and x1: store both words. A
+// 16-byte f32 TYPE_VECTOR uses that same store. Other SIMD names
+// stay unhandled. The spill runs only for ta == 1.
 // PLATFORM: SHARED freestanding · MACOS tip cold · LINUX gold.
 // The call spill is MACOS|ARM64.
 
@@ -50,6 +51,7 @@ export extern function backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx: *u8, k: 
 export extern function backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx: *u8, k: i32, ta: i32): i32;
 export extern function backend_enc_store_eax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
 export extern function pipeline_type_named_name_into(arena: *u8, type_ref: i32, out: *u8): i32;
+export extern function glue_vector_elem_is_f32_c(arena: *u8, type_ref: i32): i32;
 
 /**
  * ELF lvalue effective address in x0.
@@ -60,8 +62,9 @@ export extern function pipeline_type_named_name_into(arena: *u8, type_ref: i32, 
  * as the call: the wrapper leaves the x8 temp address in x0. An f32
  * result is harvested from s0 into w0 and stored as a word. An f64
  * result is harvested from d0 into x0 and stored as 8 bytes. A
- * 16-byte i32 vector is stored from x0 and x1. Other SIMD names
- * return -1. x86_64 does not spill a call.
+ * 16-byte i32 or f32 vector, including a 16-byte f32 TYPE_VECTOR,
+ * is stored from x0 and x1. Other SIMD names return -1. x86_64
+ * does not spill a call.
  * @param arena *u8 - AST arena; null returns -1
  * @param elf_ctx *u8 - codegen context; null returns -1
  * @param expr_ref i32 - lvalue expr; <=0 returns -1
@@ -190,8 +193,9 @@ export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8
     // in x0 and x1, same as `let s = pick()`. The pair store is the
     // existing retval helper. Wider than 16, the call wrapper already
     // materializes the named struct through x8 and leaves its address
-    // in x0. A 16-byte i32 vector is in x0 and x1. Other SIMD names
-    // stay out. f32 (14) is in s0, not x0. f64 (15) is in d0, not x0.
+    // in x0. A 16-byte i32 or f32 vector is in x0 and x1. A 16-byte
+    // f32 TYPE_VECTOR uses that same pair. Other SIMD names stay out.
+    // f32 (14) is in s0, not x0. f64 (15) is in d0, not x0.
     // PLATFORM: MACOS|ARM64. ta != 1 returns -1.
     let call_op: i32 = 0;
     if (k == 48) {
@@ -236,42 +240,38 @@ export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8
             return backend_enc_lea_rbp_to_rax_arch(elf_ctx, slot, ta);
           }
         }
-        // Named struct, 9..16 bytes. Not a SIMD spelling. The high
-        // half is x1 at slot + 8. Wider than 16 stays -1.
+        // Named struct, 9..16 bytes, or a 16-byte f32 TYPE_VECTOR.
+        // The high half is x1 at slot + 8. Wider than 16 stays -1.
+        // Named SIMD stores only the i32x4 or f32x4 spelling. Kind 13
+        // stores only when the element is f32 and the size is 16, so
+        // f32x8 and integer vectors stay -1. One pair store.
+        // PLATFORM: MACOS|ARM64.
         if (sz > 8) {
           if (sz <= 16) {
+            let take: i32 = 0;
             if (trk == 8) {
               let simd: i32 = asm_type_is_simd_vector_spelling(arena, tr);
               if (simd == 0) {
-                slot = glue_simd_alloc_vector_temp_slot_c(arena, ctx, tr);
-                if (slot < 0) {
-                  return 0 - 1;
-                }
-                if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, expr_ref, ctx, ta) != 0) {
-                  return 0 - 1;
-                }
-                if (glue_store_retval_pair_to_rbp_elf_c(
-                    gmod, arena, elf_ctx, tr, slot, ta, expr_ref, ctx) != 0) {
-                  return 0 - 1;
-                }
-                return backend_enc_lea_rbp_to_rax_arch(elf_ctx, slot, ta);
+                take = 1;
               }
-              // Named i32x4. Spelling is 1, so the arm above skips it.
-              // The array-literal return loads the payload into x0 and
-              // x1 before the callee epilogue. A lane binop already
-              // returns that pair. Same store as the non-SIMD arm.
-              // f32x4, u32x4, and Vec4f stay -1. PLATFORM: MACOS|ARM64.
+              // Named i32x4 or f32x4. Spelling is 1, so the arm above
+              // skips them. The array-literal return loads the payload
+              // into x0 and x1 before the callee epilogue. A lane binop
+              // already returns that pair. u32x4 stays -1.
               if (simd != 0) {
                 let nb: u8[8] = [];
                 let nl: i32 = 0;
                 let hit: i32 = 0;
                 nl = pipeline_type_named_name_into(arena, tr, &nb[0]);
                 if (nl == 5) {
-                  if (nb[0] == 105) {
-                    if (nb[1] == 51) {
-                      if (nb[2] == 50) {
-                        if (nb[3] == 120) {
-                          if (nb[4] == 52) {
+                  if (nb[1] == 51) {
+                    if (nb[2] == 50) {
+                      if (nb[3] == 120) {
+                        if (nb[4] == 52) {
+                          if (nb[0] == 105) {
+                            hit = 1;
+                          }
+                          if (nb[0] == 102) {
                             hit = 1;
                           }
                         }
@@ -280,20 +280,34 @@ export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8
                   }
                 }
                 if (hit != 0) {
-                  slot = glue_simd_alloc_vector_temp_slot_c(arena, ctx, tr);
-                  if (slot < 0) {
-                    return 0 - 1;
-                  }
-                  if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, expr_ref, ctx, ta) != 0) {
-                    return 0 - 1;
-                  }
-                  if (glue_store_retval_pair_to_rbp_elf_c(
-                      gmod, arena, elf_ctx, tr, slot, ta, expr_ref, ctx) != 0) {
-                    return 0 - 1;
-                  }
-                  return backend_enc_lea_rbp_to_rax_arch(elf_ctx, slot, ta);
+                  take = 1;
                 }
               }
+            }
+            // User f32x4 is TYPE_VECTOR of f32, not the kind-8 name.
+            // Same slot, same emit, same pair store. PLATFORM: MACOS|ARM64.
+            if (trk == 13) {
+              let f32v: i32 = 0;
+              f32v = glue_vector_elem_is_f32_c(arena, tr);
+              if (f32v != 0) {
+                if (sz == 16) {
+                  take = 1;
+                }
+              }
+            }
+            if (take != 0) {
+              slot = glue_simd_alloc_vector_temp_slot_c(arena, ctx, tr);
+              if (slot < 0) {
+                return 0 - 1;
+              }
+              if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, expr_ref, ctx, ta) != 0) {
+                return 0 - 1;
+              }
+              if (glue_store_retval_pair_to_rbp_elf_c(
+                  gmod, arena, elf_ctx, tr, slot, ta, expr_ref, ctx) != 0) {
+                return 0 - 1;
+              }
+              return backend_enc_lea_rbp_to_rax_arch(elf_ctx, slot, ta);
             }
           }
         }
