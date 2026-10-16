@@ -53387,7 +53387,7 @@ function glue_block_let_defer_max(): i32 {
  * copy is an extern so a rebuild does not grow a second body.
  * pabi_weak still contains the old strong definition; the thin object
  * is linked first and wins. The walk now enters an if, a ternary, a
- * transparent block, and a match.
+ * block that still has lets, and a match.
  * @param arena *u8 - ASTArena*
  * @param ctx *u8 - AsmFuncCtx*
  * @param expr_ref i32 - expr pool ref

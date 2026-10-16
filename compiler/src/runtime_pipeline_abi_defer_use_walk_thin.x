@@ -5,8 +5,9 @@
 // field, an array literal, or a struct literal. An if, a ternary, or
 // a match was invisible, so `let n = match c { 1 => 4; _ => 9; }`
 // stayed in pass 0 and read c before `c = 1`. This is the one walk.
-// A transparent block is peeled by the existing helper. Do not add a
-// second walker.
+// A transparent block is peeled by the existing helper. A block that
+// still has lets is then walked with the existing block getters. Do
+// not add a second walker.
 // PLATFORM: SHARED.
 
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
@@ -31,6 +32,16 @@ export extern function pipeline_expr_match_matched_ref_at(arena: *u8, expr_ref: 
 export extern function pipeline_expr_match_num_arms_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_match_arm_result_ref(arena: *u8, expr_ref: i32, i: i32): i32;
 export extern function pipeline_expr_match_arm_guard_ref(arena: *u8, expr_ref: i32, i: i32): i32;
+export extern function pipeline_expr_block_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function ast_ast_block_num_lets(arena: *u8, block_ref: i32): i32;
+export extern function ast_pipeline_block_let_init_ref(arena: *u8, block_ref: i32, i: i32): i32;
+export extern function ast_ast_block_final_expr_ref(arena: *u8, block_ref: i32): i32;
+export extern function ast_ast_block_num_expr_stmts(arena: *u8, block_ref: i32): i32;
+export extern function ast_pipeline_block_expr_stmt_ref(arena: *u8, block_ref: i32, ei: i32): i32;
+export extern function ast_ast_block_num_stmt_order(arena: *u8, block_ref: i32): i32;
+export extern function ast_ast_block_stmt_order_kind(arena: *u8, block_ref: i32, si: i32): i32;
+export extern function ast_ast_block_stmt_order_idx(arena: *u8, block_ref: i32, si: i32): i32;
+export extern function pipeline_block_region_body_ref(arena: *u8, block_ref: i32, ri: i32): i32;
 
 /**
  * Record stack slots read by one expr, for the pass-1 defer mask.
@@ -44,7 +55,9 @@ export extern function pipeline_expr_match_arm_guard_ref(arena: *u8, expr_ref: i
  * An if (kind 25) and a ternary (kind 27) walk the condition, the
  * then arm, and the else arm. A transparent block (kind 26) walks
  * the value the existing peel returns. A block that still has lets
- * is not peeled and records nothing here. A match (kind 43) walks
+ * is not peeled; this walk then records let inits, the final expr,
+ * and expr statements with the existing block getters. One unsafe
+ * region is that inner block. A match (kind 43) walks
  * the scrutinee, each arm result, and each arm guard before the AS
  * getter. Nested nodes are this same function. Kind 51 is not a VAR.
  * PLATFORM: SHARED.
@@ -63,6 +76,11 @@ export function glue_live_fwd_collect_expr_uses_for_defer(
   let step: i32 = 0;
   let arm: i32 = 0;
   let peeled: i32 = 0;
+  let br: i32 = 0;
+  let nso: i32 = 0;
+  let sk: i32 = 0;
+  let idx: i32 = 0;
+  let inner: i32 = 0;
   if (arena == (0 as *u8)) {
     return;
   }
@@ -147,9 +165,14 @@ export function glue_live_fwd_collect_expr_uses_for_defer(
     glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, op_ref, gen);
     return;
   }
-  // BLOCK = 26. A transparent block's value is the use. The existing
-  // peel returns 0 when the block still has lets or loops, and this
-  // walk does not invent a second peel. PLATFORM: SHARED.
+  // BLOCK = 26. The existing peel sees a transparent block and
+  // returns 0 when the block still has lets or loops. This walk does
+  // not replace that peel. Let inits, the final expr, and expr
+  // statements are uses, so a block the peel skips is still visible.
+  // One unsafe region (stmt kind 6) is the inner block from the
+  // existing region getter. The same ref is not walked again.
+  // A repeated slot is one entry: glue_live_fwd_add_u8 dedups.
+  // PLATFORM: SHARED.
   if (ko == 26) {
     unsafe {
       peeled = glue_expr_block_transparent_value_ref_at(arena, expr_ref);
@@ -158,6 +181,71 @@ export function glue_live_fwd_collect_expr_uses_for_defer(
       if (peeled != expr_ref) {
         glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, peeled, gen);
       }
+    }
+    unsafe {
+      br = pipeline_expr_block_ref_at(arena, expr_ref);
+    }
+    if (br <= 0) {
+      return;
+    }
+    unsafe {
+      nso = ast_ast_block_num_stmt_order(arena, br);
+    }
+    if (nso == 1) {
+      unsafe {
+        sk = ast_ast_block_stmt_order_kind(arena, br, 0);
+        idx = ast_ast_block_stmt_order_idx(arena, br, 0);
+      }
+      if (sk == 6) {
+        if (idx >= 0) {
+          unsafe {
+            inner = pipeline_block_region_body_ref(arena, br, idx);
+          }
+          if (inner > 0) {
+            br = inner;
+          }
+        }
+      }
+    }
+    unsafe {
+      n = ast_ast_block_num_lets(arena, br);
+    }
+    i = 0;
+    while (i < n) {
+      unsafe {
+        left_ref = ast_pipeline_block_let_init_ref(arena, br, i);
+      }
+      if (left_ref > 0) {
+        if (left_ref != expr_ref) {
+          glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, left_ref, gen);
+        }
+      }
+      i = i + 1;
+    }
+    unsafe {
+      left_ref = ast_ast_block_final_expr_ref(arena, br);
+    }
+    if (left_ref > 0) {
+      if (left_ref != expr_ref) {
+        if (left_ref != peeled) {
+          glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, left_ref, gen);
+        }
+      }
+    }
+    unsafe {
+      n = ast_ast_block_num_expr_stmts(arena, br);
+    }
+    i = 0;
+    while (i < n) {
+      unsafe {
+        left_ref = ast_pipeline_block_expr_stmt_ref(arena, br, i);
+      }
+      if (left_ref > 0) {
+        if (left_ref != expr_ref) {
+          glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, left_ref, gen);
+        }
+      }
+      i = i + 1;
     }
     return;
   }
