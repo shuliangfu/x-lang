@@ -449,16 +449,17 @@ function w1500_cs_wide_named_ret_temp(arena: *u8, op: i32): void {
  *
  * pipeline_asm_emit_addr_of_elf_c calls glue_simd_alloc_vector_temp_slot_c
  * when ta is arm64 and glue_addr_simd_lane_type_c returns a named
- * SIMD type. That helper accepts a lane binop, a unary minus, and
- * a lane compare. A compare node is stamped bool, so the bytes are
- * the left operand's vector. The allocator aligns next_offset to
+ * SIMD type. That helper accepts a lane binop, a unary minus, a
+ * bitwise not, and a lane compare. A compare node is stamped bool,
+ * so the bytes are the left operand's vector. A bitwise not uses
+ * the operand's own named SIMD type. The allocator aligns next_offset to
  * 16, then adds
  * asm_local_slot_bytes. Without this sum the slot starts inside the
  * frame and runs past sp, over the saved x19 (SIGSEGV on a function
  * that has no other rvalue slack).
  *
  * Kind 51 is the classifier's remap-to-add and is not a binop here.
- * Kind 23 is not counted. Kind 13 is not counted. The extra 8 is the
+ * Kind 24 is not counted. A kind-13 vector is not counted. The extra 8 is the
  * 16-align slack. 4096 is the array-lit payload cap. x86 does not
  * allocate this temp.
  *

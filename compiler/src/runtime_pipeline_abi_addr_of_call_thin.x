@@ -10,16 +10,17 @@
 // A named SIMD wider than 16 bytes is that same x8 address.
 // A kind-13 vector wider than 16 stays its failure. A second spill here
 // would be a second authority for the same address.
-// A lane binop (kinds 4..13), a unary minus (kind 22), and a lane
-// compare (kinds 14..19) are not calls and are not in x0:x1. On
-// arm64 this overlay stores each with the existing vector let-init
-// and leaves that temp address in x0. The compare predicate is
-// vlet_lane_cmp_ko. Kind 51 is the classifier's remap and stays -99.
-// Kind 13 stays -99. Kind 23 stays -99.
+// A lane binop (kinds 4..13), a unary minus (kind 22), a bitwise
+// not (kind 23), and a lane compare (kinds 14..19) are not calls
+// and are not in x0:x1. On arm64 this overlay stores each with the
+// existing vector let-init and leaves that temp address in x0.
+// The compare predicate is vlet_lane_cmp_ko. Kind 51 is the
+// classifier's remap and stays -99. A kind-13 vector stays -99.
+// Kind 24 stays -99.
 // Linked before pabi_weak. That copy of this symbol is weakened.
 // PLATFORM: MACOS|DARWIN link. The forward runs only for ta == 1.
 // x86_64 keeps the old -99 for a call operand, a lane binop, a
-// unary minus, and a lane compare.
+// unary minus, a bitwise not, and a lane compare.
 
 export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
@@ -55,10 +56,11 @@ export extern function glue_emit_vector_type_let_init_elf_c(
 
 /**
  * Type of the arm64 temp for an address-of lane value.
- * A lane binop or a unary minus already carries the named SIMD
- * type on the operand. A lane compare is stamped bool, and the
- * lane store uses the left operand's type, the same type a vector
- * let passes to let-init. Kind 51, kind 13, and kind 23 return 0.
+ * A lane binop, a unary minus, or a bitwise not already carries
+ * the named SIMD type on the operand. A lane compare is stamped
+ * bool, and the lane store uses the left operand's type, the same
+ * type a vector let passes to let-init. Kind 51 and a kind-13
+ * vector return 0. Kind 24 returns 0.
  * @param arena *u8 - AST arena
  * @param op i32 - ADDR_OF operand; values <= 0 return 0
  * @return i32 - named SIMD type ref, or 0 when this operand
@@ -86,6 +88,9 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
   if (opk == 22) {
     lane = 1;
   }
+  if (opk == 23) {
+    lane = 1;
+  }
   if (lane == 0) {
     unsafe {
       lane = vlet_lane_cmp_ko(opk);
@@ -111,7 +116,8 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
     }
   }
   // Bool stamp on a lane compare. The vector type is the left
-  // operand. A binop or a unary minus keeps its own type.
+  // operand. A binop, a unary minus, or a bitwise not keeps its
+  // own type.
   if (vtk != 8) {
     if (cmp != 0) {
       unsafe {
@@ -154,15 +160,17 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
  * from x0 and x1, and leaves the address in x0.
  * A named SIMD wider than 16 bytes is that same x8 address.
  * A kind-13 vector wider than 16 stays that function's failure.
- * A lane binop (kinds 4..13), a unary minus (kind 22), or a lane
- * compare (kinds 14..19) on arm64, whose resolved type is a named
- * SIMD spelling (kind 8), is stored by
+ * A lane binop (kinds 4..13), a unary minus (kind 22), a bitwise
+ * not (kind 23), or a lane compare (kinds 14..19) on arm64, whose
+ * resolved type is a named SIMD spelling (kind 8), is stored by
  * glue_emit_vector_type_let_init_elf_c into a temp from
  * glue_simd_alloc_vector_temp_slot_c. x0 is then that slot.
  * The compare predicate is vlet_lane_cmp_ko. It stores 0 or 1 per
  * lane. A compare node is stamped bool, so the slot type is the
  * left operand's named SIMD type, from glue_addr_simd_lane_type_c.
- * Kind 51 is not that binop. Kind 13 stays -99. Kind 23 stays -99.
+ * A bitwise not uses that same helper. Let-init already applies
+ * mvn on each i32 lane. Kind 51 is not that binop. A kind-13
+ * vector stays -99. Kind 24 stays -99.
  * ta != 1 stays -99.
  * @param arena *u8 - AST arena; null is not expected
  * @param elf_ctx *u8 - encoder context
@@ -171,14 +179,15 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
  * @param ta i32 - 0 x86_64, 1 arm64
  * @return i32 - 0 when x0 holds the address; the lvalue status for a
  *   call operand on arm64; the let-init status for a named SIMD lane
- *   binop, unary minus, or lane compare on arm64; -1 on encode
- *   failure; -99 when the operand kind is still unhandled, including
- *   a call, a lane binop, a unary minus, or a lane compare when
- *   ta != 1
+ *   binop, unary minus, bitwise not, or lane compare on arm64; -1
+ *   on encode failure; -99 when the operand kind is still unhandled,
+ *   including a call, a lane binop, a unary minus, a bitwise not, or
+ *   a lane compare when ta != 1
  * PLATFORM: SHARED body for the kinds the pabi already handled.
  * The call forward and the lane temp are ta == 1 only.
- * Darwin ARM64 measured `&pick()`, `&(a + b)`, `&(-a)`, and
- * `&(a == b)`. A compare lane holds 0 or 1.
+ * Darwin ARM64 measured `&pick()`, `&(a + b)`, `&(-a)`,
+ * `&(a == b)`, and `&(~a)`. A compare lane holds 0 or 1. A
+ * bitwise-not lane holds the integer complement.
  */
 #[no_mangle]
 export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -304,11 +313,13 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
     }
     return 0 - 99;
   }
-  // Lane binop, unary minus, or lane compare. The value is not
-  // in x0:x1. glue_addr_simd_lane_type_c is the one type decision:
-  // a compare node is bool, so the slot uses the operand vector.
+  // Lane binop, unary minus, bitwise not, or lane compare. The
+  // value is not in x0:x1. glue_addr_simd_lane_type_c is the one
+  // type decision: a compare node is bool, so the slot uses the
+  // operand vector. A bitwise not keeps its own named SIMD type.
   // Store through the existing vector let-init, then LEA the temp.
-  // Kind 13 and kind 23 stay 0 from that helper, then -99 here.
+  // A kind-13 vector stays 0 from that helper, then -99 here.
+  // Kind 24 stays 0, then -99.
   // PLATFORM: MACOS|ARM64. ta != 1 keeps -99.
   if (ta == 1) {
     unsafe {
