@@ -102,7 +102,7 @@ export extern function glue_emit_vector_type_let_init_elf_c(
  * stamp on the if node. The else arm can still be that vector.
  * The same let-init already stores the literal. Both
  * array-literal arms stay 0 here. The emitter reads the
- * ADDR_OF pointee for Vec8i. A match that
+ * ADDR_OF pointee for Vec8i or named i32x8. A match that
  * was not peeled stays declined. It does not
  * read the scrutinee. A kind-13 if-expr, ternary, or
  * match of 4 lanes of 4 bytes keeps that vector type.
@@ -521,8 +521,9 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
  * copies it. An if-expr whose then arm is an array literal
  * uses that arm's 8-lane vector type. The same let-init stores
  * the literal. Both array-literal arms leave the helper at 0.
- * The ADDR_OF pointee is the slot when that pointee is Vec8i.
- * A named spelling that is not Vec8i stays declined.
+ * The ADDR_OF pointee is the slot when that pointee is Vec8i
+ * or the named spelling i32x8. A named spelling that is neither
+ * stays declined.
  * Four lanes stay declined. A ternary does not use this pointee.
  * A match that was not peeled stays -99.
  * ta != 1 stays -99.
@@ -563,13 +564,14 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
  * splats those integer bits. A nonzero helper result keeps that
  * lane temp.
  * An if-expr (kind 25) whose helper result is 0 uses that same
- * pointee when it is Vec8i. Both array-literal arms leave the
- * if node without a vector stamp. The existing wide if let-init
- * stores each literal into that type. The value form already
- * returns the lane checks. A kind-8 pointee is accepted only
- * when the name is Vec8i. i32x8 stays declined. A kind-13
- * pointee is accepted only for 8 lanes of 4-byte i32. Four
- * lanes stay on the literal gate. A ternary does not enter.
+ * pointee when it is Vec8i or named i32x8. Both array-literal
+ * arms leave the if node without a vector stamp. The existing
+ * wide if let-init stores each literal into that type. The
+ * value form already returns the lane checks. A kind-8 pointee
+ * is accepted only when the name is Vec8i or i32x8. u32x8 and
+ * f32x4 stay declined. A kind-13 pointee is accepted only for
+ * 8 lanes of 4-byte i32. Four lanes stay on the literal gate.
+ * A ternary does not enter.
  */
 #[no_mangle]
 export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -720,7 +722,7 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
   // if-expr whose then arm is an array literal uses the arm's
   // 8-lane vector type from that helper. Both array-literal
   // arms stay 0 from that helper. The pointee below is Vec8i
-  // only. A match that was not
+  // or named i32x8. A match that was not
   // peeled stays 0 from that helper, then -99 here.
   // PLATFORM: MACOS|ARM64. ta != 1 keeps -99.
   if (ta == 1) {
@@ -783,14 +785,15 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
     }
     // Both array-literal arms leave this if-expr without a
     // vector stamp, so the helper returns 0. The ADDR_OF node
-    // is the pointer the user wrote. Vec8i is that pointee.
-    // The existing wide if let-init already stores an ARRAY_LIT
-    // arm into that type. The value form returns the lane
-    // checks. A kind-8 pointee is accepted only when its name
-    // is Vec8i. i32x8 is the same lane shape and stays
-    // declined. Four lanes stay on the literal gate above:
-    // an f32x4 array-literal if must not take the 16-byte pair
-    // store. A ternary does not enter here.
+    // is the pointer the user wrote. Vec8i or named i32x8 is
+    // that pointee. The existing wide if let-init already stores
+    // an ARRAY_LIT arm into that type. The value form returns
+    // the lane checks for both names. A kind-8 pointee is
+    // accepted only when its name is Vec8i or i32x8. u32x8 is
+    // the same lane shape and stays declined. Four lanes stay
+    // on the literal gate above: an f32x4 array-literal if must
+    // not take the 16-byte pair store. A ternary does not enter
+    // here.
     // PLATFORM: MACOS|ARM64.
     if (ok == 25) {
       if (vty == 0) {
@@ -822,9 +825,10 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
                   if (wide8 == 0) {
                     vty = pt;
                   }
-                  // ASCII V e c 8 i. The spelling helper accepts
-                  // every SIMD name. This if only takes Vec8i.
-                  // i32x8 stays declined. PLATFORM: MACOS|ARM64.
+                  // ASCII V e c 8 i, or i 3 2 x 8. The spelling
+                  // helper accepts every SIMD name. This if takes
+                  // Vec8i and named i32x8. u32x8 and f32x4 stay
+                  // declined. PLATFORM: MACOS|ARM64.
                   if (wide8 != 0) {
                     vlen = 0;
                     unsafe {
@@ -837,6 +841,21 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
                             if (vname[3] == 56) {
                               if (vname[4] == 105) {
                                 vty = pt;
+                              }
+                            }
+                          }
+                        }
+                      }
+                      // Named i32x8 is kind 8. The value form
+                      // already stores both array literals.
+                      if (vty == 0) {
+                        if (vname[0] == 105) {
+                          if (vname[1] == 51) {
+                            if (vname[2] == 50) {
+                              if (vname[3] == 120) {
+                                if (vname[4] == 56) {
+                                  vty = pt;
+                                }
                               }
                             }
                           }
