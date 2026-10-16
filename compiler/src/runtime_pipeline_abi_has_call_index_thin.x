@@ -6,8 +6,9 @@
 // block was invisible, so `let n = if { pick() }` stayed in pass 0 and
 // ran before a prior store. This is the one walk. A transparent block
 // is peeled by the existing helper. A block that still has lets, an
-// expr statement, or one unsafe region is walked here with the existing
-// block getters. Do not add a second walker.
+// expr statement, or an unsafe region is walked here with the existing
+// block getters. Every unsafe region in that block is the same block
+// walk, including when a let shares the block. Do not add a second walker.
 // PLATFORM: SHARED.
 
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
@@ -38,6 +39,103 @@ export extern function ast_ast_block_stmt_order_idx(arena: *u8, block_ref: i32, 
 export extern function pipeline_block_region_body_ref(arena: *u8, block_ref: i32, ri: i32): i32;
 
 /**
+ * True when a block contains an index, a call, or a method call.
+ * @param arena *u8 - AST arena; null returns 0
+ * @param br i32 - block pool ref; not positive returns 0
+ * @param expr_ref i32 - expr that owns this walk; a child equal to it is skipped
+ * @return i32 - 1 when a call, an index, or a method is present; 0 otherwise
+ * Every unsafe region (stmt kind 6) uses the existing region getter.
+ * A region body is this same function. A let init, the final expr, and
+ * an expr statement are glue_expr_tree_has_call_index_c. The same
+ * block ref is not entered again. PLATFORM: SHARED.
+ */
+function glue_has_call_block_c(arena: *u8, br: i32, expr_ref: i32): i32 {
+  let i: i32 = 0;
+  let n: i32 = 0;
+  let nso: i32 = 0;
+  let sk: i32 = 0;
+  let idx: i32 = 0;
+  let inner: i32 = 0;
+  let child: i32 = 0;
+  if (arena == (0 as *u8)) {
+    return 0;
+  }
+  if (br <= 0) {
+    return 0;
+  }
+  unsafe {
+    nso = ast_ast_block_num_stmt_order(arena, br);
+  }
+  i = 0;
+  while (i < nso) {
+    unsafe {
+      sk = ast_ast_block_stmt_order_kind(arena, br, i);
+      idx = ast_ast_block_stmt_order_idx(arena, br, i);
+    }
+    if (sk == 6) {
+      if (idx >= 0) {
+        unsafe {
+          inner = pipeline_block_region_body_ref(arena, br, idx);
+        }
+        if (inner > 0) {
+          if (inner != br) {
+            if (glue_has_call_block_c(arena, inner, expr_ref) != 0) {
+              return 1;
+            }
+          }
+        }
+      }
+    }
+    i = i + 1;
+  }
+  unsafe {
+    n = ast_ast_block_num_lets(arena, br);
+  }
+  i = 0;
+  while (i < n) {
+    unsafe {
+      child = ast_pipeline_block_let_init_ref(arena, br, i);
+    }
+    if (child > 0) {
+      if (child != expr_ref) {
+        if (glue_expr_tree_has_call_index_c(arena, child) != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  unsafe {
+    child = ast_ast_block_final_expr_ref(arena, br);
+  }
+  if (child > 0) {
+    if (child != expr_ref) {
+      if (glue_expr_tree_has_call_index_c(arena, child) != 0) {
+        return 1;
+      }
+    }
+  }
+  unsafe {
+    n = ast_ast_block_num_expr_stmts(arena, br);
+  }
+  i = 0;
+  while (i < n) {
+    unsafe {
+      child = ast_pipeline_block_expr_stmt_ref(arena, br, i);
+    }
+    if (child > 0) {
+      if (child != expr_ref) {
+        if (glue_expr_tree_has_call_index_c(arena, child) != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
  * True when the expr tree contains an index, a call, or a method call.
  * @param arena *u8 - AST arena; null returns 0
  * @param expr_ref i32 - expr pool ref; not positive returns 0
@@ -46,10 +144,10 @@ export extern function pipeline_block_region_body_ref(arena: *u8, block_ref: i32
  * 25) and a ternary (kind 27) walk the condition and both arms before
  * the AS getter, so a stale AS slot cannot hide the call. A block (kind
  * 26) asks the existing transparent peel, then walks let inits, the
- * final expr, and expr statements. One unsafe region (stmt kind 6) is
- * the inner block from the existing region getter. Nested nodes are
- * this same function. Kind 51 is not a call. A global read with no
- * call is not this function.
+ * final expr, and expr statements. Every unsafe region (stmt kind 6)
+ * is that same block walk, including when a let shares the block.
+ * Nested nodes are this same function. Kind 51 is not a call. A global
+ * read with no call is not this function.
  * PLATFORM: SHARED.
  */
 #[no_mangle]
@@ -62,10 +160,6 @@ export function glue_expr_tree_has_call_index_c(arena: *u8, expr_ref: i32): i32 
   let op_ref: i32 = 0;
   let peeled: i32 = 0;
   let br: i32 = 0;
-  let nso: i32 = 0;
-  let sk: i32 = 0;
-  let idx: i32 = 0;
-  let inner: i32 = 0;
   let step: i32 = 0;
   let arm: i32 = 0;
   if (arena == (0 as *u8)) {
@@ -147,8 +241,8 @@ export function glue_expr_tree_has_call_index_c(arena: *u8, expr_ref: i32): i32 
   // BLOCK = 26. The peel sees `{ pick() }` and `unsafe { pick() }`.
   // It returns 0 when the block still has lets, and it returns only
   // the final expr of `{ pick(); 4 }`, so the expr statement is walked
-  // below. One region unwrap uses the existing getter. The same ref
-  // is not walked again. PLATFORM: SHARED.
+  // below. Every unsafe region is that same block walk, including when
+  // a let shares the block. PLATFORM: SHARED.
   if (ko == 26) {
     unsafe {
       peeled = glue_expr_block_transparent_value_ref_at(arena, expr_ref);
@@ -163,73 +257,7 @@ export function glue_expr_tree_has_call_index_c(arena: *u8, expr_ref: i32): i32 
     unsafe {
       br = pipeline_expr_block_ref_at(arena, expr_ref);
     }
-    if (br <= 0) {
-      return 0;
-    }
-    unsafe {
-      nso = ast_ast_block_num_stmt_order(arena, br);
-    }
-    if (nso == 1) {
-      unsafe {
-        sk = ast_ast_block_stmt_order_kind(arena, br, 0);
-        idx = ast_ast_block_stmt_order_idx(arena, br, 0);
-      }
-      if (sk == 6) {
-        if (idx >= 0) {
-          unsafe {
-            inner = pipeline_block_region_body_ref(arena, br, idx);
-          }
-          if (inner > 0) {
-            br = inner;
-          }
-        }
-      }
-    }
-    unsafe {
-      n = ast_ast_block_num_lets(arena, br);
-    }
-    i = 0;
-    while (i < n) {
-      unsafe {
-        left_ref = ast_pipeline_block_let_init_ref(arena, br, i);
-      }
-      if (left_ref > 0) {
-        if (left_ref != expr_ref) {
-          if (glue_expr_tree_has_call_index_c(arena, left_ref) != 0) {
-            return 1;
-          }
-        }
-      }
-      i = i + 1;
-    }
-    unsafe {
-      left_ref = ast_ast_block_final_expr_ref(arena, br);
-    }
-    if (left_ref > 0) {
-      if (left_ref != expr_ref) {
-        if (glue_expr_tree_has_call_index_c(arena, left_ref) != 0) {
-          return 1;
-        }
-      }
-    }
-    unsafe {
-      n = ast_ast_block_num_expr_stmts(arena, br);
-    }
-    i = 0;
-    while (i < n) {
-      unsafe {
-        left_ref = ast_pipeline_block_expr_stmt_ref(arena, br, i);
-      }
-      if (left_ref > 0) {
-        if (left_ref != expr_ref) {
-          if (glue_expr_tree_has_call_index_c(arena, left_ref) != 0) {
-            return 1;
-          }
-        }
-      }
-      i = i + 1;
-    }
-    return 0;
+    return glue_has_call_block_c(arena, br, expr_ref);
   }
   // EXPR_AS. A positive operand is the child. Kind 54 may still
   // report that operand through this getter.

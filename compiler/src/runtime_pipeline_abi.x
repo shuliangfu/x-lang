@@ -53489,7 +53489,8 @@ export function glue_block_defer_lets_transitive(arena: *u8, ctx: *u8, block_ref
  * copy is an extern so a rebuild does not grow a second body.
  * pabi_weak still contains the old strong definition; the thin object
  * is linked first and wins. The walk now enters an if, a ternary, and
- * a block. A global read with no call is not this function.
+ * a block. An unsafe region is walked even when the block still has
+ * lets. A global read with no call is not this function.
  * @param arena *u8 - ASTArena*; null returns 0
  * @param expr_ref i32 - expr pool ref; not positive returns 0
  * @return i32 - 1 when a call, an index, or a method is present
