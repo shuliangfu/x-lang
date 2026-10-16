@@ -18,11 +18,12 @@
 // The compare predicate is vlet_lane_cmp_ko. Kind 20 and kind 21
 // walk left through logical nodes and compares to the named SIMD
 // operand. Kind 24, a logical not, steps through its unary operand
-// and then that same chain. A ternary (kind 27) already carries the
-// named SIMD type of its arms. The existing vector if let-init
-// stores both arms into that one temp. Kind 51 is the classifier's
-// remap and stays -99. A kind-13 ternary of 4 lanes of 4 bytes
-// uses that same temp. A wider kind-13 vector stays -99.
+// and then that same chain. A ternary (kind 27) and an if-expr
+// (kind 25) already carry the named SIMD type of their arms. The
+// existing vector if let-init stores both arms into that one temp.
+// Kind 51 is the classifier's remap and stays -99. A kind-13
+// if-expr or ternary of 4 lanes of 4 bytes uses that same temp.
+// A wider kind-13 vector stays -99.
 // Linked before pabi_weak. That copy of this symbol is weakened.
 // PLATFORM: MACOS|DARWIN link. The forward runs only for ta == 1.
 // x86_64 keeps the old -99 for a call operand, a lane binop, a
@@ -73,10 +74,11 @@ export extern function glue_emit_vector_type_let_init_elf_c(
  * type is the node at the end of the left chain through logical
  * nodes and compares. A logical not (kind 24) is stamped bool
  * too. Its vector type is the unary operand, then that same
- * chain. A ternary (kind 27) keeps the named SIMD type already
- * stamped on that node. It does not walk an arm. A kind-13
- * ternary of 4 lanes of 4 bytes keeps that vector type. Wider
- * kind 13 still returns 0. Kind 51 returns 0.
+ * chain. A ternary (kind 27) and an if-expr (kind 25) keep the
+ * named SIMD type already stamped on that node. They do not walk
+ * an arm. A kind-13 if-expr or ternary of 4 lanes of 4 bytes
+ * keeps that vector type. Wider kind 13 still returns 0.
+ * Kind 51 returns 0.
  * @param arena *u8 - AST arena
  * @param op i32 - ADDR_OF operand; values <= 0 return 0
  * @return i32 - named SIMD type ref, or 0 when this operand
@@ -98,6 +100,7 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
   let lanes_s: i32[1] = [];
   let esz_s: i32[1] = [];
   let lrc: i32 = 0;
+  let arm: i32 = 0;
   if (op <= 0) {
     return 0;
   }
@@ -144,13 +147,20 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
       cmp = 1;
     }
   }
-  // Kind 27 is a ternary. Typeck stamps the arm type on the node
-  // when both arms match, so cmp stays 0 and the walk below does
-  // not run. The existing vector if let-init stores the arms.
-  // A 16-byte spelling uses that let-init's frame pair store.
-  // PLATFORM: MACOS|ARM64. The type rule is SHARED.
+  // Kind 27 is a ternary. Kind 25 is an if-expr. Typeck stamps
+  // the arm type on the node when both arms match, so cmp stays 0
+  // and the walk below does not run. The existing vector if
+  // let-init stores the arms. A 16-byte spelling uses that
+  // let-init's frame pair store. PLATFORM: MACOS|ARM64.
+  // The type rule is SHARED.
+  if (opk == 27) {
+    arm = 1;
+  }
+  if (opk == 25) {
+    arm = 1;
+  }
   if (lane == 0) {
-    if (opk == 27) {
+    if (arm == 1) {
       lane = 1;
     }
   }
@@ -171,7 +181,7 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
   // through each logical node and each compare. Kind 24 steps to
   // its unary operand, then that same chain. 32 stops a chain
   // that does not end. A binop, a unary minus, a bitwise not,
-  // or a ternary keeps its own type because cmp stays 0.
+  // a ternary, or an if-expr keeps its own type because cmp stays 0.
   if (vtk != 8) {
     if (cmp != 0) {
       left = op;
@@ -232,12 +242,12 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
     }
   }
   // Builtin f32x4 is TYPE_VECTOR, kind 13, not a named spelling.
-  // Only a ternary uses it here. Four lanes of four bytes is the
-  // frame pair the vector if let-init already stores. A wider kind
-  // 13, including Vec8i, stays declined. PLATFORM: MACOS|ARM64.
-  // The type rule is SHARED.
+  // An if-expr or a ternary uses it here. Four lanes of four
+  // bytes is the frame pair the vector if let-init already stores.
+  // A wider kind 13, including Vec8i, stays declined.
+  // PLATFORM: MACOS|ARM64. The type rule is SHARED.
   if (vtk == 13) {
-    if (opk == 27) {
+    if (arm == 1) {
       unsafe {
         lrc = glue_vector_type_lanes_esz_c(arena, vty, &lanes_s[0], &esz_s[0]);
       }
@@ -289,12 +299,12 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
  * Kind 20 and kind 21 use that same helper. The type walk steps
  * left through logical nodes and compares. Let-init combines each
  * lane with and or with orr. Kind 24 uses that same helper.
- * Let-init inverts each 0 or 1. Kind 27 uses that same helper.
- * Let-init already stores both ternary arms. A bitwise not uses
- * that same helper. Let-init already applies mvn on each i32
- * lane. Kind 51
- * is not that binop. A kind-13 ternary of 4 lanes of 4 bytes
- * uses that temp. A wider kind-13 vector stays -99.
+ * Let-init inverts each 0 or 1. Kind 27 and kind 25 use that
+ * same helper. Let-init already stores both arms. A bitwise not
+ * uses that same helper. Let-init already applies mvn on each
+ * i32 lane. Kind 51
+ * is not that binop. A kind-13 if-expr or ternary of 4 lanes
+ * of 4 bytes uses that temp. A wider kind-13 vector stays -99.
  * ta != 1 stays -99.
  * @param arena *u8 - AST arena; null is not expected
  * @param elf_ctx *u8 - encoder context
@@ -315,7 +325,8 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
  * A logical and or a logical or stores that 0 or 1 per lane.
  * A bitwise-not lane holds the integer complement. A logical
  * not (kind 24) of a lane compare inverts each 0 or 1.
- * A ternary (kind 27) selects one named SIMD arm into that temp.
+ * A ternary (kind 27) or an if-expr (kind 25) selects one named
+ * SIMD arm into that temp.
  */
 #[no_mangle]
 export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -443,16 +454,16 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
   }
   // Lane binop, unary minus, bitwise not, lane compare, logical
   // and (kind 20), logical or (kind 21), logical not (kind 24),
-  // or a ternary (kind 27). The value is not in
-  // x0:x1. glue_addr_simd_lane_type_c is the one type decision: a
-  // compare node is bool, so the slot uses the operand vector.
-  // Kind 20 and kind 21 walk left to that same vector. Kind 24
-  // steps to its unary operand, then that same walk. Kind 27
-  // keeps the type on the ternary. A bitwise
+  // a ternary (kind 27), or an if-expr (kind 25). The value is
+  // not in x0:x1. glue_addr_simd_lane_type_c is the one type
+  // decision: a compare node is bool, so the slot uses the operand
+  // vector. Kind 20 and kind 21 walk left to that same vector.
+  // Kind 24 steps to its unary operand, then that same walk.
+  // Kind 27 and kind 25 keep the type on the node. A bitwise
   // not keeps its own named SIMD type. Store through the existing
-  // vector let-init, then LEA the temp. A kind-13 ternary of
-  // 4 lanes of 4 bytes is that same temp. A wider kind-13 vector
-  // stays 0 from that helper, then -99 here.
+  // vector let-init, then LEA the temp. A kind-13 if-expr or
+  // ternary of 4 lanes of 4 bytes is that same temp. A wider
+  // kind-13 vector stays 0 from that helper, then -99 here.
   // PLATFORM: MACOS|ARM64. ta != 1 keeps -99.
   if (ta == 1) {
     unsafe {
