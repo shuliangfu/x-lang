@@ -21,7 +21,8 @@
 // and then that same chain. A ternary (kind 27) already carries the
 // named SIMD type of its arms. The existing vector if let-init
 // stores both arms into that one temp. Kind 51 is the classifier's
-// remap and stays -99. A kind-13 vector stays -99.
+// remap and stays -99. A kind-13 ternary of 4 lanes of 4 bytes
+// uses that same temp. A wider kind-13 vector stays -99.
 // Linked before pabi_weak. That copy of this symbol is weakened.
 // PLATFORM: MACOS|DARWIN link. The forward runs only for ta == 1.
 // x86_64 keeps the old -99 for a call operand, a lane binop, a
@@ -54,6 +55,9 @@ export extern function pipeline_expr_binop_left_ref_at(arena: *u8, expr_ref: i32
 export extern function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
 export extern function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i32): i32;
+export extern function glue_vector_type_lanes_esz_c(
+  arena: *u8, type_ref: i32, out_lanes: *i32, out_esz: *i32
+): i32;
 export extern function glue_simd_alloc_vector_temp_slot_c(arena: *u8, ctx: *u8, type_ref: i32): i32;
 export extern function glue_emit_vector_type_let_init_elf_c(
   arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32,
@@ -70,8 +74,9 @@ export extern function glue_emit_vector_type_let_init_elf_c(
  * nodes and compares. A logical not (kind 24) is stamped bool
  * too. Its vector type is the unary operand, then that same
  * chain. A ternary (kind 27) keeps the named SIMD type already
- * stamped on that node. It does not walk an arm. Kind 51 and a
- * kind-13 vector return 0.
+ * stamped on that node. It does not walk an arm. A kind-13
+ * ternary of 4 lanes of 4 bytes keeps that vector type. Wider
+ * kind 13 still returns 0. Kind 51 returns 0.
  * @param arena *u8 - AST arena
  * @param op i32 - ADDR_OF operand; values <= 0 return 0
  * @return i32 - named SIMD type ref, or 0 when this operand
@@ -90,6 +95,9 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
   let step: i32 = 0;
   let lk: i32 = 0;
   let uu: i32 = 0;
+  let lanes_s: i32[1] = [];
+  let esz_s: i32[1] = [];
+  let lrc: i32 = 0;
   if (op <= 0) {
     return 0;
   }
@@ -139,7 +147,7 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
   // Kind 27 is a ternary. Typeck stamps the arm type on the node
   // when both arms match, so cmp stays 0 and the walk below does
   // not run. The existing vector if let-init stores the arms.
-  // A 16-byte spelling still declines inside that let-init.
+  // A 16-byte spelling uses that let-init's frame pair store.
   // PLATFORM: MACOS|ARM64. The type rule is SHARED.
   if (lane == 0) {
     if (opk == 27) {
@@ -223,6 +231,25 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
       }
     }
   }
+  // Builtin f32x4 is TYPE_VECTOR, kind 13, not a named spelling.
+  // Only a ternary uses it here. Four lanes of four bytes is the
+  // frame pair the vector if let-init already stores. A wider kind
+  // 13, including Vec8i, stays declined. PLATFORM: MACOS|ARM64.
+  // The type rule is SHARED.
+  if (vtk == 13) {
+    if (opk == 27) {
+      unsafe {
+        lrc = glue_vector_type_lanes_esz_c(arena, vty, &lanes_s[0], &esz_s[0]);
+      }
+      if (lrc == 0) {
+        if (esz_s[0] == 4) {
+          if (lanes_s[0] == 4) {
+            return vty;
+          }
+        }
+      }
+    }
+  }
   if (vtk != 8) {
     return 0;
   }
@@ -266,7 +293,8 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
  * Let-init already stores both ternary arms. A bitwise not uses
  * that same helper. Let-init already applies mvn on each i32
  * lane. Kind 51
- * is not that binop. A kind-13 vector stays -99.
+ * is not that binop. A kind-13 ternary of 4 lanes of 4 bytes
+ * uses that temp. A wider kind-13 vector stays -99.
  * ta != 1 stays -99.
  * @param arena *u8 - AST arena; null is not expected
  * @param elf_ctx *u8 - encoder context
@@ -422,8 +450,9 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
   // steps to its unary operand, then that same walk. Kind 27
   // keeps the type on the ternary. A bitwise
   // not keeps its own named SIMD type. Store through the existing
-  // vector let-init, then LEA the temp. A kind-13 vector stays 0
-  // from that helper, then -99 here.
+  // vector let-init, then LEA the temp. A kind-13 ternary of
+  // 4 lanes of 4 bytes is that same temp. A wider kind-13 vector
+  // stays 0 from that helper, then -99 here.
   // PLATFORM: MACOS|ARM64. ta != 1 keeps -99.
   if (ta == 1) {
     unsafe {

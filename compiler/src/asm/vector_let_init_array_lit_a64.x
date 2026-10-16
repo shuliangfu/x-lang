@@ -163,6 +163,11 @@ export extern function pipeline_expr_if_else_ref_at(arena: *u8, expr_ref: i32): 
 export extern function pipeline_asm_emit_expr_elf_c(
   arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
 ): i32;
+export extern function glue_emit_module_from_ctx(ctx: *u8): *u8;
+export extern function glue_store_retval_pair_to_rbp_elf_c(
+  m: *u8, arena: *u8, elf_ctx: *u8, ty_ref: i32, slot_off: i32, ta: i32,
+  init_ref: i32, ctx: *u8
+): i32;
 export extern function pipeline_asm_emit_next_label_c(
   ctx: *u8, buf: *u8, buf_size: i32
 ): i32;
@@ -1052,9 +1057,10 @@ function vlet_emit_lane_log(
  * value with glue_emit_struct_type_let_init_elf_c, then negates each destination
  * lane in place. A transparent EXPR_BLOCK (kind 26) is replaced by
  * its value expr first, using glue_expr_block_transparent_value_ref_at,
- * at most four times. Kind 25 (IF) and kind 27 (TERNARY) of a SIMD
- * spelling wider than 16 bytes call glue_emit_vector_if_let_init_elf_c.
- * Named i32x8 is that spelling. That sibling returns -3 with no bytes
+ * at most four times. Kind 25 (IF) and kind 27 (TERNARY) call
+ * glue_emit_vector_if_let_init_elf_c. Wider than 16 bytes fills
+ * every lane. 16 bytes uses emit_expr and the existing retval pair.
+ * Named i32x8 is the wide spelling. That sibling returns -3 with no bytes
  * emitted when an arm is not a literal chain, a VAR, a FIELD with a
  * lane-0 home, an ARRAY_LIT, a lane binop, a block that still has
  * lets, a nested if or ternary, a unary whose innermost expr is a
@@ -1299,9 +1305,11 @@ export function glue_emit_vector_type_let_init_elf_c(
   /*
    * EXPR_IF = 25 and EXPR_TERNARY = 27. A frame Vec8i let of
    * `if (c) { 3 } else { -3 }` or of two Vec8i vars used to fall
-   * through to a 16-byte pair store. The sibling fills every lane,
-   * or returns -3 before emitting. Slot -3 is dest-in-rbx and stays
-   * on that decline. PLATFORM: MACOS|ARM64.
+   * through to a 16-byte pair store. The sibling fills every lane
+   * when the spelling is wider than 16 bytes. A 16-byte spelling
+   * is stored there by emit_expr and the existing retval pair.
+   * Other declines return -3 before emitting. Slot -3 is dest-in-rbx
+   * and stays on that decline. PLATFORM: MACOS|ARM64.
    */
   if (ko == 25) {
     unsafe {
@@ -2644,7 +2652,9 @@ export function glue_vec_if_arm_fill_c(
  * The condition uses the existing bool-in-eax jump. A SIMD spelling wider
  * than 16 bytes enters, including named i32x8 and f32x8. The lane
  * count comes from glue_vector_type_lanes_esz_c. A vector of 16 bytes
- * or fewer stays declined. Vec4f and f32x4 are that case. Kind 24 is
+ * or fewer is not the wide copy. emit_expr leaves that value in x0
+ * and x1, and glue_store_retval_pair_to_rbp_elf_c writes the slot.
+ * A spelling the gate above rejects still returns -3. Kind 24 is
  * not a SIMD spelling and stays declined. PLATFORM: MACOS|ARM64.
  */
 #[no_mangle]
@@ -2667,6 +2677,7 @@ export function glue_emit_vector_if_let_init_elf_c(
   let done_lbl: u8[64] = [];
   let else_len: i32 = 0;
   let done_len: i32 = 0;
+  let modp: *u8 = 0 as *u8;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8)) {
     return 0 - 3;
   }
@@ -2680,7 +2691,7 @@ export function glue_emit_vector_if_let_init_elf_c(
     return 0 - 3;
   }
   // Named i32x8 is kind 8, not TYPE_VECTOR 13. The spelling authority
-  // already accepts it. A 16-byte spelling still declines below.
+  // already accepts it. A 16-byte spelling uses the frame pair below.
   // f32x8 is 32 bytes; a non-VAR arm is stored by the existing
   // let-init, which already fills f32 lanes. PLATFORM: MACOS|ARM64.
   unsafe {
@@ -2707,8 +2718,31 @@ export function glue_emit_vector_if_let_init_elf_c(
     nbytes = nbytes + esz_s[0];
     ni = ni + 1;
   }
+  // 16 bytes is the frame pair. The wide copy is for a payload
+  // wider than 16, so this arm does not call it. emit_expr leaves
+  // the value in x0 and x1. The existing pair store writes both
+  // halves into this slot. Nothing is emitted before that call.
+  // A spelling rejected above never reaches here.
+  // PLATFORM: MACOS|ARM64.
   if (nbytes <= 16) {
-    return 0 - 3;
+    unsafe {
+      rc = pipeline_asm_emit_expr_elf_c(
+        arena, elf_ctx, init_ref, ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      modp = glue_emit_module_from_ctx(ctx);
+    }
+    unsafe {
+      rc = glue_store_retval_pair_to_rbp_elf_c(
+        modp, arena, elf_ctx, type_ref, stack_slot_off, ta, init_ref, ctx);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    return 0;
   }
   unsafe {
     if_cond = pipeline_expr_if_cond_ref_at(arena, init_ref);
