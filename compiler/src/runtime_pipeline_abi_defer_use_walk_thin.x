@@ -6,8 +6,9 @@
 // a match was invisible, so `let n = match c { 1 => 4; _ => 9; }`
 // stayed in pass 0 and read c before `c = 1`. This is the one walk.
 // A transparent block is peeled by the existing helper. A block that
-// still has lets is then walked with the existing block getters. Do
-// not add a second walker.
+// still has lets is then walked with the existing block getters. A
+// dereference uses the same unary operand getter. Do not add a
+// second walker.
 // PLATFORM: SHARED.
 
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
@@ -59,7 +60,9 @@ export extern function pipeline_block_region_body_ref(arena: *u8, block_ref: i32
  * and expr statements with the existing block getters. One unsafe
  * region is that inner block. A match (kind 43) walks
  * the scrutinee, each arm result, and each arm guard before the AS
- * getter. Nested nodes are this same function. Kind 51 is not a VAR.
+ * getter. A dereference (kind 52) walks its operand through the same
+ * unary getter. Nested nodes are this same function. Kind 51 is not
+ * a VAR.
  * PLATFORM: SHARED.
  */
 #[no_mangle]
@@ -121,7 +124,11 @@ export function glue_live_fwd_collect_expr_uses_for_defer(
       return;
     }
   }
-  // Unary, bitwise not, logical not, or a return operand.
+  // Unary, bitwise not, logical not, a return operand, or a
+  // dereference. Kind 52 stores its operand in the same unary slot
+  // the existing getter reads. The walk records that operand. This
+  // is not the assign-deref store, and the kind-52 emit stub stays.
+  // PLATFORM: SHARED.
   step = 0;
   if (ko == 22) {
     step = 1;
@@ -133,6 +140,9 @@ export function glue_live_fwd_collect_expr_uses_for_defer(
     step = 1;
   }
   if (ko == 41) {
+    step = 1;
+  }
+  if (ko == 52) {
     step = 1;
   }
   if (step != 0) {
