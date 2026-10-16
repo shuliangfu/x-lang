@@ -13,9 +13,9 @@
 // The FIELD arm adds the field offset. An f32 result is in s0: move
 // those bits into w0, store the word, and leave the slot address in
 // x0. An f64 result is in d0: move those bits into x0, store the
-// 8-byte word, and leave the slot address in x0. A 16-byte i32
-// or f32 vector is already in x0 and x1: store both words. A
-// 16-byte f32 TYPE_VECTOR uses that same store. Other SIMD names
+// 8-byte word, and leave the slot address in x0. A 16-byte i32,
+// f32, or u32 vector is already in x0 and x1: store both words. A
+// 16-byte f32 TYPE_VECTOR uses that same store. Wider SIMD names
 // stay unhandled. The spill runs only for ta == 1.
 // PLATFORM: SHARED freestanding · MACOS tip cold · LINUX gold.
 // The call spill is MACOS|ARM64.
@@ -62,9 +62,9 @@ export extern function glue_vector_elem_is_f32_c(arena: *u8, type_ref: i32): i32
  * as the call: the wrapper leaves the x8 temp address in x0. An f32
  * result is harvested from s0 into w0 and stored as a word. An f64
  * result is harvested from d0 into x0 and stored as 8 bytes. A
- * 16-byte i32 or f32 vector, including a 16-byte f32 TYPE_VECTOR,
- * is stored from x0 and x1. Other SIMD names return -1. x86_64
- * does not spill a call.
+ * 16-byte i32, f32, or u32 vector, including a 16-byte f32
+ * TYPE_VECTOR, is stored from x0 and x1. Wider SIMD names return
+ * -1. x86_64 does not spill a call.
  * @param arena *u8 - AST arena; null returns -1
  * @param elf_ctx *u8 - codegen context; null returns -1
  * @param expr_ref i32 - lvalue expr; <=0 returns -1
@@ -193,8 +193,9 @@ export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8
     // in x0 and x1, same as `let s = pick()`. The pair store is the
     // existing retval helper. Wider than 16, the call wrapper already
     // materializes the named struct through x8 and leaves its address
-    // in x0. A 16-byte i32 or f32 vector is in x0 and x1. A 16-byte
-    // f32 TYPE_VECTOR uses that same pair. Other SIMD names stay out.
+    // in x0. A 16-byte i32, f32, or u32 vector is in x0 and x1. A
+    // 16-byte f32 TYPE_VECTOR uses that same pair. Wider SIMD names
+    // stay out.
     // f32 (14) is in s0, not x0. f64 (15) is in d0, not x0.
     // PLATFORM: MACOS|ARM64. ta != 1 returns -1.
     let call_op: i32 = 0;
@@ -242,9 +243,9 @@ export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8
         }
         // Named struct, 9..16 bytes, or a 16-byte f32 TYPE_VECTOR.
         // The high half is x1 at slot + 8. Wider than 16 stays -1.
-        // Named SIMD stores only the i32x4 or f32x4 spelling. Kind 13
-        // stores only when the element is f32 and the size is 16, so
-        // f32x8 and integer vectors stay -1. One pair store.
+        // Named SIMD stores the i32x4, f32x4, or u32x4 spelling.
+        // Kind 13 stores only when the element is f32 and the size
+        // is 16. Names ending in 8 stay -1. One pair store.
         // PLATFORM: MACOS|ARM64.
         if (sz > 8) {
           if (sz <= 16) {
@@ -254,10 +255,12 @@ export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8
               if (simd == 0) {
                 take = 1;
               }
-              // Named i32x4 or f32x4. Spelling is 1, so the arm above
-              // skips them. The array-literal return loads the payload
-              // into x0 and x1 before the callee epilogue. A lane binop
-              // already returns that pair. u32x4 stays -1.
+              // Named i32x4, f32x4, or u32x4. Spelling is 1, so the
+              // arm above skips them. User u32x4 is kind 8: the ident
+              // pack misses the real five bytes and falls through to
+              // NAMED. The array-literal return loads the payload into
+              // x0 and x1 before the callee epilogue. A lane binop
+              // already returns that pair. A name ending in 8 stays out.
               if (simd != 0) {
                 let nb: u8[8] = [];
                 let nl: i32 = 0;
@@ -272,6 +275,9 @@ export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8
                             hit = 1;
                           }
                           if (nb[0] == 102) {
+                            hit = 1;
+                          }
+                          if (nb[0] == 117) {
                             hit = 1;
                           }
                         }

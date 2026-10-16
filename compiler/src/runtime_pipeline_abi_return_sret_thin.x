@@ -491,11 +491,13 @@ function w1521_rs_mid_named_field(arena: *u8, op: i32): i32 {
  * ARRAY/SLICE ascription peel, uses that same helper and then moves the
  * element count into x1 (arm64) or rdx (SysV). Windows keeps emit_expr.
  * A length-register failure after a successful durable emit returns -1.
- * A named i32x4 or f32x4 ARRAY_LIT is kind 8, so it misses the kind-10
- * arm. The same durable helper writes 4-byte lanes. Float literals pack
- * as f32 bits in that helper when the element kind is not f32 or f64.
- * The 16-byte pair load then leaves the payload in x0 and x1. u32x4,
- * Vec4f, and a lane binop stay on emit_expr.
+ * A named i32x4, f32x4, or u32x4 ARRAY_LIT is kind 8, so it misses
+ * the kind-10 arm. User u32x4 is that kind-8 name. The same durable
+ * helper writes 4-byte lanes. Float literals pack as f32 bits in
+ * that helper when the element kind is not f32 or f64. The 16-byte
+ * pair load then leaves the payload in x0 and x1. User f32x4 and
+ * Vec4f are kind 13 of f32 and size 16, so they use the same helper.
+ * A lane binop does not enter. A name ending in 8 stays on emit_expr.
  * Darwin sret of a named SIMD (kind 8) wider than 16 bytes, whose
  * operand is an INT_LIT, a FLOAT_LIT, a BOOL_LIT, a kind-22 chain,
  * a kind-23 chain, or a lane binop, fills that value with
@@ -832,14 +834,15 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                 }
                 }
               }
-              // Named i32x4 or f32x4, or a 16-byte TYPE_VECTOR whose
-              // element is f32. Kind 10 already loads a 16-byte array
-              // into x0 and x1. A named spelling is kind 8, so it
-              // missed that arm. User f32x4 is kind 13 of f32, so the
-              // name test missed it too. Same durable helper (4-byte
-              // lanes), then the same pair load, while the slot is
-              // live. A lane binop does not enter. f32x8 is wider
-              // than 16. Integer vectors stay on emit_expr.
+              // Named i32x4, f32x4, or u32x4, or a 16-byte TYPE_VECTOR
+              // whose element is f32. Kind 10 already loads a 16-byte
+              // array into x0 and x1. A named spelling is kind 8, so
+              // it missed that arm. User u32x4 is that kind-8 name.
+              // User f32x4 is kind 13 of f32, so the name test missed
+              // it too. Same durable helper (4-byte lanes), then the
+              // same pair load, while the slot is live. A lane binop
+              // does not enter. A name ending in 8 is wider than 16.
+              // Kind-13 integer vectors stay on emit_expr.
               // PLATFORM: MACOS|ARM64.
               if (rk_d == 8) {
                 let nb: u8[8] = [];
@@ -857,6 +860,9 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                             hit = 1;
                           }
                           if (nb[0] == 102) {
+                            hit = 1;
+                          }
+                          if (nb[0] == 117) {
                             hit = 1;
                           }
                         }
