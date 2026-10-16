@@ -74,6 +74,12 @@ export extern function pipeline_expr_match_arm_result_ref(arena: *u8, expr_ref: 
 export extern function pipeline_expr_match_arm_guard_ref(arena: *u8, expr_ref: i32, i: i32): i32;
 export extern function pipeline_asm_emit_module_ref_c(): *u8;
 export extern function pipeline_expr_struct_lit_value_bytes(a: *u8, m: *u8, expr_ref: i32): i32;
+/**
+ * Bytes the array-lit emitter will take from next_offset.
+ * let_type_ref 0 uses the lit's own resolved type, then n * elem size.
+ * PLATFORM: SHARED.
+ */
+export extern function glue_array_temp_bytes_for_let_init(arena: *u8, let_type_ref: i32, init_ref: i32): i32;
 export extern function glue_call_return_byte_size_c(arena: *u8, call_expr_ref: i32): i32;
 /** w1521: Win64 by-ref >16B call-arg temp bytes (bcd). PLATFORM: WINDOWS x86_64. */
 export extern function w1521_win_call_mem_temp_bytes_c(arena: *u8, call: i32, nargs: i32, is_method: i32): i32;
@@ -85,7 +91,7 @@ export extern function link_abi_host_is_windows(): i32;
 
 // Walk state: [0] total bytes, [1] visits, [2] x86 flag, [3] widest GP units,
 // [4] arm64 binop left-preserve frame homes (w1503),
-// [5] STRUCT_LIT value temp bytes (w1509),
+// [5] STRUCT_LIT value temps (w1509) and ARRAY_LIT rvalue temps.
 // [6] arm64 sret CALL result temps + x8 save slot; Win64 by-ref arg copies (w1521);
 //     Linux x86_64 SysV push-helper temps (w1587).
 let w1500_cs_st: i32[7] = [];
@@ -587,6 +593,24 @@ function w1500_cs_expr(arena: *u8, expr_ref: i32): void {
     return;
   }
   if (ko == 46) {
+    // The arm64 array-lit emitter reserves align8(nbytes) at next_offset,
+    // then may align that base up by at most 7. A named i32x16 return is
+    // 64 bytes and is placed after the sret home. The home reserve is
+    // ret_sz plus 16 and does not cover this temp, so the tail stores
+    // past the frame onto the caller's saved fp/lr. The epilogue then
+    // returns to a misaligned address (SIGBUS). Count the same rvalue
+    // bucket the struct-lit walk fills. The extra 8 is that base-align
+    // slack. 4096 is the array-lit payload cap. PLATFORM: SHARED.
+    // The overrun was measured on MACOS|ARM64.
+    unsafe {
+      need = glue_array_temp_bytes_for_let_init(arena, 0, expr_ref);
+    }
+    if (need > 0) {
+      if (need <= 4096) {
+        need = ((need + 7) / 8) * 8 + 8;
+        w1500_cs_st[5] = w1500_cs_st[5] + need;
+      }
+    }
     unsafe {
       n = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
     }
@@ -928,7 +952,13 @@ export function glue_asm_last_binop_preserve_homes_c(): i32 {
   return w1500_cs_st[4];
 }
 
-/** STRUCT_LIT value temp bytes from the last walk (w1509). PLATFORM: WINDOWS x86_64. */
+/**
+ * Rvalue temp bytes from the last walk.
+ * STRUCT_LIT homes (w1509) and ARRAY_LIT stack temps share this sum.
+ * The frame adder already reserves it on every host.
+ * @return i32 - bytes; 0 when the last walk reserved none
+ * PLATFORM: SHARED. MACOS|ARM64. LINUX x86_64. WINDOWS x86_64.
+ */
 #[no_mangle]
 export function glue_asm_last_struct_lit_temp_bytes_c(): i32 {
   return w1500_cs_st[5];
