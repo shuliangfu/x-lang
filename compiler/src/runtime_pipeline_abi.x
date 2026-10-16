@@ -53386,8 +53386,8 @@ function glue_block_let_defer_max(): i32 {
  * The body is runtime_pipeline_abi_defer_use_walk_thin.x. This mega
  * copy is an extern so a rebuild does not grow a second body.
  * pabi_weak still contains the old strong definition; the thin object
- * is linked first and wins. The walk now enters an if, a ternary, and
- * a transparent block.
+ * is linked first and wins. The walk now enters an if, a ternary, a
+ * transparent block, and a match.
  * @param arena *u8 - ASTArena*
  * @param ctx *u8 - AsmFuncCtx*
  * @param expr_ref i32 - expr pool ref

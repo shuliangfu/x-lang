@@ -2,11 +2,11 @@
 // The copy in runtime_pipeline_abi.x is an extern. pabi_weak still has
 // the old strong definition. This object is linked first, so this body
 // wins. The old walk stopped at a binop, a unary, an AS, an index, a
-// field, an array literal, or a struct literal. An if or a ternary
-// was invisible, so a let of `if { b == a }` stayed in pass 0 while
-// `let b = id(a)` stayed in pass 1. The compare then read b before
-// the call stored it. This is the one walk. A transparent block is
-// peeled by the existing helper. Do not add a second walker.
+// field, an array literal, or a struct literal. An if, a ternary, or
+// a match was invisible, so `let n = match c { 1 => 4; _ => 9; }`
+// stayed in pass 0 and read c before `c = 1`. This is the one walk.
+// A transparent block is peeled by the existing helper. Do not add a
+// second walker.
 // PLATFORM: SHARED.
 
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
@@ -27,6 +27,10 @@ export extern function pipeline_expr_if_cond_ref_at(arena: *u8, expr_ref: i32): 
 export extern function pipeline_expr_if_then_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_if_else_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function glue_expr_block_transparent_value_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_match_matched_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_match_num_arms_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_match_arm_result_ref(arena: *u8, expr_ref: i32, i: i32): i32;
+export extern function pipeline_expr_match_arm_guard_ref(arena: *u8, expr_ref: i32, i: i32): i32;
 
 /**
  * Record stack slots read by one expr, for the pass-1 defer mask.
@@ -40,8 +44,10 @@ export extern function glue_expr_block_transparent_value_ref_at(arena: *u8, expr
  * An if (kind 25) and a ternary (kind 27) walk the condition, the
  * then arm, and the else arm. A transparent block (kind 26) walks
  * the value the existing peel returns. A block that still has lets
- * is not peeled and records nothing here. Nested ifs are this same
- * function. Kind 51 is not a VAR. PLATFORM: SHARED.
+ * is not peeled and records nothing here. A match (kind 43) walks
+ * the scrutinee, each arm result, and each arm guard before the AS
+ * getter. Nested nodes are this same function. Kind 51 is not a VAR.
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function glue_live_fwd_collect_expr_uses_for_defer(
@@ -152,6 +158,43 @@ export function glue_live_fwd_collect_expr_uses_for_defer(
       if (peeled != expr_ref) {
         glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, peeled, gen);
       }
+    }
+    return;
+  }
+  // MATCH = 43. Checked before the AS getter so a stale AS slot
+  // cannot hide the scrutinee or the arms. The scrutinee, each arm
+  // result, and each arm guard are uses. A missing guard is not
+  // positive and the recursive call returns. Patterns are a literal
+  // or a variant index, not an expr. PLATFORM: SHARED.
+  if (ko == 43) {
+    unsafe {
+      left_ref = pipeline_expr_match_matched_ref_at(arena, expr_ref);
+    }
+    if (left_ref > 0) {
+      if (left_ref != expr_ref) {
+        glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, left_ref, gen);
+      }
+    }
+    unsafe {
+      n = pipeline_expr_match_num_arms_at(arena, expr_ref);
+    }
+    i = 0;
+    while (i < n) {
+      unsafe {
+        left_ref = pipeline_expr_match_arm_result_ref(arena, expr_ref, i);
+        right_ref = pipeline_expr_match_arm_guard_ref(arena, expr_ref, i);
+      }
+      if (left_ref > 0) {
+        if (left_ref != expr_ref) {
+          glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, left_ref, gen);
+        }
+      }
+      if (right_ref > 0) {
+        if (right_ref != expr_ref) {
+          glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, right_ref, gen);
+        }
+      }
+      i = i + 1;
     }
     return;
   }
