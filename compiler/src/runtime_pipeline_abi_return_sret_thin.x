@@ -81,6 +81,7 @@ export extern function glue_index_simd_elem_bytes_c(arena: *u8, ty: i32): i32;
 export extern function glue_is_vector_lane_scalar_binop_ko(ko: i32): i32;
 export extern function vlet_lane_cmp_ko(ko: i32): i32;
 export extern function pipeline_expr_array_lit_elem_ref(arena: *u8, expr_ref: i32, index: i32): i32;
+export extern function pipeline_type_named_name_into(arena: *u8, type_ref: i32, out: *u8): i32;
 
 /**
  * `return f(...)` forwarding a > 16-byte result: pass this function's own
@@ -821,6 +822,50 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                     }
                   }
                 }
+                }
+              }
+              // Named i32x4 array literal. Kind 10 already loads a
+              // 16-byte array into x0:x1. This name is kind 8, so it
+              // missed that arm and emit_expr left the callee frame
+              // address. Same durable helper (4-byte lanes), then the
+              // same pair load, while the slot is live. f32x4 and a
+              // lane binop do not enter. PLATFORM: MACOS|ARM64.
+              if (rk_d == 8) {
+                let nb: u8[8] = [];
+                let nl: i32 = 0;
+                let hit: i32 = 0;
+                unsafe {
+                  nl = pipeline_type_named_name_into(arena, rty_d, &nb[0]);
+                }
+                if (nl == 5) {
+                  if (nb[0] == 105) {
+                    if (nb[1] == 51) {
+                      if (nb[2] == 50) {
+                        if (nb[3] == 120) {
+                          if (nb[4] == 52) {
+                            hit = 1;
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+                if (hit != 0) {
+                  if (ta == 1) {
+                    unsafe {
+                      rc = glue_asm_emit_array_lit_durable_ptr_rax_elf_c(
+                        arena, elf_ctx, ret_op, 4, ta, ctx, 0);
+                    }
+                    if (rc == 0) {
+                      unsafe {
+                        rc = pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta);
+                      }
+                      if (rc != 0) {
+                        return 0 - 1;
+                      }
+                      dur_ok = 1;
+                    }
+                  }
                 }
               }
             }

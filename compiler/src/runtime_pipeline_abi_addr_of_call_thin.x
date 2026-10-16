@@ -4,8 +4,9 @@
 // already stores a 1..8 byte integer, a 9..16 byte named struct, a
 // wider named-struct address left in x0 by the x8 wrapper, and an f32
 // word harvested from s0. This overlay forwards that operand.
-// An f64 result is harvested from d0 by that function. SIMD names
-// stay its failure. A second spill here
+// An f64 result is harvested from d0 by that function. A 16-byte
+// i32 vector is stored from x0 and x1 by that function. Other SIMD
+// names stay its failure. A second spill here
 // would be a second authority for the same address.
 // Linked before pabi_weak. That copy of this symbol is weakened.
 // PLATFORM: MACOS|DARWIN link. The forward runs only for ta == 1.
@@ -41,8 +42,9 @@ export extern function pipeline_asm_emit_array_lit_elf_c(
  * CALL (48) and METHOD (49) on arm64 forward the operand to
  * pipeline_asm_emit_lvalue_eff_addr_elf_c. That function stores a
  * 1..8 byte integer, a 9..16 byte named struct, a wider named-struct
- * address, an f32 word from s0, or an f64 word from d0, and leaves
- * the address in x0. SIMD names stay that function's failure.
+ * address, an f32 word from s0, an f64 word from d0, or a 16-byte
+ * i32 vector from x0 and x1, and leaves the address in x0. Other
+ * SIMD names stay that function's failure.
  * ta != 1 keeps -99.
  * @param arena *u8 - AST arena; null is not expected
  * @param elf_ctx *u8 - encoder context
