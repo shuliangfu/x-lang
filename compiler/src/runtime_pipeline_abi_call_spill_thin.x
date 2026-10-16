@@ -88,10 +88,18 @@ export extern function glue_call_param_type_ref_at(arena: *u8, call_expr_ref: i3
 export extern function glue_sysv_arg_byte_size_c(arena: *u8, ctx: *u8, pty: i32, arg_ref: i32): i32;
 export extern function glue_sysv_arg_gp_units_from_size_c(sz: i32): i32;
 export extern function link_abi_host_is_windows(): i32;
+export extern function pipeline_asm_emit_func_index_c(): i32;
+export extern function pipeline_asm_emit_ctx_sret_ret_sz_get(): i32;
+export extern function pipeline_module_func_return_type_at(m: *u8, func_index: i32): i32;
+export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
+export extern function glue_is_vector_lane_scalar_binop_ko(ko: i32): i32;
+export extern function vlet_lane_cmp_ko(ko: i32): i32;
+export extern function asm_local_slot_bytes(arena: *u8, type_ref: i32): i32;
 
 // Walk state: [0] total bytes, [1] visits, [2] x86 flag, [3] widest GP units,
 // [4] arm64 binop left-preserve frame homes (w1503),
-// [5] STRUCT_LIT value temps (w1509) and ARRAY_LIT rvalue temps.
+// [5] STRUCT_LIT value temps (w1509), ARRAY_LIT rvalue temps, and
+//     arm64 wide named-return temps (kind 8, sret size above 16).
 // [6] arm64 sret CALL result temps + x8 save slot; Win64 by-ref arg copies (w1521);
 //     Linux x86_64 SysV push-helper temps (w1587).
 let w1500_cs_st: i32[7] = [];
@@ -323,6 +331,112 @@ function w1587_linux_push_temp_bytes(arena: *u8, call: i32, nargs: i32, is_metho
     j = j + 1;
   }
   return tot;
+}
+
+/**
+ * Count the arm64 temp a wide named return already allocates.
+ *
+ * pipeline_asm_emit_return_elf_impl calls glue_simd_alloc_vector_temp_slot_c
+ * when the function return type is kind 8, the sret size is above 16 bytes,
+ * and the operand is an int lit, a float lit, a bool lit, a kind-22 chain,
+ * a kind-23 chain, a lane binop, or a lane compare. The allocator aligns
+ * next_offset to 16 for that spelling, then adds asm_local_slot_bytes.
+ * The sret home reserve is ret_sz plus 16 and ends at the saved x8.
+ * The lane stores then pass the frame and overwrite the caller's saved
+ * fp and lr (SIGBUS on the scored i32x16 add).
+ *
+ * The extra 8 is that 16-align slack. glue_align_next_offset has already
+ * aligned to 8, so the slack is at most 8. 4096 is the same payload cap
+ * the array-lit arm uses. Kind 13 is not counted here.
+ *
+ * @param arena *u8 - AST arena
+ * @param op i32 - return operand; values <= 0 skip
+ * @return void
+ * PLATFORM: MACOS|ARM64. The x86 walk leaves this sum unchanged.
+ */
+function w1500_cs_wide_named_ret_temp(arena: *u8, op: i32): void {
+  let opk: i32 = 0;
+  let take: i32 = 0;
+  let rsz: i32 = 0;
+  let mod_p: *u8 = 0 as *u8;
+  let fi: i32 = 0;
+  let rty: i32 = 0;
+  let rk: i32 = 0;
+  let need: i32 = 0;
+  if (w1500_cs_st[2] != 0) {
+    return;
+  }
+  if (op <= 0) {
+    return;
+  }
+  unsafe {
+    opk = pipeline_expr_kind_ord_at(arena, op);
+  }
+  if (opk == 0) {
+    take = 1;
+  }
+  if (opk == 1) {
+    take = 1;
+  }
+  if (opk == 2) {
+    take = 1;
+  }
+  if (opk == 22) {
+    take = 1;
+  }
+  if (opk == 23) {
+    take = 1;
+  }
+  unsafe {
+    take = take + glue_is_vector_lane_scalar_binop_ko(opk);
+  }
+  unsafe {
+    take = take + vlet_lane_cmp_ko(opk);
+  }
+  if (take == 0) {
+    return;
+  }
+  unsafe {
+    rsz = pipeline_asm_emit_ctx_sret_ret_sz_get();
+  }
+  if (rsz <= 16) {
+    return;
+  }
+  unsafe {
+    mod_p = pipeline_asm_emit_module_ref_c();
+  }
+  if (mod_p == (0 as *u8)) {
+    return;
+  }
+  unsafe {
+    fi = pipeline_asm_emit_func_index_c();
+  }
+  if (fi < 0) {
+    return;
+  }
+  unsafe {
+    rty = pipeline_module_func_return_type_at(mod_p, fi);
+  }
+  if (rty <= 0) {
+    return;
+  }
+  unsafe {
+    rk = pipeline_type_kind_ord_at(arena, rty);
+  }
+  if (rk != 8) {
+    return;
+  }
+  unsafe {
+    need = asm_local_slot_bytes(arena, rty);
+  }
+  if (need <= 0) {
+    return;
+  }
+  if (need > 4096) {
+    return;
+  }
+  need = ((need + 7) / 8) * 8 + 8;
+  w1500_cs_st[5] = w1500_cs_st[5] + need;
 }
 
 /** Count args that are not EXPR_VAR(3). PLATFORM: SHARED. */
@@ -559,6 +673,11 @@ function w1500_cs_expr(arena: *u8, expr_ref: i32): void {
   if (ko == 22 || ko == 23 || ko == 24 || ko == 41 || ko == 51) {
     unsafe {
       op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+    }
+    // Kind 41 is RETURN. The wide named slot is allocated here, not in
+    // the operand emitter. PLATFORM: MACOS|ARM64.
+    if (ko == 41) {
+      w1500_cs_wide_named_ret_temp(arena, op);
     }
     w1500_cs_expr(arena, op);
     return;
@@ -954,7 +1073,8 @@ export function glue_asm_last_binop_preserve_homes_c(): i32 {
 
 /**
  * Rvalue temp bytes from the last walk.
- * STRUCT_LIT homes (w1509) and ARRAY_LIT stack temps share this sum.
+ * STRUCT_LIT homes (w1509), ARRAY_LIT stack temps, and arm64 wide
+ * named-return temps share this sum.
  * The frame adder already reserves it on every host.
  * @return i32 - bytes; 0 when the last walk reserved none
  * PLATFORM: SHARED. MACOS|ARM64. LINUX x86_64. WINDOWS x86_64.
