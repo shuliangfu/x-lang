@@ -436,6 +436,10 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
  * A bitwise not (kind 23) whose helper result is 0 uses that
  * same pointee. The existing fill complements an integer
  * literal and splats. A nonzero helper result keeps that lane temp.
+ * A logical not (kind 24) whose helper result is 0 uses that
+ * same pointee. The existing fill inverts a bool literal and
+ * splats those integer bits. A nonzero helper result keeps that
+ * lane temp.
  */
 #[no_mangle]
 export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -589,16 +593,18 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
     // Kind 43 upgrades only when the helper result is nonzero.
     // Kind 0 is a bare integer literal. Kind 1 is a bare float
     // literal. Kind 2 is a bare bool literal. Kind 22 is a unary
-    // minus. Kind 23 is a bitwise not. A literal unary is stamped
-    // i32, so the helper returns 0. A vector unary keeps a nonzero
+    // minus. Kind 23 is a bitwise not. Kind 24 is a logical not.
+    // A literal minus or bitwise not is stamped i32, so the helper
+    // returns 0. A logical not of a bool literal is stamped bool,
+    // so the helper returns 0. A vector unary keeps a nonzero
     // helper result and the existing lane temp. The ADDR_OF node
     // is the pointer the user wrote. A named SIMD pointee (kind 8),
     // or a kind-13 pointee of 4 lanes of 4 bytes, is the slot type.
     // The existing fill splats the integer, narrows an f64 literal
     // to f32, splats a bool as integer 1 or 0, negates an integer
-    // literal, and complements an integer literal. An f32 lane
-    // keeps bool integer bits. An f32 bitwise not stays declined
-    // in that fill. A wider kind 13 stays declined.
+    // literal, complements an integer literal, and inverts a bool
+    // literal. An f32 lane keeps bool integer bits. An f32 bitwise
+    // not stays declined in that fill. A wider kind 13 stays declined.
     // PLATFORM: MACOS|ARM64.
     need_pointee = 0;
     if (ok == 43) {
@@ -627,6 +633,11 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
       }
     }
     if (ok == 23) {
+      if (vty == 0) {
+        need_pointee = 1;
+      }
+    }
+    if (ok == 24) {
       if (vty == 0) {
         need_pointee = 1;
       }

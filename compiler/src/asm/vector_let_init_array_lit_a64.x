@@ -1105,7 +1105,10 @@ function vlet_emit_lane_log(
  * destination lane in place. Kind 23 (EXPR_BITNOT) uses that same
  * classification and emits mvn w0 on each i32 lane. f32 bitwise not
  * returns -3. An i32 immediate not is `-imm - 1` splatted by the
- * existing fill. A chain of kind 22 and kind 23 whose innermost
+ * existing fill. Kind 24 of a BOOL_LIT is not the lane-log loop.
+ * true is 1 and false is 0. This fill splats 1 minus that value
+ * and keeps the integer bits. Kind 24 of a compare stays on the
+ * lane loop. A chain of kind 22 and kind 23 whose innermost
  * expr is a non-null INT_LIT is one walk, at most 32 steps, applied
  * inside out, then the same fill. Probes covered one through eight
  * minuses and the seven-deep mixed chain on lane 0 and lane 7.
@@ -1407,7 +1410,10 @@ export function glue_emit_vector_type_let_init_elf_c(
   // Kind 20 is logical and. Kind 21 is logical or. Kind 24 is
   // logical not. Each lane stores 0 or 1 from vlet_lane_cmp_one.
   // Kind 20 and kind 21 combine with and or with orr. Kind 24
-  // inverts that bit. The f32 literal gate matches the compare
+  // inverts that bit when the operand is not a BOOL_LIT. A
+  // BOOL_LIT is 1 or 0. The lane-log child declines it, so that
+  // operand stays for the imm fill, which splats 1 minus the
+  // value. The f32 literal gate matches the compare
   // arm. A child that is not a compare, not kind 20, not kind 21,
   // and not kind 24 returns -3. No second temp.
   // PLATFORM: MACOS|ARM64.
@@ -1419,7 +1425,23 @@ export function glue_emit_vector_type_let_init_elf_c(
     log_k = 1;
   }
   if (ko == 24) {
-    log_k = 1;
+    // BOOL_LIT (kind 2) falls through. Any other operand, including
+    // a compare, stays on the lane loop above. lit_ref is cleared
+    // when this is not that literal, so the splat below does not
+    // see a variable. PLATFORM: MACOS|ARM64.
+    unsafe {
+      lit_ref = pipeline_expr_unary_operand_ref_at(arena, init_ref);
+    }
+    op_ko = 0;
+    if (lit_ref > 0) {
+      unsafe {
+        op_ko = pipeline_expr_kind_ord_at(arena, lit_ref);
+      }
+    }
+    if (op_ko != 2) {
+      lit_ref = 0;
+      log_k = 1;
+    }
   }
   if (log_k != 0) {
     lit_gate = 0;
@@ -2085,10 +2107,18 @@ export function glue_emit_vector_type_let_init_elf_c(
         return 0 - 3;
       }
     }
+    if (ko == 24) {
+      // Logical not of a BOOL_LIT. true is 1 and false is 0.
+      // One subtraction flips that bit. This is not a bitwise not.
+      // The f32 arm below sees kind 2 and keeps these integer bits.
+      // PLATFORM: MACOS|ARM64.
+      imm = 1 - imm;
+    }
     // Kind 0 on an f32 fill target was stored as i32 bits. `let v:
     // f32x8 = 1` wrote 1 into every lane, and the 1.0 compare failed.
     // Kind 2 (BOOL_LIT) stays on the integer bits. Kind 23 (not_lit)
-    // stays on the integer bits. PLATFORM: MACOS|ARM64.
+    // stays on the integer bits. Kind 24 of that BOOL_LIT stays on
+    // the integer bits too. PLATFORM: MACOS|ARM64.
     unsafe {
       rc = vlet_f32_fill_lane(arena, type_ref);
     }
