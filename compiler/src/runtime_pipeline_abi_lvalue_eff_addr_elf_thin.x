@@ -10,13 +10,14 @@
 // a frame slot and leave the slot address in x0. A named struct wider
 // than 16 bytes is already written through x8 into the call wrapper's
 // frame temp; x0 is that address, so this arm only emits the call.
+// A named SIMD wider than 16 bytes uses that same x8 address.
 // The FIELD arm adds the field offset. An f32 result is in s0: move
 // those bits into w0, store the word, and leave the slot address in
 // x0. An f64 result is in d0: move those bits into x0, store the
 // 8-byte word, and leave the slot address in x0. A 16-byte i32,
 // f32, or u32 vector is already in x0 and x1: store both words. A
-// 16-byte f32 TYPE_VECTOR uses that same store. Wider SIMD names
-// stay unhandled. The spill runs only for ta == 1.
+// 16-byte f32 TYPE_VECTOR uses that same store. A kind-13 vector
+// wider than 16 stays unhandled. The spill runs only for ta == 1.
 // PLATFORM: SHARED freestanding · MACOS tip cold · LINUX gold.
 // The call spill is MACOS|ARM64.
 
@@ -59,12 +60,13 @@ export extern function glue_vector_elem_is_f32_c(arena: *u8, type_ref: i32): i32
  * A CALL or METHOD base spills a 1..8 byte non-float result into a
  * frame slot and returns that slot. A 9..16 byte named struct also
  * stores the x1 half. A named struct wider than 16 bytes is emitted
- * as the call: the wrapper leaves the x8 temp address in x0. An f32
+ * as the call: the wrapper leaves the x8 temp address in x0. A
+ * named SIMD wider than 16 bytes is that same address. An f32
  * result is harvested from s0 into w0 and stored as a word. An f64
  * result is harvested from d0 into x0 and stored as 8 bytes. A
  * 16-byte i32, f32, or u32 vector, including a 16-byte f32
- * TYPE_VECTOR, is stored from x0 and x1. Wider SIMD names return
- * -1. x86_64 does not spill a call.
+ * TYPE_VECTOR, is stored from x0 and x1. A kind-13 vector wider
+ * than 16 returns -1. x86_64 does not spill a call.
  * @param arena *u8 - AST arena; null returns -1
  * @param elf_ctx *u8 - codegen context; null returns -1
  * @param expr_ref i32 - lvalue expr; <=0 returns -1
@@ -193,9 +195,10 @@ export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8
     // in x0 and x1, same as `let s = pick()`. The pair store is the
     // existing retval helper. Wider than 16, the call wrapper already
     // materializes the named struct through x8 and leaves its address
-    // in x0. A 16-byte i32, f32, or u32 vector is in x0 and x1. A
-    // 16-byte f32 TYPE_VECTOR uses that same pair. Wider SIMD names
-    // stay out.
+    // in x0. A named SIMD wider than 16 bytes is that same address.
+    // A 16-byte i32, f32, or u32 vector is in x0 and x1. A 16-byte
+    // f32 TYPE_VECTOR uses that same pair. A kind-13 vector wider
+    // than 16 stays out.
     // f32 (14) is in s0, not x0. f64 (15) is in d0, not x0.
     // PLATFORM: MACOS|ARM64. ta != 1 returns -1.
     let call_op: i32 = 0;
@@ -242,10 +245,10 @@ export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8
           }
         }
         // Named struct, 9..16 bytes, or a 16-byte f32 TYPE_VECTOR.
-        // The high half is x1 at slot + 8. Wider than 16 stays -1.
-        // Named SIMD stores the i32x4, f32x4, or u32x4 spelling.
-        // Kind 13 stores only when the element is f32 and the size
-        // is 16. Names ending in 8 stay -1. One pair store.
+        // The high half is x1 at slot + 8. Wider than 16 is the x8
+        // address below, not this pair. Named SIMD stores the i32x4,
+        // f32x4, or u32x4 spelling. Kind 13 stores only when the
+        // element is f32 and the size is 16. One pair store.
         // PLATFORM: MACOS|ARM64.
         if (sz > 8) {
           if (sz <= 16) {
@@ -260,7 +263,8 @@ export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8
               // pack misses the real five bytes and falls through to
               // NAMED. The array-literal return loads the payload into
               // x0 and x1 before the callee epilogue. A lane binop
-              // already returns that pair. A name ending in 8 stays out.
+              // already returns that pair. A name ending in 8 is wider
+              // than this pair.
               if (simd != 0) {
                 let nb: u8[8] = [];
                 let nl: i32 = 0;
@@ -317,18 +321,17 @@ export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8
             }
           }
         }
-        // Named struct wider than 16 bytes. Not a SIMD spelling.
-        // pipeline_asm_emit_call_elf_c writes x8's temp and leaves
-        // that address in x0. No second copy. PLATFORM: MACOS|ARM64.
+        // Named result wider than 16 bytes, including a named SIMD.
+        // The call wrapper writes through x8 and leaves that address
+        // in x0. User i32x8 is kind 8 and 32 bytes: the callee already
+        // stores the lanes through x8. No second copy. A kind-13
+        // vector wider than 16 stays -1. PLATFORM: MACOS|ARM64.
         if (sz > 16) {
           if (trk == 8) {
-            let wide_simd: i32 = asm_type_is_simd_vector_spelling(arena, tr);
-            if (wide_simd == 0) {
-              if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, expr_ref, ctx, ta) != 0) {
-                return 0 - 1;
-              }
-              return 0;
+            if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, expr_ref, ctx, ta) != 0) {
+              return 0 - 1;
             }
+            return 0;
           }
         }
         // f32 call result. s0 holds the value. fmov w0, s0 then store

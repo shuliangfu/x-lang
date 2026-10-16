@@ -7,7 +7,8 @@
 // An f64 result is harvested from d0 by that function. A 16-byte
 // i32, f32, or u32 vector, including a 16-byte f32 TYPE_VECTOR, is
 // stored from x0 and x1 by that function.
-// Wider SIMD names stay its failure. A second spill here
+// A named SIMD wider than 16 bytes is that same x8 address.
+// A kind-13 vector wider than 16 stays its failure. A second spill here
 // would be a second authority for the same address.
 // Linked before pabi_weak. That copy of this symbol is weakened.
 // PLATFORM: MACOS|DARWIN link. The forward runs only for ta == 1.
@@ -46,7 +47,8 @@ export extern function pipeline_asm_emit_array_lit_elf_c(
  * address, an f32 word from s0, an f64 word from d0, or a 16-byte
  * i32, f32, or u32 vector, including a 16-byte f32 TYPE_VECTOR,
  * from x0 and x1, and leaves the address in x0.
- * Wider SIMD names stay that function's failure.
+ * A named SIMD wider than 16 bytes is that same x8 address.
+ * A kind-13 vector wider than 16 stays that function's failure.
  * ta != 1 keeps -99.
  * @param arena *u8 - AST arena; null is not expected
  * @param elf_ctx *u8 - encoder context
