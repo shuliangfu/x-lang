@@ -46,6 +46,8 @@ export extern function pipeline_type_elem_ref_at(arena: *u8, type_ref: i32): i32
 export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_set_resolved_type_ref(arena: *u8, expr_ref: i32, ty: i32): void;
 export extern function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i32): i32;
+export extern function pipeline_type_named_name_into(arena: *u8, type_ref: i32, out: *u8): i32;
+export extern function glue_vector_type_lanes_esz_c(arena: *u8, type_ref: i32, out_lanes: *i32, out_esz: *i32): i32;
 
 let g_w2060_emit_let_vn: u8[256] = [];
 
@@ -71,10 +73,14 @@ let g_w2060_emit_let_vn: u8[256] = [];
  * A unary minus of an integer literal under ADDR_OF is stamped
  * as a pointer to i32. A bitwise not of an integer literal under
  * ADDR_OF is stamped as a pointer to i32. A logical not of a bool
- * literal under ADDR_OF is stamped as a pointer to bool. Named soft equality then accepts that
- * pointer as *i32x4 or *f32x4. This emitter writes the declared
+ * literal under ADDR_OF is stamped as a pointer to bool. An if-expr
+ * under ADDR_OF whose arms are array literals is stamped as a
+ * pointer to that array. Named soft equality then accepts that
+ * pointer as *i32x4 or *f32x4 or *Vec8i. This emitter writes the declared
  * pointer onto that ADDR_OF before emit, so the addr peel can
- * see the SIMD pointee. The splat store stays in the addr emitter.
+ * see the SIMD pointee. Kind 25 stamps only when the pointee is
+ * Vec8i. i32x8 and f32x4 stay on their own types. The splat store
+ * stays in the addr emitter.
  * PLATFORM: SHARED freestanding emit. Darwin ARM64 measured.
  */
 #[no_mangle]
@@ -105,6 +111,9 @@ export function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_re
   let copy_ref: i32 = 0;
   let peel_n: i32 = 0;
   let peeled: i32 = 0;
+  let vec_lanes: i32[1] = [];
+  let vec_esz: i32[1] = [];
+  let vec_ek: i32 = 0;
 
   unsafe {
     slot_off = backend_asm_ctx_slot_offset(ctx, slot);
@@ -407,6 +416,65 @@ export function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_re
                     addr_sp = asm_type_is_simd_vector_spelling(arena, addr_pt);
                     if (addr_sp != 0) {
                       pipeline_expr_set_resolved_type_ref(arena, init_ref, let_ty);
+                    }
+                  }
+                }
+              }
+            }
+            // Kind 25 is an if-expr. Both array-literal arms leave
+            // the ADDR_OF pointee as a non-SIMD type, so the peel
+            // never sees Vec8i. The declared pointer is that type.
+            // Stamp it only for Vec8i: kind 8 whose name is Vec8i,
+            // or kind 13 with 8 lanes of 4-byte i32. i32x8 and
+            // f32x4 stay unstamped. The addr emitter stores the
+            // if with the existing wide let-init.
+            // PLATFORM: MACOS|ARM64. The type rule is SHARED.
+            if (addr_ok == 25) {
+              if (let_ty > 0) {
+                addr_pk = pipeline_type_kind_ord_at(arena, let_ty);
+                if (addr_pk == 9) {
+                  addr_pt = pipeline_type_elem_ref_at(arena, let_ty);
+                  if (addr_pt > 0) {
+                    addr_sp = asm_type_is_simd_vector_spelling(arena, addr_pt);
+                    if (addr_sp != 0) {
+                      addr_pk = pipeline_type_kind_ord_at(arena, addr_pt);
+                      if (addr_pk == 8) {
+                        vl = pipeline_type_named_name_into(arena, addr_pt, vn);
+                        bt = 0;
+                        if (vl == 5) {
+                          if (vn[0] == 86) {
+                            if (vn[1] == 101) {
+                              if (vn[2] == 99) {
+                                if (vn[3] == 56) {
+                                  if (vn[4] == 105) {
+                                    bt = 1;
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                        if (bt != 0) {
+                          pipeline_expr_set_resolved_type_ref(arena, init_ref, let_ty);
+                        }
+                      }
+                      if (addr_pk == 13) {
+                        vec_ek = glue_vector_type_lanes_esz_c(arena, addr_pt, &vec_lanes[0], &vec_esz[0]);
+                        if (vec_ek == 0) {
+                          if (vec_esz[0] == 4) {
+                            if (vec_lanes[0] == 8) {
+                              vec_ek = pipeline_type_elem_ref_at(arena, addr_pt);
+                              bt = 0;
+                              if (vec_ek > 0) {
+                                bt = pipeline_type_kind_ord_at(arena, vec_ek);
+                              }
+                              if (bt == 0) {
+                                pipeline_expr_set_resolved_type_ref(arena, init_ref, let_ty);
+                              }
+                            }
+                          }
+                        }
+                      }
                     }
                   }
                 }
