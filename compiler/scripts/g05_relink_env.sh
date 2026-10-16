@@ -863,6 +863,21 @@ if [ "${XLANG_INDEX_BASE_FIELD_OVERLAY:-1}" = "1" ]; then
     build_asm/selfhost_pabi/index_base_field.o glue_emit_index_eff_addr_base_elf_c
   _PABI_INDEX_BASE_FIELD="$_G05_PO_OUT"
 fi
+# ADDR_OF of a CALL or METHOD returned -99 (CG002 on Darwin `&pick()`).
+# The thin stores a 1..8 byte non-float result into a frame slot and
+# returns that address. Float results and results wider than 8 bytes
+# stay -99. pabi_weak's copy is weakened in the Darwin block below.
+# Linux and Windows keep the egg body (empty var). PLATFORM: MACOS|DARWIN.
+_PABI_ADDR_OF_CALL=""
+case "$UNAME_S" in
+  Darwin)
+    if [ "${XLANG_ADDR_OF_CALL_OVERLAY:-1}" = "1" ]; then
+      _g05_pure_overlay src/runtime_pipeline_abi_addr_of_call_thin.x \
+        build_asm/selfhost_pabi/addr_of_call.o pipeline_asm_emit_addr_of_elf_c
+      _PABI_ADDR_OF_CALL="$_G05_PO_OUT"
+    fi
+    ;;
+esac
 # w1507 (终局待办 10.34): Linux VAR assign goes through the assign.o sidecar
 # (runtime_pipeline_abi_assign_thin.x, stale-marks pabi.o), not the VAR gate,
 # and calls the pabi demote after rhs_to_rax. That demote called FLOAT_LIT f64
@@ -3249,6 +3264,25 @@ g05_darwin_pabi_thin_sidecar src/runtime_pipeline_abi_dual_gp_byte_size_thin.x \
         build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
     fi
   fi
+  # ADDR_OF overlay wins over the egg body that returns -99 for a call.
+  # PLATFORM: MACOS|DARWIN. This whole block is the Darwin pabi_weak if.
+  if [ -n "$_PABI_ADDR_OF_CALL" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+    _oc=""
+    if command -v llvm-objcopy >/dev/null 2>&1; then
+      _oc=llvm-objcopy
+    elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+    elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+    elif command -v objcopy >/dev/null 2>&1; then
+      _oc=objcopy
+    fi
+    if [ -n "$_oc" ] && nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+      | grep -E " _pipeline_asm_emit_addr_of_elf_c$" | grep -v undefined | grep -qv weak; then
+      "$_oc" --weaken-symbol=_pipeline_asm_emit_addr_of_elf_c \
+        build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+    fi
+  fi
   # w1546: binop_wide's glue_try_emit_mixed_f32_f64_arith_elf_c converts an
   # integer operand of an f64 add/sub/mul/div. The egg body is already weak
   # in the current pabi_weak; weaken again if a rebuild leaves it strong.
@@ -5222,7 +5256,7 @@ case "$UNAME_S" in
     ;;
 esac
 _X_FRONTEND="parser_x.o lexer_x.o typeck_x.o ${_TYPECK_CAP_RESIDUAL} ${_TYPECK_CTFE} codegen_x.o x_frontend_link_alias.o ${_WIN_V1_CALL_ALIAS}"
-_DRIVER_SEED_OBJS="$_PABI_ELF_LAYOUT_64K $_PABI_INDEX_BASE_FIELD $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_ELF_UNDEF_CAP $_PABI_NAMED_SIZE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_REENT_SUM $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_WPO_ALIAS $_PABI_RELOC_TYPED $_PABI_ELF_CTX $_PABI_DATA_LEN $_G05_W211_CALL_ARG $_G05_W211_VAR_OFF $_G05_W211_REGISTER $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_SKIP_HEAVY $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_CODEGEN_CAP_RESIDUAL $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
+_DRIVER_SEED_OBJS="$_PABI_ADDR_OF_CALL $_PABI_ELF_LAYOUT_64K $_PABI_INDEX_BASE_FIELD $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_ELF_UNDEF_CAP $_PABI_NAMED_SIZE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_REENT_SUM $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_WPO_ALIAS $_PABI_RELOC_TYPED $_PABI_ELF_CTX $_PABI_DATA_LEN $_G05_W211_CALL_ARG $_G05_W211_VAR_OFF $_G05_W211_REGISTER $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_SKIP_HEAVY $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_CODEGEN_CAP_RESIDUAL $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
 # ast_gen2.o: in LEGACY mode, append at link END (mirrors Makefile xlang-c LEGACY L2501
