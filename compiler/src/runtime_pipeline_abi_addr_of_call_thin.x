@@ -19,12 +19,14 @@
 // walk left through logical nodes and compares to the named SIMD
 // operand. Kind 24, a logical not, steps through its unary operand
 // and then that same chain. A ternary (kind 27) and an if-expr
-// (kind 25) already carry the named SIMD type of their arms. The
+// (kind 25) already carry the type of their arms. The
 // existing vector if let-init stores both arms into that one temp.
 // Kind 51 is the classifier's remap and stays -99. A kind-13
 // if-expr or ternary of 4 lanes of 4 bytes uses that same temp.
 // A match of 8 lanes of 4 bytes uses the declared named spelling.
-// A wider kind-13 if-expr or ternary stays -99.
+// A kind-13 if-expr of 8 lanes of 4 bytes uses that vector type.
+// The existing if let-init copies a payload wider than 16 bytes.
+// A wider kind-13 ternary stays -99.
 // Linked before pabi_weak. That copy of this symbol is weakened.
 // PLATFORM: MACOS|DARWIN link. The forward runs only for ta == 1.
 // x86_64 keeps the old -99 for a call operand, a lane binop, a
@@ -78,21 +80,23 @@ export extern function glue_emit_vector_type_let_init_elf_c(
  * nodes and compares. A logical not (kind 24) is stamped bool
  * too. Its vector type is the unary operand, then that same
  * chain. A ternary (kind 27) and an if-expr (kind 25) keep the
- * named SIMD type already stamped on that node. A match (kind 43)
+ * type already stamped on that node. A match (kind 43)
  * under addr-of is stamped with the pointer type, so the helper
  * reads the first arm until that type is a vector. An array
  * literal arm may carry no vector. One TYPE_PTR pointee that is a
  * SIMD spelling is the slot type then. A kind-13 arm of 4 lanes
  * stays on the gate below. A match arm that is kind 13 with 8
  * lanes of 4 bytes uses that same pointee peel. The slot type is
- * the declared named spelling. An if-expr or a ternary of that
- * wider kind 13 still returns 0. It does not
+ * the declared named spelling. An if-expr of that wider kind 13
+ * returns this vector type. The existing if let-init copies a
+ * payload wider than 16 bytes. A ternary of that wider kind 13
+ * still returns 0. It does not
  * read the scrutinee. A kind-13 if-expr, ternary, or
  * match of 4 lanes of 4 bytes keeps that vector type.
  * Kind 51 returns 0.
  * @param arena *u8 - AST arena
  * @param op i32 - ADDR_OF operand; values <= 0 return 0
- * @return i32 - named SIMD type ref, or 0 when this operand
+ * @return i32 - SIMD slot type, or 0 when this operand
  *   allocates no temp
  * PLATFORM: SHARED. The caller allocates only for ta == 1.
  */
@@ -370,8 +374,11 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
   // An if-expr, a ternary, or a match uses it here. Four lanes of
   // four bytes is the slot the vector let-init already stores.
   // A match of 8 lanes of 4 bytes was peeled above into the
-  // declared named spelling. An if-expr or a ternary of a wider
-  // kind 13 stays declined.
+  // declared named spelling. An if-expr of 8 lanes of 4 bytes
+  // is this vector type. Vec8i is that shape. The existing if
+  // let-init copies a payload wider than 16 bytes from the lane
+  // count. A ternary of a wider kind 13 stays declined. A match
+  // that was not peeled stays declined here too.
   // PLATFORM: MACOS|ARM64. The type rule is SHARED.
   if (vtk == 13) {
     if (arm == 1) {
@@ -382,6 +389,11 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
         if (esz_s[0] == 4) {
           if (lanes_s[0] == 4) {
             return vty;
+          }
+          if (lanes_s[0] == 8) {
+            if (opk == 25) {
+              return vty;
+            }
           }
         }
       }
@@ -434,8 +446,9 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
  * uses that same helper. Let-init already applies mvn on each
  * i32 lane. Kind 51
  * is not that binop. A kind-13 if-expr or ternary of 4 lanes
- * of 4 bytes uses that temp. A wider kind-13 if-expr or ternary
- * stays -99.
+ * of 4 bytes uses that temp. A kind-13 if-expr of 8 lanes of
+ * 4 bytes uses that temp. The existing if let-init copies it.
+ * A wider kind-13 ternary stays -99.
  * ta != 1 stays -99.
  * @param arena *u8 - AST arena; null is not expected
  * @param elf_ctx *u8 - encoder context
@@ -617,7 +630,8 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
   // existing vector let-init, then LEA the temp. A kind-13
   // if-expr, ternary, or match of 4 lanes of 4 bytes is that same
   // temp. A match of 8 lanes of 4 bytes is the declared named
-  // spelling from that helper. A wider kind-13 if-expr or ternary
+  // spelling from that helper. An if-expr of 8 lanes of 4 bytes
+  // is that vector type from that helper. A wider kind-13 ternary
   // stays 0 from that helper, then -99 here.
   // PLATFORM: MACOS|ARM64. ta != 1 keeps -99.
   if (ta == 1) {
