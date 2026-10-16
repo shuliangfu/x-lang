@@ -1815,7 +1815,9 @@ export function glue_emit_vector_type_let_init_elf_c(
  *   home, an ARRAY_LIT, a lane binop (kinds 4..13), a block that
  *   still has lets, a nested if
  *   (kind 25) or ternary (kind 27), a CALL (kind 48), a METHOD
- *   (kind 49), an INDEX (kind 47), or a DEREF (kind 52). 0 means
+ *   (kind 49), an INDEX (kind 47), a DEREF (kind 52), a FLOAT_LIT
+ *   (kind 1), or a kind-22 chain whose innermost expr is a FLOAT_LIT
+ *   and which contains no kind 23. 0 means
  *   decline this if before any branch is emitted.
  * A unary of a VAR, a FIELD, an INDEX, a CALL, a METHOD, a lane
  * binop (kinds 4..13), an ARRAY_LIT, a block that still has lets,
@@ -1837,6 +1839,9 @@ export function glue_emit_vector_type_let_init_elf_c(
  * It is that let-init's struct let-init copy of the target. The store
  * is not through the pointer. A deref under lets is that same copy
  * on the with-lets path.
+ * A FLOAT_LIT is that let-init's existing f32 narrow-and-splat.
+ * A kind-22 chain of a FLOAT_LIT is that same splat: an odd count
+ * applies the sign once. A kind 23 in that chain stays declined.
  * A bare FIELD is copied like a VAR: lane 0 from
  * glue_vector_var_lane_stack_off_elf_c is the start of the vector.
  * A CALL, a METHOD, an INDEX, or a bare DEREF is that let-init's
@@ -1863,6 +1868,7 @@ export function glue_vec_if_arm_take_c(
   let go: i32 = 0;
   let src_off: i32 = 0;
   let is_null: i32 = 0;
+  let saw_not: i32 = 0;
   if (arena == (0 as *u8) || ctx == (0 as *u8) || arm_ref <= 0) {
     return 0;
   }
@@ -1987,6 +1993,13 @@ export function glue_vec_if_arm_take_c(
   if (ko == 52) {
     return cur;
   }
+  // A FLOAT_LIT is not a deref. The fill passes it to the existing
+  // vector let-init, which narrows the f64 bits and splats them on
+  // an f32 lane. An i32 INT_LIT is kind 0 and stays on the arm above.
+  // PLATFORM: MACOS|ARM64.
+  if (ko == 1) {
+    return cur;
+  }
   if (ko == 22) {
     go = 1;
   }
@@ -2007,6 +2020,7 @@ export function glue_vec_if_arm_take_c(
     }
     if (op_k == 23) {
       step = 1;
+      saw_not = 1;
     }
     if (step == 0) {
       stop = 1;
@@ -2125,6 +2139,18 @@ export function glue_vec_if_arm_take_c(
   // A bare deref is not this chain. PLATFORM: MACOS|ARM64.
   if (op_k == 52) {
     return cur;
+  }
+  // Innermost FLOAT_LIT under only kind 22. The fill passes this
+  // chain to the existing vector let-init, which narrows the f64
+  // bits and splats them. An odd count of minuses applies the sign
+  // once. A kind 23 anywhere in the chain stays declined: that
+  // let-init does not splat a bitwise not of an f32 literal.
+  // Nested minuses stay this one walk, capped at 32.
+  // PLATFORM: MACOS|ARM64.
+  if (op_k == 1) {
+    if (saw_not == 0) {
+      return cur;
+    }
   }
   if (op_k != 0) {
     return 0;
