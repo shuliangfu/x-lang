@@ -430,6 +430,9 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
  * (kind 1) uses that same pointee. The existing fill narrows f64
  * to f32 and splats. A bool literal (kind 2) uses that same
  * pointee. The existing fill splats 1 or 0 as integer bits.
+ * A unary minus (kind 22) whose helper result is 0 uses that
+ * same pointee. The existing fill negates an integer literal
+ * and splats. A nonzero helper result keeps that lane temp.
  */
 #[no_mangle]
 export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -582,14 +585,16 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
     }
     // Kind 43 upgrades only when the helper result is nonzero.
     // Kind 0 is a bare integer literal. Kind 1 is a bare float
-    // literal. Kind 2 is a bare bool literal. The helper returns 0
-    // because that literal has no lane and no arm. The ADDR_OF
-    // node is the pointer the user wrote. A named SIMD pointee
-    // (kind 8), or a kind-13 pointee of 4 lanes of 4 bytes, is
-    // the slot type. The existing fill splats the integer, narrows
-    // an f64 literal to f32, and splats a bool as integer 1 or 0.
-    // An f32 lane keeps those integer bits. A wider kind 13 stays
-    // declined.
+    // literal. Kind 2 is a bare bool literal. Kind 22 is a unary
+    // minus. A literal unary is stamped i32, so the helper returns
+    // 0. A vector unary keeps a nonzero helper result and the
+    // existing lane temp. The ADDR_OF node is the pointer the user
+    // wrote. A named SIMD pointee (kind 8), or a kind-13 pointee
+    // of 4 lanes of 4 bytes, is the slot type. The existing fill
+    // splats the integer, narrows an f64 literal to f32, splats a
+    // bool as integer 1 or 0, and negates an integer literal.
+    // An f32 lane keeps bool integer bits. Kind 23 stays on the
+    // helper. A wider kind 13 stays declined.
     // PLATFORM: MACOS|ARM64.
     need_pointee = 0;
     if (ok == 43) {
@@ -608,6 +613,11 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
       }
     }
     if (ok == 2) {
+      if (vty == 0) {
+        need_pointee = 1;
+      }
+    }
+    if (ok == 22) {
       if (vty == 0) {
         need_pointee = 1;
       }

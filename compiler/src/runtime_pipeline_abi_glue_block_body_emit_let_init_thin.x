@@ -68,10 +68,11 @@ let g_w2060_emit_let_vn: u8[256] = [];
  * An integer literal under ADDR_OF is stamped as a pointer to i32.
  * A float literal under ADDR_OF is stamped as a pointer to f64.
  * A bool literal under ADDR_OF is stamped as a pointer to bool.
- * Named soft equality then accepts that pointer as *i32x4 or
- * *f32x4. This emitter writes the declared pointer onto that
- * ADDR_OF before emit, so the addr peel can see the SIMD pointee.
- * The splat store stays in the addr emitter.
+ * A unary minus of an integer literal under ADDR_OF is stamped
+ * as a pointer to i32. Named soft equality then accepts that
+ * pointer as *i32x4 or *f32x4. This emitter writes the declared
+ * pointer onto that ADDR_OF before emit, so the addr peel can
+ * see the SIMD pointee. The splat store stays in the addr emitter.
  * PLATFORM: SHARED freestanding emit. Darwin ARM64 measured.
  */
 #[no_mangle]
@@ -312,11 +313,13 @@ export function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_re
       } else {
         // Kind 51 is ADDR_OF. Kind 0 is the integer literal.
         // Kind 1 is the float literal. Kind 2 is the bool literal.
-        // The operand stamp is a pointer to i32, a pointer to f64,
-        // or a pointer to bool. The declared pointer is the slot
-        // type when its pointee spells a SIMD vector. The addr peel
-        // still accepts kind 8, and kind 13 only for 4 lanes of 4
-        // bytes. An f32 lane keeps the bool integer bits.
+        // Kind 22 is a unary minus. The operand stamp is a pointer
+        // to i32, a pointer to f64, or a pointer to bool. The
+        // declared pointer is the slot type when its pointee spells
+        // a SIMD vector. The addr peel still accepts kind 8, and
+        // kind 13 only for 4 lanes of 4 bytes. An f32 lane keeps
+        // the bool integer bits. A vector unary keeps the helper
+        // temp when that result is nonzero.
         // PLATFORM: SHARED.
         if (init_ko == 51) {
           addr_op = pipeline_expr_unary_operand_ref_at(arena, init_ref);
@@ -351,6 +354,20 @@ export function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_re
               }
             }
             if (addr_ok == 2) {
+              if (let_ty > 0) {
+                addr_pk = pipeline_type_kind_ord_at(arena, let_ty);
+                if (addr_pk == 9) {
+                  addr_pt = pipeline_type_elem_ref_at(arena, let_ty);
+                  if (addr_pt > 0) {
+                    addr_sp = asm_type_is_simd_vector_spelling(arena, addr_pt);
+                    if (addr_sp != 0) {
+                      pipeline_expr_set_resolved_type_ref(arena, init_ref, let_ty);
+                    }
+                  }
+                }
+              }
+            }
+            if (addr_ok == 22) {
               if (let_ty > 0) {
                 addr_pk = pipeline_type_kind_ord_at(arena, let_ty);
                 if (addr_pk == 9) {
