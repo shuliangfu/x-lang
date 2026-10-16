@@ -122,6 +122,9 @@ export extern function glue_i32_to_f32_bits(v: i32): i32;
 export extern function pipeline_expr_float_bits_lo_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_float_bits_hi_at(arena: *u8, expr_ref: i32): i32;
 export extern function glue_ieee_f64_bits_to_f32_bits(lo: i32, hi: i32): i32;
+export extern function pipe_modlet_float_expr_trunc_i32(
+  arena: *u8, eref: i32, out_val: *i32
+): i32;
 export extern function glue_vector_elem_is_f32_c(arena: *u8, type_ref: i32): i32;
 export extern function glue_vector_var_lane_stack_off_elf_c(
   arena: *u8, ctx: *u8, var_expr_ref: i32, lane: i32, esz: i32, ta: i32
@@ -1118,7 +1121,11 @@ function vlet_emit_lane_log(
  * of 3 is 4 on lane 0 and lane 7. A 33rd step stays declined.
  * A FLOAT_LIT, or one unary minus of a FLOAT_LIT,
  * on an f32 lane is narrowed with glue_ieee_f64_bits_to_f32_bits and
- * splatted before that integer fold. One more unary minus of that
+ * splatted before that integer fold. On a 4-byte integer lane that
+ * same literal is truncated toward zero by
+ * pipe_modlet_float_expr_trunc_i32 and splatted as that i32. An f32
+ * lane still narrows. A lane whose size is not 4 stays declined.
+ * One more unary minus of that
  * FLOAT_LIT cancels the sign and uses the same fill. One unary
  * beyond that applies the sign once and uses the same fill. One unary
  * beyond that cancels again. One unary beyond that applies the sign
@@ -1222,6 +1229,7 @@ export function glue_emit_vector_type_let_init_elf_c(
   let f_lo: i32 = 0;
   let f_hi: i32 = 0;
   let f_bits: i32 = 0;
+  let f_iv: i32[1] = [];
   let f_neg: i32 = 0;
   let f_sign: i32 = 0;
   let f_in: i32 = 0;
@@ -1507,9 +1515,9 @@ export function glue_emit_vector_type_let_init_elf_c(
   // once more. Fourteen minuses cancel again. Fifteen minuses apply
   // the sign once more. At most 32 minuses are folded. One more
   // stays on the decline below. Bitwise not
-  // of a float stays declined. The element must be f32, the lane
-  // size 4, and ta 1.
-  // An f64 lane stays declined.
+  // of a float stays declined. An f32 lane narrows. A 4-byte
+  // integer lane truncates toward zero. The lane size is 4 and
+  // ta is 1. An f64 lane stays declined.
   // The sign bit is two statements (0x80000000), xored into the f64
   // high half before the narrow. PLATFORM: MACOS|ARM64.
   f_ref = 0;
@@ -1621,6 +1629,40 @@ export function glue_emit_vector_type_let_init_elf_c(
             }
           }
         }
+        // vlet_f32_fill_lane returned 0: this spelling is not f32.
+        // A 4-byte integer lane truncates the f64 literal toward zero
+        // and splats that i32. The walk owns the exponent loop.
+        // f_neg is the minus parity already counted above; the inner
+        // literal keeps its own sign. A return other than 1 has not
+        // stored. An f64 lane stays declined. PLATFORM: MACOS|ARM64.
+        if (rc == 0) {
+          unsafe {
+            rc = glue_vector_type_lanes_esz_c(
+              arena, type_ref, &lanes_s[0], &esz_s[0]);
+          }
+          if (rc == 0) {
+            if (esz_s[0] == 4) {
+              if (lanes_s[0] > 0) {
+                f_iv[0] = 0;
+                unsafe {
+                  rc = pipe_modlet_float_expr_trunc_i32(
+                    arena, f_ref, &f_iv[0]);
+                }
+                if (rc == 1) {
+                  imm = f_iv[0];
+                  if (f_neg != 0) {
+                    imm = 0 - imm;
+                  }
+                  unsafe {
+                    rc = glue_simd_emit_imm_fill_slot_c(
+                      elf_ctx, stack_slot_off, lanes_s[0], esz_s[0], ta, imm);
+                  }
+                  return rc;
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -1628,7 +1670,9 @@ export function glue_emit_vector_type_let_init_elf_c(
   // EXPR_NEG = 22 over an INT_LIT is the parser form of `-3`. Negate
   // that literal and splat with the same fill. A decline stores
   // zero-extended `neg w0` plus untouched x1, so lane 1 of i32x4 = -3
-  // is 0. An f32 FLOAT_LIT is the arm above. An f64 literal stays declined.
+  // is 0. An f32 FLOAT_LIT is the arm above. A 4-byte integer lane
+  // of an f64 literal is that same arm. Any other f64 literal stays
+  // declined.
   // Lane size 8 of a negative pattern stays declined: the fill
   // zero-extends the 32-bit immediate, which is not a negative i64.
   // EXPR_BITNOT = 23 shares this operand split. mvn w0 is per i32
