@@ -27,7 +27,10 @@
 // A kind-13 if-expr or ternary of 8 lanes of 4 bytes uses that
 // vector type. Vec8i is that shape. The existing if let-init
 // copies a payload wider than 16 bytes. It already stores a
-// ternary. A match that was not peeled stays declined.
+// ternary. An if-expr whose then arm is an array literal has
+// no vector stamp on the if node. The else arm can still be
+// that vector. The same let-init already stores the literal.
+// A match that was not peeled stays declined.
 // Linked before pabi_weak. That copy of this symbol is weakened.
 // PLATFORM: MACOS|DARWIN link. The forward runs only for ta == 1.
 // x86_64 keeps the old -99 for a call operand, a lane binop, a
@@ -57,6 +60,8 @@ export extern function pipeline_asm_emit_array_lit_elf_c(
 export extern function glue_is_vector_lane_scalar_binop_ko(ko: i32): i32;
 export extern function vlet_lane_cmp_ko(ko: i32): i32;
 export extern function pipeline_expr_binop_left_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_if_then_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_if_else_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_match_arm_result_ref(arena: *u8, expr_ref: i32, arm_i: i32): i32;
 export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
@@ -92,7 +97,10 @@ export extern function glue_emit_vector_type_let_init_elf_c(
  * returns this vector type. A ternary of that wider kind 13
  * returns this vector type too. The existing if let-init copies
  * a payload wider than 16 bytes and already stores a ternary.
- * A match that was not peeled stays declined. It does not
+ * An if-expr whose then arm is an array literal has no vector
+ * stamp on the if node. The else arm can still be that vector.
+ * The same let-init already stores the literal. A match that
+ * was not peeled stays declined. It does not
  * read the scrutinee. A kind-13 if-expr, ternary, or
  * match of 4 lanes of 4 bytes keeps that vector type.
  * Kind 51 returns 0.
@@ -404,7 +412,61 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
       }
     }
   }
+  // An array-literal then arm leaves the if node without a
+  // vector stamp. A kind-8 node uses the spelling below. A
+  // kind-13 node that the gate declined stays declined.
+  // The then arm is read first, then the else arm. Vec8i on
+  // that arm is kind 13, 8 lanes of 4 bytes. The existing if
+  // let-init already stores the literal into that type. Four
+  // lanes stay on the gate above. A ternary keeps the node
+  // type and does not enter here. A match does not enter here.
+  // PLATFORM: MACOS|ARM64. The type rule is SHARED.
   if (vtk != 8) {
+    if (vtk != 13) {
+      if (opk == 25) {
+        step = 0;
+        while (step < 2) {
+          lk = 0;
+          if (step == 0) {
+            unsafe {
+              lk = pipeline_expr_if_then_ref_at(arena, op);
+            }
+          }
+          if (step == 1) {
+            unsafe {
+              lk = pipeline_expr_if_else_ref_at(arena, op);
+            }
+          }
+          if (lk > 0) {
+            vty = 0;
+            vtk = 0;
+            unsafe {
+              vty = pipeline_expr_resolved_type_ref(arena, lk);
+            }
+            if (vty > 0) {
+              unsafe {
+                vtk = pipeline_type_kind_ord_at(arena, vty);
+              }
+            }
+            if (vtk == 13) {
+              lrc = 0;
+              unsafe {
+                lrc = glue_vector_type_lanes_esz_c(
+                  arena, vty, &lanes_s[0], &esz_s[0]);
+              }
+              if (lrc == 0) {
+                if (esz_s[0] == 4) {
+                  if (lanes_s[0] == 8) {
+                    return vty;
+                  }
+                }
+              }
+            }
+          }
+          step = step + 1;
+        }
+      }
+    }
     return 0;
   }
   unsafe {
@@ -453,7 +515,9 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
  * is not that binop. A kind-13 if-expr or ternary of 4 lanes
  * of 4 bytes uses that temp. A kind-13 if-expr or ternary of
  * 8 lanes of 4 bytes uses that temp. The existing if let-init
- * copies it. A match that was not peeled stays -99.
+ * copies it. An if-expr whose then arm is an array literal
+ * uses that arm's 8-lane vector type. The same let-init stores
+ * the literal. A match that was not peeled stays -99.
  * ta != 1 stays -99.
  * @param arena *u8 - AST arena; null is not expected
  * @param elf_ctx *u8 - encoder context
@@ -636,9 +700,10 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
   // if-expr, ternary, or match of 4 lanes of 4 bytes is that same
   // temp. A match of 8 lanes of 4 bytes is the declared named
   // spelling from that helper. An if-expr or a ternary of 8
-  // lanes of 4 bytes is that vector type from that helper. A
-  // match that was not peeled stays 0 from that helper, then
-  // -99 here.
+  // lanes of 4 bytes is that vector type from that helper. An
+  // if-expr whose then arm is an array literal uses the arm's
+  // 8-lane vector type from that helper. A match that was not
+  // peeled stays 0 from that helper, then -99 here.
   // PLATFORM: MACOS|ARM64. ta != 1 keeps -99.
   if (ta == 1) {
     unsafe {
