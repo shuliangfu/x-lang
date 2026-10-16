@@ -1816,9 +1816,10 @@ export function glue_emit_vector_type_let_init_elf_c(
  *   still has lets, a nested if
  *   (kind 25) or ternary (kind 27), a CALL (kind 48), a METHOD
  *   (kind 49), an INDEX (kind 47), a DEREF (kind 52), a FLOAT_LIT
- *   (kind 1), a BOOL_LIT (kind 2), or a kind-22 chain whose innermost
- *   expr is a FLOAT_LIT and which contains no kind 23. 0 means
- *   decline this if before any branch is emitted.
+ *   (kind 1), a BOOL_LIT (kind 2), a lane compare (kinds 14..19),
+ *   or a kind-22 chain whose innermost expr is a FLOAT_LIT and which
+ *   contains no kind 23. 0 means decline this if before any branch
+ *   is emitted.
  * A unary of a VAR, a FIELD, an INDEX, a CALL, a METHOD, a lane
  * binop (kinds 4..13), an ARRAY_LIT, a block that still has lets,
  * or a DEREF is the whole chain. The fill passes it to the existing
@@ -1845,6 +1846,9 @@ export function glue_emit_vector_type_let_init_elf_c(
  * A BOOL_LIT is that let-init's existing integer 0-or-1 splat.
  * An f32 lane keeps those integer bits. A unary of a bool stays
  * declined: that let-init does not splat it.
+ * A lane compare (kinds 14..19, EQ through GE) is that let-init's
+ * existing per-lane store of integer 0 or 1. Kind 51 is outside
+ * that range. A unary of a compare stays declined.
  * A bare FIELD is copied like a VAR: lane 0 from
  * glue_vector_var_lane_stack_off_elf_c is the start of the vector.
  * A CALL, a METHOD, an INDEX, or a bare DEREF is that let-init's
@@ -1952,6 +1956,15 @@ export function glue_vec_if_arm_take_c(
       go = glue_is_vector_lane_scalar_binop_ko(ko);
     }
   }
+  if (go != 0) {
+    return cur;
+  }
+  // A lane compare is not a lane binop. Kinds 14..19 are EQ through
+  // GE. The fill passes this arm to the existing vector let-init,
+  // which stores integer 0 or 1 on every lane. Kind 51 is outside
+  // this range. A unary of a compare stays on the walk below and
+  // is declined. PLATFORM: MACOS|ARM64.
+  go = vlet_lane_cmp_ko(ko);
   if (go != 0) {
     return cur;
   }

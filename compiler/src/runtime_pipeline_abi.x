@@ -53382,115 +53382,19 @@ function glue_block_let_defer_max(): i32 {
 
 
 /**
- * Deeper use walk for defer analysis: VAR/binop/unary/AS/INDEX/field/array/struct.
+ * Deeper use walk for defer analysis.
+ * The body is runtime_pipeline_abi_defer_use_walk_thin.x. This mega
+ * copy is an extern so a rebuild does not grow a second body.
+ * pabi_weak still contains the old strong definition; the thin object
+ * is linked first and wins. The walk now enters an if, a ternary, and
+ * a transparent block.
  * @param arena *u8 - ASTArena*
  * @param ctx *u8 - AsmFuncCtx*
  * @param expr_ref i32 - expr pool ref
  * @param gen *u8 - GlueBlockLiveFwd overlay (u8[136])
- * wave153 pure: G.7 authority (was static in pipeline_asm_emit_block_body.c).
  * PLATFORM: SHARED freestanding emit.
  */
-#[no_mangle]
-export function glue_live_fwd_collect_expr_uses_for_defer(arena: *u8, ctx: *u8, expr_ref: i32, gen: *u8): void {
-  let ko: i32 = 0;
-  let i: i32 = 0;
-  let n: i32 = 0;
-  let left_ref: i32 = 0;
-  let right_ref: i32 = 0;
-  let op_ref: i32 = 0;
-  let off: i32 = 0;
-  if (arena == 0 as *u8 || ctx == 0 as *u8 || gen == 0 as *u8 || expr_ref <= 0) {
-    return;
-  }
-  unsafe {
-    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
-  }
-  // GLUE_EXPR_KIND_VAR == 3
-  if (ko == 3) {
-    unsafe {
-      off = glue_var_expr_stack_off_elf_c(arena, ctx, expr_ref);
-    }
-    if (off >= 0) {
-      unsafe {
-        glue_live_fwd_add_u8(gen, off);
-      }
-    }
-    return;
-  }
-  if (ko >= 4 && ko <= 21) {
-    unsafe {
-      left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
-      right_ref = pipeline_expr_binop_right_ref_at(arena, expr_ref);
-    }
-    glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, left_ref, gen);
-    glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, right_ref, gen);
-    return;
-  }
-  // unary / LOGNOT
-  if (ko == 22 || ko == 23 || ko == 24 || ko == 41) {
-    unsafe {
-      op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
-    }
-    glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, op_ref, gen);
-    return;
-  }
-  // EXPR_AS: kind may be EXPR_AS ord or as_operand_ref > 0
-  unsafe {
-    op_ref = pipeline_expr_as_operand_ref_at(arena, expr_ref);
-  }
-  if (op_ref > 0) {
-    glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, op_ref, gen);
-    return;
-  }
-  // EXPR_INDEX = 47
-  if (ko == 47) {
-    unsafe {
-      left_ref = pipeline_expr_index_base_ref(arena, expr_ref);
-      right_ref = pipeline_expr_index_index_ref(arena, expr_ref);
-    }
-    glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, left_ref, gen);
-    glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, right_ref, gen);
-    return;
-  }
-  // field access = 44
-  if (ko == 44) {
-    unsafe {
-      left_ref = pipeline_expr_field_access_base_ref(arena, expr_ref);
-    }
-    glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, left_ref, gen);
-    return;
-  }
-  // ARRAY_LIT = 46
-  if (ko == 46) {
-    unsafe {
-      n = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
-    }
-    i = 0;
-    while (i < n) {
-      unsafe {
-        left_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, i);
-      }
-      glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, left_ref, gen);
-      i = i + 1;
-    }
-    return;
-  }
-  // STRUCT_LIT = 45
-  if (ko == 45) {
-    unsafe {
-      n = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
-    }
-    i = 0;
-    while (i < n) {
-      unsafe {
-        left_ref = pipeline_expr_struct_lit_init_ref(arena, expr_ref, i);
-      }
-      glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, left_ref, gen);
-      i = i + 1;
-    }
-    return;
-  }
-}
+export extern function glue_live_fwd_collect_expr_uses_for_defer(arena: *u8, ctx: *u8, expr_ref: i32, gen: *u8): void;
 
 
 /**

@@ -1,0 +1,215 @@
+// Live body of glue_live_fwd_collect_expr_uses_for_defer.
+// The copy in runtime_pipeline_abi.x is an extern. pabi_weak still has
+// the old strong definition. This object is linked first, so this body
+// wins. The old walk stopped at a binop, a unary, an AS, an index, a
+// field, an array literal, or a struct literal. An if or a ternary
+// was invisible, so a let of `if { b == a }` stayed in pass 0 while
+// `let b = id(a)` stayed in pass 1. The compare then read b before
+// the call stored it. This is the one walk. A transparent block is
+// peeled by the existing helper. Do not add a second walker.
+// PLATFORM: SHARED.
+
+export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
+export extern function glue_var_expr_stack_off_elf_c(arena: *u8, ctx: *u8, expr_ref: i32): i32;
+export extern function glue_live_fwd_add_u8(gen: *u8, off: i32): void;
+export extern function pipeline_expr_binop_left_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_binop_right_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_as_operand_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_index_base_ref(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_index_index_ref(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_field_access_base_ref(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_array_lit_num_elems_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_array_lit_elem_ref(arena: *u8, expr_ref: i32, i: i32): i32;
+export extern function pipeline_expr_struct_lit_num_fields(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_struct_lit_init_ref(arena: *u8, expr_ref: i32, i: i32): i32;
+export extern function pipeline_expr_if_cond_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_if_then_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_if_else_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function glue_expr_block_transparent_value_ref_at(arena: *u8, expr_ref: i32): i32;
+
+/**
+ * Record stack slots read by one expr, for the pass-1 defer mask.
+ * @param arena *u8 - AST arena; null returns without writing
+ * @param ctx *u8 - AsmFuncCtx; null returns without writing
+ * @param expr_ref i32 - expr pool ref; not positive returns
+ * @param gen *u8 - GlueBlockLiveFwd overlay (u8[136]); null returns
+ * A VAR records its frame slot. A binop, including a lane compare
+ * (kinds 14..19), walks both sides. A unary, an AS, an index, a
+ * field, an array literal, and a struct literal walk their children.
+ * An if (kind 25) and a ternary (kind 27) walk the condition, the
+ * then arm, and the else arm. A transparent block (kind 26) walks
+ * the value the existing peel returns. A block that still has lets
+ * is not peeled and records nothing here. Nested ifs are this same
+ * function. Kind 51 is not a VAR. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_live_fwd_collect_expr_uses_for_defer(
+  arena: *u8, ctx: *u8, expr_ref: i32, gen: *u8
+): void {
+  let ko: i32 = 0;
+  let i: i32 = 0;
+  let n: i32 = 0;
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let op_ref: i32 = 0;
+  let off: i32 = 0;
+  let step: i32 = 0;
+  let arm: i32 = 0;
+  let peeled: i32 = 0;
+  if (arena == (0 as *u8)) {
+    return;
+  }
+  if (ctx == (0 as *u8)) {
+    return;
+  }
+  if (gen == (0 as *u8)) {
+    return;
+  }
+  if (expr_ref <= 0) {
+    return;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  }
+  // EXPR_VAR = 3. The slot is already assigned when the defer mask
+  // is built. A missing home is not a local use.
+  if (ko == 3) {
+    unsafe {
+      off = glue_var_expr_stack_off_elf_c(arena, ctx, expr_ref);
+    }
+    if (off >= 0) {
+      unsafe {
+        glue_live_fwd_add_u8(gen, off);
+      }
+    }
+    return;
+  }
+  // Kinds 4..21, including EQ..GE. Both sides are uses.
+  if (ko >= 4) {
+    if (ko <= 21) {
+      unsafe {
+        left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+        right_ref = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+      }
+      glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, left_ref, gen);
+      glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, right_ref, gen);
+      return;
+    }
+  }
+  // Unary, bitwise not, logical not, or a return operand.
+  step = 0;
+  if (ko == 22) {
+    step = 1;
+  }
+  if (ko == 23) {
+    step = 1;
+  }
+  if (ko == 24) {
+    step = 1;
+  }
+  if (ko == 41) {
+    step = 1;
+  }
+  if (step != 0) {
+    unsafe {
+      op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+    }
+    glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, op_ref, gen);
+    return;
+  }
+  // IF = 25 and TERNARY = 27 share the if child slots. Checked before
+  // the AS getter: that getter reads a different slot, and a stale
+  // value there must not hide the arms. The condition and both arms
+  // are uses. A missing arm is not positive and the recursive call
+  // returns. Nested ifs stay this walk. PLATFORM: SHARED.
+  arm = 0;
+  if (ko == 25) {
+    arm = 1;
+  }
+  if (ko == 27) {
+    arm = 1;
+  }
+  if (arm != 0) {
+    unsafe {
+      left_ref = pipeline_expr_if_cond_ref_at(arena, expr_ref);
+      right_ref = pipeline_expr_if_then_ref_at(arena, expr_ref);
+      op_ref = pipeline_expr_if_else_ref_at(arena, expr_ref);
+    }
+    glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, left_ref, gen);
+    glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, right_ref, gen);
+    glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, op_ref, gen);
+    return;
+  }
+  // BLOCK = 26. A transparent block's value is the use. The existing
+  // peel returns 0 when the block still has lets or loops, and this
+  // walk does not invent a second peel. PLATFORM: SHARED.
+  if (ko == 26) {
+    unsafe {
+      peeled = glue_expr_block_transparent_value_ref_at(arena, expr_ref);
+    }
+    if (peeled > 0) {
+      if (peeled != expr_ref) {
+        glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, peeled, gen);
+      }
+    }
+    return;
+  }
+  // EXPR_AS. A positive operand ref is the use. Kind 54 may still
+  // report that operand through this getter.
+  unsafe {
+    op_ref = pipeline_expr_as_operand_ref_at(arena, expr_ref);
+  }
+  if (op_ref > 0) {
+    glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, op_ref, gen);
+    return;
+  }
+  // EXPR_INDEX = 47. Base and index are both uses.
+  if (ko == 47) {
+    unsafe {
+      left_ref = pipeline_expr_index_base_ref(arena, expr_ref);
+      right_ref = pipeline_expr_index_index_ref(arena, expr_ref);
+    }
+    glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, left_ref, gen);
+    glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, right_ref, gen);
+    return;
+  }
+  // FIELD = 44. The base is the use.
+  if (ko == 44) {
+    unsafe {
+      left_ref = pipeline_expr_field_access_base_ref(arena, expr_ref);
+    }
+    glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, left_ref, gen);
+    return;
+  }
+  // ARRAY_LIT = 46.
+  if (ko == 46) {
+    unsafe {
+      n = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
+    }
+    i = 0;
+    while (i < n) {
+      unsafe {
+        left_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, i);
+      }
+      glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, left_ref, gen);
+      i = i + 1;
+    }
+    return;
+  }
+  // STRUCT_LIT = 45.
+  if (ko == 45) {
+    unsafe {
+      n = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
+    }
+    i = 0;
+    while (i < n) {
+      unsafe {
+        left_ref = pipeline_expr_struct_lit_init_ref(arena, expr_ref, i);
+      }
+      glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, left_ref, gen);
+      i = i + 1;
+    }
+    return;
+  }
+}
