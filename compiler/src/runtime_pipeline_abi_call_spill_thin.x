@@ -451,10 +451,12 @@ function w1500_cs_wide_named_ret_temp(arena: *u8, op: i32): void {
  * when ta is arm64 and glue_addr_simd_lane_type_c returns a named
  * SIMD type. That helper accepts a lane binop, a unary minus, a
  * bitwise not, a lane compare, a logical and (kind 20), and a
- * logical or (kind 21), and a logical not (kind 24). A compare
+ * logical or (kind 21), a logical not (kind 24), and a ternary
+ * (kind 27). A compare
  * node is stamped bool, so the bytes are the left operand's
  * vector. Kind 20 and kind 21 walk left to that same vector.
- * Kind 24 steps to its unary operand, then that same walk. A bitwise not uses
+ * Kind 24 steps to its unary operand, then that same walk.
+ * Kind 27 keeps the named SIMD type on the ternary. A bitwise not uses
  * the operand's own named SIMD type. The allocator aligns next_offset to
  * 16, then adds
  * asm_local_slot_bytes. Without this sum the slot starts inside the
@@ -1141,7 +1143,7 @@ export function glue_asm_last_binop_preserve_homes_c(): i32 {
  * STRUCT_LIT homes (w1509), ARRAY_LIT stack temps, arm64 wide
  * named-return temps, and arm64 address-of named-SIMD lane
  * temps, including a lane compare, a logical and, a logical
- * or, and a logical not, share this sum.
+ * or, a logical not, and a ternary, share this sum.
  * The frame adder already reserves it on every host.
  * @return i32 - bytes; 0 when the last walk reserved none
  * PLATFORM: SHARED. MACOS|ARM64. LINUX x86_64. WINDOWS x86_64.

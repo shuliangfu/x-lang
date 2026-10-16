@@ -18,8 +18,10 @@
 // The compare predicate is vlet_lane_cmp_ko. Kind 20 and kind 21
 // walk left through logical nodes and compares to the named SIMD
 // operand. Kind 24, a logical not, steps through its unary operand
-// and then that same chain. Kind 51 is the classifier's remap and
-// stays -99. A kind-13 vector stays -99.
+// and then that same chain. A ternary (kind 27) already carries the
+// named SIMD type of its arms. The existing vector if let-init
+// stores both arms into that one temp. Kind 51 is the classifier's
+// remap and stays -99. A kind-13 vector stays -99.
 // Linked before pabi_weak. That copy of this symbol is weakened.
 // PLATFORM: MACOS|DARWIN link. The forward runs only for ta == 1.
 // x86_64 keeps the old -99 for a call operand, a lane binop, a
@@ -67,7 +69,9 @@ export extern function glue_emit_vector_type_let_init_elf_c(
  * type is the node at the end of the left chain through logical
  * nodes and compares. A logical not (kind 24) is stamped bool
  * too. Its vector type is the unary operand, then that same
- * chain. Kind 51 and a kind-13 vector return 0.
+ * chain. A ternary (kind 27) keeps the named SIMD type already
+ * stamped on that node. It does not walk an arm. Kind 51 and a
+ * kind-13 vector return 0.
  * @param arena *u8 - AST arena
  * @param op i32 - ADDR_OF operand; values <= 0 return 0
  * @return i32 - named SIMD type ref, or 0 when this operand
@@ -132,6 +136,16 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
       cmp = 1;
     }
   }
+  // Kind 27 is a ternary. Typeck stamps the arm type on the node
+  // when both arms match, so cmp stays 0 and the walk below does
+  // not run. The existing vector if let-init stores the arms.
+  // A 16-byte spelling still declines inside that let-init.
+  // PLATFORM: MACOS|ARM64. The type rule is SHARED.
+  if (lane == 0) {
+    if (opk == 27) {
+      lane = 1;
+    }
+  }
   if (lane == 0) {
     return 0;
   }
@@ -148,8 +162,8 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
   // compare steps once, to its operand. Kind 20 and kind 21 step
   // through each logical node and each compare. Kind 24 steps to
   // its unary operand, then that same chain. 32 stops a chain
-  // that does not end. A binop, a unary minus, or a bitwise not
-  // keeps its own type because cmp stays 0.
+  // that does not end. A binop, a unary minus, a bitwise not,
+  // or a ternary keeps its own type because cmp stays 0.
   if (vtk != 8) {
     if (cmp != 0) {
       left = op;
@@ -236,7 +250,8 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
  * A kind-13 vector wider than 16 stays that function's failure.
  * A lane binop (kinds 4..13), a unary minus (kind 22), a bitwise
  * not (kind 23), a lane compare (kinds 14..19), a logical and
- * (kind 20), a logical or (kind 21), or a logical not (kind 24)
+ * (kind 20), a logical or (kind 21), a logical not (kind 24),
+ * or a ternary (kind 27)
  * on arm64, whose resolved type is a named SIMD spelling (kind 8),
  * is stored by
  * glue_emit_vector_type_let_init_elf_c into a temp from
@@ -247,8 +262,10 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
  * Kind 20 and kind 21 use that same helper. The type walk steps
  * left through logical nodes and compares. Let-init combines each
  * lane with and or with orr. Kind 24 uses that same helper.
- * Let-init inverts each 0 or 1. A bitwise not uses that same
- * helper. Let-init already applies mvn on each i32 lane. Kind 51
+ * Let-init inverts each 0 or 1. Kind 27 uses that same helper.
+ * Let-init already stores both ternary arms. A bitwise not uses
+ * that same helper. Let-init already applies mvn on each i32
+ * lane. Kind 51
  * is not that binop. A kind-13 vector stays -99.
  * ta != 1 stays -99.
  * @param arena *u8 - AST arena; null is not expected
@@ -270,6 +287,7 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
  * A logical and or a logical or stores that 0 or 1 per lane.
  * A bitwise-not lane holds the integer complement. A logical
  * not (kind 24) of a lane compare inverts each 0 or 1.
+ * A ternary (kind 27) selects one named SIMD arm into that temp.
  */
 #[no_mangle]
 export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -396,11 +414,13 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
     return 0 - 99;
   }
   // Lane binop, unary minus, bitwise not, lane compare, logical
-  // and (kind 20), or logical or (kind 21). The value is not in
+  // and (kind 20), logical or (kind 21), logical not (kind 24),
+  // or a ternary (kind 27). The value is not in
   // x0:x1. glue_addr_simd_lane_type_c is the one type decision: a
   // compare node is bool, so the slot uses the operand vector.
   // Kind 20 and kind 21 walk left to that same vector. Kind 24
-  // steps to its unary operand, then that same walk. A bitwise
+  // steps to its unary operand, then that same walk. Kind 27
+  // keeps the type on the ternary. A bitwise
   // not keeps its own named SIMD type. Store through the existing
   // vector let-init, then LEA the temp. A kind-13 vector stays 0
   // from that helper, then -99 here.
