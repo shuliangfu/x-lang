@@ -53497,116 +53497,19 @@ export function glue_block_defer_lets_transitive(arena: *u8, ctx: *u8, block_ref
 export extern function glue_expr_tree_has_call_index_c(arena: *u8, expr_ref: i32): i32;
 
 /**
- * True when expr tree reads a VAR that does not resolve to a block local
- * (i.e. a module global / extern). EXPR_VAR = 3; resolution goes through
- * the wave188 authority glue_asm_local_var_stack_off_scoped, so param homes
- * and enclosing-scope locals count as local and modlet-backed globals fail
- * the lookup. Callers must only consult this when
- * glue_expr_tree_has_call_index_c already returned 0 (that walker claims
- * INDEX/CALL/METHOD_CALL nodes first, so they never reach us here).
- * 9.6.0 pass1-defer: a let whose init reads a global must stay in pass 1
- * source order — pass 0 would read the global before prior statements
- * mutate it (probe pd: non-main `g=g+1; g=g+1; let c=g; return c` returned
- * the pre-statement value). Previously this only worked in the hoist
- * target because hoisting turned globals into block locals.
- * @param arena *u8 — ASTArena*
- * @param ctx *u8 — AsmFuncCtx*
- * @param expr_ref i32 — expr pool ref; <=0 → 0
- * @return i32 — 1 if a non-local VAR leaf is read; 0 otherwise
- * 9.6.0: G.7 有则补全 on pass1-defer authority (wave153 family).
- * PLATFORM: SHARED freestanding emit · LINUX gold · MACOS co-path.
+ * True when the expr tree reads a VAR that is not a block local.
+ * The body is runtime_pipeline_abi_has_nonlocal_var_thin.x. This mega
+ * copy is an extern so a rebuild does not grow a second body.
+ * pabi_weak still contains the old strong definition; the thin object
+ * is linked first and wins. The walk now enters an if, a ternary, and
+ * a block. A call is claimed by glue_expr_tree_has_call_index_c.
+ * @param arena *u8 - ASTArena*; null returns 0
+ * @param ctx *u8 - AsmFuncCtx; null returns 0
+ * @param expr_ref i32 - expr pool ref; not positive returns 0
+ * @return i32 - 1 when a module global or extern VAR is read
+ * PLATFORM: SHARED freestanding emit.
  */
-#[no_mangle]
-export function glue_expr_tree_has_nonlocal_var_c(arena: *u8, ctx: *u8, expr_ref: i32): i32 {
-  let ko: i32 = 0;
-  let i: i32 = 0;
-  let n: i32 = 0;
-  let left_ref: i32 = 0;
-  let right_ref: i32 = 0;
-  let op_ref: i32 = 0;
-  if (arena == 0 as *u8 || expr_ref <= 0) {
-    return 0;
-  }
-  unsafe {
-    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
-  }
-  // EXPR_VAR = 3: local table miss ⇒ non-local (global) read.
-  if (ko == 3) {
-    unsafe {
-      if (glue_asm_local_var_stack_off_scoped(arena, ctx, expr_ref) < 0) {
-        return 1;
-      }
-    }
-    return 0;
-  }
-  // binop family 4..21
-  if (ko >= 4 && ko <= 21) {
-    unsafe {
-      left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
-      right_ref = pipeline_expr_binop_right_ref_at(arena, expr_ref);
-    }
-    if (glue_expr_tree_has_nonlocal_var_c(arena, ctx, left_ref) != 0) {
-      return 1;
-    }
-    return glue_expr_tree_has_nonlocal_var_c(arena, ctx, right_ref);
-  }
-  // unary / LOGNOT / return operand
-  if (ko == 22 || ko == 23 || ko == 24 || ko == 41) {
-    unsafe {
-      op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
-    }
-    return glue_expr_tree_has_nonlocal_var_c(arena, ctx, op_ref);
-  }
-  // EXPR_AS
-  unsafe {
-    op_ref = pipeline_expr_as_operand_ref_at(arena, expr_ref);
-  }
-  if (op_ref > 0) {
-    return glue_expr_tree_has_nonlocal_var_c(arena, ctx, op_ref);
-  }
-  // field access = 44 (walk base only; a FieldAccess never reads a bare VAR)
-  if (ko == 44) {
-    unsafe {
-      left_ref = pipeline_expr_field_access_base_ref(arena, expr_ref);
-    }
-    return glue_expr_tree_has_nonlocal_var_c(arena, ctx, left_ref);
-  }
-  // ARRAY_LIT = 46
-  if (ko == 46) {
-    unsafe {
-      n = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
-    }
-    i = 0;
-    while (i < n) {
-      unsafe {
-        left_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, i);
-      }
-      if (glue_expr_tree_has_nonlocal_var_c(arena, ctx, left_ref) != 0) {
-        return 1;
-      }
-      i = i + 1;
-    }
-    return 0;
-  }
-  // STRUCT_LIT = 45
-  if (ko == 45) {
-    unsafe {
-      n = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
-    }
-    i = 0;
-    while (i < n) {
-      unsafe {
-        left_ref = pipeline_expr_struct_lit_init_ref(arena, expr_ref, i);
-      }
-      if (glue_expr_tree_has_nonlocal_var_c(arena, ctx, left_ref) != 0) {
-        return 1;
-      }
-      i = i + 1;
-    }
-    return 0;
-  }
-  return 0;
-}
+export extern function glue_expr_tree_has_nonlocal_var_c(arena: *u8, ctx: *u8, expr_ref: i32): i32;
 
 /**
  * Mark lets that must stay in pass 1 (stmt_order position).
