@@ -5556,6 +5556,14 @@ case "$UNAME_S" in
       _CAP_TIP_FRONT="$_CAP_TIP_FRONT $_AF_CAP_LEAVE"
       echo "g05_relink_env: Darwin Cap leave assign_field first-win ($(echo $_AF_CAP_LEAVE | wc -w | tr -d ' ') objs)" >&2
     fi
+    # A CALL or METHOD field base (`&pick().v`) used to return -1.
+    # Rebuild this thin every Darwin relink. The spill is ta == 1 only.
+    # A failed rebuild keeps the previous object. PLATFORM: MACOS|DARWIN.
+    if [ "${XLANG_LVALUE_EFF_ADDR_OVERLAY:-1}" = "1" ]; then
+      _g05_pure_overlay src/runtime_pipeline_abi_lvalue_eff_addr_elf_thin.x \
+        build_asm/selfhost_pabi/lvalue_eff_addr_elf_a64.o \
+        pipeline_asm_emit_lvalue_eff_addr_elf_c
+    fi
     _CAP_TIP_OV=""
     for _ov in \
       build_asm/selfhost_pabi/pthin_primary_body_a64.o \

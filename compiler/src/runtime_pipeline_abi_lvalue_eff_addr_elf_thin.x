@@ -4,7 +4,13 @@
 // address. needs_ptr_load already LDR'd a *T formal, so a second load
 // stores s.field through the old field value (Set_i32.keys SEGV at 0).
 // VAR(3): stack_off → glue_enc_local_slot_ptr_or_addr_elf_c (LEA/LDR).
+// CALL(48) / METHOD(49): a field base such as `&pick().v` recurses here.
+// The result is in x0, same as `let s = pick()`. Spill that register
+// into a frame slot and leave the slot address in x0. The FIELD arm
+// adds the field offset. Float results and results wider than 8 bytes
+// stay unhandled. The spill runs only for ta == 1.
 // PLATFORM: SHARED freestanding · MACOS tip cold · LINUX gold.
+// The call spill is MACOS|ARM64.
 
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_field_access_base_ref(arena: *u8, expr_ref: i32): i32;
@@ -26,11 +32,25 @@ export extern function pipeline_expr_index_index_ref(arena: *u8, expr_ref: i32):
 export extern function pipeline_asm_index_elem_byte_sz_c(arena: *u8, expr_ref: i32): i32;
 export extern function glue_emit_index_eff_addr_scaled_elf_c(
   arena: *u8, elf_ctx: *u8, ix_ref: i32, base_ref: i32, idx_ref: i32, ctx: *u8, ta: i32, esz: i32): i32;
+export extern function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): i32;
+export extern function glue_simd_alloc_vector_temp_slot_c(arena: *u8, ctx: *u8, type_ref: i32): i32;
+export extern function backend_enc_store_rax_to_rbp_arch(elf_ctx: *u8, slot: i32, ta: i32): i32;
+export extern function backend_enc_lea_rbp_to_rax_arch(elf_ctx: *u8, slot: i32, ta: i32): i32;
 
 /**
- * ELF lvalue effective address → rax.
- * @return i32 — 0 ok; -1 fail
- * PLATFORM: SHARED freestanding · MACOS|ARM64 · LINUX.
+ * ELF lvalue effective address in x0.
+ * FIELD recurses into the base, then adds the field offset.
+ * A CALL or METHOD base spills a 1..8 byte non-float result into a
+ * frame slot and returns that slot. Float results and results wider
+ * than 8 bytes return -1. x86_64 does not spill a call.
+ * @param arena *u8 - AST arena; null returns -1
+ * @param elf_ctx *u8 - codegen context; null returns -1
+ * @param expr_ref i32 - lvalue expr; <=0 returns -1
+ * @param ctx *u8 - function asm context; null returns -1
+ * @param ta i32 - target arch; the call spill runs only for ta == 1
+ * @return i32 - 0 when x0 holds the address; -1 on failure
+ * PLATFORM: SHARED for VAR, FIELD, DEREF, and INDEX.
+ * The call spill is MACOS|ARM64.
  */
 #[no_mangle]
 export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -145,6 +165,56 @@ export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8
       esz = pipeline_asm_index_elem_byte_sz_c(arena, expr_ref);
       return glue_emit_index_eff_addr_scaled_elf_c(
         arena, elf_ctx, expr_ref, ib, ii, ctx, ta, esz);
+    }
+    // CALL = 48, METHOD = 49. `pick().v` is FIELD whose base is the
+    // call. The result bits are in x0. A frame slot keeps them alive
+    // for the field offset add. f32 (14) and f64 (15) are not in x0.
+    // PLATFORM: MACOS|ARM64. ta != 1 returns -1.
+    let call_op: i32 = 0;
+    if (k == 48) {
+      call_op = 1;
+    }
+    if (k == 49) {
+      call_op = 1;
+    }
+    if (call_op != 0) {
+      if (ta == 1) {
+        let tr: i32 = pipeline_expr_resolved_type_ref(arena, expr_ref);
+        let trk: i32 = 0;
+        let sz: i32 = 0;
+        let slot: i32 = 0;
+        let gmod: *u8 = 0 as *u8;
+        if (tr > 0) {
+          trk = pipeline_type_kind_ord_at(arena, tr);
+          gmod = glue_emit_module_from_ctx(ctx);
+          if (gmod == (0 as *u8)) {
+            gmod = pipeline_asm_emit_module_ref_c();
+          }
+          sz = glue_type_size_simple(gmod, arena, tr, 0);
+        }
+        if (trk == 14) {
+          sz = 0;
+        }
+        if (trk == 15) {
+          sz = 0;
+        }
+        if (sz > 0) {
+          if (sz <= 8) {
+            slot = glue_simd_alloc_vector_temp_slot_c(arena, ctx, tr);
+            if (slot < 0) {
+              return 0 - 1;
+            }
+            if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, expr_ref, ctx, ta) != 0) {
+              return 0 - 1;
+            }
+            if (backend_enc_store_rax_to_rbp_arch(elf_ctx, slot, ta) != 0) {
+              return 0 - 1;
+            }
+            return backend_enc_lea_rbp_to_rax_arch(elf_ctx, slot, ta);
+          }
+        }
+      }
+      return 0 - 1;
     }
     return 0 - 1;
   }
