@@ -192,9 +192,13 @@ let g_vlet_f32_name: u8[64] = [];
  * TYPE_VECTOR of f32. The cap-tip object of that function was emitted
  * before f32x8 was added, so `let v: f32x8 = 1.0` fell through to one
  * str x of the f64 bits and lane 0 read as 0. f32x8 is kind 8, five
- * bytes, f 3 2 x 8. When the classifier already returns 1 this name
- * check is not reached. The existing fill still takes the lane count
- * from glue_vector_type_lanes_esz_c. An integer literal does not call
+ * bytes, f 3 2 x 8. f32x16 is kind 8, six bytes, f 3 2 x 1 6. The
+ * linked classifier returns 0 for that name too, so an f32x16 add
+ * stored integer add of the lane bits and lane 0 compared as 0.
+ * When the classifier already returns 1 this name check is not
+ * reached. The existing fill still takes the lane count from
+ * glue_vector_type_lanes_esz_c. An integer spelling, including
+ * i32x16 and u32x16, returns 0. An integer literal does not call
  * this helper.
  * @param arena *u8 — AST arena
  * @param type_ref i32 — let type; not positive returns 0
@@ -223,10 +227,30 @@ function vlet_f32_fill_lane(arena: *u8, type_ref: i32): i32 {
   unsafe {
     nlen = pipeline_type_named_name_into(arena, type_ref, &g_vlet_f32_name[0]);
   }
-  if (nlen != 5) {
+  /* ASCII f 3 2 x 8. Five compares, no second name table. */
+  if (nlen == 5) {
+    if (g_vlet_f32_name[0] != 102) {
+      return 0;
+    }
+    if (g_vlet_f32_name[1] != 51) {
+      return 0;
+    }
+    if (g_vlet_f32_name[2] != 50) {
+      return 0;
+    }
+    if (g_vlet_f32_name[3] != 120) {
+      return 0;
+    }
+    if (g_vlet_f32_name[4] != 56) {
+      return 0;
+    }
+    return 1;
+  }
+  /* ASCII f 3 2 x 1 6. Same helper, six compares. i32x16 starts
+     with i (105) and returns 0 on the first byte. PLATFORM: SHARED. */
+  if (nlen != 6) {
     return 0;
   }
-  /* ASCII f 3 2 x 8. Five compares, no second name table. */
   if (g_vlet_f32_name[0] != 102) {
     return 0;
   }
@@ -239,7 +263,10 @@ function vlet_f32_fill_lane(arena: *u8, type_ref: i32): i32 {
   if (g_vlet_f32_name[3] != 120) {
     return 0;
   }
-  if (g_vlet_f32_name[4] != 56) {
+  if (g_vlet_f32_name[4] != 49) {
+    return 0;
+  }
+  if (g_vlet_f32_name[5] != 54) {
     return 0;
   }
   return 1;
