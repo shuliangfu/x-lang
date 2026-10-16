@@ -10,15 +10,16 @@
 // A named SIMD wider than 16 bytes is that same x8 address.
 // A kind-13 vector wider than 16 stays its failure. A second spill here
 // would be a second authority for the same address.
-// A lane binop (kinds 4..13) and a unary minus (kind 22) are not
-// calls and are not in x0:x1. On arm64 this overlay stores either
-// with the existing vector let-init and leaves that temp address
-// in x0. Kind 51 is the classifier's remap and stays -99.
+// A lane binop (kinds 4..13), a unary minus (kind 22), and a lane
+// compare (kinds 14..19) are not calls and are not in x0:x1. On
+// arm64 this overlay stores each with the existing vector let-init
+// and leaves that temp address in x0. The compare predicate is
+// vlet_lane_cmp_ko. Kind 51 is the classifier's remap and stays -99.
 // Kind 13 stays -99. Kind 23 stays -99.
 // Linked before pabi_weak. That copy of this symbol is weakened.
 // PLATFORM: MACOS|DARWIN link. The forward runs only for ta == 1.
-// x86_64 keeps the old -99 for a call operand, a lane binop, and
-// a unary minus.
+// x86_64 keeps the old -99 for a call operand, a lane binop, a
+// unary minus, and a lane compare.
 
 export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
@@ -42,6 +43,8 @@ export extern function pipeline_asm_emit_array_lit_elf_c(
   arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
 ): i32;
 export extern function glue_is_vector_lane_scalar_binop_ko(ko: i32): i32;
+export extern function vlet_lane_cmp_ko(ko: i32): i32;
+export extern function pipeline_expr_binop_left_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
 export extern function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i32): i32;
@@ -49,6 +52,94 @@ export extern function glue_simd_alloc_vector_temp_slot_c(arena: *u8, ctx: *u8, 
 export extern function glue_emit_vector_type_let_init_elf_c(
   arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32,
   stack_off: i32, type_ref: i32): i32;
+
+/**
+ * Type of the arm64 temp for an address-of lane value.
+ * A lane binop or a unary minus already carries the named SIMD
+ * type on the operand. A lane compare is stamped bool, and the
+ * lane store uses the left operand's type, the same type a vector
+ * let passes to let-init. Kind 51, kind 13, and kind 23 return 0.
+ * @param arena *u8 - AST arena
+ * @param op i32 - ADDR_OF operand; values <= 0 return 0
+ * @return i32 - named SIMD type ref, or 0 when this operand
+ *   allocates no temp
+ * PLATFORM: SHARED. The caller allocates only for ta == 1.
+ */
+#[no_mangle]
+export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
+  let opk: i32 = 0;
+  let lane: i32 = 0;
+  let cmp: i32 = 0;
+  let vty: i32 = 0;
+  let vtk: i32 = 0;
+  let spell: i32 = 0;
+  let left: i32 = 0;
+  if (op <= 0) {
+    return 0;
+  }
+  unsafe {
+    opk = pipeline_expr_kind_ord_at(arena, op);
+  }
+  if (opk == 51) {
+    return 0;
+  }
+  if (opk == 22) {
+    lane = 1;
+  }
+  if (lane == 0) {
+    unsafe {
+      lane = vlet_lane_cmp_ko(opk);
+    }
+    if (lane != 0) {
+      cmp = 1;
+    }
+  }
+  if (lane == 0) {
+    unsafe {
+      lane = glue_is_vector_lane_scalar_binop_ko(opk);
+    }
+  }
+  if (lane == 0) {
+    return 0;
+  }
+  unsafe {
+    vty = pipeline_expr_resolved_type_ref(arena, op);
+  }
+  if (vty > 0) {
+    unsafe {
+      vtk = pipeline_type_kind_ord_at(arena, vty);
+    }
+  }
+  // Bool stamp on a lane compare. The vector type is the left
+  // operand. A binop or a unary minus keeps its own type.
+  if (vtk != 8) {
+    if (cmp != 0) {
+      unsafe {
+        left = pipeline_expr_binop_left_ref_at(arena, op);
+      }
+      if (left > 0) {
+        unsafe {
+          vty = pipeline_expr_resolved_type_ref(arena, left);
+        }
+        if (vty > 0) {
+          unsafe {
+            vtk = pipeline_type_kind_ord_at(arena, vty);
+          }
+        }
+      }
+    }
+  }
+  if (vtk != 8) {
+    return 0;
+  }
+  unsafe {
+    spell = asm_type_is_simd_vector_spelling(arena, vty);
+  }
+  if (spell == 0) {
+    return 0;
+  }
+  return vty;
+}
 
 /**
  * Emit ADDR_OF into x0.
@@ -63,10 +154,14 @@ export extern function glue_emit_vector_type_let_init_elf_c(
  * from x0 and x1, and leaves the address in x0.
  * A named SIMD wider than 16 bytes is that same x8 address.
  * A kind-13 vector wider than 16 stays that function's failure.
- * A lane binop (kinds 4..13) or a unary minus (kind 22) on arm64,
- * whose resolved type is a named SIMD spelling (kind 8), is stored
- * by glue_emit_vector_type_let_init_elf_c into a temp from
+ * A lane binop (kinds 4..13), a unary minus (kind 22), or a lane
+ * compare (kinds 14..19) on arm64, whose resolved type is a named
+ * SIMD spelling (kind 8), is stored by
+ * glue_emit_vector_type_let_init_elf_c into a temp from
  * glue_simd_alloc_vector_temp_slot_c. x0 is then that slot.
+ * The compare predicate is vlet_lane_cmp_ko. It stores 0 or 1 per
+ * lane. A compare node is stamped bool, so the slot type is the
+ * left operand's named SIMD type, from glue_addr_simd_lane_type_c.
  * Kind 51 is not that binop. Kind 13 stays -99. Kind 23 stays -99.
  * ta != 1 stays -99.
  * @param arena *u8 - AST arena; null is not expected
@@ -76,12 +171,14 @@ export extern function glue_emit_vector_type_let_init_elf_c(
  * @param ta i32 - 0 x86_64, 1 arm64
  * @return i32 - 0 when x0 holds the address; the lvalue status for a
  *   call operand on arm64; the let-init status for a named SIMD lane
- *   binop or unary minus on arm64; -1 on encode failure; -99 when the
- *   operand kind is still unhandled, including a call, a lane binop,
- *   or a unary minus when ta != 1
+ *   binop, unary minus, or lane compare on arm64; -1 on encode
+ *   failure; -99 when the operand kind is still unhandled, including
+ *   a call, a lane binop, a unary minus, or a lane compare when
+ *   ta != 1
  * PLATFORM: SHARED body for the kinds the pabi already handled.
  * The call forward and the lane temp are ta == 1 only.
- * Darwin ARM64 measured `&pick()`, `&(a + b)`, and `&(-a)`.
+ * Darwin ARM64 measured `&pick()`, `&(a + b)`, `&(-a)`, and
+ * `&(a == b)`. A compare lane holds 0 or 1.
  */
 #[no_mangle]
 export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -96,10 +193,7 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
   let idx_ref: i32 = 0;
   let esz: i32 = 0;
   let call_op: i32 = 0;
-  let lane: i32 = 0;
   let vty: i32 = 0;
-  let vtk: i32 = 0;
-  let spell: i32 = 0;
   let vslot: i32 = 0;
   unsafe {
     op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
@@ -210,56 +304,34 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
     }
     return 0 - 99;
   }
-  // Lane binop kinds 4..13, and unary minus (kind 22). The value
-  // is not in x0:x1, so the lvalue pair store is the wrong authority.
+  // Lane binop, unary minus, or lane compare. The value is not
+  // in x0:x1. glue_addr_simd_lane_type_c is the one type decision:
+  // a compare node is bool, so the slot uses the operand vector.
   // Store through the existing vector let-init, then LEA the temp.
-  // Kind 51 is that classifier's remap-to-add and is not a binop
-  // operand here. Kind 13 stays -99. Kind 23 stays -99.
+  // Kind 13 and kind 23 stay 0 from that helper, then -99 here.
   // PLATFORM: MACOS|ARM64. ta != 1 keeps -99.
   if (ta == 1) {
-    if (ok == 22) {
-      lane = 1;
+    unsafe {
+      vty = glue_addr_simd_lane_type_c(arena, op);
     }
-    if (lane == 0) {
-      if (ok != 51) {
-        unsafe {
-          lane = glue_is_vector_lane_scalar_binop_ko(ok);
-        }
+    if (vty != 0) {
+      unsafe {
+        vslot = glue_simd_alloc_vector_temp_slot_c(arena, ctx, vty);
       }
-    }
-    if (lane != 0) {
-        unsafe {
-          vty = pipeline_expr_resolved_type_ref(arena, op);
-        }
-        if (vty > 0) {
-          unsafe {
-            vtk = pipeline_type_kind_ord_at(arena, vty);
-          }
-          if (vtk == 8) {
-            unsafe {
-              spell = asm_type_is_simd_vector_spelling(arena, vty);
-            }
-            if (spell != 0) {
-              unsafe {
-                vslot = glue_simd_alloc_vector_temp_slot_c(arena, ctx, vty);
-              }
-              if (vslot < 0) {
-                return 0 - 1;
-              }
-              unsafe {
-                rc = glue_emit_vector_type_let_init_elf_c(
-                  arena, elf_ctx, op, ctx, ta, vslot, vty);
-              }
-              if (rc != 0) {
-                return 0 - 1;
-              }
-              unsafe {
-                rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, vslot, ta);
-              }
-              return rc;
-            }
-          }
-        }
+      if (vslot < 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = glue_emit_vector_type_let_init_elf_c(
+          arena, elf_ctx, op, ctx, ta, vslot, vty);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, vslot, ta);
+      }
+      return rc;
     }
   }
   return 0 - 99;

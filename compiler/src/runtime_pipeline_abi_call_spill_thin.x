@@ -94,6 +94,7 @@ export extern function pipeline_module_func_return_type_at(m: *u8, func_index: i
 export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
 export extern function glue_is_vector_lane_scalar_binop_ko(ko: i32): i32;
 export extern function vlet_lane_cmp_ko(ko: i32): i32;
+export extern function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32;
 export extern function asm_local_slot_bytes(arena: *u8, type_ref: i32): i32;
 export extern function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
 export extern function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i32): i32;
@@ -102,7 +103,8 @@ export extern function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i3
 // [4] arm64 binop left-preserve frame homes (w1503),
 // [5] STRUCT_LIT value temps (w1509), ARRAY_LIT rvalue temps,
 //     arm64 wide named-return temps (kind 8, sret size above 16), and
-//     arm64 address-of named-SIMD lane-binop and unary-minus temps.
+//     arm64 address-of named-SIMD lane-binop, unary-minus, and
+//     lane-compare temps.
 // [6] arm64 sret CALL result temps + x8 save slot; Win64 by-ref arg copies (w1521);
 //     Linux x86_64 SysV push-helper temps (w1587).
 let w1500_cs_st: i32[7] = [];
@@ -446,9 +448,11 @@ function w1500_cs_wide_named_ret_temp(arena: *u8, op: i32): void {
  * Count the arm64 temp an address-of lane value allocates.
  *
  * pipeline_asm_emit_addr_of_elf_c calls glue_simd_alloc_vector_temp_slot_c
- * when ta is arm64, the operand is a lane binop (kinds 4..13) or a
- * unary minus (kind 22), and the resolved type is a named SIMD spelling
- * (kind 8). The allocator aligns next_offset to 16, then adds
+ * when ta is arm64 and glue_addr_simd_lane_type_c returns a named
+ * SIMD type. That helper accepts a lane binop, a unary minus, and
+ * a lane compare. A compare node is stamped bool, so the bytes are
+ * the left operand's vector. The allocator aligns next_offset to
+ * 16, then adds
  * asm_local_slot_bytes. Without this sum the slot starts inside the
  * frame and runs past sp, over the saved x19 (SIGSEGV on a function
  * that has no other rvalue slack).
@@ -464,11 +468,7 @@ function w1500_cs_wide_named_ret_temp(arena: *u8, op: i32): void {
  * PLATFORM: MACOS|ARM64. The x86 walk leaves this sum unchanged.
  */
 function w1500_cs_addr_simd_binop_temp(arena: *u8, op: i32): void {
-  let opk: i32 = 0;
-  let lane: i32 = 0;
   let vty: i32 = 0;
-  let vtk: i32 = 0;
-  let spell: i32 = 0;
   let need: i32 = 0;
   if (w1500_cs_st[2] != 0) {
     return;
@@ -477,38 +477,9 @@ function w1500_cs_addr_simd_binop_temp(arena: *u8, op: i32): void {
     return;
   }
   unsafe {
-    opk = pipeline_expr_kind_ord_at(arena, op);
+    vty = glue_addr_simd_lane_type_c(arena, op);
   }
-  if (opk == 51) {
-    return;
-  }
-  if (opk == 22) {
-    lane = 1;
-  }
-  if (lane == 0) {
-    unsafe {
-      lane = glue_is_vector_lane_scalar_binop_ko(opk);
-    }
-  }
-  if (lane == 0) {
-    return;
-  }
-  unsafe {
-    vty = pipeline_expr_resolved_type_ref(arena, op);
-  }
-  if (vty <= 0) {
-    return;
-  }
-  unsafe {
-    vtk = pipeline_type_kind_ord_at(arena, vty);
-  }
-  if (vtk != 8) {
-    return;
-  }
-  unsafe {
-    spell = asm_type_is_simd_vector_spelling(arena, vty);
-  }
-  if (spell == 0) {
+  if (vty == 0) {
     return;
   }
   unsafe {
@@ -1165,7 +1136,7 @@ export function glue_asm_last_binop_preserve_homes_c(): i32 {
  * Rvalue temp bytes from the last walk.
  * STRUCT_LIT homes (w1509), ARRAY_LIT stack temps, arm64 wide
  * named-return temps, and arm64 address-of named-SIMD lane
- * temps share this sum.
+ * temps, including a lane compare, share this sum.
  * The frame adder already reserves it on every host.
  * @return i32 - bytes; 0 when the last walk reserved none
  * PLATFORM: SHARED. MACOS|ARM64. LINUX x86_64. WINDOWS x86_64.
