@@ -53501,8 +53501,8 @@ export extern function glue_expr_tree_has_call_index_c(arena: *u8, expr_ref: i32
  * The body is runtime_pipeline_abi_has_nonlocal_var_thin.x. This mega
  * copy is an extern so a rebuild does not grow a second body.
  * pabi_weak still contains the old strong definition; the thin object
- * is linked first and wins. The walk now enters an if, a ternary, and
- * a block. A call is claimed by glue_expr_tree_has_call_index_c.
+ * is linked first and wins. The walk now enters an if, a ternary, a
+ * block, and a match. A call is claimed by glue_expr_tree_has_call_index_c.
  * @param arena *u8 - ASTArena*; null returns 0
  * @param ctx *u8 - AsmFuncCtx; null returns 0
  * @param expr_ref i32 - expr pool ref; not positive returns 0

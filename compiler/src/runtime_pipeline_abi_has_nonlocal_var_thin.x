@@ -2,9 +2,9 @@
 // The copy in runtime_pipeline_abi.x is an extern. pabi_weak still has
 // the old strong definition. This object is linked first, so this body
 // wins. The old walk stopped at a binop, a unary, an AS, a field, an
-// array literal, or a struct literal. An if, a ternary, or a block was
-// invisible, so `let n = if (g == 1) { 4 } else { 9 }` stayed in pass 0
-// and read g before a prior store. This is the one walk. A transparent
+// array literal, or a struct literal. An if, a ternary, a block, or a
+// match was invisible, so `let n = match g { 1 => 4; _ => 9; }` stayed
+// in pass 0 and read g before a prior store. This is the one walk. A transparent
 // block is peeled by the existing helper. A block that still has lets,
 // an expr statement, or one unsafe region is walked here with the
 // existing block getters. A call is not this function. Do not add a
@@ -36,6 +36,10 @@ export extern function ast_ast_block_num_stmt_order(arena: *u8, block_ref: i32):
 export extern function ast_ast_block_stmt_order_kind(arena: *u8, block_ref: i32, si: i32): i32;
 export extern function ast_ast_block_stmt_order_idx(arena: *u8, block_ref: i32, si: i32): i32;
 export extern function pipeline_block_region_body_ref(arena: *u8, block_ref: i32, ri: i32): i32;
+export extern function pipeline_expr_match_matched_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_match_num_arms_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_match_arm_result_ref(arena: *u8, expr_ref: i32, i: i32): i32;
+export extern function pipeline_expr_match_arm_guard_ref(arena: *u8, expr_ref: i32, i: i32): i32;
 
 /**
  * True when the expr tree reads a VAR that is not a block local.
@@ -49,8 +53,10 @@ export extern function pipeline_block_region_body_ref(arena: *u8, block_ref: i32
  * AS getter. A block (kind 26) asks the existing transparent peel, then
  * walks let inits, the final expr, and expr statements. One unsafe
  * region (stmt kind 6) is the inner block from the existing region
- * getter. Nested nodes are this same function. A call is claimed by
- * glue_expr_tree_has_call_index_c and is not a hit here.
+ * getter. A match (kind 43) walks the scrutinee, each arm result, and
+ * each arm guard before the AS getter. Nested nodes are this same
+ * function. A call is claimed by glue_expr_tree_has_call_index_c and
+ * is not a hit here.
  * PLATFORM: SHARED.
  */
 #[no_mangle]
@@ -227,6 +233,49 @@ export function glue_expr_tree_has_nonlocal_var_c(arena: *u8, ctx: *u8, expr_ref
       if (left_ref > 0) {
         if (left_ref != expr_ref) {
           if (glue_expr_tree_has_nonlocal_var_c(arena, ctx, left_ref) != 0) {
+            return 1;
+          }
+        }
+      }
+      i = i + 1;
+    }
+    return 0;
+  }
+  // MATCH = 43. Checked before the AS getter so a stale AS slot
+  // cannot hide the scrutinee or the arms. The scrutinee, each arm
+  // result, and each arm guard are this same walk. A missing guard
+  // is not positive and the recursive call returns 0. Patterns are
+  // a literal or a variant index, not an expr. PLATFORM: SHARED.
+  if (ko == 43) {
+    unsafe {
+      left_ref = pipeline_expr_match_matched_ref_at(arena, expr_ref);
+    }
+    if (left_ref > 0) {
+      if (left_ref != expr_ref) {
+        if (glue_expr_tree_has_nonlocal_var_c(arena, ctx, left_ref) != 0) {
+          return 1;
+        }
+      }
+    }
+    unsafe {
+      n = pipeline_expr_match_num_arms_at(arena, expr_ref);
+    }
+    i = 0;
+    while (i < n) {
+      unsafe {
+        left_ref = pipeline_expr_match_arm_result_ref(arena, expr_ref, i);
+        right_ref = pipeline_expr_match_arm_guard_ref(arena, expr_ref, i);
+      }
+      if (left_ref > 0) {
+        if (left_ref != expr_ref) {
+          if (glue_expr_tree_has_nonlocal_var_c(arena, ctx, left_ref) != 0) {
+            return 1;
+          }
+        }
+      }
+      if (right_ref > 0) {
+        if (right_ref != expr_ref) {
+          if (glue_expr_tree_has_nonlocal_var_c(arena, ctx, right_ref) != 0) {
             return 1;
           }
         }
