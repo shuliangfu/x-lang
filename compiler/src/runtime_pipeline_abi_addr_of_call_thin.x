@@ -428,7 +428,8 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
  * An integer literal (kind 0) uses the pointer pointee as the slot
  * type. The existing fill splats that integer. A float literal
  * (kind 1) uses that same pointee. The existing fill narrows f64
- * to f32 and splats. Kind 2 stays declined.
+ * to f32 and splats. A bool literal (kind 2) uses that same
+ * pointee. The existing fill splats 1 or 0 as integer bits.
  */
 #[no_mangle]
 export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -581,12 +582,14 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
     }
     // Kind 43 upgrades only when the helper result is nonzero.
     // Kind 0 is a bare integer literal. Kind 1 is a bare float
-    // literal. The helper returns 0 because that literal has no
-    // lane and no arm. The ADDR_OF node is the pointer the user
-    // wrote. A named SIMD pointee (kind 8), or a kind-13 pointee
-    // of 4 lanes of 4 bytes, is the slot type. The existing fill
-    // splats the integer, and narrows an f64 literal to f32.
-    // A wider kind 13 stays declined. Kind 2 stays declined.
+    // literal. Kind 2 is a bare bool literal. The helper returns 0
+    // because that literal has no lane and no arm. The ADDR_OF
+    // node is the pointer the user wrote. A named SIMD pointee
+    // (kind 8), or a kind-13 pointee of 4 lanes of 4 bytes, is
+    // the slot type. The existing fill splats the integer, narrows
+    // an f64 literal to f32, and splats a bool as integer 1 or 0.
+    // An f32 lane keeps those integer bits. A wider kind 13 stays
+    // declined.
     // PLATFORM: MACOS|ARM64.
     need_pointee = 0;
     if (ok == 43) {
@@ -600,6 +603,11 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
       }
     }
     if (ok == 1) {
+      if (vty == 0) {
+        need_pointee = 1;
+      }
+    }
+    if (ok == 2) {
       if (vty == 0) {
         need_pointee = 1;
       }
