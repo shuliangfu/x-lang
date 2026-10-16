@@ -11,12 +11,14 @@
 // A kind-13 vector wider than 16 stays its failure. A second spill here
 // would be a second authority for the same address.
 // A lane binop (kinds 4..13), a unary minus (kind 22), a bitwise
-// not (kind 23), and a lane compare (kinds 14..19) are not calls
-// and are not in x0:x1. On arm64 this overlay stores each with the
-// existing vector let-init and leaves that temp address in x0.
-// The compare predicate is vlet_lane_cmp_ko. Kind 51 is the
-// classifier's remap and stays -99. A kind-13 vector stays -99.
-// Kind 24 stays -99.
+// not (kind 23), a lane compare (kinds 14..19), a logical and
+// (kind 20), and a logical or (kind 21) are not calls and are not
+// in x0:x1. On arm64 this overlay stores each with the existing
+// vector let-init and leaves that temp address in x0.
+// The compare predicate is vlet_lane_cmp_ko. Kind 20 and kind 21
+// walk left through logical nodes and compares to the named SIMD
+// operand. Kind 51 is the classifier's remap and stays -99. A
+// kind-13 vector stays -99. Kind 24 stays -99.
 // Linked before pabi_weak. That copy of this symbol is weakened.
 // PLATFORM: MACOS|DARWIN link. The forward runs only for ta == 1.
 // x86_64 keeps the old -99 for a call operand, a lane binop, a
@@ -59,8 +61,11 @@ export extern function glue_emit_vector_type_let_init_elf_c(
  * A lane binop, a unary minus, or a bitwise not already carries
  * the named SIMD type on the operand. A lane compare is stamped
  * bool, and the lane store uses the left operand's type, the same
- * type a vector let passes to let-init. Kind 51 and a kind-13
- * vector return 0. Kind 24 returns 0.
+ * type a vector let passes to let-init. A logical and (kind 20)
+ * and a logical or (kind 21) are stamped bool too. Their vector
+ * type is the node at the end of the left chain through logical
+ * nodes and compares. Kind 51 and a kind-13 vector return 0.
+ * Kind 24 returns 0.
  * @param arena *u8 - AST arena
  * @param op i32 - ADDR_OF operand; values <= 0 return 0
  * @return i32 - named SIMD type ref, or 0 when this operand
@@ -76,6 +81,8 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
   let vtk: i32 = 0;
   let spell: i32 = 0;
   let left: i32 = 0;
+  let step: i32 = 0;
+  let lk: i32 = 0;
   if (op <= 0) {
     return 0;
   }
@@ -105,6 +112,18 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
     }
   }
   if (lane == 0) {
+    if (opk == 20) {
+      lane = 1;
+      cmp = 1;
+    }
+  }
+  if (lane == 0) {
+    if (opk == 21) {
+      lane = 1;
+      cmp = 1;
+    }
+  }
+  if (lane == 0) {
     return 0;
   }
   unsafe {
@@ -115,18 +134,51 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
       vtk = pipeline_type_kind_ord_at(arena, vty);
     }
   }
-  // Bool stamp on a lane compare. The vector type is the left
-  // operand. A binop, a unary minus, or a bitwise not keeps its
-  // own type.
+  // Bool stamp on a lane compare or a logical binop. The vector
+  // type is the node where the left chain stops. A compare steps
+  // once, to its operand. Kind 20 and kind 21 step through each
+  // logical node and each compare. 32 stops a chain that does not
+  // end. A binop, a unary minus, or a bitwise not keeps its own
+  // type because cmp stays 0.
   if (vtk != 8) {
     if (cmp != 0) {
-      unsafe {
-        left = pipeline_expr_binop_left_ref_at(arena, op);
+      left = op;
+      step = 0;
+      while (step < 32) {
+        lk = 0;
+        unsafe {
+          lk = pipeline_expr_kind_ord_at(arena, left);
+        }
+        if (lk == 20) {
+          lk = 1;
+        } else {
+          if (lk == 21) {
+            lk = 1;
+          } else {
+            unsafe {
+              lk = vlet_lane_cmp_ko(lk);
+            }
+          }
+        }
+        if (lk == 0) {
+          step = 32;
+        } else {
+          unsafe {
+            lk = pipeline_expr_binop_left_ref_at(arena, left);
+          }
+          if (lk <= 0) {
+            step = 32;
+          } else {
+            left = lk;
+            step = step + 1;
+          }
+        }
       }
       if (left > 0) {
         unsafe {
           vty = pipeline_expr_resolved_type_ref(arena, left);
         }
+        vtk = 0;
         if (vty > 0) {
           unsafe {
             vtk = pipeline_type_kind_ord_at(arena, vty);
@@ -161,16 +213,19 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
  * A named SIMD wider than 16 bytes is that same x8 address.
  * A kind-13 vector wider than 16 stays that function's failure.
  * A lane binop (kinds 4..13), a unary minus (kind 22), a bitwise
- * not (kind 23), or a lane compare (kinds 14..19) on arm64, whose
- * resolved type is a named SIMD spelling (kind 8), is stored by
+ * not (kind 23), a lane compare (kinds 14..19), a logical and
+ * (kind 20), or a logical or (kind 21) on arm64, whose resolved
+ * type is a named SIMD spelling (kind 8), is stored by
  * glue_emit_vector_type_let_init_elf_c into a temp from
  * glue_simd_alloc_vector_temp_slot_c. x0 is then that slot.
  * The compare predicate is vlet_lane_cmp_ko. It stores 0 or 1 per
  * lane. A compare node is stamped bool, so the slot type is the
  * left operand's named SIMD type, from glue_addr_simd_lane_type_c.
- * A bitwise not uses that same helper. Let-init already applies
- * mvn on each i32 lane. Kind 51 is not that binop. A kind-13
- * vector stays -99. Kind 24 stays -99.
+ * Kind 20 and kind 21 use that same helper. The type walk steps
+ * left through logical nodes and compares. Let-init combines each
+ * lane with and or with orr. A bitwise not uses that same helper.
+ * Let-init already applies mvn on each i32 lane. Kind 51 is not
+ * that binop. A kind-13 vector stays -99. Kind 24 stays -99.
  * ta != 1 stays -99.
  * @param arena *u8 - AST arena; null is not expected
  * @param elf_ctx *u8 - encoder context
@@ -186,8 +241,11 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
  * PLATFORM: SHARED body for the kinds the pabi already handled.
  * The call forward and the lane temp are ta == 1 only.
  * Darwin ARM64 measured `&pick()`, `&(a + b)`, `&(-a)`,
- * `&(a == b)`, and `&(~a)`. A compare lane holds 0 or 1. A
- * bitwise-not lane holds the integer complement.
+ * `&(a == b)`, `&(~a)`, a logical and of lane compares, and a
+ * logical or of lane compares. A compare lane holds 0 or 1.
+ * A logical and or a logical or stores that 0 or 1 per lane.
+ * A bitwise-not lane holds the integer complement. Kind 24
+ * stays -99.
  */
 #[no_mangle]
 export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -313,13 +371,14 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
     }
     return 0 - 99;
   }
-  // Lane binop, unary minus, bitwise not, or lane compare. The
-  // value is not in x0:x1. glue_addr_simd_lane_type_c is the one
-  // type decision: a compare node is bool, so the slot uses the
-  // operand vector. A bitwise not keeps its own named SIMD type.
-  // Store through the existing vector let-init, then LEA the temp.
-  // A kind-13 vector stays 0 from that helper, then -99 here.
-  // Kind 24 stays 0, then -99.
+  // Lane binop, unary minus, bitwise not, lane compare, logical
+  // and (kind 20), or logical or (kind 21). The value is not in
+  // x0:x1. glue_addr_simd_lane_type_c is the one type decision: a
+  // compare node is bool, so the slot uses the operand vector.
+  // Kind 20 and kind 21 walk left to that same vector. A bitwise
+  // not keeps its own named SIMD type. Store through the existing
+  // vector let-init, then LEA the temp. A kind-13 vector stays 0
+  // from that helper, then -99 here. Kind 24 stays 0, then -99.
   // PLATFORM: MACOS|ARM64. ta != 1 keeps -99.
   if (ta == 1) {
     unsafe {

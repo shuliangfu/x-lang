@@ -135,6 +135,8 @@ export extern function backend_enc_mov_imm32_to_rbx_arch(
   elf_ctx: *u8, imm32: i32, ta: i32
 ): i32;
 export extern function backend_enc_xor_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_and_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_or_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_lea_rbp_to_rbx_arch(
   elf_ctx: *u8, offset: i32, ta: i32
 ): i32;
@@ -292,6 +294,170 @@ export function vlet_lane_cmp_ko(ko: i32): i32 {
 }
 
 /**
+ * Leave one lane of a relational compare in x0 as 0 or 1.
+ * Does not store. The caller stores at lane times esz.
+ * An i32 lane is sign-extended, compared with cmp x0, x1, then
+ * cset. Left is x0 and right is x1, so LT means left < right.
+ * An f32 lane loads the right bits, pushes, loads the left bits
+ * into rbx, pops the right bits into rax, then ucomiss and the
+ * existing FP setcc. A missing operand or cc < 0 returns -1.
+ * An encoder failure returns -1.
+ * @param arena *u8 - AST arena; null returns -1
+ * @param elf_ctx *u8 - emit context; null returns -1
+ * @param cmp_ref i32 - compare expr; not positive returns -1
+ * @param lane i32 - lane index passed to the operand helper
+ * @param esz i32 - lane size in bytes; the caller has checked 4
+ * @param ctx *u8 - emit ctx; null returns -1
+ * @param ta i32 - 1 is Darwin ARM64
+ * @param lane_f32 i32 - non-zero selects fcmp; 0 selects cmp
+ * @return i32 - 0 when x0 holds 0 or 1; -1 on failure
+ * PLATFORM: MACOS|ARM64.
+ */
+function vlet_lane_cmp_one(
+  arena: *u8, elf_ctx: *u8, cmp_ref: i32, lane: i32,
+  esz: i32, ctx: *u8, ta: i32, lane_f32: i32
+): i32 {
+  let rc: i32 = 0;
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let cc: i32 = 0;
+  let ko: i32 = 0;
+  if (arena == (0 as *u8)) {
+    return 0 - 1;
+  }
+  if (elf_ctx == (0 as *u8)) {
+    return 0 - 1;
+  }
+  if (ctx == (0 as *u8)) {
+    return 0 - 1;
+  }
+  if (cmp_ref <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    left_ref = pipeline_expr_binop_left_ref_at(arena, cmp_ref);
+    right_ref = pipeline_expr_binop_right_ref_at(arena, cmp_ref);
+    ko = pipeline_expr_kind_ord_at(arena, cmp_ref);
+  }
+  unsafe {
+    cc = pipeline_asm_cmp_cc_for_expr_kind_ord(ko);
+  }
+  if (left_ref <= 0) {
+    return 0 - 1;
+  }
+  if (right_ref <= 0) {
+    return 0 - 1;
+  }
+  if (cc < 0) {
+    return 0 - 1;
+  }
+  if (lane_f32 != 0) {
+    unsafe {
+      rc = glue_emit_vector_operand_lane_elf_c(
+        arena, elf_ctx, right_ref, lane, esz, ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_push_rax_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = glue_emit_vector_operand_lane_elf_c(
+        arena, elf_ctx, left_ref, lane, esz, ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_pop_rax_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_ucomiss_rbx_rax_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_fp_cmp_setcc_movzbl_arch(elf_ctx, cc, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    return 0;
+  }
+  unsafe {
+    rc = glue_emit_vector_operand_lane_elf_c(
+      arena, elf_ctx, left_ref, lane, esz, ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_push_rax_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = glue_emit_vector_operand_lane_elf_c(
+      arena, elf_ctx, right_ref, lane, esz, ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_pop_rax_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_cmp_rax_rbx_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_cset_w0_from_cc_arch(elf_ctx, cc, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  return 0;
+}
+
+/**
  * Store one 0-or-1 result in each lane of a relational compare.
  * The linked lane-binop set stops at kind 13, so `a == b` compared
  * the first qword and wrote one cset. A wide return then loaded that
@@ -306,7 +472,8 @@ export function vlet_lane_cmp_ko(ko: i32): i32 {
  * value is 0 or 1, not an all-ones mask and not the f32 bits of 1.0.
  * A lane size other than 4, and ta other than 1, return -3 before any
  * store. A lanes-helper failure returns -3. A missing operand or an
- * encoder failure returns -1.
+ * encoder failure returns -1. The 0 or 1 in x0 is vlet_lane_cmp_one.
+ * This loop only stores that word.
  * @param arena *u8 — AST arena; null returns -3
  * @param elf_ctx *u8 — emit context; null returns -3
  * @param init_ref i32 — compare expr; not positive returns -3
@@ -325,9 +492,6 @@ function vlet_emit_i32_lane_cmp(
   let lanes: i32 = 0;
   let esz: i32 = 0;
   let li: i32 = 0;
-  let left_ref: i32 = 0;
-  let right_ref: i32 = 0;
-  let cc: i32 = 0;
   let lane_f32: i32 = 0;
   let lanes_s: i32[1] = [];
   let esz_s: i32[1] = [];
@@ -355,121 +519,12 @@ function vlet_emit_i32_lane_cmp(
   if (lanes <= 0) {
     return 0 - 3;
   }
-  unsafe {
-    left_ref = pipeline_expr_binop_left_ref_at(arena, init_ref);
-    right_ref = pipeline_expr_binop_right_ref_at(arena, init_ref);
-    rc = pipeline_expr_kind_ord_at(arena, init_ref);
-  }
-  unsafe {
-    cc = pipeline_asm_cmp_cc_for_expr_kind_ord(rc);
-  }
-  if (left_ref <= 0 || right_ref <= 0 || cc < 0) {
-    return 0 - 1;
-  }
   li = 0;
   while (li < lanes) {
-    if (lane_f32 != 0) {
-      unsafe {
-        rc = glue_emit_vector_operand_lane_elf_c(
-          arena, elf_ctx, right_ref, li, esz, ctx, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      unsafe {
-        rc = backend_enc_push_rax_arch(elf_ctx, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      unsafe {
-        rc = glue_emit_vector_operand_lane_elf_c(
-          arena, elf_ctx, left_ref, li, esz, ctx, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      unsafe {
-        rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      unsafe {
-        rc = backend_enc_pop_rax_arch(elf_ctx, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      unsafe {
-        rc = backend_enc_ucomiss_rbx_rax_arch(elf_ctx, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      unsafe {
-        rc = backend_enc_fp_cmp_setcc_movzbl_arch(elf_ctx, cc, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-    } else {
-      unsafe {
-        rc = glue_emit_vector_operand_lane_elf_c(
-          arena, elf_ctx, left_ref, li, esz, ctx, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      unsafe {
-        rc = glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      unsafe {
-        rc = backend_enc_push_rax_arch(elf_ctx, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      unsafe {
-        rc = glue_emit_vector_operand_lane_elf_c(
-          arena, elf_ctx, right_ref, li, esz, ctx, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      unsafe {
-        rc = glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      unsafe {
-        rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      unsafe {
-        rc = backend_enc_pop_rax_arch(elf_ctx, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      unsafe {
-        rc = backend_enc_cmp_rax_rbx_arch(elf_ctx, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      unsafe {
-        rc = backend_enc_cset_w0_from_cc_arch(elf_ctx, cc, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
+    rc = vlet_lane_cmp_one(
+      arena, elf_ctx, init_ref, li, esz, ctx, ta, lane_f32);
+    if (rc != 0) {
+      return 0 - 1;
     }
     unsafe {
       rc = backend_enc_lea_rbp_to_rbx_arch(elf_ctx, stack_slot_off, ta);
@@ -730,6 +785,206 @@ function vlet_f32_array_lanes(
 }
 
 /**
+ * Leave one lane of a compare or a logical binop in x0 as 0 or 1.
+ * Kinds 14..19 call vlet_lane_cmp_one. Kind 20 combines the two
+ * child lanes with and x0, x0, x1. Kind 21 combines them with
+ * orr x0, x0, x1. A child is this same function. Depth above 32
+ * returns -3 before any encode. Any other kind returns -3.
+ * This function does not store and does not allocate a temp.
+ * @param arena *u8 - AST arena; null returns -3
+ * @param elf_ctx *u8 - emit context; null returns -3
+ * @param expr_ref i32 - compare or logical expr; not positive returns -3
+ * @param lane i32 - lane index
+ * @param esz i32 - lane size; the caller has checked 4
+ * @param ctx *u8 - emit ctx; null returns -3
+ * @param ta i32 - 1 is Darwin ARM64
+ * @param lane_f32 i32 - non-zero selects fcmp inside the compare
+ * @param depth i32 - nesting depth; above 32 returns -3
+ * @return i32 - 0 when x0 holds 0 or 1; -3 decline; -1 failure
+ * PLATFORM: MACOS|ARM64.
+ */
+function vlet_lane_log_one(
+  arena: *u8, elf_ctx: *u8, expr_ref: i32, lane: i32, esz: i32,
+  ctx: *u8, ta: i32, lane_f32: i32, depth: i32
+): i32 {
+  let rc: i32 = 0;
+  let pr: i32 = 0;
+  let ko: i32 = 0;
+  let is_log: i32 = 0;
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  if (depth > 32) {
+    return 0 - 3;
+  }
+  if (arena == (0 as *u8)) {
+    return 0 - 3;
+  }
+  if (elf_ctx == (0 as *u8)) {
+    return 0 - 3;
+  }
+  if (ctx == (0 as *u8)) {
+    return 0 - 3;
+  }
+  if (expr_ref <= 0) {
+    return 0 - 3;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  }
+  if (vlet_lane_cmp_ko(ko) != 0) {
+    return vlet_lane_cmp_one(
+      arena, elf_ctx, expr_ref, lane, esz, ctx, ta, lane_f32);
+  }
+  if (ko == 20) {
+    is_log = 1;
+  }
+  if (ko == 21) {
+    is_log = 1;
+  }
+  if (is_log == 0) {
+    return 0 - 3;
+  }
+  unsafe {
+    left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+    right_ref = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+  }
+  if (left_ref <= 0) {
+    return 0 - 1;
+  }
+  if (right_ref <= 0) {
+    return 0 - 1;
+  }
+  rc = vlet_lane_log_one(
+    arena, elf_ctx, left_ref, lane, esz, ctx, ta, lane_f32, depth + 1);
+  if (rc != 0) {
+    return rc;
+  }
+  unsafe {
+    rc = backend_enc_push_rax_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  rc = vlet_lane_log_one(
+    arena, elf_ctx, right_ref, lane, esz, ctx, ta, lane_f32, depth + 1);
+  if (rc != 0) {
+    unsafe {
+      pr = backend_enc_pop_rax_arch(elf_ctx, ta);
+    }
+    return rc;
+  }
+  unsafe {
+    rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_pop_rax_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  if (ko == 20) {
+    unsafe {
+      rc = backend_enc_and_rbx_rax_arch(elf_ctx, ta);
+    }
+  } else {
+    unsafe {
+      rc = backend_enc_or_rbx_rax_arch(elf_ctx, ta);
+    }
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  return 0;
+}
+
+/**
+ * Store each lane of a logical and (kind 20) or a logical or (kind 21).
+ * The 0 or 1 in x0 is vlet_lane_log_one. This loop only stores that
+ * word at lane times esz. A lane size other than 4, and ta other than
+ * 1, return -3 before any store. A child that is not a compare and
+ * not kind 20 or 21 returns -3. No second vector temp is allocated.
+ * @param arena *u8 - AST arena; null returns -3
+ * @param elf_ctx *u8 - emit context; null returns -3
+ * @param init_ref i32 - logical expr; not positive returns -3
+ * @param ctx *u8 - emit ctx; null returns -3
+ * @param ta i32 - 1 is Darwin ARM64; any other returns -3
+ * @param stack_slot_off i32 - destination frame slot
+ * @param type_ref i32 - vector type; f32 fill selects fcmp
+ * @return i32 - 0 when every lane is stored; -3 decline; -1 failure
+ * PLATFORM: MACOS|ARM64.
+ */
+function vlet_emit_lane_log(
+  arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32,
+  stack_slot_off: i32, type_ref: i32
+): i32 {
+  let rc: i32 = 0;
+  let lanes: i32 = 0;
+  let esz: i32 = 0;
+  let li: i32 = 0;
+  let lane_f32: i32 = 0;
+  let lanes_s: i32[1] = [];
+  let esz_s: i32[1] = [];
+  if (arena == (0 as *u8)) {
+    return 0 - 3;
+  }
+  if (elf_ctx == (0 as *u8)) {
+    return 0 - 3;
+  }
+  if (ctx == (0 as *u8)) {
+    return 0 - 3;
+  }
+  if (init_ref <= 0) {
+    return 0 - 3;
+  }
+  if (ta != 1) {
+    return 0 - 3;
+  }
+  rc = vlet_f32_fill_lane(arena, type_ref);
+  if (rc != 0) {
+    lane_f32 = 1;
+  }
+  unsafe {
+    rc = glue_vector_type_lanes_esz_c(arena, type_ref, &lanes_s[0], &esz_s[0]);
+  }
+  if (rc != 0) {
+    return 0 - 3;
+  }
+  lanes = lanes_s[0];
+  esz = esz_s[0];
+  if (esz != 4) {
+    return 0 - 3;
+  }
+  if (lanes <= 0) {
+    return 0 - 3;
+  }
+  li = 0;
+  while (li < lanes) {
+    rc = vlet_lane_log_one(
+      arena, elf_ctx, init_ref, li, esz, ctx, ta, lane_f32, 0);
+    if (rc != 0) {
+      return rc;
+    }
+    unsafe {
+      rc = backend_enc_lea_rbp_to_rbx_arch(elf_ctx, stack_slot_off, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, li * esz, esz, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    li = li + 1;
+  }
+  return 0;
+}
+
+/**
  * Store SIMD ARRAY_LIT lanes, a lane binop, or a scalar lit splat.
  * @param arena *u8 — AST arena; null returns -3
  * @param elf_ctx *u8 — object writer; null returns -3
@@ -744,7 +999,10 @@ function vlet_f32_array_lanes(
  *   -3 when this face does not handle the expr
  * Kind 46 (ARRAY_LIT) calls pipeline_asm_emit_vector_let_init_elf_c.
  * Kinds 4..13 call pipeline_asm_emit_vector_binop_let_init_elf_c
- * (kind 51 is add). Kind 0 (INT_LIT) and kind 2 (BOOL_LIT) call
+ * (kind 51 is add). Kinds 20 and 21 call vlet_emit_lane_log.
+ * Each lane is 0 or 1 from vlet_lane_cmp_one, combined with and
+ * or with orr. Kind 24 stays on the decline. Kind 0 (INT_LIT)
+ * and kind 2 (BOOL_LIT) call
  * glue_simd_emit_imm_fill_slot_c. On an f32 fill target the kind 0
  * value is converted with glue_i32_to_f32_bits first. Kind 23 in that
  * chain keeps the integer bits. Kind 2 is not converted. Kind 22
@@ -940,6 +1198,7 @@ export function glue_emit_vector_type_let_init_elf_c(
   let f_quindecim_k: i32 = 0;
   let lit_gate: i32 = 0;
   let lit_prev: i32 = 0;
+  let log_k: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || init_ref <= 0) {
     return 0 - 3;
   }
@@ -1062,6 +1321,36 @@ export function glue_emit_vector_type_let_init_elf_c(
       lit_gate = 1;
     }
     rc = vlet_emit_i32_lane_cmp(
+      arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, type_ref);
+    if (lit_gate != 0) {
+      unsafe {
+        lit_prev = glue_lane_f32_lit_dest_set(lit_prev);
+      }
+    }
+    return rc;
+  }
+  // Kind 20 is logical and. Kind 21 is logical or. Each lane stores
+  // 0 or 1 from vlet_lane_cmp_one, combined with and or with orr.
+  // The f32 literal gate matches the compare arm. A child that is
+  // not a compare and not kind 20 or 21 returns -3. No second temp.
+  // PLATFORM: MACOS|ARM64.
+  log_k = 0;
+  if (ko == 20) {
+    log_k = 1;
+  }
+  if (ko == 21) {
+    log_k = 1;
+  }
+  if (log_k != 0) {
+    lit_gate = 0;
+    lit_prev = 0;
+    if (vlet_f32_fill_lane(arena, type_ref) != 0) {
+      unsafe {
+        lit_prev = glue_lane_f32_lit_dest_set(1);
+      }
+      lit_gate = 1;
+    }
+    rc = vlet_emit_lane_log(
       arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, type_ref);
     if (lit_gate != 0) {
       unsafe {
