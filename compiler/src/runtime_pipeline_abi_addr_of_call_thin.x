@@ -23,7 +23,8 @@
 // existing vector if let-init stores both arms into that one temp.
 // Kind 51 is the classifier's remap and stays -99. A kind-13
 // if-expr or ternary of 4 lanes of 4 bytes uses that same temp.
-// A wider kind-13 vector stays -99.
+// A match of 8 lanes of 4 bytes uses the declared named spelling.
+// A wider kind-13 if-expr or ternary stays -99.
 // Linked before pabi_weak. That copy of this symbol is weakened.
 // PLATFORM: MACOS|DARWIN link. The forward runs only for ta == 1.
 // x86_64 keeps the old -99 for a call operand, a lane binop, a
@@ -81,11 +82,13 @@ export extern function glue_emit_vector_type_let_init_elf_c(
  * under addr-of is stamped with the pointer type, so the helper
  * reads the first arm until that type is a vector. An array
  * literal arm may carry no vector. One TYPE_PTR pointee that is a
- * SIMD spelling is the slot type then. A kind-13 arm is left for
- * the gate below. It does not
+ * SIMD spelling is the slot type then. A kind-13 arm of 4 lanes
+ * stays on the gate below. A match arm that is kind 13 with 8
+ * lanes of 4 bytes uses that same pointee peel. The slot type is
+ * the declared named spelling. An if-expr or a ternary of that
+ * wider kind 13 still returns 0. It does not
  * read the scrutinee. A kind-13 if-expr, ternary, or
- * match of 4 lanes of 4 bytes keeps that vector type. Wider kind
- * 13 still returns 0.
+ * match of 4 lanes of 4 bytes keeps that vector type.
  * Kind 51 returns 0.
  * @param arena *u8 - AST arena
  * @param op i32 - ADDR_OF operand; values <= 0 return 0
@@ -111,6 +114,8 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
   let arm: i32 = 0;
   let match_ptr: i32 = 0;
   let pointee: i32 = 0;
+  let wide_match: i32 = 0;
+  let peel_arm: i32 = 0;
   if (op <= 0) {
     return 0;
   }
@@ -245,27 +250,50 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
   }
   // An array-literal arm may have no vector stamp. The match
   // node holds the pointer expected type. Peel one TYPE_PTR when
-  // the arm walk did not find kind 8 or kind 13. A kind-13 arm
-  // stays on the gate below, so a wider Vec8i is not renamed into
-  // a named spelling here. Do not read the scrutinee.
+  // the arm walk did not find kind 8. A kind-13 arm of 4 lanes
+  // stays on the gate below. A match arm that is kind 13 with 8
+  // lanes of 4 bytes is the same peel: the declared named spelling
+  // is the slot the existing match store already copies. An if-expr
+  // or a ternary does not enter here. Do not read the scrutinee.
   // PLATFORM: MACOS|ARM64. The type rule is SHARED.
   if (opk == 43) {
     if (match_ptr > 0) {
+      wide_match = 0;
+      if (vtk == 13) {
+        lrc = 0;
+        unsafe {
+          lrc = glue_vector_type_lanes_esz_c(arena, vty, &lanes_s[0], &esz_s[0]);
+        }
+        if (lrc == 0) {
+          if (esz_s[0] == 4) {
+            if (lanes_s[0] == 8) {
+              wide_match = 1;
+            }
+          }
+        }
+      }
+      peel_arm = 0;
       if (vtk != 8) {
         if (vtk != 13) {
+          peel_arm = 1;
+        }
+      }
+      if (wide_match != 0) {
+        peel_arm = 1;
+      }
+      if (peel_arm != 0) {
+        unsafe {
+          pointee = pipeline_type_elem_ref_at(arena, match_ptr);
+        }
+        if (pointee > 0) {
           unsafe {
-            pointee = pipeline_type_elem_ref_at(arena, match_ptr);
+            lrc = asm_type_is_simd_vector_spelling(arena, pointee);
           }
-          if (pointee > 0) {
+          if (lrc != 0) {
+            vty = pointee;
+            vtk = 0;
             unsafe {
-              lrc = asm_type_is_simd_vector_spelling(arena, pointee);
-            }
-            if (lrc != 0) {
-              vty = pointee;
-              vtk = 0;
-              unsafe {
-                vtk = pipeline_type_kind_ord_at(arena, vty);
-              }
+              vtk = pipeline_type_kind_ord_at(arena, vty);
             }
           }
         }
@@ -341,7 +369,9 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
   // Builtin f32x4 is TYPE_VECTOR, kind 13, not a named spelling.
   // An if-expr, a ternary, or a match uses it here. Four lanes of
   // four bytes is the slot the vector let-init already stores.
-  // A wider kind 13, including Vec8i, stays declined.
+  // A match of 8 lanes of 4 bytes was peeled above into the
+  // declared named spelling. An if-expr or a ternary of a wider
+  // kind 13 stays declined.
   // PLATFORM: MACOS|ARM64. The type rule is SHARED.
   if (vtk == 13) {
     if (arm == 1) {
@@ -398,11 +428,14 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
  * lane with and or with orr. Kind 24 uses that same helper.
  * Let-init inverts each 0 or 1. Kind 27, kind 25, and kind 43
  * use that same helper. Let-init already stores both arms.
- * Kind 43 uses the existing struct match store. A bitwise not
+ * Kind 43 uses the existing struct match store. A match of 8
+ * lanes of 4 bytes uses the declared named spelling from that
+ * helper. A bitwise not
  * uses that same helper. Let-init already applies mvn on each
  * i32 lane. Kind 51
  * is not that binop. A kind-13 if-expr or ternary of 4 lanes
- * of 4 bytes uses that temp. A wider kind-13 vector stays -99.
+ * of 4 bytes uses that temp. A wider kind-13 if-expr or ternary
+ * stays -99.
  * ta != 1 stays -99.
  * @param arena *u8 - AST arena; null is not expected
  * @param elf_ctx *u8 - encoder context
@@ -583,8 +616,9 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
   // bitwise not keeps its own named SIMD type. Store through the
   // existing vector let-init, then LEA the temp. A kind-13
   // if-expr, ternary, or match of 4 lanes of 4 bytes is that same
-  // temp. A wider kind-13 vector stays 0 from that helper, then
-  // -99 here.
+  // temp. A match of 8 lanes of 4 bytes is the declared named
+  // spelling from that helper. A wider kind-13 if-expr or ternary
+  // stays 0 from that helper, then -99 here.
   // PLATFORM: MACOS|ARM64. ta != 1 keeps -99.
   if (ta == 1) {
     unsafe {
