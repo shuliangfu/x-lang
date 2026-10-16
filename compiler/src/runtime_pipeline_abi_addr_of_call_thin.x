@@ -10,9 +10,13 @@
 // A named SIMD wider than 16 bytes is that same x8 address.
 // A kind-13 vector wider than 16 stays its failure. A second spill here
 // would be a second authority for the same address.
+// A lane binop (kinds 4..13) is not a call and is not in x0:x1.
+// On arm64 this overlay stores it with the existing vector let-init
+// and leaves that temp address in x0. Kind 51 is the classifier's
+// remap and stays -99. Kind 13 stays -99.
 // Linked before pabi_weak. That copy of this symbol is weakened.
 // PLATFORM: MACOS|DARWIN link. The forward runs only for ta == 1.
-// x86_64 keeps the old -99 for a call operand.
+// x86_64 keeps the old -99 for a call operand and for a lane binop.
 
 export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
@@ -35,6 +39,14 @@ export extern function pipeline_asm_emit_lvalue_eff_addr_elf_c(
 export extern function pipeline_asm_emit_array_lit_elf_c(
   arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
 ): i32;
+export extern function glue_is_vector_lane_scalar_binop_ko(ko: i32): i32;
+export extern function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
+export extern function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i32): i32;
+export extern function glue_simd_alloc_vector_temp_slot_c(arena: *u8, ctx: *u8, type_ref: i32): i32;
+export extern function glue_emit_vector_type_let_init_elf_c(
+  arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32,
+  stack_off: i32, type_ref: i32): i32;
 
 /**
  * Emit ADDR_OF into x0.
@@ -49,17 +61,23 @@ export extern function pipeline_asm_emit_array_lit_elf_c(
  * from x0 and x1, and leaves the address in x0.
  * A named SIMD wider than 16 bytes is that same x8 address.
  * A kind-13 vector wider than 16 stays that function's failure.
- * ta != 1 keeps -99.
+ * A lane binop (kinds 4..13) on arm64, whose resolved type is a
+ * named SIMD spelling (kind 8), is stored by
+ * glue_emit_vector_type_let_init_elf_c into a temp from
+ * glue_simd_alloc_vector_temp_slot_c. x0 is then that slot.
+ * Kind 51 is not that binop. Kind 13 stays -99. ta != 1 stays -99.
  * @param arena *u8 - AST arena; null is not expected
  * @param elf_ctx *u8 - encoder context
  * @param expr_ref i32 - ADDR_OF expression
  * @param ctx *u8 - asm function context; null is not expected
  * @param ta i32 - 0 x86_64, 1 arm64
  * @return i32 - 0 when x0 holds the address; the lvalue status for a
- *   call operand on arm64; -1 on encode failure; -99 when the operand
- *   kind is still unhandled, including a call when ta != 1
+ *   call operand on arm64; the let-init status for a named SIMD lane
+ *   binop on arm64; -1 on encode failure; -99 when the operand kind
+ *   is still unhandled, including a call or a lane binop when ta != 1
  * PLATFORM: SHARED body for the kinds the pabi already handled.
- * The call forward is ta == 1 only. Darwin ARM64 measured `&pick()`.
+ * The call forward and the lane-binop temp are ta == 1 only.
+ * Darwin ARM64 measured `&pick()` and `&(a + b)`.
  */
 #[no_mangle]
 export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -74,6 +92,11 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
   let idx_ref: i32 = 0;
   let esz: i32 = 0;
   let call_op: i32 = 0;
+  let lane: i32 = 0;
+  let vty: i32 = 0;
+  let vtk: i32 = 0;
+  let spell: i32 = 0;
+  let vslot: i32 = 0;
   unsafe {
     op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
   }
@@ -182,6 +205,52 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
       return rc;
     }
     return 0 - 99;
+  }
+  // Lane binop kinds 4..13. The value is not in x0:x1, so the lvalue
+  // pair store is the wrong authority. Store through the existing
+  // vector let-init, then LEA the temp. Kind 51 is that classifier's
+  // remap-to-add and is not a binop operand here. Kind 13 stays -99.
+  // PLATFORM: MACOS|ARM64. ta != 1 keeps -99.
+  if (ta == 1) {
+    if (ok != 51) {
+      unsafe {
+        lane = glue_is_vector_lane_scalar_binop_ko(ok);
+      }
+      if (lane != 0) {
+        unsafe {
+          vty = pipeline_expr_resolved_type_ref(arena, op);
+        }
+        if (vty > 0) {
+          unsafe {
+            vtk = pipeline_type_kind_ord_at(arena, vty);
+          }
+          if (vtk == 8) {
+            unsafe {
+              spell = asm_type_is_simd_vector_spelling(arena, vty);
+            }
+            if (spell != 0) {
+              unsafe {
+                vslot = glue_simd_alloc_vector_temp_slot_c(arena, ctx, vty);
+              }
+              if (vslot < 0) {
+                return 0 - 1;
+              }
+              unsafe {
+                rc = glue_emit_vector_type_let_init_elf_c(
+                  arena, elf_ctx, op, ctx, ta, vslot, vty);
+              }
+              if (rc != 0) {
+                return 0 - 1;
+              }
+              unsafe {
+                rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, vslot, ta);
+              }
+              return rc;
+            }
+          }
+        }
+      }
+    }
   }
   return 0 - 99;
 }

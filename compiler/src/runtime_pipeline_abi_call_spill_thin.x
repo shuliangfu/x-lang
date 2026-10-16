@@ -95,11 +95,14 @@ export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32
 export extern function glue_is_vector_lane_scalar_binop_ko(ko: i32): i32;
 export extern function vlet_lane_cmp_ko(ko: i32): i32;
 export extern function asm_local_slot_bytes(arena: *u8, type_ref: i32): i32;
+export extern function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
+export extern function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i32): i32;
 
 // Walk state: [0] total bytes, [1] visits, [2] x86 flag, [3] widest GP units,
 // [4] arm64 binop left-preserve frame homes (w1503),
-// [5] STRUCT_LIT value temps (w1509), ARRAY_LIT rvalue temps, and
-//     arm64 wide named-return temps (kind 8, sret size above 16).
+// [5] STRUCT_LIT value temps (w1509), ARRAY_LIT rvalue temps,
+//     arm64 wide named-return temps (kind 8, sret size above 16), and
+//     arm64 address-of named-SIMD lane-binop temps (kind 8).
 // [6] arm64 sret CALL result temps + x8 save slot; Win64 by-ref arg copies (w1521);
 //     Linux x86_64 SysV push-helper temps (w1587).
 let w1500_cs_st: i32[7] = [];
@@ -439,6 +442,81 @@ function w1500_cs_wide_named_ret_temp(arena: *u8, op: i32): void {
   w1500_cs_st[5] = w1500_cs_st[5] + need;
 }
 
+/**
+ * Count the arm64 temp an address-of lane binop allocates.
+ *
+ * pipeline_asm_emit_addr_of_elf_c calls glue_simd_alloc_vector_temp_slot_c
+ * when ta is arm64, the operand is a lane binop (kinds 4..13), and the
+ * resolved type is a named SIMD spelling (kind 8). The allocator aligns
+ * next_offset to 16, then adds asm_local_slot_bytes. Without this sum the
+ * slot starts inside the frame and runs past sp, over the saved x19
+ * (SIGSEGV on a function that has no other rvalue slack).
+ *
+ * Kind 51 is the classifier's remap-to-add and is not a binop here.
+ * Kind 13 is not counted. The extra 8 is the 16-align slack. 4096 is
+ * the array-lit payload cap. x86 does not allocate this temp.
+ *
+ * @param arena *u8 - AST arena
+ * @param op i32 - ADDR_OF operand; values <= 0 skip
+ * @return void
+ * PLATFORM: MACOS|ARM64. The x86 walk leaves this sum unchanged.
+ */
+function w1500_cs_addr_simd_binop_temp(arena: *u8, op: i32): void {
+  let opk: i32 = 0;
+  let lane: i32 = 0;
+  let vty: i32 = 0;
+  let vtk: i32 = 0;
+  let spell: i32 = 0;
+  let need: i32 = 0;
+  if (w1500_cs_st[2] != 0) {
+    return;
+  }
+  if (op <= 0) {
+    return;
+  }
+  unsafe {
+    opk = pipeline_expr_kind_ord_at(arena, op);
+  }
+  if (opk == 51) {
+    return;
+  }
+  unsafe {
+    lane = glue_is_vector_lane_scalar_binop_ko(opk);
+  }
+  if (lane == 0) {
+    return;
+  }
+  unsafe {
+    vty = pipeline_expr_resolved_type_ref(arena, op);
+  }
+  if (vty <= 0) {
+    return;
+  }
+  unsafe {
+    vtk = pipeline_type_kind_ord_at(arena, vty);
+  }
+  if (vtk != 8) {
+    return;
+  }
+  unsafe {
+    spell = asm_type_is_simd_vector_spelling(arena, vty);
+  }
+  if (spell == 0) {
+    return;
+  }
+  unsafe {
+    need = asm_local_slot_bytes(arena, vty);
+  }
+  if (need <= 0) {
+    return;
+  }
+  if (need > 4096) {
+    return;
+  }
+  need = ((need + 7) / 8) * 8 + 8;
+  w1500_cs_st[5] = w1500_cs_st[5] + need;
+}
+
 /** Count args that are not EXPR_VAR(3). PLATFORM: SHARED. */
 function w1500_cs_non_var(arena: *u8, e: i32): i32 {
   let k: i32 = 0;
@@ -678,6 +756,11 @@ function w1500_cs_expr(arena: *u8, expr_ref: i32): void {
     // the operand emitter. PLATFORM: MACOS|ARM64.
     if (ko == 41) {
       w1500_cs_wide_named_ret_temp(arena, op);
+    }
+    // Kind 51 is ADDR_OF. The named-SIMD lane-binop slot is allocated
+    // in the addr-of emitter, not in the operand. PLATFORM: MACOS|ARM64.
+    if (ko == 51) {
+      w1500_cs_addr_simd_binop_temp(arena, op);
     }
     w1500_cs_expr(arena, op);
     return;
@@ -1073,8 +1156,9 @@ export function glue_asm_last_binop_preserve_homes_c(): i32 {
 
 /**
  * Rvalue temp bytes from the last walk.
- * STRUCT_LIT homes (w1509), ARRAY_LIT stack temps, and arm64 wide
- * named-return temps share this sum.
+ * STRUCT_LIT homes (w1509), ARRAY_LIT stack temps, arm64 wide
+ * named-return temps, and arm64 address-of named-SIMD lane-binop
+ * temps share this sum.
  * The frame adder already reserves it on every host.
  * @return i32 - bytes; 0 when the last walk reserved none
  * PLATFORM: SHARED. MACOS|ARM64. LINUX x86_64. WINDOWS x86_64.
