@@ -74,7 +74,12 @@ export extern "C" function pipeline_expr_array_lit_num_elems_at(
  * named arm and that array are not the same type, so the
  * demoted pair check fails. Stamp a 4-elem array arm with
  * that Vec4f pointee. The value form already stores those
- * lanes. A six-byte name stays unstamped. PLATFORM: SHARED.
+ * lanes. Named i32x16 is kind 8, six bytes, i 3 2 x 1 6.
+ * The same address check leaves that then arm as an i32
+ * array. Stamp a 16-elem array arm with that i32x16
+ * pointee. The value form already stores those lanes.
+ * Named u32x16 and named f32x16 stay unstamped.
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function typeck_check_expr_if_ternary(
@@ -106,8 +111,10 @@ export function typeck_check_expr_if_ternary(
      * Named i32x4 is i 3 2 x 4 and asks for 4 elems. Named
      * u32x4 is u 3 2 x 4 and asks for 4 elems. Named f32x4
      * is f 3 2 x 4 and asks for 4 elems. Named Vec4f is
-     * V e c 4 f and asks for 4 elems. A six-byte name stays
-     * unstamped. A kind-25 if does not enter. PLATFORM: SHARED.
+     * V e c 4 f and asks for 4 elems. Named i32x16 is
+     * i 3 2 x 1 6 and asks for 16 elems. Named u32x16 and
+     * named f32x16 stay unstamped. A kind-25 if does not
+     * enter. PLATFORM: SHARED.
      */
     if (arena != 0 as *u8) {
       if (expr_ref > 0) {
@@ -302,7 +309,8 @@ export function typeck_check_expr_if_ternary(
                  * Kind 27 does not read the pointee later.
                  * The value form already stores each lane.
                  * Four elements, not eight. Vec8i is V e c 8 i and
-                 * still asks for 8. A six-byte name stays unstamped.
+                 * still asks for 8. Named i32x16 asks for 16.
+                 * Named u32x16 and named f32x16 stay unstamped.
                  * Kind 25 does not enter. PLATFORM: SHARED.
                  */
                 if (hit == 0) {
@@ -315,6 +323,37 @@ export function typeck_check_expr_if_ternary(
                               if (nm[4] == 102) {
                                 hit = 1;
                                 want_n = 4;
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+                /*
+                 * Named i32x16 is i 3 2 x 1 6. The address expected
+                 * type is the pointer, so the array arm is an i32
+                 * array and the ternary keeps that then type.
+                 * Kind 27 does not read the pointee later.
+                 * The value form already stores each lane.
+                 * Sixteen elements, not eight. Named u32x16 is
+                 * u 3 2 x 1 6 and stays unstamped. Named f32x16
+                 * is f 3 2 x 1 6 and stays unstamped. Kind 25
+                 * does not enter. PLATFORM: SHARED.
+                 */
+                if (hit == 0) {
+                  if (pk == 8) {
+                    if (nlen == 6) {
+                      if (nm[0] == 105) {
+                        if (nm[1] == 51) {
+                          if (nm[2] == 50) {
+                            if (nm[3] == 120) {
+                              if (nm[4] == 49) {
+                                if (nm[5] == 54) {
+                                  hit = 1;
+                                  want_n = 16;
+                                }
                               }
                             }
                           }
