@@ -53,7 +53,10 @@ export extern "C" function pipeline_expr_array_lit_num_elems_at(
  * already stores it. Named f32x8 is kind 8, five bytes, f 3 2 x 8.
  * The same address check leaves that then arm as a float array.
  * Stamp an 8-elem array arm with that f32x8 pointee too. The
- * value form already stores those lanes. u32x8 stays unstamped.
+ * value form already stores those lanes. Named u32x8 is kind 8,
+ * five bytes, u 3 2 x 8. The same address check leaves that then
+ * arm as an i32 array. Stamp an 8-elem array arm with that u32x8
+ * pointee too. The value form already stores those lanes.
  * PLATFORM: SHARED.
  */
 #[no_mangle]
@@ -81,8 +84,8 @@ export function typeck_check_expr_if_ternary(
      * V e c 8 i. Named i32x8 is kind 8, five bytes, i 3 2 x 8.
      * An ARRAY_LIT arm of 8 elems is the vector the value form
      * already stores. Stamp it before the demoted pair check.
-     * Named f32x8 is f 3 2 x 8. u32x8 stays unstamped. A kind-25
-     * if does not enter. PLATFORM: SHARED.
+     * Named f32x8 is f 3 2 x 8. Named u32x8 is u 3 2 x 8.
+     * A kind-25 if does not enter. PLATFORM: SHARED.
      */
     if (arena != 0 as *u8) {
       if (expr_ref > 0) {
@@ -116,7 +119,6 @@ export function typeck_check_expr_if_ternary(
                  * type is the pointer, so the array arm is an i32
                  * array and the ternary keeps that then type.
                  * Kind 27 does not read the pointee later.
-                 * u32x8 is u 3 2 x 8 and stays unstamped.
                  * PLATFORM: SHARED.
                  */
                 if (hit == 0) {
@@ -142,12 +144,37 @@ export function typeck_check_expr_if_ternary(
                  * array and the ternary keeps that then type.
                  * Kind 27 does not read the pointee later.
                  * The value form already narrows each lane.
-                 * u32x8 stays unstamped. PLATFORM: SHARED.
+                 * PLATFORM: SHARED.
                  */
                 if (hit == 0) {
                   if (pk == 8) {
                     if (nlen == 5) {
                       if (nm[0] == 102) {
+                        if (nm[1] == 51) {
+                          if (nm[2] == 50) {
+                            if (nm[3] == 120) {
+                              if (nm[4] == 56) {
+                                hit = 1;
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+                /*
+                 * Named u32x8 is u 3 2 x 8. The address expected
+                 * type is the pointer, so the array arm is an i32
+                 * array and the ternary keeps that then type.
+                 * Kind 27 does not read the pointee later.
+                 * The value form already stores each lane.
+                 * Kind 25 does not enter. PLATFORM: SHARED.
+                 */
+                if (hit == 0) {
+                  if (pk == 8) {
+                    if (nlen == 5) {
+                      if (nm[0] == 117) {
                         if (nm[1] == 51) {
                           if (nm[2] == 50) {
                             if (nm[3] == 120) {
