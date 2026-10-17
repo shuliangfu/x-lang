@@ -21,7 +21,8 @@
 // and f.get() is LANG-004. This entry keeps the mega result. A miss
 // whose receiver is Foo<A> reads the impl header in the current source:
 // no bounds accept the method; each Trait must appear as
-// `impl Trait for A`. The same check applies to `impl Foo<T: Trait>`.
+// `impl Trait for A`. The same check applies to `impl Foo<T: Trait>`
+// and to `impl<T: Trait> Trait for Foo<T>`.
 // A missing bound emits "does not impl" and stays
 // a miss, so the caller still reports LANG-004.
 // PLATFORM: SHARED. The alias of the mega is the Darwin link step.
@@ -502,6 +503,12 @@ method_nm: *u8, method_nlen: i32, arena: *u8, expr_ref: i32): i32 {
                 from = 0 - 1;
               }
             }
+            if (ok_hdr == 0 && for_len > 0) {
+              if (ufcs_impl_for_is_self(src, src_len, p, for_len, &self_nm[0], self_len) != 0) {
+                ok_hdr = 1;
+                from = 0 - 1;
+              }
+            }
           }
         }
         if (from >= 0) {
@@ -624,6 +631,62 @@ function ufcs_append_angle_bounds(src: *u8, src_len: i32, p: i32, traits: *u8, t
 }
 
 /**
+ * 1 when `p` is `Trait for Self`, with Self a whole ident.
+ * @param src *u8 — file bytes
+ * @param src_len i32 — byte count
+ * @param p i32 — start of the trait ident
+ * @param ident_len i32 — trait ident length
+ * @param self_nm *u8 — formal self spelling
+ * @param self_len i32 — formal length
+ * @return i32 — 1 the for-type is Self, 0 otherwise
+ * Spaces may sit around `for`. A following `<T>` is left to the caller.
+ * PLATFORM: SHARED.
+ */
+function ufcs_impl_for_is_self(src: *u8, src_len: i32, p: i32, ident_len: i32, self_nm: *u8, self_len: i32): i32 {
+  let q: i32 = 0;
+  let n: i32 = 0;
+  let k: i32 = 0;
+  if (src == 0 as *u8 || self_nm == 0 as *u8 || ident_len <= 0 || self_len <= 0) {
+    return 0;
+  }
+  q = p + ident_len;
+  while (q < src_len && (src[q] == (32 as u8) || src[q] == (9 as u8) || src[q] == (10 as u8) || src[q] == (13 as u8))) {
+    q = q + 1;
+  }
+  if (q + 3 > src_len) {
+    return 0;
+  }
+  if (src[q] != (102 as u8) || src[q + 1] != (111 as u8) || src[q + 2] != (114 as u8)) {
+    return 0;
+  }
+  if (q + 3 < src_len && ufcs_is_ident(src[q + 3]) != 0) {
+    return 0;
+  }
+  q = q + 3;
+  while (q < src_len && (src[q] == (32 as u8) || src[q] == (9 as u8) || src[q] == (10 as u8) || src[q] == (13 as u8))) {
+    q = q + 1;
+  }
+  n = 0;
+  while (q + n < src_len && n < self_len && ufcs_is_ident(src[q + n]) != 0) {
+    n = n + 1;
+  }
+  if (n != self_len) {
+    return 0;
+  }
+  if (q + n < src_len && ufcs_is_ident(src[q + n]) != 0) {
+    return 0;
+  }
+  k = 0;
+  while (k < self_len) {
+    if (src[q + k] != self_nm[k]) {
+      return 0;
+    }
+    k = k + 1;
+  }
+  return 1;
+}
+
+/**
  * Stamp f.get() when the impl header's for-type is the receiver and
  * every bound is implemented by the first type argument.
  * @param module *u8 — caller module
@@ -658,6 +721,7 @@ recv_nm: *u8, recv_len: i32, arg_nm: *u8, arg_len_io: *i32): i32 {
   let nf: i32 = 0;
   let fi: i32 = 0;
   let hit: i32 = 0 - 1;
+  let hit_loose: i32 = 0 - 1;
   let self_ty: i32 = 0;
   let self_len: i32 = 0;
   let arg_len: i32 = 0;
@@ -678,6 +742,10 @@ recv_nm: *u8, recv_len: i32, arg_nm: *u8, arg_len_io: *i32): i32 {
               if (arg_len > 0) {
                 if (pipeline_module_func_owner_binds_base_at(module, fi, &self_nm[0], self_len) != 0) {
                   hit = fi;
+                } else {
+                  if (hit_loose < 0) {
+                    hit_loose = fi;
+                  }
                 }
               }
             }
@@ -686,6 +754,9 @@ recv_nm: *u8, recv_len: i32, arg_nm: *u8, arg_len_io: *i32): i32 {
       }
     }
     fi = fi + 1;
+  }
+  if (hit < 0) {
+    hit = hit_loose;
   }
   arg_len_io[0] = arg_len;
   return hit;
