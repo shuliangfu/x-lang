@@ -458,6 +458,53 @@ function w1521_rs_mid_named_field(arena: *u8, op: i32): i32 {
 }
 
 /**
+ * Byte offset of one parent FIELD on a wide-array return chain.
+ * A non-FIELD expr returns -2: the caller treats it as the root.
+ * A pointer field (type kind 9) returns -1 so the caller leaves the
+ * chain on emit_expr. A missing offset, or an offset above 4095,
+ * returns -1. The add-immediate that consumes the sum is 12 bits.
+ * @param arena *u8 — AST arena; null is not valid
+ * @param mod *u8 — module that owns the field layout
+ * @param fa i32 — candidate parent expr; <=0 returns -2
+ * @return i32 — 0..4095 offset, -2 stop, -1 reject
+ * PLATFORM: MACOS|ARM64.
+ */
+function w635_rs_fold_parent(arena: *u8, mod: *u8, fa: i32): i32 {
+  let k: i32 = 0;
+  let ty: i32 = 0;
+  let off: i32 = 0;
+  if (fa <= 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    k = pipeline_expr_kind_ord_at(arena, fa);
+  }
+  if (k != 44) {
+    return 0 - 2;
+  }
+  unsafe {
+    ty = glue_field_access_field_type_ref_c(arena, mod, fa);
+  }
+  if (ty > 0) {
+    unsafe {
+      k = pipeline_type_kind_ord_at(arena, ty);
+    }
+    // TYPE_POINTER = 9. Adding a byte offset to a pointer slot
+    // writes the pointer variable, not the pointee.
+    if (k == 9) {
+      return 0 - 1;
+    }
+  }
+  unsafe {
+    off = glue_field_access_effective_offset_c(arena, mod, fa);
+  }
+  if (off < 0 || off > 4095) {
+    return 0 - 1;
+  }
+  return off;
+}
+
+/**
  * EXPR_RETURN ELF emit: operand into rax/x0, arm64 sret copy, then jmp
  * function tail_join (AsmFuncCtxLayout name at 1392, length at 1520).
  * A 9..16 byte named field is loaded with pipeline_asm_deref_struct16
@@ -496,7 +543,10 @@ function w1521_rs_mid_named_field(arena: *u8, op: i32): i32 {
  * and skips emit_expr. A local VAR of that array already leaves its
  * address there. emit_expr of the field loads the first qword, and
  * `return w.xs` of [2]S24 hands the caller 5 and 6 as a pointer (SIGBUS).
- * A payload of 16 bytes or less stays on emit_expr. A FIELD whose base is a
+ * A payload of 16 bytes or less stays on emit_expr. A chain of value
+ * fields (`return o.inn.xs`) adds each field offset onto that same
+ * local slot. A pointer field, a pointer root, or a chain longer
+ * than four fields stays on emit_expr. A FIELD whose base is a
  * STRUCT_LIT and whose
  * named init is an ARRAY_LIT durables that literal with the same helper
  * and then moves the element count. Any other STRUCT_LIT init stays on
@@ -1780,15 +1830,19 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
           }
         }
       }
-      /* FIELD of a VAR whose field is TYPE_ARRAY, returned as a
-       * TYPE_ARRAY wider than 16 bytes. A local VAR of that array
-       * leaves its address in x0 (`return s`). emit_expr of the
-       * field loads the first qword, so `return w.xs` of [2]S24
-       * returns 5 and 6 packed together and the caller SIGBUS.
-       * Lea the struct slot plus the field offset. Element width
-       * is the named layout, then the array-literal stride. 16
-       * bytes or less stays on emit_expr (value or pair). A slice
-       * return is the arm above. A non-VAR base stays on emit_expr.
+      /* FIELD whose leaf is TYPE_ARRAY, returned as a TYPE_ARRAY
+       * wider than 16 bytes. A local VAR of that array leaves its
+       * address in x0 (`return s`). emit_expr of the field loads
+       * the first qword, so `return w.xs` of [2]S24 returns 5 and
+       * 6 packed together and the caller SIGBUS. Lea the root VAR
+       * slot plus each value-field offset. `return w.xs` is one
+       * offset. `return o.inn.xs` adds the parent offset too.
+       * Element width is the named layout, then the array-literal
+       * stride. 16 bytes or less stays on emit_expr (value or
+       * pair). A slice return is the arm above. A pointer field,
+       * a pointer root, a non-VAR root, or a fifth field stays
+       * on emit_expr. Hops are unrolled: a while that calls externs
+       * is dropped by this compiler.
        * PLATFORM: MACOS|ARM64. */
       if (dur_ok == 0 && ta == 1) {
         unsafe {
@@ -1813,57 +1867,134 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                 }
                 if (base_er > 0) {
                   unsafe {
-                    opk_d = pipeline_expr_kind_ord_at(arena, base_er);
+                    decl_ty = glue_field_access_field_type_ref_c(arena, mod_d, ret_op);
                   }
-                  if (opk_d == 3) {
+                  if (decl_ty > 0) {
                     unsafe {
-                      decl_ty = glue_field_access_field_type_ref_c(arena, mod_d, ret_op);
+                      rk_d = pipeline_type_kind_ord_at(arena, decl_ty);
                     }
-                    if (decl_ty > 0) {
+                    if (rk_d == 10) {
                       unsafe {
-                        rk_d = pipeline_type_kind_ord_at(arena, decl_ty);
+                        n_d = pipeline_type_array_size_at(arena, decl_ty);
+                        elem_d = pipeline_type_elem_ref_at(arena, decl_ty);
                       }
-                      if (rk_d == 10) {
+                      esz_d = 0;
+                      if (elem_d > 0) {
                         unsafe {
-                          n_d = pipeline_type_array_size_at(arena, decl_ty);
-                          elem_d = pipeline_type_elem_ref_at(arena, decl_ty);
+                          esz_d = glue_type_named_layout_size_any_module_elf_c(arena, elem_d);
                         }
-                        esz_d = 0;
-                        if (elem_d > 0) {
+                        if (esz_d <= 0) {
                           unsafe {
-                            esz_d = glue_type_named_layout_size_any_module_elf_c(arena, elem_d);
-                          }
-                          if (esz_d <= 0) {
-                            unsafe {
-                              esz_d = glue_array_lit_force_esz_from_elem_type_c(arena, elem_d);
-                            }
+                            esz_d = glue_array_lit_force_esz_from_elem_type_c(arena, elem_d);
                           }
                         }
-                        peel_d = 0;
-                        if (n_d > 0 && n_d <= 1024 && esz_d > 0 && esz_d <= 256) {
-                          peel_d = n_d * esz_d;
+                      }
+                      peel_d = 0;
+                      if (n_d > 0 && n_d <= 1024 && esz_d > 0 && esz_d <= 256) {
+                        peel_d = n_d * esz_d;
+                      }
+                      if (peel_d > 16) {
+                        let sum_off: i32 = 0;
+                        let root_er: i32 = base_er;
+                        let hop: i32 = 0;
+                        let fold_ok: i32 = 1;
+                        unsafe {
+                          sum_off = glue_field_access_effective_offset_c(arena, mod_d, ret_op);
                         }
-                        if (peel_d > 16) {
-                          unsafe {
-                            arr_off = glue_var_expr_stack_off_elf_c(arena, ctx, base_er);
-                            esz_d = glue_field_access_effective_offset_c(arena, mod_d, ret_op);
+                        if (sum_off < 0 || sum_off > 4095) {
+                          fold_ok = 0;
+                        }
+                        // Parent 1. -2 means the immediate base is the root.
+                        if (fold_ok != 0) {
+                          hop = w635_rs_fold_parent(arena, mod_d, root_er);
+                          if (hop == (0 - 1)) {
+                            fold_ok = 0;
                           }
-                          if (arr_off >= 0 && esz_d >= 0 && esz_d <= 4095) {
-                            unsafe {
-                              rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, arr_off, ta);
-                            }
-                            if (rc != 0) {
-                              return 0 - 1;
-                            }
-                            if (esz_d != 0) {
+                          if (hop >= 0) {
+                            if (sum_off > (4095 - hop)) {
+                              fold_ok = 0;
+                            } else {
+                              sum_off = sum_off + hop;
                               unsafe {
-                                rc = backend_enc_add_imm_to_rax_arch(elf_ctx, esz_d, ta);
+                                root_er = pipeline_expr_field_access_base_ref(arena, root_er);
                               }
-                              if (rc != 0) {
-                                return 0 - 1;
+                              hop = w635_rs_fold_parent(arena, mod_d, root_er);
+                              if (hop == (0 - 1)) {
+                                fold_ok = 0;
+                              }
+                              if (hop >= 0) {
+                                if (sum_off > (4095 - hop)) {
+                                  fold_ok = 0;
+                                } else {
+                                  sum_off = sum_off + hop;
+                                  unsafe {
+                                    root_er = pipeline_expr_field_access_base_ref(arena, root_er);
+                                  }
+                                  hop = w635_rs_fold_parent(arena, mod_d, root_er);
+                                  if (hop == (0 - 1)) {
+                                    fold_ok = 0;
+                                  }
+                                  if (hop >= 0) {
+                                    if (sum_off > (4095 - hop)) {
+                                      fold_ok = 0;
+                                    } else {
+                                      sum_off = sum_off + hop;
+                                      unsafe {
+                                        root_er = pipeline_expr_field_access_base_ref(arena, root_er);
+                                      }
+                                      hop = w635_rs_fold_parent(arena, mod_d, root_er);
+                                      if (hop != (0 - 2)) {
+                                        fold_ok = 0;
+                                      }
+                                    }
+                                  }
+                                }
                               }
                             }
-                            dur_ok = 1;
+                          }
+                        }
+                        if (fold_ok != 0 && root_er > 0) {
+                          unsafe {
+                            opk_d = pipeline_expr_kind_ord_at(arena, root_er);
+                          }
+                          if (opk_d == 3) {
+                            // One-field `w.xs` keeps the old path. A chain
+                            // refuses a pointer root (kind 9).
+                            if (root_er != base_er) {
+                              unsafe {
+                                decl_ty = glue_var_decl_type_ref_elf_c(arena, ctx, root_er);
+                              }
+                              if (decl_ty > 0) {
+                                unsafe {
+                                  rk_d = pipeline_type_kind_ord_at(arena, decl_ty);
+                                }
+                                if (rk_d == 9) {
+                                  fold_ok = 0;
+                                }
+                              }
+                            }
+                            if (fold_ok != 0) {
+                              unsafe {
+                                arr_off = glue_var_expr_stack_off_elf_c(arena, ctx, root_er);
+                              }
+                              if (arr_off >= 0 && sum_off >= 0 && sum_off <= 4095) {
+                                unsafe {
+                                  rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, arr_off, ta);
+                                }
+                                if (rc != 0) {
+                                  return 0 - 1;
+                                }
+                                if (sum_off != 0) {
+                                  unsafe {
+                                    rc = backend_enc_add_imm_to_rax_arch(elf_ctx, sum_off, ta);
+                                  }
+                                  if (rc != 0) {
+                                    return 0 - 1;
+                                  }
+                                }
+                                dur_ok = 1;
+                              }
+                            }
                           }
                         }
                       }
