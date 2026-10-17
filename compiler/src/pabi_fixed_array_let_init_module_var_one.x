@@ -35,6 +35,29 @@ export extern function glue_emit_struct_type_let_init_elf_c(
   arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32,
   let_ty_ref: i32, stack_slot_off: i32
 ): i32;
+export extern function pipeline_expr_match_matched_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_match_num_arms_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_match_arm_is_wildcard(arena: *u8, expr_ref: i32, i: i32): i32;
+export extern function pipeline_expr_match_arm_result_ref(arena: *u8, expr_ref: i32, i: i32): i32;
+export extern function pipeline_expr_match_arm_lit_val(arena: *u8, expr_ref: i32, i: i32): i32;
+export extern function pipeline_asm_emit_expr_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function pipeline_asm_emit_vector_let_init_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32): i32;
+export extern function pipeline_asm_emit_next_label_c(ctx: *u8, out: *u8, cap: i32): i32;
+export extern function fa_array_lit_into_rbx(arena: *u8, elf_ctx: *u8, src: i32, ctx: *u8, ta: i32, n_arr: i32, esz: i32): i32;
+export extern function backend_enc_mov_rax_to_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_mov_rax_to_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i32): i32;
+export extern function backend_enc_mov_imm32_to_w0_arch(elf_ctx: *u8, v: i32, ta: i32): i32;
+export extern function backend_enc_cmp_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_jne_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
+export extern function backend_enc_jmp_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
+export extern function backend_enc_label_arch(elf_ctx: *u8, label: *u8, label_len: i32, is_global: i32, ta: i32): i32;
+export extern function backend_enc_load_rbp_to_rax_arch(elf_ctx: *u8, off: i32, ta: i32): i32;
+export extern function glue_align_next_offset(ctx: *u8): void;
+export extern function pipe_asm_ctx_off_next_offset(): i32;
+export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
+export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
+export extern function glue_arm64_mov_x19_to_x0_elf_c(elf_ctx: *u8): i32;
+export extern function backend_enc_mov_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
 
 /**
  * Read the little-endian i32 at byte offset off.
@@ -246,6 +269,250 @@ function fa_modvar_copy_local(
 }
 
 /**
+ * Store one ARRAY_LIT match arm into the fixed-array dest.
+ * A frame slot uses the vector let-init. Dest-in-rbx (-3) uses the
+ * pointer copy, and both x1 and x19 must already hold that pointer.
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — encoder context
+ * @param arm i32 — arm result; must be ARRAY_LIT
+ * @param ctx *u8 — AsmFuncCtx
+ * @param ta i32 — target arch
+ * @param slot i32 — frame slot, or -3 when rbx is the dest
+ * @param n_arr i32 — destination element count
+ * @param esz i32 — destination element stride
+ * @return i32 — 0 stored, -1 otherwise
+ * PLATFORM: SHARED.
+ */
+function fa_store_match_array_arm(
+  arena: *u8, elf_ctx: *u8, arm: i32, ctx: *u8, ta: i32,
+  slot: i32, n_arr: i32, esz: i32
+): i32 {
+  let ko: i32 = 0;
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, arm);
+  }
+  if (ko != 46) {
+    return 0 - 1;
+  }
+  if (slot == (0 - 3)) {
+    unsafe {
+      return fa_array_lit_into_rbx(arena, elf_ctx, arm, ctx, ta, n_arr, esz);
+    }
+  }
+  unsafe {
+    ko = pipeline_asm_emit_vector_let_init_elf_c(arena, elf_ctx, arm, ctx, ta, slot);
+  }
+  if (ko != 0) {
+    return 0 - 1;
+  }
+  return 0;
+}
+
+/**
+ * `let a: [N]T = match` and `*p = match` whose arms are array literals.
+ * emit_expr of an array literal is not a value, so the match value
+ * form returned -1. Each arm is stored with the fixed-array fill.
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — encoder context
+ * @param match_ref i32 — EXPR_MATCH
+ * @param ctx *u8 — AsmFuncCtx
+ * @param ta i32 — target arch
+ * @param type_ref i32 — destination TYPE_ARRAY
+ * @param slot i32 — frame slot, or -3 when rbx already holds the dest
+ * @return i32 — 0 stored, -1 encode failure
+ * PLATFORM: SHARED. Literal arms and a terminal wildcard. No guard.
+ */
+function fa_emit_match_fixed_array(
+  arena: *u8, elf_ctx: *u8, match_ref: i32, ctx: *u8, ta: i32,
+  type_ref: i32, slot: i32
+): i32 {
+  let matched: i32 = 0;
+  let n_arms: i32 = 0;
+  let n_arr: i32 = 0;
+  let esz: i32 = 0;
+  let elem: i32 = 0;
+  let i: i32 = 0;
+  let wild: i32 = 0;
+  let arm: i32 = 0;
+  let lit: i32 = 0;
+  let rc: i32 = 0;
+  let spill: i32 = 0;
+  let done_len: i32 = 0;
+  let next_len: i32 = 0;
+  let done_lbl: u8[64] = [];
+  let next_lbl: u8[64] = [];
+  unsafe {
+    matched = pipeline_expr_match_matched_ref_at(arena, match_ref);
+    n_arms = pipeline_expr_match_num_arms_at(arena, match_ref);
+    n_arr = pipeline_type_array_size_at(arena, type_ref);
+    elem = pipeline_type_elem_ref_at(arena, type_ref);
+    esz = glue_array_lit_force_esz_from_elem_type_c(arena, elem);
+  }
+  if (matched <= 0 || n_arms <= 0 || n_arms > 32 || n_arr <= 0) {
+    return 0 - 1;
+  }
+  if (esz <= 0) {
+    unsafe {
+      esz = glue_index_elem_byte_sz_from_type_ref_c(arena, type_ref);
+    }
+  }
+  if (esz <= 0) {
+    esz = 4;
+  }
+  if (slot == (0 - 3)) {
+    unsafe {
+      glue_align_next_offset(ctx);
+      spill = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+      if (ta == 1) {
+        pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), spill + 8);
+        rc = glue_arm64_mov_x19_to_x0_elf_c(elf_ctx);
+      } else {
+        spill = spill + 8;
+        pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), spill);
+        rc = backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
+      }
+      if (rc == 0) {
+        rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, spill, ta);
+      }
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+  }
+  unsafe {
+    done_len = pipeline_asm_emit_next_label_c(ctx, &done_lbl[0], 64);
+  }
+  if (done_len <= 0) {
+    return 0 - 1;
+  }
+  i = 0;
+  while (i < n_arms) {
+    unsafe {
+      wild = pipeline_expr_match_arm_is_wildcard(arena, match_ref, i);
+      arm = pipeline_expr_match_arm_result_ref(arena, match_ref, i);
+    }
+    if (arm <= 0) {
+      return 0 - 1;
+    }
+    if (wild != 0) {
+      if (slot == (0 - 3)) {
+        unsafe {
+          rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, spill, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        unsafe {
+          rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        unsafe {
+          rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+      }
+      rc = fa_store_match_array_arm(arena, elf_ctx, arm, ctx, ta, slot, n_arr, esz);
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_jmp_arch(elf_ctx, &done_lbl[0], done_len, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      i = n_arms;
+    } else {
+      unsafe {
+        next_len = pipeline_asm_emit_next_label_c(ctx, &next_lbl[0], 64);
+      }
+      if (next_len <= 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, matched, ctx, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        lit = pipeline_expr_match_arm_lit_val(arena, match_ref, i);
+        rc = backend_enc_mov_imm32_to_w0_arch(elf_ctx, lit, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_cmp_rbx_rax_arch(elf_ctx, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_jne_arch(elf_ctx, &next_lbl[0], next_len, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      if (slot == (0 - 3)) {
+        unsafe {
+          rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, spill, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        unsafe {
+          rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        unsafe {
+          rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+      }
+      rc = fa_store_match_array_arm(arena, elf_ctx, arm, ctx, ta, slot, n_arr, esz);
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_jmp_arch(elf_ctx, &done_lbl[0], done_len, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_label_arch(elf_ctx, &next_lbl[0], next_len, 0, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      i = i + 1;
+    }
+  }
+  unsafe {
+    rc = backend_enc_label_arch(elf_ctx, &done_lbl[0], done_len, 0, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  return 0;
+}
+
+/**
  * Fixed-array let-init: Cap residual store, then a module-VAR fallback.
  * @param arena *u8 — AST arena; null returns -2
  * @param elf_ctx *u8 — encoder context; null returns -2
@@ -280,6 +547,17 @@ export function glue_emit_fixed_array_type_let_init_elf_c(
   }
   unsafe {
     st = glue_type_is_fixed_array(arena, type_ref);
+  }
+  if (st != 0) {
+    unsafe {
+      kind = pipeline_expr_kind_ord_at(arena, init_ref);
+    }
+    // MATCH whose arms are array literals. emit_expr of the arm is
+    // not a value. PLATFORM: SHARED frame slot and dest-in-rbx.
+    if (kind == 43) {
+      return fa_emit_match_fixed_array(
+        arena, elf_ctx, init_ref, ctx, ta, type_ref, stack_slot_off);
+    }
   }
   if (st == 0) {
     // A SIMD type is not TYPE_ARRAY. A match arm of an array

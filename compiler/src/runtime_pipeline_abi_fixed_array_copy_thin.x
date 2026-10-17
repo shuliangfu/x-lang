@@ -79,6 +79,10 @@ export extern function backend_enc_pop_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_push_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_store_rax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
 export extern function backend_enc_store_rax_to_rbx_offset_arch(elf_ctx: *u8, off: i32, load_sz: i32, ta: i32): i32;
+export extern function backend_enc_push_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_append_u32_le_c(elf_ctx: *u8, w: u32): i32;
+export extern function backend_enc_pop_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx: *u8, slot_off: i32, sz: i32, ta: i32): i32;
 export extern function pipeline_asm_array_lit_elem_type_ref(arena: *u8, array_lit_expr_ref: i32): i32;
 export extern function glue_emit_fixed_array_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, type_ref: i32, stack_slot_off: i32): i32;
 export extern function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, let_ty_ref: i32, stack_slot_off: i32): i32;
@@ -884,6 +888,126 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
  * wave146 pure: G.7 authority (was static glue_struct_lit_store_fixed_array_field_elf_c).
  * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
  */
+/**
+ * ARRAY_LIT into a dest whose address is already in rbx (base_off -3).
+ * A frame magnitude of -3 is negative, so the field store returned -1
+ * and `*p = [1]` was CG002. Fill a real frame slot with the existing
+ * vector let-init, then copy those bytes through rbx.
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — encoder context
+ * @param src i32 — ARRAY_LIT expr
+ * @param ctx *u8 — AsmFuncCtx
+ * @param ta i32 — 0 x86_64, 1 arm64
+ * @param n_arr i32 — element count, already 1..1024
+ * @param esz i32 — element stride in bytes
+ * @return i32 — 0 stored, -1 encode or size failure
+ * PLATFORM: SHARED. rbx is the caller's dest and is saved across the fill.
+ */
+#[no_mangle]
+export function fa_array_lit_into_rbx(
+  arena: *u8, elf_ctx: *u8, src: i32, ctx: *u8, ta: i32, n_arr: i32, esz: i32
+): i32 {
+  let total: i32 = 0;
+  let reserve: i32 = 0;
+  let home: i32 = 0;
+  let next_off: i32 = 0;
+  let ly: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  total = n_arr * esz;
+  if (total <= 0 || total > 4096) {
+    return 0 - 1;
+  }
+  reserve = (total + 7) & (0 - 8);
+  if (reserve < 8) {
+    reserve = 8;
+  }
+  unsafe {
+    ly = pipeline_asm_ctx_layout(ctx);
+  }
+  if (ly == (0 as *u8)) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = pipe_asm_ctx_off_next_offset();
+    home = pipe_load_i32_le(ly, rc);
+  }
+  if ((home & 7) != 0) {
+    home = (home + 7) & (0 - 8);
+  }
+  if (ta == 1) {
+    next_off = home + reserve;
+  } else {
+    home = home + reserve;
+    next_off = home;
+  }
+  unsafe {
+    rc = pipe_asm_ctx_off_next_offset();
+    pipe_store_i32_le(ly, rc, next_off);
+    rc = backend_enc_push_rbx_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = pipeline_asm_emit_vector_let_init_elf_c(arena, elf_ctx, src, ctx, ta, home);
+  }
+  if (rc != 0) {
+    unsafe {
+      backend_enc_pop_rbx_arch(elf_ctx, ta);
+    }
+    return 0 - 1;
+  }
+  if (total >= 8) {
+    unsafe {
+      rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_pop_rbx_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    // Arm64 pop_rbx restores the dest into x1. The copy reads x19.
+    // PLATFORM: MACOS|ARM64. x86 pop_rbx restores rbx directly; this mov
+    // is x19 = x1 and is the same word the struct-lit pointer copy uses.
+    unsafe {
+      rc = backend_enc_append_u32_le_c(elf_ctx, 2852193267 as u32);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, 0 - 3, total, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    return 0;
+  }
+  unsafe {
+    rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, home, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_pop_rbx_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, total, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  return 0;
+}
+
 #[no_mangle]
 export function glue_struct_lit_store_fixed_array_field_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, sret_direct: i32, base_off: i32, foff: i32, fty: i32): i32 {
   let iko: i32 = 0;
@@ -957,6 +1081,11 @@ export function glue_struct_lit_store_fixed_array_field_elf_c(arena: *u8, elf_ct
   }
   if (esz <= 0) {
     esz = 4;
+  }
+  // Dest address is already in rbx. -3 is not a frame slot.
+  // PLATFORM: SHARED. A real frame base still uses field_mag below.
+  if (sret_direct == 0 && base_off == (0 - 3) && iko == 46 && n_arr > 0 && n_arr <= 1024) {
+    return fa_array_lit_into_rbx(arena, elf_ctx, src, ctx, ta, n_arr, esz);
   }
   field_mag = 0;
   if (sret_direct == 0) {
