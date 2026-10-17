@@ -23,6 +23,7 @@ export extern "C" function pipeline_expr_call_arg_ref(arena: *u8, call_ref: i32,
 export extern "C" function pipeline_expr_method_call_arg_ref(arena: *u8, call_ref: i32, arg_i: i32): i32;
 export extern "C" function typeck_get_dep_return_type_in_caller_arena(from_dep_index: i32,
   dep_return_type_ref: i32, caller_arena: *u8, ctx: *u8): i32;
+export extern "C" function pipeline_module_func_set_is_used(module: *u8, fi: i32, is_used: i32): void;
 
 /**
  * Stamp Vec8i formals of an i32 literal chain, then run the old checker.
@@ -73,6 +74,17 @@ export function typeck_check_call_arg_types(module: *u8, arena: *u8, expr_ref: i
       num_args = pipeline_expr_call_num_args_at(arena, expr_ref);
     }
     dep = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
+    /*
+     * A same-module call still emits the callee symbol. WPO drops the
+     * body when the call sits in a let-init and the file has an import,
+     * so the object references an undefined local. is_used is the
+     * existing keep bit for a call the graph does not record. An
+     * imported callee has dep >= 0 and is not marked here.
+     * PLATFORM: SHARED.
+     */
+    if (dep < 0) {
+      pipeline_module_func_set_is_used(module, fi, 1);
+    }
     mod = module;
     if (dep >= 0) {
       if (ctx != 0 as *u8) {
