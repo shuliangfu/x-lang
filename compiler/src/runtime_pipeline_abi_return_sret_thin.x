@@ -491,7 +491,12 @@ function w1521_rs_mid_named_field(arena: *u8, op: i32): i32 {
  * function returns TYPE_SLICE leas the struct slot plus the field
  * offset and then moves the element count into x1 (arm64) or rdx
  * (SysV). emit_expr of an 8-byte field loads the value, and the caller
- * then reads that value as a pointer. A FIELD whose base is a
+ * then reads that value as a pointer. The same FIELD, when the function
+ * returns a TYPE_ARRAY wider than 16 bytes, leas that address into x0
+ * and skips emit_expr. A local VAR of that array already leaves its
+ * address there. emit_expr of the field loads the first qword, and
+ * `return w.xs` of [2]S24 hands the caller 5 and 6 as a pointer (SIGBUS).
+ * A payload of 16 bytes or less stays on emit_expr. A FIELD whose base is a
  * STRUCT_LIT and whose
  * named init is an ARRAY_LIT durables that literal with the same helper
  * and then moves the element count. Any other STRUCT_LIT init stays on
@@ -1766,6 +1771,101 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                     } else {
                       if (v_rc != (0 - 3)) {
                         return 0 - 1;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      /* FIELD of a VAR whose field is TYPE_ARRAY, returned as a
+       * TYPE_ARRAY wider than 16 bytes. A local VAR of that array
+       * leaves its address in x0 (`return s`). emit_expr of the
+       * field loads the first qword, so `return w.xs` of [2]S24
+       * returns 5 and 6 packed together and the caller SIGBUS.
+       * Lea the struct slot plus the field offset. Element width
+       * is the named layout, then the array-literal stride. 16
+       * bytes or less stays on emit_expr (value or pair). A slice
+       * return is the arm above. A non-VAR base stays on emit_expr.
+       * PLATFORM: MACOS|ARM64. */
+      if (dur_ok == 0 && ta == 1) {
+        unsafe {
+          opk_d = pipeline_expr_kind_ord_at(arena, ret_op);
+        }
+        if (opk_d == 44) {
+          unsafe {
+            mod_d = pipeline_asm_emit_module_ref_c();
+            fi_d = pipeline_asm_emit_func_index_c();
+          }
+          if (mod_d != (0 as *u8) && fi_d >= 0) {
+            unsafe {
+              rty_d = pipeline_module_func_return_type_at(mod_d, fi_d);
+            }
+            if (rty_d > 0) {
+              unsafe {
+                rk_d = pipeline_type_kind_ord_at(arena, rty_d);
+              }
+              if (rk_d == 10) {
+                unsafe {
+                  base_er = pipeline_expr_field_access_base_ref(arena, ret_op);
+                }
+                if (base_er > 0) {
+                  unsafe {
+                    opk_d = pipeline_expr_kind_ord_at(arena, base_er);
+                  }
+                  if (opk_d == 3) {
+                    unsafe {
+                      decl_ty = glue_field_access_field_type_ref_c(arena, mod_d, ret_op);
+                    }
+                    if (decl_ty > 0) {
+                      unsafe {
+                        rk_d = pipeline_type_kind_ord_at(arena, decl_ty);
+                      }
+                      if (rk_d == 10) {
+                        unsafe {
+                          n_d = pipeline_type_array_size_at(arena, decl_ty);
+                          elem_d = pipeline_type_elem_ref_at(arena, decl_ty);
+                        }
+                        esz_d = 0;
+                        if (elem_d > 0) {
+                          unsafe {
+                            esz_d = glue_type_named_layout_size_any_module_elf_c(arena, elem_d);
+                          }
+                          if (esz_d <= 0) {
+                            unsafe {
+                              esz_d = glue_array_lit_force_esz_from_elem_type_c(arena, elem_d);
+                            }
+                          }
+                        }
+                        peel_d = 0;
+                        if (n_d > 0 && n_d <= 1024 && esz_d > 0 && esz_d <= 256) {
+                          peel_d = n_d * esz_d;
+                        }
+                        if (peel_d > 16) {
+                          unsafe {
+                            arr_off = glue_var_expr_stack_off_elf_c(arena, ctx, base_er);
+                            esz_d = glue_field_access_effective_offset_c(arena, mod_d, ret_op);
+                          }
+                          if (arr_off >= 0 && esz_d >= 0 && esz_d <= 4095) {
+                            unsafe {
+                              rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, arr_off, ta);
+                            }
+                            if (rc != 0) {
+                              return 0 - 1;
+                            }
+                            if (esz_d != 0) {
+                              unsafe {
+                                rc = backend_enc_add_imm_to_rax_arch(elf_ctx, esz_d, ta);
+                              }
+                              if (rc != 0) {
+                                return 0 - 1;
+                              }
+                            }
+                            dur_ok = 1;
+                          }
+                        }
                       }
                     }
                   }
