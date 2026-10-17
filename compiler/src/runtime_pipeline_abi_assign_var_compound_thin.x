@@ -66,6 +66,8 @@ export extern function backend_enc_pop_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i32, hi: i32, ta: i32): i32;
 export extern function glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_mov_rax_to_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i32): i32;
+export extern function backend_enc_lea_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
+export extern function pipeline_type_array_size_at(arena: *u8, type_ref: i32): i32;
 
 /**
  * File-scope scalar assign: value (plain or compound) into rax, then store
@@ -237,6 +239,38 @@ export function glue_emit_assign_rhs_elf_c(arena: *u8, elf_ctx: *u8, left_ref: i
             let esz: i32 = glue_array_lit_force_esz_from_elem_type_c(arena, elem_ty);
             let rc: i32 = glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, peel, esz, ta, ctx, elem_ty);
             if (rc == 0) {
+              if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) {
+                return 0 - 1;
+              }
+              if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_arr, 0, ta) != 0) {
+                return 0 - 1;
+              }
+              let len_reg: i32 = 2;
+              if (ta == 1) {
+                len_reg = 1;
+              }
+              if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, len_reg, ta) != 0) {
+                return 0 - 1;
+              }
+              if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) {
+                return 0 - 1;
+              }
+              return 0;
+            }
+          }
+        }
+        // VAR of [N]T. emit_expr leaves the array address and no length,
+        // so store_slice writes a stale x1 and `s = a` keeps length 1.
+        // Lea the slot and put N in the length register, same as ARRAY_LIT.
+        if (pipeline_expr_kind_ord_at(arena, peel) == 3) {
+          let rty: i32 = glue_var_decl_type_ref_elf_c(arena, ctx, peel);
+          if (rty > 0 && pipeline_type_kind_ord_at(arena, rty) == 10) {
+            let n_arr: i32 = pipeline_type_array_size_at(arena, rty);
+            let roff: i32 = glue_var_expr_stack_off_elf_c(arena, ctx, peel);
+            if (n_arr > 0 && roff >= 0) {
+              if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, roff, ta) != 0) {
+                return 0 - 1;
+              }
               if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) {
                 return 0 - 1;
               }
