@@ -613,24 +613,25 @@ int xlang_ensure_runtime_panic_o(const char *argv0) {
  * Peer heap_user_o_path; Cap residual has_defined_sym/unlink stub + resolve/access/cc/stat.
  * Pure byte join (no snprintf). PLATFORM: SHARED orch (direct seed compile).
  */
+/* Twin of src/runtime/labi_ensure_list.x xlang_ensure_runtime_heap_user_o.
+ * The C seed seeds/runtime_heap_user.from_x.c no longer defines
+ * heap_arena_init_c. Spawn this product on src/runtime_heap_user.x.
+ * PLATFORM: SHARED. */
 int xlang_ensure_runtime_heap_user_o(const char *argv0) {
   char comp[4096];
   char out_o[4096];
-  char src_c[4096];
-  char inc0[4096];
-  char inc1[4096];
-  char inc2[4096];
+  char src_x[4096];
+  char lib[4096];
   const char *existing;
   const char *have;
-  const char *o_path;
   const char *leaf_o = "runtime_heap_user.o";
-  const char *leaf_c = "seeds/runtime_heap_user.from_x.c";
-  int dn, ln_o, ln_c, i, k, rc, crc;
+  const char *leaf_x = "src/runtime_heap_user.x";
+  const char *av[10];
+  int dn, ln_o, ln_x, i, k, rc, crc, slash, p;
   existing = xlang_runtime_heap_user_o_path(argv0);
   have = asm_link_obj_skip_missing(existing);
   if (have != NULL) {
-    if (xlang_link_obj_has_defined_sym(existing, "heap_arena_init_c") != 0
-        || xlang_link_obj_has_defined_sym(existing, "heap_alloc_c") != 0)
+    if (xlang_link_obj_has_defined_sym(existing, "heap_arena_init_c") != 0)
       return 0;
     (void)unlink(existing);
   }
@@ -652,56 +653,46 @@ int xlang_ensure_runtime_heap_user_o(const char *argv0) {
   out_o[dn] = '/';
   for (k = 0; k <= ln_o; k++)
     out_o[dn + 1 + k] = leaf_o[k];
-  ln_c = 0;
-  while (leaf_c[ln_c] != 0)
-    ln_c++;
-  if (dn + 1 + ln_c >= 4096)
+  ln_x = 0;
+  while (leaf_x[ln_x] != 0)
+    ln_x++;
+  if (dn + 1 + ln_x >= 4096)
     return -1;
   for (i = 0; i < dn; i++)
-    src_c[i] = comp[i];
-  src_c[dn] = '/';
-  for (k = 0; k <= ln_c; k++)
-    src_c[dn + 1 + k] = leaf_c[k];
-  if (link_abi_path_readable(src_c) == 0) {
-    link_diag_runtime_source_missing("runtime_heap_user", src_c);
+    src_x[i] = comp[i];
+  src_x[dn] = '/';
+  for (k = 0; k <= ln_x; k++)
+    src_x[dn + 1 + k] = leaf_x[k];
+  if (link_abi_path_readable(src_x) == 0) {
+    link_diag_runtime_source_missing("runtime_heap_user", src_x);
     return -1;
   }
-  for (i = 0; i <= dn; i++)
-    inc0[i] = comp[i];
-  {
-    const char *leaf_inc = "include";
-    int ln_inc = 0;
-    while (leaf_inc[ln_inc] != 0)
-      ln_inc++;
-    if (dn + 1 + ln_inc >= 4096)
-      return -1;
-    for (i = 0; i < dn; i++)
-      inc1[i] = comp[i];
-    inc1[dn] = '/';
-    for (k = 0; k <= ln_inc; k++)
-      inc1[dn + 1 + k] = leaf_inc[k];
-  }
-  {
-    const char *leaf_src = "src";
-    int ln_src = 0;
-    while (leaf_src[ln_src] != 0)
-      ln_src++;
-    if (dn + 1 + ln_src >= 4096)
-      return -1;
-    for (i = 0; i < dn; i++)
-      inc2[i] = comp[i];
-    inc2[dn] = '/';
-    for (k = 0; k <= ln_src; k++)
-      inc2[dn + 1 + k] = leaf_src[k];
-  }
-  crc = xlang_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
+  if (argv0 == NULL || argv0[0] == 0)
+    return -1;
+  slash = dn - 1;
+  while (slash > 0 && comp[slash] != '/')
+    slash--;
+  if (slash <= 0)
+    return -1;
+  for (p = 0; p < slash; p++)
+    lib[p] = comp[p];
+  lib[p] = 0;
+  av[0] = argv0;
+  av[1] = "-backend";
+  av[2] = "asm";
+  av[3] = "-c";
+  av[4] = "-L";
+  av[5] = lib;
+  av[6] = "-o";
+  av[7] = out_o;
+  av[8] = src_x;
+  av[9] = NULL;
+  crc = xlang_spawn_sync(argv0, av);
   if (crc != 0) {
     link_diag_runtime_obj_build_status("runtime_heap_user.o", crc);
     return -1;
   }
-  o_path = xlang_runtime_heap_user_o_path(argv0);
-  have = asm_link_obj_skip_missing(o_path);
-  if (have == NULL) {
+  if (xlang_link_obj_has_defined_sym(out_o, "heap_arena_init_c") == 0) {
     link_diag_runtime_obj_missing("runtime_heap_user.o", out_o);
     return -1;
   }

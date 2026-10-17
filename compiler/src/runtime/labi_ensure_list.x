@@ -1087,28 +1087,28 @@ export function xlang_ensure_runtime_panic_o(argv0: *u8): i32 {
 }
 
 /**
- * Ensure runtime_heap_user.o exists next to the product host (compile seed if missing/stub).
- * Special ensure (not catalog): co-emits std.heap redirect heap_*_c symbols. Rejects
- * incomplete stub/empty .o that only passes skip_missing but lacks arena/alloc API
- * (with_arena residual: early ensure on 944B empty .o → U heap_arena_init_c).
- * @param argv0 *u8 — optional product host path for compiler-dir resolve / path ladder; may be null
- * @return i32 — 0 success / already present with defined API; -1 on resolve/source/cc/missing
- * Pure orch: peer heap_user_o_path + pure byte joins (no snprintf Cap) after Cap residual
- *   resolve; Cap residual has_defined_sym (nm) + unlink stub + path_readable + cc_compile_sync
- *   + skip_missing (stat) + peer diags (resolve_fail / source_missing / build_status / missing).
- * Cap residual: xlang_resolve_compiler_dir; link_abi_path_readable (access R_OK);
- *   xlang_cc_compile_sync (spawn/cc); asm_link_obj_skip_missing (stat);
- *   xlang_link_obj_has_defined_sym (popen/nm); unlink (POSIX remove stub).
- * Why (wave170): hybrid still had always-mega C body for special heap_user ensure after
- *   panic ensure pure (wave169) and freestanding ensure pair (wave167/168). Catalog thin
- *   wraps stay via link_abi_ensure_from_catalog Cap residual.
- * PLATFORM: SHARED orch (seed compile absolute path; no wrap.c include race).
+ * Ensure runtime_heap_user.o exists next to the product host.
+ * Keep an object only when it defines heap_arena_init_c. The C seed
+ * seeds/runtime_heap_user.from_x.c now defines heap_alloc_aligned_c alone;
+ * with_arena emits heap_arena_init_c and heap_arena64_deinit_c from
+ * src/runtime_heap_user.x. A missing or stub object is replaced by spawning
+ * this product: argv0 -backend asm -c -L <repo> -o <compiler>/runtime_heap_user.o
+ * <compiler>/src/runtime_heap_user.x. heap_alloc_c without the arena symbol is
+ * not enough (that early accept left with_arena as an undefined link).
+ * @param argv0 *u8 — product host path; required to spawn the compiler. Null or
+ *   empty fails. Also the compiler-dir resolve key.
+ * @return i32 — 0 when the object defines heap_arena_init_c; -1 on resolve,
+ *   missing source, spawn failure, or a product object that still lacks the symbol
+ * Pure orch: peer heap_user_o_path + byte joins. Cap residual: resolve,
+ *   path_readable, has_defined_sym, unlink, xlang_spawn_sync, diags.
+ * PLATFORM: SHARED. The spawned compiler selects the host cfg of runtime_heap_user.x.
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
 export function xlang_ensure_runtime_heap_user_o(argv0: *u8): i32 {
-  // Cap residual: product path + skip if .o exists AND exports arena/alloc API.
-  // Incomplete stub .o (skip_missing only) is unlinked and rebuilt (≡ mega remove).
+  // Keep the object only when with_arena's init symbol is defined.
+  // heap_alloc_c alone is the old stub accept: the C seed never grew the
+  // arena API after it moved into runtime_heap_user.x.
   let existing: *u8 = 0 as *u8;
   let have: *u8 = 0 as *u8;
   unsafe {
@@ -1117,18 +1117,12 @@ export function xlang_ensure_runtime_heap_user_o(argv0: *u8): i32 {
   }
   if (have != 0 as *u8) {
     let has_arena: i32 = 0;
-    let has_alloc: i32 = 0;
     unsafe {
       has_arena = xlang_link_obj_has_defined_sym(existing, "heap_arena_init_c");
-      has_alloc = xlang_link_obj_has_defined_sym(existing, "heap_alloc_c");
     }
     if (has_arena != 0) {
       return 0;
     }
-    if (has_alloc != 0) {
-      return 0;
-    }
-    // Stub/empty: drop and rebuild from seed.
     unsafe {
       unlink(existing);
     }
@@ -1172,89 +1166,83 @@ export function xlang_ensure_runtime_heap_user_o(argv0: *u8): i32 {
     out_o[dn + 1 + k] = leaf_o[k];
     k = k + 1;
   }
-  // Single source: seeds/runtime_heap_user.from_x.c (direct compile; no wrap.c).
-  let leaf_c: *u8 = "seeds/runtime_heap_user.from_x.c";
-  let ln_c: i32 = 0;
-  while (leaf_c[ln_c] != 0) {
-    ln_c = ln_c + 1;
+  // Authority is src/runtime_heap_user.x. The C seed no longer has the arena API.
+  // PLATFORM: SHARED — absolute source path, product asm -c, no host cc.
+  let leaf_x: *u8 = "src/runtime_heap_user.x";
+  let ln_x: i32 = 0;
+  while (leaf_x[ln_x] != 0) {
+    ln_x = ln_x + 1;
   }
-  if (dn + 1 + ln_c >= 4096) {
+  if (dn + 1 + ln_x >= 4096) {
     return -1;
   }
-  let src_c: u8[4096] = [];
+  let src_x: u8[4096] = [];
   i = 0;
   while (i < dn) {
-    src_c[i] = comp[i];
+    src_x[i] = comp[i];
     i = i + 1;
   }
-  src_c[dn] = 47;
+  src_x[dn] = 47;
   k = 0;
-  while (k <= ln_c) {
-    src_c[dn + 1 + k] = leaf_c[k];
+  while (k <= ln_x) {
+    src_x[dn + 1 + k] = leaf_x[k];
     k = k + 1;
   }
   let readable: i32 = 0;
   unsafe {
-    readable = link_abi_path_readable(&src_c[0]);
+    readable = link_abi_path_readable(&src_x[0]);
   }
   if (readable == 0) {
-    // Match mega: source_missing(stem, full seed path) when seed absent.
     unsafe {
-      link_diag_runtime_source_missing("runtime_heap_user", &src_c[0]);
+      link_diag_runtime_source_missing("runtime_heap_user", &src_x[0]);
     }
     return -1;
   }
-  // Pure join include paths: inc0=comp, inc1=comp/include, inc2=comp/src (≡ mega).
-  let inc0: u8[4096] = [];
-  i = 0;
-  while (i <= dn) {
-    inc0[i] = comp[i];
-    i = i + 1;
-  }
-  let leaf_inc: *u8 = "include";
-  let ln_inc: i32 = 0;
-  while (leaf_inc[ln_inc] != 0) {
-    ln_inc = ln_inc + 1;
-  }
-  if (dn + 1 + ln_inc >= 4096) {
+  // Spawn needs the product path. A null argv0 can still resolve the compiler
+  // dir on some hosts, but it cannot exec this compiler.
+  if (argv0 == 0 as *u8) {
     return -1;
   }
-  let inc1: u8[4096] = [];
-  i = 0;
-  while (i < dn) {
-    inc1[i] = comp[i];
-    i = i + 1;
-  }
-  inc1[dn] = 47;
-  k = 0;
-  while (k <= ln_inc) {
-    inc1[dn + 1 + k] = leaf_inc[k];
-    k = k + 1;
-  }
-  let leaf_src: *u8 = "src";
-  let ln_src: i32 = 0;
-  while (leaf_src[ln_src] != 0) {
-    ln_src = ln_src + 1;
-  }
-  if (dn + 1 + ln_src >= 4096) {
+  if (argv0[0] == 0) {
     return -1;
   }
-  let inc2: u8[4096] = [];
-  i = 0;
-  while (i < dn) {
-    inc2[i] = comp[i];
-    i = i + 1;
+  // Parent of ".../compiler" is the repo root passed to -L.
+  let slash: i32 = dn - 1;
+  while (slash > 0) {
+    if (comp[slash] == 47) {
+      break;
+    }
+    slash = slash - 1;
   }
-  inc2[dn] = 47;
-  k = 0;
-  while (k <= ln_src) {
-    inc2[dn + 1 + k] = leaf_src[k];
-    k = k + 1;
+  if (slash <= 0) {
+    return -1;
   }
-  // Cap residual: cc -c seed → out_o (from_asm_s=0; C seed only).
+  let lib: u8[4096] = [];
+  let p: i32 = 0;
+  while (p < slash) {
+    lib[p] = comp[p];
+    p = p + 1;
+  }
+  lib[p] = 0;
+  let a_backend: *u8 = "-backend";
+  let a_asm: *u8 = "asm";
+  let a_cflag: *u8 = "-c";
+  let a_L: *u8 = "-L";
+  let a_o: *u8 = "-o";
+  let av: *u8[10];
+  av[0] = argv0;
+  av[1] = a_backend;
+  av[2] = a_asm;
+  av[3] = a_cflag;
+  av[4] = a_L;
+  av[5] = &lib[0];
+  av[6] = a_o;
+  av[7] = &out_o[0];
+  av[8] = &src_x[0];
+  av[9] = 0 as *u8;
   let crc: i32 = 0;
   unsafe {
-    crc = xlang_cc_compile_sync(&src_c[0], &out_o[0], &inc0[0], &inc1[0], &inc2[0], 0);
+    crc = xlang_spawn_sync(argv0, &av[0]);
   }
   if (crc != 0) {
     unsafe {
@@ -1262,13 +1250,12 @@ export function xlang_ensure_runtime_heap_user_o(argv0: *u8): i32 {
     }
     return -1;
   }
-  // Cap residual: re-stat product path; missing after cc → diag fail.
-  let o_path: *u8 = 0 as *u8;
+  // The file can exist and still be the aligned-only stub. Require the symbol.
+  let has_out: i32 = 0;
   unsafe {
-    o_path = xlang_runtime_heap_user_o_path(argv0);
-    have = asm_link_obj_skip_missing(o_path);
+    has_out = xlang_link_obj_has_defined_sym(&out_o[0], "heap_arena_init_c");
   }
-  if (have == 0 as *u8) {
+  if (has_out == 0) {
     unsafe {
       link_diag_runtime_obj_missing("runtime_heap_user.o", &out_o[0]);
     }
