@@ -586,6 +586,14 @@ arena: *ASTArena, expr_ref: i32, ctx: *PipelineDepCtx): i32;
  */
 export extern function pipeline_typeck_match_subject_field_type_c(module: *Module, arena: *ASTArena,
 name: *u8, name_len: i32): i32;
+/**
+ * Body lives in typeck_match_subject_field_thin.x. This mega file does not
+ * rebuild on the current Darwin product (pre-existing extern-call T001 on
+ * residual faces). Call sites stay here.
+ * PLATFORM: SHARED
+ */
+export extern function typeck_match_subject_field_type(module: *Module, arena: *ASTArena,
+name: *u8, name_len: i32): i32;
 /* wave233 pure leave: resolve_type_alias_ref is typeck authority (active_module
  * peel + local walk). Residual C face thins to typeck_resolve_type_alias_ref.
  * Do NOT reintroduce pipeline_typeck_resolve_type_alias_ref_c wrap here (cycle). */
@@ -13814,99 +13822,6 @@ ctx: *PipelineDepCtx): i32 {
         }
       }
       ai = ai + 1;
-    }
-    return 0;
-  }
-}
-
-/**
- * Resolve unbound VAR as a field of the active match subject struct type.
- * wave234 G.7 pure leave: was Cap residual pipeline_typeck_match_subject_field_type_c.
- * Subject cells live in runtime_pipeline_abi pure BSS (set/get).
- * @param module *Module — current module (must equal subject module pointer)
- * @param arena *ASTArena — type pool for TYPE_NAMED name + field type_ref
- * @param name *u8 — VAR identifier bytes (not necessarily NUL-terminated)
- * @param name_len i32 — byte length; must be > 0
- * @return i32 — field type_ref (>0) on hit; 0 if no active subject or no field
- * PLATFORM: SHARED freestanding typeck — G.7 single subject-field authority.
- */
-export function typeck_match_subject_field_type(module: *Module, arena: *ASTArena, name: *u8,
-name_len: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-    let ty: i32 = 0;
-    let subj_mod: *Module = 0 as *Module;
-    let tnm: u8[256] = [];
-    let tnl: i32 = 0;
-    let nsl: i32 = 0;
-    let k: i32 = 0;
-    let fl: i32 = 0;
-    let nf: i32 = 0;
-    let fi: i32 = 0;
-    let fnl: i32 = 0;
-    let j: i32 = 0;
-    let bi: i32 = 0;
-    /* name_eq: not `match` — `match` is a reserved keyword (match expr). */
-    let name_eq: i32 = 0;
-    let fnm: u8[256] = [];
-    if (module == 0 as *Module || arena == 0 as *ASTArena || name == 0 as *u8 || name_len <= 0) {
-      return 0;
-    }
-    ty = pipeline_typeck_match_subject_ty_get_c();
-    subj_mod = pipeline_typeck_match_subject_mod_get_c();
-    if (ty <= 0 || subj_mod != module) {
-      return 0;
-    }
-    /* TYPE_NAMED ord == 8 */
-    if (pipeline_type_kind_ord_at(arena, ty) != 8) {
-      return 0;
-    }
-    tnl = pipeline_type_named_name_into(arena, ty, &tnm[0]);
-    if (tnl <= 0) {
-      return 0;
-    }
-    nsl = pipeline_module_num_struct_layouts_at(module);
-    k = 0;
-    while (k < nsl) {
-      fl = pipeline_module_struct_layout_name_len(module, k);
-      if (fl == tnl) {
-        name_eq = 1;
-        bi = 0;
-        while (bi < fl && name_eq != 0) {
-          if (pipeline_module_struct_layout_name_byte_at(module, k, bi) != tnm[bi]) {
-            name_eq = 0;
-          }
-          bi = bi + 1;
-        }
-        if (name_eq != 0) {
-          nf = pipeline_module_struct_layout_num_fields(module, k);
-          fi = 0;
-          while (fi < nf) {
-            fnl = pipeline_module_struct_layout_field_name_len(module, k, fi);
-            if (fnl == name_len) {
-              j = 0;
-              while (j < 128) {
-                fnm[j] = 0;
-                j = j + 1;
-              }
-              pipeline_module_struct_layout_field_name_into(module, k, fi, &fnm[0]);
-              name_eq = 1;
-              j = 0;
-              while (j < fnl && name_eq != 0) {
-                if (fnm[j] != name[j]) {
-                  name_eq = 0;
-                }
-                j = j + 1;
-              }
-              if (name_eq != 0) {
-                return pipeline_module_struct_layout_field_type_ref(module, k, fi);
-              }
-            }
-            fi = fi + 1;
-          }
-        }
-      }
-      k = k + 1;
     }
     return 0;
   }
