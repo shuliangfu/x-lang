@@ -59,6 +59,12 @@ export extern function pipeline_expr_var_name_into(a: *u8, er: i32, out: *u8): v
 export extern function pipeline_expr_var_name_len(a: *u8, er: i32): i32;
 export extern function try_inline_const_struct_lit_return_call_to_slot_elf(arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32): i32;
 export extern function try_inline_struct_lit_return_call_to_slot_elf(arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32): i32;
+export extern function pipeline_asm_simd_try_inline_shuffle_call_elf_c(
+  arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32, type_ref: i32
+): i32;
+export extern function pipeline_asm_simd_try_inline_select_call_elf_c(
+  arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32, type_ref: i32
+): i32;
 export extern function backend_enc_add_imm_to_rbx_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
 export extern function backend_enc_load_32_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_load_64_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
@@ -132,6 +138,10 @@ export extern function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf_c
  * that slot through the dest pointer. Kind 51 is not a binop here.
  * A decline before that store returns -2. An encoder or let-init
  * failure returns -1.
+ * A bare CALL (kind 48) named simd_shuffle or simd_select has no
+ * module function. Before the sret call, the existing lane writers
+ * store that value. A miss (return 0) keeps the old store. Kind 49
+ * is not this gate. A negative slot stays on the old store.
  * @param arena *u8 - AST arena. Null returns -2.
  * @param elf_ctx *u8 - code buffer. Null returns -2.
  * @param init_ref i32 - initializer expr. Values <= 0 return -2.
@@ -190,6 +200,27 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   }
   unsafe {
     ko = pipeline_expr_kind_ord_at(arena, init_ref);
+  }
+  // @shuffle / @select are kind 48 with no callee body. The lane
+  // writers store the slot. Kind 49 and a dest-in-rbx slot stay here.
+  // PLATFORM: MACOS|ARM64 call. The writers are SHARED.
+  if (ko == 48 && stack_slot_off >= 0) {
+    inl = pipeline_asm_simd_try_inline_shuffle_call_elf_c(
+      arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, let_ty_ref);
+    if (inl == 1) {
+      return 0;
+    }
+    if (inl < 0) {
+      return 0 - 1;
+    }
+    inl = pipeline_asm_simd_try_inline_select_call_elf_c(
+      arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, let_ty_ref);
+    if (inl == 1) {
+      return 0;
+    }
+    if (inl < 0) {
+      return 0 - 1;
+    }
   }
   // STRUCT_LIT → field write into slot
   if (ko == 45) {
