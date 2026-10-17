@@ -4048,51 +4048,13 @@ function pipe_modlet_cell_payload(csz: i32): i32 {
   return p;
 }
 
-/**
- * Spell a same-module function's link name into dst.
- * Mach-O leading '_' on Darwin, bare ELF name on Linux. Completes the
- * spelling previously inlined in pipe_modlet_lea_fn_sym_to_rax so LEA
- * and .data absolute64 relocs share one authority.
- * @param elf_ctx *u8 - ElfCodegenCtx (reads macho_leading_underscore)
- * @param name *u8 - source-level function name
- * @param name_len i32 - 1..255
- * @param dst *u8 - caller buffer; capacity >= name_len+1 (typically 130)
- * @return i32 - spelled length; -1 bad args
- * PLATFORM: SHARED · MACOS Mach-O '_' · LINUX ELF bare name.
- */
-function pipe_modlet_fn_sym_spell_into(
+// Link spelling of a same-module function lives in
+// runtime_pipeline_abi_modlet_fn_sym_spell_thin.x. The pabi copy
+// wrote only '_' plus the source name, so `let f = inc` relocated
+// `_inc` while the definition is `_p_global_inc`.
+export extern function pipe_modlet_fn_sym_spell_into(
   elf_ctx: *u8, name: *u8, name_len: i32, dst: *u8
-): i32 {
-  let macho: i32 = 0;
-  let k: i32 = 0;
-  if (elf_ctx == (0 as *u8) || name == (0 as *u8) || dst == (0 as *u8) || name_len <= 0 || name_len > 255) {
-    return 0 - 1;
-  }
-  unsafe {
-    unsafe { macho = pipeline_elf_ctx_macho_leading_underscore(elf_ctx); }
-  }
-  if (macho != 0) {
-    unsafe {
-      dst[0] = 95 as u8;
-    }
-    k = 0;
-    while (k < name_len) {
-      unsafe {
-        dst[k + 1] = name[k];
-      }
-      k = k + 1;
-    }
-    return name_len + 1;
-  }
-  k = 0;
-  while (k < name_len) {
-    unsafe {
-      dst[k] = name[k];
-    }
-    k = k + 1;
-  }
-  return name_len;
-}
+): i32;
 
 /**
  * FNV-1a 32-bit mix of one byte (unsigned 32-bit wrap).
