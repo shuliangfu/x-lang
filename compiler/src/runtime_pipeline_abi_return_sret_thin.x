@@ -1840,9 +1840,10 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
        * Element width is the named layout, then the array-literal
        * stride. 16 bytes or less stays on emit_expr (value or
        * pair). A slice return is the arm above. An INDEX base
-       * (`return a[0].xs`) uses the element lvalue, then the same
-       * field offset. A pointer element, a slice element, a pointer
-       * field, a pointer root, or a fifth field stays on emit_expr.
+       * (`return a[0].xs`) and a DEREF base (`return (*p).xs`) use
+       * that root's lvalue, then the same field offset. A pointer
+       * element, a slice element, a pointer field, a pointer root,
+       * or a fifth field stays on emit_expr.
        * Hops are unrolled: a while that calls externs is dropped
        * by this compiler.
        * PLATFORM: MACOS|ARM64. */
@@ -1998,14 +1999,16 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                               }
                             }
                           }
-                          /* INDEX base of the field (`return a[0].xs`).
-                           * emit_expr of the index loads the first word of
-                           * the element. The lvalue is that element's
-                           * address; the field offset is the same sum the
-                           * VAR path adds. A pointer or slice element stays
-                           * on emit_expr. A failed lvalue stays on emit_expr.
+                          /* INDEX base (`return a[0].xs`) or DEREF base
+                           * (`return (*p).xs`). emit_expr of either loads
+                           * the first word. The lvalue is the element
+                           * address, or the pointer value for a deref.
+                           * The field offset is the same sum the VAR path
+                           * adds. A pointer or slice element stays on
+                           * emit_expr. A failed lvalue stays on emit_expr.
+                           * EXPR_INDEX = 47. EXPR_DEREF = 52.
                            * PLATFORM: MACOS|ARM64. */
-                          if (opk_d == 47 && dur_ok == 0) {
+                          if ((opk_d == 47 || opk_d == 52) && dur_ok == 0) {
                             decl_ty = 0;
                             unsafe {
                               decl_ty = pipeline_expr_resolved_type_ref(arena, root_er);
