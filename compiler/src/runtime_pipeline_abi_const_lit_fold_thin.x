@@ -110,19 +110,11 @@ export function asm_module_top_level_const_lit_i32(m: *u8, a: *u8, name: *u8, na
           if (pipe_load_i32_le(&cell[0], 16) > 0) {
             if (w211_fold_const_expr_i32(a, pipe_load_i32_le(&cell[0], 16), out_imm) != 0) {
               pipe_store_i32_le(&cell[0], 12, pipeline_module_top_level_let_is_const(m, tl));
-              /* Mutable let with foldable lit still miss (wave745). Const or
-               * is_const tipU-zero: accept fold when is_const!=0 OR init is
-               * NEG/SUB (named-const early-return shapes). */
+              /* Mutable file-level let must miss (wave745). A folded
+               * `let g = 0 - 7` is emitted as mov w, which zero-extends,
+               * and a later assign leaves that stale imm in the compare.
+               * Only a real const folds. PLATFORM: SHARED. */
               if (pipe_load_i32_le(&cell[0], 12) != 0) {
-                return 1;
-              }
-              pipe_store_i32_le(&cell[0], 20, pipeline_expr_kind_ord_at(a, pipe_load_i32_le(&cell[0], 16)));
-              if (pipe_load_i32_le(&cell[0], 20) == 22 || pipe_load_i32_le(&cell[0], 20) == 5) {
-                return 1;
-              }
-              if (pipe_load_i32_le(&cell[0], 20) == 0 || pipe_load_i32_le(&cell[0], 20) == 2) {
-                /* INT_LIT const with is_const tipU-miss: still accept when
-                 * name matched a top-level slot (emit path needs imm). */
                 return 1;
               }
             }
