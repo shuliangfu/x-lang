@@ -505,6 +505,45 @@ function w635_rs_fold_parent(arena: *u8, mod: *u8, fa: i32): i32 {
 }
 
 /**
+ * Base expr of a field access. A non-positive field returns 0.
+ * The parent walk calls this from a while. Extern stays here:
+ * this compiler drops an extern call written directly in a while.
+ * @param arena *u8 — AST arena; null returns 0
+ * @param fa i32 — FIELD expr; <=0 returns 0
+ * @return i32 — base expr ref, or 0
+ * PLATFORM: MACOS|ARM64.
+ */
+function w648_rs_base(arena: *u8, fa: i32): i32 {
+  let nxt: i32 = 0;
+  if (arena == (0 as *u8) || fa <= 0) {
+    return 0;
+  }
+  unsafe {
+    nxt = pipeline_expr_field_access_base_ref(arena, fa);
+  }
+  return nxt;
+}
+
+/**
+ * Expr kind ordinal. The parent walk calls this from a while.
+ * Extern stays here.
+ * @param arena *u8 — AST arena; null returns 0
+ * @param er i32 — expr ref; <=0 returns 0
+ * @return i32 — kind ordinal, or 0
+ * PLATFORM: MACOS|ARM64.
+ */
+function w648_rs_kind(arena: *u8, er: i32): i32 {
+  let k: i32 = 0;
+  if (arena == (0 as *u8) || er <= 0) {
+    return 0;
+  }
+  unsafe {
+    k = pipeline_expr_kind_ord_at(arena, er);
+  }
+  return k;
+}
+
+/**
  * Init expr of struct-literal field j when its name equals field fa.
  * A length mismatch or a different name returns 0. The byte compare
  * does not call out: this compiler drops extern calls inside while.
@@ -627,12 +666,13 @@ function w645_rs_acc_field_off(arena: *u8, mod: *u8, fa: i32, acc: i32): i32 {
 /**
  * Address of a local struct used as a struct-literal field init,
  * plus the offsets of the fields inside that local.
- * f_leaf is the returned field. f_mid and f_outer are the fields
- * between that local and the leaf, or 0 when that hop is absent.
- * The field whose init is the local is not added: that offset sits
- * in the literal, not in the local. A pointer or slice local
+ * f_leaf is the returned field. inner[0 .. n_inner) are the fields
+ * between that local and the leaf, closest to the leaf first.
+ * The field whose init is the local is not included: that offset
+ * sits in the literal, not in the local. A pointer or slice local
  * returns 1 so the caller stays on emit_expr. A failed lvalue
- * returns 1. An encoder error returns -1.
+ * returns 1. An encoder error returns -1. n_inner above 8 is
+ * declined. The offset loop calls the one-field helper.
  * EXPR_VAR = 3. TYPE_POINTER = 9. TYPE_SLICE = 11.
  * @param arena *u8 — AST arena; null returns 1
  * @param elf_ctx *u8 — encoder context
@@ -641,21 +681,24 @@ function w645_rs_acc_field_off(arena: *u8, mod: *u8, fa: i32, acc: i32): i32 {
  * @param mod *u8 — module that owns the field layout; null returns 1
  * @param var_er i32 — VAR init expr; <=0 returns 1
  * @param f_leaf i32 — returned FIELD; <=0 returns 1
- * @param f_mid i32 — inner FIELD closer than the local, or 0
- * @param f_outer i32 — FIELD between f_mid and the local, or 0
- * @param f_deep i32 — FIELD between f_outer and the local, or 0
+ * @param inner *i32 — closer FIELD refs; null is allowed when n_inner is 0
+ * @param n_inner i32 — how many closer fields to add; negative returns 1
  * @return i32 — 0 address in x0; 1 decline; -1 encoder fail
  * PLATFORM: MACOS|ARM64.
  */
-function w645_rs_lea_local_fields(
+function w648_rs_lea_chain(
   arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32, mod: *u8,
-  var_er: i32, f_leaf: i32, f_mid: i32, f_outer: i32, f_deep: i32
+  var_er: i32, f_leaf: i32, inner: *i32, n_inner: i32
 ): i32 {
   let off: i32 = 0;
   let ty: i32 = 0;
   let k: i32 = 0;
   let rc: i32 = 0;
-  if (var_er <= 0 || f_leaf <= 0 || mod == (0 as *u8)) {
+  let i: i32 = 0;
+  if (var_er <= 0 || f_leaf <= 0 || mod == (0 as *u8) || n_inner < 0 || n_inner > 8) {
+    return 1;
+  }
+  if (n_inner > 0 && inner == (0 as *i32)) {
     return 1;
   }
   unsafe {
@@ -670,14 +713,9 @@ function w645_rs_lea_local_fields(
     }
   }
   off = w645_rs_acc_field_off(arena, mod, f_leaf, 0);
-  if (f_mid > 0 && off >= 0) {
-    off = w645_rs_acc_field_off(arena, mod, f_mid, off);
-  }
-  if (f_outer > 0 && off >= 0) {
-    off = w645_rs_acc_field_off(arena, mod, f_outer, off);
-  }
-  if (f_deep > 0 && off >= 0) {
-    off = w645_rs_acc_field_off(arena, mod, f_deep, off);
+  while (i < n_inner && off >= 0) {
+    off = w645_rs_acc_field_off(arena, mod, inner[i], off);
+    i = i + 1;
   }
   if (off < 0) {
     return 1;
@@ -741,13 +779,13 @@ function w645_rs_lea_local_fields(
  * A payload of 16 bytes or less stays on emit_expr. A chain of value
  * fields (`return o.inn.xs`) adds each field offset onto that same
  * local slot. A pointer field, a pointer root, or a chain longer
- * than five fields stays on emit_expr. A FIELD whose root is a
+ * than nine fields stays on emit_expr. A FIELD whose root is a
  * STRUCT_LIT durables an ARRAY_LIT init, or takes the address of a
  * VAR init. A parent field (`return { inn: { xs: [...] } }.inn.xs`)
  * walks a STRUCT_LIT init. A parent whose init is a local struct
  * (`return { inn: src }.inn.xs`) takes that local's address plus
  * the fields inside it, not the literal's own field offset. The
- * walk is at most four parents. Any other STRUCT_LIT init stays on
+ * walk is at most eight parents. Any other STRUCT_LIT init stays on
  * emit_expr.
  * A FIELD whose type is TYPE_NAMED, whose return is wider than 16
  * bytes, and whose base is INDEX (`return a[1].s`) leas that element
@@ -2049,12 +2087,12 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
        * (`return { inn: { xs: [...] } }.inn.xs`) walks that init
        * when it is also a STRUCT_LIT. A parent init that is a local
        * struct (`return { inn: src }.inn.xs`) takes that local's
-       * address plus the fields inside it. At most four parents.
+       * address plus the fields inside it. At most eight parents.
        * A field past slot 63, a pointer element, a slice
        * element, a pointer field, or a pointer root
        * stays on emit_expr.
-       * Hops are unrolled: a while that calls externs is dropped
-       * by this compiler.
+       * Parent hops call helpers. An extern written directly in a
+       * while is dropped by this compiler.
        * PLATFORM: MACOS|ARM64. */
       if (dur_ok == 0 && ta == 1) {
         unsafe {
@@ -2110,73 +2148,31 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                         let root_er: i32 = base_er;
                         let hop: i32 = 0;
                         let fold_ok: i32 = 1;
+                        let hops: i32 = 0;
                         unsafe {
                           sum_off = glue_field_access_effective_offset_c(arena, mod_d, ret_op);
                         }
                         if (sum_off < 0 || sum_off > 4095) {
                           fold_ok = 0;
                         }
-                        // Parent 1. -2 means the immediate base is the root.
+                        /* Up to eight parent fields. -2 means this expr
+                         * is the root. The loop calls helpers. Extern
+                         * stays inside them. A ninth parent stays on
+                         * emit_expr. PLATFORM: MACOS|ARM64. */
                         if (fold_ok != 0) {
                           hop = w635_rs_fold_parent(arena, mod_d, root_er);
-                          if (hop == (0 - 1)) {
-                            fold_ok = 0;
-                          }
-                          if (hop >= 0) {
+                          while (fold_ok != 0 && hop >= 0 && hops < 8) {
                             if (sum_off > (4095 - hop)) {
                               fold_ok = 0;
                             } else {
                               sum_off = sum_off + hop;
-                              unsafe {
-                                root_er = pipeline_expr_field_access_base_ref(arena, root_er);
-                              }
+                              root_er = w648_rs_base(arena, root_er);
+                              hops = hops + 1;
                               hop = w635_rs_fold_parent(arena, mod_d, root_er);
-                              if (hop == (0 - 1)) {
-                                fold_ok = 0;
-                              }
-                              if (hop >= 0) {
-                                if (sum_off > (4095 - hop)) {
-                                  fold_ok = 0;
-                                } else {
-                                  sum_off = sum_off + hop;
-                                  unsafe {
-                                    root_er = pipeline_expr_field_access_base_ref(arena, root_er);
-                                  }
-                                  hop = w635_rs_fold_parent(arena, mod_d, root_er);
-                                  if (hop == (0 - 1)) {
-                                    fold_ok = 0;
-                                  }
-                                  if (hop >= 0) {
-                                    if (sum_off > (4095 - hop)) {
-                                      fold_ok = 0;
-                                    } else {
-                                      sum_off = sum_off + hop;
-                                      unsafe {
-                                        root_er = pipeline_expr_field_access_base_ref(arena, root_er);
-                                      }
-                                      hop = w635_rs_fold_parent(arena, mod_d, root_er);
-                                      if (hop == (0 - 1)) {
-                                        fold_ok = 0;
-                                      }
-                                      if (hop >= 0) {
-                                        if (sum_off > (4095 - hop)) {
-                                          fold_ok = 0;
-                                        } else {
-                                          sum_off = sum_off + hop;
-                                          unsafe {
-                                            root_er = pipeline_expr_field_access_base_ref(arena, root_er);
-                                          }
-                                          hop = w635_rs_fold_parent(arena, mod_d, root_er);
-                                          if (hop != (0 - 2)) {
-                                            fold_ok = 0;
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
-                              }
                             }
+                          }
+                          if (hop != (0 - 2)) {
+                            fold_ok = 0;
                           }
                         }
                         if (fold_ok != 0 && root_er > 0) {
@@ -2274,142 +2270,39 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                            * EXPR_STRUCT_LIT = 45. EXPR_ARRAY_LIT = 46.
                            * EXPR_VAR = 3. PLATFORM: MACOS|ARM64. */
                           if (opk_d == 45 && dur_ok == 0) {
-                            let fa1: i32 = 0;
-                            let fa2: i32 = 0;
-                            let fa3: i32 = 0;
-                            let fa4: i32 = 0;
+                            let fas: i32[8] = [];
                             let nb: i32 = 0;
                             let cur: i32 = root_er;
-                            let bwalk: i32 = 0;
+                            let walk: i32 = base_er;
+                            let idx: i32 = 0;
                             let step_ok: i32 = 1;
-                            /* Parents between the leaf field and the
-                             * root literal. fa1 is the leaf's base.
-                             * fa4 is the field directly on the root
-                             * when four parents were folded.
-                             * PLATFORM: MACOS|ARM64. */
-                            if (base_er != root_er && base_er > 0) {
-                              fa1 = base_er;
-                              nb = 1;
-                              unsafe {
-                                bwalk = pipeline_expr_field_access_base_ref(arena, fa1);
-                              }
-                              if (bwalk != root_er && bwalk > 0) {
-                                fa2 = bwalk;
-                                nb = 2;
-                                unsafe {
-                                  bwalk = pipeline_expr_field_access_base_ref(arena, fa2);
-                                }
-                                if (bwalk != root_er && bwalk > 0) {
-                                  fa3 = bwalk;
-                                  nb = 3;
-                                  unsafe {
-                                    bwalk = pipeline_expr_field_access_base_ref(arena, fa3);
-                                  }
-                                  if (bwalk != root_er && bwalk > 0) {
-                                    fa4 = bwalk;
-                                    nb = 4;
-                                  }
-                                }
-                              }
+                            /* Parents between the leaf and the root.
+                             * fas[0] is the leaf's base. fas[nb - 1] is
+                             * the field on the root. At most eight.
+                             * The loop calls helpers. Extern stays
+                             * inside them. PLATFORM: MACOS|ARM64. */
+                            while (walk != root_er && walk > 0 && nb < 8) {
+                              fas[nb] = walk;
+                              nb = nb + 1;
+                              walk = w648_rs_base(arena, walk);
                             }
-                            if (nb == 4) {
-                              cur = w643_rs_named_init(arena, cur, fa4);
+                            idx = nb;
+                            while (step_ok != 0 && idx > 0) {
+                              idx = idx - 1;
+                              cur = w643_rs_named_init(arena, cur, fas[idx]);
                               step_ok = 0;
                               if (cur > 0) {
-                                unsafe {
-                                  opk_d = pipeline_expr_kind_ord_at(arena, cur);
-                                }
+                                opk_d = w648_rs_kind(arena, cur);
                                 if (opk_d == 45) {
                                   step_ok = 1;
                                 }
-                                /* fa4's init is the local. Offsets inside
-                                 * it are fa3, fa2, fa1, and the leaf.
+                                /* This init is the local. idx is how
+                                 * many closer fields sit inside it.
                                  * PLATFORM: MACOS|ARM64. */
                                 if (opk_d == 3 && dur_ok == 0) {
                                   unsafe {
-                                    rc = w645_rs_lea_local_fields(
-                                      arena, elf_ctx, ctx, ta, mod_d, cur, ret_op, fa1, fa2, fa3);
-                                  }
-                                  if (rc < 0) {
-                                    return 0 - 1;
-                                  }
-                                  if (rc == 0) {
-                                    dur_ok = 1;
-                                  }
-                                }
-                              }
-                            }
-                            if (step_ok != 0 && nb >= 3) {
-                              cur = w643_rs_named_init(arena, cur, fa3);
-                              step_ok = 0;
-                              if (cur > 0) {
-                                unsafe {
-                                  opk_d = pipeline_expr_kind_ord_at(arena, cur);
-                                }
-                                if (opk_d == 45) {
-                                  step_ok = 1;
-                                }
-                                /* fa3's init is the local. Offsets inside
-                                 * it are fa2, fa1, and the leaf.
-                                 * PLATFORM: MACOS|ARM64. */
-                                if (opk_d == 3 && dur_ok == 0) {
-                                  unsafe {
-                                    rc = w645_rs_lea_local_fields(
-                                      arena, elf_ctx, ctx, ta, mod_d, cur, ret_op, fa1, fa2, 0);
-                                  }
-                                  if (rc < 0) {
-                                    return 0 - 1;
-                                  }
-                                  if (rc == 0) {
-                                    dur_ok = 1;
-                                  }
-                                }
-                              }
-                            }
-                            if (step_ok != 0 && nb >= 2) {
-                              cur = w643_rs_named_init(arena, cur, fa2);
-                              step_ok = 0;
-                              if (cur > 0) {
-                                unsafe {
-                                  opk_d = pipeline_expr_kind_ord_at(arena, cur);
-                                }
-                                if (opk_d == 45) {
-                                  step_ok = 1;
-                                }
-                                /* fa2's init is the local. Offsets inside
-                                 * it are fa1 and the leaf.
-                                 * PLATFORM: MACOS|ARM64. */
-                                if (opk_d == 3 && dur_ok == 0) {
-                                  unsafe {
-                                    rc = w645_rs_lea_local_fields(
-                                      arena, elf_ctx, ctx, ta, mod_d, cur, ret_op, fa1, 0, 0);
-                                  }
-                                  if (rc < 0) {
-                                    return 0 - 1;
-                                  }
-                                  if (rc == 0) {
-                                    dur_ok = 1;
-                                  }
-                                }
-                              }
-                            }
-                            if (step_ok != 0 && nb >= 1) {
-                              cur = w643_rs_named_init(arena, cur, fa1);
-                              step_ok = 0;
-                              if (cur > 0) {
-                                unsafe {
-                                  opk_d = pipeline_expr_kind_ord_at(arena, cur);
-                                }
-                                if (opk_d == 45) {
-                                  step_ok = 1;
-                                }
-                                /* fa1's init is the local. The only offset
-                                 * inside it is the leaf field.
-                                 * PLATFORM: MACOS|ARM64. */
-                                if (opk_d == 3 && dur_ok == 0) {
-                                  unsafe {
-                                    rc = w645_rs_lea_local_fields(
-                                      arena, elf_ctx, ctx, ta, mod_d, cur, ret_op, 0, 0, 0);
+                                    rc = w648_rs_lea_chain(
+                                      arena, elf_ctx, ctx, ta, mod_d, cur, ret_op, &fas[0], idx);
                                   }
                                   if (rc < 0) {
                                     return 0 - 1;
