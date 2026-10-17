@@ -102,8 +102,9 @@ export extern function glue_emit_vector_type_let_init_elf_c(
  * stamp on the if node. The else arm can still be that vector.
  * The same let-init already stores the literal. Both
  * array-literal arms stay 0 here. The emitter reads the
- * ADDR_OF pointee for Vec8i, named i32x8, named u32x8, or
- * named f32x8. f32x4 stays declined. A match that
+ * ADDR_OF pointee for Vec8i, named i32x8, named u32x8,
+ * named f32x8, or named f32x4. Vec4f stays declined.
+ * A match that
  * was not peeled stays declined. It does not
  * read the scrutinee. A kind-13 if-expr, ternary, or
  * match of 4 lanes of 4 bytes keeps that vector type.
@@ -523,9 +524,11 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
  * uses that arm's 8-lane vector type. The same let-init stores
  * the literal. Both array-literal arms leave the helper at 0.
  * The ADDR_OF pointee is the slot when that pointee is Vec8i,
- * named i32x8, named u32x8, or named f32x8. A named spelling
- * that is none of those stays declined. f32x4 stays declined.
- * Four lanes stay declined. A ternary does not use this pointee.
+ * named i32x8, named u32x8, named f32x8, or named f32x4.
+ * A named spelling that is none of those stays declined.
+ * Named f32x4 is kind 8 and the bytes f 3 2 x 4.
+ * Vec4f stays declined. i32x4 stays on the wide8 == 0 gate.
+ * A ternary does not use this pointee.
  * A match that was not peeled stays -99.
  * ta != 1 stays -99.
  * @param arena *u8 - AST arena; null is not expected
@@ -565,15 +568,13 @@ export function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32 {
  * splats those integer bits. A nonzero helper result keeps that
  * lane temp.
  * An if-expr (kind 25) whose helper result is 0 uses that same
- * pointee when it is Vec8i, named i32x8, named u32x8, or named
- * f32x8. Both array-literal arms leave the if node without a
- * vector stamp. The existing wide if let-init stores each
- * literal into that type. The value form already returns the
- * lane checks for c == 1 and c == 0. A kind-8 pointee is
- * accepted only when the name is Vec8i, i32x8, u32x8, or f32x8.
- * f32x4 stays declined. A kind-13 pointee is accepted only for
- * 8 lanes of 4-byte i32. Four lanes stay on the literal gate.
- * A ternary does not enter.
+ * pointee when it is Vec8i, named i32x8, named u32x8, named
+ * f32x8, or named f32x4. Both array-literal arms leave the if
+ * node without a vector stamp. The existing if let-init stores
+ * each literal. The value form of f32x4 already returns 4.
+ * A kind-8 pointee is accepted only when the name is Vec8i,
+ * i32x8, u32x8, f32x8, or f32x4. Vec4f stays declined.
+ * i32x4 stays on the wide8 == 0 gate. A ternary does not enter.
  */
 #[no_mangle]
 export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -724,8 +725,9 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
   // if-expr whose then arm is an array literal uses the arm's
   // 8-lane vector type from that helper. Both array-literal
   // arms stay 0 from that helper. The pointee below is Vec8i,
-  // named i32x8, named u32x8, or named f32x8. A match that was not
-  // peeled stays 0 from that helper, then -99 here.
+  // named i32x8, named u32x8, named f32x8, or named f32x4.
+  // A match that was not peeled stays 0 from that helper, then
+  // -99 here.
   // PLATFORM: MACOS|ARM64. ta != 1 keeps -99.
   if (ta == 1) {
     unsafe {
@@ -793,10 +795,10 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
     // that type. The value form returns the lane checks for
     // those names, including f32x8 when c is 1 and when c is 0.
     // A kind-8 pointee is accepted only when its name is Vec8i,
-    // i32x8, u32x8, or f32x8. f32x4 stays declined. Four lanes
-    // stay on the literal gate above: an f32x4 array-literal
-    // if must not take the 16-byte pair store. A ternary does
-    // not enter here.
+    // i32x8, u32x8, f32x8, or f32x4. Vec4f stays declined.
+    // i32x4 stays on the wide8 == 0 gate. An f32x4 array-literal
+    // if uses the existing lane writer, not a new store.
+    // A ternary does not enter here.
     // PLATFORM: MACOS|ARM64.
     if (ok == 25) {
       if (vty == 0) {
@@ -831,8 +833,8 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
                   // ASCII V e c 8 i, i 3 2 x 8, u 3 2 x 8, or
                   // f 3 2 x 8. The spelling helper accepts every
                   // SIMD name. This if takes Vec8i, named i32x8,
-                  // named u32x8, and named f32x8. f32x4 ends in
-                  // ASCII 4 and stays declined.
+                  // named u32x8, named f32x8, and named f32x4.
+                  // Vec4f stays declined.
                   // PLATFORM: MACOS|ARM64.
                   if (wide8 != 0) {
                     vlen = 0;
@@ -853,7 +855,7 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
                       }
                       // Named i32x8, u32x8, and f32x8 are kind 8.
                       // The value form already stores both array
-                      // literals. f32x4 ends in ASCII 4 and stays out.
+                      // literals. Named f32x4 is matched below.
                       if (vty == 0) {
                         if (vname[0] == 105) {
                           if (vname[1] == 51) {
@@ -881,9 +883,9 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
                         }
                       }
                       // f32x8 is f 3 2 x 8. The last byte is ASCII 8.
-                      // f32x4 is the same prefix and ends in ASCII 4,
-                      // so it stays declined. The wide if let-init
-                      // already stores both float array literals.
+                      // Named f32x4 is f 3 2 x 4. The last byte is
+                      // ASCII 4. Vec4f and i32x4 do not match.
+                      // The if let-init already stores the lanes.
                       // PLATFORM: MACOS|ARM64.
                       if (vty == 0) {
                         if (vname[0] == 102) {
@@ -891,6 +893,19 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
                             if (vname[2] == 50) {
                               if (vname[3] == 120) {
                                 if (vname[4] == 56) {
+                                  vty = pt;
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                      if (vty == 0) {
+                        if (vname[0] == 102) {
+                          if (vname[1] == 51) {
+                            if (vname[2] == 50) {
+                              if (vname[3] == 120) {
+                                if (vname[4] == 52) {
                                   vty = pt;
                                 }
                               }

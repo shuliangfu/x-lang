@@ -79,8 +79,9 @@ let g_w2060_emit_let_vn: u8[256] = [];
  * pointer as *i32x4 or *f32x4 or *Vec8i. This emitter writes the declared
  * pointer onto that ADDR_OF before emit, so the addr peel can
  * see the SIMD pointee. Kind 25 stamps when the pointee is
- * Vec8i, named i32x8, named u32x8, or named f32x8. f32x4
- * stays on its own type. The splat store
+ * Vec8i, named i32x8, named u32x8, named f32x8, or named
+ * f32x4. Named f32x4 is kind 8 and the bytes f 3 2 x 4.
+ * Vec4f and i32x4 stay unstamped here. The splat store
  * stays in the addr emitter.
  * PLATFORM: SHARED freestanding emit. Darwin ARM64 measured.
  */
@@ -428,10 +429,10 @@ export function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_re
             // is that type. Stamp it for Vec8i, named i32x8,
             // named u32x8, or named f32x8: kind 8 whose name is
             // one of those, or kind 13 with 8 lanes of 4-byte i32.
-            // f32x4 stays unstamped. The addr emitter stores the
-            // if with the existing wide let-init. The value form
-            // of f32x8 already returns the lane checks for c == 1
-            // and c == 0.
+            // Named f32x4 is kind 8 and the bytes f 3 2 x 4.
+            // Vec4f and i32x4 stay unstamped. The addr emitter
+            // stores the if with the existing let-init. The value
+            // form of f32x4 already returns 4.
             // PLATFORM: MACOS|ARM64. The type rule is SHARED.
             if (addr_ok == 25) {
               if (let_ty > 0) {
@@ -488,9 +489,8 @@ export function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_re
                             }
                           }
                           // f32x8 is f 3 2 x 8. The last byte is ASCII 8.
-                          // f32x4 ends in ASCII 4 and stays unstamped.
-                          // The wide if let-init already stores both
-                          // float array literals.
+                          // Named f32x4 is f 3 2 x 4. The last byte is
+                          // ASCII 4. Vec4f and i32x4 do not match.
                           // PLATFORM: MACOS|ARM64.
                           if (bt == 0) {
                             if (vn[0] == 102) {
@@ -498,6 +498,19 @@ export function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_re
                                 if (vn[2] == 50) {
                                   if (vn[3] == 120) {
                                     if (vn[4] == 56) {
+                                      bt = 1;
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                          if (bt == 0) {
+                            if (vn[0] == 102) {
+                              if (vn[1] == 51) {
+                                if (vn[2] == 50) {
+                                  if (vn[3] == 120) {
+                                    if (vn[4] == 52) {
                                       bt = 1;
                                     }
                                   }
