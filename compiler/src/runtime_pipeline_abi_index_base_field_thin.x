@@ -317,8 +317,11 @@ export function glue_emit_index_eff_addr_base_elf_c(arena: *u8, elf_ctx: *u8, ix
      * data pointer. Kind 47 already did that inside emit_expr
      * (deref_struct16: ldr x0,[x1] and the length at +8). Another
      * load_64 treats the payload as a pointer (SIGBUS on x[0][0]).
-     * PLATFORM: SHARED. Darwin ARM64 measured [2][]i32. */
-    if (base_ko != 47) {
+     * Kind 52 is a deref of *[]T: emit_expr already left the slice
+     * data pointer in x0. Another load_64 reads the i32 element as
+     * an address (`(*p)[0]` SIGSEGV). PLATFORM: SHARED. Darwin ARM64
+     * measured [2][]i32 and *[]i32. */
+    if (base_ko != 47 && base_ko != 52) {
       unsafe {
         rc = backend_enc_load_64_from_rax_arch(elf_ctx, ta);
       }
