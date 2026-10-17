@@ -505,6 +505,59 @@ function w635_rs_fold_parent(arena: *u8, mod: *u8, fa: i32): i32 {
 }
 
 /**
+ * Init expr of struct-literal field j when its name equals field fa.
+ * A length mismatch or a different name returns 0. The byte compare
+ * does not call out: this compiler drops extern calls inside while.
+ * @param arena *u8 — AST arena; null returns 0
+ * @param lit i32 — STRUCT_LIT expr; <=0 returns 0
+ * @param fa i32 — FIELD expr whose name is compared; <=0 returns 0
+ * @param j i32 — field index on the literal; <0 returns 0
+ * @return i32 — init expr ref, or 0 when this slot is not fa
+ * PLATFORM: MACOS|ARM64.
+ */
+function w639_rs_lit_init_at(arena: *u8, lit: i32, fa: i32, j: i32): i32 {
+  let fa_nlen: i32 = 0;
+  let sl_nlen: i32 = 0;
+  let sl_eq: i32 = 0;
+  let sl_k: i32 = 0;
+  let init: i32 = 0;
+  let fa_name: u8[64] = [];
+  let sl_name: u8[64] = [];
+  if (arena == (0 as *u8) || lit <= 0 || fa <= 0 || j < 0) {
+    return 0;
+  }
+  unsafe {
+    fa_nlen = pipeline_expr_field_access_name_len(arena, fa);
+    sl_nlen = pipeline_expr_struct_lit_field_name_len(arena, lit, j);
+  }
+  if (fa_nlen <= 0 || fa_nlen > 63 || sl_nlen != fa_nlen) {
+    return 0;
+  }
+  unsafe {
+    pipeline_expr_field_access_name_into(arena, fa, &fa_name[0]);
+    pipeline_expr_struct_lit_field_name_into(arena, lit, j, &sl_name[0]);
+  }
+  sl_eq = 1;
+  sl_k = 0;
+  while (sl_k < fa_nlen) {
+    if (fa_name[sl_k] != sl_name[sl_k]) {
+      sl_eq = 0;
+    }
+    sl_k = sl_k + 1;
+  }
+  if (sl_eq == 0) {
+    return 0;
+  }
+  unsafe {
+    init = pipeline_expr_struct_lit_init_ref(arena, lit, j);
+  }
+  if (init <= 0) {
+    return 0;
+  }
+  return init;
+}
+
+/**
  * EXPR_RETURN ELF emit: operand into rax/x0, arm64 sret copy, then jmp
  * function tail_join (AsmFuncCtxLayout name at 1392, length at 1520).
  * A 9..16 byte named field is loaded with pipeline_asm_deref_struct16
@@ -1841,9 +1894,11 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
        * stride. 16 bytes or less stays on emit_expr (value or
        * pair). A slice return is the arm above. An INDEX base
        * (`return a[0].xs`) and a DEREF base (`return (*p).xs`) use
-       * that root's lvalue, then the same field offset. A pointer
-       * element, a slice element, a pointer field, a pointer root,
-       * or a fifth field stays on emit_expr.
+       * that root's lvalue, then the same field offset. A STRUCT_LIT
+       * base whose field init is an ARRAY_LIT durables that literal.
+       * A VAR init, a nested literal, a field past the fourth slot,
+       * a pointer element, a slice element, a pointer field, a
+       * pointer root, or a fifth field stays on emit_expr.
        * Hops are unrolled: a while that calls externs is dropped
        * by this compiler.
        * PLATFORM: MACOS|ARM64. */
@@ -2034,6 +2089,47 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                                   }
                                 }
                                 dur_ok = 1;
+                              }
+                            }
+                          }
+                          /* STRUCT_LIT base (`return { xs: [...] }.xs`).
+                           * The array is the field init, not a byte offset
+                           * into a slot. Durable that ARRAY_LIT and leave
+                           * its address in x0. A VAR init, a nested
+                           * literal, or a field past the fourth slot stays
+                           * on emit_expr. EXPR_STRUCT_LIT = 45.
+                           * EXPR_ARRAY_LIT = 46.
+                           * PLATFORM: MACOS|ARM64. */
+                          if (opk_d == 45 && dur_ok == 0 && root_er == base_er) {
+                            sl_nf = 0;
+                            unsafe {
+                              sl_nf = pipeline_expr_struct_lit_num_fields(arena, root_er);
+                            }
+                            sl_init = 0;
+                            if (sl_nf > 0) {
+                              sl_init = w639_rs_lit_init_at(arena, root_er, ret_op, 0);
+                            }
+                            if (sl_init == 0 && sl_nf > 1) {
+                              sl_init = w639_rs_lit_init_at(arena, root_er, ret_op, 1);
+                            }
+                            if (sl_init == 0 && sl_nf > 2) {
+                              sl_init = w639_rs_lit_init_at(arena, root_er, ret_op, 2);
+                            }
+                            if (sl_init == 0 && sl_nf > 3) {
+                              sl_init = w639_rs_lit_init_at(arena, root_er, ret_op, 3);
+                            }
+                            if (sl_init > 0) {
+                              unsafe {
+                                opk_d = pipeline_expr_kind_ord_at(arena, sl_init);
+                              }
+                              if (opk_d == 46 && esz_d > 0 && elem_d > 0) {
+                                unsafe {
+                                  rc = glue_asm_emit_array_lit_durable_ptr_rax_elf_c(
+                                    arena, elf_ctx, sl_init, esz_d, ta, ctx, elem_d);
+                                }
+                                if (rc == 0) {
+                                  dur_ok = 1;
+                                }
                               }
                             }
                           }
