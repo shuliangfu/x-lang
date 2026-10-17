@@ -45,9 +45,13 @@ export extern "C" function pipeline_expr_array_lit_num_elems_at(
  * 24, a float, or a 33rd unary. An address whose expected type is a
  * pointer to named Vec8i checks this ternary with that pointer.
  * An array-literal arm is then an i32 array, so the demoted pair
- * check fails. Stamp that arm with the Vec8i pointee first. The
- * value form already stores the ternary. i32x8 and f32x8 stay
- * unstamped. PLATFORM: SHARED.
+ * check fails. Stamp that arm with the Vec8i pointee first.
+ * Named i32x8 is the same kind 8, five bytes, i 3 2 x 8. The
+ * address check leaves the then arm as an i32 array. The demoted
+ * ternary keeps that then type, so codegen sees an array. Stamp
+ * an 8-elem array arm with that i32x8 pointee too. The value form
+ * already stores it. Named f32x8 and u32x8 stay unstamped.
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function typeck_check_expr_if_ternary(
@@ -68,11 +72,14 @@ export function typeck_check_expr_if_ternary(
     let arm_ref: i32 = 0;
     let arm_k: i32 = 0;
     let arm_n: i32 = 0;
+    let hit: i32 = 0;
     /*
      * Expected *Vec8i is kind 9. The pointee is kind 8, five bytes,
-     * V e c 8 i. An ARRAY_LIT arm of 8 elems is the vector the
-     * value form already stores. Stamp it before the demoted pair
-     * check. A kind-25 if does not enter. PLATFORM: SHARED.
+     * V e c 8 i. Named i32x8 is kind 8, five bytes, i 3 2 x 8.
+     * An ARRAY_LIT arm of 8 elems is the vector the value form
+     * already stores. Stamp it before the demoted pair check.
+     * Named f32x8 and u32x8 stay unstamped. A kind-25 if does not
+     * enter. PLATFORM: SHARED.
      */
     if (arena != 0 as *u8) {
       if (expr_ref > 0) {
@@ -84,6 +91,7 @@ export function typeck_check_expr_if_ternary(
               pt = pipeline_type_elem_ref_at(arena, return_type_ref);
               if (pt > 0) {
                 pk = pipeline_type_kind_ord_at(arena, pt);
+                hit = 0;
                 if (pk == 8) {
                   nlen = pipeline_type_named_name_into(arena, pt, &nm[0]);
                   if (nlen == 5) {
@@ -92,35 +100,63 @@ export function typeck_check_expr_if_ternary(
                         if (nm[2] == 99) {
                           if (nm[3] == 56) {
                             if (nm[4] == 105) {
-                              then_ref = pipeline_expr_if_then_ref_at(arena, expr_ref);
-                              else_ref = pipeline_expr_if_else_ref_at(arena, expr_ref);
-                              step = 0;
-                              while (step < 2) {
-                                arm_ref = 0;
-                                if (step == 0) {
-                                  arm_ref = then_ref;
-                                }
-                                if (step == 1) {
-                                  arm_ref = else_ref;
-                                }
-                                if (arm_ref > 0) {
-                                  arm_k = pipeline_expr_kind_ord_at(arena, arm_ref);
-                                  if (arm_k == 46) {
-                                    arm_n = pipeline_expr_array_lit_num_elems_at(
-                                      arena, arm_ref);
-                                    if (arm_n == 8) {
-                                      pipeline_expr_set_resolved_type_ref(
-                                        arena, arm_ref, pt);
-                                    }
-                                  }
-                                }
-                                step = step + 1;
+                              hit = 1;
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+                /*
+                 * Named i32x8 is i 3 2 x 8. The address expected
+                 * type is the pointer, so the array arm is an i32
+                 * array and the ternary keeps that then type.
+                 * Kind 27 does not read the pointee later.
+                 * f32x8 is f 3 2 x 8. u32x8 is u 3 2 x 8.
+                 * Those names stay unstamped. PLATFORM: SHARED.
+                 */
+                if (hit == 0) {
+                  if (pk == 8) {
+                    if (nlen == 5) {
+                      if (nm[0] == 105) {
+                        if (nm[1] == 51) {
+                          if (nm[2] == 50) {
+                            if (nm[3] == 120) {
+                              if (nm[4] == 56) {
+                                hit = 1;
                               }
                             }
                           }
                         }
                       }
                     }
+                  }
+                }
+                if (hit == 1) {
+                  then_ref = pipeline_expr_if_then_ref_at(arena, expr_ref);
+                  else_ref = pipeline_expr_if_else_ref_at(arena, expr_ref);
+                  step = 0;
+                  while (step < 2) {
+                    arm_ref = 0;
+                    if (step == 0) {
+                      arm_ref = then_ref;
+                    }
+                    if (step == 1) {
+                      arm_ref = else_ref;
+                    }
+                    if (arm_ref > 0) {
+                      arm_k = pipeline_expr_kind_ord_at(arena, arm_ref);
+                      if (arm_k == 46) {
+                        arm_n = pipeline_expr_array_lit_num_elems_at(
+                          arena, arm_ref);
+                        if (arm_n == 8) {
+                          pipeline_expr_set_resolved_type_ref(
+                            arena, arm_ref, pt);
+                        }
+                      }
+                    }
+                    step = step + 1;
                   }
                 }
               }
