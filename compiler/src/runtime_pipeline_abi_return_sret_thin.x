@@ -32,6 +32,7 @@ export extern function pipeline_asm_emit_ctx_sret_ret_sz_get(): i32;
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_var_name_len(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_var_name_into(arena: *u8, expr_ref: i32, out: *u8): void;
+export extern function pipeline_module_func_param_type_ref_for_name(mod: *u8, func_index: i32, name: *u8, name_len: i32): i32;
 export extern function asm_ctx_local_find_offset_scoped(ctx: *u8, arena: *u8, name: *u8, name_len: i32): i32;
 export extern function asm_ctx_local_find_offset(ctx: *u8, name: *u8, name_len: i32): i32;
 export extern function backend_enc_lea_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
@@ -1109,6 +1110,126 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                             return 0 - 1;
                           }
                           dur_ok = 1;
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          // VAR of a slice parameter. The slot holds the caller's
+          // pointer to {data, len}. emit_expr returns that pointer and
+          // leaves x1 stale, so the caller stores the wrong length.
+          // Load both words through the pointer. A local slice is
+          // already the fat pair and stays on emit_expr.
+          // PLATFORM: MACOS|ARM64 · LINUX x86_64.
+          if (dur_ok == 0) {
+            unsafe {
+              opk_d = pipeline_expr_kind_ord_at(arena, ret_op);
+            }
+            if (opk_d == 3) {
+              unsafe {
+                mod_d = pipeline_asm_emit_module_ref_c();
+                fi_d = pipeline_asm_emit_func_index_c();
+              }
+              if (mod_d != (0 as *u8) && fi_d >= 0) {
+                unsafe {
+                  rty_d = pipeline_module_func_return_type_at(mod_d, fi_d);
+                }
+                if (rty_d > 0) {
+                  unsafe {
+                    rk_d = pipeline_type_kind_ord_at(arena, rty_d);
+                  }
+                  if (rk_d == 11) {
+                    unsafe {
+                      decl_ty = glue_var_decl_type_ref_elf_c(arena, ctx, ret_op);
+                    }
+                    if (decl_ty > 0) {
+                      unsafe {
+                        rk_d = pipeline_type_kind_ord_at(arena, decl_ty);
+                      }
+                      if (rk_d == 11) {
+                        let sl_nm: u8[64] = [];
+                        let sl_n: i32 = 0;
+                        let sl_pty: i32 = 0;
+                        unsafe {
+                          sl_n = pipeline_expr_var_name_len(arena, ret_op);
+                        }
+                        if (sl_n > 0 && sl_n <= 63) {
+                          unsafe {
+                            pipeline_expr_var_name_into(arena, ret_op, &sl_nm[0]);
+                          }
+                          unsafe {
+                            sl_pty = pipeline_module_func_param_type_ref_for_name(
+                              mod_d, fi_d, &sl_nm[0], pipeline_expr_var_name_len(arena, ret_op));
+                          }
+                          if (sl_pty > 0) {
+                            unsafe {
+                              rk_d = pipeline_type_kind_ord_at(arena, sl_pty);
+                            }
+                            if (rk_d == 11) {
+                              unsafe {
+                                arr_off = glue_var_expr_stack_off_elf_c(arena, ctx, ret_op);
+                              }
+                              if (arr_off >= 0) {
+                                unsafe {
+                                  rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, arr_off, ta);
+                                }
+                                if (rc != 0) {
+                                  return 0 - 1;
+                                }
+                                unsafe {
+                                  rc = backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+                                }
+                                if (rc != 0) {
+                                  return 0 - 1;
+                                }
+                                unsafe {
+                                  rc = backend_enc_push_rax_arch(elf_ctx, ta);
+                                }
+                                if (rc != 0) {
+                                  return 0 - 1;
+                                }
+                                unsafe {
+                                  rc = backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta);
+                                }
+                                if (rc != 0) {
+                                  return 0 - 1;
+                                }
+                                unsafe {
+                                  rc = backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+                                }
+                                if (rc != 0) {
+                                  return 0 - 1;
+                                }
+                                if (ta == 1) {
+                                  len_reg = 1;
+                                } else {
+                                  len_reg = 2;
+                                }
+                                unsafe {
+                                  rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, len_reg, ta);
+                                }
+                                if (rc != 0) {
+                                  return 0 - 1;
+                                }
+                                unsafe {
+                                  rc = backend_enc_pop_rax_arch(elf_ctx, ta);
+                                }
+                                if (rc != 0) {
+                                  return 0 - 1;
+                                }
+                                unsafe {
+                                  rc = backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+                                }
+                                if (rc != 0) {
+                                  return 0 - 1;
+                                }
+                                dur_ok = 1;
+                              }
+                            }
+                          }
                         }
                       }
                     }
