@@ -24,6 +24,7 @@ export extern function pipeline_expr_binop_right_ref_at(a: *u8, expr_ref: i32): 
 export extern function pipeline_expr_unary_operand_ref_at(a: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_if_then_ref_at(a: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_if_else_ref_at(a: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_if_cond_ref_at(a: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_call_callee_ref_at(a: *u8, expr_ref: i32): i32;
 export extern function pipeline_module_func_body_ref_at(m: *u8, fi: i32): i32;
 export extern function pipeline_module_num_funcs(m: *u8): i32;
@@ -1216,7 +1217,24 @@ export function pipeline_block_stmt_order_idx(a: *u8, br: i32, si: i32): i32 {
 }
 
 /**
+ * Recurse one real child. A slot that names this expr is stale.
+ * @param a *u8 — arena
+ * @param child i32 — child expr; <= 0 or equal to self_ref is skipped
+ * @param parent_block i32 — block being linked
+ * @param depth i32 — current depth
+ * @param self_ref i32 — expr whose child this is
+ * PLATFORM: SHARED.
+ */
+function w326_walk_child(a: *u8, child: i32, parent_block: i32, depth: i32, self_ref: i32): void {
+  if (child > 0 && child != self_ref) {
+    w326_expr_has_inner_block(a, child, parent_block, depth + 1);
+  }
+}
+
+/**
  * Recurse expr tree for EXPR_BLOCK parent links.
+ * Only the slots that belong to this kind are children. Reading every
+ * slot on an if follows stale binop and call refs and never finishes.
  * PLATFORM: SHARED
  */
 function w326_expr_has_inner_block(a: *u8, expr_ref: i32, parent_block: i32, depth: i32): i32 {
@@ -1245,22 +1263,39 @@ function w326_expr_has_inner_block(a: *u8, expr_ref: i32, parent_block: i32, dep
       w326_patch_block_expr_parents(a, inner_blk);
     }
   }
-  unsafe {
-    left = w526_expr_binop_left_ref_at(a, expr_ref);
-    right = w526_expr_binop_right_ref_at(a, expr_ref);
-    op = w526_expr_unary_operand_ref_at(a, expr_ref);
-    th = w526_expr_if_then_ref_at(a, expr_ref);
-    el = w526_expr_if_else_ref_at(a, expr_ref);
-    br = w526_expr_block_ref_at(a, expr_ref);
-    cal = w526_expr_call_callee_ref_at(a, expr_ref);
+  // Binop and compound assign: left and right only.
+  if ((kind >= 4 && kind <= 21) || (kind >= 28 && kind <= 38)) {
+    unsafe { left = w526_expr_binop_left_ref_at(a, expr_ref); }
+    w326_walk_child(a, left, parent_block, depth, expr_ref);
+    unsafe { right = w526_expr_binop_right_ref_at(a, expr_ref); }
+    w326_walk_child(a, right, parent_block, depth, expr_ref);
+    return 0;
   }
-  if (left > 0) { w326_expr_has_inner_block(a, left, parent_block, depth + 1); }
-  if (right > 0) { w326_expr_has_inner_block(a, right, parent_block, depth + 1); }
-  if (op > 0) { w326_expr_has_inner_block(a, op, parent_block, depth + 1); }
-  if (th > 0) { w326_expr_has_inner_block(a, th, parent_block, depth + 1); }
-  if (el > 0) { w326_expr_has_inner_block(a, el, parent_block, depth + 1); }
-  if (br > 0 && kind != 26) { w326_expr_has_inner_block(a, br, parent_block, depth + 1); }
-  if (cal > 0) { w326_expr_has_inner_block(a, cal, parent_block, depth + 1); }
+  // Unary. Kind 51 is address-of.
+  if (kind == 22 || kind == 23 || kind == 24 || kind == 41 || kind == 50 || kind == 51) {
+    unsafe { op = w526_expr_unary_operand_ref_at(a, expr_ref); }
+    w326_walk_child(a, op, parent_block, depth, expr_ref);
+    return 0;
+  }
+  // If and ternary: cond, then, else. Kind 26 already patched its block.
+  if (kind == 25 || kind == 27) {
+    unsafe { left = pipeline_expr_if_cond_ref_at(a, expr_ref); }
+    w326_walk_child(a, left, parent_block, depth, expr_ref);
+    unsafe { th = w526_expr_if_then_ref_at(a, expr_ref); }
+    w326_walk_child(a, th, parent_block, depth, expr_ref);
+    unsafe { el = w526_expr_if_else_ref_at(a, expr_ref); }
+    w326_walk_child(a, el, parent_block, depth, expr_ref);
+    return 0;
+  }
+  if (kind == 26) {
+    return 0;
+  }
+  // Call / method: the callee expr, not a stale binop slot.
+  if (kind == 48 || kind == 49) {
+    unsafe { cal = w526_expr_call_callee_ref_at(a, expr_ref); }
+    w326_walk_child(a, cal, parent_block, depth, expr_ref);
+    return 0;
+  }
   return 0;
 }
 
