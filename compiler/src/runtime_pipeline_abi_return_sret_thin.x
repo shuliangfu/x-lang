@@ -640,6 +640,10 @@ function w643_rs_named_init(arena: *u8, lit: i32, fa: i32): i32 {
  * VAR init. A parent field (`return { inn: { xs: [...] } }.inn.xs`)
  * must itself be a STRUCT_LIT init. The walk is at most three
  * parents. Any other STRUCT_LIT init stays on emit_expr.
+ * A FIELD whose type is TYPE_NAMED, whose return is wider than 16
+ * bytes, and whose base is INDEX (`return a[1].s`) leas that element
+ * and adds the field offset. A local `return w.s` already leaves the
+ * address. A pointer or slice element stays on emit_expr.
  * An INDEX of a VAR whose declared type is TYPE_ARRAY, whose element
  * type is also TYPE_ARRAY, and whose function returns TYPE_SLICE calls
  * emit_expr once (that already leaves the row address in rax/x0) and
@@ -2240,6 +2244,86 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                             }
                           }
                         }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      /* FIELD of a named struct wider than 16 bytes, base is INDEX
+       * (`return a[1].s`). emit_expr loads the first word. The sret
+       * copy then reads that word as an address (SIGBUS). A local
+       * `return w.s` already leaves the slot address and stays on
+       * emit_expr. Lea the element, then add the field offset. A
+       * pointer or slice element stays on emit_expr. A failed lvalue
+       * stays on emit_expr. TYPE_NAMED = 8. EXPR_INDEX = 47.
+       * EXPR_FIELD = 44. PLATFORM: MACOS|ARM64. */
+      if (dur_ok == 0 && ta == 1) {
+        unsafe {
+          opk_d = pipeline_expr_kind_ord_at(arena, ret_op);
+        }
+        if (opk_d == 44) {
+          unsafe {
+            rsz = pipeline_asm_emit_ctx_sret_ret_sz_get();
+          }
+          if (rsz > 16) {
+            unsafe {
+              mod_d = pipeline_asm_emit_module_ref_c();
+            }
+            decl_ty = 0;
+            if (mod_d != (0 as *u8)) {
+              unsafe {
+                decl_ty = glue_field_access_field_type_ref_c(arena, mod_d, ret_op);
+              }
+            }
+            rk_d = 0;
+            if (decl_ty > 0) {
+              unsafe {
+                rk_d = pipeline_type_kind_ord_at(arena, decl_ty);
+              }
+            }
+            if (rk_d == 8) {
+              unsafe {
+                base_er = pipeline_expr_field_access_base_ref(arena, ret_op);
+              }
+              if (base_er > 0) {
+                unsafe {
+                  opk_d = pipeline_expr_kind_ord_at(arena, base_er);
+                }
+                if (opk_d == 47) {
+                  decl_ty = 0;
+                  unsafe {
+                    decl_ty = pipeline_expr_resolved_type_ref(arena, base_er);
+                  }
+                  rk_d = 0;
+                  if (decl_ty > 0) {
+                    unsafe {
+                      rk_d = pipeline_type_kind_ord_at(arena, decl_ty);
+                    }
+                  }
+                  if (rk_d != 9 && rk_d != 11) {
+                    let sum_off: i32 = 0;
+                    unsafe {
+                      sum_off = glue_field_access_effective_offset_c(arena, mod_d, ret_op);
+                    }
+                    if (sum_off >= 0 && sum_off <= 4095) {
+                      unsafe {
+                        rc = pipeline_asm_emit_lvalue_eff_addr_elf_c(
+                          arena, elf_ctx, base_er, ctx, ta);
+                      }
+                      if (rc == 0) {
+                        if (sum_off != 0) {
+                          unsafe {
+                            rc = backend_enc_add_imm_to_rax_arch(elf_ctx, sum_off, ta);
+                          }
+                          if (rc != 0) {
+                            return 0 - 1;
+                          }
+                        }
+                        dur_ok = 1;
                       }
                     }
                   }
