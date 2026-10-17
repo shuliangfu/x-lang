@@ -911,6 +911,10 @@ function p12g_ret_copy_name(ent_img: *u8, mi: i32, source: *u8, lex_inout: *u8):
  */
 #[no_mangle]
 function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8, ent_img: *u8, mi: i32): void {
+  // Two stars in a trait return (`**T`, `*[]T`) used to SIGSEGV: the
+  // previous object reached the epilogue with x29 holding the elem
+  // ndims offset. This body is the linked authority.
+  // PLATFORM: MACOS|ARM64.
   let kind: i32 = 0;
   let steps: i32 = 0;
   let depth: i32 = 0;
