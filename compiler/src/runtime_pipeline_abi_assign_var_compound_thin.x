@@ -70,6 +70,7 @@ export extern function backend_enc_lea_rbp_to_rax_arch(elf_ctx: *u8, offset: i32
 export extern function pipeline_type_array_size_at(arena: *u8, type_ref: i32): i32;
 export extern function pipeline_asm_emit_module_ref_c(): *u8;
 export extern function pipeline_expr_field_access_base_ref(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_index_base_ref(arena: *u8, expr_ref: i32): i32;
 export extern function glue_field_access_field_type_ref_c(arena: *u8, mod: *u8, fa_ref: i32): i32;
 export extern function glue_field_access_effective_offset_c(arena: *u8, mod: *u8, fa_ref: i32): i32;
 export extern function pipeline_expr_field_access_name_len(arena: *u8, expr_ref: i32): i32;
@@ -214,6 +215,10 @@ export function glue_emit_assign_var_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i
  * fall through: an f32 lhs plus FLOAT_LIT uses the imm32 path, otherwise
  * pipeline_asm_emit_expr_elf_c. A length-encoder failure after the durable
  * helper has already emitted returns -1 and does not emit the RHS again.
+ * An INDEX of a VAR whose element type is TYPE_ARRAY (`u = a[1]` of a
+ * [2][2]i32 into []i32) calls emit_expr once for the row address and
+ * then moves that row's element count into the length register. A
+ * scalar element stays on emit_expr.
  * Linux VAR assign does not reach this gate (assign.o sidecar).
  * @param arena *u8 — AST arena
  * @param elf_ctx *u8 — ELF emit context
@@ -450,6 +455,47 @@ export function glue_emit_assign_rhs_elf_c(arena: *u8, elf_ctx: *u8, left_ref: i
                     }
                   }
                   fj = fj + 1;
+                }
+              }
+            }
+          }
+        }
+        // INDEX of a VAR whose element type is TYPE_ARRAY (`u = a[1]`,
+        // a is [2][2]i32, u is []i32). emit_expr leaves the row address
+        // and no length, so store_slice keeps a stale x1 and the length
+        // check returns 9. Push that address, put the row's element
+        // count in the length register, and pop. A scalar element, a
+        // non-VAR base, or a slice element stays on emit_expr.
+        // PLATFORM: MACOS|ARM64 · LINUX x86_64 · WINDOWS x86_64.
+        if (pipeline_expr_kind_ord_at(arena, peel) == 47) {
+          let base_er: i32 = pipeline_expr_index_base_ref(arena, peel);
+          if (base_er > 0 && pipeline_expr_kind_ord_at(arena, base_er) == 3) {
+            let bty: i32 = glue_var_decl_type_ref_elf_c(arena, ctx, base_er);
+            if (bty > 0 && pipeline_type_kind_ord_at(arena, bty) == 10) {
+              let row_ty: i32 = pipeline_type_elem_ref_at(arena, bty);
+              if (row_ty > 0 && pipeline_type_kind_ord_at(arena, row_ty) == 10) {
+                let n_arr: i32 = pipeline_type_array_size_at(arena, row_ty);
+                if (n_arr > 0 && n_arr <= 1024) {
+                  if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, peel, ctx, ta) != 0) {
+                    return 0 - 1;
+                  }
+                  if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) {
+                    return 0 - 1;
+                  }
+                  if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_arr, 0, ta) != 0) {
+                    return 0 - 1;
+                  }
+                  let len_reg: i32 = 2;
+                  if (ta == 1) {
+                    len_reg = 1;
+                  }
+                  if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, len_reg, ta) != 0) {
+                    return 0 - 1;
+                  }
+                  if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) {
+                    return 0 - 1;
+                  }
+                  return 0;
                 }
               }
             }

@@ -58,7 +58,9 @@ export extern function pipeline_expr_array_lit_num_elems_at(arena: *u8, expr_ref
 export extern function glue_var_decl_type_ref_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
 export extern function pipeline_type_array_size_at(arena: *u8, type_ref: i32): i32;
 export extern function glue_var_expr_stack_off_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
+export extern function glue_emit_func_param_is_indirect_array_slot_c(arena: *u8, mod: *u8, var_ref: i32): i32;
 export extern function pipeline_expr_field_access_base_ref(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_index_base_ref(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_field_access_name_len(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_field_access_name_into(arena: *u8, expr_ref: i32, out: *u8): void;
 export extern function pipeline_expr_struct_lit_num_fields(arena: *u8, expr_ref: i32): i32;
@@ -480,6 +482,8 @@ function w1521_rs_mid_named_field(arena: *u8, op: i32): i32 {
  * when the function return type is TYPE_ARRAY (the value stays in rax/x0).
  * A VAR whose declared type is TYPE_ARRAY, returned as TYPE_SLICE, leas
  * that slot and moves the element count into x1 (arm64) or rdx (SysV).
+ * An indirect parameter slot holds the caller's pointer, so that
+ * pointer is loaded before the length move. A local slot is not loaded.
  * A FIELD whose base is a VAR, whose field type is TYPE_ARRAY, and whose
  * function returns TYPE_SLICE calls emit_expr once (that already leaves
  * the field address in rax/x0) and then moves the element count into x1
@@ -487,6 +491,14 @@ function w1521_rs_mid_named_field(arena: *u8, op: i32): i32 {
  * named init is an ARRAY_LIT durables that literal with the same helper
  * and then moves the element count. Any other STRUCT_LIT init stays on
  * emit_expr.
+ * An INDEX of a VAR whose declared type is TYPE_ARRAY, whose element
+ * type is also TYPE_ARRAY, and whose function returns TYPE_SLICE calls
+ * emit_expr once (that already leaves the row address in rax/x0) and
+ * then moves that row's element count into x1 (arm64) or rdx (SysV).
+ * The same INDEX, when the function returns an 8-byte TYPE_ARRAY,
+ * loads that qword into rax/x0. The caller stores x0 as the value.
+ * A wider TYPE_ARRAY stays on emit_expr. A non-VAR index base, or an
+ * element that is not TYPE_ARRAY, stays on emit_expr.
  * An ARRAY_LIT whose return type is TYPE_SLICE, after the existing
  * ARRAY/SLICE ascription peel, uses that same helper and then moves the
  * element count into x1 (arm64) or rdx (SysV). Windows keeps emit_expr.
@@ -1039,12 +1051,29 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                         // Negative offsets are the x86 "not this slot"
                         // miss used by the sret local arm. Darwin locals
                         // are a non-negative addend from x29.
+                        // A parameter [N]T is an indirect slot: the slot
+                        // holds the caller's pointer, so lea would make
+                        // the slice view the pointer bits (`as_slc` then
+                        // sees v[0] != 10). Load that pointer. A local
+                        // slot holds the elements, so lea stays.
+                        // PLATFORM: MACOS|ARM64 · LINUX x86_64.
                         if (n_d >= 0 && n_d <= 1024 && arr_off >= 0) {
                           unsafe {
                             rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, arr_off, ta);
                           }
                           if (rc != 0) {
                             return 0 - 1;
+                          }
+                          unsafe {
+                            peel_d = glue_emit_func_param_is_indirect_array_slot_c(arena, mod_d, ret_op);
+                          }
+                          if (peel_d != 0) {
+                            unsafe {
+                              rc = backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+                            }
+                            if (rc != 0) {
+                              return 0 - 1;
+                            }
                           }
                           unsafe {
                             rc = backend_enc_push_rax_arch(elf_ctx, ta);
@@ -1274,6 +1303,182 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                                 return 0 - 1;
                               }
                               dur_ok = 1;
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          // INDEX of a VAR whose element type is TYPE_ARRAY, returned as
+          // TYPE_SLICE. emit_expr already leaves the row address in x0:
+          // a[0] is the base pointer and a[1] is that pointer plus the
+          // row stride. x1 is still whatever the caller left, and the
+          // caller reads x1 as the slice length, so row0_slc returns 1.
+          // Push that address, move the row's element count into x1
+          // (arm64) or rdx (SysV), and pop. Do not lea a second time.
+          // When the function returns an 8-byte TYPE_ARRAY, the caller
+          // stores x0 as the value, so load the qword at that address
+          // (row1_arr). A wider array stays on emit_expr. A non-VAR
+          // base stays on emit_expr. An element that is not TYPE_ARRAY
+          // stays on emit_expr: a slice element is already a fat
+          // pointer, and packing an array count onto it would drop
+          // that length. Windows stays on emit_expr because this arm
+          // sits inside win_d == 0.
+          // PLATFORM: MACOS|ARM64 · LINUX x86_64.
+          if (dur_ok == 0) {
+            unsafe {
+              opk_d = pipeline_expr_kind_ord_at(arena, ret_op);
+            }
+            // EXPR_INDEX = 47.
+            if (opk_d == 47) {
+              unsafe {
+                mod_d = pipeline_asm_emit_module_ref_c();
+                fi_d = pipeline_asm_emit_func_index_c();
+              }
+              if (mod_d != (0 as *u8) && fi_d >= 0) {
+                unsafe {
+                  rty_d = pipeline_module_func_return_type_at(mod_d, fi_d);
+                }
+                if (rty_d > 0) {
+                  unsafe {
+                    rk_d = pipeline_type_kind_ord_at(arena, rty_d);
+                  }
+                  // TYPE_SLICE = 11. TYPE_ARRAY = 10 stays on emit_expr.
+                  if (rk_d == 11) {
+                    unsafe {
+                      base_er = pipeline_expr_index_base_ref(arena, ret_op);
+                    }
+                    if (base_er > 0) {
+                      unsafe {
+                        opk_d = pipeline_expr_kind_ord_at(arena, base_er);
+                      }
+                      // EXPR_VAR = 3. A field or another index stays out.
+                      if (opk_d == 3) {
+                        unsafe {
+                          decl_ty = glue_var_decl_type_ref_elf_c(arena, ctx, base_er);
+                        }
+                        if (decl_ty > 0) {
+                          unsafe {
+                            rk_d = pipeline_type_kind_ord_at(arena, decl_ty);
+                          }
+                          // TYPE_ARRAY = 10. A slice variable stays on emit_expr.
+                          if (rk_d == 10) {
+                            unsafe {
+                              elem_d = pipeline_type_elem_ref_at(arena, decl_ty);
+                            }
+                            if (elem_d > 0) {
+                              unsafe {
+                                rk_d = pipeline_type_kind_ord_at(arena, elem_d);
+                              }
+                              // The row itself is TYPE_ARRAY. Its size is
+                              // the slice length. A scalar element is not
+                              // a row and stays on emit_expr.
+                              if (rk_d == 10) {
+                                unsafe {
+                                  n_d = pipeline_type_array_size_at(arena, elem_d);
+                                }
+                                if (n_d >= 0 && n_d <= 1024) {
+                                  unsafe {
+                                    rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, ret_op, ctx, ta);
+                                  }
+                                  if (rc != 0) {
+                                    return 0 - 1;
+                                  }
+                                  unsafe {
+                                    rc = backend_enc_push_rax_arch(elf_ctx, ta);
+                                  }
+                                  if (rc != 0) {
+                                    return 0 - 1;
+                                  }
+                                  unsafe {
+                                    rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_d, 0, ta);
+                                  }
+                                  if (rc != 0) {
+                                    return 0 - 1;
+                                  }
+                                  if (ta == 1) {
+                                    len_reg = 1;
+                                  } else {
+                                    len_reg = 2;
+                                  }
+                                  unsafe {
+                                    rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, len_reg, ta);
+                                  }
+                                  if (rc != 0) {
+                                    return 0 - 1;
+                                  }
+                                  unsafe {
+                                    rc = backend_enc_pop_rax_arch(elf_ctx, ta);
+                                  }
+                                  if (rc != 0) {
+                                    return 0 - 1;
+                                  }
+                                  dur_ok = 1;
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                  // TYPE_ARRAY = 10, 8-byte row only. emit_expr left the
+                  // row address. The caller stores x0 as the [2]i32
+                  // value, so load that qword. n * esz == 16 is the pair
+                  // load used by ARRAY_LIT and is not this test. A wider
+                  // row stays on emit_expr. PLATFORM: MACOS|ARM64 · LINUX x86_64.
+                  if (dur_ok == 0 && rk_d == 10) {
+                    unsafe {
+                      base_er = pipeline_expr_index_base_ref(arena, ret_op);
+                    }
+                    if (base_er > 0) {
+                      unsafe {
+                        opk_d = pipeline_expr_kind_ord_at(arena, base_er);
+                      }
+                      // EXPR_VAR = 3. A field or another index stays out.
+                      if (opk_d == 3) {
+                        unsafe {
+                          decl_ty = glue_var_decl_type_ref_elf_c(arena, ctx, base_er);
+                        }
+                        if (decl_ty > 0) {
+                          unsafe {
+                            rk_d = pipeline_type_kind_ord_at(arena, decl_ty);
+                          }
+                          if (rk_d == 10) {
+                            unsafe {
+                              elem_d = pipeline_type_elem_ref_at(arena, decl_ty);
+                            }
+                            if (elem_d > 0) {
+                              unsafe {
+                                rk_d = pipeline_type_kind_ord_at(arena, elem_d);
+                              }
+                              if (rk_d == 10) {
+                                unsafe {
+                                  n_d = pipeline_type_array_size_at(arena, elem_d);
+                                  elem_d = pipeline_type_elem_ref_at(arena, elem_d);
+                                  esz_d = glue_array_lit_force_esz_from_elem_type_c(arena, elem_d);
+                                }
+                                // 8 bytes is one GPR. Do not load a wider row.
+                                if (n_d > 0 && n_d <= 1024 && esz_d > 0 && esz_d <= 16 && n_d * esz_d == 8) {
+                                  unsafe {
+                                    rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, ret_op, ctx, ta);
+                                  }
+                                  if (rc != 0) {
+                                    return 0 - 1;
+                                  }
+                                  unsafe {
+                                    rc = backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+                                  }
+                                  if (rc != 0) {
+                                    return 0 - 1;
+                                  }
+                                  dur_ok = 1;
+                                }
+                              }
                             }
                           }
                         }
