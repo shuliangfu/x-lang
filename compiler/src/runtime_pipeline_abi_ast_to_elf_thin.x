@@ -5,6 +5,7 @@
 // Replaces pabi_weak same-TU bl→stubdead after ALE prefer. PLATFORM: MACOS tip cold.
 
 export extern function pipeline_elf_ctx_reset_data(elf_ctx: *u8): void;
+export extern function pipeline_elf_ctx_emit_data_len(elf_ctx: *u8): i32;
 export extern function pipeline_debug_trace_named_func_bodies(phase: *u8, m: *u8, a: *u8): void;
 export extern function pipe_mod_get_num_top_level_lets(m: *u8): i32;
 export extern function pipeline_module_hoist_top_level_lets_into_main(m: *u8, a: *u8): void;
@@ -34,7 +35,14 @@ export function pipeline_backend_asm_codegen_ast_to_elf_c(m: *u8, a: *u8, elf_ct
   if (m == (0 as *u8) || a == (0 as *u8) || elf_ctx == (0 as *u8) || pipeline_ctx == (0 as *u8)) {
     return 0 - 1;
   }
-  pipeline_elf_ctx_reset_data(elf_ctx);
+  // A dep module shares this Mach-O object. Resetting a buffer that
+  // already holds Lxml_ payload drops the bytes and leaves those symbols
+  // as n_sect=2 with no __DATA segment (ld: section index out of bounds).
+  // Reset only the empty buffer. PLATFORM: MACOS|DARWIN.
+  let data_now: i32 = pipeline_elf_ctx_emit_data_len(elf_ctx);
+  if (data_now <= 0) {
+    pipeline_elf_ctx_reset_data(elf_ctx);
+  }
   unsafe {
     pipeline_debug_trace_named_func_bodies("backend_pre_hoist_top_level_lets", m, a);
   }

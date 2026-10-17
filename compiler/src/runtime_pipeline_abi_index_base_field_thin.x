@@ -31,6 +31,9 @@ export extern function pipeline_asm_emit_lvalue_eff_addr_elf_c(
   arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
 ): i32;
 export extern function pipeline_asm_modlet_load_to_rax_elf_c(elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32;
+export extern function glue_emit_import_module_const_field_to_rax_elf_c(
+  arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, arr_sz_out: *i32
+): i32;
 export extern function glue_var_expr_type_ref_with_decl_fallback_c(arena: *u8, base_ref: i32): i32;
 export extern function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
@@ -167,7 +170,19 @@ export function glue_emit_index_eff_addr_base_elf_c(arena: *u8, elf_ctx: *u8, ix
         off = asm_ctx_local_find_offset_scoped(ctx, arena, &vname[0], vlen);
       }
       if (off < 0) {
-        return 0 - 1;
+        // `dep.A[i]`: the base name is an import binding, not a local.
+        // The helper leaves the array address in x0. It is not a struct
+        // member, so do not add field_off or deref a pointer slot.
+        // A miss stays -1 (CG002). PLATFORM: MACOS|ARM64 · LINUX x86_64.
+        let arr_cell: i32[1] = [];
+        arr_cell[0] = 0;
+        unsafe {
+          rc = glue_emit_import_module_const_field_to_rax_elf_c(arena, elf_ctx, base_ref, ctx, ta, &arr_cell[0]);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        return 0;
       }
       unsafe {
         rc = glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, fb_ref, off, ctx, ta);
