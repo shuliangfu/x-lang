@@ -21,7 +21,8 @@
 // and f.get() is LANG-004. This entry keeps the mega result. A miss
 // whose receiver is Foo<A> reads the impl header in the current source:
 // no bounds accept the method; each Trait must appear as
-// `impl Trait for A`. A missing bound emits "does not impl" and stays
+// `impl Trait for A`. The same check applies to `impl Foo<T: Trait>`.
+// A missing bound emits "does not impl" and stays
 // a miss, so the caller still reports LANG-004.
 // PLATFORM: SHARED. The alias of the mega is the Darwin link step.
 
@@ -497,6 +498,7 @@ method_nm: *u8, method_nlen: i32, arena: *u8, expr_ref: i32): i32 {
                 bi = bi + 1;
               }
               if (ok_hdr != 0) {
+                nb = ufcs_append_angle_bounds(src, src_len, p + for_len, &traits[0], &tlen[0], nb);
                 from = 0 - 1;
               }
             }
@@ -527,6 +529,98 @@ method_nm: *u8, method_nlen: i32, arena: *u8, expr_ref: i32): i32 {
   }
   return 1;
   }
+}
+
+/**
+ * Append trait names that follow ':' or '+' inside one angle list.
+ * @param src *u8 — file bytes
+ * @param src_len i32 — byte count
+ * @param p i32 — index just after the impl type name
+ * @param traits *u8 — 4 rows of 64 bytes
+ * @param tlen *i32 — 4 lengths
+ * @param nb i32 — traits already recorded
+ * @return i32 — new trait count
+ * Spaces before '<' are skipped. No '<' leaves nb unchanged.
+ * `T` with no colon is not a trait. At most 4 traits.
+ * PLATFORM: SHARED.
+ */
+function ufcs_append_angle_bounds(src: *u8, src_len: i32, p: i32, traits: *u8, tlen: *i32, nb: i32): i32 {
+  let depth: i32 = 0;
+  let expect_tr: i32 = 0;
+  let tl: i32 = 0;
+  let done: i32 = 0;
+  let c: u8 = 0;
+  if (src == 0 as *u8) {
+    return nb;
+  }
+  if (p < 0) {
+    return nb;
+  }
+  while (p < src_len && done == 0) {
+    c = src[p];
+    if (c == (32 as u8) || c == (9 as u8) || c == (10 as u8) || c == (13 as u8)) {
+      p = p + 1;
+    } else {
+      done = 1;
+    }
+  }
+  if (done == 0) {
+    return nb;
+  }
+  if (src[p] != (60 as u8)) {
+    return nb;
+  }
+  depth = 1;
+  expect_tr = 0;
+  p = p + 1;
+  while (p < src_len) {
+    if (depth <= 0) {
+      p = src_len;
+    } else {
+      c = src[p];
+      if (c == (60 as u8)) {
+        depth = depth + 1;
+        p = p + 1;
+      } else {
+        if (c == (62 as u8)) {
+          depth = depth - 1;
+          p = p + 1;
+        } else {
+          if (depth == 1) {
+            if (c == (58 as u8) || c == (43 as u8)) {
+              expect_tr = 1;
+              p = p + 1;
+            } else {
+              if (expect_tr != 0) {
+                if (ufcs_is_ident(c) != 0) {
+                  if (nb < 4) {
+                    tl = ufcs_read_ident(src, src_len, p, &traits[nb * 64]);
+                    if (tl > 0) {
+                      tlen[nb] = tl;
+                      nb = nb + 1;
+                      p = p + tl;
+                      expect_tr = 0;
+                    } else {
+                      p = p + 1;
+                    }
+                  } else {
+                    p = p + 1;
+                  }
+                } else {
+                  p = p + 1;
+                }
+              } else {
+                p = p + 1;
+              }
+            }
+          } else {
+            p = p + 1;
+          }
+        }
+      }
+    }
+  }
+  return nb;
 }
 
 /**
