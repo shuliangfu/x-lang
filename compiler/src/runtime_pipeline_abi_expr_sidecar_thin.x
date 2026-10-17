@@ -1102,13 +1102,44 @@ export function pipeline_expr_append_struct_lit_field(a: *u8, expr_ref: i32, nam
   let fe: *u8 = 0 as *u8;
   let idx: i32 = 0;
   let n: i32 = 0;
+  let base: i32 = 0;
+  let glen: i32 = 0;
+  let new_base: i32 = 0;
+  let k: i32 = 0;
+  let gv: *u8 = 0 as *u8;
+  let src: *u8 = 0 as *u8;
+  let dst: *u8 = 0 as *u8;
+  let tmp: u8[264] = [];
   if (a == (0 as *u8) || expr_ref <= 0) { return 0 - 1; }
   sc = w327_sc(a, 1);
   ex = w327_expr(a, expr_ref);
   if (sc == (0 as *u8) || ex == (0 as *u8)) { return 0 - 1; }
+  gv = sc + (W327_SC_EXPR_STRUCT_LIT_FIELDS as usize);
   idx = w327_load(ex, W327_E_STRUCT_LIT_NUM_FIELDS);
+  base = w327_load(ex, W327_E_STRUCT_LIT_FIELD_BASE);
+  glen = w327_gv_len(gv);
   if (idx == 0) {
-    w327_store(ex, W327_E_STRUCT_LIT_FIELD_BASE, w327_gv_len(sc + (W327_SC_EXPR_STRUCT_LIT_FIELDS as usize)));
+    w327_store(ex, W327_E_STRUCT_LIT_FIELD_BASE, glen);
+  } else if (glen != base + idx) {
+    // A nested struct lit appended its fields into the next slots.
+    // Copy this lit's fields to the end before the new field, or the
+    // write lands on the nested field and typeck recurses forever.
+    // PLATFORM: SHARED.
+    new_base = glen;
+    k = 0;
+    while (k < idx) {
+      src = w529_gv_at(gv, base + k);
+      if (w327_gv_ensure_abs(gv, new_base + k) == 0) {
+        return 0 - 1;
+      }
+      dst = w529_gv_at(gv, new_base + k);
+      unsafe {
+        memcpy(&tmp[0], src, 264 as usize);
+        memcpy(dst, &tmp[0], 264 as usize);
+      }
+      k = k + 1;
+    }
+    w327_store(ex, W327_E_STRUCT_LIT_FIELD_BASE, new_base);
   }
   fe = expr_struct_lit_field_at(a, expr_ref, idx, 1);
   if (fe == (0 as *u8)) { return 0 - 1; }
@@ -1679,14 +1710,14 @@ function glue_var_blk_walk_expr(a: *u8, er: i32, blk: i32): void {
     glue_var_blk_walk_expr(a, l, blk);
     return;
   }
-  unsafe { l = pipeline_expr_as_operand_ref_at(a, er); }
-  if (l > 0) {
-    glue_var_blk_walk_expr(a, l, blk);
-    return;
-  }
+  // Field, struct lit, array lit, index, and call before the AS slot.
+  // A stale AS operand on a struct lit points back at this node and
+  // the walk never returns. PLATFORM: SHARED.
   if (ko == 44) {
     unsafe { l = pipeline_expr_field_access_base_ref(a, er); }
-    glue_var_blk_walk_expr(a, l, blk);
+    if (l > 0 && l != er) {
+      glue_var_blk_walk_expr(a, l, blk);
+    }
     return;
   }
   if (ko == 46) {
@@ -1694,7 +1725,9 @@ function glue_var_blk_walk_expr(a: *u8, er: i32, blk: i32): void {
     i = 0;
     while (i < n) {
       unsafe { l = pipeline_expr_array_lit_elem_ref(a, er, i); }
-      glue_var_blk_walk_expr(a, l, blk);
+      if (l > 0 && l != er) {
+        glue_var_blk_walk_expr(a, l, blk);
+      }
       i = i + 1;
     }
     return;
@@ -1704,16 +1737,22 @@ function glue_var_blk_walk_expr(a: *u8, er: i32, blk: i32): void {
     i = 0;
     while (i < n) {
       unsafe { l = pipeline_expr_struct_lit_init_ref(a, er, i); }
-      glue_var_blk_walk_expr(a, l, blk);
+      if (l > 0 && l != er) {
+        glue_var_blk_walk_expr(a, l, blk);
+      }
       i = i + 1;
     }
     return;
   }
   if (ko == 47) {
     unsafe { l = pipeline_expr_index_base_ref(a, er); }
-    glue_var_blk_walk_expr(a, l, blk);
+    if (l > 0 && l != er) {
+      glue_var_blk_walk_expr(a, l, blk);
+    }
     unsafe { l = pipeline_expr_index_index_ref(a, er); }
-    glue_var_blk_walk_expr(a, l, blk);
+    if (l > 0 && l != er) {
+      glue_var_blk_walk_expr(a, l, blk);
+    }
     return;
   }
   if (ko == 48 || ko == 49) {
@@ -1721,9 +1760,18 @@ function glue_var_blk_walk_expr(a: *u8, er: i32, blk: i32): void {
     i = 0;
     while (i < n) {
       unsafe { l = pipeline_expr_call_arg_ref(a, er, i); }
-      glue_var_blk_walk_expr(a, l, blk);
+      if (l > 0 && l != er) {
+        glue_var_blk_walk_expr(a, l, blk);
+      }
       i = i + 1;
     }
+    return;
+  }
+  // EXPR_AS. Kind 54 may still report the operand through this getter.
+  // A slot that names this same expr is stale and must not recurse.
+  unsafe { l = pipeline_expr_as_operand_ref_at(a, er); }
+  if (l > 0 && l != er) {
+    glue_var_blk_walk_expr(a, l, blk);
     return;
   }
 }
@@ -1732,6 +1780,7 @@ function glue_var_blk_walk_expr(a: *u8, er: i32, blk: i32): void {
  * Stamp block_ref on VAR exprs under block tree.
  * PLATFORM: SHARED
  */
+#[no_mangle]
 export function glue_fill_var_block_refs_c(a: *u8, block_ref: i32): void {
   let stack_blk: i32[256] = [];
   let sp: i32 = 0;
