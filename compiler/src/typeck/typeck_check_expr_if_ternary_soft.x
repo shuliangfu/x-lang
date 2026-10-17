@@ -57,7 +57,10 @@ export extern "C" function pipeline_expr_array_lit_num_elems_at(
  * five bytes, u 3 2 x 8. The same address check leaves that then
  * arm as an i32 array. Stamp an 8-elem array arm with that u32x8
  * pointee too. The value form already stores those lanes.
- * PLATFORM: SHARED.
+ * Named i32x4 is kind 8, five bytes, i 3 2 x 4. The same address
+ * check leaves that then arm as an i32 array. Stamp a 4-elem
+ * array arm with that i32x4 pointee. The value form already
+ * stores those lanes. u32x4 stays unstamped. PLATFORM: SHARED.
  */
 #[no_mangle]
 export function typeck_check_expr_if_ternary(
@@ -79,13 +82,15 @@ export function typeck_check_expr_if_ternary(
     let arm_k: i32 = 0;
     let arm_n: i32 = 0;
     let hit: i32 = 0;
+    let want_n: i32 = 0;
     /*
      * Expected *Vec8i is kind 9. The pointee is kind 8, five bytes,
      * V e c 8 i. Named i32x8 is kind 8, five bytes, i 3 2 x 8.
      * An ARRAY_LIT arm of 8 elems is the vector the value form
      * already stores. Stamp it before the demoted pair check.
      * Named f32x8 is f 3 2 x 8. Named u32x8 is u 3 2 x 8.
-     * A kind-25 if does not enter. PLATFORM: SHARED.
+     * Named i32x4 is i 3 2 x 4 and asks for 4 elems. u32x4 stays
+     * unstamped. A kind-25 if does not enter. PLATFORM: SHARED.
      */
     if (arena != 0 as *u8) {
       if (expr_ref > 0) {
@@ -188,6 +193,39 @@ export function typeck_check_expr_if_ternary(
                     }
                   }
                 }
+                /*
+                 * Named i32x4 is i 3 2 x 4. The address expected
+                 * type is the pointer, so the array arm is an i32
+                 * array and the ternary keeps that then type.
+                 * Kind 27 does not read the pointee later.
+                 * The value form already stores each lane.
+                 * Four elements, not eight. u32x4 is u 3 2 x 4
+                 * and stays unstamped. Kind 25 does not enter.
+                 * PLATFORM: SHARED.
+                 */
+                if (hit == 0) {
+                  if (pk == 8) {
+                    if (nlen == 5) {
+                      if (nm[0] == 105) {
+                        if (nm[1] == 51) {
+                          if (nm[2] == 50) {
+                            if (nm[3] == 120) {
+                              if (nm[4] == 52) {
+                                hit = 1;
+                                want_n = 4;
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+                if (hit == 1) {
+                  if (want_n == 0) {
+                    want_n = 8;
+                  }
+                }
                 if (hit == 1) {
                   then_ref = pipeline_expr_if_then_ref_at(arena, expr_ref);
                   else_ref = pipeline_expr_if_else_ref_at(arena, expr_ref);
@@ -205,7 +243,7 @@ export function typeck_check_expr_if_ternary(
                       if (arm_k == 46) {
                         arm_n = pipeline_expr_array_lit_num_elems_at(
                           arena, arm_ref);
-                        if (arm_n == 8) {
+                        if (arm_n == want_n) {
                           pipeline_expr_set_resolved_type_ref(
                             arena, arm_ref, pt);
                         }
