@@ -175,7 +175,11 @@ function w254_sl_cell_i32(base: *u8): i32 {
  * element stride. When that count is at least 8, the same address copy
  * stores the payload. An 8-byte array used to miss the wide gate and
  * store the pointer. An array wider than 16 used to stay on that same
- * 8-byte store. A named SIMD field is not a TYPE_ARRAY, so that helper
+ * 8-byte store. A local VAR of that field is not an ARRAY_LIT: emit_expr
+ * leaves the array address, and the 8-byte store wrote the pointer, so
+ * `*p = { two: src }` kept the zeroed [2]Wrap (Darwin leftover 175).
+ * That VAR is lea'd from its frame slot and copied with the same x19
+ * memcpy. A named SIMD field is not a TYPE_ARRAY, so that helper
  * returns 0 and the layout size stays lanes times the element width.
  * When that size is at least 8, ARRAY_LIT uses the same address copy.
  * i32x8 is TYPE_NAMED (kind 8) and is 32 bytes. Vec8i is TYPE_VECTOR
@@ -239,6 +243,7 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
   let splat_ek: i32 = 0;
   let splat_tk: i32 = 0;
   let bind_rc: i32 = 0;
+  let src_off: i32 = 0;
   let mod: *u8 = 0 as *u8;
   let cell: u8[8];
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || lit_ref <= 0) {
@@ -306,6 +311,63 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
       }
       if (bind_rc != (0 - 99)) {
         return 0 - 1;
+      }
+    }
+    /* A declared local VAR of a TYPE_ARRAY field. The match-bind helper
+     * above returns -99 because the name has a slot. Named-layout size
+     * is 0 for kind 10, so the wide gate below never sees N*esz and the
+     * scalar store writes 8 bytes of the address emit_expr left in x0.
+     * `*p = { two: src }` of [2]Wrap therefore kept the zero init
+     * (Darwin leftover 175). Lea the slot and copy through x19, the
+     * same memcpy the match-bind aggregate uses. No slot, a non-array,
+     * or a size outside 8..4096 falls through. glue_copy rejects sz < 8.
+     * PLATFORM: MACOS|DARWIN. pop/push keeps the parked dest for the
+     * next field. The mov is x19 = x1 after the arm64 pop. */
+    if (iko == 3 && (ta == 0 || ta == 1) && mod != (0 as *u8)) {
+      fty = 0;
+      arr_bytes = 0;
+      src_off = 0 - 1;
+      unsafe {
+        fty = pipeline_expr_struct_lit_field_type_ref_at(arena, mod, lit_ref, fi);
+      }
+      if (fty > 0) {
+        unsafe {
+          splat_tk = pipeline_type_kind_ord_at(arena, fty);
+        }
+        if (splat_tk == 10) {
+          unsafe {
+            arr_bytes = glue_fixed_array_total_bytes_c(arena, fty, 0);
+          }
+        }
+      }
+      if (arr_bytes >= 8 && arr_bytes <= 4096) {
+        unsafe {
+          src_off = glue_var_expr_stack_off_elf_c(arena, ctx, iref);
+        }
+      }
+      if (src_off >= 0 && arr_bytes >= 8 && arr_bytes <= 4096) {
+        if (store_off < 0 || store_off > 4095) {
+          return 0 - 1;
+        }
+        add_x19 = (2432696947 as u32) | ((store_off as u32) * 1024);
+        unsafe {
+          pipe_store_i32_le(&cell[0], 0, backend_enc_lea_rbp_to_rax_arch(elf_ctx, src_off, ta));
+          if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+          pipe_store_i32_le(&cell[0], 0, backend_enc_pop_rbx_arch(elf_ctx, ta));
+          if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+          pipe_store_i32_le(&cell[0], 0, backend_enc_push_rbx_arch(elf_ctx, ta));
+          if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+          pipe_store_i32_le(&cell[0], 0, backend_enc_append_u32_le_c(elf_ctx, 2852193267 as u32));
+          if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+          if (store_off > 0) {
+            pipe_store_i32_le(&cell[0], 0, backend_enc_append_u32_le_c(elf_ctx, add_x19));
+            if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+          }
+          pipe_store_i32_le(&cell[0], 0, glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, 0 - 3, arr_bytes, ta));
+          if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+        }
+        fi = fi + 1;
+        continue;
       }
     }
     /*

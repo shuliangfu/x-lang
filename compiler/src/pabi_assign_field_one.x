@@ -61,6 +61,10 @@ export extern function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32
 export extern function glue_var_expr_stack_off_elf_c(
   arena: *u8, ctx: *u8, var_expr_ref: i32
 ): i32;
+export extern function glue_emit_fixed_array_type_let_init_elf_c(
+  arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, let_ty_ref: i32,
+  stack_slot_off: i32
+): i32;
 export extern function glue_emit_struct_type_let_init_elf_c(
   arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, let_ty_ref: i32,
   stack_slot_off: i32
@@ -917,6 +921,85 @@ function assign_field_one_simd16(
 }
 
 /**
+ * Copy an ARRAY_LIT into a TYPE_ARRAY field.
+ * `bag.one = [w]` used to take the one-GPR store, which writes the
+ * payload pointer. Lane 0 then reads that pointer and is not 1.
+ * The address of the field goes into rbx, then the same dest-in-rbx
+ * fixed-array let-init as `*p = [w]` (slot -3). A -2 decline keeps
+ * the scalar store. -1 is an encoder failure.
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — encoder context
+ * @param left_ref i32 — FIELD lvalue
+ * @param right_ref i32 — RHS; only kind 46 is handled
+ * @param ctx *u8 — emit context
+ * @param ta i32 — 0 x86-64, 1 arm64; any other returns -99
+ * @return i32 — 0 when the array was stored; -1 on encoder failure;
+ *   -99 when the field is not a TYPE_ARRAY or the RHS is not an ARRAY_LIT
+ * PLATFORM: SHARED — Darwin leftover 10. MACOS|ARM64 · LINUX x86_64.
+ */
+function assign_field_one_array_lit(
+  arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32
+): i32 {
+  let cell: u8[8];
+  let fty: i32 = 0;
+  let tk: i32 = 0;
+  let rk: i32 = 0;
+  let rc: i32 = 0;
+  if (ta != 0 && ta != 1) {
+    return 0 - 99;
+  }
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, glue_field_access_field_type_ref_c(
+      arena, pipeline_asm_emit_module_ref_c(), left_ref));
+  }
+  fty = assign_field_cell_i32(&cell[0]);
+  if (fty <= 0) {
+    return 0 - 99;
+  }
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, pipeline_type_kind_ord_at(arena, fty));
+  }
+  tk = assign_field_cell_i32(&cell[0]);
+  if (tk != 10) {
+    return 0 - 99;
+  }
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, pipeline_expr_kind_ord_at(arena, right_ref));
+  }
+  rk = assign_field_cell_i32(&cell[0]);
+  if (rk != 46) {
+    return 0 - 99;
+  }
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, pipeline_asm_emit_lvalue_eff_addr_elf_c(
+      arena, elf_ctx, left_ref, ctx, ta));
+  }
+  rc = assign_field_cell_i32(&cell[0]);
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta));
+  }
+  rc = assign_field_cell_i32(&cell[0]);
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, glue_emit_fixed_array_type_let_init_elf_c(
+      arena, elf_ctx, right_ref, ctx, ta, fty, 0 - 3));
+  }
+  rc = assign_field_cell_i32(&cell[0]);
+  if (rc == 0) {
+    return 0;
+  }
+  if (rc == (0 - 1)) {
+    return 0 - 1;
+  }
+  return 0 - 99;
+}
+
+/**
  * Emit a FIELD-lvalue assignment, including wide named layouts and compound ops.
  * @param arena *u8 — AST arena; null returns -1
  * @param elf_ctx *u8 — encoder context; null returns -1
@@ -1011,6 +1094,18 @@ export function glue_emit_assign_field_elf_c(
       if (handled != 0) {
         return rc;
       }
+    }
+  }
+  // TYPE_ARRAY field `bag.one = [w]`. -99 keeps the one-GPR store.
+  // PLATFORM: SHARED — Darwin leftover 10.
+  if (ek == 28) {
+    unsafe {
+      pipe_store_i32_le(&rccell[0], 0, assign_field_one_array_lit(
+        arena, elf_ctx, left_ref, right_ref, ctx, ta));
+    }
+    rc = assign_field_cell_i32(&rccell[0]);
+    if (rc != (0 - 99)) {
+      return rc;
     }
   }
   // 16-byte SIMD on arm64. -99 keeps the one-GPR store below.

@@ -326,7 +326,10 @@ function assign_index_one_pair_finish(elf_ctx: *u8, ta: i32, sz: i32): i32 {
  * @return i32 — 0 after a pair copy; otherwise the copy rc or the store rc
  * A 9..16 byte VAR, FIELD, STRUCT_LIT, INDEX, CALL, or METHOD on arm64
  * spills the high half, then copies sz bytes. A larger element of those
- * kinds is a memcpy. ARRAY_LIT stays on the one-qword store.
+ * kinds is a memcpy. ARRAY_LIT (46) leaves a payload pointer in rax.
+ * When the element is wider than 8 bytes, that pointer is the source
+ * of a copy of sz bytes. Storing the pointer wrote 8 bytes into
+ * `rows[0]` (Darwin exit 98).
  * PLATFORM: SHARED — file-local helper, not a link export.
  */
 function assign_index_one_tail(
@@ -388,6 +391,22 @@ function assign_index_one_tail(
   if (pair != 0) {
     unsafe {
       return assign_index_one_pair_finish(elf_ctx, ta, sz);
+    }
+  }
+  // ARRAY_LIT is a payload pointer, not a dual-GP value. Copy sz
+  // bytes through that pointer. PLATFORM: SHARED. Darwin ARM64
+  // measured rows[0] = [w].
+  if (sz > 8) {
+    if (ta == 0 || ta == 1) {
+      unsafe {
+        pipe_store_i32_le(&rkcell[0], 0, pipeline_expr_kind_ord_at(arena, right_ref));
+      }
+      rk = assign_index_cell_i32(&rkcell[0]);
+      if (rk == 46) {
+        unsafe {
+          return glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, 0 - 3, sz, ta);
+        }
+      }
     }
   }
   if (ta == 1 && sz > 16) {

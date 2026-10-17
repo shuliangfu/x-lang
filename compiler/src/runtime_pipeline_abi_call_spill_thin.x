@@ -80,6 +80,8 @@ export extern function pipeline_expr_struct_lit_value_bytes(a: *u8, m: *u8, expr
  * PLATFORM: SHARED.
  */
 export extern function glue_array_temp_bytes_for_let_init(arena: *u8, let_type_ref: i32, init_ref: i32): i32;
+export extern function pipeline_asm_array_lit_elem_type_ref(arena: *u8, expr_ref: i32): i32;
+export extern function glue_array_lit_force_esz_from_elem_type_c(arena: *u8, et: i32): i32;
 export extern function glue_call_return_byte_size_c(arena: *u8, call_expr_ref: i32): i32;
 /** w1521: Win64 by-ref >16B call-arg temp bytes (bcd). PLATFORM: WINDOWS x86_64. */
 export extern function w1521_win_call_mem_temp_bytes_c(arena: *u8, call: i32, nargs: i32, is_method: i32): i32;
@@ -526,6 +528,9 @@ function w1500_cs_expr(arena: *u8, expr_ref: i32): void {
   let as_op: i32 = 0;
   let need: i32 = 0;
   let mod_p: *u8 = 0 as *u8;
+  let et_w: i32 = 0;
+  let esz_w: i32 = 0;
+  let span_w: i32 = 0;
   if (arena == (0 as *u8) || expr_ref <= 0) {
     return;
   }
@@ -790,6 +795,30 @@ function w1500_cs_expr(arena: *u8, expr_ref: i32): void {
     // The overrun was measured on MACOS|ARM64.
     unsafe {
       need = glue_array_temp_bytes_for_let_init(arena, 0, expr_ref);
+      et_w = pipeline_asm_array_lit_elem_type_ref(arena, expr_ref);
+      esz_w = glue_array_lit_force_esz_from_elem_type_c(arena, et_w);
+    }
+    // Durable ARRAY_LIT of an element wider than 8 bytes
+    // (glue_asm_emit_array_lit_durable_ptr_rax_elf_c) parks two 16-byte
+    // pointer spills, then writes the element at temp_home. temp_home is
+    // one aligned slot past the destination spill, so the store starts at
+    // entry_next + 32 + align8(esz) and occupies another align8(esz).
+    // Payload-only reserve left `return [w]` of a 16-byte Wrap on the
+    // caller's saved fp/lr (SIGBUS). PLATFORM: MACOS|ARM64 · LINUX x86_64.
+    if (esz_w <= 8 && et_w > 0) {
+      unsafe {
+        span_w = asm_local_slot_bytes(arena, et_w);
+      }
+      if (span_w > esz_w) {
+        esz_w = span_w;
+      }
+    }
+    if (esz_w > 8 && esz_w <= 4096) {
+      span_w = (esz_w + 7) / 8 * 8;
+      span_w = 32 + span_w + span_w;
+      if (span_w > need) {
+        need = span_w;
+      }
     }
     if (need > 0) {
       if (need <= 4096) {
