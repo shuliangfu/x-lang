@@ -49,6 +49,8 @@ export extern function pipeline_asm_emit_module_ref_c(): *u8;
 export extern function pipeline_asm_emit_func_index_c(): i32;
 export extern function pipeline_module_func_return_type_at(mod: *u8, fi: i32): i32;
 export extern function glue_field_access_field_type_ref_c(arena: *u8, mod: *u8, fa_ref: i32): i32;
+export extern function glue_field_access_effective_offset_c(arena: *u8, mod: *u8, fa_ref: i32): i32;
+export extern function backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
 export extern function w1545_win_ret_slot_for_c(mod: *u8, func_index: i32): i32;
 export extern function pipeline_type_elem_ref_at(arena: *u8, type_ref: i32): i32;
 export extern function glue_array_lit_force_esz_from_elem_type_c(arena: *u8, et: i32): i32;
@@ -485,9 +487,11 @@ function w1521_rs_mid_named_field(arena: *u8, op: i32): i32 {
  * An indirect parameter slot holds the caller's pointer, so that
  * pointer is loaded before the length move. A local slot is not loaded.
  * A FIELD whose base is a VAR, whose field type is TYPE_ARRAY, and whose
- * function returns TYPE_SLICE calls emit_expr once (that already leaves
- * the field address in rax/x0) and then moves the element count into x1
- * (arm64) or rdx (SysV). A FIELD whose base is a STRUCT_LIT and whose
+ * function returns TYPE_SLICE leas the struct slot plus the field
+ * offset and then moves the element count into x1 (arm64) or rdx
+ * (SysV). emit_expr of an 8-byte field loads the value, and the caller
+ * then reads that value as a pointer. A FIELD whose base is a
+ * STRUCT_LIT and whose
  * named init is an ARRAY_LIT durables that literal with the same helper
  * and then moves the element count. Any other STRUCT_LIT init stays on
  * emit_expr.
@@ -1114,14 +1118,16 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
             }
           }
           // FIELD of a VAR whose field type is TYPE_ARRAY, returned as
-          // TYPE_SLICE. emit_expr stores the array in the callee frame and
-          // leaves that address in x0, but x1 still holds a frame address.
-          // The caller reads x1 as the slice length, so the copy loop walks
-          // off the stack. Call emit_expr once, then put N in x1 (arm64) or
-          // rdx (SysV). Do not lea: a second address would drop the stores
-          // emit_expr just wrote. A STRUCT_LIT base whose init is an
-          // ARRAY_LIT is the next arm. A TYPE_ARRAY function return stays
-          // on the value path. Windows stays on emit_expr.
+          // TYPE_SLICE. The let that filled the struct already stored the
+          // bytes. emit_expr of an 8-byte field then loads that qword into
+          // x0, so the caller treats 10 and 32 packed together as a pointer
+          // (from_field SIGBUS at 0x200000000a). Lea the struct slot plus
+          // the field offset and put N in x1 (arm64) or rdx (SysV). The
+          // caller's stack-escape copier mallocs when that pointer is
+          // below sp. A missing slot or offset stays on emit_expr. A
+          // STRUCT_LIT base whose init is an ARRAY_LIT is the next arm.
+          // A TYPE_ARRAY function return stays on the value path. Windows
+          // stays on emit_expr.
           // PLATFORM: MACOS|ARM64 · LINUX x86_64.
           if (dur_ok == 0) {
             unsafe {
@@ -1163,13 +1169,25 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                           if (rk_d == 10) {
                             unsafe {
                               n_d = pipeline_type_array_size_at(arena, decl_ty);
+                              arr_off = glue_var_expr_stack_off_elf_c(arena, ctx, base_er);
+                              esz_d = glue_field_access_effective_offset_c(arena, mod_d, ret_op);
                             }
-                            if (n_d >= 0 && n_d <= 1024) {
+                            // esz_d is the field byte offset here, not an
+                            // element size. Negative means the helper missed.
+                            if (n_d >= 0 && n_d <= 1024 && arr_off >= 0 && esz_d >= 0) {
                               unsafe {
-                                rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, ret_op, ctx, ta);
+                                rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, arr_off, ta);
                               }
                               if (rc != 0) {
                                 return 0 - 1;
+                              }
+                              if (esz_d != 0) {
+                                unsafe {
+                                  rc = backend_enc_add_imm_to_rax_arch(elf_ctx, esz_d, ta);
+                                }
+                                if (rc != 0) {
+                                  return 0 - 1;
+                                }
                               }
                               unsafe {
                                 rc = backend_enc_push_rax_arch(elf_ctx, ta);
