@@ -559,10 +559,11 @@ function w639_rs_lit_init_at(arena: *u8, lit: i32, fa: i32, j: i32): i32 {
 
 /**
  * Init expr of the struct-literal field whose name equals fa.
- * Scans the first four fields. A longer literal whose match is the
- * fifth field or later returns 0, and the caller stays on emit_expr.
- * A null arena, a non-positive literal, or a non-positive field
- * returns 0.
+ * Scans at most 64 fields. The loop calls the one-slot helper.
+ * Extern stays in that helper: this compiler drops an extern call
+ * written directly in a while. A match past slot 63 returns 0, and
+ * the caller stays on emit_expr. A null arena, a non-positive
+ * literal, or a non-positive field returns 0.
  * @param arena *u8 — AST arena; null returns 0
  * @param lit i32 — STRUCT_LIT expr; <=0 returns 0
  * @param fa i32 — FIELD expr whose name is compared; <=0 returns 0
@@ -572,23 +573,24 @@ function w639_rs_lit_init_at(arena: *u8, lit: i32, fa: i32, j: i32): i32 {
 function w643_rs_named_init(arena: *u8, lit: i32, fa: i32): i32 {
   let n: i32 = 0;
   let init: i32 = 0;
+  let j: i32 = 0;
   if (arena == (0 as *u8) || lit <= 0 || fa <= 0) {
     return 0;
   }
   unsafe {
     n = pipeline_expr_struct_lit_num_fields(arena, lit);
   }
-  if (n > 0) {
-    init = w639_rs_lit_init_at(arena, lit, fa, 0);
+  if (n <= 0) {
+    return 0;
   }
-  if (init == 0 && n > 1) {
-    init = w639_rs_lit_init_at(arena, lit, fa, 1);
+  if (n > 64) {
+    n = 64;
   }
-  if (init == 0 && n > 2) {
-    init = w639_rs_lit_init_at(arena, lit, fa, 2);
-  }
-  if (init == 0 && n > 3) {
-    init = w639_rs_lit_init_at(arena, lit, fa, 3);
+  while (j < n) {
+    if (init == 0) {
+      init = w639_rs_lit_init_at(arena, lit, fa, j);
+    }
+    j = j + 1;
   }
   return init;
 }
@@ -2044,8 +2046,8 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
        * when it is also a STRUCT_LIT. A parent init that is a local
        * struct (`return { inn: src }.inn.xs`) takes that local's
        * address plus the fields inside it. At most three parents.
-       * A field past the fourth slot, a pointer element, a slice
-       * element, a pointer field, a pointer root, or a fifth field
+       * A field past slot 63, a pointer element, a slice
+       * element, a pointer field, or a pointer root
        * stays on emit_expr.
        * Hops are unrolled: a while that calls externs is dropped
        * by this compiler.
@@ -2249,7 +2251,7 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                            * plus the fields inside it, not the literal
                            * field's own offset. Durable an ARRAY_LIT
                            * leaf. A VAR leaf is that local array's
-                           * address. A field past the fourth slot stays
+                           * address. A field past slot 63 stays
                            * on emit_expr.
                            * EXPR_STRUCT_LIT = 45. EXPR_ARRAY_LIT = 46.
                            * EXPR_VAR = 3. PLATFORM: MACOS|ARM64. */
