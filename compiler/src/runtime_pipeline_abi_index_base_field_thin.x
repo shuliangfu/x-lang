@@ -92,8 +92,12 @@ function w1521_ib_field_is_ptr(arena: *u8, fa_ref: i32): i32 {
  * x0, so the lane load treats those bits as a pointer (Darwin `pick()[0]`
  * where pick returns `[2]i32`, SIGBUS). str x0, [sp, #-16]! then
  * add x0, sp, #0 makes x0 the slot address. A pointer, a slice, and an
- * array larger than 8 bytes stay the rvalue emit_expr left. The epilogue
- * restores sp from x29, so this spill does not add sp back.
+ * array larger than 8 bytes stay the rvalue emit_expr left. This base
+ * does not add sp back: the lane load still reads the slot.
+ * pipeline_asm_emit_index_elf_c adds 16 after that load. A nested
+ * arr[add4(...)[0]] would otherwise pop the vector as the array base
+ * (SIGBUS). An lvalue that keeps the slot address still relies on the
+ * epilogue.
  * DEREF stays an rvalue. A vector wider than 16 bytes is not spilled.
  * Slice and pointer fields of the indexed field still peel through
  * glue_index_deref_ptr_field_slot_rax_elf_c.
