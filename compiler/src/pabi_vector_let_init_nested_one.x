@@ -55,6 +55,13 @@ export extern function glue_vector_type_lanes_esz_c(
 ): i32;
 export extern function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i32): i32;
 export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
+export extern function glue_emit_slice_from_array_let_init_elf_c(
+  arena: *u8, elf_ctx: *u8, block_ref: i32, let_idx: i32, init_ref: i32,
+  let_type_ref: i32, ctx: *u8, ta: i32, slice_slot_off: i32
+): i32;
+export extern function pipeline_asm_emit_module_ref_c(): *u8;
+export extern function pipeline_asm_emit_func_index_c(): i32;
+export extern function pipeline_module_func_body_ref_at(mod: *u8, fi: i32): i32;
 export extern function pipeline_type_named_name_into(
   arena: *u8, type_ref: i32, out: *u8
 ): i32;
@@ -714,6 +721,9 @@ function vlet_nested_body(
   let wide: i32 = 0;
   let rc: i32 = 0;
   let ek: i32 = 0;
+  let body_br: i32 = 0;
+  let mod: *u8 = 0 as *u8;
+  let fi: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || init_ref <= 0) {
     return 0 - 1;
   }
@@ -749,6 +759,63 @@ function vlet_nested_body(
   }
   if (esz <= 0) {
     esz = 4;
+  }
+  // `[a]` where the cell is `[]i32` and `a` is `[2]i32`. The cell
+  // stride is 16. emit_expr loads `a` as a fat slice, so the length
+  // becomes the next local (0x200000001) and ss[0].length != 2.
+  // The slice writer recovers N from the function-body const.
+  // PLATFORM: SHARED.
+  if (esz == 16) {
+    unsafe {
+      elem_ty = pipeline_asm_array_lit_elem_type_ref(arena, init_ref);
+    }
+    if (elem_ty > 0) {
+      unsafe {
+        ek = pipeline_type_kind_ord_at(arena, elem_ty);
+      }
+    }
+    if (ek == 11) {
+      unsafe {
+        mod = pipeline_asm_emit_module_ref_c();
+        fi = pipeline_asm_emit_func_index_c();
+      }
+      if (mod != (0 as *u8) && fi >= 0) {
+        unsafe {
+          body_br = pipeline_module_func_body_ref_at(mod, fi);
+        }
+      }
+      if (body_br < 0) {
+        body_br = 0;
+      }
+      ai = 0;
+      while (ai < n_arr) {
+        unsafe {
+          elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ai);
+        }
+        if (elem_ref > 0) {
+          if (ta == 1) {
+            rc = stack_slot_off + ai * esz;
+          } else {
+            rc = stack_slot_off - ai * esz;
+          }
+          if (rc < 0) {
+            return 0 - 1;
+          }
+          unsafe {
+            wide = glue_emit_slice_from_array_let_init_elf_c(
+              arena, elf_ctx, body_br, 0, elem_ref, elem_ty, ctx, ta, rc);
+          }
+          if (wide < 0) {
+            return 0 - 1;
+          }
+          if (wide != 1) {
+            return 0 - 1;
+          }
+        }
+        ai = ai + 1;
+      }
+      return 0;
+    }
   }
   store_sz = esz;
   if (store_sz != 1 && store_sz != 2 && store_sz != 4 && store_sz != 8) {
