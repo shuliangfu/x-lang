@@ -25,10 +25,11 @@ export extern "C" function pipeline_expr_set_resolved_type_ref(
   arena: *u8, expr_ref: i32, ty: i32): void;
 export extern "C" function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
 export extern "C" function pipeline_type_elem_ref_at(arena: *u8, type_ref: i32): i32;
-export extern "C" function pipeline_type_named_name_into(
-  arena: *u8, type_ref: i32, out: *u8): i32;
 export extern "C" function pipeline_expr_array_lit_num_elems_at(
   arena: *u8, expr_ref: i32): i32;
+export extern "C" function typeck_vector_lanes_of_type(arena: *u8, ty_ref: i32): i32;
+export extern "C" function pipeline_expr_block_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function typeck_block_expr_value_ref(arena: *u8, block_ref: i32): i32;
 
 /**
  * Stamp both arms of a Vec8i integer-literal ternary.
@@ -82,7 +83,12 @@ export extern "C" function pipeline_expr_array_lit_num_elems_at(
  * The same address check leaves that then arm as an i32
  * array. Stamp a 16-elem array arm with that u32x16
  * pointee. The value form already stores those lanes.
- * Named f32x16 stays unstamped.
+ * Lane count is typeck_vector_lanes_of_type, not a name
+ * list. Named f32x16 is f 3 2 x 1 6 and is 16 lanes, so
+ * a 16-elem array arm is stamped with that pointee too.
+ * A kind-25 if arm is a block. When the expected type is
+ * a pointer, the kind-46 tail of that block is stamped
+ * the same way. The value form is not a pointer.
  * PLATFORM: SHARED.
  */
 #[no_mangle]
@@ -98,334 +104,100 @@ export function typeck_check_expr_if_ternary(
     let stamped_else: i32 = 0;
     let pk: i32 = 0;
     let pt: i32 = 0;
-    let nlen: i32 = 0;
-    let nm: u8[256] = [];
     let step: i32 = 0;
     let arm_ref: i32 = 0;
     let arm_k: i32 = 0;
     let arm_n: i32 = 0;
-    let hit: i32 = 0;
     let want_n: i32 = 0;
+    let kind_ok: i32 = 0;
+    let lanes_ok: i32 = 0;
+    let block_ref: i32 = 0;
+    let tail: i32 = 0;
+    let tail_k: i32 = 0;
     /*
-     * Expected *Vec8i is kind 9. The pointee is kind 8, five bytes,
-     * V e c 8 i. Named i32x8 is kind 8, five bytes, i 3 2 x 8.
-     * An ARRAY_LIT arm of 8 elems is the vector the value form
-     * already stores. Stamp it before the demoted pair check.
-     * Named f32x8 is f 3 2 x 8. Named u32x8 is u 3 2 x 8.
-     * Named i32x4 is i 3 2 x 4 and asks for 4 elems. Named
-     * u32x4 is u 3 2 x 4 and asks for 4 elems. Named f32x4
-     * is f 3 2 x 4 and asks for 4 elems. Named Vec4f is
-     * V e c 4 f and asks for 4 elems. Named i32x16 is
-     * i 3 2 x 1 6 and asks for 16 elems. Named u32x16 is
-     * u 3 2 x 1 6 and asks for 16 elems. Named f32x16
-     * stays unstamped. A kind-25 if does not enter.
+     * Expected type of an address is a pointer (kind 9). The pointee
+     * lane count is 0, so a kind-46 arm stays a plain array. The pair
+     * check accepts an integer array against a named SIMD, the ternary
+     * keeps that array, and address codegen fails. Lane count comes
+     * from typeck_vector_lanes_of_type: an 'x' plus 4, 8, or 16, and
+     * the Vec4f / Vec8i aliases. Stamp a kind-46 arm whose element
+     * count equals that count with the pointee, before the demoted
+     * pair check. A kind-25 if arm is a block (kind 26). Peel it and
+     * stamp the same kind-46 tail. The value form is not a pointer,
+     * so it does not enter. The integer splat below is unchanged.
      * PLATFORM: SHARED.
      */
     if (arena != 0 as *u8) {
       if (expr_ref > 0) {
         if (return_type_ref > 0) {
           kind = pipeline_expr_kind_ord_at(arena, expr_ref);
+          kind_ok = 0;
           if (kind == ord_ternary) {
+            kind_ok = 1;
+          }
+          if (kind == 25) {
+            kind_ok = 1;
+          }
+          if (kind_ok == 1) {
             pk = pipeline_type_kind_ord_at(arena, return_type_ref);
             if (pk == 9) {
               pt = pipeline_type_elem_ref_at(arena, return_type_ref);
               if (pt > 0) {
                 pk = pipeline_type_kind_ord_at(arena, pt);
-                hit = 0;
                 if (pk == 8) {
-                  nlen = pipeline_type_named_name_into(arena, pt, &nm[0]);
-                  if (nlen == 5) {
-                    if (nm[0] == 86) {
-                      if (nm[1] == 101) {
-                        if (nm[2] == 99) {
-                          if (nm[3] == 56) {
-                            if (nm[4] == 105) {
-                              hit = 1;
-                            }
+                  want_n = typeck_vector_lanes_of_type(arena, pt);
+                  lanes_ok = 0;
+                  if (want_n == 4) {
+                    lanes_ok = 1;
+                  }
+                  if (want_n == 8) {
+                    lanes_ok = 1;
+                  }
+                  if (want_n == 16) {
+                    lanes_ok = 1;
+                  }
+                  if (lanes_ok == 1) {
+                    then_ref = pipeline_expr_if_then_ref_at(arena, expr_ref);
+                    else_ref = pipeline_expr_if_else_ref_at(arena, expr_ref);
+                    step = 0;
+                    while (step < 2) {
+                      arm_ref = 0;
+                      if (step == 0) {
+                        arm_ref = then_ref;
+                      }
+                      if (step == 1) {
+                        arm_ref = else_ref;
+                      }
+                      if (arm_ref > 0) {
+                        arm_k = pipeline_expr_kind_ord_at(arena, arm_ref);
+                        if (arm_k == 46) {
+                          arm_n = pipeline_expr_array_lit_num_elems_at(
+                            arena, arm_ref);
+                          if (arm_n == want_n) {
+                            pipeline_expr_set_resolved_type_ref(
+                              arena, arm_ref, pt);
                           }
                         }
-                      }
-                    }
-                  }
-                }
-                /*
-                 * Named i32x8 is i 3 2 x 8. The address expected
-                 * type is the pointer, so the array arm is an i32
-                 * array and the ternary keeps that then type.
-                 * Kind 27 does not read the pointee later.
-                 * PLATFORM: SHARED.
-                 */
-                if (hit == 0) {
-                  if (pk == 8) {
-                    if (nlen == 5) {
-                      if (nm[0] == 105) {
-                        if (nm[1] == 51) {
-                          if (nm[2] == 50) {
-                            if (nm[3] == 120) {
-                              if (nm[4] == 56) {
-                                hit = 1;
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-                /*
-                 * Named f32x8 is f 3 2 x 8. The address expected
-                 * type is the pointer, so the array arm is a float
-                 * array and the ternary keeps that then type.
-                 * Kind 27 does not read the pointee later.
-                 * The value form already narrows each lane.
-                 * PLATFORM: SHARED.
-                 */
-                if (hit == 0) {
-                  if (pk == 8) {
-                    if (nlen == 5) {
-                      if (nm[0] == 102) {
-                        if (nm[1] == 51) {
-                          if (nm[2] == 50) {
-                            if (nm[3] == 120) {
-                              if (nm[4] == 56) {
-                                hit = 1;
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-                /*
-                 * Named u32x8 is u 3 2 x 8. The address expected
-                 * type is the pointer, so the array arm is an i32
-                 * array and the ternary keeps that then type.
-                 * Kind 27 does not read the pointee later.
-                 * The value form already stores each lane.
-                 * Kind 25 does not enter. PLATFORM: SHARED.
-                 */
-                if (hit == 0) {
-                  if (pk == 8) {
-                    if (nlen == 5) {
-                      if (nm[0] == 117) {
-                        if (nm[1] == 51) {
-                          if (nm[2] == 50) {
-                            if (nm[3] == 120) {
-                              if (nm[4] == 56) {
-                                hit = 1;
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-                /*
-                 * Named i32x4 is i 3 2 x 4. The address expected
-                 * type is the pointer, so the array arm is an i32
-                 * array and the ternary keeps that then type.
-                 * Kind 27 does not read the pointee later.
-                 * The value form already stores each lane.
-                 * Four elements, not eight. Kind 25 does not
-                 * enter. PLATFORM: SHARED.
-                 */
-                if (hit == 0) {
-                  if (pk == 8) {
-                    if (nlen == 5) {
-                      if (nm[0] == 105) {
-                        if (nm[1] == 51) {
-                          if (nm[2] == 50) {
-                            if (nm[3] == 120) {
-                              if (nm[4] == 52) {
-                                hit = 1;
-                                want_n = 4;
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-                /*
-                 * Named u32x4 is u 3 2 x 4. The address expected
-                 * type is the pointer, so the array arm is an i32
-                 * array and the ternary keeps that then type.
-                 * Kind 27 does not read the pointee later.
-                 * The value form already stores each lane.
-                 * Four elements, not eight. Kind 25 does not
-                 * enter. PLATFORM: SHARED.
-                 */
-                if (hit == 0) {
-                  if (pk == 8) {
-                    if (nlen == 5) {
-                      if (nm[0] == 117) {
-                        if (nm[1] == 51) {
-                          if (nm[2] == 50) {
-                            if (nm[3] == 120) {
-                              if (nm[4] == 52) {
-                                hit = 1;
-                                want_n = 4;
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-                /*
-                 * Named f32x4 is f 3 2 x 4. The address expected
-                 * type is the pointer, so the array arm is a float
-                 * array. A named arm is f32x4, and the demoted pair
-                 * check rejects that mismatch. Both array arms stay
-                 * a float array and codegen sees that array.
-                 * Kind 27 does not read the pointee later.
-                 * The value form already stores each lane.
-                 * Four elements, not eight. Kind 25 does not
-                 * enter. PLATFORM: SHARED.
-                 */
-                if (hit == 0) {
-                  if (pk == 8) {
-                    if (nlen == 5) {
-                      if (nm[0] == 102) {
-                        if (nm[1] == 51) {
-                          if (nm[2] == 50) {
-                            if (nm[3] == 120) {
-                              if (nm[4] == 52) {
-                                hit = 1;
-                                want_n = 4;
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-                /*
-                 * Named Vec4f is V e c 4 f. The address expected
-                 * type is the pointer, so the array arm is a float
-                 * array. A named arm is Vec4f, and the demoted pair
-                 * check rejects that mismatch. Both array arms stay
-                 * a float array and codegen sees that array.
-                 * Kind 27 does not read the pointee later.
-                 * The value form already stores each lane.
-                 * Four elements, not eight. Vec8i is V e c 8 i and
-                 * still asks for 8. Named i32x16 asks for 16.
-                 * Named u32x16 asks for 16. Named f32x16
-                 * stays unstamped. Kind 25 does not enter.
-                 * PLATFORM: SHARED.
-                 */
-                if (hit == 0) {
-                  if (pk == 8) {
-                    if (nlen == 5) {
-                      if (nm[0] == 86) {
-                        if (nm[1] == 101) {
-                          if (nm[2] == 99) {
-                            if (nm[3] == 52) {
-                              if (nm[4] == 102) {
-                                hit = 1;
-                                want_n = 4;
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-                /*
-                 * Named i32x16 is i 3 2 x 1 6. The address expected
-                 * type is the pointer, so the array arm is an i32
-                 * array and the ternary keeps that then type.
-                 * Kind 27 does not read the pointee later.
-                 * The value form already stores each lane.
-                 * Sixteen elements, not eight. Named u32x16
-                 * asks for 16. Named f32x16 stays unstamped.
-                 * Kind 25 does not enter. PLATFORM: SHARED.
-                 */
-                if (hit == 0) {
-                  if (pk == 8) {
-                    if (nlen == 6) {
-                      if (nm[0] == 105) {
-                        if (nm[1] == 51) {
-                          if (nm[2] == 50) {
-                            if (nm[3] == 120) {
-                              if (nm[4] == 49) {
-                                if (nm[5] == 54) {
-                                  hit = 1;
-                                  want_n = 16;
+                        if (arm_k == 26) {
+                          block_ref = pipeline_expr_block_ref_at(arena, arm_ref);
+                          if (block_ref > 0) {
+                            tail = typeck_block_expr_value_ref(arena, block_ref);
+                            if (tail > 0) {
+                              tail_k = pipeline_expr_kind_ord_at(arena, tail);
+                              if (tail_k == 46) {
+                                arm_n = pipeline_expr_array_lit_num_elems_at(
+                                  arena, tail);
+                                if (arm_n == want_n) {
+                                  pipeline_expr_set_resolved_type_ref(
+                                    arena, tail, pt);
                                 }
                               }
                             }
                           }
                         }
                       }
+                      step = step + 1;
                     }
-                  }
-                }
-                /*
-                 * Named u32x16 is u 3 2 x 1 6. The address expected
-                 * type is the pointer, so the array arm is an i32
-                 * array and the ternary keeps that then type.
-                 * Kind 27 does not read the pointee later.
-                 * The value form already stores each lane.
-                 * Sixteen elements, not eight. Named f32x16 is
-                 * f 3 2 x 1 6 and stays unstamped. Kind 25
-                 * does not enter. PLATFORM: SHARED.
-                 */
-                if (hit == 0) {
-                  if (pk == 8) {
-                    if (nlen == 6) {
-                      if (nm[0] == 117) {
-                        if (nm[1] == 51) {
-                          if (nm[2] == 50) {
-                            if (nm[3] == 120) {
-                              if (nm[4] == 49) {
-                                if (nm[5] == 54) {
-                                  hit = 1;
-                                  want_n = 16;
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-                if (hit == 1) {
-                  if (want_n == 0) {
-                    want_n = 8;
-                  }
-                }
-                if (hit == 1) {
-                  then_ref = pipeline_expr_if_then_ref_at(arena, expr_ref);
-                  else_ref = pipeline_expr_if_else_ref_at(arena, expr_ref);
-                  step = 0;
-                  while (step < 2) {
-                    arm_ref = 0;
-                    if (step == 0) {
-                      arm_ref = then_ref;
-                    }
-                    if (step == 1) {
-                      arm_ref = else_ref;
-                    }
-                    if (arm_ref > 0) {
-                      arm_k = pipeline_expr_kind_ord_at(arena, arm_ref);
-                      if (arm_k == 46) {
-                        arm_n = pipeline_expr_array_lit_num_elems_at(
-                          arena, arm_ref);
-                        if (arm_n == want_n) {
-                          pipeline_expr_set_resolved_type_ref(
-                            arena, arm_ref, pt);
-                        }
-                      }
-                    }
-                    step = step + 1;
                   }
                 }
               }
