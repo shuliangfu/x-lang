@@ -1839,10 +1839,12 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
        * offset. `return o.inn.xs` adds the parent offset too.
        * Element width is the named layout, then the array-literal
        * stride. 16 bytes or less stays on emit_expr (value or
-       * pair). A slice return is the arm above. A pointer field,
-       * a pointer root, a non-VAR root, or a fifth field stays
-       * on emit_expr. Hops are unrolled: a while that calls externs
-       * is dropped by this compiler.
+       * pair). A slice return is the arm above. An INDEX base
+       * (`return a[0].xs`) uses the element lvalue, then the same
+       * field offset. A pointer element, a slice element, a pointer
+       * field, a pointer root, or a fifth field stays on emit_expr.
+       * Hops are unrolled: a while that calls externs is dropped
+       * by this compiler.
        * PLATFORM: MACOS|ARM64. */
       if (dur_ok == 0 && ta == 1) {
         unsafe {
@@ -1984,6 +1986,42 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                                 if (rc != 0) {
                                   return 0 - 1;
                                 }
+                                if (sum_off != 0) {
+                                  unsafe {
+                                    rc = backend_enc_add_imm_to_rax_arch(elf_ctx, sum_off, ta);
+                                  }
+                                  if (rc != 0) {
+                                    return 0 - 1;
+                                  }
+                                }
+                                dur_ok = 1;
+                              }
+                            }
+                          }
+                          /* INDEX base of the field (`return a[0].xs`).
+                           * emit_expr of the index loads the first word of
+                           * the element. The lvalue is that element's
+                           * address; the field offset is the same sum the
+                           * VAR path adds. A pointer or slice element stays
+                           * on emit_expr. A failed lvalue stays on emit_expr.
+                           * PLATFORM: MACOS|ARM64. */
+                          if (opk_d == 47 && dur_ok == 0) {
+                            decl_ty = 0;
+                            unsafe {
+                              decl_ty = pipeline_expr_resolved_type_ref(arena, root_er);
+                            }
+                            rk_d = 0;
+                            if (decl_ty > 0) {
+                              unsafe {
+                                rk_d = pipeline_type_kind_ord_at(arena, decl_ty);
+                              }
+                            }
+                            if (rk_d != 9 && rk_d != 11) {
+                              unsafe {
+                                rc = pipeline_asm_emit_lvalue_eff_addr_elf_c(
+                                  arena, elf_ctx, root_er, ctx, ta);
+                              }
+                              if (rc == 0) {
                                 if (sum_off != 0) {
                                   unsafe {
                                     rc = backend_enc_add_imm_to_rax_arch(elf_ctx, sum_off, ta);
