@@ -50,6 +50,114 @@ export extern function glue_is_vector_lane_scalar_binop_ko(ko: i32): i32;
 export extern function pipeline_lane_operand_emit_let_block_chain(
   arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, budget: i32
 ): i32;
+export extern function pipeline_expr_var_name_len(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_var_name_into(arena: *u8, expr_ref: i32, out: *u8): void;
+export extern function asm_ctx_local_find_offset_scoped(ctx: *u8, arena: *u8, name: *u8, name_len: i32): i32;
+export extern function asm_ctx_local_find_offset(ctx: *u8, name: *u8, name_len: i32): i32;
+export extern function pipeline_codegen_match_name_is_subject_field_c(module: *u8, arena: *u8, name: *u8, name_len: i32): i32;
+export extern function pipeline_codegen_match_matched_ref_c(): i32;
+export extern function glue_var_expr_stack_off_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
+export extern function glue_field_layout_offset_for_var_base_field(arena: *u8, mod: *u8, base_var_ref: i32, field_name: *u8, flen: i32): i32;
+export extern function backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
+export extern function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
+
+/**
+ * Copy a match-bound aggregate into one STRUCT_LIT field.
+ * The bind has no local slot, so emit_expr leaves the struct-lit
+ * address in x0 and the scalar store writes that pointer.
+ * A declared local of the same name is left to the existing store.
+ * @param arena *u8 — expression arena
+ * @param elf_ctx *u8 — emit context
+ * @param iref i32 — field init, kind VAR
+ * @param ctx *u8 — asm function context
+ * @param ta i32 — 0 x86_64, 1 arm64
+ * @param mod *u8 — module for the subject layout
+ * @param store_off i32 — byte offset of this field in the parked base
+ * @return i32 — 0 stored; -99 not a slotless match bind; -1 encode error
+ * PLATFORM: MACOS|DARWIN. The copy is the existing x19 memcpy.
+ */
+function struct_lit_store_match_bind_field(
+  arena: *u8, elf_ctx: *u8, iref: i32, ctx: *u8, ta: i32, mod: *u8, store_off: i32
+): i32 {
+  let nm: u8[256] = [];
+  let matched: i32 = 0;
+  let src_off: i32 = 0;
+  let bind_off: i32 = 0;
+  let fty: i32 = 0;
+  let nbytes: i32 = 0;
+  let add_x19: u32 = 0;
+  let cell: u8[8];
+  if (ctx == (0 as *u8) || mod == (0 as *u8) || iref <= 0) {
+    return 0 - 99;
+  }
+  if (ta != 0 && ta != 1) {
+    return 0 - 99;
+  }
+  unsafe {
+    pipeline_expr_var_name_into(arena, iref, &nm[0]);
+  }
+  unsafe {
+    if (asm_ctx_local_find_offset_scoped(ctx, arena, &nm[0], pipeline_expr_var_name_len(arena, iref)) >= 0) {
+      return 0 - 99;
+    }
+    if (asm_ctx_local_find_offset(ctx, &nm[0], pipeline_expr_var_name_len(arena, iref)) >= 0) {
+      return 0 - 99;
+    }
+    if (pipeline_codegen_match_name_is_subject_field_c(mod, arena, &nm[0], pipeline_expr_var_name_len(arena, iref)) == 0) {
+      return 0 - 99;
+    }
+    matched = pipeline_codegen_match_matched_ref_c();
+  }
+  if (matched <= 0) {
+    return 0 - 99;
+  }
+  unsafe {
+    src_off = glue_var_expr_stack_off_elf_c(arena, ctx, matched);
+    bind_off = glue_field_layout_offset_for_var_base_field(arena, mod, matched, &nm[0], pipeline_expr_var_name_len(arena, iref));
+  }
+  if (src_off < 0 || bind_off < 0) {
+    return 0 - 99;
+  }
+  unsafe {
+    fty = pipeline_expr_resolved_type_ref(arena, iref);
+  }
+  if (fty <= 0) {
+    return 0 - 99;
+  }
+  unsafe {
+    nbytes = glue_type_named_layout_size_any_module_elf_c(arena, fty);
+  }
+  if (nbytes < 8) {
+    unsafe {
+      nbytes = pipeline_asm_type_ref_byte_size_c(arena, fty);
+    }
+  }
+  if (nbytes < 8) {
+    return 0 - 99;
+  }
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, backend_enc_lea_rbp_to_rax_arch(elf_ctx, src_off, ta));
+    if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+    if (bind_off != 0) {
+      pipe_store_i32_le(&cell[0], 0, backend_enc_add_imm_to_rax_arch(elf_ctx, bind_off, ta));
+      if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+    }
+    pipe_store_i32_le(&cell[0], 0, backend_enc_pop_rbx_arch(elf_ctx, ta));
+    if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+    pipe_store_i32_le(&cell[0], 0, backend_enc_push_rbx_arch(elf_ctx, ta));
+    if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+    pipe_store_i32_le(&cell[0], 0, backend_enc_append_u32_le_c(elf_ctx, 2852193267 as u32));
+    if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+    if (store_off > 0) {
+      add_x19 = (2432696947 as u32) | ((store_off as u32) * 1024);
+      pipe_store_i32_le(&cell[0], 0, backend_enc_append_u32_le_c(elf_ctx, add_x19));
+      if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+    }
+    pipe_store_i32_le(&cell[0], 0, glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, 0 - 3, nbytes, ta));
+    if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+  }
+  return 0;
+}
 
 function w254_sl_cell_i32(base: *u8): i32 {
   unsafe {
@@ -130,6 +238,7 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
   let peel_ref: i32 = 0;
   let splat_ek: i32 = 0;
   let splat_tk: i32 = 0;
+  let bind_rc: i32 = 0;
   let mod: *u8 = 0 as *u8;
   let cell: u8[8];
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || lit_ref <= 0) {
@@ -186,6 +295,18 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
       }
       fi = fi + 1;
       continue;
+    }
+    // Match bind `h` in `{ h: h }` has no slot. Copy the subject field.
+    // A real local falls through (-99). PLATFORM: MACOS|DARWIN.
+    if (iko == 3) {
+      bind_rc = struct_lit_store_match_bind_field(arena, elf_ctx, iref, ctx, ta, mod, store_off);
+      if (bind_rc == 0) {
+        fi = fi + 1;
+        continue;
+      }
+      if (bind_rc != (0 - 99)) {
+        return 0 - 1;
+      }
     }
     /*
      * INT_LIT, a kind-22 / kind-23 chain, an if (kind 25), or a
