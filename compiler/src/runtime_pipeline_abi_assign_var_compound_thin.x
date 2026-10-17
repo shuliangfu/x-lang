@@ -72,6 +72,12 @@ export extern function pipeline_asm_emit_module_ref_c(): *u8;
 export extern function pipeline_expr_field_access_base_ref(arena: *u8, expr_ref: i32): i32;
 export extern function glue_field_access_field_type_ref_c(arena: *u8, mod: *u8, fa_ref: i32): i32;
 export extern function glue_field_access_effective_offset_c(arena: *u8, mod: *u8, fa_ref: i32): i32;
+export extern function pipeline_expr_field_access_name_len(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_field_access_name_into(arena: *u8, expr_ref: i32, out: *u8): void;
+export extern function pipeline_expr_struct_lit_num_fields(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_struct_lit_field_name_len(arena: *u8, expr_ref: i32, j: i32): i32;
+export extern function pipeline_expr_struct_lit_field_name_into(arena: *u8, expr_ref: i32, j: i32, out: *u8): void;
+export extern function pipeline_expr_struct_lit_init_ref(arena: *u8, expr_ref: i32, j: i32): i32;
 export extern function backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
 
 /**
@@ -296,12 +302,71 @@ export function glue_emit_assign_rhs_elf_c(arena: *u8, elf_ctx: *u8, left_ref: i
             }
           }
         }
-        // FIELD of a local struct (`s = w.xs`). The field is [N]T.
-        // Lea the struct slot plus the field offset, then put N in the
-        // length register. A struct-literal base stays on emit_expr.
+        // FIELD of a local struct (`s = w.xs`) or a struct literal
+        // (`s = { xs: [10, 32] }.xs`). The field is [N]T.
+        // A VAR base leas the struct slot plus the field offset.
+        // A STRUCT_LIT base whose matching field is an ARRAY_LIT uses
+        // the same durable pointer plus N as a bare array literal.
         if (pipeline_expr_kind_ord_at(arena, peel) == 44) {
           let mod: *u8 = pipeline_asm_emit_module_ref_c();
           let fty: i32 = glue_field_access_field_type_ref_c(arena, mod, peel);
+          let base0: i32 = pipeline_expr_field_access_base_ref(arena, peel);
+          if (base0 > 0 && pipeline_expr_kind_ord_at(arena, base0) == 45) {
+            let fa_len: i32 = pipeline_expr_field_access_name_len(arena, peel);
+            // name_into clears 256 bytes. A 64-byte buffer overwrites the frame.
+            let fa_name: u8[256] = [];
+            let sl_name: u8[256] = [];
+            if (fa_len > 0 && fa_len <= 255) {
+              pipeline_expr_field_access_name_into(arena, peel, &fa_name[0]);
+              let nfields: i32 = pipeline_expr_struct_lit_num_fields(arena, base0);
+              let fj: i32 = 0;
+              while (fj < nfields) {
+                let sl_len: i32 = pipeline_expr_struct_lit_field_name_len(arena, base0, fj);
+                if (sl_len == fa_len) {
+                  pipeline_expr_struct_lit_field_name_into(arena, base0, fj, &sl_name[0]);
+                  let bi: i32 = 0;
+                  let same: i32 = 1;
+                  while (bi < fa_len) {
+                    if (fa_name[bi] != sl_name[bi]) {
+                      same = 0;
+                    }
+                    bi = bi + 1;
+                  }
+                  if (same != 0) {
+                    let init_ref: i32 = pipeline_expr_struct_lit_init_ref(arena, base0, fj);
+                    if (init_ref > 0 && pipeline_expr_kind_ord_at(arena, init_ref) == 46) {
+                      let n_lit: i32 = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+                      if (n_lit > 0 && n_lit <= 1024) {
+                        let elem_ty: i32 = pipeline_type_elem_ref_at(arena, decl_ty);
+                        let esz: i32 = glue_array_lit_force_esz_from_elem_type_c(arena, elem_ty);
+                        let rc: i32 = glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, init_ref, esz, ta, ctx, elem_ty);
+                        if (rc == 0) {
+                          if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) {
+                            return 0 - 1;
+                          }
+                          if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_lit, 0, ta) != 0) {
+                            return 0 - 1;
+                          }
+                          let len_reg: i32 = 2;
+                          if (ta == 1) {
+                            len_reg = 1;
+                          }
+                          if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, len_reg, ta) != 0) {
+                            return 0 - 1;
+                          }
+                          if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) {
+                            return 0 - 1;
+                          }
+                          return 0;
+                        }
+                      }
+                    }
+                  }
+                }
+                fj = fj + 1;
+              }
+            }
+          }
           if (fty > 0 && pipeline_type_kind_ord_at(arena, fty) == 10) {
             let n_arr: i32 = pipeline_type_array_size_at(arena, fty);
             let base_ref: i32 = pipeline_expr_field_access_base_ref(arena, peel);
@@ -334,6 +399,58 @@ export function glue_emit_assign_rhs_elf_c(arena: *u8, elf_ctx: *u8, left_ref: i
                   return 0 - 1;
                 }
                 return 0;
+              }
+            }
+            if (n_arr > 0 && base_ref > 0 && pipeline_expr_kind_ord_at(arena, base_ref) == 45) {
+              let fa_len: i32 = pipeline_expr_field_access_name_len(arena, peel);
+              let fa_name: u8[256] = [];
+              let sl_name: u8[256] = [];
+              if (fa_len > 0 && fa_len <= 255) {
+                pipeline_expr_field_access_name_into(arena, peel, &fa_name[0]);
+                let nfields: i32 = pipeline_expr_struct_lit_num_fields(arena, base_ref);
+                let fj: i32 = 0;
+                while (fj < nfields) {
+                  let sl_len: i32 = pipeline_expr_struct_lit_field_name_len(arena, base_ref, fj);
+                  if (sl_len == fa_len) {
+                    pipeline_expr_struct_lit_field_name_into(arena, base_ref, fj, &sl_name[0]);
+                    let bi: i32 = 0;
+                    let same: i32 = 1;
+                    while (bi < fa_len) {
+                      if (fa_name[bi] != sl_name[bi]) {
+                        same = 0;
+                      }
+                      bi = bi + 1;
+                    }
+                    if (same != 0) {
+                      let init_ref: i32 = pipeline_expr_struct_lit_init_ref(arena, base_ref, fj);
+                      if (init_ref > 0 && pipeline_expr_kind_ord_at(arena, init_ref) == 46) {
+                        let elem_ty: i32 = pipeline_type_elem_ref_at(arena, decl_ty);
+                        let esz: i32 = glue_array_lit_force_esz_from_elem_type_c(arena, elem_ty);
+                        let rc: i32 = glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, init_ref, esz, ta, ctx, elem_ty);
+                        if (rc == 0) {
+                          if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) {
+                            return 0 - 1;
+                          }
+                          if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_arr, 0, ta) != 0) {
+                            return 0 - 1;
+                          }
+                          let len_reg: i32 = 2;
+                          if (ta == 1) {
+                            len_reg = 1;
+                          }
+                          if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, len_reg, ta) != 0) {
+                            return 0 - 1;
+                          }
+                          if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) {
+                            return 0 - 1;
+                          }
+                          return 0;
+                        }
+                      }
+                    }
+                  }
+                  fj = fj + 1;
+                }
               }
             }
           }
