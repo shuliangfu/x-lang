@@ -1874,13 +1874,17 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
             }
 
           if (nd >= 0 && nd + 1 < P12G_DIM_MAX) {
-            extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + nd + 1 * 4);
+            // Byte offset of dims[nd+1]. `nd + 1 * 4` is nd+4, which
+            // matches dims[1] only when nd is 0. ndims>=1 wrote one
+            // byte into dims[nd] and the consumer wrapped that as
+            // hundreds of slices (`**[2]*i32`).
+            extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + (nd + 1) * 4);
             if (extra < 0) {
               extra = 0;
             }
             extra = extra + 1;
             if (extra < P12G_DIM_MAX) {
-              p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + nd + 1 * 4, extra);
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + (nd + 1) * 4, extra);
             }
             // stay ret_elem_elem_pending to capture leaf T
           } else {
@@ -1904,13 +1908,14 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
             }
 
           if (nd > 0 && nd + 1 < P12G_DIM_MAX) {
-            extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + nd + 1 * 4);
+            // Same byte-offset as the PTR-elem arm: dims[nd+1].
+            extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + (nd + 1) * 4);
             if (extra < 0) {
               extra = 0;
             }
             extra = extra + 1;
             if (extra < P12G_DIM_MAX) {
-              p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + nd + 1 * 4, extra);
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + (nd + 1) * 4, extra);
             }
             // stay ret_elem_elem_pending to capture leaf T
           } else {
@@ -2047,7 +2052,17 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
               if (p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4) != P12G_TY_PTR || p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_KINDS + mi * 4) != P12G_TY_PTR) {
                 nd = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4);
                 if (nd == 0) {
-                  p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4, P12G_ELEM_PTR_TO_SLICE_NDIMS);
+                  // `*[]*T` already stored the extra STAR in dims[0].
+                  // ndims stays 0 so the consumer wraps a pointer.
+                  // Stamping -2 reads dims[0] as an extra slice
+                  // (`*[][]i32`). An empty extra `[]` sets -2 itself.
+                  extra = 0;
+                  if (p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4) == P12G_TY_SLICE && p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_KINDS + mi * 4) == P12G_TY_PTR) {
+                    extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + 0 * 4);
+                  }
+                  if (extra <= 0) {
+                    p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4, P12G_ELEM_PTR_TO_SLICE_NDIMS);
+                  }
                 }
               }
             }
@@ -2144,13 +2159,16 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
               ret_elem_dim_n = 0;
               ret_elem_elem_pending = 1;
             } else if (nd > 0 && nd + 1 < P12G_DIM_MAX) {
-              extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + nd + 1 * 4);
+              // Extra empty `[]` is dims[nd+1]. `nd + 1 * 4` wrote
+              // into dims[nd] and the consumer wrapped that count
+              // as pointers (`*[][2][]i32`).
+              extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + (nd + 1) * 4);
               if (extra < 0) {
                 extra = 0;
               }
               extra = extra + 1;
               if (extra < P12G_DIM_MAX) {
-                p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + nd + 1 * 4, extra);
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + (nd + 1) * 4, extra);
               }
               ret_elem_arr_need_size = 0;
               ret_elem_prefix_arr_more = 0;
