@@ -63,8 +63,13 @@ export extern "C" function pipeline_expr_array_lit_num_elems_at(
  * stores those lanes. Named u32x4 is kind 8, five bytes,
  * u 3 2 x 4. The same address check leaves that then arm as
  * an i32 array. Stamp a 4-elem array arm with that u32x4
- * pointee. The value form already stores those lanes. f32x4
- * stays unstamped. PLATFORM: SHARED.
+ * pointee. The value form already stores those lanes. Named
+ * f32x4 is kind 8, five bytes, f 3 2 x 4. The same address
+ * check leaves that then arm as a float array. A named arm
+ * and that array are not the same type, so the demoted pair
+ * check fails. Stamp a 4-elem array arm with that f32x4
+ * pointee. The value form already stores those lanes.
+ * Vec4f stays unstamped. PLATFORM: SHARED.
  */
 #[no_mangle]
 export function typeck_check_expr_if_ternary(
@@ -94,7 +99,8 @@ export function typeck_check_expr_if_ternary(
      * already stores. Stamp it before the demoted pair check.
      * Named f32x8 is f 3 2 x 8. Named u32x8 is u 3 2 x 8.
      * Named i32x4 is i 3 2 x 4 and asks for 4 elems. Named
-     * u32x4 is u 3 2 x 4 and asks for 4 elems. f32x4 stays
+     * u32x4 is u 3 2 x 4 and asks for 4 elems. Named f32x4
+     * is f 3 2 x 4 and asks for 4 elems. Vec4f stays
      * unstamped. A kind-25 if does not enter. PLATFORM: SHARED.
      */
     if (arena != 0 as *u8) {
@@ -231,14 +237,43 @@ export function typeck_check_expr_if_ternary(
                  * array and the ternary keeps that then type.
                  * Kind 27 does not read the pointee later.
                  * The value form already stores each lane.
-                 * Four elements, not eight. f32x4 is f 3 2 x 4
+                 * Four elements, not eight. Kind 25 does not
+                 * enter. PLATFORM: SHARED.
+                 */
+                if (hit == 0) {
+                  if (pk == 8) {
+                    if (nlen == 5) {
+                      if (nm[0] == 117) {
+                        if (nm[1] == 51) {
+                          if (nm[2] == 50) {
+                            if (nm[3] == 120) {
+                              if (nm[4] == 52) {
+                                hit = 1;
+                                want_n = 4;
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+                /*
+                 * Named f32x4 is f 3 2 x 4. The address expected
+                 * type is the pointer, so the array arm is a float
+                 * array. A named arm is f32x4, and the demoted pair
+                 * check rejects that mismatch. Both array arms stay
+                 * a float array and codegen sees that array.
+                 * Kind 27 does not read the pointee later.
+                 * The value form already stores each lane.
+                 * Four elements, not eight. Vec4f is V e c 4 f
                  * and stays unstamped. Kind 25 does not enter.
                  * PLATFORM: SHARED.
                  */
                 if (hit == 0) {
                   if (pk == 8) {
                     if (nlen == 5) {
-                      if (nm[0] == 117) {
+                      if (nm[0] == 102) {
                         if (nm[1] == 51) {
                           if (nm[2] == 50) {
                             if (nm[3] == 120) {
