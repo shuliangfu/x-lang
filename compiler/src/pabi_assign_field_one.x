@@ -49,6 +49,7 @@ export extern function glue_field_access_field_type_ref_c(
 export extern function glue_type_named_layout_size_any_module_elf_c(
   arena: *u8, ty_ref: i32
 ): i32;
+export extern function glue_sysv_dual_gp_byte_size_c(arena: *u8, ty_ref: i32): i32;
 export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
 export extern function pipeline_expr_field_access_base_ref(
   arena: *u8, expr_ref: i32
@@ -266,6 +267,13 @@ function assign_field_one_wide(
         pre = 1;
       }
     }
+  }
+  // CALL (48) wider than 16 on arm64. The later block puts the dest
+  // in x0 and shifts GP args. That is the Windows hidden pointer.
+  // AAPCS64 wants the pointer in x8. struct let-init already does
+  // that when the dest is in x19. PLATFORM: MACOS|ARM64.
+  if (pre == 0 && ta == 1 && wide_local != 0 && rk == 48) {
+    pre = 1;
   }
   if (pre != 0) {
     unsafe {
@@ -551,8 +559,22 @@ function assign_field_one_simd16(
   }
   simd = assign_field_cell_i32(&cell[0]);
   if (simd == 0) {
-    return 0 - 99;
-  }
+    // A local Pair is not a vector, but it is still a 16-byte x0:x1
+    // value. The one-GPR store pushes only x0 and then puts the field
+    // address in x1, so b stays 0 after h.s = p. The wider-than-16
+    // arm below returns -99 when lanes * esz is not 16, so this arm
+    // uses a 16-by-1 shape. That skips the 4-byte lane writers and
+    // reaches the pair store. Any other width keeps the one-GPR store.
+    // PLATFORM: MACOS|ARM64.
+    unsafe {
+      pipe_store_i32_le(&cell[0], 0, glue_sysv_dual_gp_byte_size_c(arena, fty));
+    }
+    if (assign_field_cell_i32(&cell[0]) != 16) {
+      return 0 - 99;
+    }
+    lanes = 16;
+    esz = 1;
+  } else {
   unsafe {
     pipe_store_i32_le(&cell[0], 0, glue_vector_type_lanes_esz_c(
       arena, fty, &lanes_s[0], &esz_s[0]));
@@ -563,6 +585,7 @@ function assign_field_one_simd16(
   }
   lanes = lanes_s[0];
   esz = esz_s[0];
+  }
   // ARRAY_LIT (kind 46) leaves the payload address in x0. The 16-byte
   // pair store writes that address into x0:x1. Wider than 16 misses
   // the arms below and the scalar store writes it with str w. Lane 0
@@ -962,6 +985,26 @@ export function glue_emit_assign_field_elf_c(
         pipe_store_i32_le(&rccell[0], 0, assign_field_one_wide(
           arena, elf_ctx, left_ref, right_ref, ctx, ta, fty, wide, wide_local,
           ptr_base, &hcell[0]));
+      }
+      handled = assign_field_cell_i32(&hcell[0]);
+      rc = assign_field_cell_i32(&rccell[0]);
+      if (handled != 0) {
+        return rc;
+      }
+    }
+  }
+  // A field wider than 16 bytes is the same dest-in-x19 copy the
+  // x86 arm already uses. Trip and Quad are not 16-byte pairs.
+  // PLATFORM: MACOS|ARM64.
+  if (ek == 28 && ta == 1) {
+    assign_field_one_flags(arena, ctx, left_ref, &ftycell[0], &widecell[0], &wlocell[0], &ptrcell[0]);
+    fty = assign_field_cell_i32(&ftycell[0]);
+    wide = assign_field_cell_i32(&widecell[0]);
+    if (wide > 16) {
+      unsafe {
+        pipe_store_i32_le(&hcell[0], 0, 0);
+        pipe_store_i32_le(&rccell[0], 0, assign_field_one_wide(
+          arena, elf_ctx, left_ref, right_ref, ctx, ta, fty, wide, 1, 0, &hcell[0]));
       }
       handled = assign_field_cell_i32(&hcell[0]);
       rc = assign_field_cell_i32(&rccell[0]);
