@@ -594,6 +594,106 @@ function w643_rs_named_init(arena: *u8, lit: i32, fa: i32): i32 {
 }
 
 /**
+ * Add one field's byte offset onto acc.
+ * A missing offset, a negative offset, or a sum above 4095 returns
+ * -1. The add-immediate that consumes the sum is 12 bits. A
+ * non-positive field returns -1. Does not emit.
+ * @param arena *u8 — AST arena; null returns -1
+ * @param mod *u8 — module that owns the field layout; null returns -1
+ * @param fa i32 — FIELD expr; <=0 returns -1
+ * @param acc i32 — offset so far; negative returns -1
+ * @return i32 — acc + field offset, or -1
+ * PLATFORM: MACOS|ARM64.
+ */
+function w645_rs_acc_field_off(arena: *u8, mod: *u8, fa: i32, acc: i32): i32 {
+  let hop: i32 = 0;
+  if (arena == (0 as *u8) || mod == (0 as *u8) || fa <= 0 || acc < 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    hop = glue_field_access_effective_offset_c(arena, mod, fa);
+  }
+  if (hop < 0 || hop > 4095) {
+    return 0 - 1;
+  }
+  if (acc > (4095 - hop)) {
+    return 0 - 1;
+  }
+  return acc + hop;
+}
+
+/**
+ * Address of a local struct used as a struct-literal field init,
+ * plus the offsets of the fields inside that local.
+ * f_leaf is the returned field. f_mid and f_outer are the fields
+ * between that local and the leaf, or 0 when that hop is absent.
+ * The field whose init is the local is not added: that offset sits
+ * in the literal, not in the local. A pointer or slice local
+ * returns 1 so the caller stays on emit_expr. A failed lvalue
+ * returns 1. An encoder error returns -1.
+ * EXPR_VAR = 3. TYPE_POINTER = 9. TYPE_SLICE = 11.
+ * @param arena *u8 — AST arena; null returns 1
+ * @param elf_ctx *u8 — encoder context
+ * @param ctx *u8 — asm function context
+ * @param ta i32 — 1 arm64
+ * @param mod *u8 — module that owns the field layout; null returns 1
+ * @param var_er i32 — VAR init expr; <=0 returns 1
+ * @param f_leaf i32 — returned FIELD; <=0 returns 1
+ * @param f_mid i32 — inner FIELD closer than the local, or 0
+ * @param f_outer i32 — FIELD between f_mid and the local, or 0
+ * @return i32 — 0 address in x0; 1 decline; -1 encoder fail
+ * PLATFORM: MACOS|ARM64.
+ */
+function w645_rs_lea_local_fields(
+  arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32, mod: *u8,
+  var_er: i32, f_leaf: i32, f_mid: i32, f_outer: i32
+): i32 {
+  let off: i32 = 0;
+  let ty: i32 = 0;
+  let k: i32 = 0;
+  let rc: i32 = 0;
+  if (var_er <= 0 || f_leaf <= 0 || mod == (0 as *u8)) {
+    return 1;
+  }
+  unsafe {
+    ty = glue_var_decl_type_ref_elf_c(arena, ctx, var_er);
+  }
+  if (ty > 0) {
+    unsafe {
+      k = pipeline_type_kind_ord_at(arena, ty);
+    }
+    if (k == 9 || k == 11) {
+      return 1;
+    }
+  }
+  off = w645_rs_acc_field_off(arena, mod, f_leaf, 0);
+  if (f_mid > 0 && off >= 0) {
+    off = w645_rs_acc_field_off(arena, mod, f_mid, off);
+  }
+  if (f_outer > 0 && off >= 0) {
+    off = w645_rs_acc_field_off(arena, mod, f_outer, off);
+  }
+  if (off < 0) {
+    return 1;
+  }
+  unsafe {
+    rc = pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, var_er, ctx, ta);
+  }
+  if (rc != 0) {
+    return 1;
+  }
+  if (off != 0) {
+    unsafe {
+      rc = backend_enc_add_imm_to_rax_arch(elf_ctx, off, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+  }
+  return 0;
+}
+
+/**
  * EXPR_RETURN ELF emit: operand into rax/x0, arm64 sret copy, then jmp
  * function tail_join (AsmFuncCtxLayout name at 1392, length at 1520).
  * A 9..16 byte named field is loaded with pipeline_asm_deref_struct16
@@ -638,8 +738,11 @@ function w643_rs_named_init(arena: *u8, lit: i32, fa: i32): i32 {
  * than four fields stays on emit_expr. A FIELD whose root is a
  * STRUCT_LIT durables an ARRAY_LIT init, or takes the address of a
  * VAR init. A parent field (`return { inn: { xs: [...] } }.inn.xs`)
- * must itself be a STRUCT_LIT init. The walk is at most three
- * parents. Any other STRUCT_LIT init stays on emit_expr.
+ * walks a STRUCT_LIT init. A parent whose init is a local struct
+ * (`return { inn: src }.inn.xs`) takes that local's address plus
+ * the fields inside it, not the literal's own field offset. The
+ * walk is at most three parents. Any other STRUCT_LIT init stays on
+ * emit_expr.
  * A FIELD whose type is TYPE_NAMED, whose return is wider than 16
  * bytes, and whose base is INDEX (`return a[1].s`) leas that element
  * and adds the field offset. A local `return w.s` already leaves the
@@ -1938,7 +2041,9 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
        * root durables an ARRAY_LIT init, or takes a VAR init's
        * address. A parent field
        * (`return { inn: { xs: [...] } }.inn.xs`) walks that init
-       * when it is also a STRUCT_LIT, at most three parents deep.
+       * when it is also a STRUCT_LIT. A parent init that is a local
+       * struct (`return { inn: src }.inn.xs`) takes that local's
+       * address plus the fields inside it. At most three parents.
        * A field past the fourth slot, a pointer element, a slice
        * element, a pointer field, a pointer root, or a fifth field
        * stays on emit_expr.
@@ -2138,10 +2243,14 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                           /* STRUCT_LIT root (`return { xs: [...] }.xs`, or
                            * `return { inn: { xs: [...] } }.inn.xs`).
                            * The array is the leaf field init, not a byte
-                           * offset into a slot. Parent inits must be
-                           * STRUCT_LIT. Durable an ARRAY_LIT leaf. A VAR
-                           * leaf is that local's address. A field past
-                           * the fourth slot stays on emit_expr.
+                           * offset into a slot. A STRUCT_LIT parent is
+                           * walked. A VAR parent
+                           * (`return { inn: src }.inn.xs`) is that local
+                           * plus the fields inside it, not the literal
+                           * field's own offset. Durable an ARRAY_LIT
+                           * leaf. A VAR leaf is that local array's
+                           * address. A field past the fourth slot stays
+                           * on emit_expr.
                            * EXPR_STRUCT_LIT = 45. EXPR_ARRAY_LIT = 46.
                            * EXPR_VAR = 3. PLATFORM: MACOS|ARM64. */
                           if (opk_d == 45 && dur_ok == 0) {
@@ -2185,6 +2294,21 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                                 if (opk_d == 45) {
                                   step_ok = 1;
                                 }
+                                /* fa3's init is the local. Offsets inside
+                                 * it are fa2, fa1, and the leaf.
+                                 * PLATFORM: MACOS|ARM64. */
+                                if (opk_d == 3 && dur_ok == 0) {
+                                  unsafe {
+                                    rc = w645_rs_lea_local_fields(
+                                      arena, elf_ctx, ctx, ta, mod_d, cur, ret_op, fa1, fa2);
+                                  }
+                                  if (rc < 0) {
+                                    return 0 - 1;
+                                  }
+                                  if (rc == 0) {
+                                    dur_ok = 1;
+                                  }
+                                }
                               }
                             }
                             if (step_ok != 0 && nb >= 2) {
@@ -2197,6 +2321,21 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                                 if (opk_d == 45) {
                                   step_ok = 1;
                                 }
+                                /* fa2's init is the local. Offsets inside
+                                 * it are fa1 and the leaf.
+                                 * PLATFORM: MACOS|ARM64. */
+                                if (opk_d == 3 && dur_ok == 0) {
+                                  unsafe {
+                                    rc = w645_rs_lea_local_fields(
+                                      arena, elf_ctx, ctx, ta, mod_d, cur, ret_op, fa1, 0);
+                                  }
+                                  if (rc < 0) {
+                                    return 0 - 1;
+                                  }
+                                  if (rc == 0) {
+                                    dur_ok = 1;
+                                  }
+                                }
                               }
                             }
                             if (step_ok != 0 && nb >= 1) {
@@ -2208,6 +2347,21 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                                 }
                                 if (opk_d == 45) {
                                   step_ok = 1;
+                                }
+                                /* fa1's init is the local. The only offset
+                                 * inside it is the leaf field.
+                                 * PLATFORM: MACOS|ARM64. */
+                                if (opk_d == 3 && dur_ok == 0) {
+                                  unsafe {
+                                    rc = w645_rs_lea_local_fields(
+                                      arena, elf_ctx, ctx, ta, mod_d, cur, ret_op, 0, 0);
+                                  }
+                                  if (rc < 0) {
+                                    return 0 - 1;
+                                  }
+                                  if (rc == 0) {
+                                    dur_ok = 1;
+                                  }
                                 }
                               }
                             }
