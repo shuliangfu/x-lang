@@ -68,6 +68,11 @@ export extern function glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx: *u8, ta: i3
 export extern function backend_enc_mov_rax_to_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i32): i32;
 export extern function backend_enc_lea_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
 export extern function pipeline_type_array_size_at(arena: *u8, type_ref: i32): i32;
+export extern function pipeline_asm_emit_module_ref_c(): *u8;
+export extern function pipeline_expr_field_access_base_ref(arena: *u8, expr_ref: i32): i32;
+export extern function glue_field_access_field_type_ref_c(arena: *u8, mod: *u8, fa_ref: i32): i32;
+export extern function glue_field_access_effective_offset_c(arena: *u8, mod: *u8, fa_ref: i32): i32;
+export extern function backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
 
 /**
  * File-scope scalar assign: value (plain or compound) into rax, then store
@@ -288,6 +293,48 @@ export function glue_emit_assign_rhs_elf_c(arena: *u8, elf_ctx: *u8, left_ref: i
                 return 0 - 1;
               }
               return 0;
+            }
+          }
+        }
+        // FIELD of a local struct (`s = w.xs`). The field is [N]T.
+        // Lea the struct slot plus the field offset, then put N in the
+        // length register. A struct-literal base stays on emit_expr.
+        if (pipeline_expr_kind_ord_at(arena, peel) == 44) {
+          let mod: *u8 = pipeline_asm_emit_module_ref_c();
+          let fty: i32 = glue_field_access_field_type_ref_c(arena, mod, peel);
+          if (fty > 0 && pipeline_type_kind_ord_at(arena, fty) == 10) {
+            let n_arr: i32 = pipeline_type_array_size_at(arena, fty);
+            let base_ref: i32 = pipeline_expr_field_access_base_ref(arena, peel);
+            if (n_arr > 0 && base_ref > 0 && pipeline_expr_kind_ord_at(arena, base_ref) == 3) {
+              let boff: i32 = glue_var_expr_stack_off_elf_c(arena, ctx, base_ref);
+              let foff: i32 = glue_field_access_effective_offset_c(arena, mod, peel);
+              if (boff >= 0 && foff >= 0) {
+                if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, boff, ta) != 0) {
+                  return 0 - 1;
+                }
+                if (foff != 0) {
+                  if (backend_enc_add_imm_to_rax_arch(elf_ctx, foff, ta) != 0) {
+                    return 0 - 1;
+                  }
+                }
+                if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) {
+                  return 0 - 1;
+                }
+                if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_arr, 0, ta) != 0) {
+                  return 0 - 1;
+                }
+                let len_reg: i32 = 2;
+                if (ta == 1) {
+                  len_reg = 1;
+                }
+                if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, len_reg, ta) != 0) {
+                  return 0 - 1;
+                }
+                if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) {
+                  return 0 - 1;
+                }
+                return 0;
+              }
             }
           }
         }
