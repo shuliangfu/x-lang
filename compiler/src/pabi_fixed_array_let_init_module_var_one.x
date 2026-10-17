@@ -558,6 +558,21 @@ export function glue_emit_fixed_array_type_let_init_elf_c(
       return fa_emit_match_fixed_array(
         arena, elf_ctx, init_ref, ctx, ta, type_ref, stack_slot_off);
     }
+    // IF / ternary whose arms are array literals (`*p = if (c) { [w] }
+    // else { [y] }`). The arm helper used to see ARRAY_LIT after the
+    // block peel and fail the module. Struct let-init already emits
+    // the condition and stores an ARRAY_LIT arm through
+    // fa_array_lit_into_rbx. A decline (-2) keeps the field store.
+    // PLATFORM: SHARED dest-in-rbx IF of ARRAY_LIT.
+    if ((kind == 25 || kind == 27) && stack_slot_off == (0 - 3)) {
+      unsafe {
+        st = glue_emit_struct_type_let_init_elf_c(
+            arena, elf_ctx, init_ref, ctx, ta, type_ref, stack_slot_off);
+      }
+      if (st != (0 - 2)) {
+        return st;
+      }
+    }
   }
   if (st == 0) {
     // A SIMD type is not TYPE_ARRAY. A match arm of an array

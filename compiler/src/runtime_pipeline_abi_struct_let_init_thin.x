@@ -54,6 +54,15 @@ export extern function pipeline_expr_if_cond_ref_at(arena: *u8, expr_ref: i32): 
 export extern function pipeline_expr_if_else_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_if_then_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_kind_ord_at(a: *u8, er: i32): i32;
+export extern function pipeline_expr_block_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function ast_ast_block_num_lets(arena: *u8, block_ref: i32): i32;
+export extern function ast_ast_block_num_loops(arena: *u8, block_ref: i32): i32;
+export extern function ast_ast_block_final_expr_ref(arena: *u8, block_ref: i32): i32;
+export extern function pipeline_type_array_size_at(arena: *u8, ty_ref: i32): i32;
+export extern function pipeline_type_elem_ref_at(arena: *u8, ty_ref: i32): i32;
+export extern function glue_array_lit_force_esz_from_elem_type_c(arena: *u8, et: i32): i32;
+export extern function glue_index_elem_byte_sz_from_type_ref_c(arena: *u8, tr: i32): i32;
+export extern function fa_array_lit_into_rbx(arena: *u8, elf_ctx: *u8, src: i32, ctx: *u8, ta: i32, n_arr: i32, esz: i32): i32;
 export extern function pipeline_expr_resolved_type_ref(a: *u8, er: i32): i32;
 export extern function pipeline_expr_var_name_into(a: *u8, er: i32, out: *u8): void;
 export extern function pipeline_expr_var_name_len(a: *u8, er: i32): i32;
@@ -152,6 +161,91 @@ export extern function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf_c
  * @return i32 - 0 stored, -1 encode or arm failure, -2 not this store.
  * PLATFORM: MACOS|ARM64 live path. The copy rule is SHARED.
  */
+/**
+ * Emit one dest-in-rbx IF arm.
+ * A bare ARRAY_LIT, or a block whose only value is an ARRAY_LIT,
+ * is not a value emit_expr can return. fa_array_lit_into_rbx fills a
+ * frame slot and copies it through the dest already in rbx. Blocks
+ * that also have lets or loops stay on the existing arm helper.
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — encoder context
+ * @param arm_ref i32 — then or else arm
+ * @param ctx *u8 — AsmFuncCtx
+ * @param ta i32 — 0 x86_64, 1 arm64
+ * @param let_ty_ref i32 — destination type; TYPE_ARRAY when the arm is an array literal
+ * @param dest_spill i32 — frame slot holding the dest pointer
+ * @return i32 — 0 stored, -1 encode failure
+ * PLATFORM: SHARED. Dest is already in rbx / x19.
+ */
+#[no_mangle]
+export function sli_emit_if_arm_or_array_elf_c(
+  arena: *u8, elf_ctx: *u8, arm_ref: i32, ctx: *u8, ta: i32, let_ty_ref: i32, dest_spill: i32
+): i32 {
+  let cur: i32 = arm_ref;
+  let ko: i32 = 0;
+  let br: i32 = 0;
+  let nlet: i32 = 0;
+  let nloop: i32 = 0;
+  let fin: i32 = 0;
+  let depth: i32 = 0;
+  let n_arr: i32 = 0;
+  let esz: i32 = 0;
+  let elem: i32 = 0;
+  if (arena == 0 as *u8 || arm_ref <= 0) {
+    return 0 - 1;
+  }
+  // EXPR_BLOCK = 26. Peel value blocks only. A let or a loop still
+  // belongs to glue_emit_if_arm_dest_in_rbx_elf_c.
+  while (depth < 4) {
+    unsafe {
+      ko = pipeline_expr_kind_ord_at(arena, cur);
+    }
+    if (ko != 26) {
+      break;
+    }
+    unsafe {
+      br = pipeline_expr_block_ref_at(arena, cur);
+    }
+    if (br <= 0) {
+      break;
+    }
+    unsafe {
+      nlet = ast_ast_block_num_lets(arena, br);
+      nloop = ast_ast_block_num_loops(arena, br);
+      fin = ast_ast_block_final_expr_ref(arena, br);
+    }
+    if (nlet != 0 || nloop != 0 || fin <= 0) {
+      break;
+    }
+    cur = fin;
+    depth = depth + 1;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, cur);
+  }
+  // ARRAY_LIT = 46. Same fill as `*p = [w]` / match arms.
+  if (ko == 46 && let_ty_ref > 0) {
+    unsafe {
+      n_arr = pipeline_type_array_size_at(arena, let_ty_ref);
+      elem = pipeline_type_elem_ref_at(arena, let_ty_ref);
+      esz = glue_array_lit_force_esz_from_elem_type_c(arena, elem);
+    }
+    if (esz <= 0) {
+      unsafe {
+        esz = glue_index_elem_byte_sz_from_type_ref_c(arena, let_ty_ref);
+      }
+    }
+    if (n_arr > 0 && esz > 0) {
+      unsafe {
+        return fa_array_lit_into_rbx(arena, elf_ctx, cur, ctx, ta, n_arr, esz);
+      }
+    }
+  }
+  unsafe {
+    return glue_emit_if_arm_dest_in_rbx_elf_c(arena, elf_ctx, arm_ref, ctx, ta, let_ty_ref, dest_spill);
+  }
+}
+
 #[no_mangle]
 export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, let_ty_ref: i32, stack_slot_off: i32): i32 {
   // The wave713 body called externs outside unsafe (legacy pabi mode).
@@ -327,7 +421,7 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
     if (rc != 0) {
       return 0 - 1;
     }
-    arm_rc = glue_emit_if_arm_dest_in_rbx_elf_c(arena, elf_ctx, if_then, ctx, ta, ty_ref, dest_spill);
+    arm_rc = sli_emit_if_arm_or_array_elf_c(arena, elf_ctx, if_then, ctx, ta, ty_ref, dest_spill);
     if (arm_rc != 0) {
       return 0 - 1;
     }
@@ -356,7 +450,7 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
       if (rc != 0) {
         return 0 - 1;
       }
-      arm_rc = glue_emit_if_arm_dest_in_rbx_elf_c(arena, elf_ctx, if_else, ctx, ta, ty_ref, dest_spill);
+      arm_rc = sli_emit_if_arm_or_array_elf_c(arena, elf_ctx, if_else, ctx, ta, ty_ref, dest_spill);
       if (arm_rc != 0) {
         return 0 - 1;
       }
