@@ -60,6 +60,12 @@ export extern function glue_var_expr_stack_off_elf_c(arena: *u8, ctx: *u8, var_e
 export extern function glue_field_layout_offset_for_var_base_field(arena: *u8, mod: *u8, base_var_ref: i32, field_name: *u8, flen: i32): i32;
 export extern function backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
 export extern function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_struct_lit_type_name_len(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_struct_lit_type_name_set(arena: *u8, expr_ref: i32, name: *u8, name_len: i32): void;
+export extern function pipeline_type_named_name_into(arena: *u8, type_ref: i32, out: *u8): i32;
+export extern function pipeline_expr_array_lit_num_elems_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_array_lit_elem_ref(arena: *u8, expr_ref: i32, index: i32): i32;
+export extern function pipeline_expr_set_resolved_type_ref(arena: *u8, expr_ref: i32, ty: i32): void;
 
 /**
  * Copy a match-bound aggregate into one STRUCT_LIT field.
@@ -166,6 +172,108 @@ function w254_sl_cell_i32(base: *u8): i32 {
 }
 
 /**
+ * Copy a TYPE_NAMED type's name onto an anonymous STRUCT_LIT.
+ * A lit that already has a type name is unchanged. A type that is
+ * not kind 8, or a name outside 1..255, does nothing. Field offset
+ * and the array element stride both key off that name. Without it,
+ * `{ inn: { xs: [ { a: 5, b: 6 }, { a: 50, b: 49 } ] } }` places the
+ * next element 4 bytes later, so xs[0].b reads 50.
+ * @param arena *u8 — AST arena; null returns 0
+ * @param lit_ref i32 — STRUCT_LIT expr; <=0 returns 0
+ * @param ty_ref i32 — expected type; <=0 returns 0
+ * @return i32 — 1 when the lit has a name afterwards, else 0
+ * PLATFORM: MACOS|DARWIN.
+ */
+function w636_sl_stamp_named(arena: *u8, lit_ref: i32, ty_ref: i32): i32 {
+  let nlen: i32 = 0;
+  let k: i32 = 0;
+  let buf: u8[256] = [];
+  if (arena == (0 as *u8) || lit_ref <= 0 || ty_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    nlen = pipeline_expr_struct_lit_type_name_len(arena, lit_ref);
+  }
+  if (nlen > 0) {
+    return 1;
+  }
+  unsafe {
+    k = pipeline_type_kind_ord_at(arena, ty_ref);
+  }
+  if (k != 8) {
+    return 0;
+  }
+  unsafe {
+    nlen = pipeline_type_named_name_into(arena, ty_ref, &buf[0]);
+  }
+  if (nlen <= 0 || nlen > 255) {
+    return 0;
+  }
+  unsafe {
+    pipeline_expr_struct_lit_type_name_set(arena, lit_ref, &buf[0], nlen);
+  }
+  return 1;
+}
+
+/**
+ * Name each anonymous STRUCT_LIT element of an ARRAY_LIT from the
+ * field element type. The field type must be TYPE_ARRAY (kind 10)
+ * of a TYPE_NAMED element. Other shapes write nothing. At most 64
+ * elements, the same cap as the field loop.
+ * @param arena *u8 — AST arena; null returns 0
+ * @param arr_ref i32 — ARRAY_LIT expr; <=0 returns 0
+ * @param field_ty i32 — layout type of the field being stored
+ * @return i32 — how many elements now have a name
+ * PLATFORM: MACOS|DARWIN.
+ */
+function w636_sl_stamp_array_elems(arena: *u8, arr_ref: i32, field_ty: i32): i32 {
+  let k: i32 = 0;
+  let elem_ty: i32 = 0;
+  let n: i32 = 0;
+  let i: i32 = 0;
+  let er: i32 = 0;
+  let stamped: i32 = 0;
+  if (arena == (0 as *u8) || arr_ref <= 0 || field_ty <= 0) {
+    return 0;
+  }
+  unsafe {
+    k = pipeline_type_kind_ord_at(arena, field_ty);
+  }
+  if (k != 10) {
+    return 0;
+  }
+  unsafe {
+    elem_ty = pipeline_type_elem_ref_at(arena, field_ty);
+  }
+  if (elem_ty <= 0) {
+    return 0;
+  }
+  unsafe {
+    n = pipeline_expr_array_lit_num_elems_at(arena, arr_ref);
+  }
+  if (n <= 0 || n > 64) {
+    return 0;
+  }
+  while (i < n) {
+    unsafe {
+      er = pipeline_expr_array_lit_elem_ref(arena, arr_ref, i);
+    }
+    if (er > 0) {
+      unsafe {
+        k = pipeline_expr_kind_ord_at(arena, er);
+      }
+      if (k == 45) {
+        if (w636_sl_stamp_named(arena, er, elem_ty) != 0) {
+          stamped = stamped + 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return stamped;
+}
+
+/**
  * Store each STRUCT_LIT field into the base parked in rbx/x19.
  * Nested STRUCT_LIT (kind 45) recurses. Other inits are emitted, then
  * stored. VAR, FIELD, INDEX, CALL, and METHOD of 9..16 bytes spill the
@@ -261,6 +369,14 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
       mod = pipeline_asm_emit_module_ref_c();
     }
   }
+  /* A let `let o: Outer = { ... }` may already have stamped the name.
+   * If only the resolved type is set, copy that name so field lookup
+   * can see Inner and the array element type. PLATFORM: MACOS|DARWIN. */
+  fty = 0;
+  unsafe {
+    fty = pipeline_expr_resolved_type_ref(arena, lit_ref);
+  }
+  w636_sl_stamp_named(arena, lit_ref, fty);
   unsafe {
     nf = pipeline_expr_struct_lit_num_fields(arena, lit_ref);
   }
@@ -295,6 +411,17 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
       iko = pipeline_expr_kind_ord_at(arena, iref);
     }
     if (iko == 45) {
+      /* Anonymous `{ inn: { xs: [ ... ] } }` has no type name, so the
+       * inner field lookup misses and the array stride stays 4.
+       * The parent field type is the named struct. Stamp that name
+       * before the recursive store. PLATFORM: MACOS|DARWIN. */
+      fty = 0;
+      if (mod != (0 as *u8)) {
+        unsafe {
+          fty = pipeline_expr_struct_lit_field_type_ref_at(arena, mod, lit_ref, fi);
+        }
+      }
+      w636_sl_stamp_named(arena, iref, fty);
       if (win_emit_struct_lit_fields_into_parked_rbx(arena, elf_ctx, iref, ctx, ta, store_off) != 0) {
         return 0 - 1;
       }
@@ -568,6 +695,30 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
     if (fsz <= 0) {
       fi = fi + 1;
       continue;
+    }
+    if (iko == 46 && mod != (0 as *u8)) {
+      fty = 0;
+      unsafe {
+        fty = pipeline_expr_struct_lit_field_type_ref_at(arena, mod, lit_ref, fi);
+      }
+      /* Anonymous `{ a: 5, b: 6 }` elements take a 4-byte stride.
+       * Naming them from the array element type makes emit_expr use
+       * the struct layout. PLATFORM: MACOS|DARWIN. */
+      w636_sl_stamp_array_elems(arena, iref, fty);
+      /* The array stride is the ARRAY_LIT resolved element type.
+       * An unstamped lit falls back to 4 bytes, so the next struct
+       * element overwrites the previous one's second field. The
+       * field type is that array. PLATFORM: MACOS|DARWIN. */
+      if (fty > 0) {
+        unsafe {
+          splat_tk = pipeline_type_kind_ord_at(arena, fty);
+        }
+        if (splat_tk == 10) {
+          unsafe {
+            pipeline_expr_set_resolved_type_ref(arena, iref, fty);
+          }
+        }
+      }
     }
     unsafe {
       pipe_store_i32_le(&cell[0], 0, pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, iref, ctx, ta));
