@@ -79,9 +79,10 @@ let g_w2060_emit_let_vn: u8[256] = [];
  * pointer as *i32x4 or *f32x4 or *Vec8i. This emitter writes the declared
  * pointer onto that ADDR_OF before emit, so the addr peel can
  * see the SIMD pointee. Kind 25 stamps when the pointee is
- * Vec8i, named i32x8, named u32x8, named f32x8, or named
- * f32x4. Named f32x4 is kind 8 and the bytes f 3 2 x 4.
- * Vec4f and i32x4 stay unstamped here. The splat store
+ * Vec8i, named i32x8, named u32x8, named f32x8, named
+ * f32x4, or named Vec4f. Named f32x4 is kind 8 and the
+ * bytes f 3 2 x 4. Named Vec4f is kind 8 and the bytes
+ * V e c 4 f. i32x4 stays unstamped here. The splat store
  * stays in the addr emitter.
  * PLATFORM: SHARED freestanding emit. Darwin ARM64 measured.
  */
@@ -427,12 +428,13 @@ export function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_re
             // the ADDR_OF pointee as a non-SIMD type, so the peel
             // never sees the declared vector. The declared pointer
             // is that type. Stamp it for Vec8i, named i32x8,
-            // named u32x8, or named f32x8: kind 8 whose name is
-            // one of those, or kind 13 with 8 lanes of 4-byte i32.
-            // Named f32x4 is kind 8 and the bytes f 3 2 x 4.
-            // Vec4f and i32x4 stay unstamped. The addr emitter
-            // stores the if with the existing let-init. The value
-            // form of f32x4 already returns 4.
+            // named u32x8, named f32x8, named f32x4, or named
+            // Vec4f: kind 8 whose name is one of those, or kind 13
+            // with 8 lanes of 4-byte i32.
+            // Named Vec4f is kind 8 and the bytes V e c 4 f.
+            // i32x4 stays unstamped. The addr emitter stores the
+            // if with the existing let-init. The value form of
+            // Vec4f already returns 4.
             // PLATFORM: MACOS|ARM64. The type rule is SHARED.
             if (addr_ok == 25) {
               if (let_ty > 0) {
@@ -459,8 +461,9 @@ export function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_re
                             }
                           }
                           // ASCII i 3 2 x 8, then u 3 2 x 8, then
-                          // f 3 2 x 8. Named kind 8. f32x4 is
-                          // f 3 2 x 4 and stays declined.
+                          // f 3 2 x 8. Named kind 8. f32x4 and
+                          // Vec4f are matched below. i32x4 stays
+                          // declined.
                           // PLATFORM: MACOS|ARM64.
                           if (bt == 0) {
                             if (vn[0] == 105) {
@@ -511,6 +514,24 @@ export function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_re
                                 if (vn[2] == 50) {
                                   if (vn[3] == 120) {
                                     if (vn[4] == 52) {
+                                      bt = 1;
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                          // Named Vec4f is V e c 4 f. The fourth byte
+                          // is ASCII 4. The last byte is ASCII f.
+                          // Vec8i is V e c 8 i and does not match.
+                          // i32x4 does not match.
+                          // PLATFORM: MACOS|ARM64.
+                          if (bt == 0) {
+                            if (vn[0] == 86) {
+                              if (vn[1] == 101) {
+                                if (vn[2] == 99) {
+                                  if (vn[3] == 52) {
+                                    if (vn[4] == 102) {
                                       bt = 1;
                                     }
                                   }
