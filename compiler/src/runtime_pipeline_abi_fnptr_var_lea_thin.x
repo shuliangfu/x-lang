@@ -15,6 +15,9 @@ export extern "C" function pipeline_asm_emit_module_ref_c(): *u8;
 export extern "C" function glue_module_func_index_by_name_c(mod: *u8, name: *u8, name_len: i32): i32;
 export extern "C" function pipe_modlet_lea_fn_sym_to_rax(elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32;
 export extern "C" function glue_asm_local_var_stack_off_scoped(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
+export extern "C" function pipeline_expr_const_folded_valid_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_const_folded_val_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function backend_enc_mov_imm32_to_w0_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
 
 /**
  * Emit a VAR, or the address of a same-module function.
@@ -35,8 +38,18 @@ export function pipeline_asm_emit_expr_elf_fast(arena: *u8, elf_ctx: *u8, expr_r
   unsafe {
     let nlen: i32 = 0;
     let fi: i32 = 0;
+    let kind: i32 = 0;
     let mod: *u8 = 0 as *u8;
     let name: u8[256] = [];
+    // LANG-006: `const N: i32 = [1, 2, 3, 4]` is already folded to the
+    // element count. Emit that integer. A variable name and a float
+    // literal keep their own arms; the fold word on those is stale.
+    if (arena != 0 as *u8 && expr_ref > 0 && pipeline_expr_const_folded_valid_at(arena, expr_ref) != 0) {
+      kind = pipeline_expr_kind_ord_at(arena, expr_ref);
+      if (kind != 1 && kind != 3) {
+        return backend_enc_mov_imm32_to_w0_arch(elf_ctx, pipeline_expr_const_folded_val_at(arena, expr_ref), ta);
+      }
+    }
     if (arena != 0 as *u8 && expr_ref > 0 && pipeline_expr_kind_ord_at(arena, expr_ref) == 3) {
       nlen = pipeline_expr_var_name_len(arena, expr_ref);
       if (nlen > 0 && nlen <= 255) {

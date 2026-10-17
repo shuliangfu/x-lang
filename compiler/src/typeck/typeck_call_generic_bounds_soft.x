@@ -30,6 +30,12 @@ export extern "C" function ast_ast_block_num_lets(arena: *u8, block_ref: i32): i
 export extern "C" function pipeline_block_let_type_ref(arena: *u8, block_ref: i32, i: i32): i32;
 export extern "C" function ast_ast_block_let_init_ref(arena: *u8, block_ref: i32, i: i32): i32;
 export extern "C" function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipe_mod_get_num_top_level_lets(module: *u8): i32;
+export extern "C" function pipeline_module_top_level_let_init_ref(module: *u8, idx: i32): i32;
+export extern "C" function pipeline_module_top_level_let_type_ref(module: *u8, idx: i32): i32;
+export extern "C" function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_array_lit_num_elems_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_set_const_folded(arena: *u8, expr_ref: i32, valid: i32, val: i32): void;
 
 /**
  * 1 when c continues an identifier.
@@ -689,6 +695,48 @@ function cgb_struct_file(src: *u8, src_len: i32): i32 {
 }
 
 /**
+ * Stamp LANG-006 length on a module `const N: i32 = [1, 2, 3, 4]`.
+ * @param module *u8 — module after the mega accepted it
+ * @param arena *u8 — expression pool
+ * @return i32 — 0
+ * Function-scope consts are folded by typeck_fold_block_const_init.
+ * A module let never reaches that fold, so the array address was
+ * returned as the integer. Integer decl kinds are 0 and 2..7.
+ * Bool (1) is left alone. A real array declaration is not kind 0..7.
+ * PLATFORM: SHARED.
+ */
+function cgb_mod_array_len(module: *u8, arena: *u8): i32 {
+  unsafe {
+    let n: i32 = 0;
+    let i: i32 = 0;
+    let init_ref: i32 = 0;
+    let decl: i32 = 0;
+    let dk: i32 = 0;
+    let ne: i32 = 0;
+    if (module == 0 as *u8 || arena == 0 as *u8) {
+      return 0;
+    }
+    n = pipe_mod_get_num_top_level_lets(module);
+    i = 0;
+    while (i < n && i < 256) {
+      init_ref = pipeline_module_top_level_let_init_ref(module, i);
+      decl = pipeline_module_top_level_let_type_ref(module, i);
+      if (init_ref > 0 && decl > 0 && pipeline_expr_kind_ord_at(arena, init_ref) == 46) {
+        dk = pipeline_type_kind_ord_at(arena, decl);
+        if (dk == 0 || (dk >= 2 && dk <= 7)) {
+          ne = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+          if (ne > 0) {
+            pipeline_expr_set_const_folded(arena, init_ref, 1, ne);
+          }
+        }
+      }
+      i = i + 1;
+    }
+    return 0;
+  }
+}
+
+/**
  * Module typeck, then struct-header bounds on Foo<Arg>.
  * @param module *u8 — module; passed to the mega
  * @param arena *u8 — type pool; passed to the mega
@@ -709,6 +757,7 @@ export function typeck_x_ast(module: *u8, arena: *u8, ctx: *u8): i32 {
     if (rc != 0) {
       return rc;
     }
+    cgb_mod_array_len(module, arena);
     src = xlang_cap_tip_lex_src_data();
     src_len64 = xlang_cap_tip_lex_src_len();
     if (src == 0 as *u8 || src_len64 <= 0 || src_len64 > 2000000) {
