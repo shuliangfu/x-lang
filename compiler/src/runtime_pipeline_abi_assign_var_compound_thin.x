@@ -64,6 +64,7 @@ export extern function glue_array_lit_force_esz_from_elem_type_c(arena: *u8, et:
 export extern function glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, force_esz: i32, ta: i32, ctx: *u8, dest_elem_ty: i32): i32;
 export extern function backend_enc_pop_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i32, hi: i32, ta: i32): i32;
+export extern function glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_mov_rax_to_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i32): i32;
 
 /**
@@ -92,6 +93,19 @@ function w1502_assign_modlet(arena: *u8, elf_ctx: *u8, expr_ref: i32, left_ref: 
     }
     if (glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta) != 0) {
       return 0 - 1;
+    }
+    // The module cell store is 8 bytes. mov w0 of an i32 zero-extends,
+    // so -7 sits in x0 as 0x00000000fffffff9. A later cmp x against
+    // the sign-extended -7 does not match. u32 must stay zero-extended.
+    // Kind 0 is i32. PLATFORM: SHARED.
+    let tr: i32 = glue_var_decl_type_ref_elf_c(arena, ctx, left_ref);
+    if (tr > 0) {
+      let tk: i32 = pipeline_type_kind_ord_at(arena, tr);
+      if (tk == 0) {
+        if (glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx, ta) != 0) {
+          return 0 - 1;
+        }
+      }
     }
     return pipeline_asm_modlet_store_from_rax_elf_c(elf_ctx, &vname[0], vlen, ta);
   }
