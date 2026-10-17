@@ -1293,13 +1293,14 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
               nd = p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4);
             }
             if (nd >= 0 && nd + 1 < P12G_DIM_MAX) {
-              extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + nd + 1 * 4);
+              // Byte offset of dims[nd+1]. `nd + 1 * 4` is nd+4.
+              extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + (nd + 1) * 4);
               if (extra < 0) {
                 extra = 0;
               }
               extra = extra + 1;
               if (extra < P12G_DIM_MAX) {
-                p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + nd + 1 * 4, extra);
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + (nd + 1) * 4, extra);
               }
               // stay param_elem_elem_pending to capture leaf T
             } else {
@@ -1324,13 +1325,16 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
               nd = p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4);
             }
             if (nd > 0 && nd + 1 < P12G_DIM_MAX) {
-              extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + nd + 1 * 4);
+              // `[][2]*T` extra STAR is dims[nd+1]. `nd + 1 * 4`
+              // wrote into dims[nd], so the dyn arg stayed an array
+              // address and `*p[0][0]` loaded the i32 as a pointer.
+              extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + (nd + 1) * 4);
               if (extra < 0) {
                 extra = 0;
               }
               extra = extra + 1;
               if (extra < P12G_DIM_MAX) {
-                p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + nd + 1 * 4, extra);
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + (nd + 1) * 4, extra);
               }
               // stay param_elem_elem_pending to capture leaf T
             } else {
@@ -1504,13 +1508,14 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
                 nd = p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4);
               }
               if (nd > 0 && nd + 1 < P12G_DIM_MAX) {
-                extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + nd + 1 * 4);
+                // Extra empty `[]` is dims[nd+1], not nd+4.
+                extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + (nd + 1) * 4);
                 if (extra < 0) {
                   extra = 0;
                 }
                 extra = extra + 1;
                 if (extra < P12G_DIM_MAX) {
-                  p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + nd + 1 * 4, extra);
+                  p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + (nd + 1) * 4, extra);
                 }
                 param_elem_arr_need_size = 0;
                 param_elem_prefix_arr_more = 0;
