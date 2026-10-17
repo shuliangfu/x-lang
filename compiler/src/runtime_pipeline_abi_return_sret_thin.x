@@ -558,6 +558,42 @@ function w639_rs_lit_init_at(arena: *u8, lit: i32, fa: i32, j: i32): i32 {
 }
 
 /**
+ * Init expr of the struct-literal field whose name equals fa.
+ * Scans the first four fields. A longer literal whose match is the
+ * fifth field or later returns 0, and the caller stays on emit_expr.
+ * A null arena, a non-positive literal, or a non-positive field
+ * returns 0.
+ * @param arena *u8 — AST arena; null returns 0
+ * @param lit i32 — STRUCT_LIT expr; <=0 returns 0
+ * @param fa i32 — FIELD expr whose name is compared; <=0 returns 0
+ * @return i32 — init expr ref, or 0 when no scanned slot matches
+ * PLATFORM: MACOS|ARM64.
+ */
+function w643_rs_named_init(arena: *u8, lit: i32, fa: i32): i32 {
+  let n: i32 = 0;
+  let init: i32 = 0;
+  if (arena == (0 as *u8) || lit <= 0 || fa <= 0) {
+    return 0;
+  }
+  unsafe {
+    n = pipeline_expr_struct_lit_num_fields(arena, lit);
+  }
+  if (n > 0) {
+    init = w639_rs_lit_init_at(arena, lit, fa, 0);
+  }
+  if (init == 0 && n > 1) {
+    init = w639_rs_lit_init_at(arena, lit, fa, 1);
+  }
+  if (init == 0 && n > 2) {
+    init = w639_rs_lit_init_at(arena, lit, fa, 2);
+  }
+  if (init == 0 && n > 3) {
+    init = w639_rs_lit_init_at(arena, lit, fa, 3);
+  }
+  return init;
+}
+
+/**
  * EXPR_RETURN ELF emit: operand into rax/x0, arm64 sret copy, then jmp
  * function tail_join (AsmFuncCtxLayout name at 1392, length at 1520).
  * A 9..16 byte named field is loaded with pipeline_asm_deref_struct16
@@ -599,11 +635,11 @@ function w639_rs_lit_init_at(arena: *u8, lit: i32, fa: i32, j: i32): i32 {
  * A payload of 16 bytes or less stays on emit_expr. A chain of value
  * fields (`return o.inn.xs`) adds each field offset onto that same
  * local slot. A pointer field, a pointer root, or a chain longer
- * than four fields stays on emit_expr. A FIELD whose base is a
- * STRUCT_LIT and whose
- * named init is an ARRAY_LIT durables that literal with the same helper
- * and then moves the element count. Any other STRUCT_LIT init stays on
- * emit_expr.
+ * than four fields stays on emit_expr. A FIELD whose root is a
+ * STRUCT_LIT durables an ARRAY_LIT init, or takes the address of a
+ * VAR init. A parent field (`return { inn: { xs: [...] } }.inn.xs`)
+ * must itself be a STRUCT_LIT init. The walk is at most three
+ * parents. Any other STRUCT_LIT init stays on emit_expr.
  * An INDEX of a VAR whose declared type is TYPE_ARRAY, whose element
  * type is also TYPE_ARRAY, and whose function returns TYPE_SLICE calls
  * emit_expr once (that already leaves the row address in rax/x0) and
@@ -1895,11 +1931,13 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
        * pair). A slice return is the arm above. An INDEX base
        * (`return a[0].xs`) and a DEREF base (`return (*p).xs`) use
        * that root's lvalue, then the same field offset. A STRUCT_LIT
-       * base whose field init is an ARRAY_LIT durables that literal.
-       * A VAR init (`return { xs: src }.xs`) takes that local's
-       * address. A nested literal, a field past the fourth slot,
-       * a pointer element, a slice element, a pointer field, a
-       * pointer root, or a fifth field stays on emit_expr.
+       * root durables an ARRAY_LIT init, or takes a VAR init's
+       * address. A parent field
+       * (`return { inn: { xs: [...] } }.inn.xs`) walks that init
+       * when it is also a STRUCT_LIT, at most three parents deep.
+       * A field past the fourth slot, a pointer element, a slice
+       * element, a pointer field, a pointer root, or a fifth field
+       * stays on emit_expr.
        * Hops are unrolled: a while that calls externs is dropped
        * by this compiler.
        * PLATFORM: MACOS|ARM64. */
@@ -2093,31 +2131,85 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                               }
                             }
                           }
-                          /* STRUCT_LIT base (`return { xs: [...] }.xs`).
-                           * The array is the field init, not a byte offset
-                           * into a slot. Durable an ARRAY_LIT. A VAR init
-                           * (`return { xs: src }.xs`) is that local's
-                           * address. A nested literal, or a field past the
-                           * fourth slot, stays on emit_expr.
+                          /* STRUCT_LIT root (`return { xs: [...] }.xs`, or
+                           * `return { inn: { xs: [...] } }.inn.xs`).
+                           * The array is the leaf field init, not a byte
+                           * offset into a slot. Parent inits must be
+                           * STRUCT_LIT. Durable an ARRAY_LIT leaf. A VAR
+                           * leaf is that local's address. A field past
+                           * the fourth slot stays on emit_expr.
                            * EXPR_STRUCT_LIT = 45. EXPR_ARRAY_LIT = 46.
                            * EXPR_VAR = 3. PLATFORM: MACOS|ARM64. */
-                          if (opk_d == 45 && dur_ok == 0 && root_er == base_er) {
-                            sl_nf = 0;
-                            unsafe {
-                              sl_nf = pipeline_expr_struct_lit_num_fields(arena, root_er);
+                          if (opk_d == 45 && dur_ok == 0) {
+                            let fa1: i32 = 0;
+                            let fa2: i32 = 0;
+                            let fa3: i32 = 0;
+                            let nb: i32 = 0;
+                            let cur: i32 = root_er;
+                            let bwalk: i32 = 0;
+                            let step_ok: i32 = 1;
+                            /* Parents between the leaf field and the
+                             * root literal. fa1 is the leaf's base.
+                             * fa3 is the field directly on the root
+                             * when three parents were folded.
+                             * PLATFORM: MACOS|ARM64. */
+                            if (base_er != root_er && base_er > 0) {
+                              fa1 = base_er;
+                              nb = 1;
+                              unsafe {
+                                bwalk = pipeline_expr_field_access_base_ref(arena, fa1);
+                              }
+                              if (bwalk != root_er && bwalk > 0) {
+                                fa2 = bwalk;
+                                nb = 2;
+                                unsafe {
+                                  bwalk = pipeline_expr_field_access_base_ref(arena, fa2);
+                                }
+                                if (bwalk != root_er && bwalk > 0) {
+                                  fa3 = bwalk;
+                                  nb = 3;
+                                }
+                              }
+                            }
+                            if (nb == 3) {
+                              cur = w643_rs_named_init(arena, cur, fa3);
+                              step_ok = 0;
+                              if (cur > 0) {
+                                unsafe {
+                                  opk_d = pipeline_expr_kind_ord_at(arena, cur);
+                                }
+                                if (opk_d == 45) {
+                                  step_ok = 1;
+                                }
+                              }
+                            }
+                            if (step_ok != 0 && nb >= 2) {
+                              cur = w643_rs_named_init(arena, cur, fa2);
+                              step_ok = 0;
+                              if (cur > 0) {
+                                unsafe {
+                                  opk_d = pipeline_expr_kind_ord_at(arena, cur);
+                                }
+                                if (opk_d == 45) {
+                                  step_ok = 1;
+                                }
+                              }
+                            }
+                            if (step_ok != 0 && nb >= 1) {
+                              cur = w643_rs_named_init(arena, cur, fa1);
+                              step_ok = 0;
+                              if (cur > 0) {
+                                unsafe {
+                                  opk_d = pipeline_expr_kind_ord_at(arena, cur);
+                                }
+                                if (opk_d == 45) {
+                                  step_ok = 1;
+                                }
+                              }
                             }
                             sl_init = 0;
-                            if (sl_nf > 0) {
-                              sl_init = w639_rs_lit_init_at(arena, root_er, ret_op, 0);
-                            }
-                            if (sl_init == 0 && sl_nf > 1) {
-                              sl_init = w639_rs_lit_init_at(arena, root_er, ret_op, 1);
-                            }
-                            if (sl_init == 0 && sl_nf > 2) {
-                              sl_init = w639_rs_lit_init_at(arena, root_er, ret_op, 2);
-                            }
-                            if (sl_init == 0 && sl_nf > 3) {
-                              sl_init = w639_rs_lit_init_at(arena, root_er, ret_op, 3);
+                            if (step_ok != 0) {
+                              sl_init = w643_rs_named_init(arena, cur, ret_op);
                             }
                             if (sl_init > 0) {
                               unsafe {
