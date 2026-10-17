@@ -26,9 +26,14 @@ export extern function pipeline_module_struct_layout_num_fields(m: *u8, k: i32):
 export extern function pipeline_module_struct_layout_field_name_len(m: *u8, k: i32, j: i32): i32;
 export extern function pipeline_module_struct_layout_field_name_into(m: *u8, k: i32, j: i32, out: *u8): void;
 export extern function pipeline_module_struct_layout_field_type_ref(m: *u8, k: i32, j: i32): i32;
+export extern function pipeline_module_struct_layout_field_offset_at(m: *u8, k: i32, j: i32): i32;
 export extern function typeck_x_named_builtin_size(nm: *u8, nlen: i32): i32;
 export extern function asm_ctx_local_find_offset_scoped(ctx: *u8, arena: *u8, name: *u8, name_len: i32): i32;
 export extern function asm_ctx_local_find_offset(ctx: *u8, name: *u8, name_len: i32): i32;
+export extern function pipeline_codegen_match_name_is_subject_field_c(module: *u8, arena: *u8, name: *u8, name_len: i32): i32;
+export extern function pipeline_codegen_match_matched_ref_c(): i32;
+export extern function glue_var_expr_stack_off_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
+export extern function backend_enc_lea_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
 export extern function glue_var_expr_type_ref_with_decl_fallback_c(arena: *u8, base_ref: i32): i32;
 export extern function glue_local_var_slot_needs_ptr_load_elf_c(arena: *u8, base_ref: i32, var_off: i32, ctx: *u8): i32;
 export extern function glue_slice_dual_gp_length_off_c(var_off: i32, ta: i32): i32;
@@ -491,8 +496,121 @@ function field_cap_emit_bytes_eq(a: *u8, b: *u8, n: i32): i32 {
 }
 
 /**
+ * Byte offset of one named field on a named struct type.
+ * Walks module struct layouts by the type's name, then by the field name.
+ * Writes that field's type ref through out_ty when the pointer is set.
+ * @param arena *u8 - ASTArena*
+ * @param m *u8 - Module*
+ * @param ty_ref i32 - TYPE_NAMED of the struct; <=0 returns -1
+ * @param name *u8 - field name bytes, not necessarily NUL-terminated
+ * @param nlen i32 - name length; <=0 returns -1
+ * @param out_ty *i32 - optional field type ref; null skips the write
+ * @return i32 - byte offset, or -1 when the type or field is missing
+ * PLATFORM: SHARED.
+ */
+function field_cap_named_field_off(arena: *u8, m: *u8, ty_ref: i32, name: *u8, nlen: i32, out_ty: *i32): i32 {
+  // field_name_into copies 256 bytes. A 64-byte dest overflows and
+  // clears the length local, so the byte compare never runs.
+  let struct_name: u8[256] = [];
+  let fb: u8[256] = [];
+  let tlen: i32 = 0;
+  let nsl: i32 = 0;
+  let k: i32 = 0;
+  let ln: i32 = 0;
+  let nf: i32 = 0;
+  let j: i32 = 0;
+  let fnlen: i32 = 0;
+  let fi: i32 = 0;
+  let eq: i32 = 0;
+  let feq: i32 = 0;
+  if (out_ty != (0 as *i32)) {
+    out_ty[0] = 0;
+  }
+  if (arena == (0 as *u8) || m == (0 as *u8) || ty_ref <= 0 || name == (0 as *u8) || nlen <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    tlen = pipeline_type_named_name_into(arena, ty_ref, &struct_name[0]);
+    nsl = pipeline_module_num_struct_layouts_at(m);
+  }
+  if (tlen <= 0 || tlen > 63) {
+    return 0 - 1;
+  }
+  k = 0;
+  while (k < nsl) {
+    unsafe {
+      ln = pipeline_module_struct_layout_name_len(m, k);
+    }
+    eq = 0;
+    if (ln == tlen) {
+      eq = 1;
+      j = 0;
+      while (j < tlen) {
+        let sb: i32 = 0;
+        let lb: i32 = 0;
+        // Store both sides first. A single compare that indexes the
+        // buffer and calls the layout byte getter clobbers the call
+        // result with the index on this Darwin product.
+        sb = struct_name[j] as i32;
+        unsafe {
+          lb = pipeline_module_struct_layout_name_byte_at(m, k, j);
+        }
+        if (lb != sb) {
+          eq = 0;
+        }
+        j = j + 1;
+      }
+    }
+    if (eq != 0) {
+      unsafe {
+        nf = pipeline_module_struct_layout_num_fields(m, k);
+      }
+      j = 0;
+      while (j < nf) {
+        unsafe {
+          fnlen = pipeline_module_struct_layout_field_name_len(m, k, j);
+        }
+        feq = 0;
+        if (fnlen == nlen) {
+          unsafe {
+            pipeline_module_struct_layout_field_name_into(m, k, j, &fb[0]);
+          }
+          feq = 1;
+          fi = 0;
+          while (fi < fnlen) {
+            let left: i32 = 0;
+            let right: i32 = 0;
+            left = fb[fi] as i32;
+            right = name[fi] as i32;
+            if (left != right) {
+              feq = 0;
+            }
+            fi = fi + 1;
+          }
+        }
+        if (feq != 0) {
+          if (out_ty != (0 as *i32)) {
+            unsafe {
+              out_ty[0] = pipeline_module_struct_layout_field_type_ref(m, k, j);
+            }
+          }
+          unsafe {
+            return pipeline_module_struct_layout_field_offset_at(m, k, j);
+          }
+        }
+        j = j + 1;
+      }
+    }
+    k = k + 1;
+  }
+  return 0 - 1;
+}
+
+/**
  * VAR-base FIELD_ACCESS with Cap residual signed load (wave1008).
  * Strong first-wins over pabi_weak `ldr w` tail on Darwin/Windows.
+ * A match bind with no local slot loads from the subject slot plus the
+ * bind field offset and this access's offset inside that field's type.
  * @param arena *u8 - ASTArena*
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param expr_ref i32 - FIELD_ACCESS
@@ -534,6 +652,53 @@ export function pipeline_asm_emit_var_field_access_elf_c(
       var_off = asm_ctx_local_find_offset(ctx, &vname[0], vlen);
     }
     if (var_off < 0) {
+      // Match bind `h` in `Wrap { h } => h.b` has no local slot.
+      // The subject holds the struct. Add the bind's field offset
+      // and this access's field offset, then scalar-load.
+      // PLATFORM: MACOS|ARM64 · LINUX x86_64.
+      mod = pipeline_asm_emit_module_ref_c();
+      if (mod != (0 as *u8)) {
+        if (pipeline_codegen_match_name_is_subject_field_c(mod, arena, &vname[0], pipeline_expr_var_name_len(arena, base_ref)) != 0) {
+          let matched: i32 = 0;
+          let src_off: i32 = 0;
+          let bind_off: i32 = 0;
+          let subj_ty: i32 = 0;
+          let bind_ty: i32 = 0;
+          let acc_off: i32 = 0;
+          let acc_name: u8[64] = [];
+          matched = pipeline_codegen_match_matched_ref_c();
+          if (matched > 0 && pipeline_expr_kind_ord_at(arena, matched) == 3) {
+            src_off = glue_var_expr_stack_off_elf_c(arena, ctx, matched);
+            subj_ty = pipeline_expr_resolved_type_ref(arena, matched);
+            field_off = 0 - 1;
+            bind_off = field_cap_named_field_off(arena, mod, subj_ty, &vname[0], pipeline_expr_var_name_len(arena, base_ref), &bind_ty);
+            pipeline_expr_field_access_name_into(arena, expr_ref, &acc_name[0]);
+            acc_off = field_cap_named_field_off(
+              arena, mod, bind_ty, &acc_name[0],
+              pipeline_expr_field_access_name_len(arena, expr_ref), 0 as *i32);
+            if (acc_off >= 0) {
+              field_off = acc_off;
+            }
+            if (src_off >= 0 && bind_off >= 0 && field_off >= 0) {
+              if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, src_off, ta) != 0) {
+                return 0 - 1;
+              }
+              if (bind_off != 0) {
+                if (backend_enc_add_imm_to_rax_arch(elf_ctx, bind_off, ta) != 0) {
+                  return 0 - 1;
+                }
+              }
+              if (field_off != 0) {
+                if (backend_enc_add_imm_to_rax_arch(elf_ctx, field_off, ta) != 0) {
+                  return 0 - 1;
+                }
+              }
+              load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, expr_ref);
+              return glue_field_access_emit_scalar_load_from_rax_elf_c(elf_ctx, load_sz, ta);
+            }
+          }
+        }
+      }
       return 0 - 99;
     }
     base_ty_sl = glue_var_expr_type_ref_with_decl_fallback_c(arena, base_ref);
