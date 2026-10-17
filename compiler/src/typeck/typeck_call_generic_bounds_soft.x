@@ -23,6 +23,13 @@ export extern "C" function pipeline_expr_col_at(arena: *u8, expr_ref: i32): i32;
 export extern "C" function xlang_cap_tip_lex_src_data(): *u8;
 export extern "C" function xlang_cap_tip_lex_src_len(): i64;
 export extern "C" function xlang_generic_bound_diag_not_impl_c(ta: *u8, ta_len: i32, trait_nm: *u8, trait_nlen: i32, line: i32, col: i32): i32;
+export extern "C" function driver_diagnostic_typeck_assign_mismatch(is_compound: i32, line: i32, col: i32, expect_buf: *u8, expect_len: i32, found_buf: *u8, found_len: i32): void;
+export extern "C" function pipeline_module_num_funcs(module: *u8): i32;
+export extern "C" function pipeline_module_func_body_ref_at(module: *u8, fi: i32): i32;
+export extern "C" function ast_ast_block_num_lets(arena: *u8, block_ref: i32): i32;
+export extern "C" function pipeline_block_let_type_ref(arena: *u8, block_ref: i32, i: i32): i32;
+export extern "C" function ast_ast_block_let_init_ref(arena: *u8, block_ref: i32, i: i32): i32;
+export extern "C" function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
 
 /**
  * 1 when c continues an identifier.
@@ -708,6 +715,138 @@ export function typeck_x_ast(module: *u8, arena: *u8, ctx: *u8): i32 {
       return 0;
     }
     src_len = src_len64 as i32;
-    return cgb_struct_file(src, src_len);
+    if (cgb_struct_file(src, src_len) != 0) {
+      return 0 - 1;
+    }
+    return cgb_dyn_lets(module, arena, src, src_len);
+  }
+}
+
+/**
+ * 1 when the file declares `trait Name` as a whole ident.
+ * @param src *u8 — file bytes
+ * @param src_len i32 — byte count
+ * @param name *u8 — trait spelling
+ * @param nlen i32 — spelling length
+ * @return i32 — 1 declared, 0 not
+ * PLATFORM: SHARED.
+ */
+function cgb_trait_declared(src: *u8, src_len: i32, name: *u8, nlen: i32): i32 {
+  let lit: u8[6] = [];
+  let from: i32 = 0;
+  let at: i32 = 0;
+  let p: i32 = 0;
+  let k: i32 = 0;
+  lit[0] = 116;
+  lit[1] = 114;
+  lit[2] = 97;
+  lit[3] = 105;
+  lit[4] = 116;
+  lit[5] = 32;
+  from = 0;
+  while (from >= 0) {
+    at = cgb_find(src, src_len, &lit[0], 6, from);
+    if (at < 0) {
+      return 0;
+    }
+    p = at + 6;
+    while (p < src_len && (src[p] == (32 as u8) || src[p] == (9 as u8) || src[p] == (10 as u8) || src[p] == (13 as u8))) {
+      p = p + 1;
+    }
+    k = 0;
+    if (p + nlen <= src_len) {
+      while (k < nlen) {
+        if (src[p + k] != name[k]) {
+          k = nlen + 1;
+        } else {
+          k = k + 1;
+        }
+      }
+      if (k == nlen && (p + nlen >= src_len || cgb_is_ident(src[p + nlen]) == 0)) {
+        return 1;
+      }
+    }
+    from = at + 6;
+  }
+  return 0;
+}
+
+/**
+ * Reject `let x: Trait = value` when value's type has no impl.
+ * @param module *u8 — module just typechecked
+ * @param arena *u8 — expression pool
+ * @param src *u8 — file bytes
+ * @param src_len i32 — byte count
+ * @return i32 — 0 ok, -1 mismatch already reported
+ * A dyn or trait-named let accepts the init only when the source has
+ * `impl Trait for Type`. The null sentinel is not a named init.
+ * PLATFORM: SHARED.
+ */
+function cgb_dyn_lets(module: *u8, arena: *u8, src: *u8, src_len: i32): i32 {
+  unsafe {
+    let nf: i32 = 0;
+    let fi: i32 = 0;
+    let br: i32 = 0;
+    let nl: i32 = 0;
+    let li: i32 = 0;
+    let decl: i32 = 0;
+    let init_ref: i32 = 0;
+    let init_ty: i32 = 0;
+    let dk: i32 = 0;
+    let ik: i32 = 0;
+    let tlen: i32 = 0;
+    let clen: i32 = 0;
+    let line: i32 = 0;
+    let col: i32 = 0;
+    let i: i32 = 0;
+    let trait_nm: u8[64] = [];
+    let conc_nm: u8[64] = [];
+    let expect: u8[80] = [];
+    nf = pipeline_module_num_funcs(module);
+    fi = 0;
+    while (fi < nf && fi < 64) {
+      br = pipeline_module_func_body_ref_at(module, fi);
+      if (br > 0) {
+        nl = ast_ast_block_num_lets(arena, br);
+        li = 0;
+        while (li < nl && li < 64) {
+          decl = pipeline_block_let_type_ref(arena, br, li);
+          init_ref = ast_ast_block_let_init_ref(arena, br, li);
+          if (decl > 0 && init_ref > 0) {
+            dk = pipeline_type_kind_ord_at(arena, decl);
+            tlen = pipeline_type_named_name_into(arena, decl, &trait_nm[0]);
+            if (tlen > 0 && tlen <= 63 && (dk == 17 || (dk == 8 && cgb_trait_declared(src, src_len, &trait_nm[0], tlen) != 0))) {
+              init_ty = pipeline_expr_resolved_type_ref(arena, init_ref);
+              if (init_ty > 0) {
+                ik = pipeline_type_kind_ord_at(arena, init_ty);
+                if (ik == 8) {
+                  clen = pipeline_type_named_name_into(arena, init_ty, &conc_nm[0]);
+                  if (clen > 0 && clen <= 63) {
+                    if (cgb_impl_for(src, src_len, &trait_nm[0], tlen, &conc_nm[0], clen) == 0) {
+                      expect[0] = 100;
+                      expect[1] = 121;
+                      expect[2] = 110;
+                      expect[3] = 32;
+                      i = 0;
+                      while (i < tlen && i < 70) {
+                        expect[4 + i] = trait_nm[i];
+                        i = i + 1;
+                      }
+                      line = pipeline_expr_line_at(arena, init_ref);
+                      col = pipeline_expr_col_at(arena, init_ref);
+                      driver_diagnostic_typeck_assign_mismatch(0, line, col, &expect[0], 4 + i, &conc_nm[0], clen);
+                      return 0 - 1;
+                    }
+                  }
+                }
+              }
+            }
+          }
+          li = li + 1;
+        }
+      }
+      fi = fi + 1;
+    }
+    return 0;
   }
 }
