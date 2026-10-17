@@ -4,9 +4,12 @@
 // function header in the current source. Each trait after ':' or '+'
 // must appear as `impl Trait for A`. A type-arg spelling that is the
 // type parameter itself is not a concrete violation.
-// PLATFORM: SHARED. The mega is the Darwin typeck object.
+// The same header walk applies to `struct Foo<T: Trait>` at each
+// `Foo<Arg>` that is not the struct header.
+// PLATFORM: SHARED. The megas are the Darwin typeck object.
 
 export extern "C" function pipeline_typeck_check_call_generic_type_args_c_mega(module: *u8, arena: *u8, expr_ref: i32, ctx: *u8, expected_ret: i32): i32;
+export extern "C" function typeck_x_ast_mega(module: *u8, arena: *u8, ctx: *u8): i32;
 export extern "C" function pipeline_expr_call_resolved_func_index_at(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_module_func_num_generic_params_at(module: *u8, fi: i32): i32;
 export extern "C" function pipeline_expr_call_num_type_args_at(arena: *u8, expr_ref: i32): i32;
@@ -444,5 +447,267 @@ export function pipeline_typeck_check_call_generic_type_args_c(module: *u8, aren
       return 0;
     }
     return cgb_explicit(module, arena, expr_ref);
+  }
+}
+
+/**
+ * 1 when the name at `at` is the ident after `struct`.
+ * @param src *u8 — file bytes
+ * @param at i32 — start of the name
+ * @return i32 — 1 struct header, 0 otherwise
+ * PLATFORM: SHARED.
+ */
+function cgb_prev_struct(src: *u8, at: i32): i32 {
+  let p: i32 = 0;
+  if (src == 0 as *u8 || at <= 0) {
+    return 0;
+  }
+  p = at - 1;
+  while (p >= 0) {
+    if (src[p] == (32 as u8) || src[p] == (9 as u8) || src[p] == (10 as u8) || src[p] == (13 as u8)) {
+      p = p - 1;
+    } else {
+      p = 0 - 2;
+    }
+  }
+  if (p < -1) {
+    p = at - 1;
+    while (p >= 0 && (src[p] == (32 as u8) || src[p] == (9 as u8) || src[p] == (10 as u8) || src[p] == (13 as u8))) {
+      p = p - 1;
+    }
+  }
+  if (p < 5) {
+    return 0;
+  }
+  if (src[p] != (116 as u8) || src[p - 1] != (99 as u8) || src[p - 2] != (117 as u8) || src[p - 3] != (114 as u8) || src[p - 4] != (116 as u8) || src[p - 5] != (115 as u8)) {
+    return 0;
+  }
+  if (p >= 6 && cgb_is_ident(src[p - 6]) != 0) {
+    return 0;
+  }
+  return 1;
+}
+
+/**
+ * Length of the type-arg ident in slot `pos` of a use-site angle list.
+ * @param src *u8 — file bytes
+ * @param src_len i32 — byte count
+ * @param lt i32 — index of '<'
+ * @param pos i32 — 0-based argument slot
+ * @param dst *u8 — dest, capacity >= 64
+ * @return i32 — length, or 0 when the slot is absent
+ * Nested '<' starts a new depth and is not a comma. PLATFORM: SHARED.
+ */
+function cgb_use_arg(src: *u8, src_len: i32, lt: i32, pos: i32, dst: *u8): i32 {
+  let p: i32 = 0;
+  let depth: i32 = 0;
+  let slot: i32 = 0;
+  let n: i32 = 0;
+  let c: u8 = 0;
+  p = lt + 1;
+  depth = 1;
+  slot = 0;
+  while (p < src_len && depth > 0) {
+    c = src[p];
+    if (c == (60 as u8)) {
+      depth = depth + 1;
+      p = p + 1;
+    } else {
+      if (c == (62 as u8)) {
+        depth = depth - 1;
+        p = p + 1;
+      } else {
+        if (depth == 1 && c == (44 as u8)) {
+          slot = slot + 1;
+          p = p + 1;
+        } else {
+          if (depth == 1 && slot == pos && cgb_is_ident(c) != 0) {
+            n = cgb_ident(src, src_len, p, dst);
+            return n;
+          }
+          if (depth == 1 && cgb_is_ident(c) != 0) {
+            n = cgb_ident(src, src_len, p, dst);
+            if (n > 0) {
+              p = p + n;
+            } else {
+              p = p + 1;
+            }
+          } else {
+            p = p + 1;
+          }
+        }
+      }
+    }
+  }
+  return 0;
+}
+
+/**
+ * 1-based line of byte index `at`.
+ * @param src *u8 — file bytes
+ * @param at i32 — byte index
+ * @return i32 — line
+ * PLATFORM: SHARED.
+ */
+function cgb_line_at(src: *u8, at: i32): i32 {
+  let i: i32 = 0;
+  let line: i32 = 1;
+  if (src == 0 as *u8 || at <= 0) {
+    return 1;
+  }
+  while (i < at) {
+    if (src[i] == (10 as u8)) {
+      line = line + 1;
+    }
+    i = i + 1;
+  }
+  return line;
+}
+
+/**
+ * 1-based column of byte index `at`.
+ * @param src *u8 — file bytes
+ * @param at i32 — byte index
+ * @return i32 — column
+ * PLATFORM: SHARED.
+ */
+function cgb_col_at(src: *u8, at: i32): i32 {
+  let i: i32 = 0;
+  let col: i32 = 1;
+  if (src == 0 as *u8 || at <= 0) {
+    return 1;
+  }
+  while (i < at) {
+    if (src[i] == (10 as u8)) {
+      col = 1;
+    } else {
+      col = col + 1;
+    }
+    i = i + 1;
+  }
+  return col;
+}
+
+/**
+ * Reject Foo<Arg> when struct Foo<T: Trait> and Arg does not impl Trait.
+ * @param src *u8 — file bytes
+ * @param src_len i32 — byte count
+ * @return i32 — 0 ok, -1 a bound failed
+ * Headers without ':' are unconstrained. Foo<T> uses the parameter
+ * name and is not a concrete miss. PLATFORM: SHARED.
+ */
+function cgb_struct_file(src: *u8, src_len: i32): i32 {
+  let lit: u8[7] = [];
+  let from: i32 = 0;
+  let at: i32 = 0;
+  let p: i32 = 0;
+  let nlen: i32 = 0;
+  let lt: i32 = 0;
+  let ufrom: i32 = 0;
+  let uat: i32 = 0;
+  let ult: i32 = 0;
+  let ai: i32 = 0;
+  let alen: i32 = 0;
+  let line: i32 = 0;
+  let col: i32 = 0;
+  let name: u8[64] = [];
+  let arg_nm: u8[64] = [];
+  lit[0] = 115;
+  lit[1] = 116;
+  lit[2] = 114;
+  lit[3] = 117;
+  lit[4] = 99;
+  lit[5] = 116;
+  lit[6] = 32;
+  from = 0;
+  while (from >= 0) {
+    at = cgb_find(src, src_len, &lit[0], 7, from);
+    if (at < 0) {
+      from = 0 - 1;
+    } else {
+      p = at + 7;
+      while (p < src_len && (src[p] == (32 as u8) || src[p] == (9 as u8) || src[p] == (10 as u8) || src[p] == (13 as u8))) {
+        p = p + 1;
+      }
+      nlen = cgb_ident(src, src_len, p, &name[0]);
+      lt = 0 - 1;
+      if (nlen > 0) {
+        lt = cgb_header_lt(src, src_len, p, nlen);
+      }
+      if (lt >= 0) {
+        ufrom = 0;
+        while (ufrom >= 0) {
+          uat = cgb_find(src, src_len, &name[0], nlen, ufrom);
+          if (uat < 0) {
+            ufrom = 0 - 1;
+          } else {
+            ult = 0 - 1;
+            if (uat != p && cgb_prev_struct(src, uat) == 0) {
+              if (uat == 0 || cgb_is_ident(src[uat - 1]) == 0) {
+                if (uat + nlen >= src_len || cgb_is_ident(src[uat + nlen]) == 0) {
+                  ult = uat + nlen;
+                  while (ult < src_len && (src[ult] == (32 as u8) || src[ult] == (9 as u8) || src[ult] == (10 as u8) || src[ult] == (13 as u8))) {
+                    ult = ult + 1;
+                  }
+                  if (ult >= src_len || src[ult] != (60 as u8)) {
+                    ult = 0 - 1;
+                  }
+                }
+              }
+            }
+            if (ult >= 0) {
+              ai = 0;
+              while (ai < 4) {
+                alen = cgb_use_arg(src, src_len, ult, ai, &arg_nm[0]);
+                if (alen <= 0) {
+                  ai = 4;
+                } else {
+                  line = cgb_line_at(src, ult);
+                  col = cgb_col_at(src, ult);
+                  if (cgb_check_angle(src, src_len, lt, &arg_nm[0], alen, ai, line, col) == 0) {
+                    return 0 - 1;
+                  }
+                  ai = ai + 1;
+                }
+              }
+            }
+            ufrom = uat + nlen;
+          }
+        }
+      }
+      from = at + 7;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Module typeck, then struct-header bounds on Foo<Arg>.
+ * @param module *u8 — module; passed to the mega
+ * @param arena *u8 — type pool; passed to the mega
+ * @param ctx *u8 — dep context; passed to the mega
+ * @return i32 — 0 ok, non-zero diagnostic already emitted
+ * The source scan runs only after the mega accepts the module.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function typeck_x_ast(module: *u8, arena: *u8, ctx: *u8): i32 {
+  // PLATFORM: SHARED — mega owns the module; this owns struct bounds.
+  unsafe {
+    let rc: i32 = 0;
+    let src: *u8 = 0 as *u8;
+    let src_len64: i64 = 0;
+    let src_len: i32 = 0;
+    rc = typeck_x_ast_mega(module, arena, ctx);
+    if (rc != 0) {
+      return rc;
+    }
+    src = xlang_cap_tip_lex_src_data();
+    src_len64 = xlang_cap_tip_lex_src_len();
+    if (src == 0 as *u8 || src_len64 <= 0 || src_len64 > 2000000) {
+      return 0;
+    }
+    src_len = src_len64 as i32;
+    return cgb_struct_file(src, src_len);
   }
 }
