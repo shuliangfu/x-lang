@@ -24397,15 +24397,38 @@ ret_ty: i32): i32 {
 }
 
 /**
+ * Product entry of generic method UFCS.
+ * Body: typeck_method_call_generic_ufcs_soft.x. This file keeps the
+ * n_gp>0 pattern-unify scan as typeck_method_call_generic_ufcs_mega.
+ * The entry also accepts impl<T: Trait> Foo<T> methods whose self is
+ * written Foo, when each bound is implemented by the type argument.
+ * @param module *Module — caller module
+ * @param arena *ASTArena — expression and type pool
+ * @param expr_ref i32 — METHOD_CALL
+ * @param base_ty i32 — receiver type
+ * @param method_nm *u8 — method name bytes
+ * @param method_nlen i32 — method name length
+ * @param num_args i32 — extra arguments, not counting self
+ * @return i32 — 1 stamped, 0 no match
+ * PLATFORM: SHARED.
+ */
+export extern function typeck_method_call_generic_ufcs(module: *Module, arena: *ASTArena, expr_ref: i32,
+base_ty: i32, method_nm: *u8, method_nlen: i32, num_args: i32): i32;
+
+/**
  * Generic method_call UFCS: pattern-unify formal self with concrete receiver,
  * verify non-self args (after subst), stamp mono return + call_resolve.
  * Only functions with n_gp>0 enter (non-generic take0(self: i32x4) is not T).
+ * Linked as typeck_method_call_generic_ufcs_mega. A 0 result is not final:
+ * the soft entry still tries an impl header whose self spelling is the
+ * bare for-type (Foo vs Foo<A>).
  * @return i32 — 1 success (stamped), 0 no match
  * PLATFORM: SHARED freestanding typeck.
  */
-export function typeck_method_call_generic_ufcs(module: *Module, arena: *ASTArena, expr_ref: i32,
+#[no_mangle]
+export function typeck_method_call_generic_ufcs_mega(module: *Module, arena: *ASTArena, expr_ref: i32,
 base_ty: i32, method_nm: *u8, method_nlen: i32, num_args: i32): i32 {
-  // PLATFORM: SHARED — sole generic method UFCS authority (wave494 / wave252).
+  // PLATFORM: SHARED — mega body of generic method UFCS (wave494 / wave252).
   unsafe {
     let nf: i32 = 0;
     let fi: i32 = 0;
