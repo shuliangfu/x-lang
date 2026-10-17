@@ -2040,9 +2040,15 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
               }
               ret_elem_dim_n = 0;
             } else if ((p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4) == P12G_TY_PTR || p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4) == P12G_TY_SLICE) && (p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_KINDS + mi * 4) == P12G_TY_PTR || p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_KINDS + mi * 4) == P12G_TY_SLICE || p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_KINDS + mi * 4) == P12G_TY_ARRAY)) {
-              nd = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4);
-              if (nd == 0) {
-                p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4, P12G_ELEM_PTR_TO_SLICE_NDIMS);
+              // PTR elem + PTR outer (`**T` / `***T`) keeps ndims=0.
+              // The extra STAR count is dims[1]. Stamping -2 hid it
+              // and a dyn return of `***i32` collapsed to `**i32`.
+              // PLATFORM: SHARED.
+              if (p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4) != P12G_TY_PTR || p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_KINDS + mi * 4) != P12G_TY_PTR) {
+                nd = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4);
+                if (nd == 0) {
+                  p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4, P12G_ELEM_PTR_TO_SLICE_NDIMS);
+                }
               }
             }
             ret_elem_elem_pending = 0;
