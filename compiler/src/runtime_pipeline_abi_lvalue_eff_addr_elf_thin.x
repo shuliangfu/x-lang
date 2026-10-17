@@ -53,6 +53,10 @@ export extern function backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx: *u8, k: 
 export extern function backend_enc_store_eax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
 export extern function pipeline_type_named_name_into(arena: *u8, type_ref: i32, out: *u8): i32;
 export extern function glue_vector_elem_is_f32_c(arena: *u8, type_ref: i32): i32;
+export extern function pipeline_expr_field_access_soa_stride(arena: *u8, expr_ref: i32): i32;
+export extern function glue_emit_soa_index_field_addr_elf_c(
+  arena: *u8, elf_ctx: *u8, index_expr_ref: i32, fa_ref: i32, ctx: *u8, ta: i32
+): i32;
 
 /**
  * ELF lvalue effective address in x0.
@@ -97,6 +101,20 @@ export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8
       let base: i32 = pipeline_expr_field_access_base_ref(arena, expr_ref);
       if (base <= 0) {
         return 0 - 1;
+      }
+      /*
+       * SoA arr[i].field is not an AoS element plus a field offset.
+       * The generic index scale uses the struct size, so arr[1].x
+       * lands 12 bytes in instead of one f32 column. The existing
+       * column address is glue_emit_soa_index_field_addr_elf_c.
+       * A field with no soa stride stays on the recurse below.
+       * PLATFORM: SHARED.
+       */
+      if (pipeline_expr_kind_ord_at(arena, base) == 47) {
+        if (pipeline_expr_field_access_soa_stride(arena, expr_ref) > 0) {
+          return glue_emit_soa_index_field_addr_elf_c(
+            arena, elf_ctx, base, expr_ref, ctx, ta);
+        }
       }
       if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base, ctx, ta) != 0) {
         return 0 - 1;

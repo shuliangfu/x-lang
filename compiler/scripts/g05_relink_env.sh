@@ -1985,6 +1985,12 @@ if [ "$UNAME_S" = "Darwin" ]; then
   _g05_pure_overlay src/runtime_pipeline_abi_index_base_rbx_thin.x \
     build_asm/selfhost_pabi/index_base_rbx_a64.o \
     glue_try_index_var_or_field_base_to_rbx_elf_c
+  # SoA arr[i].field. The phase1 hollow returns 0 and leaves x0
+  # untouched. This strong body calls the existing lvalue emitter.
+  # The hollow name is already weak. PLATFORM: MACOS|DARWIN.
+  _g05_pure_overlay src/runtime_pipeline_abi_index_base_rax_thin.x \
+    build_asm/selfhost_pabi/index_base_rax_a64.o \
+    glue_try_index_var_or_field_base_to_rax_elf_c
   _idx_o=build_asm/selfhost_pabi/index_base_rbx_a64.o
   if [ ! -s "$_idx_o" ]; then
     echo "g05_relink_env: WARNING Darwin index base .x did not build" >&2
