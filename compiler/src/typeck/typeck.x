@@ -2196,7 +2196,7 @@ export function typeck_x_type_align(module: *Module, arena: *ASTArena, ty_ref: i
     let li: i32 = 0;
     let ba: i32 = 0;
     let nm_buf: *u8 = typeck_scratch64_slot(4);
-    if (ast.ref_is_null(ty_ref) || ty_ref <= 0 || ty_ref > arena.num_types || depth > 64) {
+    if (ast.ref_is_null(ty_ref) || ty_ref <= 0 || ty_ref > arena.num_types || depth > 128) {
       return 1;
     }
     ko = pipeline_type_kind_ord_at(arena, ty_ref);
@@ -2245,7 +2245,7 @@ export function typeck_x_type_align(module: *Module, arena: *ASTArena, ty_ref: i
  * @param module *Module — owning module for struct_layouts
  * @param arena *ASTArena — type pool for kind/name
  * @param ty_ref i32 — field or local type ref
- * @param depth i32 — recursion depth; >64 → 0 (cycle / absurd nest guard)
+ * @param depth i32 — recursion depth; >128 → 0 (cycle / absurd nest guard)
  * @return i32 — 1 empty named ZST layout, 0 otherwise
  * PLATFORM: SHARED — matches GCC empty-struct size 0 / A{e:Empty} nest ZST
  */
@@ -2262,7 +2262,7 @@ export function typeck_type_is_empty_struct(module: *Module, arena: *ASTArena, t
     if (module == 0 as *Module || arena == 0 as *ASTArena || ty_ref <= 0) {
       return 0;
     }
-    if (ty_ref > arena.num_types || depth > 64) {
+    if (ty_ref > arena.num_types || depth > 128) {
       return 0;
     }
     ko = pipeline_type_kind_ord_at(arena, ty_ref);
@@ -2315,7 +2315,7 @@ export function typeck_x_type_size(module: *Module, arena: *ASTArena, ty_ref: i3
     let li2: i32 = 0;
     let bsz: i32 = 0;
     let nm_buf_sz: *u8 = typeck_scratch64_slot(4);
-    if (ast.ref_is_null(ty_ref) || ty_ref <= 0 || ty_ref > arena.num_types || depth > 64) {
+    if (ast.ref_is_null(ty_ref) || ty_ref <= 0 || ty_ref > arena.num_types || depth > 128) {
       return 0;
     }
     ko = pipeline_type_kind_ord_at(arena, ty_ref);
@@ -2477,7 +2477,7 @@ export function typeck_soa_find_layout_module_and_idx(module: *Module, name: *u8
  * @param li i32 — struct_layouts index
  * @param field_idx i32 — exclusive end field index (0..num_fields)
  * @param array_len i32 — SoA array length N
- * @param depth i32 — recursion depth (cap 64; forwarded to type size/align)
+ * @param depth i32 — recursion depth (cap 128; forwarded to type size/align)
  * @return i32 — byte offset of column base for field_idx (0 on bad input)
  * PLATFORM: SHARED — G.7 single authority; .x -> typeck_gen.c -> typeck_x.o.
  */
@@ -2493,7 +2493,7 @@ export function typeck_soa_col_base_for_field(module: *Module, arena: *ASTArena,
     let fsize: i32 = 0;
     let rem: i32 = 0;
     let gap: i32 = 0;
-    if (module == 0 as *Module || arena == 0 as *ASTArena || li < 0 || field_idx < 0 || array_len <= 0 || depth > 64) {
+    if (module == 0 as *Module || arena == 0 as *ASTArena || li < 0 || field_idx < 0 || array_len <= 0 || depth > 128) {
       return 0;
     }
     col = 0;
@@ -2692,7 +2692,7 @@ export function typeck_soa_field_soa_index(module: *Module, arena: *ASTArena, ex
  * @param arena *ASTArena
  * @param elem_type_ref i32 — candidate SoA struct element type_ref
  * @param array_len i32 — SoA array length N
- * @param depth i32 — recursion depth (cap 64)
+ * @param depth i32 — recursion depth (cap 128)
  * @return i32 — column-major total bytes, or 0 if not SoA / not found
  * PLATFORM: SHARED — G.7 single authority; .x -> typeck_gen.c -> typeck_x.o.
  */
@@ -2709,7 +2709,7 @@ export function typeck_soa_array_storage_size_glue(module: *Module, arena: *ASTA
     let j: i32 = 0;
     let ftr: i32 = 0;
     let A: i32 = 0;
-    if (module == 0 as *Module || arena == 0 as *ASTArena || elem_type_ref <= 0 || array_len <= 0 || depth > 64) {
+    if (module == 0 as *Module || arena == 0 as *ASTArena || elem_type_ref <= 0 || array_len <= 0 || depth > 128) {
       return 0;
     }
     /* TYPE_NAMED ord == 8 */
@@ -2758,7 +2758,7 @@ export function typeck_soa_array_storage_size_glue(module: *Module, arena: *ASTA
  * @param module *Module — layout table owner
  * @param arena *ASTArena — type pool for field sizes
  * @param li i32 — struct layout index
- * @param depth i32 — nested-layout depth; above 64 fails
+ * @param depth i32 — nested-layout depth; above 128 fails
  * @param check_pad i32 — 1 diagnoses implicit padding; 0 only measures
  * @param out_sz *i32 — byte size out; required
  * @param out_al *i32 — alignment out; required
@@ -2809,7 +2809,7 @@ check_pad: i32, out_sz: *i32, out_al: *i32): i32 {
     // PLATFORM: WINDOWS — finish the count call before comparing li.
     // The x86 emit pushes the index and the callee homes rcx over that push.
     let nsl_metrics: i32 = pipeline_module_num_struct_layouts_at(module);
-    if (li < 0 || li >= nsl_metrics || depth > 64) {
+    if (li < 0 || li >= nsl_metrics || depth > 128) {
       return - 1;
     }
     nf = pipeline_module_struct_layout_num_fields(module, li);

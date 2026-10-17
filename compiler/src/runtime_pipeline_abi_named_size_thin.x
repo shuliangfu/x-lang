@@ -102,7 +102,7 @@ function named_size_layout_matches_c(m: *u8, k: i32, name: *u8, nlen: i32): i32 
  * @param m *u8 — Module*; null skips the current-module layout walk
  * @param a *u8 — ASTArena*; null returns 0
  * @param ty_ref i32 — type ref; must be in 1 .. arena type count
- * @param depth i32 — recursion depth; above 64 returns 0
+ * @param depth i32 — recursion depth; above 128 returns 0
  * @return i32 — byte size; 0 on miss of a non-named type, 4 on a named miss
  * The egg weak body still exact-matches and is not the linked body.
  * PLATFORM: SHARED — Linux first-wins, Darwin weak egg, Windows weaken.
@@ -128,7 +128,7 @@ export function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): 
   let dep: *u8 = 0 as *u8;
   let sz: i32 = 0;
   let vok: i32 = 1;
-  if (a == (0 as *u8) || ty_ref <= 0 || depth > 64) {
+  if (a == (0 as *u8) || ty_ref <= 0 || depth > 128) {
     return 0;
   }
   unsafe {
