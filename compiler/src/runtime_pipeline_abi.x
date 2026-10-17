@@ -54381,7 +54381,7 @@ function glue_layout_name_matches_named_type_c(m: *u8, k: i32, name: *u8, nlen: 
  * @param module *u8 - Module*
  * @param arena *u8 - ASTArena*
  * @param ty_ref i32 - type ref
- * @param depth i32 - recursion depth (cap 128)
+ * @param depth i32 - recursion depth (cap 256)
  * @return i32 - 1 empty ZST; 0 otherwise
  * wave154 pure: G.7 authority (was static glue_type_is_empty_struct_c).
  * PLATFORM: SHARED — host sizeof Empty/NestEmpty==0.
@@ -54397,7 +54397,7 @@ export function glue_type_is_empty_struct_c(module: *u8, arena: *u8, ty_ref: i32
   let nlayouts: i32 = 0;
   let nt: i32 = 0;
   let ko: i32 = 0;
-  if (module == (0 as *u8) || arena == (0 as *u8) || ty_ref <= 0 || depth > 128) {
+  if (module == (0 as *u8) || arena == (0 as *u8) || ty_ref <= 0 || depth > 256) {
     return 0;
   }
   unsafe {
@@ -54453,7 +54453,7 @@ export function glue_type_is_empty_struct_c(module: *u8, arena: *u8, ty_ref: i32
  * @param m *u8 - Module* (may be null for scalar-only)
  * @param a *u8 - ASTArena*
  * @param ty_ref i32 - type ref
- * @param depth i32 - recursion depth (cap 128)
+ * @param depth i32 - recursion depth (cap 256)
  * @return i32 - byte size; 0 on miss/invalid
  * wave154 pure: G.7 authority (was glue_type_size_simple in struct_lit.c).
  * Cap residual: typeck_soa_array_storage_size_glue / typeck_x_type_size_from_layout_glue
@@ -54484,7 +54484,7 @@ export function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): 
   let da: *u8 = 0 as *u8;
   let dep: *u8 = 0 as *u8;
   let sz: i32 = 0;
-  if (a == (0 as *u8) || ty_ref <= 0 || depth > 128) {
+  if (a == (0 as *u8) || ty_ref <= 0 || depth > 256) {
     return 0;
   }
   unsafe {
@@ -54647,7 +54647,7 @@ export function glue_type_align_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32):
   let is_pk: i32 = 0;
   let A: i32 = 0;
   let al_out: i32 = 1;
-  if (a == (0 as *u8) || ty_ref <= 0 || depth > 128) {
+  if (a == (0 as *u8) || ty_ref <= 0 || depth > 256) {
     return 1;
   }
   unsafe {
@@ -54768,7 +54768,7 @@ export function glue_struct_layout_metrics_c(module: *u8, arena: *u8, li: i32, d
   unsafe {
     nlayouts = pipeline_module_num_struct_layouts_at(module);
   }
-  if (li < 0 || li >= nlayouts || depth > 128) {
+  if (li < 0 || li >= nlayouts || depth > 256) {
     return 0 - 1;
   }
   unsafe {
