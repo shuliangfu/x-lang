@@ -1896,7 +1896,8 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
        * (`return a[0].xs`) and a DEREF base (`return (*p).xs`) use
        * that root's lvalue, then the same field offset. A STRUCT_LIT
        * base whose field init is an ARRAY_LIT durables that literal.
-       * A VAR init, a nested literal, a field past the fourth slot,
+       * A VAR init (`return { xs: src }.xs`) takes that local's
+       * address. A nested literal, a field past the fourth slot,
        * a pointer element, a slice element, a pointer field, a
        * pointer root, or a fifth field stays on emit_expr.
        * Hops are unrolled: a while that calls externs is dropped
@@ -2094,12 +2095,12 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                           }
                           /* STRUCT_LIT base (`return { xs: [...] }.xs`).
                            * The array is the field init, not a byte offset
-                           * into a slot. Durable that ARRAY_LIT and leave
-                           * its address in x0. A VAR init, a nested
-                           * literal, or a field past the fourth slot stays
-                           * on emit_expr. EXPR_STRUCT_LIT = 45.
-                           * EXPR_ARRAY_LIT = 46.
-                           * PLATFORM: MACOS|ARM64. */
+                           * into a slot. Durable an ARRAY_LIT. A VAR init
+                           * (`return { xs: src }.xs`) is that local's
+                           * address. A nested literal, or a field past the
+                           * fourth slot, stays on emit_expr.
+                           * EXPR_STRUCT_LIT = 45. EXPR_ARRAY_LIT = 46.
+                           * EXPR_VAR = 3. PLATFORM: MACOS|ARM64. */
                           if (opk_d == 45 && dur_ok == 0 && root_er == base_er) {
                             sl_nf = 0;
                             unsafe {
@@ -2126,6 +2127,19 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                                 unsafe {
                                   rc = glue_asm_emit_array_lit_durable_ptr_rax_elf_c(
                                     arena, elf_ctx, sl_init, esz_d, ta, ctx, elem_d);
+                                }
+                                if (rc == 0) {
+                                  dur_ok = 1;
+                                }
+                              }
+                              /* Local array stored in the literal.
+                               * lvalue leaves its address. A failed
+                               * lvalue stays on emit_expr.
+                               * PLATFORM: MACOS|ARM64. */
+                              if (opk_d == 3 && dur_ok == 0) {
+                                unsafe {
+                                  rc = pipeline_asm_emit_lvalue_eff_addr_elf_c(
+                                    arena, elf_ctx, sl_init, ctx, ta);
                                 }
                                 if (rc == 0) {
                                   dur_ok = 1;
