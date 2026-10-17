@@ -643,12 +643,13 @@ function w645_rs_acc_field_off(arena: *u8, mod: *u8, fa: i32, acc: i32): i32 {
  * @param f_leaf i32 — returned FIELD; <=0 returns 1
  * @param f_mid i32 — inner FIELD closer than the local, or 0
  * @param f_outer i32 — FIELD between f_mid and the local, or 0
+ * @param f_deep i32 — FIELD between f_outer and the local, or 0
  * @return i32 — 0 address in x0; 1 decline; -1 encoder fail
  * PLATFORM: MACOS|ARM64.
  */
 function w645_rs_lea_local_fields(
   arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32, mod: *u8,
-  var_er: i32, f_leaf: i32, f_mid: i32, f_outer: i32
+  var_er: i32, f_leaf: i32, f_mid: i32, f_outer: i32, f_deep: i32
 ): i32 {
   let off: i32 = 0;
   let ty: i32 = 0;
@@ -674,6 +675,9 @@ function w645_rs_lea_local_fields(
   }
   if (f_outer > 0 && off >= 0) {
     off = w645_rs_acc_field_off(arena, mod, f_outer, off);
+  }
+  if (f_deep > 0 && off >= 0) {
+    off = w645_rs_acc_field_off(arena, mod, f_deep, off);
   }
   if (off < 0) {
     return 1;
@@ -737,13 +741,13 @@ function w645_rs_lea_local_fields(
  * A payload of 16 bytes or less stays on emit_expr. A chain of value
  * fields (`return o.inn.xs`) adds each field offset onto that same
  * local slot. A pointer field, a pointer root, or a chain longer
- * than four fields stays on emit_expr. A FIELD whose root is a
+ * than five fields stays on emit_expr. A FIELD whose root is a
  * STRUCT_LIT durables an ARRAY_LIT init, or takes the address of a
  * VAR init. A parent field (`return { inn: { xs: [...] } }.inn.xs`)
  * walks a STRUCT_LIT init. A parent whose init is a local struct
  * (`return { inn: src }.inn.xs`) takes that local's address plus
  * the fields inside it, not the literal's own field offset. The
- * walk is at most three parents. Any other STRUCT_LIT init stays on
+ * walk is at most four parents. Any other STRUCT_LIT init stays on
  * emit_expr.
  * A FIELD whose type is TYPE_NAMED, whose return is wider than 16
  * bytes, and whose base is INDEX (`return a[1].s`) leas that element
@@ -2045,7 +2049,7 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
        * (`return { inn: { xs: [...] } }.inn.xs`) walks that init
        * when it is also a STRUCT_LIT. A parent init that is a local
        * struct (`return { inn: src }.inn.xs`) takes that local's
-       * address plus the fields inside it. At most three parents.
+       * address plus the fields inside it. At most four parents.
        * A field past slot 63, a pointer element, a slice
        * element, a pointer field, or a pointer root
        * stays on emit_expr.
@@ -2151,8 +2155,22 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                                         root_er = pipeline_expr_field_access_base_ref(arena, root_er);
                                       }
                                       hop = w635_rs_fold_parent(arena, mod_d, root_er);
-                                      if (hop != (0 - 2)) {
+                                      if (hop == (0 - 1)) {
                                         fold_ok = 0;
+                                      }
+                                      if (hop >= 0) {
+                                        if (sum_off > (4095 - hop)) {
+                                          fold_ok = 0;
+                                        } else {
+                                          sum_off = sum_off + hop;
+                                          unsafe {
+                                            root_er = pipeline_expr_field_access_base_ref(arena, root_er);
+                                          }
+                                          hop = w635_rs_fold_parent(arena, mod_d, root_er);
+                                          if (hop != (0 - 2)) {
+                                            fold_ok = 0;
+                                          }
+                                        }
                                       }
                                     }
                                   }
@@ -2259,14 +2277,15 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                             let fa1: i32 = 0;
                             let fa2: i32 = 0;
                             let fa3: i32 = 0;
+                            let fa4: i32 = 0;
                             let nb: i32 = 0;
                             let cur: i32 = root_er;
                             let bwalk: i32 = 0;
                             let step_ok: i32 = 1;
                             /* Parents between the leaf field and the
                              * root literal. fa1 is the leaf's base.
-                             * fa3 is the field directly on the root
-                             * when three parents were folded.
+                             * fa4 is the field directly on the root
+                             * when four parents were folded.
                              * PLATFORM: MACOS|ARM64. */
                             if (base_er != root_er && base_er > 0) {
                               fa1 = base_er;
@@ -2283,10 +2302,44 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                                 if (bwalk != root_er && bwalk > 0) {
                                   fa3 = bwalk;
                                   nb = 3;
+                                  unsafe {
+                                    bwalk = pipeline_expr_field_access_base_ref(arena, fa3);
+                                  }
+                                  if (bwalk != root_er && bwalk > 0) {
+                                    fa4 = bwalk;
+                                    nb = 4;
+                                  }
                                 }
                               }
                             }
-                            if (nb == 3) {
+                            if (nb == 4) {
+                              cur = w643_rs_named_init(arena, cur, fa4);
+                              step_ok = 0;
+                              if (cur > 0) {
+                                unsafe {
+                                  opk_d = pipeline_expr_kind_ord_at(arena, cur);
+                                }
+                                if (opk_d == 45) {
+                                  step_ok = 1;
+                                }
+                                /* fa4's init is the local. Offsets inside
+                                 * it are fa3, fa2, fa1, and the leaf.
+                                 * PLATFORM: MACOS|ARM64. */
+                                if (opk_d == 3 && dur_ok == 0) {
+                                  unsafe {
+                                    rc = w645_rs_lea_local_fields(
+                                      arena, elf_ctx, ctx, ta, mod_d, cur, ret_op, fa1, fa2, fa3);
+                                  }
+                                  if (rc < 0) {
+                                    return 0 - 1;
+                                  }
+                                  if (rc == 0) {
+                                    dur_ok = 1;
+                                  }
+                                }
+                              }
+                            }
+                            if (step_ok != 0 && nb >= 3) {
                               cur = w643_rs_named_init(arena, cur, fa3);
                               step_ok = 0;
                               if (cur > 0) {
@@ -2302,7 +2355,7 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                                 if (opk_d == 3 && dur_ok == 0) {
                                   unsafe {
                                     rc = w645_rs_lea_local_fields(
-                                      arena, elf_ctx, ctx, ta, mod_d, cur, ret_op, fa1, fa2);
+                                      arena, elf_ctx, ctx, ta, mod_d, cur, ret_op, fa1, fa2, 0);
                                   }
                                   if (rc < 0) {
                                     return 0 - 1;
@@ -2329,7 +2382,7 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                                 if (opk_d == 3 && dur_ok == 0) {
                                   unsafe {
                                     rc = w645_rs_lea_local_fields(
-                                      arena, elf_ctx, ctx, ta, mod_d, cur, ret_op, fa1, 0);
+                                      arena, elf_ctx, ctx, ta, mod_d, cur, ret_op, fa1, 0, 0);
                                   }
                                   if (rc < 0) {
                                     return 0 - 1;
@@ -2356,7 +2409,7 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                                 if (opk_d == 3 && dur_ok == 0) {
                                   unsafe {
                                     rc = w645_rs_lea_local_fields(
-                                      arena, elf_ctx, ctx, ta, mod_d, cur, ret_op, 0, 0);
+                                      arena, elf_ctx, ctx, ta, mod_d, cur, ret_op, 0, 0, 0);
                                   }
                                   if (rc < 0) {
                                     return 0 - 1;
