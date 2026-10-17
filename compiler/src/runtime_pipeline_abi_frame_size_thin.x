@@ -53,6 +53,11 @@ export extern function ast_pipeline_block_if_then_body_ref(arena: *u8, block_ref
 export extern function ast_pipeline_block_if_else_body_ref(arena: *u8, block_ref: i32, i: i32): i32;
 export extern function pipeline_block_region_body_ref(arena: *u8, block_ref: i32, i: i32): i32;
 export extern function pipeline_block_let_init_ref(arena: *u8, block_ref: i32, i: i32): i32;
+export extern function pipeline_block_let_type_ref(arena: *u8, block_ref: i32, i: i32): i32;
+export extern function ast_ast_block_num_consts(arena: *u8, block_ref: i32): i32;
+export extern function pipeline_block_const_init_ref(arena: *u8, block_ref: i32, i: i32): i32;
+export extern function pipeline_block_const_type_ref(arena: *u8, block_ref: i32, i: i32): i32;
+export extern function pipeline_type_kind_ord_at(arena: *u8, tr: i32): i32;
 export extern function ast_pipeline_block_expr_stmt_ref(arena: *u8, block_ref: i32, i: i32): i32;
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_block_ref_at(arena: *u8, expr_ref: i32): i32;
@@ -405,6 +410,76 @@ function w1500_fs_core(num_params: i32, arena: *u8, block_ref: i32, mod: *u8, fu
 }
 
 /**
+ * Extra frame bytes for a slice let initialized by an array literal.
+ * `let x: [][]T = [A]` parks the row fat at next_offset during the body,
+ * after this size was frozen. wrap_row's home was 0x80 in a 0x50 frame,
+ * so the length store covered the caller's saved fp. 80 bytes keeps that
+ * home below the arm64 x19 slot, which sits at size-16.
+ * @param arena *u8 — AST arena; null returns 0
+ * @param block_ref i32 — function body; <=0 returns 0
+ * @return i32 — 80 when such a let exists, else 0
+ * PLATFORM: SHARED.
+ */
+function w1500_fs_slice_row_pad(arena: *u8, block_ref: i32): i32 {
+  if (arena == (0 as *u8) || block_ref <= 0) {
+    return 0;
+  }
+  let n: i32 = 0;
+  unsafe {
+    n = ast_ast_block_num_lets(arena, block_ref);
+  }
+  let i: i32 = 0;
+  while (i < n) {
+    let init_ref: i32 = 0;
+    let ty: i32 = 0;
+    unsafe {
+      init_ref = pipeline_block_let_init_ref(arena, block_ref, i);
+      ty = pipeline_block_let_type_ref(arena, block_ref, i);
+    }
+    if (ty > 0 && init_ref > 0) {
+      let tk: i32 = 0;
+      let ik: i32 = 0;
+      unsafe {
+        tk = pipeline_type_kind_ord_at(arena, ty);
+        ik = pipeline_expr_kind_ord_at(arena, init_ref);
+      }
+      // TYPE_SLICE = 11. ARRAY_LIT = 46.
+      if (tk == 11 && ik == 46) {
+        return 80;
+      }
+    }
+    i = i + 1;
+  }
+  let nc: i32 = 0;
+  unsafe {
+    nc = ast_ast_block_num_consts(arena, block_ref);
+  }
+  i = 0;
+  while (i < nc) {
+    let init_ref: i32 = 0;
+    let ty: i32 = 0;
+    unsafe {
+      init_ref = pipeline_block_const_init_ref(arena, block_ref, i);
+      ty = pipeline_block_const_type_ref(arena, block_ref, i);
+    }
+    if (ty > 0 && init_ref > 0) {
+      let tk: i32 = 0;
+      let ik: i32 = 0;
+      unsafe {
+        tk = pipeline_type_kind_ord_at(arena, ty);
+        ik = pipeline_expr_kind_ord_at(arena, init_ref);
+      }
+      // TYPE_SLICE = 11. ARRAY_LIT = 46. Same pad as a let.
+      if (tk == 11 && ik == 46) {
+        return 80;
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
  * Frame size for a function prologue.
  * Windows x86_64 (w1497): reserve 32 + 8*max(0, gp-4), 16-aligned, below the
  * frame when the body has a call. Linux/macOS return the core size.
@@ -430,6 +505,16 @@ export function pipeline_asm_compute_frame_size_c(num_params: i32, arena: *u8, b
   size = w1500_fs_core(num_params, arena, block_ref, mod, func_index);
   if (arena == (0 as *u8) || block_ref <= 0) {
     return size;
+  }
+  // Slice row of an array literal. See w1500_fs_slice_row_pad.
+  // PLATFORM: SHARED.
+  let row_pad: i32 = w1500_fs_slice_row_pad(arena, block_ref);
+  if (row_pad > 0) {
+    size = size + row_pad;
+    rem = size % 16;
+    if (rem != 0) {
+      size = size + (16 - rem);
+    }
   }
   unsafe {
     win = link_abi_host_is_windows();

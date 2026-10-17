@@ -31,7 +31,7 @@ export extern function glue_slice_dual_gp_length_off_c(data_home: i32, ta: i32):
  * to the previous let-init object.
  * @param arena *u8 — AST arena; null delegates
  * @param elf_ctx *u8 — ELF codegen context; null delegates
- * @param block_ref i32 — enclosing block; <=0 delegates (nested row)
+ * @param block_ref i32 — enclosing block; 0 is an ARRAY_LIT row element
  * @param let_idx i32 — let index; unused on this arm
  * @param init_ref i32 — init expr
  * @param let_type_ref i32 — dest type; must be TYPE_SLICE to enter
@@ -49,12 +49,10 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
     }
     let tk: i32 = pipeline_type_kind_ord_at(arena, let_type_ref);
     // TYPE_SLICE = 11. Anything else is the previous object's job.
-    // block_ref 0 is an ARRAY_LIT row calling back for one element. That
-    // slot can sit past the frame this object reserved. Writing it smashes
-    // the caller (`let x: [][]i32 = [A]`). Those rows stay on the previous
-    // object. A real let has block_ref > 0.
-    // PLATFORM: SHARED.
-    if (tk != 11 || block_ref <= 0) {
+    // block_ref 0 is an ARRAY_LIT row (`let x: [][]i32 = [A]`). The same
+    // store is used. The frame-size walk adds room for that home so it
+    // is not the caller's saved fp. PLATFORM: SHARED.
+    if (tk != 11) {
       return glue_emit_slice_from_array_let_init_elf_c_prev(arena, elf_ctx, block_ref, let_idx, init_ref, let_type_ref, ctx, ta, slice_slot_off);
     }
     let src: i32 = glue_peel_as_array_slice_ascription_c(arena, init_ref);
