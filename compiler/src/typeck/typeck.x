@@ -4098,11 +4098,26 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 /**
+ * Product entry of field-owner reverse inference.
+ * Body: typeck_field_reverse_infer_soft.x. This file keeps the unique-name
+ * scan under typeck_field_reverse_infer_base_type_mega. Do not paste a
+ * second scan here.
+ * @param module *Module — module with struct layouts
+ * @param arena *ASTArena — type/name pool
+ * @param expr_ref i32 — FIELD_ACCESS expr
+ * @param outer_expected i32 — ambient expected of the field result (reserved)
+ * @return i32 — owner TYPE_NAMED ref, or 0
+ * PLATFORM: SHARED.
+ */
+export extern function typeck_field_reverse_infer_base_type(module: *Module, arena: *ASTArena,
+expr_ref: i32, outer_expected: i32): i32;
+
+/**
  * R2 (8.3.3): reverse-infer owner struct type of FIELD_ACCESS from field name.
  *
  * Migrated from C `pipeline_typeck_field_reverse_infer_base_type_c`
  * (pipeline_typeck_field_access.c) to .x authority. Used only by the field_access
- * orchestrator for CALL/METHOD_CALL bases.
+ * orchestrator for CALL/METHOD_CALL/STRUCT_LIT bases.
  *
  * Why: ambient expected of `base.field` is the *field result* type (e.g. i32 for
  * `.v`), not the base type. Passing that into base typeck made bare ret-only
@@ -4113,6 +4128,10 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32 {
  * for that struct so a bare generic CALL base can use it as expected_ret
  * (`mk_default()` → A). Zero or multiple hits → 0 (fail-closed).
  * outer_expected is reserved (parity with C; currently unused).
+ * knife608: linked as typeck_field_reverse_infer_base_type_mega. The soft
+ * entry calls this first. Only a 0 result whose base is a struct literal
+ * is filtered by the literal's element kind (float lit keeps f32/f64,
+ * integer lit keeps the other). A unique name never reaches that filter.
  *
  * @param module *Module — module with struct layouts
  * @param arena *ASTArena — type/name pool
@@ -4121,7 +4140,8 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32 {
  * @return i32 — unique owner TYPE_NAMED ref, or 0
  * PLATFORM: SHARED — G.7 reverse-infer single authority.
  */
-export function typeck_field_reverse_infer_base_type(module: *Module, arena: *ASTArena,
+#[no_mangle]
+export function typeck_field_reverse_infer_base_type_mega(module: *Module, arena: *ASTArena,
 expr_ref: i32, outer_expected: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -16115,7 +16135,10 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      * STRUCT_LIT join (pin-seed array→slice lit path): anonymous
      * `{ xs: [10,32] }.xs` has no type name; reverse-infer unique layout so
      * base stamps TYPE_NAMED and field type is [N]T for array_to_slice_ok.
-     * EXPR_STRUCT_LIT ord = 45. PLATFORM: SHARED.
+     * Two layouts that share the field name stay 0 here in the mega scan.
+     * The soft entry then keeps the layout whose element kind matches the
+     * array literal (1.0 → f32/f64, 1 → not). EXPR_STRUCT_LIT ord = 45.
+     * PLATFORM: SHARED.
      */
     base_expected = 0;
     base_kind = pipeline_expr_kind_ord_at(arena, base_ref);
