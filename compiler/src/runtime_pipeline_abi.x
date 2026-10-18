@@ -54685,11 +54685,12 @@ export function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): 
 
 /**
  * Layout-index to computed align. 0 means unknown.
- * Index is the struct layout slot. Cap 1100 matches the align work stack.
- * Lives for one compiler process. Inner-first parse fills the leaf first.
+ * Index is the struct layout slot. Cap 4096. A higher index is walked
+ * and not stored. The work stack stays 1100. Inner-first parse fills
+ * the leaf first, so a parent hits this table instead of pushing.
  * PLATFORM: SHARED.
  */
-let g_ty_align_by_li: i32[1100] = [];
+let g_ty_align_by_li: i32[4096] = [];
 
 /**
  * Alignment of a type (C twin of typeck_x_type_align).
@@ -54815,7 +54816,7 @@ export function glue_type_align_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32):
           found = 1;
           /* Finished layout: reuse the stored align. Do not walk its fields. */
           if (k >= 0) {
-            if (k < 1100) {
+            if (k < 4096) {
               hit = g_ty_align_by_li[k];
               if (hit > 0) {
                 if (hit > al_out) {
@@ -54869,7 +54870,7 @@ export function glue_type_align_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32):
                   }
                 }
                 if (child_k >= 0) {
-                  if (child_k < 1100) {
+                  if (child_k < 4096) {
                     hit = g_ty_align_by_li[child_k];
                     if (hit > 0) {
                       if (hit > al_out) {
@@ -54911,7 +54912,7 @@ export function glue_type_align_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32):
   /* Store only a walk that did not enter an unmemoized named child. */
   if (named_miss == 0) {
     if (root_k >= 0) {
-      if (root_k < 1100) {
+      if (root_k < 4096) {
         if (al_out > 0) {
           g_ty_align_by_li[root_k] = al_out;
         }
