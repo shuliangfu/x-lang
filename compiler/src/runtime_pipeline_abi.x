@@ -54953,14 +54953,14 @@ export function glue_struct_layout_metrics_c(module: *u8, arena: *u8, li: i32, d
   let found: i32 = 0;
   let sp: i32 = 0;
   let steps: i32 = 0;
-  let st_li: i32[1100] = [];
-  let st_j: i32[1100] = [];
-  let st_cur: i32[1100] = [];
-  let st_ma: i32[1100] = [];
-  let st_pk: i32[1100] = [];
-  let st_allow: i32[1100] = [];
-  let st_nf: i32[1100] = [];
-  let st_pending_A: i32[1100] = [];
+  let st_li: i32[2048] = [];
+  let st_j: i32[2048] = [];
+  let st_cur: i32[2048] = [];
+  let st_ma: i32[2048] = [];
+  let st_pk: i32[2048] = [];
+  let st_allow: i32[2048] = [];
+  let st_nf: i32[2048] = [];
+  let st_pending_A: i32[2048] = [];
   if (module == (0 as *u8) || arena == (0 as *u8) || out_sz == (0 as *i32) || out_al == (0 as *i32)) {
     return 0 - 1;
   }
@@ -54970,7 +54970,8 @@ export function glue_struct_layout_metrics_c(module: *u8, arena: *u8, li: i32, d
   if (li < 0 || li >= nlayouts || depth > 1024) {
     return 0 - 1;
   }
-  /* Explicit frame stack: nested TYPE_NAMED layouts do not recurse on the C stack. */
+  /* Explicit frame stack: nested TYPE_NAMED layouts do not recurse on the C stack.
+   * At most 2048 frames. The next frame returns -1. PLATFORM: SHARED. */
   st_li[0] = li;
   st_j[0] = 0;
   st_cur[0] = 0;
@@ -55055,7 +55056,7 @@ export function glue_struct_layout_metrics_c(module: *u8, arena: *u8, li: i32, d
         }
       }
       if (child_li >= 0) {
-        if (sp >= 1100) {
+        if (sp >= 2048) {
           return 0 - 1;
         }
         st_cur[sp - 1] = current;
@@ -55128,7 +55129,7 @@ export function glue_struct_layout_metrics_c(module: *u8, arena: *u8, li: i32, d
       }
     }
     if (child_li >= 0) {
-      if (sp >= 1100) {
+      if (sp >= 2048) {
         return 0 - 1;
       }
       st_cur[sp - 1] = current;
