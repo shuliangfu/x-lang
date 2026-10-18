@@ -54924,6 +54924,17 @@ export function glue_type_align_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32):
   return 1;
 }
 
+/**
+ * Finished layout size by struct-layout index.
+ * known 0 means not measured. A measured empty layout stores size 0
+ * with known set, so 0 is not reused as the miss marker.
+ * Cap 4096. A higher index is walked and not stored.
+ * Lives for one compiler process. Inner-first validation fills the leaf first.
+ * PLATFORM: SHARED.
+ */
+let g_ty_metrics_known: i32[4096] = [];
+let g_ty_metrics_sz: i32[4096] = [];
+
 #[no_mangle]
 export function glue_struct_layout_metrics_c(module: *u8, arena: *u8, li: i32, depth: i32, check_pad: i32, out_sz: *i32, out_al: *i32): i32 {
   let nf: i32 = 0;
@@ -55010,6 +55021,15 @@ export function glue_struct_layout_metrics_c(module: *u8, arena: *u8, li: i32, d
       if (A <= 0) {
         A = 1;
       }
+      /* Remember this finished layout. A later parent field uses the
+       * stored size instead of pushing the subtree again.
+       * PLATFORM: SHARED. */
+      if (st_li[sp - 1] >= 0) {
+        if (st_li[sp - 1] < 4096) {
+          g_ty_metrics_known[st_li[sp - 1]] = 1;
+          g_ty_metrics_sz[st_li[sp - 1]] = fsize;
+        }
+      }
       sp = sp - 1;
       if (sp == 0) {
         unsafe {
@@ -55056,6 +55076,17 @@ export function glue_struct_layout_metrics_c(module: *u8, arena: *u8, li: i32, d
         }
       }
       if (child_li >= 0) {
+        /* Packed child already measured: add the stored size.
+         * PLATFORM: SHARED. */
+        if (child_li < 4096) {
+          if (g_ty_metrics_known[child_li] != 0) {
+            fsize = g_ty_metrics_sz[child_li];
+            current = current + fsize;
+            st_cur[sp - 1] = current;
+            st_j[sp - 1] = j + 1;
+            continue;
+          }
+        }
         if (sp >= 2048) {
           return 0 - 1;
         }
@@ -55129,6 +55160,22 @@ export function glue_struct_layout_metrics_c(module: *u8, arena: *u8, li: i32, d
       }
     }
     if (child_li >= 0) {
+      /* Child layout already measured: keep the gap already added
+       * and use the stored size. Do not push that subtree.
+       * PLATFORM: SHARED. */
+      if (child_li < 4096) {
+        if (g_ty_metrics_known[child_li] != 0) {
+          fsize = g_ty_metrics_sz[child_li];
+          current = current + fsize;
+          if (A > max_align) {
+            max_align = A;
+          }
+          st_cur[sp - 1] = current;
+          st_ma[sp - 1] = max_align;
+          st_j[sp - 1] = j + 1;
+          continue;
+        }
+      }
       if (sp >= 2048) {
         return 0 - 1;
       }
