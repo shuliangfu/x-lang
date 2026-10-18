@@ -671,7 +671,7 @@ function w645_rs_acc_field_off(arena: *u8, mod: *u8, fa: i32, acc: i32): i32 {
  * The field whose init is the local is not included: that offset
  * sits in the literal, not in the local. A pointer or slice local
  * returns 1 so the caller stays on emit_expr. A failed lvalue
- * returns 1. An encoder error returns -1. n_inner above 1024 is
+ * returns 1. An encoder error returns -1. n_inner above 2048 is
  * declined. The offset loop calls the one-field helper.
  * EXPR_VAR = 3. TYPE_POINTER = 9. TYPE_SLICE = 11.
  * @param arena *u8 — AST arena; null returns 1
@@ -695,7 +695,7 @@ function w648_rs_lea_chain(
   let k: i32 = 0;
   let rc: i32 = 0;
   let i: i32 = 0;
-  if (var_er <= 0 || f_leaf <= 0 || mod == (0 as *u8) || n_inner < 0 || n_inner > 1024) {
+  if (var_er <= 0 || f_leaf <= 0 || mod == (0 as *u8) || n_inner < 0 || n_inner > 2048) {
     return 1;
   }
   if (n_inner > 0 && inner == (0 as *i32)) {
@@ -779,13 +779,13 @@ function w648_rs_lea_chain(
  * A payload of 16 bytes or less stays on emit_expr. A chain of value
  * fields (`return o.inn.xs`) adds each field offset onto that same
  * local slot. A pointer field, a pointer root, or a chain longer
- * than one thousand twenty-five fields stays on emit_expr. A FIELD whose root is a
+ * than two thousand forty-eight parents stays on emit_expr. A FIELD whose root is a
  * STRUCT_LIT durables an ARRAY_LIT init, or takes the address of a
  * VAR init. A parent field (`return { inn: { xs: [...] } }.inn.xs`)
  * walks a STRUCT_LIT init. A parent whose init is a local struct
  * (`return { inn: src }.inn.xs`) takes that local's address plus
  * the fields inside it, not the literal's own field offset. The
- * walk is at most one thousand twenty-four parents. Any other STRUCT_LIT init stays on
+ * walk is at most two thousand forty-eight parents. Any other STRUCT_LIT init stays on
  * emit_expr.
  * A FIELD whose type is TYPE_NAMED, whose return is wider than 16
  * bytes, and whose base is INDEX (`return a[1].s`) leas that element
@@ -2087,7 +2087,7 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
        * (`return { inn: { xs: [...] } }.inn.xs`) walks that init
        * when it is also a STRUCT_LIT. A parent init that is a local
        * struct (`return { inn: src }.inn.xs`) takes that local's
-       * address plus the fields inside it. At most one thousand twenty-four parents.
+       * address plus the fields inside it. At most two thousand forty-eight parents.
        * A field past slot 63, a pointer element, a slice
        * element, a pointer field, or a pointer root
        * stays on emit_expr.
@@ -2155,14 +2155,14 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                         if (sum_off < 0 || sum_off > 4095) {
                           fold_ok = 0;
                         }
-                        /* Up to one thousand twenty-four parent fields. -2 means
+                        /* Up to two thousand forty-eight parent fields. -2 means
                          * this expr is the root. The loop calls helpers.
-                         * Extern stays inside them. A one thousand
-                         * twenty-fifth parent stays on emit_expr.
+                         * Extern stays inside them. A two thousand
+                         * forty-ninth parent stays on emit_expr.
                          * PLATFORM: MACOS|ARM64. */
                         if (fold_ok != 0) {
                           hop = w635_rs_fold_parent(arena, mod_d, root_er);
-                          while (fold_ok != 0 && hop >= 0 && hops < 1024) {
+                          while (fold_ok != 0 && hop >= 0 && hops < 2048) {
                             if (sum_off > (4095 - hop)) {
                               fold_ok = 0;
                             } else {
@@ -2271,7 +2271,7 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                            * EXPR_STRUCT_LIT = 45. EXPR_ARRAY_LIT = 46.
                            * EXPR_VAR = 3. PLATFORM: MACOS|ARM64. */
                           if (opk_d == 45 && dur_ok == 0) {
-                            let fas: i32[1024] = [];
+                            let fas: i32[2048] = [];
                             let nb: i32 = 0;
                             let cur: i32 = root_er;
                             let walk: i32 = base_er;
@@ -2279,10 +2279,10 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                             let step_ok: i32 = 1;
                             /* Parents between the leaf and the root.
                              * fas[0] is the leaf's base. fas[nb - 1] is
-                             * the field on the root. At most one thousand twenty-four.
+                             * the field on the root. At most two thousand forty-eight.
                              * The loop calls helpers. Extern stays
                              * inside them. PLATFORM: MACOS|ARM64. */
-                            while (walk != root_er && walk > 0 && nb < 1024) {
+                            while (walk != root_er && walk > 0 && nb < 2048) {
                               fas[nb] = walk;
                               nb = nb + 1;
                               walk = w648_rs_base(arena, walk);
