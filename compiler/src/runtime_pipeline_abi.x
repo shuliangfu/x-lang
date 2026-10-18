@@ -54684,6 +54684,14 @@ export function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): 
 }
 
 /**
+ * Layout-index to computed align. 0 means unknown.
+ * Index is the struct layout slot. Cap 1100 matches the align work stack.
+ * Lives for one compiler process. Inner-first parse fills the leaf first.
+ * PLATFORM: SHARED.
+ */
+let g_ty_align_by_li: i32[1100] = [];
+
+/**
  * Alignment of a type (C twin of typeck_x_type_align).
  * TYPE_NAMED SIMD spelling (i32x4 / Vec4f / i32x8) has no struct layout —
  * miss align is lanes*esz (16/32), not the 4B scalar miss. Same contract
@@ -54692,6 +54700,11 @@ export function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): 
  * @return i32 - alignment (1/4/8/16/32 or struct max_align); 1 on miss
  * wave154 pure: G.7 authority (was static glue_type_align_simple).
  * PLATFORM: SHARED — f32(14) align 4 not 8 (AoS 3xf32); SIMD named = size.
+ * Named layouts are parsed inner-first. A finished layout's align is stored
+ * in g_ty_align_by_li so a parent field does not walk that subtree again.
+ * A memo hit is valid only when every named child was already memoized
+ * (or was not named). An unmemoized named child still walks, and that
+ * result is not stored, so a partial struct cannot poison the table.
  */
 #[no_mangle]
 export function glue_type_align_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): i32 {
@@ -54716,6 +54729,14 @@ export function glue_type_align_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32):
   let steps: i32 = 0;
   let t: i32 = 0;
   let found: i32 = 0;
+  let root_k: i32 = 0;
+  let named_miss: i32 = 0;
+  let hit: i32 = 0;
+  let child_k: i32 = 0;
+  let child_ko: i32 = 0;
+  let child_nlen: i32 = 0;
+  let ck: i32 = 0;
+  root_k = 0 - 1;
   /* depth kept for API; work is an explicit stack so ordinary C stack stays O(1). */
   if (a == (0 as *u8) || ty_ref <= 0 || depth > 1024) {
     return 1;
@@ -54792,6 +54813,21 @@ export function glue_type_align_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32):
       while (k < nlayouts) {
         if (glue_layout_name_matches_named_type_c(m, k, &name[0], nlen) != 0) {
           found = 1;
+          /* Finished layout: reuse the stored align. Do not walk its fields. */
+          if (k >= 0) {
+            if (k < 1100) {
+              hit = g_ty_align_by_li[k];
+              if (hit > 0) {
+                if (hit > al_out) {
+                  al_out = hit;
+                }
+                break;
+              }
+            }
+          }
+          if (steps == 1) {
+            root_k = k;
+          }
           unsafe {
             is_pk = pipeline_module_struct_layout_packed_at(m, k);
             nf = pipeline_module_struct_layout_num_fields(m, k);
@@ -54807,6 +54843,44 @@ export function glue_type_align_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32):
               }
               if (fa > al_out) {
                 al_out = fa;
+              }
+              child_ko = 0;
+              child_k = 0 - 1;
+              if (ftr > 0) {
+                unsafe {
+                  child_ko = pipeline_type_kind_ord_at(a, ftr);
+                }
+              }
+              /* Named child already memoized: fold it. Do not push the subtree. */
+              if (child_ko == 8) {
+                unsafe {
+                  child_nlen = pipeline_type_named_name_into(a, ftr, &name[0]);
+                }
+                if (child_nlen > 0) {
+                  if (child_nlen <= 255) {
+                    ck = 0;
+                    while (ck < nlayouts) {
+                      if (glue_layout_name_matches_named_type_c(m, ck, &name[0], child_nlen) != 0) {
+                        child_k = ck;
+                        break;
+                      }
+                      ck = ck + 1;
+                    }
+                  }
+                }
+                if (child_k >= 0) {
+                  if (child_k < 1100) {
+                    hit = g_ty_align_by_li[child_k];
+                    if (hit > 0) {
+                      if (hit > al_out) {
+                        al_out = hit;
+                      }
+                      j = j + 1;
+                      continue;
+                    }
+                  }
+                }
+                named_miss = 1;
               }
               if (ftr > 0 && sp < 1100) {
                 stack[sp] = ftr;
@@ -54832,6 +54906,16 @@ export function glue_type_align_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32):
         }
       }
       continue;
+    }
+  }
+  /* Store only a walk that did not enter an unmemoized named child. */
+  if (named_miss == 0) {
+    if (root_k >= 0) {
+      if (root_k < 1100) {
+        if (al_out > 0) {
+          g_ty_align_by_li[root_k] = al_out;
+        }
+      }
     }
   }
   if (al_out > 0) {
