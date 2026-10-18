@@ -34,6 +34,11 @@ export extern function pipeline_expr_array_lit_num_elems_at(arena: *u8, expr_ref
 export extern function pipeline_type_elem_ref_at(arena: *u8, type_ref: i32): i32;
 export extern function glue_array_lit_force_esz_from_elem_type_c(arena: *u8, et: i32): i32;
 export extern function glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, force_esz: i32, ta: i32, ctx: *u8, dest_elem_ty: i32): i32;
+export extern function pipeline_expr_index_base_ref(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_asm_emit_expr_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function glue_emit_module_from_ctx(ctx: *u8): *u8;
+export extern function glue_store_retval_pair_to_rbp_elf_c(mod: *u8, arena: *u8, elf_ctx: *u8, type_ref: i32, slot_off: i32, ta: i32, init_ref: i32, ctx: *u8): i32;
 
 /**
  * Dest-SLICE let whose init is a module TYPE_ARRAY variable.
@@ -112,7 +117,12 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
           }
           if (lit > 0) {
             let n_lit: i32 = pipeline_expr_array_lit_num_elems_at(arena, lit);
-            if (n_lit > 0 && n_lit <= 1024) {
+            // `let s: []i64 = W{ xs: [1025] }.xs` used to miss this
+            // and fall through to CG002. 16777216 matches the durable
+            // literal ceiling. An empty `xs: []` stays on the previous
+            // object because n_lit is 0.
+            // PLATFORM: SHARED. Mac product mov w0, #16777216 at file 0x18e24.
+            if (n_lit > 0 && n_lit <= 16777216) {
               let elem_ty: i32 = pipeline_type_elem_ref_at(arena, let_type_ref);
               let esz: i32 = glue_array_lit_force_esz_from_elem_type_c(arena, elem_ty);
               if (glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, lit, esz, ta, ctx, elem_ty) == 0) {
@@ -134,7 +144,43 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
       }
       return glue_emit_slice_from_array_let_init_elf_c_prev(arena, elf_ctx, block_ref, let_idx, init_ref, let_type_ref, ctx, ta, slice_slot_off);
     }
-    // EXPR_VAR = 3. INDEX and ARRAY_LIT stay on the previous object.
+    // EXPR_INDEX = 47 of TYPE_ARRAY of TYPE_SLICE (`let s = a[0]` of
+    // `[2][]i64`). emit_expr already fills x0/x1; store both words.
+    // The previous object wrongly took outer N and lea of the slice
+    // header (length luckily 2, data pointer wrong, exit 3).
+    // PLATFORM: MACOS|ARM64 · LINUX x86_64. Cap tip soft on _prev
+    // skips that else at 0x1001eb258 / 0x1001eb5f4.
+    if (ko == 47) {
+      let base_ref: i32 = pipeline_expr_index_base_ref(arena, src);
+      if (base_ref <= 0) {
+        return glue_emit_slice_from_array_let_init_elf_c_prev(arena, elf_ctx, block_ref, let_idx, init_ref, let_type_ref, ctx, ta, slice_slot_off);
+      }
+      let btr: i32 = pipeline_expr_resolved_type_ref(arena, base_ref);
+      if (btr <= 0) {
+        return glue_emit_slice_from_array_let_init_elf_c_prev(arena, elf_ctx, block_ref, let_idx, init_ref, let_type_ref, ctx, ta, slice_slot_off);
+      }
+      let btk: i32 = pipeline_type_kind_ord_at(arena, btr);
+      if (btk != 10) {
+        return glue_emit_slice_from_array_let_init_elf_c_prev(arena, elf_ctx, block_ref, let_idx, init_ref, let_type_ref, ctx, ta, slice_slot_off);
+      }
+      let etr: i32 = pipeline_type_elem_ref_at(arena, btr);
+      if (etr <= 0) {
+        return glue_emit_slice_from_array_let_init_elf_c_prev(arena, elf_ctx, block_ref, let_idx, init_ref, let_type_ref, ctx, ta, slice_slot_off);
+      }
+      let etk: i32 = pipeline_type_kind_ord_at(arena, etr);
+      if (etk != 11) {
+        return glue_emit_slice_from_array_let_init_elf_c_prev(arena, elf_ctx, block_ref, let_idx, init_ref, let_type_ref, ctx, ta, slice_slot_off);
+      }
+      if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, src, ctx, ta) != 0) {
+        return 0 - 1;
+      }
+      let mod2: *u8 = glue_emit_module_from_ctx(ctx);
+      if (glue_store_retval_pair_to_rbp_elf_c(mod2, arena, elf_ctx, let_type_ref, slice_slot_off, ta, src, ctx) != 0) {
+        return 0 - 1;
+      }
+      return 1;
+    }
+    // EXPR_VAR = 3. ARRAY_LIT and other INDEX stay on the previous object.
     if (ko != 3) {
       return glue_emit_slice_from_array_let_init_elf_c_prev(arena, elf_ctx, block_ref, let_idx, init_ref, let_type_ref, ctx, ta, slice_slot_off);
     }

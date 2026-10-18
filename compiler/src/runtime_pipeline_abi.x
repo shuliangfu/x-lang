@@ -37129,6 +37129,23 @@ export function glue_array_temp_bytes_for_let_init(arena: *u8, let_type_ref: i32
 }
 
 /**
+ * Empty ARRAY_LIT leaves a null payload pointer in x0.
+ * `[]` has no bytes of its own. A fixed BSS common was only as large
+ * as its symbol, so a longer memcpy read past it. The arm64 dest-in-x19
+ * copy treats a null source as memset of the destination for the
+ * requested byte count. x86 still takes the unreserved rbp slot.
+ * @param elf_ctx *u8 - ElfCodegenCtx. Null fails in the mov.
+ * @return i32 - 0 when mov x0, #0 is queued; -1 on encode failure.
+ * PLATFORM: MACOS|ARM64.
+ */
+#[no_mangle]
+export function glue_emit_empty_array_bss_ptr_arm64(elf_ctx: *u8): i32 {
+  unsafe {
+    return backend_enc_mov_imm64_to_rax_arch(elf_ctx, 0, 0, 1);
+  }
+}
+
+/**
  * EXPR_ARRAY_LIT stack emit with optional force_esz.
  * @param arena *u8 - ASTArena*
  * @param elf_ctx *u8 - ElfCodegenCtx*
@@ -37171,18 +37188,36 @@ export function pipeline_asm_emit_array_lit_force_esz_elf_c(arena: *u8, elf_ctx:
     n_arr = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
   }
   if (n_arr == 0) {
+    /* Empty `[]` has no payload. rbp+next_offset is the end of the
+     * locals already reserved, not a zeroed buffer of the destination
+     * type's byte count. arm64 leaves a null pointer. The dest-in-x19
+     * copy memsets that many bytes instead of reading from address 0.
+     * x86 still returns the unreserved rbp slot. PLATFORM: MACOS|ARM64
+     * for the null; the rbp lea stays for ta != 1. */
+    if (ta == 1) {
+      unsafe {
+        return glue_emit_empty_array_bss_ptr_arm64(elf_ctx);
+      }
+    }
     temp_base = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
     unsafe {
       return backend_enc_lea_rbp_to_rax_arch(elf_ctx, temp_base, ta);
     }
   }
-  // GLUE_ARRAY_LIT_MAX_ELEMS = 1024
-  if (n_arr <= 0 || n_arr > 1024) {
+  // `[1025 elems][1024]` used to return -1 here (CG002). 16777216
+  // matches the other literal counts. The two loops below use the
+  // same cap so element 1024 is stored. subs imm12 cannot hold
+  // 16777216, so the Mac product branches to caves and subs against
+  // w9. w9 is not live across that compare.
+  // PLATFORM: SHARED. Reject cave VA 0x10088fc60 from file 0x259828.
+  // Loop caves VA 0x10088fc6c from 0x25986c and VA 0x10088fc78 from
+  // 0x259be4.
+  if (n_arr <= 0 || n_arr > 16777216) {
     return 0 - 1;
   }
   has_nested = 0;
   ai = 0;
-  while (ai < n_arr && ai < 1024) {
+  while (ai < n_arr && ai < 16777216) {
     unsafe {
       elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai);
     }
@@ -37277,7 +37312,7 @@ export function pipeline_asm_emit_array_lit_force_esz_elf_c(arena: *u8, elf_ctx:
     return 0 - 1;
   }
   ai = 0;
-  while (ai < n_arr && ai < 1024) {
+  while (ai < n_arr && ai < 16777216) {
     unsafe {
       elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai);
     }
@@ -40015,7 +40050,11 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
     unsafe {
       n_arr = pipeline_expr_array_lit_num_elems_at(arena, src);
     }
-    if (n_arr < 0 || n_arr > 1024) {
+    // `let s: []i64 = [1025 elems]` used to return -1 here (CG002)
+    // before the durable fill. 16777216 matches the slice-return
+    // ceiling. The byte total stays with the durable emitter.
+    // PLATFORM: SHARED. Mac product mov w0, #16777216 at file 0x1e9450.
+    if (n_arr < 0 || n_arr > 16777216) {
       return 0 - 1;
     }
     unsafe {
@@ -40529,12 +40568,9 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
                       arr_sz = pipeline_type_array_size_at(arena, ftr);
                       idx_esz = glue_fixed_array_total_bytes_c(arena, ftr, 0);
                     }
-                  } else {
-                    unsafe {
-                      arr_sz = pipeline_type_array_size_at(arena, tr);
-                      idx_esz = glue_fixed_array_total_bytes_c(arena, tr, 0);
-                    }
                   }
+                  // Elem TYPE_SLICE ([N][]T): leave arr_sz 0 for emit_expr+dual-GP.
+                  // PLATFORM: SHARED. Cap tip soft 0x1001eb258 / 0x1001eb5f4 skips this else.
                 }
               }
             }
@@ -40587,12 +40623,9 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
                               arr_sz = pipeline_type_array_size_at(arena, ftr);
                               idx_esz = glue_fixed_array_total_bytes_c(arena, ftr, 0);
                             }
-                          } else {
-                            unsafe {
-                              arr_sz = pipeline_type_array_size_at(arena, tr);
-                              idx_esz = glue_fixed_array_total_bytes_c(arena, tr, 0);
-                            }
                           }
+                          // Elem TYPE_SLICE ([N][]T): leave arr_sz 0 for emit_expr+dual-GP.
+                          // PLATFORM: SHARED. Cap tip soft 0x1001eb258 / 0x1001eb5f4 skips this else.
                         }
                       }
                     }
@@ -54685,12 +54718,12 @@ export function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): 
 
 /**
  * Layout-index to computed align. 0 means unknown.
- * Index is the struct layout slot. Cap 4096. A higher index is walked
+ * Index is the struct layout slot. Cap 16384. A higher index is walked
  * and not stored. The work stack stays 1100. Inner-first parse fills
  * the leaf first, so a parent hits this table instead of pushing.
  * PLATFORM: SHARED.
  */
-let g_ty_align_by_li: i32[4096] = [];
+let g_ty_align_by_li: i32[16384] = [];
 
 /**
  * Alignment of a type (C twin of typeck_x_type_align).
@@ -54816,7 +54849,7 @@ export function glue_type_align_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32):
           found = 1;
           /* Finished layout: reuse the stored align. Do not walk its fields. */
           if (k >= 0) {
-            if (k < 4096) {
+            if (k < 16384) {
               hit = g_ty_align_by_li[k];
               if (hit > 0) {
                 if (hit > al_out) {
@@ -54870,7 +54903,7 @@ export function glue_type_align_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32):
                   }
                 }
                 if (child_k >= 0) {
-                  if (child_k < 4096) {
+                  if (child_k < 16384) {
                     hit = g_ty_align_by_li[child_k];
                     if (hit > 0) {
                       if (hit > al_out) {
@@ -54912,7 +54945,7 @@ export function glue_type_align_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32):
   /* Store only a walk that did not enter an unmemoized named child. */
   if (named_miss == 0) {
     if (root_k >= 0) {
-      if (root_k < 4096) {
+      if (root_k < 16384) {
         if (al_out > 0) {
           g_ty_align_by_li[root_k] = al_out;
         }
@@ -54929,12 +54962,12 @@ export function glue_type_align_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32):
  * Finished layout size by struct-layout index.
  * known 0 means not measured. A measured empty layout stores size 0
  * with known set, so 0 is not reused as the miss marker.
- * Cap 4096. A higher index is walked and not stored.
+ * Cap 16384. A higher index is walked and not stored.
  * Lives for one compiler process. Inner-first validation fills the leaf first.
  * PLATFORM: SHARED.
  */
-let g_ty_metrics_known: i32[4096] = [];
-let g_ty_metrics_sz: i32[4096] = [];
+let g_ty_metrics_known: i32[16384] = [];
+let g_ty_metrics_sz: i32[16384] = [];
 
 #[no_mangle]
 export function glue_struct_layout_metrics_c(module: *u8, arena: *u8, li: i32, depth: i32, check_pad: i32, out_sz: *i32, out_al: *i32): i32 {
@@ -55026,7 +55059,7 @@ export function glue_struct_layout_metrics_c(module: *u8, arena: *u8, li: i32, d
        * stored size instead of pushing the subtree again.
        * PLATFORM: SHARED. */
       if (st_li[sp - 1] >= 0) {
-        if (st_li[sp - 1] < 4096) {
+        if (st_li[sp - 1] < 16384) {
           g_ty_metrics_known[st_li[sp - 1]] = 1;
           g_ty_metrics_sz[st_li[sp - 1]] = fsize;
         }
@@ -55079,7 +55112,7 @@ export function glue_struct_layout_metrics_c(module: *u8, arena: *u8, li: i32, d
       if (child_li >= 0) {
         /* Packed child already measured: add the stored size.
          * PLATFORM: SHARED. */
-        if (child_li < 4096) {
+        if (child_li < 16384) {
           if (g_ty_metrics_known[child_li] != 0) {
             fsize = g_ty_metrics_sz[child_li];
             current = current + fsize;
@@ -55164,7 +55197,7 @@ export function glue_struct_layout_metrics_c(module: *u8, arena: *u8, li: i32, d
       /* Child layout already measured: keep the gap already added
        * and use the stored size. Do not push that subtree.
        * PLATFORM: SHARED. */
-      if (child_li < 4096) {
+      if (child_li < 16384) {
         if (g_ty_metrics_known[child_li] != 0) {
           fsize = g_ty_metrics_sz[child_li];
           current = current + fsize;
