@@ -26486,7 +26486,11 @@ pipeline_abi_inject_cap_residual_egg_thins() {
     src/runtime_pipeline_abi_has_call_index_thin.x \
     src/runtime_pipeline_abi_has_nonlocal_var_thin.x \
     src/runtime_pipeline_abi_defer_use_walk_thin.x \
-    src/pabi_vector_let_init_nested_one.x
+    src/pabi_vector_let_init_nested_one.x \
+    src/runtime_pipeline_abi_local_slot_ptr_tramp_thin.x \
+    src/pabi_index_elem_from_type_one.x \
+    src/runtime_pipeline_abi_func_return_byte_size_soft.x \
+    src/runtime_pipeline_abi_struct_lit_fields_thin.x
   do
     [ -f "$thin_x" ] || continue
     tag="w256-egg-$(basename "$thin_x" .x)"
@@ -26504,6 +26508,10 @@ pipeline_abi_inject_cap_residual_egg_thins() {
       *has_nonlocal*) _probe='glue_expr_tree_has_nonlocal_var_c' ;;
       *defer_use*) _probe='glue_live_fwd_collect_expr_uses_for_defer' ;;
       *nested_one*) _probe='pabi_vector_let_init_nested_one_vlet_wide_elem' ;;
+      *local_slot_ptr_tramp*) _probe='glue_enc_local_slot_ptr_or_addr_elf_c' ;;
+      *pabi_index_elem_from_type*) _probe='glue_index_simd_elem_bytes_c' ;;
+      *func_return_byte_size*) _probe='glue_wide_i32_vec_array_bytes' ;;
+      *struct_lit_fields_thin*) _probe='win_emit_struct_lit_fields_into_parked_rbx' ;;
       *) _probe='' ;;
     esac
     if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ] && [ -n "$_probe" ]; then
