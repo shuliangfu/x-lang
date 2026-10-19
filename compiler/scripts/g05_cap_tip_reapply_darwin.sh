@@ -705,6 +705,19 @@ _cap_tip_net_leftover_leaves() {
       fi
     fi
   fi
+  # Formal driver.o strong wins vs stubs write_batch (ensure may miss weaken).
+  # PLATFORM: MACOS Cap tip · pure-ld no multiply_defined.
+  if [ -n "$_oc" ] && [ -s runtime_asm_io_stubs.o ] && [ -s ../std/io/driver.o ]; then
+    for _ws in _std_io_driver_submit_write_batch \
+               _std_io_driver_submit_read_batch_buf \
+               _std_io_driver_submit_write_batch_buf; do
+      if nm -m runtime_asm_io_stubs.o 2>/dev/null | grep -E " ${_ws}\$" | grep -qv weak; then
+        "$_oc" --weaken-symbol="$_ws" runtime_asm_io_stubs.o 2>/dev/null \
+          && echo "g05_cap_tip_reapply: weakened stubs ${_ws} (driver.o wins)" >&2 || true
+      fi
+    done
+    unset _ws
+  fi
 }
 _cap_tip_net_leftover_leaves
 
