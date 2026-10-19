@@ -1367,34 +1367,115 @@ fi
 # Cap tip: KEEP darwin_tramp so mega/fill locals redirect to overlay T
 # (index thin, fill glue 13KB). Decline glue stays demoted. PLATFORM: MACOS Cap tip.
 unset XLANG_SKIP_DARWIN_TRAMP
-# knife256/10.2: Cap tip DepCtx sidecar — multi-import `xlang check` T001 on
-# result.ok_i32 / option.* when fill path APIs miss GrowVec layout. Prepend
-# full dep_ctx_thin; demote fill/pabi_weak twins. PLATFORM: MACOS Cap tip.
-if [ -f src/runtime_pipeline_abi_dep_ctx_thin.x ] && [ -x ./xlang ]; then
-  _dct_o=build_asm/selfhost_pabi/dep_ctx_thin_a64.o
-  if [ ! -s "$_dct_o" ] || [ src/runtime_pipeline_abi_dep_ctx_thin.x -nt "$_dct_o" ]; then
+# knife256/10.2: Cap tip DepCtx path-only overlay — multi-import `xlang check`
+# needs GrowVec import_path APIs; full dep_ctx_thin demote broke multi-file
+# (foo.o not linked). Keep only import_path+sidecar globals; localize rest so
+# fill/weak keep build DepCtx. PLATFORM: MACOS Cap tip.
+if [ -f src/runtime_pipeline_abi_dep_ctx_thin.x ] && [ -x ./xlang ] && [ "${XLANG_CAP_TIP_DEPCTX_PATH:-0}" = "1" ]; then
+  _dct_src=build_asm/selfhost_pabi/dep_ctx_thin_a64.o
+  _dct_o=build_asm/selfhost_pabi/dep_ctx_path_only_a64.o
+  if [ ! -s "$_dct_src" ] || [ src/runtime_pipeline_abi_dep_ctx_thin.x -nt "$_dct_src" ]; then
     env -u XLANG -u XLANG_FORCE -u FORCE -u PREFER -u G05 -u RUN_ALL_USE_C \
       -u XLANG_CAP_TIP_L4_CACHE \
       XLANG_PREFER_ASM_O=1 ./xlang -backend asm -c \
-      src/runtime_pipeline_abi_dep_ctx_thin.x -o "$_dct_o" \
+      src/runtime_pipeline_abi_dep_ctx_thin.x -o "$_dct_src" \
       || { echo "g05_cap_tip_reapply: dep_ctx_thin compile failed" >&2; exit 1; }
     echo "g05_cap_tip_reapply: tip-compiled dep_ctx_thin_a64.o" >&2
+  fi
+  if [ -s "$_dct_src" ] && [ -n "${OC_L003:-}" ]; then
+    cp -f "$_dct_src" "$_dct_o"
+    python3 - "$_dct_o" "${OC_L003}" <<'PYPATH'
+import subprocess, sys
+path_o, oc = sys.argv[1], sys.argv[2]
+KEEP = {
+  "_pipeline_dep_ctx_import_path_byte_at",
+  "_pipeline_dep_ctx_import_path_copy64",
+  "_pipeline_dep_ctx_import_path_len",
+  "_pipeline_dep_ctx_set_import_path",
+  "_pipeline_pipe_dep_sc_at",
+  "_pipeline_pipe_dep_sc_free",
+  "_pipeline_pipe_dep_sc_gv",
+  "_pipeline_pipe_dep_sc_max",
+  "_pipeline_pipe_dep_sc_off_ctx",
+  "_pipeline_pipe_dep_sc_off_dep_arenas",
+  "_pipeline_pipe_dep_sc_off_dep_modules",
+  "_pipeline_pipe_dep_sc_off_dep_path_lens",
+  "_pipeline_pipe_dep_sc_off_dep_path_rows",
+  "_pipeline_pipe_dep_sc_off_empty_param_backup",
+  "_pipeline_pipe_dep_sc_off_empty_param_indices",
+  "_pipeline_pipe_dep_sc_off_lib_root_lens",
+  "_pipeline_pipe_dep_sc_off_lib_root_rows",
+  "_pipeline_pipe_dep_sc_off_used",
+  "_pipeline_pipe_dep_sc_size",
+  "_pipeline_pipe_depctx_ensure_slot",
+  "_pipeline_pipe_depctx_sidecar_get",
+}
+out = subprocess.check_output(["nm", "-gU", path_o], text=True)
+locals_ = []
+for line in out.splitlines():
+    parts = line.split()
+    if len(parts) >= 3 and parts[1] == "T" and parts[2].startswith("_") and parts[2] not in KEEP:
+        locals_.append(parts[2])
+if locals_:
+    args = [oc] + [f"--localize-symbol={s}" for s in locals_] + [path_o]
+    subprocess.check_call(args)
+print(f"g05_cap_tip_reapply: path-only thin globals keep={len(KEEP)} localized={len(locals_)}", file=sys.stderr)
+PYPATH
   fi
   if [ -s "$_dct_o" ]; then
     case " $G05_OBJS " in
       *" $_dct_o "*) ;;
       *) G05_OBJS="$_dct_o $G05_OBJS"; export G05_OBJS
-         echo "g05_cap_tip_reapply: prepended dep_ctx_thin_a64.o" >&2 ;;
+         echo "g05_cap_tip_reapply: prepended dep_ctx_path_only_a64.o" >&2 ;;
+    esac
+  fi
+  # knife256/10.2: ast_* import_path still live in fill/glue; tramp to pipeline_* thin.
+  _dct_tramp=build_asm/selfhost_pabi/dep_ctx_ast_tramp_a64.o
+  if [ -f src/asm/../.. ] || true; then
+    if [ ! -s "$_dct_tramp" ] || [ scripts/g05_cap_tip_reapply_darwin.sh -nt "$_dct_tramp" ]; then
+      cat > build_asm/selfhost_pabi/dep_ctx_ast_tramp_a64.s <<'ASMTRAMP'
+/* knife256/10.2: Cap tip — ast_pipeline_dep_ctx_import_path* → pipeline_* thin. */
+	.align 2
+	.globl _ast_pipeline_dep_ctx_set_import_path
+_ast_pipeline_dep_ctx_set_import_path:
+	b _pipeline_dep_ctx_set_import_path
+	.globl _ast_pipeline_dep_ctx_import_path_len
+_ast_pipeline_dep_ctx_import_path_len:
+	b _pipeline_dep_ctx_import_path_len
+	.globl _ast_pipeline_dep_ctx_import_path_byte_at
+_ast_pipeline_dep_ctx_import_path_byte_at:
+	b _pipeline_dep_ctx_import_path_byte_at
+	.globl _ast_pipeline_dep_ctx_import_path_copy64
+_ast_pipeline_dep_ctx_import_path_copy64:
+	b _pipeline_dep_ctx_import_path_copy64
+ASMTRAMP
+      clang -c -arch arm64 build_asm/selfhost_pabi/dep_ctx_ast_tramp_a64.s -o "$_dct_tramp" \
+        || { echo "g05_cap_tip_reapply: ast tramp assemble failed" >&2; exit 1; }
+      echo "g05_cap_tip_reapply: assembled dep_ctx_ast_tramp_a64.o" >&2
+    fi
+  fi
+  if [ -s "$_dct_tramp" ]; then
+    case " $G05_OBJS " in
+      *" $_dct_tramp "*) ;;
+      *) G05_OBJS="$_dct_tramp $G05_OBJS"; export G05_OBJS
+         echo "g05_cap_tip_reapply: prepended dep_ctx_ast_tramp_a64.o" >&2 ;;
     esac
   fi
   if [ -n "${OC_L003:-}" ] && [ -s "$_dct_o" ]; then
     python3 - "$_dct_o" "${OC_L003}" <<'PYDCT'
 import subprocess, sys, os
 thin, oc = sys.argv[1], sys.argv[2]
+# Demote ONLY remaining global T twins (import_path + sidecar).
 out = subprocess.check_output(["nm", "-gU", thin], text=True)
-tip = {parts[2] for line in out.splitlines()
-       for parts in [line.split()]
-       if len(parts) >= 3 and parts[1] == "T" and parts[2].startswith("_")}
+want = {parts[2] for line in out.splitlines()
+        for parts in [line.split()]
+        if len(parts) >= 3 and parts[1] == "T" and parts[2].startswith("_")}
+want |= {
+  "_ast_pipeline_dep_ctx_set_import_path",
+  "_ast_pipeline_dep_ctx_import_path_len",
+  "_ast_pipeline_dep_ctx_import_path_byte_at",
+  "_ast_pipeline_dep_ctx_import_path_copy64",
+}
 for o in ("build_asm/selfhost_pabi/pabi_weak.o", "src/runtime_pipeline_abi.o",
           "src/runtime_driver_strict_glue_stubs.o"):
     if not os.path.isfile(o) or os.path.getsize(o) == 0:
@@ -1403,12 +1484,12 @@ for o in ("build_asm/selfhost_pabi/pabi_weak.o", "src/runtime_pipeline_abi.o",
     redefs = []
     for line in nmout.splitlines():
         parts = line.split()
-        if len(parts) >= 3 and parts[1] == "T" and parts[2] in tip:
+        if len(parts) >= 3 and parts[1] == "T" and parts[2] in want:
             redefs.append(f"--redefine-sym={parts[2]}={parts[2]}__fill_dead")
     if redefs:
         for i in range(0, len(redefs), 40):
             subprocess.check_call([oc] + redefs[i:i+40] + [o])
-        print(f"g05_cap_tip_reapply: demoted {o} dep_ctx twins ({len(redefs)})", file=sys.stderr)
+        print(f"g05_cap_tip_reapply: demoted {o} dep_ctx path twins ({len(redefs)})", file=sys.stderr)
 PYDCT
   fi
 fi
