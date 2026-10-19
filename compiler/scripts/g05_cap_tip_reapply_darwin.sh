@@ -529,6 +529,78 @@ if [ -f src/asm/runtime_string_byref_a64.s ]; then
   fi
 fi
 
+# knife256/10.2: Cap tip net leftover — thread_glue hybrid (_c+_impl),
+# net_workers darwin pure + weak io submit stubs (need_net misses driver.o
+# push), and net.o ____error/____fcntl → ___error/___fcntl. Prefer asm;
+# no FORCE_CC / leftover auto-make. PLATFORM: MACOS Cap tip.
+_cap_tip_net_leftover_leaves() {
+  local _oc="${_oc_sz:-${OC:-}}"
+  [ -n "$_oc" ] || { [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ] && _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy; }
+  [ -n "$_oc" ] || { [ -x /usr/local/opt/llvm/bin/llvm-objcopy ] && _oc=/usr/local/opt/llvm/bin/llvm-objcopy; }
+  # thread_glue: 25-symbol Cap tip pure + FROM_X seed rest (impls)
+  if [ -x ./xlang_asm ] && [ -f src/asm/runtime_thread_glue.x ] \
+     && [ -f seeds/runtime_thread_glue.from_x.c ]; then
+    local _tg_thin _tg_rest
+    _tg_thin=build_asm/selfhost_pabi/thread_glue_thin_a64.o
+    _tg_rest=build_asm/selfhost_pabi/thread_glue_rest.o
+    mkdir -p build_asm/selfhost_pabi
+    if bash scripts/ensure_host_cc_seed_o.sh thread-glue-pure "$_tg_thin" 2>/dev/null \
+       && [ -s "$_tg_thin" ] \
+       && cc -Wall -Wextra -I. -Iinclude -Isrc -mmacosx-version-min=11.0 \
+            -DXLANG_RUNTIME_THREAD_GLUE_FROM_X \
+            -c seeds/runtime_thread_glue.from_x.c -o "$_tg_rest" 2>/dev/null \
+       && [ -s "$_tg_rest" ] \
+       && ld -r -o runtime_thread_glue.o "$_tg_thin" "$_tg_rest" 2>/dev/null; then
+      echo "g05_cap_tip_reapply: installed thread_glue hybrid (pure+rest)" >&2
+    else
+      echo "g05_cap_tip_reapply: WARN thread_glue hybrid failed" >&2
+    fi
+  fi
+  # net_workers darwin pure; demote affinity twin; merge weak io submit
+  if [ -x ./xlang_asm ] && [ -f src/asm/runtime_net_workers_darwin.x ] \
+     && [ -f src/asm/runtime_net_io_weak_stubs_a64.s ] && [ -n "$_oc" ]; then
+    local _nw _nw_io
+    _nw=build_asm/selfhost_pabi/net_workers_darwin.o
+    _nw_io=build_asm/selfhost_pabi/net_io_weak_stubs.o
+    if ./xlang_asm -backend asm -c src/asm/runtime_net_workers_darwin.x -o "$_nw" 2>/dev/null \
+       && [ -s "$_nw" ] \
+       && clang -c -arch arm64 src/asm/runtime_net_io_weak_stubs_a64.s -o "$_nw_io" 2>/dev/null \
+       && [ -s "$_nw_io" ]; then
+      if nm -gU "$_nw" 2>/dev/null | grep -q 'T _thread_set_affinity_self_c$'; then
+        "$_oc" --redefine-sym=_thread_set_affinity_self_c=_thread_set_affinity_self_c__net_weak "$_nw" || true
+      fi
+      if ld -r -o runtime_net_workers.o "$_nw_io" "$_nw" 2>/dev/null; then
+        echo "g05_cap_tip_reapply: installed net_workers + weak io submit stubs" >&2
+      else
+        echo "g05_cap_tip_reapply: WARN net_workers merge failed" >&2
+      fi
+    else
+      echo "g05_cap_tip_reapply: WARN net_workers darwin pure failed" >&2
+    fi
+  fi
+  # Cap tip net.o libc mangling: ____error → ___error (Darwin)
+  if [ -n "$_oc" ] && [ -s ../std/net/net.o ]; then
+    if nm -u ../std/net/net.o 2>/dev/null | grep -q '^____error$'; then
+      [ -s ../std/net/net.o.bak_pre_errno ] || cp -f ../std/net/net.o ../std/net/net.o.bak_pre_errno
+      "$_oc" --redefine-sym=____error=___error --redefine-sym=____fcntl=___fcntl \
+        ../std/net/net.o \
+        && echo "g05_cap_tip_reapply: retargeted net.o ____error/____fcntl" >&2 \
+        || echo "g05_cap_tip_reapply: WARN net.o errno retarget failed" >&2
+    fi
+  fi
+  # need_net companion driver.o (group 16); Cap tip may miss push — keep leaf present
+  if [ -f src/asm/std_io_driver_formal_darwin.x ] && [ -x ./xlang_asm ]; then
+    mkdir -p ../std/io
+    if [ ! -s ../std/io/driver.o ] || [ src/asm/std_io_driver_formal_darwin.x -nt ../std/io/driver.o ]; then
+      if ./xlang_asm -backend asm -c src/asm/std_io_driver_formal_darwin.x \
+           -o ../std/io/driver.o 2>/dev/null && [ -s ../std/io/driver.o ]; then
+        echo "g05_cap_tip_reapply: installed std/io/driver.o (formal darwin)" >&2
+      fi
+    fi
+  fi
+}
+_cap_tip_net_leftover_leaves
+
 # knife256/10.2: Cap tip ondemand scans user.o only → slice/mod.o option
 # UNDEFs missed when main only uses slice API. Soft-extend option needles.
 # PLATFORM: MACOS Cap tip.
