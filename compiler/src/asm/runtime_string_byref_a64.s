@@ -355,3 +355,14 @@ _std_string_string_compare_view:
 	ldp	x19, x20, [sp, #0x10]
 	ldp	x29, x30, [sp], #0x30
 	ret
+
+/* Cap tip leftover: string.o keeps string_view_concat_arena → U
+ * _std_heap_arena64_alloc. Ondemand scans user.o only, so encoding -o
+ * never pulls heap.o. Weak stub (null); real heap.o strong wins.
+ * PLATFORM: MACOS|ARM64. Prefer asm; no FORCE_CC. */
+	.globl	_std_heap_arena64_alloc
+	.weak_definition _std_heap_arena64_alloc
+	.p2align	2
+_std_heap_arena64_alloc:
+	mov	x0, xzr
+	ret
