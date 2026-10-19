@@ -26476,6 +26476,9 @@ pipeline_abi_inject_cap_residual_egg_thins() {
   export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
   for thin_x in \
+    src/asm/vector_let_init_array_lit_a64.x \
+    src/runtime_pipeline_abi_lane_f32_binop_thin.x \
+    src/runtime_pipeline_abi_block_body_sync_let_order_thin.x \
     src/runtime_pipeline_abi_hw_vector_add_thin.x \
     src/runtime_pipeline_abi_lane_scalar_binop_thin.x \
     src/runtime_pipeline_abi_lane_f32_lit_operand_thin.x \
@@ -26489,6 +26492,9 @@ pipeline_abi_inject_cap_residual_egg_thins() {
     stamp="src/.pabi_${tag}.stamp"
     # Re-inject when sentinel U remains (fresh hybrid) or thin newer than stamp.
     case "$thin_x" in
+      *vector_let_init_array_lit_a64*) _probe='vector_let_init_array_lit_a64_vlet_f32_fill_lane' ;;
+      *lane_f32_binop*) _probe='glue_lane_binop_lhs_is_f32_c' ;;
+      *block_body_sync_let_order*) _probe='pipeline_asm_emit_block_prefix_elf' ;;
       *hw_vector_add*) _probe='glue_try_hw_vector_add_binop_elf_c' ;;
       *lane_scalar*) _probe='glue_emit_vector_lane_scalar_binop_elf_c' ;;
       *lane_f32_lit*) _probe='glue_emit_vector_operand_lane_elf_c' ;;
@@ -26513,6 +26519,25 @@ pipeline_abi_inject_cap_residual_egg_thins() {
   if [ "$had_newer" = "1" ]; then export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"; fi
   if [ "$had_prefer" = "1" ]; then export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"; else unset XLANG_PABI_THIN_PREFER_ASM; fi
   if [ "$had_e_repl" = "1" ]; then export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"; else unset XLANG_PABI_THIN_ALLOW_E_REPLACE; fi
+  # Cap tip Mach-O demote: mega body → __demoted so lane_f32_lit wrapper owns
+  # glue_field_access_call_base_rvalue_elf_c. PLATFORM: SHARED (objcopy).
+  if ! pipeline_abi_strong_text_syms "$o" 2>/dev/null | grep -Eq '(^|_)glue_field_access_call_base_rvalue_elf_c__demoted$'; then
+    if pipeline_abi_strong_text_syms "$o" 2>/dev/null | grep -Eq '(^|_)glue_field_access_call_base_rvalue_elf_c$'; then
+      _oc=""
+      for _c in /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
+        if [ -x "$_c" ]; then _oc=$_c; break; fi
+      done
+      if [ -z "$_oc" ] && command -v llvm-objcopy >/dev/null 2>&1; then
+        _oc=$(command -v llvm-objcopy)
+      fi
+      if [ -n "$_oc" ]; then
+        if "$_oc" --redefine-sym _glue_field_access_call_base_rvalue_elf_c=_glue_field_access_call_base_rvalue_elf_c__demoted "$o" 2>/dev/null \
+          || "$_oc" --redefine-sym glue_field_access_call_base_rvalue_elf_c=glue_field_access_call_base_rvalue_elf_c__demoted "$o" 2>/dev/null; then
+          log "pipeline_abi egg: demoted glue_field_access_call_base_rvalue_elf_c → __demoted"
+        fi
+      fi
+    fi
+  fi
   return 0
 }
 

@@ -1343,6 +1343,9 @@ elif [ -x ./xlang_asm ]; then _egg_xl=./xlang_asm
 fi
 if [ -n "$_egg_xl" ]; then
   for _ex in \
+    src/asm/vector_let_init_array_lit_a64.x \
+    src/runtime_pipeline_abi_lane_f32_binop_thin.x \
+    src/runtime_pipeline_abi_block_body_sync_let_order_thin.x \
     src/runtime_pipeline_abi_hw_vector_add_thin.x \
     src/runtime_pipeline_abi_lane_scalar_binop_thin.x \
     src/runtime_pipeline_abi_lane_f32_lit_operand_thin.x \
@@ -1365,6 +1368,18 @@ if [ -n "$_egg_xl" ]; then
   done
 else
   echo "darwin_phase1_hollow_fill: WARN no heat vehicle for Cap residual eggs" >&2
+fi
+
+# Cap tip demote: mega field-access body → __demoted so lane_f32_lit egg
+# wrapper first-wins glue_field_access_call_base_rvalue_elf_c. PLATFORM: MACOS.
+_pabi=src/runtime_pipeline_abi.o
+if [ -f "$_pabi" ] && [ -n "${_oc:-}" ]; then
+  if nm -gU "$_pabi" 2>/dev/null | grep -q ' T _glue_field_access_call_base_rvalue_elf_c$' \
+    && ! nm -gU "$_pabi" 2>/dev/null | grep -q ' T _glue_field_access_call_base_rvalue_elf_c__demoted$'; then
+    if "$_oc" --redefine-sym _glue_field_access_call_base_rvalue_elf_c=_glue_field_access_call_base_rvalue_elf_c__demoted "$_pabi" 2>/dev/null; then
+      echo "darwin_phase1_hollow_fill: demoted field_access mega → __demoted"
+    fi
+  fi
 fi
 
 echo "$OUT/m8_reloc_stubs.o" >>"$OUT/phase1_hollow_fill_objs.txt"
