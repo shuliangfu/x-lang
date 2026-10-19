@@ -1426,6 +1426,26 @@ ASM
         ;;
     esac
   fi
+  # knife256/10.2: CACHE/pabi bulk restore stomps early m8→macho_write demote;
+  # pure-ld then sees duplicate _platform_macho_write_macho_o_to_buf vs
+  # macho_write_a64.o. Re-demote after stomp. Prefer asm thin; no FORCE_CC.
+  # PLATFORM: MACOS Cap tip.
+  if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/macho_write_a64.o ] \
+    && [ -s build_asm/selfhost_pabi/m8_reloc_stubs_g05.o ]; then
+    case " $G05_OBJS " in
+      *" build_asm/selfhost_pabi/macho_write_a64.o "*)
+        if nm -gU build_asm/selfhost_pabi/macho_write_a64.o 2>/dev/null \
+             | grep -q 'T _platform_macho_write_macho_o_to_buf$' \
+           && nm -gU build_asm/selfhost_pabi/m8_reloc_stubs_g05.o 2>/dev/null \
+             | grep -q 'T _platform_macho_write_macho_o_to_buf$'; then
+          "$OC" --redefine-sym=_platform_macho_write_macho_o_to_buf=_platform_macho_write_macho_o_to_buf_m8_g05_dead \
+            build_asm/selfhost_pabi/m8_reloc_stubs_g05.o \
+            && echo "g05_cap_tip_reapply: post-fill re-demote m8 macho_write (thin wins)" >&2 \
+            || true
+        fi
+        ;;
+    esac
+  fi
   fi
   # Post-fill: size/layout softs + re-demote pabi (CACHE/pabi stomps demote).
   if [ ! -s build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o ] \
