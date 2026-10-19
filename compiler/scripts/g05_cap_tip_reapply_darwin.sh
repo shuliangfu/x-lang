@@ -554,6 +554,9 @@ _cap_tip_net_leftover_leaves() {
       echo "g05_cap_tip_reapply: installed thread_glue pure+impl-stubs (no host-cc)" >&2
     else
       echo "g05_cap_tip_reapply: WARN thread_glue pure+impl-stubs failed" >&2
+      if [ -s "$CACHE/leaves/runtime_thread_glue.o" ]; then
+        cp -f "$CACHE/leaves/runtime_thread_glue.o" runtime_thread_glue.o           && echo "g05_cap_tip_reapply: restored thread_glue from L4 leaves cache" >&2
+      fi
     fi
   fi
   # net_workers darwin pure; demote affinity twin; merge weak io submit
@@ -576,6 +579,9 @@ _cap_tip_net_leftover_leaves() {
       fi
     else
       echo "g05_cap_tip_reapply: WARN net_workers darwin pure failed" >&2
+      if [ -s "$CACHE/leaves/runtime_net_workers.o" ]; then
+        cp -f "$CACHE/leaves/runtime_net_workers.o" runtime_net_workers.o           && echo "g05_cap_tip_reapply: restored net_workers from L4 leaves cache" >&2
+      fi
     fi
   fi
   # Cap tip net.o libc mangling: ____error → ___error (Darwin)
@@ -1597,6 +1603,37 @@ PYDCT
   fi
 fi
 
+
+# knife256/10.2: Cap tip G05_OBJS has call_spill.o but omits addr_of_call.o
+# → U _glue_addr_simd_lane_type_c. Prefer cache/leaf addr_of_call.o; else
+# weak pure-asm stub (return 0). No FORCE_CC / host-cc .c. PLATFORM: MACOS.
+_aoc=build_asm/selfhost_pabi/addr_of_call.o
+if [ ! -s "$_aoc" ] && [ -s "$CACHE/pabi/addr_of_call.o" ]; then
+  cp -f "$CACHE/pabi/addr_of_call.o" "$_aoc"
+fi
+if [ -s "$_aoc" ] && nm -gU "$_aoc" 2>/dev/null | grep -q 'T _glue_addr_simd_lane_type_c$'; then
+  case " $G05_OBJS " in
+    *" $_aoc "*|*" build_asm/selfhost_pabi/addr_of_call.o "*) ;;
+    *)
+      G05_OBJS="$_aoc $G05_OBJS"
+      export G05_OBJS
+      echo "g05_cap_tip_reapply: prepended addr_of_call.o (simd_lane_type)" >&2
+      ;;
+  esac
+elif [ -f src/asm/glue_addr_simd_lane_type_stub_a64.s ]; then
+  _simd_stub=build_asm/selfhost_pabi/glue_addr_simd_lane_type_stub_a64.o
+  if clang -c -arch arm64 src/asm/glue_addr_simd_lane_type_stub_a64.s -o "$_simd_stub" 2>/dev/null \
+     && [ -s "$_simd_stub" ]; then
+    case " $G05_OBJS " in
+      *" $_simd_stub "*) ;;
+      *)
+        G05_OBJS="$_simd_stub $G05_OBJS"
+        export G05_OBJS
+        echo "g05_cap_tip_reapply: prepended glue_addr_simd_lane_type weak stub" >&2
+        ;;
+    esac
+  fi
+fi
 
 bash scripts/g05_relink_xlang.sh
 
