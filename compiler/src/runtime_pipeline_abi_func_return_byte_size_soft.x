@@ -60,13 +60,17 @@ export function glue_func_return_byte_size_c__demoted(mod: *u8, arena: *u8, func
   if (k == 10) {
     return 8;
   }
-  sz = glue_type_size_simple(mod, arena, rty, 0);
+  unsafe {
+    sz = glue_type_size_simple(mod, arena, rty, 0);
+  }
   /* TYPE_NAMED INTEGER-class 8B (ArrowColumn) must not size as 0=void:
    * a 0 here skipped sret (correct) but also starved STRUCT_LIT / return
    * packers of the 8B width so they lea'd the slot.
    * PLATFORM: SHARED — LINUX SysV INTEGER rax; MACOS|ARM64 x0. */
   if (k == 8) {
-    nsz = glue_type_named_layout_size_any_module_elf_c(arena, rty);
+    unsafe {
+      nsz = glue_type_named_layout_size_any_module_elf_c(arena, rty);
+    }
     if (nsz > sz) {
       sz = nsz;
     }
