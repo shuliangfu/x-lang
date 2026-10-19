@@ -69,6 +69,43 @@ COMPILER_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)"
 ROOT="$(CDPATH= cd -- "$COMPILER_DIR/.." && pwd)"
 cd "$ROOT"
 
+
+# knife256/10.2 Cap tip-aware: wipe deletes tip xlang needed by try-pipeline-abi-prefer
+# hybrid thin+rest (记248/8.5 bans cold full seed). Restore a same-host aside if set.
+# XLANG_L4_TIP_ASIDE=dir containing xlang[/xlang_asm]; else compiler/xlang.pre_l4_aside*.
+# Ban: scp product binaries across hosts. PLATFORM: SHARED.
+_l4_restore_tip_aside() {
+  local aside="${XLANG_L4_TIP_ASIDE:-}"
+  local cand=""
+  if [ -n "$aside" ] && [ -x "$aside/xlang" ]; then
+    cand="$aside/xlang"
+  elif [ -x "$COMPILER_DIR/xlang.pre_l4_aside_c445bc042" ]; then
+    cand="$COMPILER_DIR/xlang.pre_l4_aside_c445bc042"
+  elif [ -x "$COMPILER_DIR/xlang.pre_l4_aside" ]; then
+    cand="$COMPILER_DIR/xlang.pre_l4_aside"
+  elif [ -x "$COMPILER_DIR/xlang.pre_result_soft.bak" ]; then
+    cand="$COMPILER_DIR/xlang.pre_result_soft.bak"
+  fi
+  if [ -n "$cand" ] && [ ! -x "$COMPILER_DIR/xlang" ]; then
+    cp -f "$cand" "$COMPILER_DIR/xlang"
+    chmod +x "$COMPILER_DIR/xlang"
+    if [ -x "${cand%/*}/xlang_asm" ] || [ -x "${cand}_asm" ]; then
+      :
+    fi
+    # Prefer matching asm aside beside cand
+    if [ -x "${cand%xlang}xlang_asm" ]; then
+      cp -f "${cand%xlang}xlang_asm" "$COMPILER_DIR/xlang_asm" 2>/dev/null || cp -f "$cand" "$COMPILER_DIR/xlang_asm"
+    elif [ -x "$COMPILER_DIR/xlang_asm.pre_l4_aside_c445bc042" ]; then
+      cp -f "$COMPILER_DIR/xlang_asm.pre_l4_aside_c445bc042" "$COMPILER_DIR/xlang_asm"
+    else
+      cp -f "$COMPILER_DIR/xlang" "$COMPILER_DIR/xlang_asm"
+    fi
+    chmod +x "$COMPILER_DIR/xlang_asm" 2>/dev/null || true
+    log "step2b: restored tip aside for hybrid pabi ($cand)"
+  fi
+}
+
+
 MODE="full" # full | no-bstrict | rebuild-only
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -259,6 +296,7 @@ rm -f \
   compiler/bootstrap_xlang \
   2>/dev/null || true
 _l4_step_end
+_l4_restore_tip_aside
 
 # --- 3) remaining_o must be 0 ---
 _l4_step_begin "3_check_clean"
