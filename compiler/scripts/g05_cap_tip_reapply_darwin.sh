@@ -346,6 +346,10 @@ if [ -n "$_oc_sz" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
   if [ -s build_asm/selfhost_pabi/call_return_byte_size_result_soft.o ]; then
     _sz_redefs+=(--redefine-sym=_glue_call_return_byte_size_c=_glue_call_return_byte_size_c__demoted)
   fi
+  # knife256/10.2: the missing symbols live in the cap665 thins.
+  # Bodies that pabi already defines stay local in those thins, so pabi
+  # remains the public definition. Do not weaken or rename them here.
+  # PLATFORM: MACOS Cap tip.
   "$_oc_sz" "${_sz_redefs[@]}" build_asm/selfhost_pabi/pabi_weak.o \
     && echo "g05_cap_tip_reapply: demoted pabi_weak Split size/slot/call_return softs" >&2
   # Also demote tip pipeline_abi body if it still owns call_return T
@@ -699,6 +703,52 @@ if [ -n "$OC" ] && [ -s src/asm/backend_call_dispatch.o ]; then
   fi
 fi
 
+# knife256/10.2: the 10.7MB product runs the fixed_array_copy thin for
+# these four names. pabi and return_sret still have the older bodies.
+# A strong older body drops the wide-array return copy (4-layer probe
+# then SIGSEGV). Weaken them so the thin is the one definition.
+# PLATFORM: MACOS Cap tip.
+if [ -s build_asm/selfhost_pabi/cap665_fixed_array_copy.o ] && [ -n "${OC:-}" ]; then
+  "$OC" \
+    --weaken-symbol=_glue_call_arg_var_use_lea_not_load_elf_c \
+    --weaken-symbol=_glue_struct_lit_store_fixed_array_field_elf_c \
+    --weaken-symbol=_pipeline_asm_emit_array_lit_flat_elf_c \
+    build_asm/selfhost_pabi/pabi_weak.o \
+    && echo "g05_cap_tip_reapply: weakened pabi fixed-array bodies" >&2
+  if [ -s build_asm/selfhost_pabi/return_sret.o ]; then
+    "$OC" --weaken-symbol=_pipeline_asm_emit_return_elf_impl \
+      build_asm/selfhost_pabi/return_sret.o \
+      && echo "g05_cap_tip_reapply: weakened return_sret emit_return" >&2
+  fi
+fi
+
+# knife256/10.2: five symbols the frozen env no longer defines.
+# Authority is the thin .x each one is written in. Objects are produced
+# by the current product (-backend asm -c), not a second body.
+# PLATFORM: MACOS Cap tip.
+for _cap665 in \
+  build_asm/selfhost_pabi/cap665_lane_f32_binop.o \
+  build_asm/selfhost_pabi/cap665_func_return_byte_size.o \
+  build_asm/selfhost_pabi/cap665_fixed_array_copy.o \
+  build_asm/selfhost_pabi/cap665_fa_only.o \
+  build_asm/selfhost_pabi/cap665_modlet_elem_const.o \
+  build_asm/selfhost_pabi/cap665_lane_f32_lit_operand.o \
+  build_asm/selfhost_pabi/cap665_lane_scalar_binop.o \
+  build_asm/selfhost_pabi/cap665_addr_of_call.o \
+  build_asm/selfhost_pabi/cap665_keep_stubs.o
+do
+  if [ -s "$_cap665" ]; then
+    case " $G05_OBJS " in
+      *" $_cap665 "*) ;;
+      *)
+        G05_OBJS="$_cap665 $G05_OBJS"
+        export G05_OBJS
+        echo "g05_cap_tip_reapply: prepended $(basename "$_cap665")" >&2
+        ;;
+    esac
+  fi
+done
+
 rm -f xlang.cap_g05_l2
 
 
@@ -728,11 +778,129 @@ if [ -n "${OC:-}" ] && [ -s src/asm/backend_call_dispatch.o ]; then
       && echo "g05_cap_tip_reapply: weakened dispatch type_ref_to_suffix (empty-reject wins)" >&2 || true
   fi
 fi
+# knife256/10.2: Cap tip G05_OBJS may still miss overlays after thin cache restore
+# (true-cold wipe + incomplete CACHE/pabi). Rebuild from known .x with LEGACY
+# heat, then drop any still-missing paths from G05_OBJS so pure-ld does not
+# ENOENT. No FORCE_CC / host-cc .c. PLATFORM: MACOS Cap tip.
+_cap_tip_fill_missing_objs() {
+  local xl="$XLANG"
+  local o src rc=0
+  mkdir -p build_asm/selfhost_pabi src/asm
+  # Restore any remaining recipe objs from cache root / pabi/
+  if [ -n "${CACHE:-}" ]; then
+    [ -f "$CACHE/pthin_stretch.o" ] && cp -f "$CACHE/pthin_stretch.o" src/asm/pthin_stretch.o
+    [ -f "$CACHE/arg_byte_size_a64.o" ] && cp -f "$CACHE/arg_byte_size_a64.o" build_asm/selfhost_pabi/arg_byte_size_a64.o
+    if [ -d "$CACHE/pabi" ]; then
+      cp -f "$CACHE/pabi"/*.o build_asm/selfhost_pabi/ 2>/dev/null || true
+    fi
+  fi
+  # out.o|src.x pairs for Cap tip overlays commonly wiped
+  while IFS='|' read -r o src; do
+    [ -n "$o" ] || continue
+    [ -s "$o" ] && continue
+    [ -f "$src" ] || continue
+    echo "g05_cap_tip_reapply: rebuild missing $o <- $src" >&2
+    if ! ( export XLANG_PREFER_ASM_O=1; unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME;
+           . scripts/pure_ld_shared.sh;
+           pure_asm_x_to_o "$o" "$src" ) || [ ! -s "$o" ]; then
+      # LEGACY -backend asm -c fallback (still no host-cc .c)
+      if [ -x "$xl" ]; then
+        "$xl" -backend asm -c -o "$o" "$src" 2>/dev/null || rm -f "$o"
+      fi
+    fi
+    [ -s "$o" ] || echo "g05_cap_tip_reapply: WARN still missing $o" >&2
+  done <<'MAP'
+build_asm/selfhost_pabi/simd_at_call_a64.o|src/asm/simd_at_call_inline_a64.x
+build_asm/selfhost_pabi/arg_byte_size_a64.o|src/runtime_pipeline_abi_arg_byte_size_thin.x
+build_asm/selfhost_pabi/index_eff_addr_scaled_a64.o|src/runtime_pipeline_abi_index_eff_addr_scaled_thin.x
+build_asm/selfhost_pabi/parser_asm_struct_dup_field_soft.o|src/asm/parser_asm_struct_dup_field_soft.x
+build_asm/selfhost_pabi/pthin_imports_a64.o|src/asm/pthin_imports.x
+src/asm/pthin_stretch.o|src/asm/pthin_stretch.x
+build_asm/selfhost_pabi/local_slot_ptr_tramp_a64.o|src/runtime_pipeline_abi_local_slot_ptr_tramp_thin.x
+build_asm/selfhost_pabi/fixed_array_let_init_module_var.o|src/pabi_fixed_array_let_init_module_var_one.x
+build_asm/selfhost_pabi/vector_let_init_stubdead.o|src/pabi_vector_let_init_stubdead_one.x
+build_asm/selfhost_pabi/vector_let_init_mangled.o|src/pabi_vector_let_init_mangled_one.x
+build_asm/selfhost_pabi/vector_let_init_nested.o|src/pabi_vector_let_init_nested_one.x
+build_asm/selfhost_pabi/index_elem_wrap.o|src/pabi_index_elem_wrap_one.x
+build_asm/selfhost_pabi/index_elem_from_type.o|src/pabi_index_elem_from_type_one.x
+build_asm/selfhost_pabi/runtime_pipeline_abi_deref_narrow_thin.o|src/runtime_pipeline_abi_deref_narrow_thin.x
+build_asm/selfhost_pabi/struct_lit_fields_a64.o|src/runtime_pipeline_abi_struct_lit_fields_thin.x
+build_asm/selfhost_pabi/arm64_param_home_a64.o|src/runtime_pipeline_abi_arm64_param_home_thin.x
+build_asm/selfhost_pabi/w156_guard_a64.o|src/runtime_pipeline_abi_w156_guard_thin.x
+build_asm/selfhost_pabi/macho_undef_cap_a64.o|src/runtime_pipeline_abi_macho_undef_cap_thin.x
+build_asm/selfhost_pabi/trait_check_noop_a64.o|src/asm/trait_check_noop_thin.x
+build_asm/selfhost_pabi/enum_ns_tag_a64.o|src/runtime_pipeline_abi_enum_ns_tag_thin.x
+build_asm/selfhost_pabi/param_ptr_slot_a64.o|src/runtime_pipeline_abi_param_ptr_slot_thin.x
+MAP
+  # Drop still-missing paths from G05_OBJS (avoid ld errno=2)
+  local kept="" miss=0
+  for o in $G05_OBJS; do
+    if [ -s "$o" ]; then
+      kept="$kept $o"
+    else
+      echo "g05_cap_tip_reapply: skip missing link obj $o" >&2
+      miss=$((miss + 1))
+    fi
+  done
+  G05_OBJS=$(echo "$kept" | sed 's/^ *//')
+  export G05_OBJS
+  echo "g05_cap_tip_reapply: G05_OBJS after fill/skip=$(echo $G05_OBJS | wc -w | tr -d ' ') (skipped $miss)" >&2
+  # Same for WINNERS pairs — drop pairs whose object is missing
+  if [ -n "${G05_LINK_WINNERS:-}" ]; then
+    local wkept=""
+    for pair in $G05_LINK_WINNERS; do
+      local wobj="${pair#*=}"
+      if [ -s "$wobj" ]; then
+        wkept="$wkept $pair"
+      else
+        echo "g05_cap_tip_reapply: skip winner $pair (obj missing)" >&2
+      fi
+    done
+    G05_LINK_WINNERS=$(echo "$wkept" | sed 's/^ *//')
+    export G05_LINK_WINNERS
+  fi
+}
+_cap_tip_fill_missing_objs
+
+# Keep the product that is on disk. relink always overwrites xlang_asm.
+# PLATFORM: MACOS Cap tip.
+_cap_prev=build_asm/xlang.pre_cap_tip_reapply
+rm -f "$_cap_prev"
+if [ -x xlang ]; then
+  cp -f xlang "$_cap_prev"
+fi
 bash scripts/g05_relink_xlang.sh
 
 if [ ! -x xlang.cap_g05_l2 ]; then
   echo "g05_cap_tip_reapply: xlang.cap_g05_l2 missing" >&2
   exit 1
+fi
+
+# knife256/10.2: do not replace the product when the wide-array return
+# probe is not 110. Exit 110 is the program's status, so set -e must
+# not treat it as a script failure. PLATFORM: MACOS Cap tip.
+if [ -f ../tests/boundary/ret_fixed_s24.x ]; then
+  rm -f build_asm/cap_tip_s24_probe
+  _s24_rc=1
+  set +e
+  ./xlang.cap_g05_l2 -o build_asm/cap_tip_s24_probe ../tests/boundary/ret_fixed_s24.x
+  if [ $? -eq 0 ] && [ -x build_asm/cap_tip_s24_probe ]; then
+    build_asm/cap_tip_s24_probe
+    _s24_rc=$?
+  fi
+  set -e
+  if [ "$_s24_rc" != 110 ]; then
+    echo "g05_cap_tip_reapply: ret_fixed_s24 exit ${_s24_rc}, previous product kept" >&2
+    if [ -x "$_cap_prev" ]; then
+      for _n in xlang xlang_asm xlang-c bootstrap_xlangc; do
+        rm -f "$_n"
+        cp -f "$_cap_prev" "$_n"
+        chmod +x "$_n"
+      done
+      codesign -s - -f --timestamp=none xlang xlang_asm xlang-c bootstrap_xlangc >/dev/null 2>&1 || true
+    fi
+    exit 1
+  fi
 fi
 
 # Cap tip-as-product (never leave LEGACY as tip)
