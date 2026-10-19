@@ -288,7 +288,7 @@ esac
 # (TEXT was rewritten). PLATFORM: DARWIN only.
 case "$(uname -s 2>/dev/null)" in
   Darwin)
-    if [ -f scripts/darwin_tramp_local_shadows_to_global.py ]; then
+    if [ "${XLANG_SKIP_DARWIN_TRAMP:-0}" != "1" ] && [ -f scripts/darwin_tramp_local_shadows_to_global.py ]; then
       python3 scripts/darwin_tramp_local_shadows_to_global.py "$OUT"         || { echo "g05_relink_xlang: darwin_tramp_local_shadows_to_global failed" >&2; exit 1; }
       codesign --sign - --force --timestamp=none "$OUT" 2>/dev/null         || codesign -f -s - "$OUT"         || { echo "g05_relink_xlang: codesign after trampoline failed" >&2; exit 1; }
       echo "g05_relink_xlang: Darwin local-shadow trampolines + codesign OK" >&2

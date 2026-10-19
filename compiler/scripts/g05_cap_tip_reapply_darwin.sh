@@ -54,14 +54,91 @@ for base in dep_prerun_skip_typeck_a64 dep_prerun_parse_only_a64; do
   fi
 done
 
-# named_size demote (Cap tip dual_gp wins size)
-if [ -f build_asm/selfhost_pabi/named_size.o ]; then
-  if nm -gU build_asm/selfhost_pabi/named_size.o 2>/dev/null | grep -q 'T _glue_type_size_simple$'; then
+# knife256/10.2: named_size_thin is Cap tip size_simple authority (S24→24).
+# Do NOT demote it to namedsizedead — that left only weak short pabi size_simple
+# and ret_fixed_s24 COMMON sizes collapsed to n_arr*1 (exit 10/138).
+# Tip-compile from .x; demote pabi_weak size_simple so named_size first-wins.
+# PLATFORM: MACOS Cap tip.
+if [ -f src/runtime_pipeline_abi_named_size_thin.x ]; then
+  _ns_xl="$XLANG"
+  [ -x ./xlang ] && _ns_xl="./xlang"
+  if XLANG_PREFER_ASM_O=1 "$_ns_xl" -backend asm -c \
+      src/runtime_pipeline_abi_named_size_thin.x \
+      -o build_asm/selfhost_pabi/named_size.o 2>/dev/null \
+    && nm -gU build_asm/selfhost_pabi/named_size.o 2>/dev/null \
+         | grep -q 'T _glue_type_size_simple$'; then
+    echo "g05_cap_tip_reapply: tip-compiled named_size.o (size_simple authority)" >&2
+  else
+    echo "g05_cap_tip_reapply: WARN named_size tip-compile failed" >&2
+  fi
+fi
+if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
+  && [ -s build_asm/selfhost_pabi/named_size.o ] \
+  && nm -gU build_asm/selfhost_pabi/named_size.o 2>/dev/null \
+       | grep -q 'T _glue_type_size_simple$'; then
+  [ -s build_asm/selfhost_pabi/pabi_weak.o.bak_cap ] \
+    || cp -f build_asm/selfhost_pabi/pabi_weak.o build_asm/selfhost_pabi/pabi_weak.o.bak_cap
+  # Prefer bak then demote size_simple so named_size wins.
+  cp -f build_asm/selfhost_pabi/pabi_weak.o.bak_cap build_asm/selfhost_pabi/pabi_weak.o
+  if nm -gU build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+       | grep -q 'T _glue_type_size_simple$\|weak.*_glue_type_size_simple'; then
+    "$OC" --redefine-sym=_glue_type_size_simple=_glue_type_size_simple__demoted \
+      build_asm/selfhost_pabi/pabi_weak.o \
+      && echo "g05_cap_tip_reapply: demoted pabi size_simple (named_size wins)" >&2 || true
+  fi
+fi
+
+
+# knife256/10.2: pabi_weak typeck_x_type_size_from_layout_glue is a hollow
+# (epilogue with no store to w0 → returns 1). Cap tip named_size then reports
+# S24 size 1 → ret_fixed_s24 COMMON n_arr*1. Tip-compile typeck_orch_thin
+# (260B Cap tip body, matches idle) and demote pabi/m8 stubs.
+# PLATFORM: MACOS Cap tip.
+if [ ! -s build_asm/selfhost_pabi/typeck_orch_layout_glue_a64.o ] \
+  && [ -f src/runtime_pipeline_abi_typeck_orch_thin.x ]; then
+  _orch_xl="$XLANG"
+  [ -x ./xlang ] && _orch_xl="./xlang"
+  if XLANG_PREFER_ASM_O=1 "$_orch_xl" -backend asm -c \
+      src/runtime_pipeline_abi_typeck_orch_thin.x \
+      -o build_asm/selfhost_pabi/typeck_orch_layout_glue_a64.o.tmp 2>/dev/null \
+    && nm -gU build_asm/selfhost_pabi/typeck_orch_layout_glue_a64.o.tmp 2>/dev/null \
+         | grep -q 'T _typeck_x_type_size_from_layout_glue$'; then
+    # Keep only layout glues (avoid dual typeck_x_ast_* with Cap tip typeck).
+    echo '_typeck_x_type_size_from_layout_glue
+_typeck_x_type_align_from_layout_glue' > /tmp/cap_tip_orch_layout.exp
+    if ld -r -o build_asm/selfhost_pabi/typeck_orch_layout_glue_a64.o \
+         -exported_symbols_list /tmp/cap_tip_orch_layout.exp \
+         build_asm/selfhost_pabi/typeck_orch_layout_glue_a64.o.tmp 2>/dev/null \
+      && [ -s build_asm/selfhost_pabi/typeck_orch_layout_glue_a64.o ]; then
+      echo "g05_cap_tip_reapply: tip-compiled typeck_orch layout_glue" >&2
+    else
+      cp -f build_asm/selfhost_pabi/typeck_orch_layout_glue_a64.o.tmp \
+        build_asm/selfhost_pabi/typeck_orch_layout_glue_a64.o
+      echo "g05_cap_tip_reapply: tip-compiled typeck_orch (full; layout_glue)" >&2
+    fi
+  fi
+  rm -f build_asm/selfhost_pabi/typeck_orch_layout_glue_a64.o.tmp /tmp/cap_tip_orch_layout.exp
+fi
+if [ -s build_asm/selfhost_pabi/typeck_orch_layout_glue_a64.o ]; then
+  case " $G05_OBJS " in
+    *" build_asm/selfhost_pabi/typeck_orch_layout_glue_a64.o "*) ;;
+    *) G05_OBJS="build_asm/selfhost_pabi/typeck_orch_layout_glue_a64.o $G05_OBJS"; export G05_OBJS
+       echo "g05_cap_tip_reapply: prepended typeck_orch_layout_glue_a64.o" >&2 ;;
+  esac
+  if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+    [ -s build_asm/selfhost_pabi/pabi_weak.o.bak_cap ] \
+      || cp -f build_asm/selfhost_pabi/pabi_weak.o build_asm/selfhost_pabi/pabi_weak.o.bak_cap
     "$OC" \
-      --redefine-sym=_pipeline_named_size_layout_matches_c=_pipeline_named_size_layout_matches_c_namedsizedead \
-      --redefine-sym=_glue_type_size_simple=_glue_type_size_simple_namedsizedead \
-      build_asm/selfhost_pabi/named_size.o
-    echo "g05_cap_tip_reapply: named_size demoted"
+      --redefine-sym=_typeck_x_type_size_from_layout_glue=_typeck_x_type_size_from_layout_glue__demoted \
+      --redefine-sym=_typeck_x_type_align_from_layout_glue=_typeck_x_type_align_from_layout_glue__demoted \
+      build_asm/selfhost_pabi/pabi_weak.o \
+      && echo "g05_cap_tip_reapply: demoted pabi layout_glue hollows" >&2 || true
+  fi
+  if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/m8_reloc_stubs_g05.o ]; then
+    "$OC" --weaken-symbol=_typeck_x_type_size_from_layout_glue \
+      --weaken-symbol=_typeck_x_type_align_from_layout_glue \
+      build_asm/selfhost_pabi/m8_reloc_stubs_g05.o 2>/dev/null \
+      && echo "g05_cap_tip_reapply: weakened m8 layout_glue stubs" >&2 || true
   fi
 fi
 
@@ -193,7 +270,16 @@ fi
 
 # knife256/10.2: Cap tip Split_* named size 0/8 → no x8 sret on split_at call.
 # Soft named_layout_size + size_simple → 32; demote/retarget pipeline_abi.
+# True-cold wipe drops these; assemble hand-asm (no host-cc .c).
 # PLATFORM: MACOS Cap tip.
+# size_simple authority is named_size_thin (not 2-arg Split soft)
+if [ ! -s build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o ] \
+  && [ -f src/asm/named_layout_size_split_a64.s ]; then
+  as -arch arm64 -o build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o \
+    src/asm/named_layout_size_split_a64.s \
+    && echo "g05_cap_tip_reapply: assembled typeck_named_layout_size_split_soft.o" >&2 \
+    || rm -f build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o
+fi
 if [ -s build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o ]; then
   case " $G05_OBJS " in
     *" build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o "*) ;;
@@ -281,6 +367,25 @@ fi
 
 
 # knife256/10.2: Cap tip bake_scalar + add_common over m8 hollow ret0 (toplevel-let DATA).
+# True-cold wipe drops these softs; tip-compile from .x (no host-cc .c).
+if [ ! -s build_asm/selfhost_pabi/add_common_sym_soft.o ]   && [ -f src/runtime_pipeline_abi_add_common_sym_soft.x ]; then
+  _acs_xl="$XLANG"
+  [ -x ./xlang ] && _acs_xl="./xlang"
+  if XLANG_PREFER_ASM_O=1 "$_acs_xl" -backend asm -c       src/runtime_pipeline_abi_add_common_sym_soft.x       -o build_asm/selfhost_pabi/add_common_sym_soft.o 2>/dev/null     && [ -s build_asm/selfhost_pabi/add_common_sym_soft.o ]; then
+    echo "g05_cap_tip_reapply: tip-compiled add_common_sym_soft.o" >&2
+  else
+    rm -f build_asm/selfhost_pabi/add_common_sym_soft.o
+  fi
+fi
+if [ ! -s build_asm/selfhost_pabi/bake_scalar_imm_soft.o ]   && [ -f src/runtime_pipeline_abi_bake_scalar_imm_soft.x ]; then
+  _bks_xl="$XLANG"
+  [ -x ./xlang ] && _bks_xl="./xlang"
+  if XLANG_PREFER_ASM_O=1 "$_bks_xl" -backend asm -c       src/runtime_pipeline_abi_bake_scalar_imm_soft.x       -o build_asm/selfhost_pabi/bake_scalar_imm_soft.o 2>/dev/null     && [ -s build_asm/selfhost_pabi/bake_scalar_imm_soft.o ]; then
+    echo "g05_cap_tip_reapply: tip-compiled bake_scalar_imm_soft.o" >&2
+  else
+    rm -f build_asm/selfhost_pabi/bake_scalar_imm_soft.o
+  fi
+fi
 if [ -s build_asm/selfhost_pabi/bake_scalar_imm_soft.o ]; then
   case " $G05_OBJS " in
     *" build_asm/selfhost_pabi/bake_scalar_imm_soft.o "*) ;;
@@ -517,12 +622,24 @@ fi
 # pipeline_asm_emit_vector_let_init. Other kinds return -3 so VAR try_let
 # does not swallow scalar i=i+1. Do not assemble the emptied decline .s
 # (it no longer defines the symbol). PLATFORM: MACOS|ARM64.
-if [ -f src/asm/vector_let_init_array_lit_a64.x ] && [ -x ./xlang_asm ]; then
-  env -u XLANG -u XLANG_FORCE -u FORCE -u PREFER -u G05 -u RUN_ALL_USE_C \
-    XLANG_PREFER_ASM_O=1 ./xlang_asm -backend asm -c \
-    src/asm/vector_let_init_array_lit_a64.x \
-    -o build_asm/selfhost_pabi/vector_let_init_decline_a64.o \
-    || { echo "g05_cap_tip_reapply: vector let-init array-lit compile failed" >&2; exit 1; }
+# Tip-compile decline with Cap tip product ./xlang (idle-sized), NOT ./xlang_asm.
+# Reject truncated .o (<30KB; hung xlang_asm left bad bodies @0x1bac).
+# Unset XLANG_CAP_TIP_L4_CACHE for this compile (seed path BLD001). PLATFORM: MACOS Cap tip.
+if [ -f src/asm/vector_let_init_array_lit_a64.x ] && [ -x ./xlang ]; then
+  _dec_o=build_asm/selfhost_pabi/vector_let_init_decline_a64.o
+  _dec_sz=$(wc -c <"$_dec_o" 2>/dev/null || echo 0)
+  if [ "$_dec_sz" -lt 30000 ]; then
+    rm -f "$_dec_o"
+    env -u XLANG -u XLANG_FORCE -u FORCE -u PREFER -u G05 -u RUN_ALL_USE_C \
+      -u XLANG_CAP_TIP_L4_CACHE \
+      XLANG_PREFER_ASM_O=1 ./xlang -backend asm -c \
+      src/asm/vector_let_init_array_lit_a64.x \
+      -o "$_dec_o" \
+      || { echo "g05_cap_tip_reapply: vector let-init array-lit compile failed" >&2; exit 1; }
+    echo "g05_cap_tip_reapply: tip-compiled vector_let_init_decline_a64.o" >&2
+  else
+    echo "g05_cap_tip_reapply: reuse good vector_let_init_decline_a64.o (sz=$_dec_sz)" >&2
+  fi
 fi
 if [ -s build_asm/selfhost_pabi/vector_let_init_decline_a64.o ]; then
   case " $G05_OBJS " in
@@ -824,6 +941,7 @@ build_asm/selfhost_pabi/vector_let_init_nested.o|src/pabi_vector_let_init_nested
 build_asm/selfhost_pabi/index_elem_wrap.o|src/pabi_index_elem_wrap_one.x
 build_asm/selfhost_pabi/index_elem_from_type.o|src/pabi_index_elem_from_type_one.x
 build_asm/selfhost_pabi/index_elem_true_i8.o|src/pabi_index_elem_byte_sz_one.x
+build_asm/selfhost_pabi/emit_index_thin_a64.o|src/runtime_pipeline_abi_emit_index_thin.x
 build_asm/selfhost_pabi/emit_index_arms_true_i8.o|src/pabi_emit_index_arms_one.x
 build_asm/selfhost_pabi/emit_index_elf_true_i8.o|src/pabi_emit_index_elf_one.x
 build_asm/selfhost_pabi/assign_index_true_i8.o|src/pabi_assign_index_one.x
@@ -840,6 +958,9 @@ build_asm/selfhost_pabi/trait_check_noop_a64.o|src/asm/trait_check_noop_thin.x
 build_asm/selfhost_pabi/enum_ns_tag_a64.o|src/runtime_pipeline_abi_enum_ns_tag_thin.x
 build_asm/selfhost_pabi/param_ptr_slot_a64.o|src/runtime_pipeline_abi_param_ptr_slot_thin.x
 build_asm/selfhost_pabi/fa_array_lit_a64.o|src/runtime_pipeline_abi_fixed_array_copy_thin.x
+build_asm/selfhost_pabi/add_common_sym_soft.o|src/runtime_pipeline_abi_add_common_sym_soft.x
+build_asm/selfhost_pabi/named_size.o|src/runtime_pipeline_abi_named_size_thin.x
+build_asm/selfhost_pabi/bake_scalar_imm_soft.o|src/runtime_pipeline_abi_bake_scalar_imm_soft.x
 MAP
   # Cap tip G05_OBJS has no mega pabi — pull egg faces that softs/overlays need.
   if [ -s src/runtime_pipeline_abi.o ]; then
@@ -848,6 +969,10 @@ MAP
     printf '%s\n' \
       _glue_wide_i32_vec_array_bytes \
       _pipeline_lane_operand_emit_let_block_chain \
+      _glue_emit_vector_type_let_init_elf_c \
+      _glue_array_lit_force_esz_from_elem_type_c \
+      _pipeline_asm_array_lit_elem_byte_sz_c \
+      _pipeline_asm_emit_field_access_elf_fast_c \
       >"$_fill_exp"
     if ld -r -o "$_fill_o" -exported_symbols_list "$_fill_exp" \
          src/runtime_pipeline_abi.o 2>/dev/null \
@@ -856,10 +981,77 @@ MAP
         *" $_fill_o "*) ;;
         *) G05_OBJS="$_fill_o $G05_OBJS"; export G05_OBJS
            echo "g05_cap_tip_reapply: prepended cap_tip_pabi_sym_fill.o (wide/lane)" >&2 ;;
+
       esac
     fi
     rm -f "$_fill_exp"
   fi
+# knife256/10.2: idle glue_emit_vector is the 13KB body INSIDE sym_fill (from
+# runtime_pipeline_abi). Tip-compiled decline is 7KB and infinite-loops at +0x230.
+# Globalize fill glue; demote decline glue; demote fill local array_lit (use pabi T).
+# PLATFORM: MACOS Cap tip.
+if [ -f build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o ]; then
+  _oc_sf=""
+  for c in /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
+    [ -x "$c" ] && _oc_sf=$c && break
+  done
+  if [ -n "$_oc_sf" ]; then
+    "$_oc_sf" \
+      --globalize-symbol=_glue_emit_vector_type_let_init_elf_c \
+      --redefine-sym=_pipeline_asm_emit_array_lit_force_esz_elf_c=_pipeline_asm_emit_array_lit_force_esz_elf_c_symfill_localdead \
+      --redefine-sym=_pipeline_asm_emit_array_lit_elf_c=_pipeline_asm_emit_array_lit_elf_c_symfill_localdead \
+      build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o \
+      && echo "g05_cap_tip_reapply: globalized fill glue_emit_vector; demoted fill array_lit locals" >&2 || true
+  fi
+fi
+if [ -f build_asm/selfhost_pabi/vector_let_init_decline_a64.o ]; then
+  _oc_sf=""
+  for c in /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
+    [ -x "$c" ] && _oc_sf=$c && break
+  done
+  if [ -n "$_oc_sf" ]; then
+    "$_oc_sf" \
+      --redefine-sym=_glue_emit_vector_type_let_init_elf_c=_glue_emit_vector_type_let_init_elf_c_decline_dead \
+      build_asm/selfhost_pabi/vector_let_init_decline_a64.o \
+      && echo "g05_cap_tip_reapply: demoted decline glue_emit_vector (fill 13KB wins)" >&2 || true
+  fi
+fi
+
+# knife256/10.2: true_i8 index arms lack i32 load → sum2 emits ptr+ptr (exit 10+128=138).
+# Prepend emit_index_thin (has backend_enc_load_i32); demote true_i8 elf/arms.
+# PLATFORM: MACOS Cap tip.
+if [ -f src/runtime_pipeline_abi_emit_index_thin.x ] && [ -x ./xlang ]; then
+  _ix_o=build_asm/selfhost_pabi/emit_index_thin_a64.o
+  if [ ! -s "$_ix_o" ] || [ "$(wc -c <"$_ix_o")" -lt 5000 ]; then
+    env -u XLANG -u XLANG_FORCE -u FORCE -u PREFER -u G05 -u RUN_ALL_USE_C \
+      -u XLANG_CAP_TIP_L4_CACHE \
+      XLANG_PREFER_ASM_O=1 ./xlang -backend asm -c \
+      src/runtime_pipeline_abi_emit_index_thin.x -o "$_ix_o" \
+      || { echo "g05_cap_tip_reapply: emit_index_thin compile failed" >&2; exit 1; }
+    echo "g05_cap_tip_reapply: tip-compiled emit_index_thin_a64.o" >&2
+  fi
+  case " $G05_OBJS " in
+    *" $_ix_o "*) ;;
+    *) G05_OBJS="$_ix_o $G05_OBJS"; export G05_OBJS
+       echo "g05_cap_tip_reapply: prepended emit_index_thin_a64.o" >&2 ;;
+  esac
+fi
+_oc_ix=""
+for c in /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
+  [ -x "$c" ] && _oc_ix=$c && break
+done
+if [ -n "$_oc_ix" ]; then
+  for _pair in \
+    "build_asm/selfhost_pabi/emit_index_arms_true_i8.o:_glue_emit_index_load_arms_elf_c" \
+    "build_asm/selfhost_pabi/emit_index_elf_true_i8.o:_pipeline_asm_emit_index_elf_c"; do
+    _o="${_pair%%:*}"; _s="${_pair##*:}"
+    if [ -f "$_o" ] && nm "$_o" 2>/dev/null | grep -q "T ${_s}$"; then
+      "$_oc_ix" --redefine-sym=${_s}=${_s}__true_i8_dead "$_o" \
+        && echo "g05_cap_tip_reapply: demoted $_s (index thin wins)" >&2 || true
+    fi
+  done
+fi
+
   # fa_array_lit lives in fixed_array_copy_thin — ensure on link if rebuilt
   if [ -s build_asm/selfhost_pabi/fa_array_lit_a64.o ]; then
     case " $G05_OBJS " in
@@ -969,6 +1161,130 @@ ASM
     if [ -s runtime_panic.o ] && [ -s src/runtime_link_abi.o ]; then
       "$OC" --weaken-symbol=_link_abi_getenv         --weaken-symbol=_link_abi_getenv_impl         runtime_panic.o         && echo "g05_cap_tip_reapply: post-fill weaken panic getenv (link_abi wins)" >&2         || true
     fi
+  # Ensure add_common / bake softs survive CACHE/pabi stomp; m8 ret0 must stay weak.
+  if [ ! -s build_asm/selfhost_pabi/add_common_sym_soft.o ] \
+    && [ -f src/runtime_pipeline_abi_add_common_sym_soft.x ] && [ -x "${XLANG:-}" ]; then
+    XLANG_PREFER_ASM_O=1 "$XLANG" -backend asm -c \
+      src/runtime_pipeline_abi_add_common_sym_soft.x \
+      -o build_asm/selfhost_pabi/add_common_sym_soft.o 2>/dev/null || true
+  fi
+  if [ -s build_asm/selfhost_pabi/add_common_sym_soft.o ]; then
+    case " $G05_OBJS " in
+      *" build_asm/selfhost_pabi/add_common_sym_soft.o "*) ;;
+      *) G05_OBJS="build_asm/selfhost_pabi/add_common_sym_soft.o $G05_OBJS"; export G05_OBJS
+         echo "g05_cap_tip_reapply: post-fill prepended add_common_sym_soft.o" >&2 ;;
+    esac
+  fi
+  if [ -s build_asm/selfhost_pabi/bake_scalar_imm_soft.o ]; then
+    case " $G05_OBJS " in
+      *" build_asm/selfhost_pabi/bake_scalar_imm_soft.o "*) ;;
+      *) G05_OBJS="build_asm/selfhost_pabi/bake_scalar_imm_soft.o $G05_OBJS"; export G05_OBJS
+         echo "g05_cap_tip_reapply: post-fill prepended bake_scalar_imm_soft.o" >&2 ;;
+    esac
+  fi
+  if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/add_common_sym_soft.o ] \
+    && [ -s build_asm/selfhost_pabi/m8_reloc_stubs_g05.o ]; then
+    case " $G05_OBJS " in
+      *" build_asm/selfhost_pabi/add_common_sym_soft.o "*)
+        "$OC" --weaken-symbol=_pipeline_elf_ctx_add_common_sym \
+          build_asm/selfhost_pabi/m8_reloc_stubs_g05.o \
+          && echo "g05_cap_tip_reapply: post-fill re-weaken m8 add_common (soft wins)" >&2 \
+          || true
+        ;;
+    esac
+  fi
+  fi
+  # Post-fill: size/layout softs + re-demote pabi (CACHE/pabi stomps demote).
+  if [ ! -s build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o ] \
+    && [ -f src/asm/named_layout_size_split_a64.s ]; then
+    as -arch arm64 -o build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o \
+      src/asm/named_layout_size_split_a64.s \
+      && echo "g05_cap_tip_reapply: post-fill assemble named_layout soft" >&2 || true
+  fi
+  if [ -s build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o ]; then
+    case " $G05_OBJS " in
+      *" build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o "*) ;;
+      *) G05_OBJS="build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o $G05_OBJS"; export G05_OBJS
+         echo "g05_cap_tip_reapply: post-fill prepended named_layout soft" >&2 ;;
+    esac
+  fi
+  if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
+    && [ -s build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o ]; then
+    [ -s build_asm/selfhost_pabi/pabi_weak.o.bak_cap ] \
+      || cp -f build_asm/selfhost_pabi/pabi_weak.o build_asm/selfhost_pabi/pabi_weak.o.bak_cap
+    cp -f build_asm/selfhost_pabi/pabi_weak.o.bak_cap build_asm/selfhost_pabi/pabi_weak.o
+    _pf_redefs=(--redefine-sym=_glue_type_named_layout_size_any_module_elf_c=_glue_type_named_layout_size_any_module_elf_c__demoted)
+    # Keep named_size size_simple; demote pabi twin if bak restored it.
+    if nm -gU build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+         | grep -q '_glue_type_size_simple$' \
+      && nm -gU build_asm/selfhost_pabi/named_size.o 2>/dev/null \
+         | grep -q 'T _glue_type_size_simple$'; then
+      _pf_redefs+=(--redefine-sym=_glue_type_size_simple=_glue_type_size_simple__demoted)
+    fi
+    "$OC" "${_pf_redefs[@]}" build_asm/selfhost_pabi/pabi_weak.o \
+      && echo "g05_cap_tip_reapply: post-fill re-demote pabi layout/size (named_size wins)" >&2 || true
+    # bak_cap restore above re-strongs fixed-array bodies; re-weaken for fa_array.
+    if [ -s build_asm/selfhost_pabi/fa_array_lit_a64.o ]; then
+      "$OC" \
+        --weaken-symbol=_glue_call_arg_var_use_lea_not_load_elf_c \
+        --weaken-symbol=_glue_struct_lit_store_fixed_array_field_elf_c \
+        --weaken-symbol=_pipeline_asm_emit_array_lit_flat_elf_c \
+        build_asm/selfhost_pabi/pabi_weak.o \
+        && echo "g05_cap_tip_reapply: post-fill re-weaken pabi fixed-array after size demote" >&2 \
+        || true
+    fi
+  fi
+  # Post-fill: layout_glue orch (CACHE/pabi may restore hollow).
+  if [ -f src/runtime_pipeline_abi_typeck_orch_thin.x ] && [ -x "${XLANG:-}" ]; then
+    if ! nm -gU build_asm/selfhost_pabi/typeck_orch_layout_glue_a64.o 2>/dev/null \
+         | grep -q 'T _typeck_x_type_size_from_layout_glue$'; then
+      if XLANG_PREFER_ASM_O=1 "$XLANG" -backend asm -c \
+          src/runtime_pipeline_abi_typeck_orch_thin.x \
+          -o /tmp/cap_tip_orch.tmp.o 2>/dev/null; then
+        echo '_typeck_x_type_size_from_layout_glue
+_typeck_x_type_align_from_layout_glue' > /tmp/cap_tip_orch_layout.exp
+        ld -r -o build_asm/selfhost_pabi/typeck_orch_layout_glue_a64.o \
+          -exported_symbols_list /tmp/cap_tip_orch_layout.exp \
+          /tmp/cap_tip_orch.tmp.o 2>/dev/null \
+          || cp -f /tmp/cap_tip_orch.tmp.o build_asm/selfhost_pabi/typeck_orch_layout_glue_a64.o
+        rm -f /tmp/cap_tip_orch.tmp.o /tmp/cap_tip_orch_layout.exp
+        echo "g05_cap_tip_reapply: post-fill tip-compiled orch layout_glue" >&2
+      fi
+    fi
+  fi
+  if [ -s build_asm/selfhost_pabi/typeck_orch_layout_glue_a64.o ]; then
+    case " $G05_OBJS " in
+      *" build_asm/selfhost_pabi/typeck_orch_layout_glue_a64.o "*) ;;
+      *) G05_OBJS="build_asm/selfhost_pabi/typeck_orch_layout_glue_a64.o $G05_OBJS"; export G05_OBJS ;;
+    esac
+    if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o.bak_cap ]; then
+      cp -f build_asm/selfhost_pabi/pabi_weak.o.bak_cap build_asm/selfhost_pabi/pabi_weak.o
+      "$OC" \
+        --redefine-sym=_glue_type_size_simple=_glue_type_size_simple__demoted \
+        --redefine-sym=_glue_type_named_layout_size_any_module_elf_c=_glue_type_named_layout_size_any_module_elf_c__demoted \
+        --redefine-sym=_typeck_x_type_size_from_layout_glue=_typeck_x_type_size_from_layout_glue__demoted \
+        --redefine-sym=_typeck_x_type_align_from_layout_glue=_typeck_x_type_align_from_layout_glue__demoted \
+        build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+      # re-weaken fixed-array after bak restore
+      if [ -s build_asm/selfhost_pabi/fa_array_lit_a64.o ]; then
+        "$OC" \
+          --weaken-symbol=_glue_call_arg_var_use_lea_not_load_elf_c \
+          --weaken-symbol=_glue_struct_lit_store_fixed_array_field_elf_c \
+          --weaken-symbol=_pipeline_asm_emit_array_lit_flat_elf_c \
+          build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+      fi
+      echo "g05_cap_tip_reapply: post-fill re-demote pabi size+layout_glue" >&2
+    fi
+  fi
+  # Post-fill: ensure named_size keeps live size_simple (cache may have demoted copy).
+  if [ -f src/runtime_pipeline_abi_named_size_thin.x ] && [ -x "${XLANG:-}" ]; then
+    if ! nm -gU build_asm/selfhost_pabi/named_size.o 2>/dev/null \
+         | grep -q 'T _glue_type_size_simple$'; then
+      XLANG_PREFER_ASM_O=1 "$XLANG" -backend asm -c \
+        src/runtime_pipeline_abi_named_size_thin.x \
+        -o build_asm/selfhost_pabi/named_size.o 2>/dev/null \
+        && echo "g05_cap_tip_reapply: post-fill tip-compiled named_size.o" >&2 || true
+    fi
   fi
   if [ -s build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o ]; then
     local kept2="" dropped_ctfe=0
@@ -997,6 +1313,9 @@ rm -f "$_cap_prev"
 if [ -x xlang ]; then
   cp -f xlang "$_cap_prev"
 fi
+# Cap tip: KEEP darwin_tramp so mega/fill locals redirect to overlay T
+# (index thin, fill glue 13KB). Decline glue stays demoted. PLATFORM: MACOS Cap tip.
+unset XLANG_SKIP_DARWIN_TRAMP
 bash scripts/g05_relink_xlang.sh
 
 if [ ! -x xlang.cap_g05_l2 ]; then
