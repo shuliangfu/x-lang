@@ -823,6 +823,14 @@ build_asm/selfhost_pabi/vector_let_init_mangled.o|src/pabi_vector_let_init_mangl
 build_asm/selfhost_pabi/vector_let_init_nested.o|src/pabi_vector_let_init_nested_one.x
 build_asm/selfhost_pabi/index_elem_wrap.o|src/pabi_index_elem_wrap_one.x
 build_asm/selfhost_pabi/index_elem_from_type.o|src/pabi_index_elem_from_type_one.x
+build_asm/selfhost_pabi/index_elem_true_i8.o|src/pabi_index_elem_byte_sz_one.x
+build_asm/selfhost_pabi/emit_index_arms_true_i8.o|src/pabi_emit_index_arms_one.x
+build_asm/selfhost_pabi/emit_index_elf_true_i8.o|src/pabi_emit_index_elf_one.x
+build_asm/selfhost_pabi/assign_index_true_i8.o|src/pabi_assign_index_one.x
+build_asm/selfhost_pabi/force_esz_true_i8.o|src/pabi_force_esz_one.x
+build_asm/selfhost_pabi/array_lit_esz_true_i8.o|src/pabi_elem_byte_sz_one.x
+build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o|src/pabi_fixed_array_total_bytes_one.x
+build_asm/selfhost_pabi/assign_field_seed.o|src/pabi_assign_field_one.x
 build_asm/selfhost_pabi/runtime_pipeline_abi_deref_narrow_thin.o|src/runtime_pipeline_abi_deref_narrow_thin.x
 build_asm/selfhost_pabi/struct_lit_fields_a64.o|src/runtime_pipeline_abi_struct_lit_fields_thin.x
 build_asm/selfhost_pabi/arm64_param_home_a64.o|src/runtime_pipeline_abi_arm64_param_home_thin.x
@@ -831,7 +839,47 @@ build_asm/selfhost_pabi/macho_undef_cap_a64.o|src/runtime_pipeline_abi_macho_und
 build_asm/selfhost_pabi/trait_check_noop_a64.o|src/asm/trait_check_noop_thin.x
 build_asm/selfhost_pabi/enum_ns_tag_a64.o|src/runtime_pipeline_abi_enum_ns_tag_thin.x
 build_asm/selfhost_pabi/param_ptr_slot_a64.o|src/runtime_pipeline_abi_param_ptr_slot_thin.x
+build_asm/selfhost_pabi/fa_array_lit_a64.o|src/runtime_pipeline_abi_fixed_array_copy_thin.x
 MAP
+  # Cap tip G05_OBJS has no mega pabi — pull egg faces that softs/overlays need.
+  if [ -s src/runtime_pipeline_abi.o ]; then
+    _fill_exp=$(mktemp "${TMPDIR:-/tmp}/cap_tip_fill.XXXXXX.exp")
+    _fill_o=build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o
+    printf '%s\n' \
+      _glue_wide_i32_vec_array_bytes \
+      _pipeline_lane_operand_emit_let_block_chain \
+      >"$_fill_exp"
+    if ld -r -o "$_fill_o" -exported_symbols_list "$_fill_exp" \
+         src/runtime_pipeline_abi.o 2>/dev/null \
+      && [ -s "$_fill_o" ]; then
+      case " $G05_OBJS " in
+        *" $_fill_o "*) ;;
+        *) G05_OBJS="$_fill_o $G05_OBJS"; export G05_OBJS
+           echo "g05_cap_tip_reapply: prepended cap_tip_pabi_sym_fill.o (wide/lane)" >&2 ;;
+      esac
+    fi
+    rm -f "$_fill_exp"
+  fi
+  # fa_array_lit lives in fixed_array_copy_thin — ensure on link if rebuilt
+  if [ -s build_asm/selfhost_pabi/fa_array_lit_a64.o ]; then
+    case " $G05_OBJS " in
+      *" build_asm/selfhost_pabi/fa_array_lit_a64.o "*) ;;
+      *) G05_OBJS="build_asm/selfhost_pabi/fa_array_lit_a64.o $G05_OBJS"; export G05_OBJS
+         echo "g05_cap_tip_reapply: prepended fa_array_lit_a64.o" >&2 ;;
+    esac
+  fi
+  # Ensure typeck demoted body exists (mangled redefine may have run in soft_prep)
+  if [ -s build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o ] \
+    && [ -s build_asm/selfhost_pabi/typeck_get_dep_ptr_named_soft.o ]; then
+    if ! nm -gU build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o 2>/dev/null \
+         | grep -q ' T _typeck_get_dep_return_type_in_caller_arena__demoted$'; then
+      if [ -n "${OC:-}" ]; then
+        "$OC" --redefine-sym=_typeck_get_dep_return_type_in_caller_arena_i32_i32_ASTArena_ptr_PipelineDepCtx_ptr_reti32=_typeck_get_dep_return_type_in_caller_arena__demoted \
+          build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o 2>/dev/null \
+          && echo "g05_cap_tip_reapply: demoted mangled get_dep → __demoted" >&2 || true
+      fi
+    fi
+  fi
   # Drop still-missing paths from G05_OBJS (avoid ld errno=2)
   local kept="" miss=0
   for o in $G05_OBJS; do

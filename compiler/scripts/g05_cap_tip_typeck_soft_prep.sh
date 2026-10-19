@@ -84,9 +84,13 @@ as -arch arm64 -o build_asm/selfhost_pabi/typeck_method_call_resolve_generic_bou
   src/asm/typeck_method_call_resolve_generic_bound_demoted_tramp_a64.s \
   || { echo "g05_cap_tip_typeck_soft_prep: generic_bound demoted tramp failed" >&2; exit 1; }
 cp -f typeck_x.o build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o
+# knife256/10.2: tip typeck_x often emits Itanium-style mangled T only
+# (…_i32_i32_ASTArena_ptr_…). Short-name redefine was a no-op → soft U
+# __demoted. Demote both short and known mangled faces. PLATFORM: MACOS.
 "$OC" \
   --redefine-sym=_typeck_call_arg_repr_compatible_ok=_typeck_call_arg_repr_compatible_ok__demoted \
   --redefine-sym=_typeck_get_dep_return_type_in_caller_arena=_typeck_get_dep_return_type_in_caller_arena__demoted \
+  --redefine-sym=_typeck_get_dep_return_type_in_caller_arena_i32_i32_ASTArena_ptr_PipelineDepCtx_ptr_reti32=_typeck_get_dep_return_type_in_caller_arena__demoted \
   --redefine-sym=_typeck_type_refs_equal=_typeck_type_refs_equal__demoted \
   --redefine-sym=_typeck_field_unknown_hard_fail=_typeck_field_unknown_hard_fail__demoted \
   --redefine-sym=_typeck_check_expr_try_propagate=_typeck_check_expr_try_propagate__demoted \
