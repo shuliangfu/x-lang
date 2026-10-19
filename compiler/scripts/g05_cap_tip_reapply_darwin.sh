@@ -1605,8 +1605,9 @@ fi
 
 
 # knife256/10.2: Cap tip G05_OBJS has call_spill.o but omits addr_of_call.o
-# → U _glue_addr_simd_lane_type_c. Prefer cache/leaf addr_of_call.o; else
-# weak pure-asm stub (return 0). No FORCE_CC / host-cc .c. PLATFORM: MACOS.
+# → U _glue_addr_simd_lane_type_c. Prepend cache/leaf addr_of_call.o and
+# weaken pabi_weak emit_addr_of so thin first-wins (avoid dup). Else weak
+# pure-asm stub (return 0). No FORCE_CC / host-cc .c. PLATFORM: MACOS.
 _aoc=build_asm/selfhost_pabi/addr_of_call.o
 if [ ! -s "$_aoc" ] && [ -s "$CACHE/pabi/addr_of_call.o" ]; then
   cp -f "$CACHE/pabi/addr_of_call.o" "$_aoc"
@@ -1620,6 +1621,11 @@ if [ -s "$_aoc" ] && nm -gU "$_aoc" 2>/dev/null | grep -q 'T _glue_addr_simd_lan
       echo "g05_cap_tip_reapply: prepended addr_of_call.o (simd_lane_type)" >&2
       ;;
   esac
+  if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+    if nm -gU build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null          | grep -q 'T _pipeline_asm_emit_addr_of_elf_c$'; then
+      "$OC" --weaken-symbol=_pipeline_asm_emit_addr_of_elf_c         build_asm/selfhost_pabi/pabi_weak.o         && echo "g05_cap_tip_reapply: weakened pabi_weak emit_addr_of (addr_of_call wins)" >&2         || true
+    fi
+  fi
 elif [ -f src/asm/glue_addr_simd_lane_type_stub_a64.s ]; then
   _simd_stub=build_asm/selfhost_pabi/glue_addr_simd_lane_type_stub_a64.o
   if clang -c -arch arm64 src/asm/glue_addr_simd_lane_type_stub_a64.s -o "$_simd_stub" 2>/dev/null \
