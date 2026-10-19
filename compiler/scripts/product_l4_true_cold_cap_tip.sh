@@ -129,7 +129,9 @@ mkdir -p "$CACHE/leaves"
 (
   cd "$ROOT"
   for f in core/option/option.o core/result/result.o core/mem/mem.o core/types/types.o \
-           std/string/string.o compiler/runtime_process_argv.o; do
+           std/string/string.o std/net/net.o std/thread/thread.o std/io/driver.o \
+           compiler/runtime_process_argv.o compiler/runtime_thread_glue.o \
+           compiler/runtime_net_workers.o; do
     if [ -f "$f" ]; then cp -f "$f" "$CACHE/leaves/"; fi
   done
   # Cap tip heat vehicles (for -E after binary wipe; NOT final tip)
@@ -293,13 +295,19 @@ log "step6b: Cap tip product size=$SZ"
 log "step6c: restore formal_mod leaves from cache / LEGACY rebuild"
 (
   cd "$ROOT"
-  mkdir -p core/option core/result core/mem core/types std/string
+  mkdir -p core/option core/result core/mem core/types std/string std/net std/thread std/io
   restored=0
-  for f in option.o result.o mem.o types.o string.o runtime_process_argv.o; do
+  for f in option.o result.o mem.o types.o string.o net.o thread.o driver.o \
+           runtime_process_argv.o runtime_thread_glue.o runtime_net_workers.o; do
     if [ -f "$CACHE/leaves/$f" ]; then
       case "$f" in
         runtime_process_argv.o) dest=compiler/runtime_process_argv.o ;;
+        runtime_thread_glue.o) dest=compiler/runtime_thread_glue.o ;;
+        runtime_net_workers.o) dest=compiler/runtime_net_workers.o ;;
         string.o) dest=std/string/string.o ;;
+        net.o) dest=std/net/net.o ;;
+        thread.o) dest=std/thread/thread.o ;;
+        driver.o) dest=std/io/driver.o ;;
         option.o) dest=core/option/option.o ;;
         result.o) dest=core/result/result.o ;;
         mem.o) dest=core/mem/mem.o ;;

@@ -529,31 +529,31 @@ if [ -f src/asm/runtime_string_byref_a64.s ]; then
   fi
 fi
 
-# knife256/10.2: Cap tip net leftover — thread_glue hybrid (_c+_impl),
-# net_workers darwin pure + weak io submit stubs (need_net misses driver.o
-# push), and net.o ____error/____fcntl → ___error/___fcntl. Prefer asm;
-# no FORCE_CC / leftover auto-make. PLATFORM: MACOS Cap tip.
+# knife256/10.2: Cap tip net leftover — two UNDEFs:
+#   _thread_set_qos_class_self_c (thread.o) and
+#   _xlang_net_worker_accept_entry_ptr_c (net.o).
+# Prefer pure-asm: Cap tip thread-glue-pure (25 _c) + weak *_impl stubs;
+# darwin net_workers pure + weak io submit; net.o ____error retarget.
+# No host-cc seed .c / FORCE_CC / pin. PLATFORM: MACOS Cap tip.
 _cap_tip_net_leftover_leaves() {
   local _oc="${_oc_sz:-${OC:-}}"
   [ -n "$_oc" ] || { [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ] && _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy; }
   [ -n "$_oc" ] || { [ -x /usr/local/opt/llvm/bin/llvm-objcopy ] && _oc=/usr/local/opt/llvm/bin/llvm-objcopy; }
-  # thread_glue: 25-symbol Cap tip pure + FROM_X seed rest (impls)
+  mkdir -p build_asm/selfhost_pabi
+  # thread_glue: Cap tip pure _c + weak impl stubs (no host-cc rest)
   if [ -x ./xlang_asm ] && [ -f src/asm/runtime_thread_glue.x ] \
-     && [ -f seeds/runtime_thread_glue.from_x.c ]; then
-    local _tg_thin _tg_rest
+     && [ -f src/asm/runtime_thread_impl_stubs_a64.s ]; then
+    local _tg_thin _tg_impl
     _tg_thin=build_asm/selfhost_pabi/thread_glue_thin_a64.o
-    _tg_rest=build_asm/selfhost_pabi/thread_glue_rest.o
-    mkdir -p build_asm/selfhost_pabi
+    _tg_impl=build_asm/selfhost_pabi/thread_impl_stubs_a64.o
     if bash scripts/ensure_host_cc_seed_o.sh thread-glue-pure "$_tg_thin" 2>/dev/null \
        && [ -s "$_tg_thin" ] \
-       && cc -Wall -Wextra -I. -Iinclude -Isrc -mmacosx-version-min=11.0 \
-            -DXLANG_RUNTIME_THREAD_GLUE_FROM_X \
-            -c seeds/runtime_thread_glue.from_x.c -o "$_tg_rest" 2>/dev/null \
-       && [ -s "$_tg_rest" ] \
-       && ld -r -o runtime_thread_glue.o "$_tg_thin" "$_tg_rest" 2>/dev/null; then
-      echo "g05_cap_tip_reapply: installed thread_glue hybrid (pure+rest)" >&2
+       && clang -c -arch arm64 src/asm/runtime_thread_impl_stubs_a64.s -o "$_tg_impl" 2>/dev/null \
+       && [ -s "$_tg_impl" ] \
+       && ld -r -o runtime_thread_glue.o "$_tg_thin" "$_tg_impl" 2>/dev/null; then
+      echo "g05_cap_tip_reapply: installed thread_glue pure+impl-stubs (no host-cc)" >&2
     else
-      echo "g05_cap_tip_reapply: WARN thread_glue hybrid failed" >&2
+      echo "g05_cap_tip_reapply: WARN thread_glue pure+impl-stubs failed" >&2
     fi
   fi
   # net_workers darwin pure; demote affinity twin; merge weak io submit
@@ -588,7 +588,7 @@ _cap_tip_net_leftover_leaves() {
         || echo "g05_cap_tip_reapply: WARN net.o errno retarget failed" >&2
     fi
   fi
-  # need_net companion driver.o (group 16); Cap tip may miss push — keep leaf present
+  # need_net companion driver.o leaf (prefer asm formal)
   if [ -f src/asm/std_io_driver_formal_darwin.x ] && [ -x ./xlang_asm ]; then
     mkdir -p ../std/io
     if [ ! -s ../std/io/driver.o ] || [ src/asm/std_io_driver_formal_darwin.x -nt ../std/io/driver.o ]; then
