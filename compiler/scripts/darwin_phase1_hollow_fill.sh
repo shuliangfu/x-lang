@@ -1331,8 +1331,11 @@ if [ -s "$OUT/fix_extern_slice.o" ]; then
     "$_oc" --weaken-symbol=_parser_asm_parse_one_extern_and_add_into_slice_c       parser_asm_thin_glue.o 2>/dev/null       && echo "darwin_phase1_hollow_fill: weakened parse_one_extern_slice in thin_glue (fix_extern_slice wins)"
   fi
 fi
-# knife256/10.2: Cap residual egg thins for phase1 first-win over pabi U.
-# Compile with heat vehicle (LEGACY staged by L4 step4b). PLATFORM: MACOS.
+# knife256/10.2: Cap residual egg thins are inject-only into
+# runtime_pipeline_abi.o (pipeline_abi_inject_cap_residual_egg_thins).
+# Do NOT prepend the same .o on the phase1 manifest — that duplicates
+# every T after inject. Optional local -c for diagnostics only.
+# PLATFORM: MACOS.
 _egg_dir="$OUT/cap_residual_egg"
 mkdir -p "$_egg_dir"
 _egg_xl=""
@@ -1342,57 +1345,9 @@ elif [ -x ./xlang ]; then _egg_xl=./xlang
 elif [ -x ./xlang_asm ]; then _egg_xl=./xlang_asm
 fi
 if [ -n "$_egg_xl" ]; then
-  for _ex in \
-    src/runtime_pipeline_abi_modlet_elem_const_thin.x \
-    src/asm/vector_let_init_array_lit_a64.x \
-    src/runtime_pipeline_abi_lane_f32_binop_thin.x \
-    src/runtime_pipeline_abi_block_body_sync_let_order_thin.x \
-    src/runtime_pipeline_abi_hw_vector_add_thin.x \
-    src/runtime_pipeline_abi_lane_scalar_binop_thin.x \
-    src/runtime_pipeline_abi_lane_f32_lit_operand_thin.x \
-    src/runtime_pipeline_abi_has_call_index_thin.x \
-    src/runtime_pipeline_abi_has_nonlocal_var_thin.x \
-    src/runtime_pipeline_abi_defer_use_walk_thin.x \
-    src/pabi_vector_let_init_nested_one.x
-  do
-    [ -f "$_ex" ] || continue
-    _eb=$(basename "$_ex" .x)
-    _eo="$_egg_dir/${_eb}.o"
-    if "$_egg_xl" -backend asm -c -o "$_eo" "$_ex" >/tmp/hollow_egg_${_eb}.log 2>&1 \
-      && [ -s "$_eo" ]; then
-      # Skip manifest when prefer/inject already first-won the probe into pabi
-      # (prepend+inject → 66 duplicate symbols). PLATFORM: MACOS phase1.
-      _probe=""
-      case "$_ex" in
-        *modlet_elem_const*) _probe='_pipe_modlet_float_expr_trunc_i32' ;;
-        *vector_let_init_array_lit_a64*) _probe='_vector_let_init_array_lit_a64_vlet_f32_fill_lane' ;;
-        *lane_f32_binop*) _probe='_glue_lane_binop_lhs_is_f32_c' ;;
-        *block_body_sync_let_order*) _probe='_pipeline_asm_emit_block_prefix_elf' ;;
-        *hw_vector_add*) _probe='_glue_try_hw_vector_add_binop_elf_c' ;;
-        *lane_scalar*) _probe='_glue_emit_vector_lane_scalar_binop_elf_c' ;;
-        *lane_f32_lit*) _probe='_glue_field_access_call_base_rvalue_elf_c__demoted' ;;
-        *has_call_index*) _probe='_glue_expr_tree_has_call_index_c' ;;
-        *has_nonlocal*) _probe='_glue_expr_tree_has_nonlocal_var_c' ;;
-        *defer_use*) _probe='_glue_live_fwd_collect_expr_uses_for_defer' ;;
-        *nested_one*) _probe='_pabi_vector_let_init_nested_one_vlet_wide_elem' ;;
-      esac
-      _need=1
-      if [ -n "$_probe" ] && [ -f src/runtime_pipeline_abi.o ] \
-        && nm -gU src/runtime_pipeline_abi.o 2>/dev/null | grep -q " T ${_probe}$"; then
-        _need=0
-        echo "darwin_phase1_hollow_fill: egg ${_eb}.o skip manifest (pabi already T $_probe)"
-      fi
-      if [ "$_need" = "1" ]; then
-        echo "$_eo" >>"$OUT/phase1_hollow_fill_objs.txt"
-        echo "darwin_phase1_hollow_fill: egg ${_eb}.o OK (manifest)"
-      fi
-    else
-      echo "darwin_phase1_hollow_fill: WARN egg ${_eb} -c failed (see /tmp/hollow_egg_${_eb}.log)" >&2
-      rm -f "$_eo"
-    fi
-  done
+  echo "darwin_phase1_hollow_fill: Cap residual eggs inject-only (no manifest prepend)"
 else
-  echo "darwin_phase1_hollow_fill: WARN no heat vehicle for Cap residual eggs" >&2
+  echo "darwin_phase1_hollow_fill: WARN no heat vehicle (eggs rely on prefer inject)" >&2
 fi
 
 # Cap tip demote: mega field-access body → __demoted so lane_f32_lit egg
@@ -1463,18 +1418,7 @@ if [ -f "$_pabi" ]; then
   fi
 fi
 
-if [ -s "$OUT/cap_residual_egg/field_access_demoted.o" ]; then
-  # Prepend demoted at start of manifest (after park/fix_extern already written)
-  _mf="$OUT/phase1_hollow_fill_objs.txt"
-  if [ -f "$_mf" ]; then
-    { head -n 2 "$_mf" 2>/dev/null
-      echo "$OUT/cap_residual_egg/field_access_demoted.o"
-      tail -n +3 "$_mf" 2>/dev/null
-    } >"$_mf.tmp" && mv "$_mf.tmp" "$_mf"
-  else
-    echo "$OUT/cap_residual_egg/field_access_demoted.o" >>"$_mf"
-  fi
-fi
+# demoted.o manifest prepend removed — inject lane_f32_lit owns __demoted
 echo "$OUT/m8_reloc_stubs.o" >>"$OUT/phase1_hollow_fill_objs.txt"
 echo "darwin_phase1_hollow_fill: OK stubs+bss manifest=$OUT/phase1_hollow_fill_objs.txt"
 exit 0
