@@ -1052,6 +1052,35 @@ if [ -n "$_oc_ix" ]; then
   done
 fi
 
+# knife256/10.2: r[i].field — var_field returns -99; without field_access_elf_fast
+# fallback asm_expr_rec emits nothing (exit 10/138). Tip-compile asm_expr_thin
+# whenever the .o lacks the fast undef (stale overlay from before 3eb614d94).
+# PLATFORM: MACOS Cap tip.
+if [ -f src/runtime_pipeline_abi_asm_expr_thin.x ] && [ -x ./xlang ]; then
+  _aer_o=build_asm/selfhost_pabi/asm_expr_rec.o
+  _aer_need=0
+  if [ ! -s "$_aer_o" ]; then
+    _aer_need=1
+  elif ! nm -u "$_aer_o" 2>/dev/null | grep -q '_pipeline_asm_emit_field_access_elf_fast_c'; then
+    _aer_need=1
+  elif [ src/runtime_pipeline_abi_asm_expr_thin.x -nt "$_aer_o" ]; then
+    _aer_need=1
+  fi
+  if [ "$_aer_need" = 1 ]; then
+    env -u XLANG -u XLANG_FORCE -u FORCE -u PREFER -u G05 -u RUN_ALL_USE_C \
+      -u XLANG_CAP_TIP_L4_CACHE \
+      XLANG_PREFER_ASM_O=1 ./xlang -backend asm -c \
+      src/runtime_pipeline_abi_asm_expr_thin.x -o "$_aer_o" \
+      || { echo "g05_cap_tip_reapply: asm_expr_thin compile failed" >&2; exit 1; }
+    echo "g05_cap_tip_reapply: tip-compiled asm_expr_rec.o (INDEX field fast)" >&2
+  fi
+  case " $G05_OBJS " in
+    *" $_aer_o "*) ;;
+    *) G05_OBJS="$_aer_o $G05_OBJS"; export G05_OBJS
+       echo "g05_cap_tip_reapply: prepended asm_expr_rec.o" >&2 ;;
+  esac
+fi
+
   # fa_array_lit lives in fixed_array_copy_thin — ensure on link if rebuilt
   if [ -s build_asm/selfhost_pabi/fa_array_lit_a64.o ]; then
     case " $G05_OBJS " in
