@@ -559,6 +559,49 @@ if [ -f src/asm/runtime_set_byref_a64.s ]; then
   fi
 fi
 
+
+# knife256/10.2: Cap tip Queue_i32 (>16B) by-value at/get/length hollow;
+# push_* call at(*q) → SEGV on leftover run-queue. Also queue.o U
+# _sync_queue_contention_smoke_c (BLD001). Hand-asm byref + weak smoke
+# ld -r into queue.o. Prefer asm; no FORCE_CC / host-cc .c.
+# PLATFORM: MACOS Cap tip.
+if [ -f src/asm/runtime_queue_byref_a64.s ]; then
+  _q_o=build_asm/selfhost_pabi/queue_byref_a64.o
+  _q_smoke=build_asm/selfhost_pabi/queue_smoke_weak_a64.o
+  _oc_q="${_oc_sz:-${OC:-}}"
+  [ -n "$_oc_q" ] || { [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ] && _oc_q=/opt/homebrew/opt/llvm/bin/llvm-objcopy; }
+  if clang -c -arch arm64 src/asm/runtime_queue_byref_a64.s -o "$_q_o" 2>/dev/null \
+    && [ -s "$_q_o" ] && [ -s ../std/queue/queue.o ] && [ -n "$_oc_q" ]; then
+    [ -s ../std/queue/queue.o.bak_pre_byref ] || cp -f ../std/queue/queue.o ../std/queue/queue.o.bak_pre_byref
+    cp -f ../std/queue/queue.o.bak_pre_byref ../std/queue/queue.o
+    _q_redefs=()
+    for _sym in _std_queue_at_Queue_i32_i32 _std_queue_get \
+      _std_queue_length_Queue_i32 _std_queue_is_empty_Queue_i32 \
+      _std_queue_grow_Queue_i32_ptr \
+      _std_queue_push_back_Queue_i32_ptr_i32 _std_queue_push_front \
+      _std_queue_pop_back _std_queue_pop_front_Queue_i32_ptr; do
+      if nm -gU ../std/queue/queue.o 2>/dev/null | grep -q "T ${_sym}$"; then
+        _q_redefs+=("--redefine-sym=${_sym}=${_sym}__hollow")
+      fi
+    done
+    # Weak smoke: satisfy queue.o U without pulling OS-mutex contention.o.
+    _q_extra=("$_q_o")
+    if [ -f src/asm/runtime_queue_smoke_weak_a64.s ] \
+      && clang -c -arch arm64 src/asm/runtime_queue_smoke_weak_a64.s -o "$_q_smoke" 2>/dev/null \
+      && [ -s "$_q_smoke" ]; then
+      _q_extra+=("$_q_smoke")
+    fi
+    if [ "${#_q_redefs[@]}" -gt 0 ]; then
+      "$_oc_q" "${_q_redefs[@]}" ../std/queue/queue.o \
+        && ld -r -o ../std/queue/queue.o.tmp "${_q_extra[@]}" ../std/queue/queue.o \
+        && mv -f ../std/queue/queue.o.tmp ../std/queue/queue.o \
+        && "$_oc_q" --weaken-symbol=_sync_queue_contention_smoke_c ../std/queue/queue.o \
+        && echo "g05_cap_tip_reapply: installed queue byref overlay (${#_q_redefs[@]} demoted + smoke)" >&2 \
+        || echo "g05_cap_tip_reapply: WARN queue byref overlay failed" >&2
+    fi
+  fi
+fi
+
 # knife256/10.2: Cap tip net leftover — two UNDEFs:
 #   _thread_set_qos_class_self_c (thread.o) and
 #   _xlang_net_worker_accept_entry_ptr_c (net.o).
