@@ -1331,6 +1331,42 @@ if [ -s "$OUT/fix_extern_slice.o" ]; then
     "$_oc" --weaken-symbol=_parser_asm_parse_one_extern_and_add_into_slice_c       parser_asm_thin_glue.o 2>/dev/null       && echo "darwin_phase1_hollow_fill: weakened parse_one_extern_slice in thin_glue (fix_extern_slice wins)"
   fi
 fi
+# knife256/10.2: Cap residual egg thins for phase1 first-win over pabi U.
+# Compile with heat vehicle (LEGACY staged by L4 step4b). PLATFORM: MACOS.
+_egg_dir="$OUT/cap_residual_egg"
+mkdir -p "$_egg_dir"
+_egg_xl=""
+if [ -n "${XLANG:-}" ] && [ -x "$XLANG" ]; then _egg_xl="$XLANG"
+elif [ -x ./xlang.product_legacy_bak ]; then _egg_xl=./xlang.product_legacy_bak
+elif [ -x ./xlang ]; then _egg_xl=./xlang
+elif [ -x ./xlang_asm ]; then _egg_xl=./xlang_asm
+fi
+if [ -n "$_egg_xl" ]; then
+  for _ex in \
+    src/runtime_pipeline_abi_hw_vector_add_thin.x \
+    src/runtime_pipeline_abi_lane_scalar_binop_thin.x \
+    src/runtime_pipeline_abi_lane_f32_lit_operand_thin.x \
+    src/runtime_pipeline_abi_has_call_index_thin.x \
+    src/runtime_pipeline_abi_has_nonlocal_var_thin.x \
+    src/runtime_pipeline_abi_defer_use_walk_thin.x \
+    src/pabi_vector_let_init_nested_one.x
+  do
+    [ -f "$_ex" ] || continue
+    _eb=$(basename "$_ex" .x)
+    _eo="$_egg_dir/${_eb}.o"
+    if "$_egg_xl" -backend asm -c -o "$_eo" "$_ex" >/tmp/hollow_egg_${_eb}.log 2>&1 \
+      && [ -s "$_eo" ]; then
+      echo "$_eo" >>"$OUT/phase1_hollow_fill_objs.txt"
+      echo "darwin_phase1_hollow_fill: egg ${_eb}.o OK"
+    else
+      echo "darwin_phase1_hollow_fill: WARN egg ${_eb} -c failed (see /tmp/hollow_egg_${_eb}.log)" >&2
+      rm -f "$_eo"
+    fi
+  done
+else
+  echo "darwin_phase1_hollow_fill: WARN no heat vehicle for Cap residual eggs" >&2
+fi
+
 echo "$OUT/m8_reloc_stubs.o" >>"$OUT/phase1_hollow_fill_objs.txt"
 echo "darwin_phase1_hollow_fill: OK stubs+bss manifest=$OUT/phase1_hollow_fill_objs.txt"
 exit 0

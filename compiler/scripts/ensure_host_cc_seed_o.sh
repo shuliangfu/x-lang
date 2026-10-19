@@ -14168,7 +14168,7 @@ for c in range(groups):
         part = "".join(lines[sigs[i][2] : sigs[i][3]])
         part = "".join(l for l in part.splitlines(True) if not l.startswith("export extern"))
         parts.append(part)
-    Path(out, "g%d.x" % c).write_text(
+    Path(out, "diagthin_p%d.x" % c).write_text(
         "// w1140 split piece. PLATFORM: SHARED.\n"
         + "".join(externs)
         + "\n"
@@ -14183,8 +14183,8 @@ PY
   fi
   objs=""
   for c in 0 1 2 3 4 5 6 7; do
-    src="$dir/g$c.x"
-    obj="$dir/g$c.o"
+    src="$dir/diagthin_p$c.x"
+    obj="$dir/diagthin_p$c.o"
     try=0
     while [ "$try" -lt 8 ]; do
       try=$((try + 1))
@@ -19201,6 +19201,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       pipeline_abi_inject_import_heap_thin "$o" || true
       pipeline_abi_inject_read_file_x_view_thin "$o" || true
+      pipeline_abi_inject_cap_residual_egg_thins "$o" || true
       unset XLANG_PABI_THIN_INJECT_IF_NEWER
       return 0
     fi
@@ -19829,6 +19830,7 @@ ensure_pipeline_abi_prefer_one() {
     pipeline_abi_inject_preprocess_malloc_thin "$o" || true
     pipeline_abi_inject_import_heap_thin "$o" || true
     pipeline_abi_inject_read_file_x_view_thin "$o" || true
+      pipeline_abi_inject_cap_residual_egg_thins "$o" || true
     return 0
   fi
 
@@ -19923,6 +19925,7 @@ ensure_pipeline_abi_prefer_one() {
           pipeline_abi_inject_preprocess_malloc_thin "$o" || true
         pipeline_abi_inject_import_heap_thin "$o" || true
         pipeline_abi_inject_read_file_x_view_thin "$o" || true
+      pipeline_abi_inject_cap_residual_egg_thins "$o" || true
         return 0
       fi
     else
@@ -20001,6 +20004,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       pipeline_abi_inject_import_heap_thin "$o" || true
       pipeline_abi_inject_read_file_x_view_thin "$o" || true
+      pipeline_abi_inject_cap_residual_egg_thins "$o" || true
       return 0
     fi
   fi
@@ -20087,6 +20091,7 @@ ensure_pipeline_abi_prefer_one() {
   pipeline_abi_inject_preprocess_malloc_thin "$o" || true
   pipeline_abi_inject_import_heap_thin "$o" || true
   pipeline_abi_inject_read_file_x_view_thin "$o" || true
+      pipeline_abi_inject_cap_residual_egg_thins "$o" || true
   return 0
 }
 
@@ -26412,6 +26417,104 @@ pipeline_abi_inject_ast_forwarders_thin() {
 }
 
 
+
+# knife256/10.2: Cap residual egg thins — mega prefers them as extern U;
+# without these overlays phase1 pure-ld misses glue_emit_vector_* /
+# glue_expr_tree_has_* / glue_live_fwd_*_for_defer / glue_try_hw_vector_* /
+# pabi_vector_let_init_nested_one_vlet_wide_elem. PLATFORM: SHARED.
+# Bodies live in dedicated .x leaves (LEGACY -c / pure-asm green).
+pipeline_abi_inject_cap_residual_egg_thins() {
+  local o="$1"
+  local thin_x stamp tag rc=0
+  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
+  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+  local had_newer=0 had_prefer=0 had_e_repl=0
+  local _oc="" _flat_dir="" _thin="" _rest=""
+  [ -s "$o" ] || return 0
+  # Darwin prefer may leave libtool archive; inject_thin_leaf skips archives.
+  # Flatten to MH_OBJECT (same as bootstrap_driver_seed_link) before eggs.
+  # PLATFORM: MACOS · SHARED caller.
+  if pipeline_abi_o_is_libtool_archive "$o"; then
+    for _c in /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
+      if [ -x "$_c" ]; then _oc=$_c; break; fi
+    done
+    if [ -z "$_oc" ] && command -v llvm-objcopy >/dev/null 2>&1; then
+      _oc=$(command -v llvm-objcopy)
+    fi
+    _flat_dir=$(mktemp -d "${TMPDIR:-/tmp}/pabi_egg_flat.XXXXXX")
+    if (
+      cd "$_flat_dir" || exit 1
+      ar -x "$OLDPWD/$o" 2>/dev/null || ar -x "$(cd "$OLDPWD" && pwd)/$o" || exit 1
+      _thin=$(ls pabi_thin.* 2>/dev/null | head -1)
+      _rest=$(ls pabi_rest.* 2>/dev/null | head -1)
+      if [ -n "$_thin" ] && [ -n "$_rest" ]; then
+        if [ -n "$_oc" ]; then
+          while read -r _sym; do
+            "$_oc" --weaken-symbol="$_sym" "$_rest" 2>/dev/null || true
+          done < <(nm -gU "$_thin" 2>/dev/null | awk '/ T /{print $NF}')
+        fi
+        ld -r -o pabi_flat.o "$_thin" "$_rest" || exit 1
+        cp -f pabi_flat.o "$OLDPWD/$o"
+        echo "ensure-host-cc-seed: pipeline_abi egg: flattened libtool $o → MH_OBJECT" >&2
+      else
+        exit 1
+      fi
+    ); then
+      :
+    else
+      log "pipeline_abi egg: flatten failed; eggs rely on phase1 hollow-fill"
+      rm -rf "$_flat_dir"
+      return 0
+    fi
+    rm -rf "$_flat_dir"
+  fi
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then had_newer=1; fi
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
+  unset XLANG_PABI_THIN_INJECT_IF_NEWER
+  export XLANG_PABI_THIN_PREFER_ASM=1
+  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+  for thin_x in \
+    src/runtime_pipeline_abi_hw_vector_add_thin.x \
+    src/runtime_pipeline_abi_lane_scalar_binop_thin.x \
+    src/runtime_pipeline_abi_lane_f32_lit_operand_thin.x \
+    src/runtime_pipeline_abi_has_call_index_thin.x \
+    src/runtime_pipeline_abi_has_nonlocal_var_thin.x \
+    src/runtime_pipeline_abi_defer_use_walk_thin.x \
+    src/pabi_vector_let_init_nested_one.x
+  do
+    [ -f "$thin_x" ] || continue
+    tag="w256-egg-$(basename "$thin_x" .x)"
+    stamp="src/.pabi_${tag}.stamp"
+    # Re-inject when sentinel U remains (fresh hybrid) or thin newer than stamp.
+    case "$thin_x" in
+      *hw_vector_add*) _probe='glue_try_hw_vector_add_binop_elf_c' ;;
+      *lane_scalar*) _probe='glue_emit_vector_lane_scalar_binop_elf_c' ;;
+      *lane_f32_lit*) _probe='glue_emit_vector_operand_lane_elf_c' ;;
+      *has_call_index*) _probe='glue_expr_tree_has_call_index_c' ;;
+      *has_nonlocal*) _probe='glue_expr_tree_has_nonlocal_var_c' ;;
+      *defer_use*) _probe='glue_live_fwd_collect_expr_uses_for_defer' ;;
+      *nested_one*) _probe='pabi_vector_let_init_nested_one_vlet_wide_elem' ;;
+      *) _probe='' ;;
+    esac
+    if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ] && [ -n "$_probe" ]; then
+      if pipeline_abi_strong_text_syms "$o" 2>/dev/null | grep -Eq "(^|_)${_probe}$"; then
+        continue
+      fi
+    fi
+    if pipeline_abi_inject_thin_leaf "$o" "$thin_x" "$tag"; then
+      touch "$stamp"
+    else
+      log "pipeline_abi ${tag} inject: WARN failed (phase1 may miss $_probe)"
+      rc=1
+    fi
+  done
+  if [ "$had_newer" = "1" ]; then export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"; fi
+  if [ "$had_prefer" = "1" ]; then export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"; else unset XLANG_PABI_THIN_PREFER_ASM; fi
+  if [ "$had_e_repl" = "1" ]; then export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"; else unset XLANG_PABI_THIN_ALLOW_E_REPLACE; fi
+  return 0
+}
 
 # wave323/374/374b/388 M2: parse_orch Cap residual C→.x (was wave284 C thin).
 # PRODUCT inject wave388 HARD BAN reinject both ends: stay prior overlay.
@@ -34390,6 +34493,17 @@ case "$MODE" in
     set -e
     exit "$_irc"
     ;;
+  inject-cap-egg|inject_cap_egg|inject-cap-residual-egg)
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o inject-cap-egg: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    pipeline_abi_inject_cap_residual_egg_thins "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
   inject-glue-statics|inject_glue_statics)
     # wave332: glue_statics PREFER_ASM (stamp + ALLOW_E_REPLACE).
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
@@ -34425,6 +34539,7 @@ case "$MODE" in
     fi
     set +e
     pipeline_abi_inject_read_file_x_view_thin "$1"
+    pipeline_abi_inject_cap_residual_egg_thins "$1"
     _irc=$?
     set -e
     exit "$_irc"
