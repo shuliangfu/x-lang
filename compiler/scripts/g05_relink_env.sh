@@ -1112,11 +1112,22 @@ if [ -x ./xlang_asm ]; then
   fi
   if [ -n "$_oc" ]; then
     if [ "$UNAME_S" = "Darwin" ]; then
-      for _w211o in src/runtime_pipeline_abi_const_lit.o build_asm/selfhost_pabi/pabi_weak.o; do
+      for _w211o in src/runtime_pipeline_abi_const_lit.o build_asm/selfhost_pabi/pabi_weak.o \
+          src/runtime_pipeline_abi.o; do
         [ -s "$_w211o" ] || continue
         "$_oc" --weaken-symbol=_asm_module_top_level_const_lit_i32 "$_w211o" 2>/dev/null || true
         "$_oc" --weaken-symbol=_pipeline_asm_register_module_top_level_lets_c "$_w211o" 2>/dev/null || true
+        "$_oc" --weaken-symbol=_glue_var_expr_stack_off_elf_c "$_w211o" 2>/dev/null || true
+        "$_oc" --weaken-symbol=_glue_call_arg_resolve_var_stack_off_elf_c "$_w211o" 2>/dev/null || true
       done
+      # knife256/10.2: register_tl_const.o + pabi both T → Darwin ld dup. Cap tip
+      # overlay must first-wins; mega pabi was missing from the weaken list above
+      # historically (only const_lit/pabi_weak). PLATFORM: MACOS.
+      if [ -s src/runtime_pipeline_abi.o ] && [ -s build_asm/selfhost_pabi/register_tl_const.o ]; then
+        if nm -gU src/runtime_pipeline_abi.o 2>/dev/null | grep -q ' T _pipeline_asm_register_module_top_level_lets_c$'; then
+          echo "g05_relink_env: Darwin weaken pabi register_tl so tip overlay wins" >&2
+        fi
+      fi
     else
       for _w211o in src/runtime_pipeline_abi_const_lit.o; do
         [ -s "$_w211o" ] || continue
