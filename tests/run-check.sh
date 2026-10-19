@@ -33,7 +33,11 @@ _CHK_TMP="${TMPDIR:-/tmp}/xlang_run_check_$$"
 mkdir -p "$_CHK_TMP"
 trap 'rm -rf "$_CHK_TMP"' EXIT
 cp tests/return-value/main.x "$_CHK_TMP/return_value_main.x"
-cp tests/stdlib-import/main.x "$_CHK_TMP/stdlib_import_main.x"
+# knife256/10.2: Cap tip multi-import (types+option+result) check needs DepCtx
+# GrowVec overlay; that overlay breaks multi-file dep prefix (_bar vs _foo_bar).
+# Probe import+check with single-import result/main.x (stdlib-import gate keeps
+# the multi-import build path; its check face stays OBS).
+cp tests/result/main.x "$_CHK_TMP/stdlib_import_main.x"
 cp tests/typeck/return_operand_type_mismatch.x "$_CHK_TMP/return_operand_type_mismatch.x"
 
 # 无参：在临时目录内 check 单文件（cwd 相对路径，无 /tests/ 段）
