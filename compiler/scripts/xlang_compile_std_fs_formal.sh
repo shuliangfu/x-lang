@@ -125,9 +125,11 @@ if [ "$_fs_os" = "Darwin" ] || { [ "$_fs_os" = "Linux" ] && [ "$_fs_mach" = "x86
       fi
       _fs_more="$tmp_dir/free.o $tmp_dir/sysmod.o $tmp_dir/syslinux.o $tmp_dir/sysmmap.o"
     fi
-    # PLATFORM: MACOS|DARWIN — writer adds one '_' to C __error, so posix.o
-    # must undef ___error (same as std/net/net.o). Reject bare __error and
-    # doubled ____error. Linux posix.o has neither symbol.
+    # PLATFORM: MACOS|DARWIN — Cap tip / LEGACY asm may emit U __error or
+    # ____error; libSystem is ___error (same class as std/net errno retarget).
+    # Retarget before the Darwin contract check. Prefer pure-asm; no FORCE_CC.
+    # Linux posix.o has neither symbol.
+    _fs_asm_ok=0
     if "$XLANG_BIN" -backend asm -c -L "$_fs_L" -o "$tmp_dir/mod.o" "$_fs_mod" \
         >"$tmp_dir/mod_asm.log" 2>&1 \
       && [ -s "$tmp_dir/mod.o" ] \
@@ -135,27 +137,84 @@ if [ "$_fs_os" = "Darwin" ] || { [ "$_fs_os" = "Linux" ] && [ "$_fs_mach" = "x86
       && "$XLANG_BIN" -backend asm -c -L "$_fs_L" -o "$tmp_dir/posix.o" "$_fs_posix" \
         >"$tmp_dir/posix_asm.log" 2>&1 \
       && [ -s "$tmp_dir/posix.o" ] \
-      && nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' T _?std_fs_posix_fs_open_read_c$' \
-      && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_fs_unlink$' \
-      && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_fs_rmdir$' \
-      && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_sys_pread$' \
-      && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_sys_pwrite$' \
-      && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_sys_readv$' \
-      && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_sys_poll$' \
-      && nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?pread$' \
-      && { [ "$_fs_os" != "Darwin" ] || nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U ___error$'; } \
-      && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U ____error$' \
-      && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U __error$' \
-      && ld -r -o "$tmp_dir/fs_formal_raw.o" "$tmp_dir/mod.o" "$tmp_dir/posix.o" $_fs_more \
-        >"$tmp_dir/ld_asm.err" 2>&1; then
+      && nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' T _?std_fs_posix_fs_open_read_c$'; then
+      if [ "$_fs_os" = "Darwin" ]; then
+        _oc="${LLVM_OBJCOPY:-}"
+        [ -n "$_oc" ] || { [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ] && _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy; }
+        [ -n "$_oc" ] || { [ -x /usr/local/opt/llvm/bin/llvm-objcopy ] && _oc=/usr/local/opt/llvm/bin/llvm-objcopy; }
+        if [ -n "$_oc" ]; then
+          if nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U __error$'; then
+            "$_oc" --redefine-sym=__error=___error "$tmp_dir/posix.o" \
+              && echo "xlang_compile_std_fs_formal: Darwin __error → ___error" >&2 || true
+          fi
+          if nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U ____error$'; then
+            "$_oc" --redefine-sym=____error=___error "$tmp_dir/posix.o" \
+              && echo "xlang_compile_std_fs_formal: Darwin ____error → ___error" >&2 || true
+          fi
+        fi
+      fi
+      if ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_fs_unlink$' \
+        && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_fs_rmdir$' \
+        && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_sys_pread$' \
+        && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_sys_pwrite$' \
+        && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_sys_readv$' \
+        && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_sys_poll$' \
+        && nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?pread$' \
+        && { [ "$_fs_os" != "Darwin" ] || nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U ___error$'; } \
+        && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U ____error$' \
+        && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U __error$' \
+        && ld -r -o "$tmp_dir/fs_formal_raw.o" "$tmp_dir/mod.o" "$tmp_dir/posix.o" $_fs_more \
+          >"$tmp_dir/ld_asm.err" 2>&1; then
+        _fs_asm_ok=1
+      fi
+    fi
+    if [ "$_fs_asm_ok" = "1" ]; then
       asm_ok=1
       raw_o="$tmp_dir/fs_formal_raw.o"
       echo "xlang_compile_std_fs_formal: mod.o+posix.o <- asm"
     else
-      echo "xlang_compile_std_fs_formal: pure-asm std.fs failed" >&2
-      cat "$tmp_dir/mod_asm.log" "$tmp_dir/posix_asm.log" "$tmp_dir/ld_asm.err" >&2 || true
-      exit 1
+      # knife256/10.2 Cap tip: tip xlang -backend asm mis-resolves std.fs
+      # imports (../std/debug/std/fs/posix.x). Retry pure-asm with LEGACY bak
+      # (same vehicle Cap tip heat uses). Prefer asm; no FORCE_CC / new .c.
+      # PLATFORM: MACOS Cap tip.
+      _leg=""
+      if [ -x ./xlang.product_legacy_bak ]; then
+        _leg=$PWD/xlang.product_legacy_bak
+      elif [ -x ../compiler/xlang.product_legacy_bak ]; then
+        _leg=$(cd ../compiler && pwd)/xlang.product_legacy_bak
+      fi
+      if [ "$_fs_os" = "Darwin" ] && [ -n "$_leg" ] && [ "$_leg" != "$XLANG_BIN" ]; then
+        echo "xlang_compile_std_fs_formal: Cap tip asm miss; retry LEGACY bak" >&2
+        XLANG_BIN="$_leg"
+        _fs_asm_ok=0
+        if "$XLANG_BIN" -backend asm -c -L "$_fs_L" -o "$tmp_dir/mod.o" "$_fs_mod"             >"$tmp_dir/mod_asm.log" 2>&1           && [ -s "$tmp_dir/mod.o" ]           && nm "$tmp_dir/mod.o" 2>/dev/null | grep -qE ' T _?std_fs_invalid$'           && "$XLANG_BIN" -backend asm -c -L "$_fs_L" -o "$tmp_dir/posix.o" "$_fs_posix"             >"$tmp_dir/posix_asm.log" 2>&1           && [ -s "$tmp_dir/posix.o" ]           && nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' T _?std_fs_posix_fs_open_read_c$'; then
+          _oc="${LLVM_OBJCOPY:-}"
+          [ -n "$_oc" ] || { [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ] && _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy; }
+          [ -n "$_oc" ] || { [ -x /usr/local/opt/llvm/bin/llvm-objcopy ] && _oc=/usr/local/opt/llvm/bin/llvm-objcopy; }
+          if [ -n "$_oc" ]; then
+            if nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U __error$'; then
+              "$_oc" --redefine-sym=__error=___error "$tmp_dir/posix.o" || true
+            fi
+            if nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U ____error$'; then
+              "$_oc" --redefine-sym=____error=___error "$tmp_dir/posix.o" || true
+            fi
+          fi
+          if ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_fs_unlink$'             && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_fs_rmdir$'             && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_sys_pread$'             && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_sys_pwrite$'             && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_sys_readv$'             && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_sys_poll$'             && nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?pread$'             && nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U ___error$'             && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U ____error$'             && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U __error$'             && ld -r -o "$tmp_dir/fs_formal_raw.o" "$tmp_dir/mod.o" "$tmp_dir/posix.o" $_fs_more               >"$tmp_dir/ld_asm.err" 2>&1; then
+            _fs_asm_ok=1
+          fi
+        fi
+      fi
+      if [ "$_fs_asm_ok" = "1" ]; then
+        asm_ok=1
+        raw_o="$tmp_dir/fs_formal_raw.o"
+        echo "xlang_compile_std_fs_formal: mod.o+posix.o <- asm (LEGACY bak)"
+      else
+        echo "xlang_compile_std_fs_formal: pure-asm std.fs failed" >&2
+        cat "$tmp_dir/mod_asm.log" "$tmp_dir/posix_asm.log" "$tmp_dir/ld_asm.err" >&2 || true
+        exit 1
+      fi
     fi
+
 fi
 
 if [ "$asm_ok" != "1" ]; then
