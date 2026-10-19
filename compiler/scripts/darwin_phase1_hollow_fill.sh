@@ -1360,8 +1360,32 @@ if [ -n "$_egg_xl" ]; then
     _eo="$_egg_dir/${_eb}.o"
     if "$_egg_xl" -backend asm -c -o "$_eo" "$_ex" >/tmp/hollow_egg_${_eb}.log 2>&1 \
       && [ -s "$_eo" ]; then
-      echo "$_eo" >>"$OUT/phase1_hollow_fill_objs.txt"
-      echo "darwin_phase1_hollow_fill: egg ${_eb}.o OK"
+      # Skip manifest when prefer/inject already first-won the probe into pabi
+      # (prepend+inject → 66 duplicate symbols). PLATFORM: MACOS phase1.
+      _probe=""
+      case "$_ex" in
+        *modlet_elem_const*) _probe='_pipe_modlet_float_expr_trunc_i32' ;;
+        *vector_let_init_array_lit_a64*) _probe='_vector_let_init_array_lit_a64_vlet_f32_fill_lane' ;;
+        *lane_f32_binop*) _probe='_glue_lane_binop_lhs_is_f32_c' ;;
+        *block_body_sync_let_order*) _probe='_pipeline_asm_emit_block_prefix_elf' ;;
+        *hw_vector_add*) _probe='_glue_try_hw_vector_add_binop_elf_c' ;;
+        *lane_scalar*) _probe='_glue_emit_vector_lane_scalar_binop_elf_c' ;;
+        *lane_f32_lit*) _probe='_glue_field_access_call_base_rvalue_elf_c__demoted' ;;
+        *has_call_index*) _probe='_glue_expr_tree_has_call_index_c' ;;
+        *has_nonlocal*) _probe='_glue_expr_tree_has_nonlocal_var_c' ;;
+        *defer_use*) _probe='_glue_live_fwd_collect_expr_uses_for_defer' ;;
+        *nested_one*) _probe='_pabi_vector_let_init_nested_one_vlet_wide_elem' ;;
+      esac
+      _need=1
+      if [ -n "$_probe" ] && [ -f src/runtime_pipeline_abi.o ] \
+        && nm -gU src/runtime_pipeline_abi.o 2>/dev/null | grep -q " T ${_probe}$"; then
+        _need=0
+        echo "darwin_phase1_hollow_fill: egg ${_eb}.o skip manifest (pabi already T $_probe)"
+      fi
+      if [ "$_need" = "1" ]; then
+        echo "$_eo" >>"$OUT/phase1_hollow_fill_objs.txt"
+        echo "darwin_phase1_hollow_fill: egg ${_eb}.o OK (manifest)"
+      fi
     else
       echo "darwin_phase1_hollow_fill: WARN egg ${_eb} -c failed (see /tmp/hollow_egg_${_eb}.log)" >&2
       rm -f "$_eo"
