@@ -1343,6 +1343,7 @@ elif [ -x ./xlang_asm ]; then _egg_xl=./xlang_asm
 fi
 if [ -n "$_egg_xl" ]; then
   for _ex in \
+    src/runtime_pipeline_abi_modlet_elem_const_thin.x \
     src/asm/vector_let_init_array_lit_a64.x \
     src/runtime_pipeline_abi_lane_f32_binop_thin.x \
     src/runtime_pipeline_abi_block_body_sync_let_order_thin.x \
@@ -1371,17 +1372,85 @@ else
 fi
 
 # Cap tip demote: mega field-access body → __demoted so lane_f32_lit egg
-# wrapper first-wins glue_field_access_call_base_rvalue_elf_c. PLATFORM: MACOS.
+# wrapper first-wins glue_field_access_call_base_rvalue_elf_c.
+# Flatten libtool archive first (hybrid prefer often leaves !<arch>).
+# PLATFORM: MACOS.
 _pabi=src/runtime_pipeline_abi.o
-if [ -f "$_pabi" ] && [ -n "${_oc:-}" ]; then
-  if nm -gU "$_pabi" 2>/dev/null | grep -q ' T _glue_field_access_call_base_rvalue_elf_c$' \
-    && ! nm -gU "$_pabi" 2>/dev/null | grep -q ' T _glue_field_access_call_base_rvalue_elf_c__demoted$'; then
-    if "$_oc" --redefine-sym _glue_field_access_call_base_rvalue_elf_c=_glue_field_access_call_base_rvalue_elf_c__demoted "$_pabi" 2>/dev/null; then
-      echo "darwin_phase1_hollow_fill: demoted field_access mega → __demoted"
+if [ -f "$_pabi" ]; then
+  if [ -z "${_oc:-}" ]; then
+    for _c in /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
+      if [ -x "$_c" ]; then _oc=$_c; break; fi
+    done
+    if [ -z "${_oc:-}" ] && command -v llvm-objcopy >/dev/null 2>&1; then
+      _oc=$(command -v llvm-objcopy)
     fi
+  fi
+  if dd if="$_pabi" bs=8 count=1 2>/dev/null | grep -q '^!<arch>'; then
+    _flat_dir=$(mktemp -d "${TMPDIR:-/tmp}/pabi_demote_flat.XXXXXX")
+    if (
+      cd "$_flat_dir" || exit 1
+      ar -x "$(cd "$OLDPWD" && pwd)/$_pabi" || ar -x "$OLDPWD/$_pabi" || exit 1
+      _thin=$(ls pabi_thin.* 2>/dev/null | head -1)
+      _rest=$(ls pabi_rest.* 2>/dev/null | head -1)
+      if [ -n "$_thin" ] && [ -n "$_rest" ]; then
+        if [ -n "${_oc:-}" ]; then
+          while read -r _sym; do
+            "$_oc" --weaken-symbol="$_sym" "$_rest" 2>/dev/null || true
+          done < <(nm -gU "$_thin" 2>/dev/null | awk '/ T /{print $NF}')
+        fi
+        ld -r -o pabi_flat.o "$_thin" "$_rest" || exit 1
+        cp -f pabi_flat.o "$OLDPWD/$_pabi"
+        echo "darwin_phase1_hollow_fill: flattened pabi for demote"
+      else
+        exit 1
+      fi
+    ); then
+      :
+    else
+      echo "darwin_phase1_hollow_fill: WARN pabi flatten for demote failed" >&2
+    fi
+    rm -rf "$_flat_dir"
+  fi
+  if [ -n "${_oc:-}" ]; then
+    if nm -gU "$_pabi" 2>/dev/null | grep -q ' T _glue_field_access_call_base_rvalue_elf_c$' \
+      && ! nm -gU "$_pabi" 2>/dev/null | grep -q ' T _glue_field_access_call_base_rvalue_elf_c__demoted$'; then
+      if "$_oc" --redefine-sym _glue_field_access_call_base_rvalue_elf_c=_glue_field_access_call_base_rvalue_elf_c__demoted "$_pabi" 2>/dev/null; then
+        echo "darwin_phase1_hollow_fill: demoted field_access mega → __demoted"
+        # Standalone demoted.o first-wins even if a later step re-injects mega name.
+        mkdir -p "$OUT/cap_residual_egg"
+        echo '_glue_field_access_call_base_rvalue_elf_c__demoted' >"$OUT/field_access_demoted.exp"
+        if ld -r -o "$OUT/cap_residual_egg/field_access_demoted.o" \
+            -exported_symbols_list "$OUT/field_access_demoted.exp" "$_pabi" 2>/dev/null \
+          && [ -s "$OUT/cap_residual_egg/field_access_demoted.o" ]; then
+          # Prepend demoted before other eggs in manifest (rewrite: insert after fix_extern)
+          echo "darwin_phase1_hollow_fill: egg field_access_demoted.o OK"
+        else
+          echo "darwin_phase1_hollow_fill: WARN field_access_demoted.o export failed" >&2
+          rm -f "$OUT/cap_residual_egg/field_access_demoted.o"
+        fi
+      else
+        echo "darwin_phase1_hollow_fill: WARN redefine-sym demote failed" >&2
+      fi
+    else
+      echo "darwin_phase1_hollow_fill: demote skip (nm: $(nm -gU "$_pabi" 2>/dev/null | grep field_access_call_base_rvalue | tr '\n' ' '))"
+    fi
+  else
+    echo "darwin_phase1_hollow_fill: WARN no llvm-objcopy for field_access demote" >&2
   fi
 fi
 
+if [ -s "$OUT/cap_residual_egg/field_access_demoted.o" ]; then
+  # Prepend demoted at start of manifest (after park/fix_extern already written)
+  _mf="$OUT/phase1_hollow_fill_objs.txt"
+  if [ -f "$_mf" ]; then
+    { head -n 2 "$_mf" 2>/dev/null
+      echo "$OUT/cap_residual_egg/field_access_demoted.o"
+      tail -n +3 "$_mf" 2>/dev/null
+    } >"$_mf.tmp" && mv "$_mf.tmp" "$_mf"
+  else
+    echo "$OUT/cap_residual_egg/field_access_demoted.o" >>"$_mf"
+  fi
+fi
 echo "$OUT/m8_reloc_stubs.o" >>"$OUT/phase1_hollow_fill_objs.txt"
 echo "darwin_phase1_hollow_fill: OK stubs+bss manifest=$OUT/phase1_hollow_fill_objs.txt"
 exit 0
