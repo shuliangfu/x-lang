@@ -91,10 +91,10 @@ function main(): i32 {
   if (g != 11) { return -14; }
   // Option_ptr_u8
   let buf: u8[4] = [1, 2, 3, 4];
-  let sp: Option_ptr_u8 = some_ptr_u8(buf);
-  let mp: Option_ptr_u8 = map_ptr_u8(sp, buf);
-  if (!is_some_ptr_u8(mp)) { return -15; }
-  let bp: *u8 = expect_ptr_u8(mp);
+  let sp: Option_ptr_u8 = option.some_ptr_u8(buf);
+  let mp: Option_ptr_u8 = option.map_ptr_u8(sp, buf);
+  if (!option.is_some_ptr_u8(mp)) { return -15; }
+  let bp: *u8 = option.expect_ptr_u8(mp);
   if (bp[0] != (1 as u8)) { return -16; }
   let extra: i32 = m1 + (m2 as i32) + at + g + (bp[0] as i32);
   return a + b + c + (u1 as i32) + (u2 as i32) + extra;
