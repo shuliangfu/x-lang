@@ -633,18 +633,26 @@ _cap_tip_net_leftover_leaves() {
   [ -n "$_oc" ] || { [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ] && _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy; }
   [ -n "$_oc" ] || { [ -x /usr/local/opt/llvm/bin/llvm-objcopy ] && _oc=/usr/local/opt/llvm/bin/llvm-objcopy; }
   mkdir -p build_asm/selfhost_pabi
-  # thread_glue: Cap tip pure _c + weak impl stubs (no host-cc rest)
+  # thread_glue: Cap tip pure _c + weak residual stubs + strong Darwin
+  # pthread impl (self/create/join/dummy). Prefer asm; no host-cc rest.
   if [ -x ./xlang_asm ] && [ -f src/asm/runtime_thread_glue.x ] \
      && [ -f src/asm/runtime_thread_impl_stubs_a64.s ]; then
-    local _tg_thin _tg_impl
+    local _tg_thin _tg_impl _tg_dar
     _tg_thin=build_asm/selfhost_pabi/thread_glue_thin_a64.o
     _tg_impl=build_asm/selfhost_pabi/thread_impl_stubs_a64.o
+    _tg_dar=build_asm/selfhost_pabi/thread_impl_darwin_a64.o
     if bash scripts/ensure_host_cc_seed_o.sh thread-glue-pure "$_tg_thin" 2>/dev/null \
        && [ -s "$_tg_thin" ] \
        && clang -c -arch arm64 src/asm/runtime_thread_impl_stubs_a64.s -o "$_tg_impl" 2>/dev/null \
        && [ -s "$_tg_impl" ] \
-       && ld -r -o runtime_thread_glue.o "$_tg_thin" "$_tg_impl" 2>/dev/null; then
-      echo "g05_cap_tip_reapply: installed thread_glue pure+impl-stubs (no host-cc)" >&2
+       && { [ ! -f src/asm/runtime_thread_impl_darwin_a64.s ] \
+            || clang -c -arch arm64 src/asm/runtime_thread_impl_darwin_a64.s -o "$_tg_dar" 2>/dev/null; } \
+       && { if [ -s "$_tg_dar" ]; then
+             ld -r -o runtime_thread_glue.o "$_tg_thin" "$_tg_impl" "$_tg_dar" 2>/dev/null
+           else
+             ld -r -o runtime_thread_glue.o "$_tg_thin" "$_tg_impl" 2>/dev/null
+           fi; }; then
+      echo "g05_cap_tip_reapply: installed thread_glue pure+stubs+darwin-impl (no host-cc)" >&2
     else
       echo "g05_cap_tip_reapply: WARN thread_glue pure+impl-stubs failed" >&2
       if [ -s "$CACHE/leaves/runtime_thread_glue.o" ]; then
