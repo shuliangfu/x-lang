@@ -560,6 +560,17 @@ if [ -f src/asm/runtime_set_byref_a64.s ]; then
 fi
 
 
+# knife256/10.2: Cap tip leftover FS — true-cold wipe drops fs.o; Cap tip
+# cannot rebuild formal std.fs. Ensure leave via LEGACY pure-asm + Darwin
+# ___error + dir_cap merge. Prefer asm; no FORCE_CC. PLATFORM: MACOS.
+if [ -f scripts/cap_tip_ensure_fs_leave_darwin.sh ]; then
+  if [ -x ./xlang.product_legacy_bak ] || [ -x "${XLANG:-}" ]; then
+    bash scripts/cap_tip_ensure_fs_leave_darwin.sh ../std/fs/fs.o \
+      && echo "g05_cap_tip_reapply: ensured Cap tip fs leave" >&2 \
+      || echo "g05_cap_tip_reapply: WARN fs leave ensure failed" >&2
+  fi
+fi
+
 # knife256/10.2: Cap tip Queue_i32 (>16B) by-value at/get/length hollow;
 # push_* call at(*q) → SEGV on leftover run-queue. Also queue.o U
 # _sync_queue_contention_smoke_c (BLD001). Hand-asm byref + weak smoke

@@ -129,7 +129,7 @@ mkdir -p "$CACHE/leaves"
 (
   cd "$ROOT"
   for f in core/option/option.o core/result/result.o core/mem/mem.o core/types/types.o \
-           std/string/string.o std/set/set.o std/queue/queue.o std/net/net.o std/thread/thread.o std/io/driver.o \
+           std/string/string.o std/set/set.o std/queue/queue.o std/fs/fs.o std/net/net.o std/thread/thread.o std/io/driver.o \
            compiler/runtime_process_argv.o compiler/runtime_thread_glue.o \
            compiler/runtime_net_workers.o; do
     if [ -f "$f" ]; then cp -f "$f" "$CACHE/leaves/"; fi
@@ -295,9 +295,9 @@ log "step6b: Cap tip product size=$SZ"
 log "step6c: restore formal_mod leaves from cache / LEGACY rebuild"
 (
   cd "$ROOT"
-  mkdir -p core/option core/result core/mem core/types std/string std/set std/queue std/net std/thread std/io
+  mkdir -p core/option core/result core/mem core/types std/string std/set std/queue std/fs std/net std/thread std/io
   restored=0
-  for f in option.o result.o mem.o types.o string.o set.o queue.o net.o thread.o driver.o \
+  for f in option.o result.o mem.o types.o string.o set.o queue.o fs.o net.o thread.o driver.o \
            runtime_process_argv.o runtime_thread_glue.o runtime_net_workers.o; do
     if [ -f "$CACHE/leaves/$f" ]; then
       case "$f" in
@@ -307,6 +307,7 @@ log "step6c: restore formal_mod leaves from cache / LEGACY rebuild"
         string.o) dest=std/string/string.o ;;
         set.o) dest=std/set/set.o ;;
         queue.o) dest=std/queue/queue.o ;;
+        fs.o) dest=std/fs/fs.o ;;
         net.o) dest=std/net/net.o ;;
         thread.o) dest=std/thread/thread.o ;;
         driver.o) dest=std/io/driver.o ;;
