@@ -1463,6 +1463,7 @@ export extern "C" function driver_diagnostic_warn_hot_reorder_field(sname: *u8, 
  * Used by pipeline_asm_debug_enabled + pipeline_debug_trace_named_func_bodies_impl.
  * PLATFORM: SHARED - product hybrid pipeline_abi pure uses same face as cold seed. */
 export extern "C" function link_abi_getenv(name: *u8): *u8;
+export extern function link_abi_host_is_windows(): i32;
 
 /* wave1222: extern declarations for parser_parse_into_init body.
  * These mirror the C authority in parser_gen.c L6318-6331 to ensure the
