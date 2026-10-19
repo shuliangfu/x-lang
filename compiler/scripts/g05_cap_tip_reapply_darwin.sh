@@ -1367,6 +1367,53 @@ fi
 # Cap tip: KEEP darwin_tramp so mega/fill locals redirect to overlay T
 # (index thin, fill glue 13KB). Decline glue stays demoted. PLATFORM: MACOS Cap tip.
 unset XLANG_SKIP_DARWIN_TRAMP
+# knife256/10.2: Cap tip DepCtx sidecar — multi-import `xlang check` T001 on
+# result.ok_i32 / option.* when fill path APIs miss GrowVec layout. Prepend
+# full dep_ctx_thin; demote fill/pabi_weak twins. PLATFORM: MACOS Cap tip.
+if [ -f src/runtime_pipeline_abi_dep_ctx_thin.x ] && [ -x ./xlang ]; then
+  _dct_o=build_asm/selfhost_pabi/dep_ctx_thin_a64.o
+  if [ ! -s "$_dct_o" ] || [ src/runtime_pipeline_abi_dep_ctx_thin.x -nt "$_dct_o" ]; then
+    env -u XLANG -u XLANG_FORCE -u FORCE -u PREFER -u G05 -u RUN_ALL_USE_C \
+      -u XLANG_CAP_TIP_L4_CACHE \
+      XLANG_PREFER_ASM_O=1 ./xlang -backend asm -c \
+      src/runtime_pipeline_abi_dep_ctx_thin.x -o "$_dct_o" \
+      || { echo "g05_cap_tip_reapply: dep_ctx_thin compile failed" >&2; exit 1; }
+    echo "g05_cap_tip_reapply: tip-compiled dep_ctx_thin_a64.o" >&2
+  fi
+  if [ -s "$_dct_o" ]; then
+    case " $G05_OBJS " in
+      *" $_dct_o "*) ;;
+      *) G05_OBJS="$_dct_o $G05_OBJS"; export G05_OBJS
+         echo "g05_cap_tip_reapply: prepended dep_ctx_thin_a64.o" >&2 ;;
+    esac
+  fi
+  if [ -n "${OC_L003:-}" ] && [ -s "$_dct_o" ]; then
+    python3 - "$_dct_o" "${OC_L003}" <<'PYDCT'
+import subprocess, sys, os
+thin, oc = sys.argv[1], sys.argv[2]
+out = subprocess.check_output(["nm", "-gU", thin], text=True)
+tip = {parts[2] for line in out.splitlines()
+       for parts in [line.split()]
+       if len(parts) >= 3 and parts[1] == "T" and parts[2].startswith("_")}
+for o in ("build_asm/selfhost_pabi/pabi_weak.o", "src/runtime_pipeline_abi.o",
+          "src/runtime_driver_strict_glue_stubs.o"):
+    if not os.path.isfile(o) or os.path.getsize(o) == 0:
+        continue
+    nmout = subprocess.check_output(["nm", "-gU", o], text=True)
+    redefs = []
+    for line in nmout.splitlines():
+        parts = line.split()
+        if len(parts) >= 3 and parts[1] == "T" and parts[2] in tip:
+            redefs.append(f"--redefine-sym={parts[2]}={parts[2]}__fill_dead")
+    if redefs:
+        for i in range(0, len(redefs), 40):
+            subprocess.check_call([oc] + redefs[i:i+40] + [o])
+        print(f"g05_cap_tip_reapply: demoted {o} dep_ctx twins ({len(redefs)})", file=sys.stderr)
+PYDCT
+  fi
+fi
+
+
 bash scripts/g05_relink_xlang.sh
 
 if [ ! -x xlang.cap_g05_l2 ]; then
