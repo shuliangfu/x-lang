@@ -689,14 +689,17 @@ if [ -z "$OC_L003" ]; then
   done
 fi
 if [ -n "$OC_L003" ] && [ -s src/diag.o ]; then
-  if nm -gU src/diag.o 2>/dev/null | grep -qE 'T _diag_report_human$|T _diag_report_with_code$|T _diag_report$'; then
+  # Weaken (not redefine): redefine rewrites same-TU vreportf→*_dead and
+  # check still SEGV139 in the dead body. Weak + Cap overlay strong interposes.
+  # PLATFORM: MACOS Cap tip.
+  if nm -m src/diag.o 2>/dev/null | grep -q 'external _diag_report_human$'; then
     [ -s src/diag.o.bak_cap ] || cp -f src/diag.o src/diag.o.bak_cap
     "$OC_L003" \
-      --redefine-sym=_diag_report_human=_diag_report_human_diag_o_dead \
-      --redefine-sym=_diag_report_with_code=_diag_report_with_code_diag_o_dead \
-      --redefine-sym=_diag_report=_diag_report_diag_o_dead \
+      --weaken-symbol=_diag_report_human \
+      --weaken-symbol=_diag_report_with_code \
+      --weaken-symbol=_diag_report \
       src/diag.o
-    echo "g05_cap_tip_reapply: demoted Cap tip diag human/with_code" >&2
+    echo "g05_cap_tip_reapply: weakened Cap tip diag human/with_code" >&2
   fi
 fi
 if [ ! -s build_asm/selfhost_pabi/diag_report_human_cap_a64.o ]; then
@@ -742,28 +745,31 @@ if [ -s build_asm/selfhost_pabi/diag_snap_load_ptr_a64.o ]; then
 fi
 if [ -n "$OC_L003" ] && [ -s src/diag.o ]; then
   [ -s src/diag.o.bak_cap ] || cp -f src/diag.o src/diag.o.bak_cap
-  # Restore bak then demote report+ctx+snap so softs first-win (same-TU calls)
+  # Restore bak then weaken report+ctx+snap (Cap/soft strong first-win).
+  # Do not redefine→*_dead: same-TU diag_vreportf would call the dead body
+  # (check SEGV139). PLATFORM: MACOS Cap tip.
   cp -f src/diag.o.bak_cap src/diag.o
   "$OC_L003" \
-    --redefine-sym=_diag_report_human=_diag_report_human_diag_o_dead \
-    --redefine-sym=_diag_report_with_code=_diag_report_with_code_diag_o_dead \
-    --redefine-sym=_diag_report=_diag_report_diag_o_dead \
-    --redefine-sym=_diag_restore=_diag_restore_diag_o_dead \
-    --redefine-sym=_diag_push_file=_diag_push_file_diag_o_dead \
-    --redefine-sym=_diag_ctx_get_file=_diag_ctx_get_file_diag_o_dead \
-    --redefine-sym=_diag_ctx_get_source=_diag_ctx_get_source_diag_o_dead \
-    --redefine-sym=_diag_ctx_get_source_len=_diag_ctx_get_source_len_diag_o_dead \
-    --redefine-sym=_diag_ctx_get_use_color=_diag_ctx_get_use_color_diag_o_dead \
-    --redefine-sym=_diag_ctx_set_all=_diag_ctx_set_all_diag_o_dead \
-    --redefine-sym=_diag_snap_load_ptr=_diag_snap_load_ptr_diag_o_dead \
-    --redefine-sym=_diag_snap_load_usize=_diag_snap_load_usize_diag_o_dead \
-    --redefine-sym=_diag_snap_load_i32=_diag_snap_load_i32_diag_o_dead \
-    --redefine-sym=_diag_snap_store_ptr=_diag_snap_store_ptr_diag_o_dead \
-    --redefine-sym=_diag_snap_store_usize=_diag_snap_store_usize_diag_o_dead \
-    --redefine-sym=_diag_snap_store_i32=_diag_snap_store_i32_diag_o_dead \
+    --weaken-symbol=_diag_report_human \
+    --weaken-symbol=_diag_report_with_code \
+    --weaken-symbol=_diag_report \
+    --weaken-symbol=_diag_restore \
+    --weaken-symbol=_diag_push_file \
+    --weaken-symbol=_diag_ctx_get_file \
+    --weaken-symbol=_diag_ctx_get_source \
+    --weaken-symbol=_diag_ctx_get_source_len \
+    --weaken-symbol=_diag_ctx_get_use_color \
+    --weaken-symbol=_diag_ctx_set_all \
+    --weaken-symbol=_diag_snap_load_ptr \
+    --weaken-symbol=_diag_snap_load_usize \
+    --weaken-symbol=_diag_snap_load_i32 \
+    --weaken-symbol=_diag_snap_store_ptr \
+    --weaken-symbol=_diag_snap_store_usize \
+    --weaken-symbol=_diag_snap_store_i32 \
     src/diag.o
-  echo "g05_cap_tip_reapply: demoted Cap tip diag report/ctx/snap" >&2
+  echo "g05_cap_tip_reapply: weakened Cap tip diag report/ctx/snap" >&2
 fi
+
 
 # Demote m8 symbols whose Cap tip thins are now in G05_OBJS (after INDEX/L003 prepend).
 _oc="${LLVM_OBJCOPY:-}"
