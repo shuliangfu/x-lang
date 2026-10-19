@@ -529,6 +529,36 @@ if [ -f src/asm/runtime_string_byref_a64.s ]; then
   fi
 fi
 
+# knife256/10.2: Cap tip Set_i32 (>16B) by-value callees hollow; insert's
+# internal slot reloc also breaks under redefine→__hollow. Hand-asm byref
+# find/contains/length/slot/insert/remove. Prefer asm; no FORCE_CC.
+# PLATFORM: MACOS Cap tip.
+if [ -f src/asm/runtime_set_byref_a64.s ]; then
+  _set_o=build_asm/selfhost_pabi/set_byref_a64.o
+  _oc_set="${_oc_sz:-${OC:-}}"
+  [ -n "$_oc_set" ] || { [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ] && _oc_set=/opt/homebrew/opt/llvm/bin/llvm-objcopy; }
+  if clang -c -arch arm64 src/asm/runtime_set_byref_a64.s -o "$_set_o" 2>/dev/null \
+    && [ -s "$_set_o" ] && [ -s ../std/set/set.o ] && [ -n "$_oc_set" ]; then
+    [ -s ../std/set/set.o.bak_pre_byref ] || cp -f ../std/set/set.o ../std/set/set.o.bak_pre_byref
+    cp -f ../std/set/set.o.bak_pre_byref ../std/set/set.o
+    _set_redefs=()
+    for _sym in _std_set_find_Set_i32_i32 _std_set_contains_key_Set_i32_i32 \
+      _std_set_length_Set_i32 _std_set_is_empty _std_set_slot_Set_i32_i32 \
+      _std_set_insert_Set_i32_ptr_i32 _std_set_remove_Set_i32_ptr_i32; do
+      if nm -gU ../std/set/set.o 2>/dev/null | grep -q "T ${_sym}$"; then
+        _set_redefs+=("--redefine-sym=${_sym}=${_sym}__hollow")
+      fi
+    done
+    if [ "${#_set_redefs[@]}" -gt 0 ]; then
+      "$_oc_set" "${_set_redefs[@]}" ../std/set/set.o \
+        && ld -r -o ../std/set/set.o.tmp "$_set_o" ../std/set/set.o \
+        && mv -f ../std/set/set.o.tmp ../std/set/set.o \
+        && echo "g05_cap_tip_reapply: installed set byref overlay (${#_set_redefs[@]} demoted)" >&2 \
+        || echo "g05_cap_tip_reapply: WARN set byref overlay failed" >&2
+    fi
+  fi
+fi
+
 # knife256/10.2: Cap tip net leftover — two UNDEFs:
 #   _thread_set_qos_class_self_c (thread.o) and
 #   _xlang_net_worker_accept_entry_ptr_c (net.o).
