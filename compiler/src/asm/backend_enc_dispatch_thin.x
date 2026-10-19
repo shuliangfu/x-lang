@@ -9847,7 +9847,11 @@ export function arch_arm64_enc_enc_store_rax_to_rbp(elf_ctx: *u8, offset: i32): 
  * store_size 16 or more writes x0 then x1, eight bytes apart, with x19
  * as the base. store_size 1, 2, and 4 select STRB, STRH, and STR W.
  * Every other size selects STR X. A negative offset is stored as 0.
- * The scaled immediate is a shift of the u32 bit pattern, clamped to 4095.
+ * A scaled immediate above 4095 is not clamped: that would write the
+ * wrong slot. The high part is added into x16 from the original base
+ * (x1, or x19 for a 16-byte pair). x1 and x19 stay unchanged, so the
+ * next call's absolute offset is still from that base. The low 12 bits
+ * stay in the immediate, and the store uses x16.
  * A null context returns -1 from append.
  * @param elf_ctx *u8 — emit context; null is rejected by append
  * @param offset i32 — byte offset; a negative value is stored as 0
@@ -9859,12 +9863,40 @@ export function arch_arm64_enc_enc_store_rax_to_rbp(elf_ctx: *u8, offset: i32): 
  */
 #[no_mangle]
 export function arch_arm64_enc_enc_store_rax_to_rbx_offset(elf_ctx: *u8, offset: i32, store_size: i32): i32 {
-  // 608 is x19 in bits 9:5. 32 is x1. 1024 is the imm12 shift.
+  // 608 is x19 in bits 9:5. 512 is x16. 32 is x1. 1024 is the imm12 shift.
   // STRB, STRH, STR W, and STR X bases are the four width words.
   // A shift of the u32 pattern matches a non-negative divide.
+  // base_bits is the Rn field of the store. A wide pair uses x19.
+  // An offset past 4095 switches the store to x16 after the add below.
   let off: i32 = offset;
+  let base_bits: i32 = 32;
   if (off < 0) {
     off = 0;
+  }
+  if (store_size >= 16) {
+    base_bits = 608;
+  }
+  /* STR scaled imm12 stops at 4095. Add the high part into x16 from
+   * the original base and keep the low 12 bits in the immediate.
+   * x1 and x19 are not written, so the next absolute offset still
+   * starts from the caller's base. A 16-byte pair reads x19; every
+   * other width reads x1. PLATFORM: MACOS|ARM64. The live product
+   * path is the stub at file offset 0x10b9b8; offsets past 4095
+   * branch from 0x10b9c0 to the cave at VA 0x10088f9b0. */
+  if (off > 4095) {
+    let residue: i32 = off & 4095;
+    let addend: i32 = off - residue;
+    let src_reg: i32 = 1;
+    if (store_size >= 16) {
+      src_reg = 19;
+    }
+    unsafe {
+      if (arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 16, src_reg, addend) != 0) {
+        return 0 - 1;
+      }
+    }
+    off = residue;
+    base_bits = 512;
   }
   let u: u32 = off as u32;
   let imm_lo: i32 = (u >> 3) as i32;
@@ -9872,15 +9904,16 @@ export function arch_arm64_enc_enc_store_rax_to_rbx_offset(elf_ctx: *u8, offset:
   let imm12: i32 = off;
   let base: u32 = 4177526784 as u32;
   /* w2060: do not clamp scaled imm12 to 4095 (silent wrong slot).
-   * Same family as enc_load_rbp_to_rax P001. Out of range → fail. */
+   * Offsets past 4095 were folded into x16 above. A miss here is
+   * an unaligned 8-byte field or an append failure. PLATFORM: MACOS|ARM64. */
   if (store_size >= 16) {
     if (imm_lo > 4095 || imm_hi > 4095) {
       return 0 - 1;
     }
-    if (backend_enc_append_u32_le_c(elf_ctx, (4177526784 as u32) | ((imm_lo as u32) * 1024) | (608 as u32)) != 0) {
+    if (backend_enc_append_u32_le_c(elf_ctx, (4177526784 as u32) | ((imm_lo as u32) * 1024) | (base_bits as u32)) != 0) {
       return 0 - 1;
     }
-    return backend_enc_append_u32_le_c(elf_ctx, (4177526784 as u32) | ((imm_hi as u32) * 1024) | (608 as u32) | (1 as u32));
+    return backend_enc_append_u32_le_c(elf_ctx, (4177526784 as u32) | ((imm_hi as u32) * 1024) | (base_bits as u32) | (1 as u32));
   }
   if (store_size == 1) {
     if (imm12 > 4095) {
@@ -9916,8 +9949,8 @@ export function arch_arm64_enc_enc_store_rax_to_rbx_offset(elf_ctx: *u8, offset:
           if (imm12 > 4095) {
             return 0 - 1;
           }
-          /* str w0, [x1, #offset] */
-          if (backend_enc_append_u32_le_c(elf_ctx, (3103784960 as u32) | ((imm12 as u32) * 1024) | (32 as u32)) != 0) {
+          /* str w0, [base, #offset]. base is x1, or x16 after a 4096 fold. */
+          if (backend_enc_append_u32_le_c(elf_ctx, (3103784960 as u32) | ((imm12 as u32) * 1024) | (base_bits as u32)) != 0) {
             return 0 - 1;
           }
           /* lsr x0, x0, #32 */
@@ -9928,8 +9961,8 @@ export function arch_arm64_enc_enc_store_rax_to_rbx_offset(elf_ctx: *u8, offset:
           if (imm12 > 4095) {
             return 0 - 1;
           }
-          /* str w0, [x1, #offset+4] */
-          return backend_enc_append_u32_le_c(elf_ctx, (3103784960 as u32) | ((imm12 as u32) * 1024) | (32 as u32));
+          /* str w0, [base, #offset+4]. Same base as the low half. */
+          return backend_enc_append_u32_le_c(elf_ctx, (3103784960 as u32) | ((imm12 as u32) * 1024) | (base_bits as u32));
         }
         imm12 = (u >> 3) as i32;
         if (imm12 > 4095) {
@@ -9939,7 +9972,7 @@ export function arch_arm64_enc_enc_store_rax_to_rbx_offset(elf_ctx: *u8, offset:
       }
     }
   }
-  return backend_enc_append_u32_le_c(elf_ctx, base | ((imm12 as u32) * 1024) | (32 as u32));
+  return backend_enc_append_u32_le_c(elf_ctx, base | ((imm12 as u32) * 1024) | (base_bits as u32));
 }
 
 /**
