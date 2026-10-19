@@ -6,10 +6,10 @@
 // existing sret copy moves that many bytes. Every other array stays
 // 8 bytes. Named i32x8 is kind 8 and stays on the demoted body.
 // PLATFORM: SHARED — the size rule is the same on macOS, Ubuntu, and Windows.
-// The demote step that makes this symbol win is Mach-O only.
+// Cap tip product used a Mach-O link rename; phase1 cold egg inject
+// first-wins the peel over mega, so the mega body ships here as
+// __demoted (same field_access / lane_f32 pattern).
 
-export extern "C" function glue_func_return_byte_size_c__demoted(
-  mod: *u8, arena: *u8, func_index: i32): i32;
 export extern "C" function pipeline_module_num_funcs(mod: *u8): i32;
 export extern "C" function pipeline_module_func_return_type_at(mod: *u8, fi: i32): i32;
 export extern "C" function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
@@ -17,6 +17,65 @@ export extern "C" function pipeline_type_elem_ref_at(arena: *u8, type_ref: i32):
 export extern "C" function pipeline_arena_num_types(arena: *u8): i32;
 export extern "C" function glue_index_simd_elem_bytes_c(arena: *u8, ty: i32): i32;
 export extern "C" function glue_fixed_array_total_bytes_c(arena: *u8, ty_ref: i32, depth: i32): i32;
+export extern "C" function glue_type_size_simple(mod: *u8, arena: *u8, type_ref: i32, depth: i32): i32;
+export extern "C" function glue_type_named_layout_size_any_module_elf_c(arena: *u8, type_ref: i32): i32;
+
+/**
+ * Cap tip demoted mega return-size body.
+ * knife256/10.2: Cap tip demoted body lived in mega and was renamed at
+ * Cap tip link. Phase1 cold has no that rename (egg inject first-wins the
+ * peel wrapper over mega). Ship the mega materializer as __demoted here so
+ * the peel wrapper below stays the public symbol. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_func_return_byte_size_c__demoted(mod: *u8, arena: *u8, func_index: i32): i32 {
+  let rty: i32 = 0;
+  let k: i32 = 0;
+  let nf: i32 = 0;
+  let sz: i32 = 0;
+  let nsz: i32 = 0;
+  if (mod == (0 as *u8) || arena == (0 as *u8) || func_index < 0) {
+    return 0;
+  }
+  unsafe {
+    nf = pipeline_module_num_funcs(mod);
+  }
+  if (func_index >= nf) {
+    return 0;
+  }
+  unsafe {
+    rty = pipeline_module_func_return_type_at(mod, func_index);
+  }
+  if (rty <= 0) {
+    return 0;
+  }
+  unsafe {
+    k = pipeline_type_kind_ord_at(arena, rty);
+  }
+  // void == 15
+  if (k == 15) {
+    return 0;
+  }
+  // TYPE_ARRAY == 10 → E* return (8B), not payload sret
+  if (k == 10) {
+    return 8;
+  }
+  sz = glue_type_size_simple(mod, arena, rty, 0);
+  /* TYPE_NAMED INTEGER-class 8B (ArrowColumn) must not size as 0=void:
+   * a 0 here skipped sret (correct) but also starved STRUCT_LIT / return
+   * packers of the 8B width so they lea'd the slot.
+   * PLATFORM: SHARED — LINUX SysV INTEGER rax; MACOS|ARM64 x0. */
+  if (k == 8) {
+    nsz = glue_type_named_layout_size_any_module_elf_c(arena, rty);
+    if (nsz > sz) {
+      sz = nsz;
+    }
+    if (sz <= 0) {
+      return 8;
+    }
+  }
+  return sz;
+}
 
 /**
  * Byte count of a fixed array of a wide i32 vector, or 0.
@@ -90,7 +149,8 @@ export function glue_wide_i32_vec_array_bytes(arena: *u8, rty: i32): i32 {
  * @return i32 — payload bytes, or the demoted size
  * A [2]Vec8i return is 64 bytes, so the existing sret path copies it.
  * A [2]i32 return stays 8 bytes. A miss calls the demoted body.
- * PLATFORM: SHARED.
+ * PLATFORM: SHARED. The rename is Mach-O Cap tip only; phase1 cold
+ * defines __demoted in this TU (above).
  */
 #[no_mangle]
 export function glue_func_return_byte_size_c(mod: *u8, arena: *u8, func_index: i32): i32 {
