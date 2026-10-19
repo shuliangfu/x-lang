@@ -498,6 +498,37 @@ if [ -f src/asm/runtime_slice_glue_a64.s ]; then
 fi
 _demote_slice_mod "${_oc_sz:-${OC:-}}"
 
+# knife256/10.2: Cap tip String (>16B) by-value callees are hollow (8B GP
+# slot +0x100). Callers already AAPCS64-byref. Install hand-asm byref
+# bodies; demote Cap tip twins in ../std/string/string.o. PLATFORM: MACOS.
+if [ -f src/asm/runtime_string_byref_a64.s ]; then
+  _sbr_o=build_asm/selfhost_pabi/string_byref_a64.o
+  _oc_sbr="${_oc_sz:-${OC:-}}"
+  [ -n "$_oc_sbr" ] || { [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ] && _oc_sbr=/opt/homebrew/opt/llvm/bin/llvm-objcopy; }
+  if clang -c -arch arm64 src/asm/runtime_string_byref_a64.s -o "$_sbr_o" 2>/dev/null \
+    && [ -s "$_sbr_o" ] && [ -s ../std/string/string.o ] && [ -n "$_oc_sbr" ]; then
+    [ -s ../std/string/string.o.bak_pre_byref ] || cp -f ../std/string/string.o ../std/string/string.o.bak_pre_byref
+    cp -f ../std/string/string.o.bak_pre_byref ../std/string/string.o
+    _sbr_redefs=()
+    for _s in length_String is_empty_String string_get string_eq string_compare \
+      string_find_char string_rfind_char string_starts_with string_ends_with \
+      string_find_slice string_contains string_copy_to string_eq_view \
+      string_compare_view trim; do
+      _sym="_std_string_${_s}"
+      if nm -gU ../std/string/string.o 2>/dev/null | grep -q "T ${_sym}$"; then
+        _sbr_redefs+=("--redefine-sym=${_sym}=${_sym}__hollow")
+      fi
+    done
+    if [ "${#_sbr_redefs[@]}" -gt 0 ]; then
+      "$_oc_sbr" "${_sbr_redefs[@]}" ../std/string/string.o \
+        && ld -r -o ../std/string/string.o.tmp "$_sbr_o" ../std/string/string.o \
+        && mv -f ../std/string/string.o.tmp ../std/string/string.o \
+        && echo "g05_cap_tip_reapply: installed string byref overlay (${#_sbr_redefs[@]} demoted)" >&2 \
+        || echo "g05_cap_tip_reapply: WARN string byref overlay failed" >&2
+    fi
+  fi
+fi
+
 # knife256/10.2: Cap tip ondemand scans user.o only → slice/mod.o option
 # UNDEFs missed when main only uses slice API. Soft-extend option needles.
 # PLATFORM: MACOS Cap tip.

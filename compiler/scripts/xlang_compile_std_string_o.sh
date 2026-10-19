@@ -314,4 +314,33 @@ elif [ "$sx_pure" != "1" ]; then
 fi
 
 ld -r -o "$OUT" "$tmp/mod.o" "$tmp/sx.o"
+# knife256/10.2: after Cap tip pure-asm string.o, overlay byref String callees.
+_sbr_src="$COMP/src/asm/runtime_string_byref_a64.s"
+_sbr_o="$COMP/build_asm/selfhost_pabi/string_byref_a64.o"
+_oc_sbr=""
+for _c in "${LLVM_OBJCOPY:-}" /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
+  if [ -n "$_c" ] && [ -x "$_c" ]; then _oc_sbr="$_c"; break; fi
+done
+if [ -f "$_sbr_src" ] && [ -n "$_oc_sbr" ] && [ -s "$OUT" ]; then
+  mkdir -p "$(dirname "$_sbr_o")"
+  if clang -c -arch arm64 "$_sbr_src" -o "$_sbr_o" 2>/dev/null && [ -s "$_sbr_o" ]; then
+    _sbr_redefs=()
+    for _s in length_String is_empty_String string_get string_eq string_compare \
+      string_find_char string_rfind_char string_starts_with string_ends_with \
+      string_find_slice string_contains string_copy_to string_eq_view \
+      string_compare_view trim; do
+      _sym="_std_string_${_s}"
+      if nm -gU "$OUT" 2>/dev/null | grep -q "T ${_sym}$"; then
+        _sbr_redefs+=("--redefine-sym=${_sym}=${_sym}__hollow")
+      fi
+    done
+    if [ "${#_sbr_redefs[@]}" -gt 0 ]; then
+      "$_oc_sbr" "${_sbr_redefs[@]}" "$OUT" \
+        && ld -r -o "${OUT}.byref_tmp" "$_sbr_o" "$OUT" \
+        && mv -f "${OUT}.byref_tmp" "$OUT" \
+        && echo "xlang_compile_std_string_o: string byref overlay (${#_sbr_redefs[@]})" >&2 \
+        || echo "xlang_compile_std_string_o: WARN string byref overlay failed" >&2
+    fi
+  fi
+fi
 echo "xlang_compile_std_string_o: OK -> $OUT"
