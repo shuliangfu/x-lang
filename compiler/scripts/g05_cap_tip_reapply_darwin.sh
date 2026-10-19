@@ -560,6 +560,15 @@ if [ -f src/asm/runtime_set_byref_a64.s ]; then
 fi
 
 
+# knife256/10.2: Cap tip leftover compress — wipe drops zlib Init2 glue;
+# nested core_mem U never pulls mem.o. Ensure glue + gzip mem stubs.
+# Prefer asm; no FORCE_CC. PLATFORM: MACOS Cap tip.
+if [ -f scripts/cap_tip_ensure_compress_leave_darwin.sh ]; then
+  bash scripts/cap_tip_ensure_compress_leave_darwin.sh \
+    && echo "g05_cap_tip_reapply: ensured Cap tip compress leave" >&2 \
+    || echo "g05_cap_tip_reapply: WARN compress leave ensure failed" >&2
+fi
+
 # knife256/10.2: Cap tip leftover FS — true-cold wipe drops fs.o; Cap tip
 # cannot rebuild formal std.fs. Ensure leave via LEGACY pure-asm + Darwin
 # ___error + dir_cap merge. Prefer asm; no FORCE_CC. PLATFORM: MACOS.
