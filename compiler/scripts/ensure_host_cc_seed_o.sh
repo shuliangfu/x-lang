@@ -16246,16 +16246,19 @@ ensure_r3_full_x_pure_w1525() {
   # w1525 (5.9): simd_loop.o / simd_enc.o / runtime_io_abi.o are the full .x
   # alone, compiled by the pure asm backend in one shot. Their seed rest only
   # carried the slice marker, which now lives in the .x with a w1525 anchor.
-  # No thin rung, no seed rest, no -E+cc, no cold seed cc, no retry: a failed
-  # build is a real bug to fix, so it returns 1.
+  # No thin rung, no seed rest, no -E+cc, no cold seed cc. knife256/10.2:
+  # Cap tip L4 saw intermittent "lacks xlang_write_path_bytes_impl" on a
+  # non-empty tmp (anchor+slice+read_file_view present; write_path missing).
+  # Retry pure-asm up to 3x (same as w1516 stubs); pin LEGACY heat via XLANG
+  # when xlang.product_legacy_bak exists so Cap tip SEGV heat cannot emit a
+  # truncated rio. PLATFORM: SHARED (Darwin arm64 / Linux x86_64 / Windows).
   # Args: <out.o> <full.x> <sym>... (every sym must be defined in the result;
   # the first is the w1525 anchor used by the up-to-date skip).
-  # PLATFORM: SHARED (Darwin arm64 / Linux x86_64 / Windows x86_64).
   local o="$1" x_src="$2"
   shift 2
   local anchor_sym="$1"
   local tmp_o="${o%.o}_w1525_step.o"
-  local sym
+  local sym try=0 done=0 miss="" _leg="" _saved_xlang=""
   if [ ! -f "$x_src" ]; then
     echo "ensure: $o missing $x_src; no C fallback" >&2
     return 1
@@ -16275,26 +16278,60 @@ ensure_r3_full_x_pure_w1525() {
   if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$x_src" -nt "$o" ] \
     && r3_prefer_nm_has_sym "$o" "$anchor_sym" \
     && r3_o_newer_than_active_compiler "$o"; then
-    log "skip up-to-date $o (full .x pure asm w1525)"
-    return 0
+    # rio: also require write_path gate so a truncated prior install cannot skip.
+    if [ "$o" != "src/runtime_io_abi.o" ] \
+      || r3_prefer_nm_has_sym "$o" "xlang_write_path_bytes_impl"; then
+      log "skip up-to-date $o (full .x pure asm w1525)"
+      return 0
+    fi
   fi
   mkdir -p "$(dirname "$o")"
-  rm -f "$tmp_o"
-  if ! ( export XLANG_PREFER_ASM_O=1; unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME XLANG_PREFER_ASM_O_ONLY; \
-      pure_asm_x_to_o "$tmp_o" "$x_src" ) || [ ! -s "$tmp_o" ]; then
-    # w2055: also drop the old object, so a stale build cannot pass the
-    # anchor check in g05_ensure. PLATFORM: SHARED.
+  _leg=""
+  if [ -x ./xlang.product_legacy_bak ]; then
+    _leg="$(pwd)/xlang.product_legacy_bak"
+  elif [ -x xlang.product_legacy_bak ]; then
+    _leg="$(cd . && pwd)/xlang.product_legacy_bak"
+  fi
+  while [ "$try" -lt 3 ]; do
+    try=$((try + 1))
+    rm -f "$tmp_o"
+    miss=""
+    if ! (
+      export XLANG_PREFER_ASM_O=1
+      unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME XLANG_PREFER_ASM_O_ONLY
+      # Cap tip SEGV／truncated emit on rio during true-cold: prefer LEGACY heat.
+      if [ -n "$_leg" ] && [ "$o" = "src/runtime_io_abi.o" ]; then
+        export XLANG="$_leg"
+      fi
+      pure_asm_x_to_o "$tmp_o" "$x_src"
+    ) || [ ! -s "$tmp_o" ]; then
+      rm -f "$tmp_o"
+      echo "ensure: $o pure asm of $x_src failed (try $try/3); no C fallback" >&2
+      continue
+    fi
+    for sym in "$@"; do
+      if ! r3_prefer_nm_has_sym "$tmp_o" "$sym"; then
+        miss="$sym"
+        break
+      fi
+    done
+    if [ -z "$miss" ]; then
+      done=1
+      break
+    fi
+    echo "ensure: $o from $x_src lacks $miss (try $try/3); retry pure-asm" >&2
+    nm -gU "$tmp_o" 2>/dev/null | grep -E 'write_path|slice_marker|w1525_anchor|read_file_view' >&2 || true
+    rm -f "$tmp_o"
+  done
+  if [ "$done" != "1" ]; then
     rm -f "$tmp_o" "$o"
-    echo "ensure: $o pure asm of $x_src failed; no C fallback" >&2
+    if [ -n "$miss" ]; then
+      echo "ensure: $o from $x_src lacks $miss; no C fallback" >&2
+    else
+      echo "ensure: $o pure asm of $x_src failed; no C fallback" >&2
+    fi
     return 1
   fi
-  for sym in "$@"; do
-    if ! r3_prefer_nm_has_sym "$tmp_o" "$sym"; then
-      rm -f "$tmp_o" "$o"
-      echo "ensure: $o from $x_src lacks $sym; no C fallback" >&2
-      return 1
-    fi
-  done
   mv -f "$tmp_o" "$o"
   log "r3 full .x $o <- $x_src (w1525 pure asm, no seed rest, no host cc)"
   return 0
