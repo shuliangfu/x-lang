@@ -889,6 +889,19 @@ ASM
       && echo "g05_cap_tip_reapply: assembled typeck_return_mismatch_breadcrumb_a64.o" >&2 \
       || rm -f build_asm/selfhost_pabi/typeck_return_mismatch_breadcrumb_a64.o
   fi
+  # Breadcrumb peel calls __demoted; demote the product body in driver_diagnostic.
+  if [ -s build_asm/selfhost_pabi/typeck_return_mismatch_breadcrumb_a64.o ] \
+    && [ -s src/runtime_driver_diagnostic.o ] && [ -n "${OC:-}" ]; then
+    if nm -gU src/runtime_driver_diagnostic.o 2>/dev/null \
+         | grep -q ' T _driver_diagnostic_typeck_return_mismatch$' \
+      && ! nm -gU src/runtime_driver_diagnostic.o 2>/dev/null \
+         | grep -q ' T _driver_diagnostic_typeck_return_mismatch__demoted$'; then
+      "$OC" --redefine-sym=_driver_diagnostic_typeck_return_mismatch=_driver_diagnostic_typeck_return_mismatch__demoted \
+        src/runtime_driver_diagnostic.o 2>/dev/null \
+        && echo "g05_cap_tip_reapply: demoted driver_diagnostic return_mismatch → __demoted" >&2 \
+        || true
+    fi
+  fi
   if [ ! -s build_asm/selfhost_pabi/cimp_a64.o ] \
     && [ -f src/runtime_pipeline_abi_collect_imports_thin.x ]; then
     _cimp_bin="$xl"
