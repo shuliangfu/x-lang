@@ -102,10 +102,16 @@ cp -f typeck_x.o build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o
   --weaken-symbol=_typeck_method_call_resolve_generic_bound__demoted \
   build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o
 python3 scripts/g05_cap_tip_typeck_retarget.py build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o
-# stash demote disabled — lightweight lex-src soft (tip scan SEGV)
 as -arch arm64 -o build_asm/selfhost_pabi/generic_bound_scan_from_stash_a64.o \
   src/asm/generic_bound_scan_from_stash_a64.s \
   || { echo "g05_cap_tip_typeck_soft_prep: scan_from_stash as failed" >&2; exit 1; }
+
+
+# knife256/10.2: encoding/string → heap.o (std_heap_arena64_alloc before argv)
+_soft_keep build_asm/selfhost_pabi/link_abi_user_o_needs_std_heap_api_soft.o \
+  src/typeck/link_abi_user_o_needs_std_heap_api_soft.x
+_soft_keep build_asm/selfhost_pabi/link_abi_user_o_needs_heap_user_syms_soft.o \
+  src/typeck/link_abi_user_o_needs_heap_user_syms_soft.x
 
 echo "g05_cap_tip_typeck_soft_prep: OK"
 

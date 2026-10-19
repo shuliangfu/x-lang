@@ -1627,6 +1627,27 @@ export function link_abi_user_o_needs_std_heap_api(user_o: *u8): i32 {
     }
     i = i + 1;
   }
+  /* knife256/10.2: string.o may carry U std_heap_arena64_alloc before it is
+   * on ld argv; probe the leaf path so needs_std_heap_import pushes heap.o.
+   * PLATFORM: SHARED — Cap tip encoding/string consumers. */
+  unsafe {
+    let spit: u8[32] = [];
+    let ssym: u8[32] = [];
+    spit[0] = 115; spit[1] = 116; spit[2] = 100; spit[3] = 47;
+    spit[4] = 115; spit[5] = 116; spit[6] = 114; spit[7] = 105;
+    spit[8] = 110; spit[9] = 103; spit[10] = 47; spit[11] = 115;
+    spit[12] = 116; spit[13] = 114; spit[14] = 105; spit[15] = 110;
+    spit[16] = 103; spit[17] = 46; spit[18] = 111; spit[19] = 0;
+    ssym[0] = 115; ssym[1] = 116; ssym[2] = 100; ssym[3] = 95;
+    ssym[4] = 104; ssym[5] = 101; ssym[6] = 97; ssym[7] = 112;
+    ssym[8] = 95; ssym[9] = 97; ssym[10] = 114; ssym[11] = 101;
+    ssym[12] = 110; ssym[13] = 97; ssym[14] = 54; ssym[15] = 52;
+    ssym[16] = 95; ssym[17] = 97; ssym[18] = 108; ssym[19] = 108;
+    ssym[20] = 111; ssym[21] = 99; ssym[22] = 0;
+    if (xlang_link_obj_needs_undef_sym_impl(&spit[0], &ssym[0]) != 0) {
+      return 1;
+    }
+  }
   return 0;
 }
 
