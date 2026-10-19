@@ -296,7 +296,6 @@ rm -f \
   compiler/bootstrap_xlang \
   2>/dev/null || true
 _l4_step_end
-_l4_restore_tip_aside
 
 # --- 3) remaining_o must be 0 ---
 _l4_step_begin "3_check_clean"
@@ -309,6 +308,7 @@ if [ -e compiler/xlang_asm ]; then
 fi
 log "step3: remaining_o=0 OK (xlang_asm absent)"
 _l4_step_end
+_l4_restore_tip_aside
 
 # --- 4) Frontend *_gen.c: tip assemble authority (knife 254 / 9.2) ---
 # Default: do NOT pin-first from seeds/*_gen.linux.x86_64.c.
