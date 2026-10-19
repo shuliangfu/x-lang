@@ -868,6 +868,39 @@ MAP
          echo "g05_cap_tip_reapply: prepended fa_array_lit_a64.o" >&2 ;;
     esac
   fi
+  # Assemble hand-asm Cap tip sidecars that have no .x (g05_relink_env Darwin).
+  if [ ! -s build_asm/selfhost_pabi/index_base_rbx_rest_a64.o ]; then
+    _rs=build_asm/selfhost_pabi/index_base_rbx_rest_a64.s
+    cat > "$_rs" <<'ASM'
+.globl _glue_try_index_var_or_field_base_to_rbx_elf_rest
+.p2align 2
+_glue_try_index_var_or_field_base_to_rbx_elf_rest:
+    mov w0, #-2
+    ret
+ASM
+    as -arch arm64 -o build_asm/selfhost_pabi/index_base_rbx_rest_a64.o "$_rs" \
+      && echo "g05_cap_tip_reapply: assembled index_base_rbx_rest_a64.o" >&2 \
+      || rm -f build_asm/selfhost_pabi/index_base_rbx_rest_a64.o
+  fi
+  if [ ! -s build_asm/selfhost_pabi/typeck_return_mismatch_breadcrumb_a64.o ] \
+    && [ -f src/asm/typeck_return_mismatch_breadcrumb_a64.s ]; then
+    as -arch arm64 -o build_asm/selfhost_pabi/typeck_return_mismatch_breadcrumb_a64.o \
+      src/asm/typeck_return_mismatch_breadcrumb_a64.s \
+      && echo "g05_cap_tip_reapply: assembled typeck_return_mismatch_breadcrumb_a64.o" >&2 \
+      || rm -f build_asm/selfhost_pabi/typeck_return_mismatch_breadcrumb_a64.o
+  fi
+  if [ ! -s build_asm/selfhost_pabi/cimp_a64.o ] \
+    && [ -f src/runtime_pipeline_abi_collect_imports_thin.x ]; then
+    _cimp_bin="$xl"
+    if XLANG_PREFER_ASM_O=1 "$_cimp_bin" -backend asm -c \
+         src/runtime_pipeline_abi_collect_imports_thin.x \
+         -o build_asm/selfhost_pabi/cimp_a64.o 2>/dev/null \
+      && [ -s build_asm/selfhost_pabi/cimp_a64.o ]; then
+      echo "g05_cap_tip_reapply: rebuilt cimp_a64.o" >&2
+    else
+      rm -f build_asm/selfhost_pabi/cimp_a64.o
+    fi
+  fi
   # Ensure typeck demoted body exists (mangled redefine may have run in soft_prep)
   if [ -s build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o ] \
     && [ -s build_asm/selfhost_pabi/typeck_get_dep_ptr_named_soft.o ]; then
