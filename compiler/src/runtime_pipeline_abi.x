@@ -45305,6 +45305,11 @@ export function glue_apply_vector_lane_scalar_binop_elf_c(elf_ctx: *u8, binop_ko
   return 0 - 1;
 }
 
+// Forward decls: bodies live in lane_*_thin.x; must precede call sites for -E C.
+// PLATFORM: SHARED.
+export extern function glue_emit_vector_lane_scalar_binop_elf_c(arena: *u8, elf_ctx: *u8, binop_ko: i32, left_ref: i32, right_ref: i32, lane: i32, esz: i32, ctx: *u8, ta: i32): i32;
+export extern function glue_emit_vector_operand_lane_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, lane: i32, esz: i32, ctx: *u8, ta: i32): i32;
+
 /**
  * Try VAR-fast path load of vector lane binop operands.
  * @return i32 - 0 ready; -1 error; -2 need push slow
@@ -45483,7 +45488,6 @@ export function glue_try_vector_lane_binop_operands_elf_c(arena: *u8, elf_ctx: *
 // existing arithmetic shift. Unsigned lanes stay on the logical shift.
 // Do not restore a second body.
 // PLATFORM: SHARED.
-export extern function glue_emit_vector_lane_scalar_binop_elf_c(arena: *u8, elf_ctx: *u8, binop_ko: i32, left_ref: i32, right_ref: i32, lane: i32, esz: i32, ctx: *u8, ta: i32): i32;
 
 
 // Body moved to runtime_pipeline_abi_lane_f32_lit_operand_thin.x.
@@ -45491,7 +45495,6 @@ export extern function glue_emit_vector_lane_scalar_binop_elf_c(arena: *u8, elf_
 // thin is the one definition. The thin narrows a FLOAT_LIT lane to f32
 // bits when the f32-literal gate is set. Do not restore a second body.
 // PLATFORM: SHARED.
-export extern function glue_emit_vector_operand_lane_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, lane: i32, esz: i32, ctx: *u8, ta: i32): i32;
 
 /**
  * Per-lane copy of a vector VAR / FIELD / FIELD-chain into dest slot.
