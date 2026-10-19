@@ -23,14 +23,14 @@ function main(): i32 {
   if (result.expect_i32_or_panic(a1) != 2) { return -5; }
   if (result.is_ok_i32(a2)) { return -6; }
   // map / and_then / or_else
-  let mv: i32 = result.expect_i32_or_panic(map_i32(result.ok_i32(10), 20));
-  let cv: i32 = result.expect_i32_or_panic(and_then_i32(result.ok_i32(1), result.ok_i32(2)));
-  let ov: i32 = result.expect_i32_or_panic(or_else_i32(result.err_i32(1), result.ok_i32(88)));
+  let mv: i32 = result.expect_i32_or_panic(result.map_i32(result.ok_i32(10), 20));
+  let cv: i32 = result.expect_i32_or_panic(result.and_then_i32(result.ok_i32(1), result.ok_i32(2)));
+  let ov: i32 = result.expect_i32_or_panic(result.or_else_i32(result.err_i32(1), result.ok_i32(88)));
   if (mv != 20 || cv != 2 || ov != 88) { return -7; }
   // Result_u8
-  let ru: Result_u8 = ok_u8(7);
-  let mu: u8 = expect_u8_or_panic(map_u8(ru, 9));
-  let ou: u8 = unwrap_or_u8(or_else_u8(err_u8(1), ok_u8(4)), 0);
+  let ru: Result_u8 = result.ok_u8(7);
+  let mu: u8 = result.expect_u8_or_panic(result.map_u8(ru, 9));
+  let ou: u8 = result.unwrap_or_u8(result.or_else_u8(result.err_u8(1), result.ok_u8(4)), 0);
   if (mu != 9 || ou != 4) { return -8; }
   let extra: i32 = mv + cv + ov + (mu as i32) + (ou as i32);
   return a + b + c + d + extra;

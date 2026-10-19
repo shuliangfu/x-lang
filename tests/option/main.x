@@ -81,10 +81,10 @@ function main(): i32 {
   option.some_u8(&sm4, 4 as u8);
   option.some_i32(&at1, 1);
   option.some_i32(&at9, 9);
-  let m1: i32 = option.expect_i32(map_i32(sm3, 6));
-  let mapped_u: Option_u8 = map_u8(sm4, 8 as u8);
+  let m1: i32 = option.expect_i32(option.map_i32(sm3, 6));
+  let mapped_u: Option_u8 = option.map_u8(sm4, 8 as u8);
   let m2: u8 = option.expect_u8(mapped_u);
-  let at: i32 = option.expect_i32(and_then_i32(at1, at9));
+  let at: i32 = option.expect_i32(option.and_then_i32(at1, at9));
   if (m1 != 6 || m2 != (8 as u8) || at != 9) { return -13; }
   // See implementation.
   let g: i32 = option.unwrap_or_i32(none_opt, 11);

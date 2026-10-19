@@ -26,7 +26,7 @@ function main(): i32 {
   if (!result.is_err_i32(f) || take_i32(g) != 42) { return 2; }
   if (!is_ok_u8(u) || expect_u8_or_panic(u) != 9) { return 3; }
 
-  let chained: Result<i32, i32> = map_i32(result.ok_i32(10), 20);
+  let chained: Result<i32, i32> = result.map_i32(result.ok_i32(10), 20);
   if (take_i32(chained) != 20) { return 4; }
   return 0;
 }

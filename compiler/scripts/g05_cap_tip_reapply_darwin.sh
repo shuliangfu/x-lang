@@ -982,12 +982,18 @@ MAP
       >"$_fill_exp"
     if ld -r -o "$_fill_o" -exported_symbols_list "$_fill_exp" \
          src/runtime_pipeline_abi.o 2>/dev/null \
-      && [ -s "$_fill_o" ]; then
+      && [ -s "$_fill_o" ] \
+      && nm -gU "$_fill_o" 2>/dev/null | grep -q 'T _glue_wide_i32_vec_array_bytes$'; then
+      :
+    elif [ -n "${CACHE:-}" ] && [ -s "$CACHE/pabi/cap_tip_pabi_sym_fill.o" ]; then
+      cp -f "$CACHE/pabi/cap_tip_pabi_sym_fill.o" "$_fill_o"
+      echo "g05_cap_tip_reapply: restored cap_tip_pabi_sym_fill.o from cache" >&2
+    fi
+    if [ -s "$_fill_o" ] && nm -gU "$_fill_o" 2>/dev/null | grep -q 'T _glue_wide_i32_vec_array_bytes$'; then
       case " $G05_OBJS " in
         *" $_fill_o "*) ;;
         *) G05_OBJS="$_fill_o $G05_OBJS"; export G05_OBJS
            echo "g05_cap_tip_reapply: prepended cap_tip_pabi_sym_fill.o (wide/lane)" >&2 ;;
-
       esac
     fi
     rm -f "$_fill_exp"
