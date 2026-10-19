@@ -74,6 +74,32 @@ fi
 # G.7: pure-ld helpers — single authority (shared with cold seed link).
 # shellcheck disable=SC1091
 . scripts/pure_ld_shared.sh
+
+# knife256/10.2: g05_ensure re-runs darwin_phase1_hollow_fill AFTER g05_relink_env
+# w211 weaken. Egg/mega refresh can restore strong T on pabi → Darwin ld dup vs
+# register_tl_const.o. Re-weaken on the live pabi just before pure-ld.
+# PLATFORM: MACOS · no FORCE_CC.
+if [ "$(uname -s 2>/dev/null)" = "Darwin" ] \
+  && printf '%s' " $OBJS " | grep -q ' register_tl_const\.o ' \
+  && [ -s src/runtime_pipeline_abi.o ]; then
+  _g05_oc=""
+  if [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+    _g05_oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+  elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+    _g05_oc=/usr/local/opt/llvm/bin/llvm-objcopy
+  elif command -v llvm-objcopy >/dev/null 2>&1; then
+    _g05_oc=$(command -v llvm-objcopy)
+  fi
+  if [ -n "$_g05_oc" ] \
+    && nm -gU src/runtime_pipeline_abi.o 2>/dev/null \
+         | grep -q ' T _pipeline_asm_register_module_top_level_lets_c$'; then
+    "$_g05_oc" --weaken-symbol=_pipeline_asm_register_module_top_level_lets_c \
+      src/runtime_pipeline_abi.o 2>/dev/null \
+      && echo "g05_relink_xlang: pre-ld weaken pabi register_tl (overlay wins)" >&2 \
+      || true
+  fi
+  unset _g05_oc
+fi
 # nostdlib policy for Linux product (same as g05_relink_env).
 # shellcheck disable=SC1091
 . scripts/bootstrap_nostdlib_shared.sh
