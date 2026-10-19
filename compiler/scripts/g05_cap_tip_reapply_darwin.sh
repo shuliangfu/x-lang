@@ -953,6 +953,40 @@ ASM
     G05_LINK_WINNERS=$(echo "$wkept" | sed 's/^ *//')
     export G05_LINK_WINNERS
   fi
+
+  # knife256/10.2: CACHE/pabi bulk restore above stomps Cap tip weakens done
+  # earlier in this script (pabi_weak / return_sret). Re-apply so fa_array /
+  # thin first-wins. Also drop typeck_ctfe when cap_repr_weak covers its T
+  # set (0 unique), and weaken panic getenv so runtime_link_abi wins.
+  # No FORCE_CC / KEEP_C / host-cc .c. PLATFORM: MACOS Cap tip.
+  if [ -n "${OC:-}" ]; then
+    if [ -s build_asm/selfhost_pabi/pabi_weak.o ]       && [ -s build_asm/selfhost_pabi/fa_array_lit_a64.o ]; then
+      "$OC"         --weaken-symbol=_glue_call_arg_var_use_lea_not_load_elf_c         --weaken-symbol=_glue_struct_lit_store_fixed_array_field_elf_c         --weaken-symbol=_pipeline_asm_emit_array_lit_flat_elf_c         build_asm/selfhost_pabi/pabi_weak.o         && echo "g05_cap_tip_reapply: post-fill re-weaken pabi fixed-array bodies" >&2         || true
+    fi
+    if [ -s build_asm/selfhost_pabi/return_sret.o ]       && [ -s build_asm/selfhost_pabi/fa_array_lit_a64.o ]; then
+      "$OC" --weaken-symbol=_pipeline_asm_emit_return_elf_impl         build_asm/selfhost_pabi/return_sret.o         && echo "g05_cap_tip_reapply: post-fill re-weaken return_sret emit_return" >&2         || true
+    fi
+    if [ -s runtime_panic.o ] && [ -s src/runtime_link_abi.o ]; then
+      "$OC" --weaken-symbol=_link_abi_getenv         --weaken-symbol=_link_abi_getenv_impl         runtime_panic.o         && echo "g05_cap_tip_reapply: post-fill weaken panic getenv (link_abi wins)" >&2         || true
+    fi
+  fi
+  if [ -s build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o ]; then
+    local kept2="" dropped_ctfe=0
+    for o in $G05_OBJS; do
+      case "$o" in
+        */typeck_ctfe.o|typeck_ctfe.o)
+          echo "g05_cap_tip_reapply: drop typeck_ctfe (cap_repr_weak covers T set)" >&2
+          dropped_ctfe=1
+          ;;
+        *) kept2="$kept2 $o" ;;
+      esac
+    done
+    if [ "$dropped_ctfe" = 1 ]; then
+      G05_OBJS=$(echo "$kept2" | sed 's/^ *//')
+      export G05_OBJS
+      echo "g05_cap_tip_reapply: G05_OBJS after ctfe filter=$(echo $G05_OBJS | wc -w | tr -d ' ')" >&2
+    fi
+  fi
 }
 _cap_tip_fill_missing_objs
 
