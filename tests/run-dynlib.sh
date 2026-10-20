@@ -90,6 +90,10 @@ run_product() {
 }
 
 echo "=== dynlib leftover (prefer asm; hard; refuse leftover auto-make) ==="
+if [ -f compiler/scripts/cap_tip_ensure_dynlib_leave_darwin.sh ]; then
+  ( cd compiler && bash scripts/cap_tip_ensure_dynlib_leave_darwin.sh ) \
+    || die "cap_tip_ensure_dynlib failed"
+fi
 if [ -n "${XLANG:-}" ]; then
   if ! XLANG_BIN="$(resolve_shu)"; then
     die "explicit XLANG not native (refuse leftover XLANG fallthrough / soft auto-make)"

@@ -631,6 +631,16 @@ if [ -f scripts/cap_tip_ensure_math_leave_darwin.sh ]; then
     || echo "g05_cap_tip_reapply: WARN math leave ensure failed" >&2
 fi
 
+# knife256/10.2: Cap tip leftover dynlib — cold seed drops public
+# dynlib_os_{copy_last_error,open,sym,win_path_smoke}_c (9.1). Prefer
+# darwin_text+darwin; fallback thin+FROM_X rest. No FORCE_CC.
+# PLATFORM: MACOS Cap tip.
+if [ -f scripts/cap_tip_ensure_dynlib_leave_darwin.sh ]; then
+  bash scripts/cap_tip_ensure_dynlib_leave_darwin.sh \
+    && echo "g05_cap_tip_reapply: ensured Cap tip dynlib leave" >&2 \
+    || echo "g05_cap_tip_reapply: WARN dynlib leave ensure failed" >&2
+fi
+
 # knife256/10.2: Cap tip Queue_i32 (>16B) by-value at/get/length hollow;
 # push_* call at(*q) → SEGV on leftover run-queue. Also queue.o U
 # _sync_queue_contention_smoke_c (BLD001). Hand-asm byref + weak smoke
