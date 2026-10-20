@@ -7356,7 +7356,8 @@ ensure_rt_arena_buf_prefer() {
       unset XLANG_PREFER_ASM_O
     fi
     unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS
-    pure_asm_x_to_o "$thin" "$xsrc"
+    # note743m: tip CG002 → pin-egg fallback
+    pure_asm_x_to_o_or_pin_egg "$thin" "$xsrc"
   ) && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$rest" \
     && ld_flags="$(r3_prefer_ld_r_flags)" \
     && ld $ld_flags -o "$merged" "$thin" "$rest" \
@@ -10852,7 +10853,8 @@ rt_run_asm_backend_pure_any() {
     fi
   fi
   rm -f "$o"
-  if ! ( export XLANG_PREFER_ASM_O=1; pure_asm_x_to_o "$o" "$xsrc" ); then
+  # note743m: tip CG002 → pin-egg fallback (Linux tip-cold g05)
+  if ! ( export XLANG_PREFER_ASM_O=1; pure_asm_x_to_o_or_pin_egg "$o" "$xsrc" ); then
     rm -f "$o"
     return 1
   fi
@@ -14773,7 +14775,7 @@ ensure_rt_run_exec_prefer() {
     return 1
   fi
   if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ] \
-    && nm "$o" 2>/dev/null | grep -qE " T _?driver_run_test$"; then
+    && nm "$o" 2>/dev/null | grep -E " T _?driver_run_test$" >/dev/null; then
     log "skip up-to-date $o (rt-run-exec)"
     return 0
   fi
@@ -14785,12 +14787,13 @@ ensure_rt_run_exec_prefer() {
       unset XLANG_PREFER_ASM_O
     fi
     unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS
-    pure_asm_x_to_o "$o" "$xsrc"
+    # note743m: tip CG002 → pin-egg fallback
+    pure_asm_x_to_o_or_pin_egg "$o" "$xsrc"
   ); then
     echo "ensure: rt_run_exec pure-asm failed (no host-cc fallback)" >&2
     return 1
   fi
-  if ! nm "$o" 2>/dev/null | grep -qE " T _?driver_run_test$"; then
+  if ! nm "$o" 2>/dev/null | grep -E " T _?driver_run_test$" >/dev/null; then
     echo "ensure: rt_run_exec.o missing driver_run_test after pure-asm" >&2
     return 1
   fi

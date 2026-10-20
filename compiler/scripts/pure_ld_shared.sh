@@ -829,6 +829,32 @@ pure_asm_x_to_o() {
 }
 
 # ---------------------------------------------------------------------------
+# pure_asm_x_to_o_or_pin_egg OUT SRC
+# note743m: tip-cold g05 may leave tip/bootstrap as the same CG002 body
+# (code_len=0). Try product xl first (pure_asm_x_to_o), then retry with
+# XLANG=seeds/bootstrap_xlangc.<os>.<arch> (same pin-egg authority as
+# note743k lexer / note743l rcp). PLATFORM: SHARED.
+# ---------------------------------------------------------------------------
+pure_asm_x_to_o_or_pin_egg() {
+  local out="$1"
+  local src="$2"
+  local _egg_os _egg_arch _egg
+  if pure_asm_x_to_o "$out" "$src"; then
+    return 0
+  fi
+  _egg_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
+  _egg_arch="$(uname -m 2>/dev/null)"
+  case "$_egg_os" in darwin) _egg_os=darwin ;; linux) _egg_os=linux ;; *) return 1 ;; esac
+  case "$_egg_arch" in x86_64|amd64) _egg_arch=x86_64 ;; arm64|aarch64) _egg_arch=arm64 ;; *) return 1 ;; esac
+  _egg="seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}"
+  if [ ! -x "$_egg" ]; then
+    return 1
+  fi
+  echo "pure_asm_x_to_o_or_pin_egg: tip/product failed; retry XLANG=$_egg (note743m)" >&2
+  XLANG="$_egg" pure_asm_x_to_o "$out" "$src"
+}
+
+# ---------------------------------------------------------------------------
 # pure_ld_hosted_crt1 — stdout: path to system crt1.o for hosted (with libc)
 # pure-ld links. Complements the freestanding crt0 path (pure_ld_default_entry
 # + nostdlib). Used by relink_xlang_asm_experimental_bootstrap.sh to replace
