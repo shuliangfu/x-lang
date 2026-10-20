@@ -10098,21 +10098,33 @@ async_cps_codegen_darwin_pure() {
 run_compiler_parsed_darwin_pure() {
   local o="${1:-}"
   local xsrc="src/runtime/rt_run_compiler_parsed.x"
-  local try n c host arch
+  local try n c host arch xl
   host="$(uname -s 2>/dev/null || echo Unknown)"
   arch="$(uname -m 2>/dev/null || echo unknown)"
   case "$host-$arch" in
     Darwin-arm64|Linux-x86_64) ;;
     *) return 1 ;;
   esac
-  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+  # 记743g: tip-cold step5 often has only bootstrap_xlangc (no xlang_asm yet).
+  # Seed is 记253 hollow (no T). Prefer product, then bootstrap — same order as
+  # rt_prefer_try_x_to_o. PLATFORM: SHARED Darwin arm64 + Linux x86_64.
+  if [ -x ./xlang_asm ]; then
+    xl=./xlang_asm
+  elif [ -x ./xlang ]; then
+    xl=./xlang
+  elif [ -x ./bootstrap_xlangc ]; then
+    xl=./bootstrap_xlangc
+  else
+    xl=""
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ -z "$xl" ]; then
     return 1
   fi
   try=0
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm "$xl" -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
