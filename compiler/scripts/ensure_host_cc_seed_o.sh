@@ -16369,6 +16369,11 @@ ensure_enc_dispatch_pure() {
 # older than the active compiler is stale even when its .x is untouched and
 # its anchor is present. Returns 0 when the object is at least as new as the
 # compiler that rt_prefer_try_x_to_o would use. PLATFORM: SHARED.
+# note743j / knife256 (10.2): tip-cold seed may emit R3 full .x with the
+# session egg, then overwrite ./xlang with a tip that XT001/CG002/SEGV on the
+# same .x (Ubuntu tip-cold L4@e98ab4eee). Forcing rebuild via this freshness
+# check then deletes the good seed .o. Callers for w1524/w1525 skip this gate;
+# keep the helper for residual diagnostics. PLATFORM: SHARED.
 r3_o_newer_than_active_compiler() {
   local _o="$1" _c=""
   if [ -x ./xlang ]; then _c=./xlang
@@ -16378,44 +16383,69 @@ r3_o_newer_than_active_compiler() {
   [ -f "$_o" ] && [ ! "$_c" -nt "$_o" ]
 }
 
+# note743j: candidates for R3 full .x pure-asm when tip SEGV/XT001/CG002.
+# Prefer product tip, then bootstrap / xlang-c / xlang_asm / LEGACY bak.
+# Does not use pre_l4_aside (tip-aside ban). PLATFORM: SHARED.
+r3_full_x_pure_xl_candidates() {
+  local _seen="|" _xl
+  for _xl in ${XLANG:+"$XLANG"} ./xlang ./bootstrap_xlangc ./xlang-c ./xlang_asm \
+    ./xlang.product_legacy_bak; do
+    [ -n "$_xl" ] && [ -x "$_xl" ] || continue
+    case "$_seen" in
+      *"|$_xl|"*) continue ;;
+    esac
+    _seen="${_seen}${_xl}|"
+    printf "%s\n" "$_xl"
+  done
+}
+
 ensure_call_dispatch_full_x() {
   local o="src/asm/backend_call_dispatch.o"
   local x_src="src/asm/backend_call_dispatch.x"
   local tmp_o="${o%.o}_full_x_step.o"
+  local _xl _ok=0
   if [ ! -f "$x_src" ]; then
     echo "ensure: call dispatch missing $x_src; no C fallback" >&2
     return 1
   fi
+  # note743j: do not require r3_o_newer_than_active_compiler — tip-cold tip
+  # may be newer than same-session seed .o yet unable to re-emit (XT001).
   if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$x_src" -nt "$o" ] \
     && r3_prefer_nm_has_sym "$o" "backend_call_dispatch_x_w1524_anchor" \
-    && r3_o_newer_than_active_compiler "$o"; then
-    log "skip up-to-date $o (call dispatch full .x w1524)"
+    && r3_prefer_nm_has_sym "$o" "glue_try_std_heap_redirect_sym_local_impl" \
+    && r3_prefer_nm_has_sym "$o" "glue_sysv_arg_byte_size_c"; then
+    log "skip up-to-date $o (call dispatch full .x w1524; note743j keep seed)"
     return 0
   fi
   mkdir -p "$(dirname "$o")" build_asm
-  rm -f "$tmp_o"
-  # w2081: the Windows v1 compiler emits one U xlang_panic_ for the
-  # unsigned divide `imm_bits / 4` in glue_asm_emit_jmp_skip_string_then_lea
-  # (test rbx / jne / call / div, then mask 0x7ffff). The divisor is the
-  # constant 4. Newer Darwin and Linux compilers fold it and emit no
-  # panic reloc. The weak body is W xlang_panic_ in lexer_x.o, the same
-  # opt-in as backend_try_inline_dispatch. Without the flag, pure_asm
-  # deletes a complete object and g1 ensure exits 1.
-  # PLATFORM: SHARED flag; the shape that still emits the check is WINDOWS x86_64.
-  if XLANG_PURE_ASM_ALLOW_U_PANIC=1 rt_prefer_try_x_to_o "$x_src" "$tmp_o" && [ -s "$tmp_o" ] \
-    && r3_prefer_nm_has_sym "$tmp_o" "backend_call_dispatch_x_w1524_anchor" \
-    && r3_prefer_nm_has_sym "$tmp_o" "glue_try_std_heap_redirect_sym_local_impl" \
-    && r3_prefer_nm_has_sym "$tmp_o" "glue_try_std_heap_redirect_sym_local" \
-    && r3_prefer_nm_has_sym "$tmp_o" "glue_sysv_arg_byte_size_c" \
-    && r3_prefer_nm_has_sym "$tmp_o" "backend_call_dispatch_x_doc_anchor"; then
-    mv -f "$tmp_o" "$o"
-    log "call dispatch $o <- $x_src (w1524 full .x, no seed rest, one shot)"
+  # note743j: multi-xl (tip may XT001; try bootstrap/legacy). PLATFORM: SHARED.
+  while IFS= read -r _xl; do
+    [ -n "$_xl" ] || continue
+    rm -f "$tmp_o"
+    if XLANG="$_xl" XLANG_PURE_ASM_ALLOW_U_PANIC=1 rt_prefer_try_x_to_o "$x_src" "$tmp_o" \
+      && [ -s "$tmp_o" ] \
+      && r3_prefer_nm_has_sym "$tmp_o" "backend_call_dispatch_x_w1524_anchor" \
+      && r3_prefer_nm_has_sym "$tmp_o" "glue_try_std_heap_redirect_sym_local_impl" \
+      && r3_prefer_nm_has_sym "$tmp_o" "glue_try_std_heap_redirect_sym_local" \
+      && r3_prefer_nm_has_sym "$tmp_o" "glue_sysv_arg_byte_size_c" \
+      && r3_prefer_nm_has_sym "$tmp_o" "backend_call_dispatch_x_doc_anchor"; then
+      mv -f "$tmp_o" "$o"
+      log "call dispatch $o <- $x_src (w1524 full .x via $_xl; note743j)"
+      return 0
+    fi
+    rm -f "$tmp_o"
+  done < <(r3_full_x_pure_xl_candidates)
+  printf '%s ensure: call dispatch %s failed (note743j multi-xl)\n' \
+    "$(date +%H:%M:%S)" "$x_src" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
+  # note743j: keep same-session seed .o when nm gates still pass (do not rm).
+  if [ -f "$o" ] \
+    && r3_prefer_nm_has_sym "$o" "backend_call_dispatch_x_w1524_anchor" \
+    && r3_prefer_nm_has_sym "$o" "glue_try_std_heap_redirect_sym_local_impl" \
+    && r3_prefer_nm_has_sym "$o" "glue_sysv_arg_byte_size_c"; then
+    log "call dispatch keep seed $o (note743j; tip re-emit failed)"
     return 0
   fi
-  printf '%s ensure: call dispatch %s failed (one shot, w1526)\n' \
-    "$(date +%H:%M:%S)" "$x_src" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
-  # w2055: drop the old object too (see ensure_r3_full_x_pure_w1525).
-  rm -f "$tmp_o" "$o"
+  rm -f "$tmp_o"
   echo "ensure: call dispatch $x_src failed; no retry, no C fallback" >&2
   return 1
 }
@@ -16436,73 +16466,89 @@ ensure_r3_full_x_pure_w1525() {
   shift 2
   local anchor_sym="$1"
   local tmp_o="${o%.o}_w1525_step.o"
-  local sym try=0 done=0 miss="" _leg="" _saved_xlang=""
+  local sym try=0 done=0 miss="" _leg="" _saved_xlang="" _keep=0
   if [ ! -f "$x_src" ]; then
     echo "ensure: $o missing $x_src; no C fallback" >&2
     return 1
   fi
   # 记250／8.7: enc class must not rebuild on .x touch (禁令). Missing
-  # object or missing anchor still rebuilds. PLATFORM: SHARED.
+  # object or missing anchor still rebuilds. note743j: drop active-compiler
+  # freshness (tip-cold tip may be newer yet unable to re-emit). PLATFORM: SHARED.
   case "$o" in
     src/asm/simd_enc.o|src/asm/simd_loop.o)
       if [ "$FORCE" != "1" ] && [ -f "$o" ] \
-        && r3_prefer_nm_has_sym "$o" "$anchor_sym" \
-        && r3_o_newer_than_active_compiler "$o"; then
-        log "skip up-to-date $o (full .x pure asm w1525; enc touch-ban 8.7)"
+        && r3_prefer_nm_has_sym "$o" "$anchor_sym"; then
+        log "skip up-to-date $o (full .x pure asm w1525; enc touch-ban 8.7; note743j)"
         return 0
       fi
       ;;
   esac
   if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$x_src" -nt "$o" ] \
-    && r3_prefer_nm_has_sym "$o" "$anchor_sym" \
-    && r3_o_newer_than_active_compiler "$o"; then
+    && r3_prefer_nm_has_sym "$o" "$anchor_sym"; then
     # rio: also require write_path gate so a truncated prior install cannot skip.
     if [ "$o" != "src/runtime_io_abi.o" ] \
       || r3_prefer_nm_has_sym "$o" "xlang_write_path_bytes_impl"; then
-      log "skip up-to-date $o (full .x pure asm w1525)"
+      log "skip up-to-date $o (full .x pure asm w1525; note743j keep seed)"
       return 0
     fi
   fi
   mkdir -p "$(dirname "$o")"
-  _leg=""
-  if [ -x ./xlang.product_legacy_bak ]; then
-    _leg="$(pwd)/xlang.product_legacy_bak"
-  elif [ -x xlang.product_legacy_bak ]; then
-    _leg="$(cd . && pwd)/xlang.product_legacy_bak"
-  fi
-  while [ "$try" -lt 3 ]; do
-    try=$((try + 1))
-    rm -f "$tmp_o"
-    miss=""
-    if ! (
-      export XLANG_PREFER_ASM_O=1
-      unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME XLANG_PREFER_ASM_O_ONLY
-      # Cap tip SEGV／truncated emit on rio during true-cold: prefer LEGACY heat.
-      if [ -n "$_leg" ] && [ "$o" = "src/runtime_io_abi.o" ]; then
-        export XLANG="$_leg"
-      fi
-      pure_asm_x_to_o "$tmp_o" "$x_src"
-    ) || [ ! -s "$tmp_o" ]; then
+  # note743j: multi-xl × up to 3 tries each (tip XT001/CG002 → bootstrap/legacy).
+  while IFS= read -r _leg; do
+    [ -n "$_leg" ] || continue
+    try=0
+    while [ "$try" -lt 3 ]; do
+      try=$((try + 1))
       rm -f "$tmp_o"
-      echo "ensure: $o pure asm of $x_src failed (try $try/3); no C fallback" >&2
-      continue
-    fi
-    for sym in "$@"; do
-      if ! r3_prefer_nm_has_sym "$tmp_o" "$sym"; then
-        miss="$sym"
+      miss=""
+      if ! (
+        export XLANG_PREFER_ASM_O=1
+        export XLANG="$_leg"
+        unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME XLANG_PREFER_ASM_O_ONLY
+        pure_asm_x_to_o "$tmp_o" "$x_src"
+      ) || [ ! -s "$tmp_o" ]; then
+        rm -f "$tmp_o"
+        echo "ensure: $o pure asm of $x_src failed (try $try/3 xl=$_leg); no C fallback" >&2
+        continue
+      fi
+      for sym in "$@"; do
+        if ! r3_prefer_nm_has_sym "$tmp_o" "$sym"; then
+          miss="$sym"
+          break
+        fi
+      done
+      if [ -z "$miss" ]; then
+        done=1
         break
       fi
+      echo "ensure: $o from $x_src lacks $miss (try $try/3 xl=$_leg); retry" >&2
+      nm -gU "$tmp_o" 2>/dev/null | grep -E "write_path|slice_marker|w1525_anchor|read_file_view" >&2 || true
+      rm -f "$tmp_o"
     done
-    if [ -z "$miss" ]; then
-      done=1
-      break
-    fi
-    echo "ensure: $o from $x_src lacks $miss (try $try/3); retry pure-asm" >&2
-    nm -gU "$tmp_o" 2>/dev/null | grep -E 'write_path|slice_marker|w1525_anchor|read_file_view' >&2 || true
-    rm -f "$tmp_o"
-  done
+    [ "$done" = "1" ] && break
+  done < <(r3_full_x_pure_xl_candidates)
   if [ "$done" != "1" ]; then
-    rm -f "$tmp_o" "$o"
+    rm -f "$tmp_o"
+    # note743j: keep same-session seed .o when anchors still pass.
+    _keep=1
+    if [ ! -f "$o" ] || ! r3_prefer_nm_has_sym "$o" "$anchor_sym"; then
+      _keep=0
+    elif [ "$o" = "src/runtime_io_abi.o" ] \
+      && ! r3_prefer_nm_has_sym "$o" "xlang_write_path_bytes_impl"; then
+      _keep=0
+    else
+      for sym in "$@"; do
+        if ! r3_prefer_nm_has_sym "$o" "$sym"; then
+          _keep=0
+          break
+        fi
+      done
+    fi
+    if [ "$_keep" = "1" ]; then
+      log "r3 full .x keep seed $o (note743j; tip re-emit failed)"
+      return 0
+    fi
+    rm -f "$o"
     if [ -n "$miss" ]; then
       echo "ensure: $o from $x_src lacks $miss; no C fallback" >&2
     else
@@ -16511,7 +16557,7 @@ ensure_r3_full_x_pure_w1525() {
     return 1
   fi
   mv -f "$tmp_o" "$o"
-  log "r3 full .x $o <- $x_src (w1525 pure asm, no seed rest, no host cc)"
+  log "r3 full .x $o <- $x_src (w1525 pure asm via $_leg; note743j)"
   return 0
 }
 
