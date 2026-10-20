@@ -170,46 +170,61 @@ driver_run_x_emit_c:
 driver_unlink_failed_output:
         xorl    %eax, %eax
         ret
+        /* note743e: these are DATA cells (want_extern_slot lea+store).
+         * Code stubs land in .text → tip -E SEGV. Weak BSS until prefer
+         * / cold BSS supplies strong. Sizes match rt_emit_state_bss_cold. */
+        .bss
+        .align 8
         .globl driver_x_emit_c_path
         .weak driver_x_emit_c_path
 driver_x_emit_c_path:
-        xorl    %eax, %eax
-        ret
+        .zero 8
         .globl driver_x_emit_c_want_extern
         .weak driver_x_emit_c_want_extern
+        .align 4
 driver_x_emit_c_want_extern:
-        xorl    %eax, %eax
-        ret
+        .zero 4
         .globl driver_x_emit_lib_bufs
         .weak driver_x_emit_lib_bufs
+        .align 8
 driver_x_emit_lib_bufs:
-        xorl    %eax, %eax
-        ret
+        .zero 4096
         .globl driver_x_emit_lib_roots
         .weak driver_x_emit_lib_roots
+        .align 8
 driver_x_emit_lib_roots:
-        xorl    %eax, %eax
-        ret
+        .zero 128
         .globl driver_x_emit_n_lib_roots
         .weak driver_x_emit_n_lib_roots
+        .align 4
 driver_x_emit_n_lib_roots:
-        xorl    %eax, %eax
-        ret
+        .zero 4
         .globl driver_x_emit_path_buf
         .weak driver_x_emit_path_buf
+        .align 8
 driver_x_emit_path_buf:
-        xorl    %eax, %eax
-        ret
+        .zero 512
         .globl driver_x_emit_scan_ab
         .weak driver_x_emit_scan_ab
+        .align 8
 driver_x_emit_scan_ab:
-        xorl    %eax, %eax
-        ret
+        .zero 512
         .globl driver_x_emit_scan_nx
         .weak driver_x_emit_scan_nx
+        .align 8
 driver_x_emit_scan_nx:
-        xorl    %eax, %eax
-        ret
+        .zero 512
+        .globl driver_x_emit_lib_name_buf
+        .weak driver_x_emit_lib_name_buf
+        .align 8
+driver_x_emit_lib_name_buf:
+        .zero 64
+        .globl driver_x_emit_lib_name_len
+        .weak driver_x_emit_lib_name_len
+        .align 4
+driver_x_emit_lib_name_len:
+        .zero 4
+        .text
         .globl glue_copy_large_struct_from_rax_ptr_elf_c
         .weak glue_copy_large_struct_from_rax_ptr_elf_c
 glue_copy_large_struct_from_rax_ptr_elf_c:

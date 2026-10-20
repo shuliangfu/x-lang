@@ -5918,7 +5918,11 @@ ensure_deleted_seed_leaf_pure() {
       x=src/asm/parser_asm_parse_expr_link.x
       ;;
     src/x_seed_bridge.o) x=src/x_seed_bridge.x ;;
-    src/runtime/rt_emit_state.o) x=src/runtime/rt_emit_state.x ;;
+    src/runtime/rt_emit_state.o)
+      # note743e: BSS rename / cold BSS — never raw pure-asm leaf.
+      ensure_rt_emit_state_prefer || return 1
+      return 0
+      ;;
     *)
       echo "ensure_host_cc_seed_o: ensure_deleted_seed_leaf_pure: unknown $o" >&2
       return 1
@@ -6108,9 +6112,11 @@ ensure_one() {
         return 0
         ;;
       src/runtime/rt_emit_state.o)
-        # Egg pure-asm lacks one Lxml common vs tip prefer gate; cold uses
-        # whole .x pure-asm (g05 prefer refreshes later). PLATFORM: SHARED.
-        ensure_deleted_seed_leaf_pure "$out" || exit 1
+        # note743e: try-heat must NOT raw pure-asm (Lxml unremaned + hollow
+        # code stubs for driver_x_emit_* → tip -E SEGV on want_extern_slot).
+        # Prefer renames or merges seeds/rt_emit_state_bss_cold.from_x.c.
+        # PLATFORM: SHARED.
+        ensure_rt_emit_state_prefer || exit 1
         return 0
         ;;
       src/runtime/rt_preamble.o)
