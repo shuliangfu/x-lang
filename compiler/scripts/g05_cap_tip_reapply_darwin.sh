@@ -60,7 +60,8 @@ done
 # Tip-compile from .x; demote pabi_weak size_simple so named_size first-wins.
 # PLATFORM: MACOS Cap tip.
 if [ -f src/runtime_pipeline_abi_named_size_thin.x ]; then
-  _ns_xl="$XLANG"
+  # set -u: XLANG may be unset until softs block below; prefer ./xlang
+  _ns_xl="${XLANG:-}"
   [ -x ./xlang ] && _ns_xl="./xlang"
   if XLANG_PREFER_ASM_O=1 "$_ns_xl" -backend asm -c \
       src/runtime_pipeline_abi_named_size_thin.x \
@@ -96,7 +97,8 @@ fi
 # PLATFORM: MACOS Cap tip.
 if [ ! -s build_asm/selfhost_pabi/typeck_orch_layout_glue_a64.o ] \
   && [ -f src/runtime_pipeline_abi_typeck_orch_thin.x ]; then
-  _orch_xl="$XLANG"
+  # set -u: XLANG may be unset until softs block below; prefer ./xlang
+  _orch_xl="${XLANG:-}"
   [ -x ./xlang ] && _orch_xl="./xlang"
   if XLANG_PREFER_ASM_O=1 "$_orch_xl" -backend asm -c \
       src/runtime_pipeline_abi_typeck_orch_thin.x \

@@ -281,7 +281,8 @@ log "step6b: Cap tip re-apply Darwin"
 set +e
 (
   cd "$COMPILER_DIR"
-  XLANG_CAP_TIP_L4_CACHE="$CACHE" bash scripts/g05_cap_tip_reapply_darwin.sh
+  # Ensure XLANG for set -u named_size/orch tip-compile before softs export
+  XLANG_CAP_TIP_L4_CACHE="$CACHE" XLANG="${XLANG:-$COMPILER_DIR/xlang}" bash scripts/g05_cap_tip_reapply_darwin.sh
 ) 2>&1 | tee -a "$LOG"
 RC=${PIPESTATUS[0]}
 set -e
