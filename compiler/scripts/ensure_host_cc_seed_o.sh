@@ -5897,6 +5897,63 @@ ensure_net_udp_batch_darwin_pure() {
 }
 
 
+
+# note743e: pure-asm leaf then merge seeds/rt_emit_state_bss_cold (Lxml 9/10).
+# PLATFORM: SHARED. Uses existing cold .c only (no new host-cc TU).
+ensure_deleted_seed_leaf_pure_rt_emit_bss() {
+  local o="src/runtime/rt_emit_state.o"
+  local x=src/runtime/rt_emit_state.x
+  local thin _bss_o _merged miss s
+  [ -f "$x" ] || return 1
+  thin="$(mktemp "${TMPDIR:-/tmp}/rtemit_leaf.XXXXXX")" || return 1
+  rm -f "$thin"
+  thin="${thin}.o"
+  if ! (
+    export XLANG_PREFER_ASM_O=1
+    unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+    pure_asm_x_to_o "$thin" "$x"
+  ) || [ ! -s "$thin" ]; then
+    echo "ensure: rt-emit-state leaf pure-asm failed" >&2
+    rm -f "$thin"
+    return 1
+  fi
+  if rt_emit_state_rename_bss "$thin"; then
+    miss=0
+    for s in $(rt_emit_state_bss_names); do
+      if ! r3_prefer_nm_has_sym "$thin" "$s"; then miss=1; break; fi
+    done
+    if [ "$miss" = "0" ]; then
+      mv -f "$thin" "$o"
+      log "rt-emit-state $o <- leaf pure-asm + rename (note743e)"
+      return 0
+    fi
+  fi
+  _bss_o="$(mktemp "${TMPDIR:-/tmp}/rtemit_bss.XXXXXX")" || true
+  _merged="$(mktemp "${TMPDIR:-/tmp}/rtemit_mrg.XXXXXX")" || true
+  if [ -z "$_bss_o" ] || [ -z "$_merged" ]; then
+    rm -f "$thin" "$_bss_o" "$_merged"
+    return 1
+  fi
+  rm -f "$_bss_o" "$_merged"
+  _bss_o="${_bss_o}.o"
+  if $CC ${BASE_CFLAGS:--Wall -Wextra} -I. -Iinclude -Isrc -c -o "$_bss_o" seeds/rt_emit_state_bss_cold.from_x.c \
+    && pure_ld_partial_merge "$_merged" "$thin" "$_bss_o"; then
+    miss=0
+    for s in $(rt_emit_state_bss_names); do
+      if ! r3_prefer_nm_has_sym "$_merged" "$s"; then miss=1; break; fi
+    done
+    if [ "$miss" = "0" ]; then
+      mv -f "$_merged" "$o"
+      rm -f "$thin" "$_bss_o"
+      log "rt-emit-state $o <- leaf pure-asm + cold BSS (note743e)"
+      return 0
+    fi
+  fi
+  echo "ensure: rt-emit-state leaf+cold BSS failed" >&2
+  rm -f "$thin" "$_bss_o" "$_merged"
+  return 1
+}
+
 # knife 256 / 10.2: pure-asm leaf when C seed was deleted (5.11 / w1533).
 # Mirrors g05_ensure whole-object pure asm; used by bootstrap try-heat.
 # PLATFORM: SHARED. Fail closed — no host-cc fallback.
