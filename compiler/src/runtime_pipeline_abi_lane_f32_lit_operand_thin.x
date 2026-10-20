@@ -526,7 +526,7 @@ function lane_emit_block_lets_value_ref(
  * `{ let a; { let b; ~b } }` is this function, not a second walker.
  * PLATFORM: SHARED.
  */
-function lane_operand_emit_let_block_chain(
+function pipeline_lane_operand_emit_let_block_chain(
   arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, budget: i32
 ): i32 {
   let ko: i32 = 0;
@@ -547,7 +547,7 @@ function lane_operand_emit_let_block_chain(
   if (fin <= 0) {
     return 0 - 1;
   }
-  return lane_operand_emit_let_block_chain(
+  return pipeline_lane_operand_emit_let_block_chain(
     arena, elf_ctx, fin, ctx, ta, budget - 1);
 }
 
@@ -1856,7 +1856,7 @@ function lane_i32_emit_neg_core(
  * around that operand is lane_operand_unwrap_block, then this function
  * again on the inner value, so `{ e }`, nested blocks, and unsafe { e }
  * share the arms below. A block that still has lets is
- * lane_operand_emit_let_block_chain: one recursion emits each block's
+ * pipeline_lane_operand_emit_let_block_chain: one recursion emits each block's
  * lets and this function then loads the value expr. When the f32
  * gate is set, an odd negation count xors the f32 sign and kinds 8..13
  * stay out of that xor. When the gate is 0, each negation is neg w0
@@ -1899,7 +1899,7 @@ export function glue_emit_vector_operand_lane_elf_c(
   // `{ let a; { let b; ~b } } / 2` is that one function. The value is
   // not emitted by the helper. PLATFORM: SHARED.
   if (ko == 26) {
-    cur = lane_operand_emit_let_block_chain(
+    cur = pipeline_lane_operand_emit_let_block_chain(
       arena, elf_ctx, expr_ref, ctx, ta, 128);
     if (cur <= 0) {
       return 0 - 1;

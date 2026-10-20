@@ -215,7 +215,7 @@ let g_vlet_f32_name: u8[64] = [];
  * @return i32 — 1 when the f32 fill should run; 0 otherwise
  * PLATFORM: SHARED.
  */
-function vlet_f32_fill_lane(arena: *u8, type_ref: i32): i32 {
+function vector_let_init_array_lit_a64_vlet_f32_fill_lane(arena: *u8, type_ref: i32): i32 {
   let rc: i32 = 0;
   let tk: i32 = 0;
   let nlen: i32 = 0;
@@ -509,7 +509,7 @@ function vlet_emit_i32_lane_cmp(
   if (ta != 1) {
     return 0 - 3;
   }
-  rc = vlet_f32_fill_lane(arena, type_ref);
+  rc = vector_let_init_array_lit_a64_vlet_f32_fill_lane(arena, type_ref);
   if (rc != 0) {
     lane_f32 = 1;
   }
@@ -726,7 +726,7 @@ function vlet_f32_store_lane(
  * count. An unstamped lit under address-of keeps integer bits in
  * the typeless store, so those counts are stored here from the
  * destination type. A non-literal lane returns 1 before any byte
- * is emitted. An integer spelling returns 1 from vlet_f32_fill_lane.
+ * is emitted. An integer spelling returns 1 from vector_let_init_array_lit_a64_vlet_f32_fill_lane.
  * PLATFORM: MACOS|ARM64.
  */
 function vlet_f32_array_lanes(
@@ -748,7 +748,7 @@ function vlet_f32_array_lanes(
     return 1;
   }
   unsafe {
-    is_f = vlet_f32_fill_lane(arena, type_ref);
+    is_f = vector_let_init_array_lit_a64_vlet_f32_fill_lane(arena, type_ref);
   }
   if (is_f == 0) {
     return 1;
@@ -993,7 +993,7 @@ function vlet_emit_lane_log(
   if (ta != 1) {
     return 0 - 3;
   }
-  rc = vlet_f32_fill_lane(arena, type_ref);
+  rc = vector_let_init_array_lit_a64_vlet_f32_fill_lane(arena, type_ref);
   if (rc != 0) {
     lane_f32 = 1;
   }
@@ -1401,7 +1401,7 @@ export function glue_emit_vector_type_let_init_elf_c(
   if (vlet_lane_cmp_ko(ko) != 0) {
     lit_gate = 0;
     lit_prev = 0;
-    if (vlet_f32_fill_lane(arena, type_ref) != 0) {
+    if (vector_let_init_array_lit_a64_vlet_f32_fill_lane(arena, type_ref) != 0) {
       unsafe {
         lit_prev = glue_lane_f32_lit_dest_set(1);
       }
@@ -1455,7 +1455,7 @@ export function glue_emit_vector_type_let_init_elf_c(
   if (log_k != 0) {
     lit_gate = 0;
     lit_prev = 0;
-    if (vlet_f32_fill_lane(arena, type_ref) != 0) {
+    if (vector_let_init_array_lit_a64_vlet_f32_fill_lane(arena, type_ref) != 0) {
       unsafe {
         lit_prev = glue_lane_f32_lit_dest_set(1);
       }
@@ -1482,7 +1482,7 @@ export function glue_emit_vector_type_let_init_elf_c(
     lit_gate = 0;
     lit_prev = 0;
     if (ko == 4 || ko == 5 || ko == 6 || ko == 7) {
-      if (vlet_f32_fill_lane(arena, type_ref) != 0) {
+      if (vector_let_init_array_lit_a64_vlet_f32_fill_lane(arena, type_ref) != 0) {
         unsafe {
           lit_prev = glue_lane_f32_lit_dest_set(1);
         }
@@ -1601,7 +1601,7 @@ export function glue_emit_vector_type_let_init_elf_c(
     if (f_ref > 0) {
       if (ta == 1) {
         unsafe {
-          rc = vlet_f32_fill_lane(arena, type_ref);
+          rc = vector_let_init_array_lit_a64_vlet_f32_fill_lane(arena, type_ref);
         }
         if (rc != 0) {
           unsafe {
@@ -1630,7 +1630,7 @@ export function glue_emit_vector_type_let_init_elf_c(
             }
           }
         }
-        // vlet_f32_fill_lane returned 0: this spelling is not f32.
+        // vector_let_init_array_lit_a64_vlet_f32_fill_lane returned 0: this spelling is not f32.
         // A 4-byte integer lane truncates the f64 literal toward zero
         // and splats that i32. The walk owns the exponent loop.
         // f_neg is the minus parity already counted above; the inner
@@ -1822,7 +1822,7 @@ export function glue_emit_vector_type_let_init_elf_c(
                     // bitwise not keeps those integer bits.
                     // PLATFORM: MACOS|ARM64.
                     unsafe {
-                      rc = vlet_f32_fill_lane(arena, type_ref);
+                      rc = vector_let_init_array_lit_a64_vlet_f32_fill_lane(arena, type_ref);
                     }
                     if (rc != 0) {
                       if (saw_f == 0) {
@@ -1936,7 +1936,7 @@ export function glue_emit_vector_type_let_init_elf_c(
           lane_f32 = 1;
         } else {
           unsafe {
-            rc = vlet_f32_fill_lane(arena, type_ref);
+            rc = vector_let_init_array_lit_a64_vlet_f32_fill_lane(arena, type_ref);
           }
           if (rc != 0) {
             lane_f32 = 1;
@@ -2165,7 +2165,7 @@ export function glue_emit_vector_type_let_init_elf_c(
     // stays on the integer bits. Kind 24 of that BOOL_LIT stays on
     // the integer bits too. PLATFORM: MACOS|ARM64.
     unsafe {
-      rc = vlet_f32_fill_lane(arena, type_ref);
+      rc = vector_let_init_array_lit_a64_vlet_f32_fill_lane(arena, type_ref);
     }
     if (rc != 0) {
       unsafe {

@@ -61,7 +61,7 @@ export extern function pipeline_type_elem_ref_at(arena: *u8, ref: i32): i32;
  * Anything else, including a failed lookup, stays logical.
  * PLATFORM: SHARED.
  */
-function lane_shr_is_arith(arena: *u8, ctx: *u8, left_ref: i32, right_ref: i32): i32 {
+function pipeline_lane_shr_is_arith(arena: *u8, ctx: *u8, left_ref: i32, right_ref: i32): i32 {
   let un: i32 = 0;
   let tr: i32 = 0;
   let tk: i32 = 0;
@@ -174,23 +174,23 @@ function lane_shr_is_arith(arena: *u8, ctx: *u8, left_ref: i32, right_ref: i32):
  * @param arena *u8 — expression arena. Null returns 0 (logical).
  * @param ctx *u8 — asm ctx. Used only when a VAR has no resolved type.
  * @param left_ref i32 — left expr. Not positive returns 0.
- * @param right_ref i32 — right expr. Forwarded to lane_shr_is_arith.
+ * @param right_ref i32 — right expr. Forwarded to pipeline_lane_shr_is_arith.
  * @return i32 — 1 arithmetic, 0 logical.
- * Named signed lanes stay on lane_shr_is_arith. That function also
+ * Named signed lanes stay on pipeline_lane_shr_is_arith. That function also
  * decides the complement sign-extend, so it must keep returning 0 for
  * scalar TYPE_I32: u32x8 ~4 / 2 stays the zero-extended quotient.
  * A shift is different. An int literal is stamped i32, not the
  * destination vector, and the scalar shift emitter uses sar for that
  * kind. This function adds only that kind, and only for the shift.
  * Kind 0 is TYPE_I32. Unsigned kinds already returned 0 from
- * lane_shr_is_arith. A missing type stays logical. PLATFORM: SHARED.
+ * pipeline_lane_shr_is_arith. A missing type stays logical. PLATFORM: SHARED.
  */
 function lane_shr_use_arith(arena: *u8, ctx: *u8, left_ref: i32, right_ref: i32): i32 {
   let arith: i32 = 0;
   let tr: i32 = 0;
   let tk: i32 = 0;
   let ko: i32 = 0;
-  arith = lane_shr_is_arith(arena, ctx, left_ref, right_ref);
+  arith = pipeline_lane_shr_is_arith(arena, ctx, left_ref, right_ref);
   if (arith != 0) {
     return 1;
   }

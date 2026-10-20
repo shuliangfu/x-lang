@@ -388,6 +388,44 @@ run_cc_residual() {
 # ---------------------------------------------------------------------------
 run_pure_ld_required() {
   note "${MODE} pure-ld → $SEED_LINK_OUT  ($n_objs objs via pure_ld_shared)"
+  # knife256/10.2 note743d: last-chance short→long remap immediately before ld.
+  if [ -f src/runtime_pipeline_abi.o ]; then
+    _oc743=""
+    for _c in /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
+      if [ -x "$_c" ]; then _oc743=$_c; break; fi
+    done
+    if [ -z "$_oc743" ] && command -v llvm-objcopy >/dev/null 2>&1; then _oc743=$(command -v llvm-objcopy); fi
+    if [ -z "$_oc743" ] && command -v objcopy >/dev/null 2>&1; then _oc743=$(command -v objcopy); fi
+    if [ -z "$_oc743" ] && command -v x86_64-linux-gnu-objcopy >/dev/null 2>&1; then _oc743=$(command -v x86_64-linux-gnu-objcopy); fi
+    if [ -n "$_oc743" ]; then
+      note "note743d pre-ld nm: $(nm src/runtime_pipeline_abi.o 2>/dev/null | grep -E 'lane_operand_emit_let_block_chain|lane_shr_is_arith|vlet_f32_fill_lane|vlet_wide_elem|pipeline_lane_operand_emit_let_block_chain|pipeline_lane_shr_is_arith|vector_let_init_array_lit_a64_vlet_f32_fill_lane|pabi_vector_let_init_nested_one_vlet_wide_elem' | tr '\n' ';')"
+      _did743=0
+      for _pair in \
+        "lane_operand_emit_let_block_chain=pipeline_lane_operand_emit_let_block_chain" \
+        "lane_shr_is_arith=pipeline_lane_shr_is_arith" \
+        "vlet_f32_fill_lane=vector_let_init_array_lit_a64_vlet_f32_fill_lane" \
+        "vlet_wide_elem=pabi_vector_let_init_nested_one_vlet_wide_elem"
+      do
+        _s="${_pair%%=*}"; _l="${_pair#*=}"
+        nm src/runtime_pipeline_abi.o 2>/dev/null | grep -Eq " [Tt] _?${_s}$" || continue
+        nm src/runtime_pipeline_abi.o 2>/dev/null | grep -Eq " [Tt] _?${_l}$" && continue
+        if "$_oc743" --redefine-sym "${_s}=${_l}" src/runtime_pipeline_abi.o 2>/dev/null \
+          || "$_oc743" --redefine-sym "_${_s}=_${_l}" src/runtime_pipeline_abi.o 2>/dev/null; then
+          note "note743d last-chance alias ${_s} → ${_l}"
+          _did743=1
+        fi
+      done
+      if [ "$_did743" = "1" ]; then
+        _rtmp=$(mktemp "${TMPDIR:-/tmp}/pabi_note743_last.XXXXXX.o")
+        if ld -r -o "$_rtmp" src/runtime_pipeline_abi.o 2>/dev/null && [ -s "$_rtmp" ]; then
+          mv -f "$_rtmp" src/runtime_pipeline_abi.o
+          note "note743d last-chance ld -r bind"
+        else
+          rm -f "$_rtmp"
+        fi
+      fi
+    fi
+  fi
   if pure_ld_try_link "$SEED_LINK_OUT" "$SEED_LINK_OBJS" \
       "${SEED_LINK_ENTRY:-}" "${SEED_LINK_LD_TAIL:-}" "" "${SEED_LINK_LD:-}"; then
     note "OK pure-ld $SEED_LINK_OUT"

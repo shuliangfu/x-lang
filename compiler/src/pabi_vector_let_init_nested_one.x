@@ -402,7 +402,7 @@ function vlet_f32_elem_lit(
  * PLATFORM: SHARED. The if store is the existing vector let-init,
  * which declines when ta is not arm64.
  */
-function vlet_wide_elem(
+function pabi_vector_let_init_nested_one_vlet_wide_elem(
   arena: *u8, elf_ctx: *u8, elem_ref: i32, ctx: *u8, ta: i32,
   stack_slot_off: i32, esz: i32, ai: i32, elem_ty: i32
 ): i32 {
@@ -585,7 +585,7 @@ function vlet_wide_elem(
  * Return 1 when any element is itself an ARRAY_LIT.
  * @param arena *u8 — AST arena
  * @param init_ref i32 — outer ARRAY_LIT expr ref
- * @param n_arr i32 — element count; caller already checked 1..1024
+ * @param n_arr i32 — element count; caller already checked 1..16777216
  * @return i32 — 1 if some element kind is 46, else 0
  * Stops at the first nested row, matching the C break. An element ref
  * that is not positive does not call kind.
@@ -701,10 +701,10 @@ function vlet_scalar_one(
  * @param ta i32 — 0 x86, 1 arm64
  * @param stack_slot_off i32 — destination slot of element 0
  * @return i32 — 0 when every element is stored, -1 on a hard failure
- * Count must be in 1..1024. A nested element uses the leaf stride
+ * Count must be in 1..16777216. A nested element uses the leaf stride
  * (default 4) and array_lit_flat. Otherwise the element stride
  * (default 4) is clamped to a store width of 1, 2, 4, or 8. A wider
- * element tries vlet_wide_elem first. Element ref 0 is skipped.
+ * element tries pabi_vector_let_init_nested_one_vlet_wide_elem first. Element ref 0 is skipped.
  * PLATFORM: SHARED.
  */
 function vlet_nested_body(
@@ -736,7 +736,10 @@ function vlet_nested_body(
   unsafe {
     n_arr = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
   }
-  if (n_arr <= 0 || n_arr > 1024) {
+  /* `*p = [1025]i64` fills this slot one element at a time. 1024
+   * used to return -1. The byte ceiling stays in the rbx copy.
+   * PLATFORM: SHARED. Mac product mov w0, #16777216 at file 0xf225c. */
+  if (n_arr <= 0 || n_arr > 16777216) {
     return 0 - 1;
   }
   has_nested = vlet_has_nested(arena, init_ref, n_arr);
@@ -833,7 +836,7 @@ function vlet_nested_body(
     }
     if (elem_ref != 0) {
       if (store_sz != esz) {
-        wide = vlet_wide_elem(
+        wide = pabi_vector_let_init_nested_one_vlet_wide_elem(
           arena, elf_ctx, elem_ref, ctx, ta, stack_slot_off, esz, ai, elem_ty);
         if (wide < 0) {
           return 0 - 1;
