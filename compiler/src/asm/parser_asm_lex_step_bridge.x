@@ -153,10 +153,12 @@ extern function lexer_next_into(out: *ParserAsmLexResult, lex: *ParserAsmLexLexe
 extern function lexer_next_into(out: *ParserAsmLexResult, lex: ParserAsmLexLexer, data: *u8): void;
 #[cfg(target_os = "macos")]
 extern function lexer_next_into(out: *ParserAsmLexResult, lex: ParserAsmLexLexer, data: *u8): void;
-#[cfg(target_os = "macos")]
-extern function lexer_next_buf_into(out: *ParserAsmLexResult, lex: ParserAsmLexLexer, data: *u8, len: i32): void;
 #[cfg(target_os = "freebsd")]
 extern function lexer_next_into(out: *ParserAsmLexResult, lex: ParserAsmLexLexer, data: *u8): void;
+// Cap tip (10.2): SHARED peel face. Cap tip dual-emits cfg and may bind the
+// linux lexer_next_into path on Darwin; bridge_fill must see buf_into without
+// depending on macos-only extern selection. PLATFORM: SHARED.
+extern function lexer_next_buf_into(out: *ParserAsmLexResult, lex: ParserAsmLexLexer, data: *u8, len: i32): void;
 
 #[cfg(target_os = "windows")]
 extern function parser_asm_skip_balanced_parens_into_slice_c(out: *ParserAsmLexLexer, lex: *ParserAsmLexLexer, source: *u8): void;
@@ -639,9 +641,25 @@ function parser_asm_lex_bridge_fill(lex_in: *u8, source: *u8, raw: *u8): i32 {
   };
   unsafe {
     let p: *ParserAsmLexLexer = lex_in as *ParserAsmLexLexer;
-    // Copy the lexer, then let the wrapper match SysV or Win64.
+    // Copy the lexer. Cap tip (10.2): peel fat slice → lexer_next_buf_into in
+    // this SHARED fill. bridge_next is cfg-gated; Cap tip dual-emit on Darwin
+    // may bind the linux lexer_next_into path, which treats *ParserAsmLexSlice
+    // as u8[] and smashes tok.line into pointer garbage (lifetime-diag L4:
+    // missing path:12:col / path:10:col). Win64 still uses bridge_next below
+    // only when we keep that wrapper for other call sites; fill always peels.
     let cur: ParserAsmLexLexer = *p;
-    parser_asm_lex_bridge_next(&r, &cur, source);
+    let sp: *u8 = 0 as *u8;
+    let slen: i32 = 0;
+    if (source != 0 as *u8) {
+      let s: *ParserAsmLexSlice = source as *ParserAsmLexSlice;
+      sp = s.data;
+      if (s.length > 2147483647 as usize) {
+        slen = 2147483647;
+      } else {
+        slen = s.length as i32;
+      }
+    }
+    lexer_next_buf_into(&r, cur, sp, slen);
     let dst: *ParserAsmLexResult = raw as *ParserAsmLexResult;
     dst.next_lex.pos = r.next_lex.pos;
     // Cap tip: 4-byte i32 stores — widened field stores smash neighbors.
