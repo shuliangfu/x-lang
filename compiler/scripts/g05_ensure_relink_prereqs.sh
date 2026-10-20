@@ -4912,6 +4912,25 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   elif g05_frontend_x_pure_asm_kept . codegen_x; then
     echo "g05_ensure: codegen_x.o kept (pure-asm stamp matches; no host-cc)"
   fi
+  # knife256 / 10.2 note743h: tip pure-asm codegen leaves cap residual as U
+  # (paste lives only in seeds/codegen_cap_residual.from_x.c → Track L /
+  # host-cc gen). Product forbids host-cc of codegen_cap_residual_tu.c.
+  # When the sentinel is not T, drop pure-asm and restore Track L cold
+  # seed (assemble paste). PLATFORM: SHARED.
+  if [ -f codegen_x.o ]     && ! nm codegen_x.o 2>/dev/null | grep -q ' T _*codegen_set_host_call_arg_param_ty$'; then
+    echo "g05_ensure: codegen_x.o missing cap residual T; restore Track L (note743h)" >&2
+    rm -f codegen_x.o codegen_x.pure_asm
+    export XLANG_MIGRATE_TRACK_L_COLD_SEED=1
+    if ! bash scripts/migrate_x_objs.sh codegen_x.o >&2; then
+      echo "g05_ensure: codegen_x.o Track L restore failed (cap residual)" >&2
+      exit 1
+    fi
+    if ! nm codegen_x.o 2>/dev/null | grep -q ' T _*codegen_set_host_call_arg_param_ty$'; then
+      echo "g05_ensure: Track L codegen_x.o still lacks codegen_set_host_call_arg_param_ty" >&2
+      exit 1
+    fi
+    echo "g05_ensure: codegen_x.o <- Track L cold seed (cap residual paste)"
+  fi
   # G-02e：产品链 C 源缺失或比 .o 新时强制重编（并入/删 TU 后跨机 git pull 必走此路径）
   # shellcheck disable=SC2086
   for o in $G05_OBJS; do
@@ -5228,11 +5247,48 @@ if [ "$(uname -s)" = "Darwin" ] && [ -f scripts/darwin_phase1_hollow_fill.sh ]; 
 fi
 
 # w1483: Linux selfhost_pabi tip refresh (pabi_alias + arr_struct_lit peers).
+# knife256 / 10.2 note743h: L4 wipe (or partial sidecars) can leave READY
+# while core .o (esz/loc/lea/…) are gone. Tip-only refresh then leaves
+# g05_relink_env to drop the whole _PABI_SELFHOST pack → empty G05_OBJS.
+# Rebuild full sidecars when any core object is missing; else refresh.
 # PLATFORM: LINUX.
-if [ "$(uname -s)" = "Linux" ] && [ -f build_asm/selfhost_pabi/READY ]; then
-  if ! bash scripts/linux_selfhost_pabi_refresh_tip.sh >&2; then
-    echo "g05_ensure_relink_prereqs: selfhost_pabi tip refresh failed" >&2
-    exit 1
+if [ "$(uname -s)" = "Linux" ]; then
+  _pabi_dir=build_asm/selfhost_pabi
+  _pabi_core_miss=0
+  if [ -f "$_pabi_dir/READY" ]; then
+    for _co in slot.o esz.o loc.o lea.o rec.o two.o one.o as.o sizeof.o; do
+      if [ ! -s "$_pabi_dir/$_co" ]; then
+        echo "g05_ensure: selfhost_pabi missing $_co (READY stale); full sidecars" >&2
+        _pabi_core_miss=1
+        break
+      fi
+    done
+  else
+    # No READY after tip-cold wipe: rebuild when a product compiler exists.
+    if [ -x ./xlang ] || [ -x ./xlang_asm ]; then
+      echo "g05_ensure: selfhost_pabi no READY; full sidecars" >&2
+      _pabi_core_miss=1
+    fi
+  fi
+  if [ "$_pabi_core_miss" = "1" ]; then
+    rm -f "$_pabi_dir/READY"
+    if [ ! -x ./xlang ] && [ ! -x ./xlang_asm ]; then
+      echo "g05_ensure_relink_prereqs: cannot rebuild sidecars without ./xlang" >&2
+      exit 1
+    fi
+    # sidecars.sh requires ./xlang (not xlang_asm). Prefer symlink/copy if needed.
+    if [ ! -x ./xlang ] && [ -x ./xlang_asm ]; then
+      ln -sf xlang_asm ./xlang
+    fi
+    if ! bash scripts/linux_selfhost_pabi_sidecars.sh >&2; then
+      echo "g05_ensure_relink_prereqs: linux_selfhost_pabi_sidecars failed" >&2
+      exit 1
+    fi
+  elif [ -f "$_pabi_dir/READY" ]; then
+    if ! bash scripts/linux_selfhost_pabi_refresh_tip.sh >&2; then
+      echo "g05_ensure_relink_prereqs: selfhost_pabi tip refresh failed" >&2
+      exit 1
+    fi
   fi
 fi
 

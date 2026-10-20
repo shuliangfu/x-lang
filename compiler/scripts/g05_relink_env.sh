@@ -1155,8 +1155,10 @@ if [ "$UNAME_S" = "Linux" ] && [ -f build_asm/selfhost_pabi/READY ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/slot.o build_asm/selfhost_pabi/esz.o build_asm/selfhost_pabi/loc.o build_asm/selfhost_pabi/lea.o build_asm/selfhost_pabi/rec.o build_asm/selfhost_pabi/two.o build_asm/selfhost_pabi/one.o build_asm/selfhost_pabi/as.o build_asm/selfhost_pabi/sizeof.o"
   for _sh in build_asm/selfhost_pabi/slot.o build_asm/selfhost_pabi/esz.o build_asm/selfhost_pabi/loc.o build_asm/selfhost_pabi/lea.o build_asm/selfhost_pabi/rec.o build_asm/selfhost_pabi/two.o build_asm/selfhost_pabi/one.o build_asm/selfhost_pabi/as.o build_asm/selfhost_pabi/sizeof.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_cast_orch_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_f2i32_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_f2i64_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_f2i_orch_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f32_i32_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f32_i64_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f32_i64mov_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f32_k15_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f32_orch_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f32_sf64_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f32_u64_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f64_f32_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f64_i32_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f64_i64_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f64_i64mov_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f64_orch_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f64_u64_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_lea_thin.o; do
     if [ ! -s "$_sh" ]; then
-      echo "g05_relink_env: missing $_sh; self-host sidecars dropped" >&2
-      _PABI_SELFHOST=""
+      # knife256 / 10.2 note743h: soft-drop emptied G05_OBJS after READY
+      # stale. Ensure rebuilds sidecars; missing core here is a hard stop.
+      echo "g05_relink_env: missing $_sh; self-host sidecars incomplete (note743h; no soft-drop)" >&2
+      exit 1
       break
     fi
   done
@@ -5122,8 +5124,18 @@ case "$UNAME_S" in
         fi
         _CODEGEN_CAP_RESIDUAL="$_cap_o"
       else
-        echo "g05_relink_env: codegen_cap_residual.o missing; product path forbids host-cc (XLANG_TYPECK_HOST_CC=1 archaeology)" >&2
-        exit 1
+        # knife256 / 10.2 note743h: last chance — Track L cold seed pastes
+        # the residual into codegen_x.o (no host-cc of tu.c). PLATFORM: SHARED.
+        echo "g05_relink_env: codegen_cap_residual.o missing; try Track L codegen paste (note743h)" >&2
+        rm -f codegen_x.o codegen_x.pure_asm
+        export XLANG_MIGRATE_TRACK_L_COLD_SEED=1
+        if bash scripts/migrate_x_objs.sh codegen_x.o >&2           && nm codegen_x.o 2>/dev/null | grep -q ' T _*codegen_set_host_call_arg_param_ty$'; then
+          echo "g05_relink_env: codegen cap residual satisfied by Track L codegen_x.o" >&2
+          _CODEGEN_CAP_RESIDUAL=""
+        else
+          echo "g05_relink_env: codegen_cap_residual.o missing; product path forbids host-cc (XLANG_TYPECK_HOST_CC=1 archaeology)" >&2
+          exit 1
+        fi
       fi
     fi
     ;;
