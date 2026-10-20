@@ -43,7 +43,8 @@ if ! nm "$OUT/pabi_alias.o.new" | awk '$3=="glue_try_index_var_or_field_base_to_
   # Require a defined face (T/W), not a U reloc. Tip peel may leave the
   # egg with only U; keep the existing alias that still owns body+rest.
   # 记253／9.1: root-fix for tip U-only egg (no host-cc). PLATFORM: LINUX.
-  _base_addr=$(nm "$OUT/pabi_alias.o.new" | awk '$2 ~ /^[TtWw]$/ && $3=="glue_try_index_var_or_field_base_to_rbx_elf_c"{print $1; exit}')
+  _base_addr=$(nm "$OUT/pabi_alias.o.new" | awk '$2 ~ /^[TtWw]$/ && $3=="glue_try_index_var_or_field_base_to_rbx_elf_c"{print $1; found=1} END{exit 0}')
+  _base_addr=$(printf '%s\n' "$_base_addr" | head -n1)
   if [ -z "$_base_addr" ]; then
     if [ -s "$OUT/pabi_alias.o" ] \
       && nm "$OUT/pabi_alias.o" | awk '$3=="glue_try_index_var_or_field_base_to_rbx_elf_rest"{found=1} END{exit !found}'; then
@@ -75,7 +76,8 @@ EOF
         rm -f "$OUT/pabi_alias.o.new" "$_egg_o"
         exit 1
       fi
-      _base_addr=$(nm "$OUT/pabi_alias.o.new" | awk '$2 ~ /^[TtWw]$/ && $3=="glue_try_index_var_or_field_base_to_rbx_elf_c"{print $1; exit}')
+      _base_addr=$(nm "$OUT/pabi_alias.o.new" | awk '$2 ~ /^[TtWw]$/ && $3=="glue_try_index_var_or_field_base_to_rbx_elf_c"{print $1; found=1} END{exit 0}')
+      _base_addr=$(printf '%s\n' "$_base_addr" | head -n1)
       if [ -z "$_base_addr" ]; then
         echo "linux_selfhost_pabi_refresh_tip: index base symbol missing after egg stub" >&2
         rm -f "$OUT/pabi_alias.o.new" "$_egg_o"
