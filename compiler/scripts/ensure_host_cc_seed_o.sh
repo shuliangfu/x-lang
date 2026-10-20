@@ -18480,7 +18480,7 @@ ensure_rt_prefer_one() {
                   else
                     echo "rt-prefer: R2 run_compiler_parsed ← full .x + rest marker (R2 full H=0)"
                   fi
-                elif nm "$_rt_rcp_thin_o" 2>/dev/null | grep -qE " T _?driver_run_compiler_parsed$"; then
+                elif nm "$_rt_rcp_thin_o" 2>/dev/null | grep -E " T _?driver_run_compiler_parsed$" >/dev/null; then
                   # knife256 / 10.2 note743i: rest is marker-only under FROM_X;
                   # if ld -r merge fails, thin alone still owns the 69 T faces.
                   # PLATFORM: SHARED.
@@ -18494,7 +18494,7 @@ ensure_rt_prefer_one() {
             if [ "$_rt_rcp_ok" = "0" ]; then
               # shellcheck disable=SC2086
               if $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_rcp_o" "$_rt_run_compiler_parsed_seed" \
-                && nm "$_rt_rcp_o" 2>/dev/null | grep -qE " T _?driver_run_compiler_parsed$"; then
+                && nm "$_rt_rcp_o" 2>/dev/null | grep -E " T _?driver_run_compiler_parsed$" >/dev/null; then
                 _rt_rcp_ok=1
                 echo "rt-prefer: rest run_compiler_parsed ← $_rt_run_compiler_parsed_seed (G-02f-316 seed slice cold)"
               else
@@ -18506,16 +18506,15 @@ ensure_rt_prefer_one() {
             # note743i: tip-cold try-r1 must use the 69-T pure helper (multi-xl
             # fallback), not only rt_prefer_try_x_to_o (often misses T).
             if [ "$_rt_rcp_ok" = "0" ] && [ -f "$_rt_run_compiler_parsed_x" ]; then
-              # note743l.2: rest path must accept pure helper even when PREFER=0
-              # (R2 thin+rest skipped). Split pure rc from nm so a pipefail/
-              # grep quirk cannot drop a good 69-T object. PLATFORM: SHARED.
+              # note743l.2/l.3: PREFER=0 rest path; nm|grep -q under pipefail → SIGPIPE 141
+              # (note743f.1 class). grep without -q; keep 69-T trust. PLATFORM: SHARED.
               _rt_rcp_pure_rc=1
               if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
                 bash scripts/ensure_host_cc_seed_o.sh run-compiler-parsed-pure "$_rt_rcp_o"
                 _rt_rcp_pure_rc=$?
               fi
               _rt_rcp_nm_drv=0
-              if [ -s "$_rt_rcp_o" ] && nm "$_rt_rcp_o" 2>/dev/null | grep -qE " T _?driver_run_compiler_parsed$"; then
+              if [ -s "$_rt_rcp_o" ] && nm "$_rt_rcp_o" 2>/dev/null | grep -E " T _?driver_run_compiler_parsed$" >/dev/null; then
                 _rt_rcp_nm_drv=1
               fi
               _rt_rcp_nm_n=0
@@ -18529,7 +18528,7 @@ ensure_rt_prefer_one() {
                 _rt_rcp_ok=1
                 echo "rt-prefer: rest run_compiler_parsed ← pure-asm sixty-nine trust-helper (note743l.2; nm_drv=$_rt_rcp_nm_drv)"
               elif rt_prefer_try_x_to_o "$_rt_run_compiler_parsed_x" "$_rt_rcp_o" \
-                && nm "$_rt_rcp_o" 2>/dev/null | grep -qE " T _?driver_run_compiler_parsed$"; then
+                && nm "$_rt_rcp_o" 2>/dev/null | grep -E " T _?driver_run_compiler_parsed$" >/dev/null; then
                 _rt_rcp_ok=1
                 echo "rt-prefer: rest run_compiler_parsed ← pure-asm $_rt_run_compiler_parsed_x alone (knife256; no seed-only)"
               else
