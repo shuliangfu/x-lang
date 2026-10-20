@@ -1449,6 +1449,7 @@ export function typeck_resolve_type_alias_ref_local(module: *Module, arena: *AST
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let type_name: u8[256] = [];
+    let alias_name: u8[256] = [];
     let alias_count: i32 = 0;
     let alias_i: i32 = 0;
     let type_name_len: i32 = 0;
@@ -1472,20 +1473,15 @@ export function typeck_resolve_type_alias_ref_local(module: *Module, arena: *AST
       alias_name_len = pipeline_module_type_alias_name_len(module, alias_i);
       /* wave582 Cap residual: alias names may be up to 255 (TypeAliasEntry.name[256]). */
       if (alias_name_len == type_name_len && alias_name_len > 0 && alias_name_len <= 255) {
+        /* knife256/10.2: tip pure-asm clobbers call-result in rbx when comparing
+         * name_byte_at vs type_name[i] (even via i32 locals). Copy then name_equal
+         * matches typeck_named_type_matches_name_or_alias (Linux tip-cold type_alias). */
         alias_off = 0;
         while (alias_off < alias_name_len) {
-          /* knife256/10.2: keep both bytes in i32 locals before !=.
-           * Tip pure-asm codegen clobbered the alias byte in rbx with alias_off
-           * when the compare was a direct call-result vs type_name[i] (Linux
-           * tip-cold type_alias Coord vs i32 XT001). */
-          let ab: i32 = pipeline_module_type_alias_name_byte_at(module, alias_i, alias_off) as i32;
-          let tb: i32 = type_name[alias_off] as i32;
-          if (ab != tb) {
-            break;
-          }
+          alias_name[alias_off] = pipeline_module_type_alias_name_byte_at(module, alias_i, alias_off);
           alias_off = alias_off + 1;
         }
-        if (alias_off == alias_name_len) {
+        if (name_equal(&alias_name[0], alias_name_len, &type_name[0], type_name_len)) {
           alias_target_ref = pipeline_module_type_alias_target_ref(module, alias_i);
           if (ast.ref_is_null(alias_target_ref)) {
             return type_ref;
@@ -13328,18 +13324,13 @@ name_len: i32): i32 {
     while (ai < n_alias) {
       alen = pipeline_module_type_alias_name_len(module, ai);
       if (alen == name_len && alen > 0) {
-        same = 1;
+        /* knife256/10.2: same tip pure-asm rbx clobber — copy then name_equal. */
         bi = 0;
         while (bi < alen) {
-          let ab2: i32 = pipeline_module_type_alias_name_byte_at(module, ai, bi) as i32;
-          let tb2: i32 = name[bi] as i32;
-          if (ab2 != tb2) {
-            same = 0;
-            break;
-          }
+          snm[bi] = pipeline_module_type_alias_name_byte_at(module, ai, bi);
           bi = bi + 1;
         }
-        if (same != 0) {
+        if (name_equal(&snm[0], alen, name, name_len)) {
           return 1;
         }
       }
