@@ -5,6 +5,8 @@
 # PLATFORM: MACOS Cap tip sidecar. Run from compiler/.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# Soft prepends may run before g05_env sources G05_OBJS (set -u).
+G05_OBJS="${G05_OBJS:-}"
 
 CACHE="${XLANG_CAP_TIP_L4_CACHE:-}"
 if [ -z "$CACHE" ]; then
@@ -60,9 +62,10 @@ done
 # Tip-compile from .x; demote pabi_weak size_simple so named_size first-wins.
 # PLATFORM: MACOS Cap tip.
 if [ -f src/runtime_pipeline_abi_named_size_thin.x ]; then
-  # set -u: XLANG may be unset until softs block below; prefer ./xlang
+  # set -u: XLANG may be unset until softs block; prefer LEGACY bak then ./xlang
   _ns_xl="${XLANG:-}"
   [ -x ./xlang ] && _ns_xl="./xlang"
+  [ -x ./xlang.product_legacy_bak ] && _ns_xl="./xlang.product_legacy_bak"
   if XLANG_PREFER_ASM_O=1 "$_ns_xl" -backend asm -c \
       src/runtime_pipeline_abi_named_size_thin.x \
       -o build_asm/selfhost_pabi/named_size.o 2>/dev/null \
@@ -97,9 +100,10 @@ fi
 # PLATFORM: MACOS Cap tip.
 if [ ! -s build_asm/selfhost_pabi/typeck_orch_layout_glue_a64.o ] \
   && [ -f src/runtime_pipeline_abi_typeck_orch_thin.x ]; then
-  # set -u: XLANG may be unset until softs block below; prefer ./xlang
+  # set -u: XLANG may be unset until softs block; prefer LEGACY bak then ./xlang
   _orch_xl="${XLANG:-}"
   [ -x ./xlang ] && _orch_xl="./xlang"
+  [ -x ./xlang.product_legacy_bak ] && _orch_xl="./xlang.product_legacy_bak"
   if XLANG_PREFER_ASM_O=1 "$_orch_xl" -backend asm -c \
       src/runtime_pipeline_abi_typeck_orch_thin.x \
       -o build_asm/selfhost_pabi/typeck_orch_layout_glue_a64.o.tmp 2>/dev/null \
@@ -122,9 +126,9 @@ _typeck_x_type_align_from_layout_glue' > /tmp/cap_tip_orch_layout.exp
   rm -f build_asm/selfhost_pabi/typeck_orch_layout_glue_a64.o.tmp /tmp/cap_tip_orch_layout.exp
 fi
 if [ -s build_asm/selfhost_pabi/typeck_orch_layout_glue_a64.o ]; then
-  case " $G05_OBJS " in
+  case " ${G05_OBJS:-} " in
     *" build_asm/selfhost_pabi/typeck_orch_layout_glue_a64.o "*) ;;
-    *) G05_OBJS="build_asm/selfhost_pabi/typeck_orch_layout_glue_a64.o $G05_OBJS"; export G05_OBJS
+    *) G05_OBJS="build_asm/selfhost_pabi/typeck_orch_layout_glue_a64.o ${G05_OBJS:-}"; export G05_OBJS
        echo "g05_cap_tip_reapply: prepended typeck_orch_layout_glue_a64.o" >&2 ;;
   esac
   if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
