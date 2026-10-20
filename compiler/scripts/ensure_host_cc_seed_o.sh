@@ -10106,51 +10106,61 @@ run_compiler_parsed_darwin_pure() {
     *) return 1 ;;
   esac
   # 记743g: tip-cold step5 often has only bootstrap_xlangc (no xlang_asm yet).
-  # Seed is 记253 hollow (no T). Prefer product, then bootstrap — same order as
-  # rt_prefer_try_x_to_o. PLATFORM: SHARED Darwin arm64 + Linux x86_64.
-  if [ -x ./xlang_asm ]; then
-    xl=./xlang_asm
-  elif [ -x ./xlang ]; then
-    xl=./xlang
-  elif [ -x ./bootstrap_xlangc ]; then
-    xl=./bootstrap_xlangc
-  else
-    xl=""
-  fi
-  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ -z "$xl" ]; then
+  # Seed is 记253 hollow (no T). Prefer product, then bootstrap.
+  # 记743i: tip-cold try-r1 may leave a hollow/partial ./xlang that exists but
+  # cannot emit 69 T; try each candidate until one lands 69 T + contract faces.
+  # PLATFORM: SHARED Darwin arm64 + Linux x86_64.
+  if [ -z "$o" ] || [ ! -f "$xsrc" ]; then
     return 1
   fi
-  try=0
-  while [ "$try" -lt 12 ]; do
-    try=$((try + 1))
-    rm -f "$o"
-    if g05_xasm "$xl" -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+  _rcp_xls=""
+  [ -x ./xlang_asm ] && _rcp_xls="$_rcp_xls ./xlang_asm"
+  [ -x ./xlang ] && _rcp_xls="$_rcp_xls ./xlang"
+  [ -x ./bootstrap_xlangc ] && _rcp_xls="$_rcp_xls ./bootstrap_xlangc"
+  [ -x ./xlang-c ] && _rcp_xls="$_rcp_xls ./xlang-c"
+  if [ -z "$_rcp_xls" ]; then
+    return 1
+  fi
+  _rcp_ok_xl=0
+  for xl in $_rcp_xls; do
+    try=0
+    while [ "$try" -lt 12 ]; do
+      try=$((try + 1))
+      rm -f "$o"
+      if g05_xasm "$xl" -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+        break
+      fi
+      rm -f "$o"
+    done
+    if [ ! -s "$o" ]; then
+      continue
+    fi
+    n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+    if [ "$n" != "69" ]; then
+      rm -f "$o"
+      continue
+    fi
+    _rcp_faces_ok=1
+    # Darwin nm: _pp_path; Linux ELF: pp_path (no leading _).
+    for c in pp_path pi_argc pz_slen rt_cp_fill_code_io001; do
+      if ! nm "$o" | awk -v s="$c" '$2=="T" && ($3==s || $3=="_" s) { found=1 } END { exit found ? 0 : 1 }'; then
+        _rcp_faces_ok=0
+        break
+      fi
+    done
+    if [ "$_rcp_faces_ok" = "1" ]; then
+      _rcp_ok_xl=1
       break
     fi
     rm -f "$o"
   done
-  if [ ! -s "$o" ]; then
-    return 1
-  fi
-  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
-  if [ "$n" != "69" ]; then
+  if [ "$_rcp_ok_xl" != "1" ] || [ ! -s "$o" ]; then
     rm -f "$o"
     return 1
   fi
-  # Darwin nm: _pp_path; Linux ELF: pp_path (no leading _).
-  for c in pp_path pi_argc pz_slen rt_cp_fill_code_io001; do
-    if ! nm "$o" | awk -v s="$c" '$2=="T" && ($3==s || $3=="_" s) { found=1 } END { exit found ? 0 : 1 }'; then
-      rm -f "$o"
-      return 1
-    fi
-  done
   return 0
 }
 
-# w1176: src/asm/backend_arch_emit_dispatch.x segfaults on some
-# pure-asm tries and emits on a later try. Retry the whole translation
-# unit. Direct xlang_asm, not pure_asm_x_to_o. Symbols stay strong.
-# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
 arch_emit_dispatch_darwin_pure() {
   local o="${1:-}"
   local xsrc="src/asm/backend_arch_emit_dispatch.x"
@@ -18401,15 +18411,24 @@ ensure_rt_prefer_one() {
               fi
               if [ -n "$_rt_rcp_thin_o" ] && [ -n "$_rt_rcp_rest_o" ] \
                 && { [ "$_rt_rcp_pure" = "1" ] \
-                  || rt_prefer_try_x_to_o "$_rt_run_compiler_parsed_x" "$_rt_rcp_thin_o"; } \
-                && $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_RUN_COMPILER_PARSED_FROM_X \
+                  || rt_prefer_try_x_to_o "$_rt_run_compiler_parsed_x" "$_rt_rcp_thin_o"; }; then
+                # shellcheck disable=SC2086
+                if $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_RUN_COMPILER_PARSED_FROM_X \
                      -c -o "$_rt_rcp_rest_o" "$_rt_run_compiler_parsed_seed" \
-                && pure_ld_partial_merge "$_rt_rcp_o" "$_rt_rcp_thin_o" "$_rt_rcp_rest_o" 2>/dev/null; then
-                _rt_rcp_ok=1
-                if [ "$_rt_rcp_pure" = "1" ]; then
-                  echo "rt-prefer: R2 run_compiler_parsed ← pure-asm sixty-nine symbols (w1177)"
-                else
-                  echo "rt-prefer: R2 run_compiler_parsed ← full .x + rest marker (R2 full H=0)"
+                  && pure_ld_partial_merge "$_rt_rcp_o" "$_rt_rcp_thin_o" "$_rt_rcp_rest_o" 2>/dev/null; then
+                  _rt_rcp_ok=1
+                  if [ "$_rt_rcp_pure" = "1" ]; then
+                    echo "rt-prefer: R2 run_compiler_parsed ← pure-asm sixty-nine symbols (w1177)"
+                  else
+                    echo "rt-prefer: R2 run_compiler_parsed ← full .x + rest marker (R2 full H=0)"
+                  fi
+                elif nm "$_rt_rcp_thin_o" 2>/dev/null | grep -qE " T _?driver_run_compiler_parsed$"; then
+                  # knife256 / 10.2 note743i: rest is marker-only under FROM_X;
+                  # if ld -r merge fails, thin alone still owns the 69 T faces.
+                  # PLATFORM: SHARED.
+                  cp -f "$_rt_rcp_thin_o" "$_rt_rcp_o"
+                  _rt_rcp_ok=1
+                  echo "rt-prefer: R2 run_compiler_parsed ← pure-asm thin alone (note743i; merge skipped)"
                 fi
               fi
               rm -f "$_rt_rcp_thin_o" "$_rt_rcp_rest_o"
@@ -18426,8 +18445,15 @@ ensure_rt_prefer_one() {
               fi
             fi
             # knife256 / 10.2: 记253 removed cold parsed body. PLATFORM: SHARED.
+            # note743i: tip-cold try-r1 must use the 69-T pure helper (multi-xl
+            # fallback), not only rt_prefer_try_x_to_o (often misses T).
             if [ "$_rt_rcp_ok" = "0" ] && [ -f "$_rt_run_compiler_parsed_x" ]; then
-              if rt_prefer_try_x_to_o "$_rt_run_compiler_parsed_x" "$_rt_rcp_o" \
+              if [ -f scripts/ensure_host_cc_seed_o.sh ] \
+                && bash scripts/ensure_host_cc_seed_o.sh run-compiler-parsed-pure "$_rt_rcp_o" \
+                && nm "$_rt_rcp_o" 2>/dev/null | grep -qE " T _?driver_run_compiler_parsed$"; then
+                _rt_rcp_ok=1
+                echo "rt-prefer: rest run_compiler_parsed ← pure-asm sixty-nine (note743i / w1177)"
+              elif rt_prefer_try_x_to_o "$_rt_run_compiler_parsed_x" "$_rt_rcp_o" \
                 && nm "$_rt_rcp_o" 2>/dev/null | grep -qE " T _?driver_run_compiler_parsed$"; then
                 _rt_rcp_ok=1
                 echo "rt-prefer: rest run_compiler_parsed ← pure-asm $_rt_run_compiler_parsed_x alone (knife256; no seed-only)"
