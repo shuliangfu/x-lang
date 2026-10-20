@@ -10023,17 +10023,20 @@ async_cps_codegen_darwin_pure() {
 # w1177: src/runtime/rt_run_compiler_parsed.x segfaults on some
 # pure-asm tries and emits on a later try. Retry the whole translation
 # unit. Direct xlang_asm, not rt_prefer_try_x_to_o. Symbols stay strong.
-# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# knife256/10.2 note733: also Linux x86_64 (Ubuntu tip-cold L4) — seed is
+# 记253 hollow (no T); rt_prefer_try_x_to_o alone often misses T on Linux.
+# PLATFORM: SHARED — Darwin arm64 + Linux x86_64. Other hosts return 1.
+# cwd is compiler/.
 run_compiler_parsed_darwin_pure() {
   local o="${1:-}"
   local xsrc="src/runtime/rt_run_compiler_parsed.x"
-  local try n c
-  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
-    return 1
-  fi
-  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
-    return 1
-  fi
+  local try n c host arch
+  host="$(uname -s 2>/dev/null || echo Unknown)"
+  arch="$(uname -m 2>/dev/null || echo unknown)"
+  case "$host-$arch" in
+    Darwin-arm64|Linux-x86_64) ;;
+    *) return 1 ;;
+  esac
   if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
     return 1
   fi
@@ -10054,8 +10057,9 @@ run_compiler_parsed_darwin_pure() {
     rm -f "$o"
     return 1
   fi
-  for c in _pp_path _pi_argc _pz_slen _rt_cp_fill_code_io001; do
-    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+  # Darwin nm: _pp_path; Linux ELF: pp_path (no leading _).
+  for c in pp_path pi_argc pz_slen rt_cp_fill_code_io001; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && ($3==s || $3=="_" s) { found=1 } END { exit found ? 0 : 1 }'; then
       rm -f "$o"
       return 1
     fi
@@ -18307,12 +18311,10 @@ ensure_rt_prefer_one() {
               _rt_rcp_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_rcp_thin.XXXXXX") || true
               _rt_rcp_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_rcp_rest.XXXXXX") || true
               _rt_rcp_pure=0
-              # w1177: some pure-asm tries segfault. Darwin retries the
-              # whole translation unit. Other hosts keep rt_prefer_try.
-              # Symbols stay strong. PLATFORM: MACOS|DARWIN arm64.
+              # w1177 / knife256 note733: pure-asm retries on Darwin arm64
+              # and Linux x86_64 (记253 hollow seed has no T). Other hosts
+              # keep rt_prefer_try. Symbols stay strong. PLATFORM: SHARED.
               if [ -n "$_rt_rcp_thin_o" ] && [ -n "$_rt_rcp_rest_o" ] \
-                && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
-                && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
                 && [ -f scripts/ensure_host_cc_seed_o.sh ] \
                 && bash scripts/ensure_host_cc_seed_o.sh run-compiler-parsed-pure "$_rt_rcp_thin_o"; then
                 _rt_rcp_pure=1
@@ -33594,9 +33596,9 @@ case "$MODE" in
     exit $?
     ;;
   run-compiler-parsed-pure|run_compiler_parsed_darwin_pure)
-    # w1177: sixty-nine pure-asm symbols of rt_run_compiler_parsed.x.
+    # w1177 / note733: sixty-nine pure-asm symbols of rt_run_compiler_parsed.x.
     # Does not write runtime_driver_no_c.o unless that path is passed.
-    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    # PLATFORM: SHARED — Darwin arm64 + Linux x86_64. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o run-compiler-parsed-pure: need <out.o>" >&2
       exit 2
