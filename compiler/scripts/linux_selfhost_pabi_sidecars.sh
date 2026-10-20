@@ -191,10 +191,11 @@ for s in secs:
         s["size"] = len(keep)
         continue
     blobs[s["i"]] = bytes(blob)
-# note743p: classic copy thin has 2 bounds-check panics; PREFER_ASM_O may
-# drop all (noped 0). Reject other counts (e.g. 4 = DIV/MOD without PREFER).
-if noped not in (0, 2):
-    raise SystemExit("expected 0 or 2 panic calls, noped %d" % noped)
+# note743p.1: contract stays expected 2 (bounds checks). Do not widen the
+# count gate. PREFER_ASM_O on copy thin only drops DIV/MOD extras; if the
+# object has no xlang_panic_ at all, the early exit above already applies.
+if noped != 2:
+    raise SystemExit("expected 2 panic calls, noped %d" % noped)
 out = bytearray(data[:64])
 for s in sorted(secs, key=lambda s: s["offset"] if s["offset"] else 10**18):
     blob = blobs[s["i"]]
