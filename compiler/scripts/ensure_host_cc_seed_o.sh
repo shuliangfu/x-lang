@@ -1527,6 +1527,80 @@ ensure_std_fmt_formal_darwin_pure() {
 # Windows keeps the C face. Linux miss does not exec cc.
 # PLATFORM: MACOS|DARWIN arm64 | LINUX.
 # $1 = output object. cwd is compiler/.
+
+# knife256/10.2: Cap tip I32x8 MEMORY returns via Darwin sret(x8); Cap tip .x
+# bodies omit sret stores → shuffle/select leave zeros / SEGV on F32 dual-GP
+# regressions. Overlay hand asm after formal pure-asm. PLATFORM: MACOS arm64.
+# Idempotent: skip if live T already coexists with a *_dead twin (re-entry safe).
+overlay_std_simd_i32x8_cap_sret() {
+  local o="${1:-../std/simd/simd.o}"
+  local asrc="src/asm/std_simd_i32x8_cap_sret_a64.s"
+  local _os _mach oc leaf tmp
+  _os="$(uname -s 2>/dev/null || echo Unknown)"
+  _mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_os" != "Darwin" ] || [ "$_mach" != "arm64" ]; then
+    return 0
+  fi
+  if [ ! -s "$o" ] || [ ! -f "$asrc" ]; then
+    return 0
+  fi
+  if nm "$o" 2>/dev/null | grep -qE ' T _std_simd_shuffle_i32x8_i32_a8$' \
+    && nm "$o" 2>/dev/null | grep -qE ' T _std_simd_select_i32x8_i32x8_i32x8$' \
+    && nm "$o" 2>/dev/null | grep -qE '_std_simd_shuffle_i32x8_i32_a8_.*dead' \
+    && nm "$o" 2>/dev/null | grep -qE '_std_simd_select_i32x8_i32x8_i32x8_.*dead'; then
+    if [ ! "$asrc" -nt "$o" ]; then
+      log "skip Cap tip i32x8 sret overlay (already present)"
+      return 0
+    fi
+  fi
+  oc="${LLVM_OBJCOPY:-}"
+  if [ -z "$oc" ]; then
+    for c in /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
+      [ -x "$c" ] && oc=$c && break
+    done
+  fi
+  [ -n "$oc" ] || {
+    echo "ensure_host_cc_seed_o simd-i32x8-sret: need llvm-objcopy" >&2
+    return 1
+  }
+  # BSD mktemp: X's must be at end of template.
+  leaf="$(mktemp "${TMPDIR:-/tmp}/simd_i32x8_sret.XXXXXX")"
+  tmp="$(mktemp "${TMPDIR:-/tmp}/simd_i32x8_merge.XXXXXX")"
+  mv -f "$leaf" "${leaf}.o"
+  leaf="${leaf}.o"
+  mv -f "$tmp" "${tmp}.o"
+  tmp="${tmp}.o"
+  if ! as -o "$leaf" "$asrc"; then
+    rm -f "$leaf" "$tmp"
+    echo "ensure_host_cc_seed_o simd-i32x8-sret: as failed" >&2
+    return 1
+  fi
+  cp -f "$o" "$tmp"
+  # Unique dead names so a prior overlay's *_dead does not collide.
+  "$oc" --redefine-sym=_std_simd_shuffle_i32x8_i32_a8=_std_simd_shuffle_i32x8_i32_a8_formal_dead "$tmp" 2>/dev/null || true
+  "$oc" --redefine-sym=_std_simd_select_i32x8_i32x8_i32x8=_std_simd_select_i32x8_i32x8_i32x8_formal_dead "$tmp" 2>/dev/null || true
+  # If already overlaid once, live names may already be the leaf — demote those too
+  # under a second unique suffix before re-merging a fresher .s.
+  "$oc" --redefine-sym=_std_simd_shuffle_i32x8_i32_a8=_std_simd_shuffle_i32x8_i32_a8_old_sret_dead "$tmp" 2>/dev/null || true
+  "$oc" --redefine-sym=_std_simd_select_i32x8_i32x8_i32x8=_std_simd_select_i32x8_i32x8_i32x8_old_sret_dead "$tmp" 2>/dev/null || true
+  if ! ld -r -o "$o" "$tmp" "$leaf"; then
+    rm -f "$leaf" "$tmp"
+    echo "ensure_host_cc_seed_o simd-i32x8-sret: ld -r failed" >&2
+    return 1
+  fi
+  rm -f "$leaf" "$tmp"
+  if ! nm "$o" 2>/dev/null | grep -qE ' T _std_simd_shuffle_i32x8_i32_a8$'; then
+    echo "ensure_host_cc_seed_o simd-i32x8-sret: shuffle T missing" >&2
+    return 1
+  fi
+  if ! nm "$o" 2>/dev/null | grep -qE ' T _std_simd_select_i32x8_i32x8_i32x8$'; then
+    echo "ensure_host_cc_seed_o simd-i32x8-sret: select T missing" >&2
+    return 1
+  fi
+  log "overlay Cap tip i32x8 sret → $o"
+  return 0
+}
+
 ensure_std_simd_formal_darwin_pure() {
   local o="${1:-../std/simd/simd.o}"
   local xsrc="src/asm/std_simd_formal_darwin.x"
@@ -1539,14 +1613,18 @@ ensure_std_simd_formal_darwin_pure() {
     return 1
   fi
   if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
-    log "skip $o (up-to-date vs $xsrc)"
-    return 0
+    # Still overlay i32x8 sret (asm leaf may be newer than formal .x).
+    if overlay_std_simd_i32x8_cap_sret "$o"; then
+      log "skip $o (up-to-date vs $xsrc; sret overlay ok)"
+      return 0
+    fi
   fi
   mkdir -p "$(dirname "$o")"
   # Retry before eight-try. Darwin may then use C face. Linux fail-closed.
   # PLATFORM: MACOS|DARWIN arm64 | LINUX.
   if [ -f scripts/ensure_host_cc_seed_o.sh ] \
     && bash scripts/ensure_host_cc_seed_o.sh simd-formal-retry "$o"; then
+    overlay_std_simd_i32x8_cap_sret "$o" || return 1
     log "prefer simd formal ← pure-asm (记224)"
     return 0
   fi
@@ -1573,6 +1651,7 @@ ensure_std_simd_formal_darwin_pure() {
         rm -f "$o"
         continue
       fi
+      overlay_std_simd_i32x8_cap_sret "$o" || { rm -f "$o"; continue; }
       log "pure-asm $xsrc → $o"
       return 0
     fi
@@ -9029,6 +9108,11 @@ simd_formal_retry_pure() {
   if ! nm "$o" | grep -qE ' T _?std_simd_hsum$'; then rm -f "$o"; return 1; fi
   if ! nm "$o" | grep -qE ' T _?simd_hw_available_c$'; then rm -f "$o"; return 1; fi
   if ! nm -u "$o" | awk '{ s=$NF } s=="memcpy" || s=="_memcpy" { n++ } END { exit (n>=1)?0:1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  # knife256/10.2: Cap tip I32x8 sret overlay (Darwin arm64 only).
+  if ! overlay_std_simd_i32x8_cap_sret "$o"; then
     rm -f "$o"
     return 1
   fi

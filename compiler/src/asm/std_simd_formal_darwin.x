@@ -29,16 +29,20 @@ struct I32x8 {
   v7: i32;
 }
 
-function f32_store(p: *u8, v: f32): void {
-  let x: f32 = v;
+// Cap tip: f32 formals are passed/returned in GPRs by callers, but some
+// callees still read d0–d3. Keep lane/pack helpers on u32 bit patterns in
+// GPRs only (knife256/10.2 shuffle_select SEGV→wrong-lane root).
+// PLATFORM: MACOS Cap tip / SHARED formal.
+function f32_store_bits(p: *u8, bits: u32): void {
+  let x: u32 = bits;
   unsafe {
     let src: *u8 = &x as *u8;
     memcpy(p, src, 4);
   }
 }
 
-function f32_load(p: *u8): f32 {
-  let v: f32 = 0.0;
+function f32_load_bits(p: *u8): u32 {
+  let v: u32 = 0;
   unsafe {
     let dst: *u8 = &v as *u8;
     memcpy(dst, p, 4);
@@ -46,25 +50,47 @@ function f32_load(p: *u8): f32 {
   return v;
 }
 
-function f32x4_from_lanes(o: *F32x4, a: f32, b: f32, c: f32, d: f32): void {
+function f32_from_bits(bits: u32): f32 {
+  let out: f32 = 0.0;
+  let b: u32 = bits;
+  unsafe {
+    memcpy(&out as *u8, &b as *u8, 4);
+  }
+  return out;
+}
+
+function f32_to_bits(v: f32): u32 {
+  let b: u32 = 0;
+  let t: f32 = v;
+  unsafe {
+    memcpy(&b as *u8, &t as *u8, 4);
+  }
+  return b;
+}
+
+function f32x4_from_lanes(o: *F32x4, a: u32, b: u32, c: u32, d: u32): void {
   unsafe {
     let q: *u8 = o as *u8;
-    f32_store(q, a);
-    f32_store(q + 4, b);
-    f32_store(q + 8, c);
-    f32_store(q + 12, d);
+    f32_store_bits(q, a);
+    f32_store_bits(q + 4, b);
+    f32_store_bits(q + 8, c);
+    f32_store_bits(q + 12, d);
+  }
+}
+
+function f32x4_lane_bits(v: F32x4, i: i32): u32 {
+  let tmp: F32x4 = v;
+  unsafe {
+    let q: *u8 = &tmp as *u8;
+    if (i == 0) { return f32_load_bits(q); }
+    if (i == 1) { return f32_load_bits(q + 4); }
+    if (i == 2) { return f32_load_bits(q + 8); }
+    return f32_load_bits(q + 12);
   }
 }
 
 function f32x4_lane(v: F32x4, i: i32): f32 {
-  let tmp: F32x4 = v;
-  unsafe {
-    let q: *u8 = &tmp as *u8;
-    if (i == 0) { return f32_load(q); }
-    if (i == 1) { return f32_load(q + 4); }
-    if (i == 2) { return f32_load(q + 8); }
-    return f32_load(q + 12);
-  }
+  return f32_from_bits(f32x4_lane_bits(v, i));
 }
 
 function i32x8_get(v: I32x8, i: i32): i32 {
@@ -169,7 +195,8 @@ export function simd_recommend_path_c(): i32 {
 #[no_mangle]
 export function std_simd_splat_f32(x: f32): F32x4 {
   let r: F32x4 = { lo: 0, hi: 0 };
-  f32x4_from_lanes(&r, x, x, x, x);
+  let xb: u32 = f32_to_bits(x);
+  f32x4_from_lanes(&r, xb, xb, xb, xb);
   return r;
 }
 
@@ -187,8 +214,17 @@ export function std_simd_select_lane_i32_i32_i32(mask_lane: i32, a_lane: i32, b_
 
 #[no_mangle]
 export function std_simd_select_lane_f32_f32_f32(mask_lane: f32, a_lane: f32, b_lane: f32): f32 {
-  if (mask_lane != 0.0) { return a_lane; }
-  return b_lane;
+  // Cap tip passes f32 lanes in GPRs; compare via bits (knife256/10.2).
+  let mb: u32 = f32_to_bits(mask_lane);
+  let ab: u32 = f32_to_bits(a_lane);
+  let bb: u32 = f32_to_bits(b_lane);
+  if (mb != 0) { return f32_from_bits(ab); }
+  return f32_from_bits(bb);
+}
+
+function select_lane_f32_bits(mask_bits: u32, a_bits: u32, b_bits: u32): u32 {
+  if (mask_bits != 0) { return a_bits; }
+  return b_bits;
 }
 
 #[no_mangle]
@@ -200,10 +236,10 @@ export function std_simd_hsum(v: F32x4): f32 {
 export function std_simd_add_f32x4_f32x4(a: F32x4, b: F32x4): F32x4 {
   let r: F32x4 = { lo: 0, hi: 0 };
   f32x4_from_lanes(&r,
-    f32x4_lane(a, 0) + f32x4_lane(b, 0),
-    f32x4_lane(a, 1) + f32x4_lane(b, 1),
-    f32x4_lane(a, 2) + f32x4_lane(b, 2),
-    f32x4_lane(a, 3) + f32x4_lane(b, 3));
+    f32_to_bits(f32x4_lane(a, 0) + f32x4_lane(b, 0)),
+    f32_to_bits(f32x4_lane(a, 1) + f32x4_lane(b, 1)),
+    f32_to_bits(f32x4_lane(a, 2) + f32x4_lane(b, 2)),
+    f32_to_bits(f32x4_lane(a, 3) + f32x4_lane(b, 3)));
   return r;
 }
 
@@ -211,10 +247,10 @@ export function std_simd_add_f32x4_f32x4(a: F32x4, b: F32x4): F32x4 {
 export function std_simd_sub_f32x4_f32x4(a: F32x4, b: F32x4): F32x4 {
   let r: F32x4 = { lo: 0, hi: 0 };
   f32x4_from_lanes(&r,
-    f32x4_lane(a, 0) - f32x4_lane(b, 0),
-    f32x4_lane(a, 1) - f32x4_lane(b, 1),
-    f32x4_lane(a, 2) - f32x4_lane(b, 2),
-    f32x4_lane(a, 3) - f32x4_lane(b, 3));
+    f32_to_bits(f32x4_lane(a, 0) - f32x4_lane(b, 0)),
+    f32_to_bits(f32x4_lane(a, 1) - f32x4_lane(b, 1)),
+    f32_to_bits(f32x4_lane(a, 2) - f32x4_lane(b, 2)),
+    f32_to_bits(f32x4_lane(a, 3) - f32x4_lane(b, 3)));
   return r;
 }
 
@@ -222,10 +258,10 @@ export function std_simd_sub_f32x4_f32x4(a: F32x4, b: F32x4): F32x4 {
 export function std_simd_mul_f32x4_f32x4(a: F32x4, b: F32x4): F32x4 {
   let r: F32x4 = { lo: 0, hi: 0 };
   f32x4_from_lanes(&r,
-    f32x4_lane(a, 0) * f32x4_lane(b, 0),
-    f32x4_lane(a, 1) * f32x4_lane(b, 1),
-    f32x4_lane(a, 2) * f32x4_lane(b, 2),
-    f32x4_lane(a, 3) * f32x4_lane(b, 3));
+    f32_to_bits(f32x4_lane(a, 0) * f32x4_lane(b, 0)),
+    f32_to_bits(f32x4_lane(a, 1) * f32x4_lane(b, 1)),
+    f32_to_bits(f32x4_lane(a, 2) * f32x4_lane(b, 2)),
+    f32_to_bits(f32x4_lane(a, 3) * f32x4_lane(b, 3)));
   return r;
 }
 
@@ -238,10 +274,10 @@ export function std_simd_dot(a: F32x4, b: F32x4): f32 {
 export function std_simd_fma(a: F32x4, b: F32x4, c: F32x4): F32x4 {
   let r: F32x4 = { lo: 0, hi: 0 };
   f32x4_from_lanes(&r,
-    f32x4_lane(a, 0) + f32x4_lane(b, 0) * f32x4_lane(c, 0),
-    f32x4_lane(a, 1) + f32x4_lane(b, 1) * f32x4_lane(c, 1),
-    f32x4_lane(a, 2) + f32x4_lane(b, 2) * f32x4_lane(c, 2),
-    f32x4_lane(a, 3) + f32x4_lane(b, 3) * f32x4_lane(c, 3));
+    f32_to_bits(f32x4_lane(a, 0) + f32x4_lane(b, 0) * f32x4_lane(c, 0)),
+    f32_to_bits(f32x4_lane(a, 1) + f32x4_lane(b, 1) * f32x4_lane(c, 1)),
+    f32_to_bits(f32x4_lane(a, 2) + f32x4_lane(b, 2) * f32x4_lane(c, 2)),
+    f32_to_bits(f32x4_lane(a, 3) + f32x4_lane(b, 3) * f32x4_lane(c, 3)));
   return r;
 }
 
@@ -292,10 +328,10 @@ export function std_simd_select_i32x8_i32x8_i32x8(mask: I32x8, a: I32x8, b: I32x
 export function std_simd_select_f32x4_f32x4_f32x4(mask: F32x4, a: F32x4, b: F32x4): F32x4 {
   let r: F32x4 = { lo: 0, hi: 0 };
   f32x4_from_lanes(&r,
-    std_simd_select_lane_f32_f32_f32(f32x4_lane(mask, 0), f32x4_lane(a, 0), f32x4_lane(b, 0)),
-    std_simd_select_lane_f32_f32_f32(f32x4_lane(mask, 1), f32x4_lane(a, 1), f32x4_lane(b, 1)),
-    std_simd_select_lane_f32_f32_f32(f32x4_lane(mask, 2), f32x4_lane(a, 2), f32x4_lane(b, 2)),
-    std_simd_select_lane_f32_f32_f32(f32x4_lane(mask, 3), f32x4_lane(a, 3), f32x4_lane(b, 3)));
+    select_lane_f32_bits(f32x4_lane_bits(mask, 0), f32x4_lane_bits(a, 0), f32x4_lane_bits(b, 0)),
+    select_lane_f32_bits(f32x4_lane_bits(mask, 1), f32x4_lane_bits(a, 1), f32x4_lane_bits(b, 1)),
+    select_lane_f32_bits(f32x4_lane_bits(mask, 2), f32x4_lane_bits(a, 2), f32x4_lane_bits(b, 2)),
+    select_lane_f32_bits(f32x4_lane_bits(mask, 3), f32x4_lane_bits(a, 3), f32x4_lane_bits(b, 3)));
   return r;
 }
 
@@ -315,10 +351,10 @@ export function std_simd_shuffle_f32x4_i32_a4(v: F32x4, mask: *i32): F32x4 {
   }
   let r: F32x4 = { lo: 0, hi: 0 };
   f32x4_from_lanes(&r,
-    f32x4_lane(v, i0 & 3),
-    f32x4_lane(v, i1 & 3),
-    f32x4_lane(v, i2 & 3),
-    f32x4_lane(v, i3 & 3));
+    f32x4_lane_bits(v, i0 & 3),
+    f32x4_lane_bits(v, i1 & 3),
+    f32x4_lane_bits(v, i2 & 3),
+    f32x4_lane_bits(v, i3 & 3));
   return r;
 }
 

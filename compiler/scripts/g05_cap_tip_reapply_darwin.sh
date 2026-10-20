@@ -1252,6 +1252,12 @@ _cap_tip_fill_missing_objs() {
     if [ -d "$CACHE/pabi" ]; then
       cp -f "$CACHE/pabi"/*.o build_asm/selfhost_pabi/ 2>/dev/null || true
     fi
+    # knife256/10.2: F32x4 dual-GP — CACHE/pabi may hold pre-F32x4 dual_gp;
+    # always re-assert dual_gp_new after bulk stomp (mirrors product_l4 step6b).
+    if [ -f "$CACHE/dual_gp_new.o" ]; then
+      cp -f "$CACHE/dual_gp_new.o" build_asm/selfhost_pabi/dual_gp_byte_size_a64.o
+      echo "g05_cap_tip_reapply: re-asserted dual_gp_new after pabi stomp" >&2
+    fi
   fi
   # out.o|src.x pairs for Cap tip overlays commonly wiped
   while IFS='|' read -r o src; do

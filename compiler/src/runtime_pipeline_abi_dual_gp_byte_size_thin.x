@@ -107,6 +107,22 @@ export function glue_sysv_dual_gp_byte_size_c(arena: *u8, ty_ref: i32): i32 {
       return 16;
     }
   }
+  // F32x4 (5) — INTEGER dual-GP {lo,hi} u64; Cap tip size_simple soft 8 made
+  // shuffle/select callee home mask in x1 (v.hi lost) → SEGV on mask[0].
+  // PLATFORM: SHARED — std_simd_formal_darwin / run-std-simd-shuffle-select.
+  if (bl == 5) {
+    if (name[base_off] == 70 && name[base_off + 1] == 51 && name[base_off + 2] == 50 &&
+        name[base_off + 3] == 120 && name[base_off + 4] == 52) {
+      return 16;
+    }
+  }
+  // Vec4f (5) — same 16B INTEGER class when named (user std.simd / smoke).
+  if (bl == 5) {
+    if (name[base_off] == 86 && name[base_off + 1] == 101 && name[base_off + 2] == 99 &&
+        name[base_off + 3] == 52 && name[base_off + 4] == 102) {
+      return 16;
+    }
+  }
   // Option_ptr_u8 (13) — bool + *u8 = 16B; Cap tip hollow NAMED was size_simple 8
   // and dropped x1 on some_ptr/map/expect (option L2 run -16). PLATFORM: SHARED.
   if (bl == 13) {
