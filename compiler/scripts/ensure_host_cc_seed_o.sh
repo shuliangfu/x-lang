@@ -10109,6 +10109,7 @@ run_compiler_parsed_darwin_pure() {
   # Seed is 记253 hollow (no T). Prefer product, then bootstrap.
   # 记743i: tip-cold try-r1 may leave a hollow/partial ./xlang that exists but
   # cannot emit 69 T; try each candidate until one lands 69 T + contract faces.
+  # 记743l: also try seeds/bootstrap_xlangc.<os>.<arch> pin-egg after products.
   # PLATFORM: SHARED Darwin arm64 + Linux x86_64.
   if [ -z "$o" ] || [ ! -f "$xsrc" ]; then
     return 1
@@ -10118,6 +10119,16 @@ run_compiler_parsed_darwin_pure() {
   [ -x ./xlang ] && _rcp_xls="$_rcp_xls ./xlang"
   [ -x ./bootstrap_xlangc ] && _rcp_xls="$_rcp_xls ./bootstrap_xlangc"
   [ -x ./xlang-c ] && _rcp_xls="$_rcp_xls ./xlang-c"
+  # 记743l: after tip link, cwd products may all be the same SEGV tip;
+  # archived pin-egg still emits 69 T (same authority as note743k lexer).
+  _rcp_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
+  _rcp_arch="$(uname -m 2>/dev/null)"
+  case "$_rcp_os" in darwin) _rcp_os=darwin ;; linux) _rcp_os=linux ;; *) _rcp_os="" ;; esac
+  case "$_rcp_arch" in x86_64|amd64) _rcp_arch=x86_64 ;; arm64|aarch64) _rcp_arch=arm64 ;; *) _rcp_arch="" ;; esac
+  if [ -n "$_rcp_os" ] && [ -n "$_rcp_arch" ]; then
+    _rcp_egg="seeds/bootstrap_xlangc.${_rcp_os}.${_rcp_arch}"
+    [ -x "$_rcp_egg" ] && _rcp_xls="$_rcp_xls $_rcp_egg"
+  fi
   if [ -z "$_rcp_xls" ]; then
     return 1
   fi
@@ -10150,6 +10161,7 @@ run_compiler_parsed_darwin_pure() {
     done
     if [ "$_rcp_faces_ok" = "1" ]; then
       _rcp_ok_xl=1
+      echo "run_compiler_parsed_darwin_pure: OK via $xl (note743l multi-xl+pin-egg)" >&2
       break
     fi
     rm -f "$o"
