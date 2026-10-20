@@ -203,11 +203,13 @@ ensure_xlang_c() {
 }
 
 run_with_timeout() {
-  # $@ = command; uses timeout(1) when present
+  # $@ = command; uses timeout(1) when present.
+  # knife256/10.2: do NOT `|| true` — that masked Cap tip SEGV (139) on tip -E
+  # and let parser_run_tip_e treat a failed -E as success when $out was large.
   if command -v timeout >/dev/null 2>&1; then
-    timeout "$XLANG_PARSER_GEN_TIMEOUT" "$@" || true
+    timeout "$XLANG_PARSER_GEN_TIMEOUT" "$@"
   else
-    "$@" || true
+    "$@"
   fi
 }
 
@@ -501,15 +503,17 @@ ensure_typeck_gen() {
     fi
   fi
 
-  # Optional: if local is pre-wave322 bare pin without assemble banner, and
-  # FROM_X=1, refresh from archaeology seed only when seed is newer AND we
-  # did not just assemble (post-pull dual-end). Does NOT re-assert pin authority
-  # over typeck.x — seed is a snapshot of last good assemble.
-  if [ "$did_assemble" != "1" ] && [ "$XLANG_TYPECK_ALLOW_PIN" = "1" ]; then
+  # Optional: if local fails product contract, refresh from archaeology seed.
+  # knife256/10.2 note739: ALSO when tip assemble succeeded but contract failed
+  # (tip -E can emit extern-only faces e.g. typeck_match_subject_field_type;
+  # Oct-12+ seed has bodies + note738 copy+name_equal peel). Prior gate only
+  # refreshed when did_assemble!=1, so tip-cold L4 exited 1 with no typeck_x.o.
+  # Does NOT re-assert pin authority over a contract-ok tip assemble.
+  if [ "$XLANG_TYPECK_ALLOW_PIN" = "1" ]; then
     if ! typeck_gen_contract_ok typeck_gen.c; then
       if seed_ok "$seed" && typeck_gen_contract_ok "$seed"; then
         cp -f "$seed" typeck_gen.c
-        log "typeck_gen.c: local failed contract → archaeology seed"
+        log "typeck_gen.c: failed contract → archaeology seed (note739; peel note738)"
       fi
     fi
   fi
