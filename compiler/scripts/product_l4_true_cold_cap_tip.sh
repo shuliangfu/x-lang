@@ -64,6 +64,12 @@ restore_cap_tip_idle_if_needed() {
 trap 'restore_cap_tip_idle_if_needed' EXIT
 
 WALL_START="$(date +%s)"
+# knife256 / 10.2: ambient XLANG_PREFER_ASM_O=1 skips divisor-zero panic in
+# pipeline_asm_emit_divisor_zero_check_rbx_elf_c → ARM64 ub div_zero exit 0.
+# Prefer-family / g05 set it only in scoped subshells. Scrub for Cap tip L4
+# user -o / bstrict (same contract as product_l4_true_cold.sh).
+# PLATFORM: SHARED — Darwin Cap tip L4 / ARM64 sdiv#0.
+unset XLANG_PREFER_ASM_O
 log "product_l4_true_cold_cap_tip START SHA=$SHA host=$HOST mode=$MODE log=$LOG"
 
 case "$HOST" in
@@ -378,6 +384,8 @@ if [ "$MODE" = "no-bstrict" ]; then
 fi
 
 # --- 8) bstrict 129 ---
+# Re-scrub: ambient or earlier steps must not leave PREFER_ASM_O=1 into user -o.
+unset XLANG_PREFER_ASM_O
 log "step8: run-all-bstrict (SKIP_BUILD=1)"
 set +e
 XLANG_BSTRICT_SKIP_BUILD=1 \

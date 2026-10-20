@@ -19,6 +19,13 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/gate-progress.sh
 . tests/lib/gate-progress.sh
 
+# knife256 / 10.2: ambient XLANG_PREFER_ASM_O=1 makes divisor-zero check a
+# no-op (prefer-asm compiler leaves). User product -o must panic on /0
+# (ARM64 sdiv#0 → exit 0 without the check). Scrub for this harness only.
+# Prefer-family builds set PREFER in their own env= prefixes.
+# PLATFORM: SHARED — Darwin Cap tip L4 / run-ub hard green.
+unset XLANG_PREFER_ASM_O
+
 PREFIX="${XLANG_UB_PREFIX:-xlang: [XLANG_UB]}"
 XLANG_CASE_TIMEOUT="${XLANG_CASE_TIMEOUT:-90}"
 XLANG_RUN_TIMEOUT="${XLANG_UB_RUN_TIMEOUT:-10}"
