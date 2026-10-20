@@ -138,15 +138,15 @@ if [ -z "$SEED_LINK_OUT" ] || [ -z "$SEED_LINK_OBJS" ]; then
   echo "$export_raw" >&2
 fi
 
-# knife256 / 10.2: Darwin phase1/final hollow-fill objs first-win over pabi U.
-# Manifest from darwin_phase1_hollow_fill.sh (egg thins + m8 return-0 stubs).
-# PLATFORM: MACOS tip cold after 9.1 hollow.
+# knife256 / 10.2: phase1/final hollow-fill objs first-win over pabi U.
+# Manifest from darwin_ or linux_phase1_hollow_fill.sh.
+# PLATFORM: SHARED — Darwin arm64 + Linux x86_64 tip cold after wipe.
 _HOLLOW_MANIFEST=build_asm/selfhost_pabi/phase1_hollow_fill_objs.txt
 if [ -s "$_HOLLOW_MANIFEST" ]; then
   _hollow_objs=$(tr '\n' ' ' <"$_HOLLOW_MANIFEST" | sed 's/[[:space:]]*$//')
   if [ -n "$_hollow_objs" ]; then
     SEED_LINK_OBJS="$_hollow_objs $SEED_LINK_OBJS"
-    note "Darwin hollow-fill prepended ($(printf '%s\n' $_hollow_objs | wc -w | tr -d ' ') objs)"
+    note "phase1 hollow-fill prepended ($(printf '%s\n' $_hollow_objs | wc -w | tr -d ' ') objs)"
   fi
 fi
 
