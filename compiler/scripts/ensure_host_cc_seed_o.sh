@@ -26671,6 +26671,39 @@ pipeline_abi_inject_cap_residual_egg_thins() {
       log "pipeline_abi egg: WARN redefine-sym demote failed"
     fi
   fi
+  # knife256/10.2 note743: Cap residual egg thins tip-emit module-stripped
+  # names (lane_operand_emit_let_block_chain / vlet_f32_fill_lane / …) while
+  # mega and peer thins U the prefixed contract names. Remap short→long when
+  # long is still undefined so phase1 pure-ld resolves. PLATFORM: SHARED
+  # (GNU/LLVM objcopy --redefine-sym). No FORCE_CC / no new host-cc .c.
+  if [ -n "$_oc" ]; then
+    while read -r _short _long; do
+      [ -n "$_short" ] || continue
+      nm -gU "$o" 2>/dev/null | grep -Eq " T _?${_short}$" || continue
+      nm -gU "$o" 2>/dev/null | grep -Eq " T _?${_long}$" && continue
+      nm "$o" 2>/dev/null | grep -Eq " U _?${_long}$" || continue
+      if "$_oc" --redefine-sym "${_short}=${_long}" "$o" 2>/dev/null \
+        || "$_oc" --redefine-sym "_${_short}=_${_long}" "$o" 2>/dev/null; then
+        log "pipeline_abi egg: note743 alias ${_short} → ${_long}"
+      else
+        log "pipeline_abi egg: WARN note743 redefine ${_short}→${_long} failed"
+      fi
+    done <<'NOTE743_MAP'
+lane_operand_emit_let_block_chain pipeline_lane_operand_emit_let_block_chain
+lane_shr_is_arith pipeline_lane_shr_is_arith
+vlet_f32_fill_lane vector_let_init_array_lit_a64_vlet_f32_fill_lane
+vlet_wide_elem pabi_vector_let_init_nested_one_vlet_wide_elem
+NOTE743_MAP
+    # Same .o can still list U long beside T long until a relocatable re-link.
+    _r_tmp=$(mktemp "${TMPDIR:-/tmp}/pabi_note743.XXXXXX.o")
+    if ld -r -o "$_r_tmp" "$o" 2>/dev/null && [ -s "$_r_tmp" ]; then
+      mv -f "$_r_tmp" "$o"
+      log "pipeline_abi egg: note743 ld -r bind short→long aliases"
+    else
+      rm -f "$_r_tmp"
+      log "pipeline_abi egg: WARN note743 ld -r bind failed"
+    fi
+  fi
   return 0
 }
 
