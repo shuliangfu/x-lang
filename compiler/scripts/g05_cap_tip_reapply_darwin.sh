@@ -1278,6 +1278,7 @@ _cap_tip_fill_missing_objs() {
 build_asm/selfhost_pabi/simd_at_call_a64.o|src/asm/simd_at_call_inline_a64.x
 build_asm/selfhost_pabi/arg_byte_size_a64.o|src/runtime_pipeline_abi_arg_byte_size_thin.x
 build_asm/selfhost_pabi/index_eff_addr_scaled_a64.o|src/runtime_pipeline_abi_index_eff_addr_scaled_thin.x
+build_asm/selfhost_pabi/index_bounds_guard_a64.o|src/runtime_pipeline_abi_index_bounds_guard_thin.x
 build_asm/selfhost_pabi/parser_asm_struct_dup_field_soft.o|src/asm/parser_asm_struct_dup_field_soft.x
 build_asm/selfhost_pabi/pthin_imports_a64.o|src/asm/pthin_imports.x
 src/asm/pthin_stretch.o|src/asm/pthin_stretch.x

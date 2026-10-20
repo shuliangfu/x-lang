@@ -1,10 +1,13 @@
 // Cap tip: real glue_emit_index_eff_addr_scaled_elf_c (m8 stub was hollow mov0/ret).
-// Matches product leftover body: base_elf → (int lit add | push/emit idx/scale).
+// Matches product leftover body: bounds_guard → base_elf → (lit add | push/idx/scale).
 // knife256/10.2: Option_ptr bp[0] after dual_gp pair store SEGV'd because
 // emit_index assumed addr already in x0. PLATFORM: SHARED · MACOS Cap tip.
 
 export extern function glue_emit_index_eff_addr_base_elf_c(
     arena: *u8, elf_ctx: *u8, ix_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function glue_emit_index_bounds_guard_elf_c(
+    arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32,
+    ix_ref: i32, base_ref: i32, idx_ref: i32): i32;
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_int_val_at(arena: *u8, expr_ref: i32): i32;
 export extern function backend_enc_push_rax_arch(elf_ctx: *u8, ta: i32): i32;
@@ -41,6 +44,14 @@ export function glue_emit_index_eff_addr_scaled_elf_c(
     return 0 - 1;
   }
   if (ix_ref < 1 || base_ref < 1 || idx_ref < 1) {
+    return 0 - 1;
+  }
+  // knife256/10.2: slice/lit OOB must panic before address (Cap tip leftover gap).
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, glue_emit_index_bounds_guard_elf_c(
+        arena, elf_ctx, ctx, ta, ix_ref, base_ref, idx_ref));
+  }
+  if (idx_scaled_cell_i32(&cell[0]) != 0) {
     return 0 - 1;
   }
   unsafe {
