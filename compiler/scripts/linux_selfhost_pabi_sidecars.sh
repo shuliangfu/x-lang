@@ -312,12 +312,40 @@ if objdump -r "$OUT/modlet.o" | grep -q 'xlang_panic_'; then
 fi
 
 # nm from compiler/ — the object with the assign and spill bytes.
-_base_addr=$(nm src/runtime_pipeline_abi.o | awk '$3=="glue_try_index_var_or_field_base_to_rbx_elf_c"{print $1; exit}')
-if [ -z "$_base_addr" ]; then
-  echo "linux_selfhost_pabi_sidecars: index base symbol missing" >&2
-  exit 1
-fi
+# note743r / note743f: tip peel may leave glue_try_index_*_rbx as U-only
+# (no address). Require T/W; if missing, synthesize the historical egg
+# face (ret -2), ld -r into the alias, then add _rest. No host-cc .c.
+# PLATFORM: LINUX x86_64.
+_base_addr=$(nm src/runtime_pipeline_abi.o | awk '$2 ~ /^[TtWw]$/ && $3=="glue_try_index_var_or_field_base_to_rbx_elf_c"{print $1; found=1} END{exit 0}')
+_base_addr=$(printf '%s\n' "$_base_addr" | head -n1)
 cp -f src/runtime_pipeline_abi.o "$OUT/pabi_alias.o"
+if [ -z "$_base_addr" ]; then
+  _egg_s="$OUT/index_base_rbx_egg_stub.s"
+  _egg_o="$OUT/index_base_rbx_egg_stub.o"
+  cat > "$_egg_s" <<'EOF'
+.globl glue_try_index_var_or_field_base_to_rbx_elf_c
+.type glue_try_index_var_or_field_base_to_rbx_elf_c, @function
+glue_try_index_var_or_field_base_to_rbx_elf_c:
+    movl $0xfffffffe, %eax
+    ret
+.size glue_try_index_var_or_field_base_to_rbx_elf_c, .-glue_try_index_var_or_field_base_to_rbx_elf_c
+EOF
+  if ! as --64 -o "$_egg_o" "$_egg_s"; then
+    echo "linux_selfhost_pabi_sidecars: index base egg stub assemble failed" >&2
+    exit 1
+  fi
+  if ! ld -r -o "$OUT/pabi_alias.o" src/runtime_pipeline_abi.o "$_egg_o"; then
+    echo "linux_selfhost_pabi_sidecars: ld -r tip+egg stub failed" >&2
+    exit 1
+  fi
+  _base_addr=$(nm "$OUT/pabi_alias.o" | awk '$2 ~ /^[TtWw]$/ && $3=="glue_try_index_var_or_field_base_to_rbx_elf_c"{print $1; found=1} END{exit 0}')
+  _base_addr=$(printf '%s\n' "$_base_addr" | head -n1)
+  if [ -z "$_base_addr" ]; then
+    echo "linux_selfhost_pabi_sidecars: index base symbol missing after egg stub" >&2
+    exit 1
+  fi
+  echo "linux_selfhost_pabi_sidecars: tip U-only index base; synthesized egg (note743r)" >&2
+fi
 objcopy --add-symbol "glue_try_index_var_or_field_base_to_rbx_elf_rest=.text:0x${_base_addr},global,function" "$OUT/pabi_alias.o"
 # The source object is not modified. The alias is an extra name for the
 # same text so the new strong body can call it.
