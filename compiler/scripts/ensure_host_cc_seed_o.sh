@@ -26662,6 +26662,15 @@ pipeline_abi_inject_cap_residual_egg_thins() {
   if [ -z "$_oc" ] && command -v llvm-objcopy >/dev/null 2>&1; then
     _oc=$(command -v llvm-objcopy)
   fi
+  # note743b: Ubuntu tip-cold has GNU binutils objcopy, not llvm-objcopy.
+  # Without this, short→long alias never runs and phase1 keeps 4 UNDEFs.
+  # PLATFORM: SHARED.
+  if [ -z "$_oc" ] && command -v objcopy >/dev/null 2>&1; then
+    _oc=$(command -v objcopy)
+  fi
+  if [ -z "$_oc" ] && command -v x86_64-linux-gnu-objcopy >/dev/null 2>&1; then
+    _oc=$(command -v x86_64-linux-gnu-objcopy)
+  fi
   if [ -n "$_oc" ] \
     && nm -gU "$o" 2>/dev/null | grep -q ' T _glue_field_access_call_base_rvalue_elf_c$' \
     && ! nm -gU "$o" 2>/dev/null | grep -q ' T _glue_field_access_call_base_rvalue_elf_c__demoted$'; then
