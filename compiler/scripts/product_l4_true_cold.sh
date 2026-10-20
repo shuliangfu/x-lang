@@ -77,6 +77,17 @@ cd "$ROOT"
 _l4_restore_tip_aside() {
   local aside="${XLANG_L4_TIP_ASIDE:-}"
   local cand=""
+  # knife256/10.2 note737: Linux tip-cold must NOT revive pre_l4_aside*
+  # (Oct-19 asides hollow typeck; g05 fail left aside as bstrict product).
+  # Darwin Cap tip opts in via XLANG_L4_TIP_ASIDE=dir.
+  case "$(uname -s 2>/dev/null)" in
+    Linux)
+      if [ -z "$aside" ]; then
+        log "step2b: skip tip aside restore on Linux tip-cold (no XLANG_L4_TIP_ASIDE)"
+        return 0
+      fi
+      ;;
+  esac
   if [ -n "$aside" ] && [ -x "$aside/xlang" ]; then
     cand="$aside/xlang"
   elif [ -x "$COMPILER_DIR/xlang.pre_l4_aside_c445bc042" ]; then
@@ -363,16 +374,29 @@ _l4_step_end
 # --- 6) g05 product relink + sync xlang_asm ---
 _l4_step_begin "6_g05_relink"
 log "step6: g05_prepare_and_relink --sync"
+set +e
+set -o pipefail
 (
   cd compiler
   # FULL=0 is historic skill env; prepare script uses --sync default.
   FULL="${FULL:-0}" bash scripts/g05_prepare_and_relink.sh --sync
 ) 2>&1 | tee -a "$LOG"
+_g05_rc=$?
+set +o pipefail
+set -e
+if [ "$_g05_rc" -ne 0 ]; then
+  fail "g05_prepare_and_relink exited $_g05_rc"
+fi
 if [ ! -x compiler/xlang_asm ]; then
   fail "xlang_asm missing after g05_prepare_and_relink"
 fi
 if [ ! -x compiler/xlang ]; then
   fail "xlang missing after g05_prepare_and_relink"
+fi
+# knife256/10.2 note737: refuse bstrict on revived pre_l4_aside binary.
+if cmp -s compiler/xlang_asm compiler/xlang.pre_l4_aside_c445bc042 2>/dev/null \
+  || cmp -s compiler/xlang_asm compiler/xlang.pre_l4_aside 2>/dev/null; then
+  fail "xlang_asm still matches pre_l4_aside after g05 (stale tip aside)"
 fi
 # Prefer absolute XLANG for clear logs
 XLANG_ABS="$(CDPATH= cd -- "$ROOT/compiler" && pwd)/xlang_asm"
