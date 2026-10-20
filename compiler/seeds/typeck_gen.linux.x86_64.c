@@ -2571,19 +2571,21 @@ int32_t typeck_resolve_type_alias_ref_local(struct ast_Module * module, struct a
     while ((alias_i < alias_count)) {
       (void)((alias_name_len = pipeline_module_type_alias_name_len(module, alias_i)));
       if ((((alias_name_len ==type_name_len) && (alias_name_len > 0)) && (alias_name_len <=255))) {
+        /* knife256/10.2 note738: copy then typeck_name_equal (match tip typeck.x;
+         * tip pure-asm / old byte_at vs type_name[i] clobbers call-result). */
+        uint8_t alias_name[256] = {};
         (void)((alias_off = 0));
         while ((alias_off < alias_name_len)) {
-          if ((pipeline_module_type_alias_name_byte_at(module, alias_i, alias_off) !=(type_name)[alias_off])) {
-            break;
-          }
+          (alias_name)[alias_off] = pipeline_module_type_alias_name_byte_at(module, alias_i, alias_off);
           (void)((alias_off = (alias_off + 1)));
         }
-        ((alias_off ==alias_name_len) ? ({   (void)((alias_target_ref = pipeline_module_type_alias_target_ref(module, alias_i)));
-  if (ast_ref_is_null(alias_target_ref)) {
-    return type_ref;
-  }
-  return typeck_resolve_type_alias_ref_local(module, arena, alias_target_ref, (depth + 1));
- }) : 0);
+        if (typeck_name_equal(&((alias_name)[0]), alias_name_len, &((type_name)[0]), type_name_len)) {
+          (void)((alias_target_ref = pipeline_module_type_alias_target_ref(module, alias_i)));
+          if (ast_ref_is_null(alias_target_ref)) {
+            return type_ref;
+          }
+          return typeck_resolve_type_alias_ref_local(module, arena, alias_target_ref, (depth + 1));
+        }
       }
       (void)((alias_i = (alias_i + 1)));
     }

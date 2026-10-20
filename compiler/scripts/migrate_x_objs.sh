@@ -269,6 +269,15 @@ _try_frontend_track_l_cold_seed() {
 }
 
 build_parser() {
+  # w1633 Cap tip L4: pure-asm via ensure_gen_x_o (LEGACY heat tip can emit;
+  # Cap tip tip SEGV on parser.x). Prefer before archaeology host-cc of parser_gen.c.
+  if [ -f scripts/ensure_gen_x_o.sh ]; then
+    if bash scripts/ensure_gen_x_o.sh parser_x.o; then
+      log "parser_x.o <- ensure_gen_x_o pure-asm (w1633)"
+      return 0
+    fi
+    log "parser_x.o: ensure_gen pure-asm failed; try migrate gen/cc archaeology"
+  fi
   if want_ensure_gen parser parser_gen.c seeds/parser_gen.linux.x86_64.c; then
     ensure_gen_via_shell parser
   fi
@@ -321,7 +330,12 @@ build_typeck() {
     cp -f typeck_x.o "$_typeck_bak"
   fi
   # knife 254 / 9.2: Track L cold seed opt-in only (default off; not pin-first)
-  if _try_frontend_track_l_cold_seed typeck_x.o "seeds/typeck_gen.linux.x86_64.c"; then
+  # knife256/10.2 note738: refuse archaeology typeck seed without copy+name_equal peel
+  # (Oct-12 pin still byte_at vs type_name[i] → Linux tip-cold type_alias XT001).
+  if [ -f seeds/typeck_gen.linux.x86_64.c ] \
+    && ! grep -q "knife256/10.2 note738: copy then typeck_name_equal" seeds/typeck_gen.linux.x86_64.c 2>/dev/null; then
+    log "typeck_x.o: skip Track L cold seed (seed peel missing note738 name_equal)"
+  elif _try_frontend_track_l_cold_seed typeck_x.o "seeds/typeck_gen.linux.x86_64.c"; then
     # PLATFORM: WINDOWS leftover PE — Track L cc of CURRENT typeck pin
     # succeeds, then bootstrap-driver-seed UNDEFs glue leftover pabi hybrid
     # does not define (harvest unique 58 @ e7d52c04f). Keep bak so a later
