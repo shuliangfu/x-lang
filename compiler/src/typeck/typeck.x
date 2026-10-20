@@ -1474,7 +1474,13 @@ export function typeck_resolve_type_alias_ref_local(module: *Module, arena: *AST
       if (alias_name_len == type_name_len && alias_name_len > 0 && alias_name_len <= 255) {
         alias_off = 0;
         while (alias_off < alias_name_len) {
-          if (pipeline_module_type_alias_name_byte_at(module, alias_i, alias_off) != type_name[alias_off]) {
+          /* knife256/10.2: keep both bytes in i32 locals before !=.
+           * Tip pure-asm codegen clobbered the alias byte in rbx with alias_off
+           * when the compare was a direct call-result vs type_name[i] (Linux
+           * tip-cold type_alias Coord vs i32 XT001). */
+          let ab: i32 = pipeline_module_type_alias_name_byte_at(module, alias_i, alias_off) as i32;
+          let tb: i32 = type_name[alias_off] as i32;
+          if (ab != tb) {
             break;
           }
           alias_off = alias_off + 1;
@@ -3029,13 +3035,67 @@ field_name: *u8, field_name_len: i32): i32 {
   }
 }
 
-/* See implementation. */
+/**
+ * Last struct-layout index that supplied a field type.
+ * Index 0 is a real layout, so g_field_ty_cursor_live is the validity bit.
+ * A nested literal's child struct is declared immediately before the parent,
+ * so the next lookup tries this index and the one before it. A hit still
+ * requires the layout name and the field name to match, which is the layout
+ * a scan from index 0 returns when each struct name occurs once. A miss
+ * falls through to that scan and does not change its order.
+ * Lives for one compiler process. PLATFORM: SHARED.
+ */
+let g_field_ty_cursor: i32 = 0;
+let g_field_ty_cursor_live: i32 = 0;
+
+/**
+ * Field type_ref of a named struct layout.
+ * Scans layouts from index 0 and returns the first field whose struct name
+ * and field name match. Before that scan, tries the previous hit and the
+ * layout declared immediately before it (see g_field_ty_cursor).
+ * @param module *Module — struct_layouts owner
+ * @param type_name *u8 — struct name bytes
+ * @param type_name_len i32 — name length; <=0 misses
+ * @param field_name *u8 — field name bytes
+ * @param field_name_len i32 — field name length; <=0 misses
+ * @return i32 — field type_ref, or 0 when no layout field matches
+ * PLATFORM: SHARED.
+ */
 export function get_field_type_ref_from_layout(module: *Module, type_name: *u8, type_name_len: i32,
 field_name: *u8, field_name_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let k: i32 = 0;
     let nsl: i32 = pipeline_module_num_struct_layouts_at(module);
+    let hint_i: i32 = 0;
+    let hk: i32 = 0;
+    /* Two probes, then the original scan. hint 0 is the last hit (another
+     * field of the same struct). hint 1 is the layout declared just before
+     * it (the child of a nested literal). PLATFORM: SHARED. */
+    if (g_field_ty_cursor_live != 0) {
+      hint_i = 0;
+      while (hint_i < 2) {
+        hk = g_field_ty_cursor;
+        if (hint_i == 1) {
+          hk = hk - 1;
+        }
+        if (hk >= 0 && hk < nsl) {
+          if (typeck_layout_name_equal(module, hk, type_name, type_name_len)) {
+            let hj: i32 = 0;
+            let hn: i32 = pipeline_module_struct_layout_num_fields(module, hk);
+            while (hj < hn) {
+              if (typeck_layout_field_name_equal(module, hk, hj, field_name, field_name_len)) {
+                g_field_ty_cursor = hk;
+                g_field_ty_cursor_live = 1;
+                return pipeline_module_struct_layout_field_type_ref(module, hk, hj);
+              }
+              hj = hj + 1;
+            }
+          }
+        }
+        hint_i = hint_i + 1;
+      }
+    }
     while (k < nsl) {
       if (typeck_layout_name_equal(module, k, type_name, type_name_len)) {
         let j: i32 = 0;
@@ -3043,6 +3103,8 @@ field_name: *u8, field_name_len: i32): i32 {
         let nfields_ty: i32 = pipeline_module_struct_layout_num_fields(module, k);
         while (j < nfields_ty) {
           if (typeck_layout_field_name_equal(module, k, j, field_name, field_name_len)) {
+            g_field_ty_cursor = k;
+            g_field_ty_cursor_live = 1;
             return pipeline_module_struct_layout_field_type_ref(module, k, j);
           }
           j = j + 1;
@@ -13269,7 +13331,9 @@ name_len: i32): i32 {
         same = 1;
         bi = 0;
         while (bi < alen) {
-          if (pipeline_module_type_alias_name_byte_at(module, ai, bi) != name[bi]) {
+          let ab2: i32 = pipeline_module_type_alias_name_byte_at(module, ai, bi) as i32;
+          let tb2: i32 = name[bi] as i32;
+          if (ab2 != tb2) {
             same = 0;
             break;
           }
