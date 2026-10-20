@@ -69,6 +69,10 @@ resolve_shu() {
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
 
 echo "=== stdtest leftover (prefer asm; hard; refuse leftover wrap / auto-make) ==="
+if [ -f compiler/scripts/cap_tip_ensure_stdtest_leave_darwin.sh ]; then
+  ( cd compiler && bash scripts/cap_tip_ensure_stdtest_leave_darwin.sh ) \
+    || die "cap_tip_ensure_stdtest failed"
+fi
 if [ -n "${XLANG:-}" ]; then
   if ! XLANG_BIN="$(resolve_shu)"; then
     die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover wrap)"
