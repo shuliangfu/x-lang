@@ -814,6 +814,9 @@ int32_t http_request_timeout_ex_c_impl(const char *method, const uint8_t *url, i
 #if defined(_WIN32) || defined(_WIN64)
   WSACleanup();
 #endif
+  /* Empty EOF is not a successful HTTP response body/headers. */
+  if (total == 0)
+    return -1;
   return total;
 }
 #ifndef XLANG_RUNTIME_HTTP_GLUE_FROM_X
