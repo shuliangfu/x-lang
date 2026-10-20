@@ -98,7 +98,26 @@ compile_one src/runtime_pipeline_abi_fnptr_array_esz_thin.x "$WORK/esz.o"
 compile_one src/runtime_pipeline_abi_asm_locals_thin.x "$WORK/loc.o"
 compile_one src/runtime_pipeline_abi_fixed_array_copy_helpers_thin.x "$WORK/lea.o"
 compile_one src/runtime_pipeline_abi_asm_expr_helpers_thin.x "$WORK/rec.o"
-compile_one src/runtime_pipeline_abi_fixed_array_copy_thin.x "$WORK/two_raw.o"
+# note743p / w987: PREFER_ASM_O so DIV/MOD in the copy thin do not emit
+# extra xlang_panic_ relocs. Without it egg/tip emits 4; nop_panic expected
+# 2 (bounds checks) or 0 when PREFER drops all panic faces. PLATFORM: LINUX.
+echo "linux_selfhost_pabi_sidecars: src/runtime_pipeline_abi_fixed_array_copy_thin.x"
+_two_ok=0
+for xl in $_sidecar_xls; do
+  rm -f "$WORK/two_raw.o"
+  if timeout 240 env XLANG_PREFER_ASM_O=1 "$xl" -c -backend asm \
+    -o "$WORK/two_raw.o" src/runtime_pipeline_abi_fixed_array_copy_thin.x >/dev/null 2>&1 \
+    && [ -s "$WORK/two_raw.o" ]; then
+    echo "linux_selfhost_pabi_sidecars: OK via $xl PREFER (note743p)" >&2
+    _two_ok=1
+    break
+  fi
+  rm -f "$WORK/two_raw.o"
+done
+if [ "$_two_ok" != "1" ]; then
+  echo "linux_selfhost_pabi_sidecars: ERROR pure-asm failed for fixed_array_copy_thin" >&2
+  exit 1
+fi
 compile_one src/runtime_pipeline_abi_for_call_args_thin.x "$WORK/one.o"
 compile_one src/runtime_pipeline_abi_fnptr_as_thin.x "$WORK/as_raw.o"
 compile_one src/runtime_pipeline_abi_elf_codegen_forwarders_thin.x "$WORK/forwarders.o"
@@ -172,8 +191,10 @@ for s in secs:
         s["size"] = len(keep)
         continue
     blobs[s["i"]] = bytes(blob)
-if noped != 2:
-    raise SystemExit("expected 2 panic calls, noped %d" % noped)
+# note743p: classic copy thin has 2 bounds-check panics; PREFER_ASM_O may
+# drop all (noped 0). Reject other counts (e.g. 4 = DIV/MOD without PREFER).
+if noped not in (0, 2):
+    raise SystemExit("expected 0 or 2 panic calls, noped %d" % noped)
 out = bytearray(data[:64])
 for s in sorted(secs, key=lambda s: s["offset"] if s["offset"] else 10**18):
     blob = blobs[s["i"]]
