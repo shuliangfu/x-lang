@@ -26680,41 +26680,78 @@ pipeline_abi_inject_cap_residual_egg_thins() {
       log "pipeline_abi egg: WARN redefine-sym demote failed"
     fi
   fi
-  # knife256/10.2 note743: Cap residual egg thins tip-emit module-stripped
-  # names (lane_operand_emit_let_block_chain / vlet_f32_fill_lane / …) while
-  # mega and peer thins U the prefixed contract names. Remap short→long when
-  # long is still undefined so phase1 pure-ld resolves. PLATFORM: SHARED
-  # (GNU/LLVM objcopy --redefine-sym). No FORCE_CC / no new host-cc .c.
-  if [ -n "$_oc" ]; then
-    while read -r _short _long; do
-      [ -n "$_short" ] || continue
-      nm -gU "$o" 2>/dev/null | grep -Eq " T _?${_short}$" || continue
-      nm -gU "$o" 2>/dev/null | grep -Eq " T _?${_long}$" && continue
-      nm "$o" 2>/dev/null | grep -Eq " U _?${_long}$" || continue
-      if "$_oc" --redefine-sym "${_short}=${_long}" "$o" 2>/dev/null \
-        || "$_oc" --redefine-sym "_${_short}=_${_long}" "$o" 2>/dev/null; then
-        log "pipeline_abi egg: note743 alias ${_short} → ${_long}"
-      else
-        log "pipeline_abi egg: WARN note743 redefine ${_short}→${_long} failed"
-      fi
-    done <<'NOTE743_MAP'
-lane_operand_emit_let_block_chain pipeline_lane_operand_emit_let_block_chain
-lane_shr_is_arith pipeline_lane_shr_is_arith
-vlet_f32_fill_lane vector_let_init_array_lit_a64_vlet_f32_fill_lane
-vlet_wide_elem pabi_vector_let_init_nested_one_vlet_wide_elem
-NOTE743_MAP
-    # Same .o can still list U long beside T long until a relocatable re-link.
+  # knife256/10.2 note743c: for-loop remap (no here-doc); drop U-long gate.
+  # Also re-applied from bootstrap_driver_seed_link pre-ld. PLATFORM: SHARED.
+  pipeline_abi_note743_alias_short_to_long "$o" "$_oc" || true
+  return 0
+}
+
+# knife256/10.2 note743c: remap egg tip-stripped shorts → contract longs.
+# $1=.o $2=optional objcopy. T/t-short without T/t-long; U-long optional.
+# for-loop avoids here-doc stdin hazards. PLATFORM: SHARED.
+pipeline_abi_note743_alias_short_to_long() {
+  local o="$1"
+  local _oc="${2-}"
+  local _short _long _pair _r_tmp _did=0 _c
+  [ -n "$o" ] && [ -f "$o" ] || return 0
+  if [ -z "$_oc" ]; then
+    for _c in /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
+      if [ -x "$_c" ]; then _oc=$_c; break; fi
+    done
+    if [ -z "$_oc" ] && command -v llvm-objcopy >/dev/null 2>&1; then
+      _oc=$(command -v llvm-objcopy)
+    fi
+    if [ -z "$_oc" ] && command -v objcopy >/dev/null 2>&1; then
+      _oc=$(command -v objcopy)
+    fi
+    if [ -z "$_oc" ] && command -v x86_64-linux-gnu-objcopy >/dev/null 2>&1; then
+      _oc=$(command -v x86_64-linux-gnu-objcopy)
+    fi
+  fi
+  if [ -z "$_oc" ]; then
+    log "pipeline_abi note743c: WARN no objcopy; skip short→long alias on $o"
+    return 0
+  fi
+  log "pipeline_abi note743c: _oc=$_oc o=$o"
+  for _pair in \
+    "lane_operand_emit_let_block_chain=pipeline_lane_operand_emit_let_block_chain" \
+    "lane_shr_is_arith=pipeline_lane_shr_is_arith" \
+    "vlet_f32_fill_lane=vector_let_init_array_lit_a64_vlet_f32_fill_lane" \
+    "vlet_wide_elem=pabi_vector_let_init_nested_one_vlet_wide_elem"
+  do
+    _short="${_pair%%=*}"
+    _long="${_pair#*=}"
+    if ! nm "$o" 2>/dev/null | grep -Eq " [Tt] _?${_short}$"; then
+      log "pipeline_abi note743c: skip ${_short} (no T/t short)"
+      continue
+    fi
+    if nm "$o" 2>/dev/null | grep -Eq " [Tt] _?${_long}$"; then
+      log "pipeline_abi note743c: skip ${_short} (long already T)"
+      continue
+    fi
+    if "$_oc" --redefine-sym "${_short}=${_long}" "$o" 2>/dev/null \
+      || "$_oc" --redefine-sym "_${_short}=_${_long}" "$o" 2>/dev/null; then
+      log "pipeline_abi note743c: alias ${_short} → ${_long}"
+      _did=1
+    else
+      log "pipeline_abi note743c: WARN redefine ${_short}→${_long} failed"
+    fi
+  done
+  if [ "$_did" = "1" ]; then
     _r_tmp=$(mktemp "${TMPDIR:-/tmp}/pabi_note743.XXXXXX.o")
     if ld -r -o "$_r_tmp" "$o" 2>/dev/null && [ -s "$_r_tmp" ]; then
       mv -f "$_r_tmp" "$o"
-      log "pipeline_abi egg: note743 ld -r bind short→long aliases"
+      log "pipeline_abi note743c: ld -r bind short→long aliases"
     else
       rm -f "$_r_tmp"
-      log "pipeline_abi egg: WARN note743 ld -r bind failed"
+      log "pipeline_abi note743c: WARN ld -r bind failed"
     fi
+  else
+    log "pipeline_abi note743c: no aliases applied"
   fi
   return 0
 }
+
 
 # wave323/374/374b/388 M2: parse_orch Cap residual C→.x (was wave284 C thin).
 # PRODUCT inject wave388 HARD BAN reinject both ends: stay prior overlay.
