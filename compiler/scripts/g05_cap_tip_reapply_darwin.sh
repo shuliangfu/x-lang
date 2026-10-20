@@ -641,6 +641,16 @@ if [ -f scripts/cap_tip_ensure_dynlib_leave_darwin.sh ]; then
     || echo "g05_cap_tip_reapply: WARN dynlib leave ensure failed" >&2
 fi
 
+# knife256/10.2: Cap tip leftover random — cold seed drops public
+# random_fill_bytes_c (9.1; ld cites _std_random_fill_bytes in random.o).
+# Darwin body = thin runtime_random_fill.x pure-asm. No FORCE_CC.
+# PLATFORM: MACOS Cap tip.
+if [ -f scripts/cap_tip_ensure_random_leave_darwin.sh ]; then
+  bash scripts/cap_tip_ensure_random_leave_darwin.sh \
+    && echo "g05_cap_tip_reapply: ensured Cap tip random leave" >&2 \
+    || echo "g05_cap_tip_reapply: WARN random leave ensure failed" >&2
+fi
+
 # knife256/10.2: Cap tip Queue_i32 (>16B) by-value at/get/length hollow;
 # push_* call at(*q) → SEGV on leftover run-queue. Also queue.o U
 # _sync_queue_contention_smoke_c (BLD001). Hand-asm byref + weak smoke
