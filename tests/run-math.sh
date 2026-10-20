@@ -68,6 +68,10 @@ resolve_shu() {
 [ -f "$SMOKE" ] || die "missing $SMOKE"
 
 echo "=== math leftover (prefer asm; hard; refuse leftover ensure) ==="
+if [ -f compiler/scripts/cap_tip_ensure_math_leave_darwin.sh ]; then
+  ( cd compiler && bash scripts/cap_tip_ensure_math_leave_darwin.sh ) \
+    || die "cap_tip_ensure_math failed"
+fi
 if [ -n "${XLANG:-}" ]; then
   if ! XLANG_BIN="$(resolve_shu)"; then
     die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ensure)"
