@@ -349,14 +349,26 @@ _g05_pure_overlay() {
   rm -f "$_po_o.tmp.o"
   # knife256/10.2: try ./xlang then ./xlang_asm (park-fixed tip may emit rio
   # but miss Cap thins that an older xlang_asm still emits). PLATFORM: SHARED.
+  # note743n: tip-cold tip/bootstrap may be CG002; try product then archived
+  # seeds/bootstrap_xlangc.<os>.<arch> (same pin-egg as note743k/l/m).
   _po_bins=""
   [ -x ./xlang ] && _po_bins="$_po_bins ./xlang"
   [ -x ./xlang_asm ] && _po_bins="$_po_bins ./xlang_asm"
   # knife256/10.2: park-fixed tip may still hollow-emit Cap thins; restored
   # is a known-good Cap emitter until tip call-args path is gold.
   [ -x ./xlang.restored_1952 ] && _po_bins="$_po_bins ./xlang.restored_1952"
+  [ -x ./bootstrap_xlangc ] && _po_bins="$_po_bins ./bootstrap_xlangc"
+  [ -x ./xlang-c ] && _po_bins="$_po_bins ./xlang-c"
+  _po_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
+  _po_arch="$(uname -m 2>/dev/null)"
+  case "$_po_os" in darwin) _po_os=darwin ;; linux) _po_os=linux ;; *) _po_os="" ;; esac
+  case "$_po_arch" in x86_64|amd64) _po_arch=x86_64 ;; arm64|aarch64) _po_arch=arm64 ;; *) _po_arch="" ;; esac
+  if [ -n "$_po_os" ] && [ -n "$_po_arch" ]; then
+    _po_egg="seeds/bootstrap_xlangc.${_po_os}.${_po_arch}"
+    [ -x "$_po_egg" ] && _po_bins="$_po_bins $_po_egg"
+  fi
   if [ -z "$_po_bins" ]; then
-    echo "g05_relink_env: WARNING pure overlay $_po_x not built (no ./xlang or ./xlang_asm)" >&2
+    echo "g05_relink_env: WARNING pure overlay $_po_x not built (no xl / pin-egg)" >&2
     return 0
   fi
   for _po_bin in $_po_bins; do
@@ -368,7 +380,7 @@ _g05_pure_overlay() {
           "$(date +%H:%M:%S)" "$_po_rc" "$_po_bin" "$_po_x" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
       fi
       if [ "$_po_rc" -eq 0 ] \
-        && nm "$_po_o.tmp.o" 2>/dev/null | grep -q "T _*${_po_sym}\$"; then
+        && nm "$_po_o.tmp.o" 2>/dev/null | grep -E "T _*${_po_sym}\$" >/dev/null; then
         mv -f "$_po_o.tmp.o" "$_po_o"
         break 2
       fi

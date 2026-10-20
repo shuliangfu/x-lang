@@ -5111,7 +5111,8 @@ if [ -f build_asm/seed_host/asm_backend_partial.o ] && [ -x scripts/gen_asm_full
             export XLANG_PREFER_ASM_O=1
             unset G05_X_O_WEAK G05_X_O_SYM_RENAME G05_X_O_WEAK_FUNCS
             [ -n "$_fls_weak" ] && export G05_X_O_WEAK_FUNCS="$_fls_weak"
-            pure_asm_x_to_o "$_fls_o.x.tmp.o" "$_fls_x"
+            # note743n: tip CG002 → pin-egg (same as note743m)
+            pure_asm_x_to_o_or_pin_egg "$_fls_o.x.tmp.o" "$_fls_x"
           ) && [ -s "$_fls_o.x.tmp.o" ]; then
             _fls_nm=$(nm "$_fls_o.x.tmp.o" 2>/dev/null)
             _fls_have=$(printf '%s\n' "$_fls_nm" | grep -Ec ' [TWw] ')
