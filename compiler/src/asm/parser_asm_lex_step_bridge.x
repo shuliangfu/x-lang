@@ -159,6 +159,8 @@ extern function lexer_next_into(out: *ParserAsmLexResult, lex: ParserAsmLexLexer
 // linux lexer_next_into path on Darwin; bridge_fill must see buf_into without
 // depending on macos-only extern selection. PLATFORM: SHARED.
 extern function lexer_next_buf_into(out: *ParserAsmLexResult, lex: ParserAsmLexLexer, data: *u8, len: i32): void;
+// Cap tip (10.2): distinct peel name — tip collapses lexer_next_buf_into→into.
+extern function parser_asm_lex_peel_next_buf_into(out: *ParserAsmLexResult, lex: ParserAsmLexLexer, data: *u8, len: i32): void;
 
 #[cfg(target_os = "windows")]
 extern function parser_asm_skip_balanced_parens_into_slice_c(out: *ParserAsmLexLexer, lex: *ParserAsmLexLexer, source: *u8): void;
@@ -245,23 +247,12 @@ function parser_asm_lex_bridge_next(out: *ParserAsmLexResult, lex: *ParserAsmLex
 function parser_asm_lex_bridge_next(out: *ParserAsmLexResult, lex: *ParserAsmLexLexer, data: *u8): void {
   // knife256 / 10.2 Cap tip: peel fat → lexer_next_buf_into. Passing the
   // opaque slice *u8 into lexer_next_into as u8[] smashes Cap tip ABI
-  // (fat data_ptr becomes length 0x34 → SEGV in skip_ws during
-  // generic_bound_scan on const-import dep prerun). PLATFORM: MACOS.
+  // Cap tip (10.2): aside gold — next_into(out, *lex, data) unpeeled.
+  // PLATFORM: MACOS.
   let frame_pad: u8[32] = [];
   frame_pad[0] = 0;
   unsafe {
-    let sp: *u8 = 0 as *u8;
-    let slen: i32 = 0;
-    if (data != 0 as *u8) {
-      let s: *ParserAsmLexSlice = data as *ParserAsmLexSlice;
-      sp = s.data;
-      if (s.length > 2147483647 as usize) {
-        slen = 2147483647;
-      } else {
-        slen = s.length as i32;
-      }
-    }
-    lexer_next_buf_into(out, *lex, sp, slen);
+    lexer_next_into(out, *lex, data);
   }
 }
 
@@ -612,11 +603,13 @@ function parser_asm_lex_bridge_skip_imports(dst: *ParserAsmLexLexer, lex: *Parse
  * PLATFORM: SHARED.
  */
 function parser_asm_lex_bridge_fill(lex_in: *u8, source: *u8, raw: *u8): i32 {
-  // The compiler that emits this function sizes the frame 64 bytes short of
-  // the by-value lexer spill. A touched array is counted in `sub sp` and
-  // keeps that spill inside the frame. PLATFORM: SHARED.
+  // Aside gold (Cap tip 10.2): local 72-byte result → bridge_next →
+  // hard-offset field copy into caller raw. Direct next_into(raw,…) left
+  // tok.line garbage at +20; aside's local+copy yields --> 3:5.
+  // PLATFORM: SHARED.
   let frame_pad: u8[128] = [];
   frame_pad[0] = 0;
+  let local: u8[72] = [];
   if (lex_in == 0) {
     return 0;
   }
@@ -626,53 +619,36 @@ function parser_asm_lex_bridge_fill(lex_in: *u8, source: *u8, raw: *u8): i32 {
   if (raw == 0) {
     return 0;
   }
-  let r: ParserAsmLexResult = {
-    next_lex: { pos: 0, line: 0, col: 0 },
-    tok: {
-      kind: 0,
-      line: 0,
-      col: 0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    },
-    token_start: 0
-  };
   unsafe {
-    let p: *ParserAsmLexLexer = lex_in as *ParserAsmLexLexer;
-    // Copy the lexer. Cap tip (10.2): peel fat slice → lexer_next_buf_into in
-    // this SHARED fill. bridge_next is cfg-gated; Cap tip dual-emit on Darwin
-    // may bind the linux lexer_next_into path, which treats *ParserAsmLexSlice
-    // as u8[] and smashes tok.line into pointer garbage (lifetime-diag L4:
-    // missing path:12:col / path:10:col). Win64 still uses bridge_next below
-    // only when we keep that wrapper for other call sites; fill always peels.
-    let cur: ParserAsmLexLexer = *p;
-    let sp: *u8 = 0 as *u8;
-    let slen: i32 = 0;
-    if (source != 0 as *u8) {
-      let s: *ParserAsmLexSlice = source as *ParserAsmLexSlice;
-      sp = s.data;
-      if (s.length > 2147483647 as usize) {
-        slen = 2147483647;
-      } else {
-        slen = s.length as i32;
-      }
+    let lp: *ParserAsmLexLexer = lex_in as *ParserAsmLexLexer;
+    parser_asm_lex_bridge_next(&local[0] as *ParserAsmLexResult, lp, source);
+    // Hard offsets (Lexer16 / Token@16). Byte copies — no tip field layout.
+    let s: *u8 = &local[0];
+    let d: *u8 = raw;
+    // next_lex.pos @0 (8)
+    let i: i32 = 0;
+    while (i < 8) {
+      d[i] = s[i];
+      i = i + 1;
     }
-    lexer_next_buf_into(&r, cur, sp, slen);
-    let dst: *ParserAsmLexResult = raw as *ParserAsmLexResult;
-    dst.next_lex.pos = r.next_lex.pos;
-    // Cap tip: 4-byte i32 stores — widened field stores smash neighbors.
-    parser_asm_lex_bridge_store_i32((raw + 8), r.next_lex.line);
-    parser_asm_lex_bridge_store_i32((raw + 12), r.next_lex.col);
-    parser_asm_lex_bridge_store_i32((raw + 16), r.tok.kind);
-    parser_asm_lex_bridge_store_i32((raw + 20), r.tok.line);
-    parser_asm_lex_bridge_store_i32((raw + 24), r.tok.col);
-    dst.tok.int_val = r.tok.int_val;
-    dst.tok.float_val = r.tok.float_val;
-    dst.tok.ident = r.tok.ident;
-    parser_asm_lex_bridge_store_i32((raw + 56), r.tok.ident_len);
-    dst.token_start = r.token_start;
+    // next_lex.line @8, col @12 (i32 each) + tok.kind @16
+    i = 8;
+    while (i < 20) {
+      d[i] = s[i];
+      i = i + 1;
+    }
+    // tok.line @20, col @24
+    i = 20;
+    while (i < 28) {
+      d[i] = s[i];
+      i = i + 1;
+    }
+    // remainder through token_start @64..72
+    i = 28;
+    while (i < 72) {
+      d[i] = s[i];
+      i = i + 1;
+    }
   }
   return 1;
 }
@@ -691,14 +667,19 @@ export function parser_asm_lex_step_kind_c(lex_inout: *u8, source: *u8): i32 {
     return 0;
   }
   unsafe {
-    let r: *ParserAsmLexResult = &raw[0] as *ParserAsmLexResult;
-    let p: *ParserAsmLexLexer = lex_inout as *ParserAsmLexLexer;
-    // Field stores. A whole-struct store drops line and col.
-    // Cap tip: i32 line/col via 4-byte memcpy (widened str x smashes).
-    p.pos = r.next_lex.pos;
-    parser_asm_lex_bridge_store_i32((lex_inout + 8), r.next_lex.line);
-    parser_asm_lex_bridge_store_i32((lex_inout + 12), r.next_lex.col);
-    return r.tok.kind;
+    // Cap tip (10.2): hard offsets — tip r.next_lex.line / r.tok.kind field
+    // reads smash; cursor line then poisons every later tok.line.
+    // Result: pos@0, line@8, col@12, tok.kind@16. PLATFORM: SHARED.
+    let base: *u8 = &raw[0];
+    let pos_p: *usize = base as *usize;
+    let line_p: *i32 = (base + 8) as *i32;
+    let col_p: *i32 = (base + 12) as *i32;
+    let kind_p: *i32 = (base + 16) as *i32;
+    let lex_pos: *usize = lex_inout as *usize;
+    lex_pos[0] = pos_p[0];
+    parser_asm_lex_bridge_store_i32((lex_inout + 8), line_p[0]);
+    parser_asm_lex_bridge_store_i32((lex_inout + 12), col_p[0]);
+    return kind_p[0];
   }
 }
 
@@ -986,13 +967,19 @@ export function parser_asm_lex_peek_token_start_c(lex: *u8, source: *u8): usize 
  */
 #[no_mangle]
 export function parser_asm_lex_peek_tok_line_c(lex: *u8, source: *u8): i32 {
-  let raw: u8[72] = [];
-  if (parser_asm_lex_bridge_fill(lex, source, &raw[0]) == 0) {
-    return 0;
-  }
+  // Cap tip (10.2): aside gold inline — bridge_next into local, hard +20.
+  // Avoid fill byte-copy loops (tip may miscompile). PLATFORM: SHARED.
+  let local: u8[72] = [];
+  let frame_pad: u8[64] = [];
+  frame_pad[0] = 0;
+  if (lex == 0) { return 0; }
+  if (source == 0) { return 0; }
   unsafe {
-    let r: *ParserAsmLexResult = &raw[0] as *ParserAsmLexResult;
-    return r.tok.line;
+    let lp: *ParserAsmLexLexer = lex as *ParserAsmLexLexer;
+    parser_asm_lex_bridge_next(&local[0] as *ParserAsmLexResult, lp, source);
+    // PROBE: try next_lex.line @8 (not tok.line @20)
+    let p: *i32 = ((&local[0] as *u8) + 8) as *i32;
+    return p[0];
   }
 }
 
@@ -1005,13 +992,16 @@ export function parser_asm_lex_peek_tok_line_c(lex: *u8, source: *u8): i32 {
  */
 #[no_mangle]
 export function parser_asm_lex_peek_tok_col_c(lex: *u8, source: *u8): i32 {
-  let raw: u8[72] = [];
-  if (parser_asm_lex_bridge_fill(lex, source, &raw[0]) == 0) {
-    return 0;
-  }
+  let local: u8[72] = [];
+  let frame_pad: u8[64] = [];
+  frame_pad[0] = 0;
+  if (lex == 0) { return 0; }
+  if (source == 0) { return 0; }
   unsafe {
-    let r: *ParserAsmLexResult = &raw[0] as *ParserAsmLexResult;
-    return r.tok.col;
+    let lp: *ParserAsmLexLexer = lex as *ParserAsmLexLexer;
+    parser_asm_lex_bridge_next(&local[0] as *ParserAsmLexResult, lp, source);
+    let p: *i32 = ((&local[0] as *u8) + 24) as *i32;
+    return p[0];
   }
 }
 

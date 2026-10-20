@@ -216,6 +216,38 @@ if [ -s build_asm/selfhost_pabi/lex_wrap_buf_256_a64.o ]; then
   esac
 fi
 
+# knife256/10.2: lex line/col recount + step/peek/store pure-asm (Cap tip
+# tok.line smash). Assemble, weaken tip bodies so strong asm wins.
+# PLATFORM: MACOS — no new host-cc .c / FORCE_CC / KEEP_C.
+for _lexs in \
+  lex_recount_line_col_a64 \
+  lex_step_kind_a64 \
+  lex_peek_tok_line_col_a64 \
+  lex_bridge_store_i32_a64 \
+  lexer_write_next_lex_into_a64 \
+  lexer_store_token_a64
+do
+  _lo="build_asm/selfhost_pabi/${_lexs}.o"
+  _ls="src/asm/${_lexs}.s"
+  if [ -f "$_ls" ]; then
+    as -o "$_lo" "$_ls" || { echo "g05_cap_tip_reapply: as $_ls failed" >&2; exit 1; }
+  fi
+done
+if [ -n "${OC:-}" ] && [ -s lexer_x.o ]; then
+  "$OC" --weaken-symbol=_lexer_write_next_lex_into \
+    --weaken-symbol=_lexer_store_token \
+    lexer_x.o 2>/dev/null || true
+fi
+if [ -s /tmp/p9a_lex_bridge_peel_GOOD.o ]; then
+  cp -f /tmp/p9a_lex_bridge_peel_GOOD.o build_asm/selfhost_pabi/p9a_lex_bridge_peel.o
+elif [ -s build_asm/selfhost_pabi/p9a_lex_bridge_peel.o ] && [ -n "${OC:-}" ]; then
+  "$OC" --weaken-symbol=_parser_asm_lex_step_kind_c \
+    --weaken-symbol=_parser_asm_lex_peek_tok_line_c \
+    --weaken-symbol=_parser_asm_lex_peek_tok_col_c \
+    --weaken-symbol=_parser_asm_lex_bridge_store_i32 \
+    build_asm/selfhost_pabi/p9a_lex_bridge_peel.o 2>/dev/null || true
+fi
+
 # knife256/10.2: overload mid empty-reject → caller-arg mid for string.length.
 if [ -s build_asm/selfhost_pabi/glue_overload_mid_empty_reject_soft.o ]; then
   case " $G05_OBJS " in
@@ -1318,6 +1350,12 @@ if [ -f build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o ]; then
       --redefine-sym=_pipeline_asm_emit_array_lit_elf_c=_pipeline_asm_emit_array_lit_elf_c_symfill_localdead \
       build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o \
       && echo "g05_cap_tip_reapply: globalized fill glue_emit_vector; demoted fill array_lit locals" >&2 || true
+    # knife256/10.2: LEGACY-tip decline pulls lane/modlet; keep them global in fill.
+    "$_oc_sf" \
+      --globalize-symbol=_glue_lane_f32_lit_dest_set \
+      --globalize-symbol=_pipe_modlet_float_expr_trunc_i32 \
+      build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o \
+      && echo "g05_cap_tip_reapply: globalized fill lane/modlet for decline" >&2 || true
   fi
 fi
 if [ -f build_asm/selfhost_pabi/vector_let_init_decline_a64.o ]; then
