@@ -411,8 +411,20 @@ build_parser_x() {
     ulimit -s 65532 2>/dev/null || ulimit -s hard || exit 1
     pure_asm_x_to_o "$out" src/parser/parser.x
   ) && [ -s "$out" ]; then
-    log "parser_x.o <- pure-asm src/parser/parser.x ($out)"
-    return 0
+    # knife256/10.2 note742: Ubuntu tip-cold egg can emit hollow ~134KB
+    # parser_x.o (no T parser_parse_into_buf). Callers (g05 pthin prefer,
+    # migrate) must not treat that as success — else Track L cold seed is
+    # overwritten and phase1 pure-ld UNDEFs. Require key T or fail closed.
+    # PLATFORM: SHARED.
+    if nm -gU "$out" 2>/dev/null | grep -E "T _?parser_parse_into_buf$" >/dev/null \
+      && nm -gU "$out" 2>/dev/null | grep -E "T _?parser_parse_expr_into$" >/dev/null \
+      && nm -gU "$out" 2>/dev/null | grep -E "T _?parser_parse_one_function_impl$" >/dev/null; then
+      log "parser_x.o <- pure-asm src/parser/parser.x ($out)"
+      return 0
+    fi
+    log "parser_x.o: tip pure-asm hollow (missing parser_parse_* T; note742); reject"
+    rm -f "$out"
+    return 1
   fi
   rm -f "$out"
   log "parser_x.o pure-asm failed (w1633; no cc fallback)"

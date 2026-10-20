@@ -356,6 +356,15 @@ g05_p9a_bridge_pure() {
     echo "g05_ensure: P9a bridge output path missing" >&2
     return 1
   fi
+  # knife256/10.2: Cap tip pure_asm collapses lexer_next_buf_into→into.
+  # Prefer prebuilt peel that calls parser_asm_lex_peel_next_buf_into.
+  if [ -s /tmp/p9a_lex_bridge_peel_GOOD.o ] \
+    && /usr/bin/nm -u /tmp/p9a_lex_bridge_peel_GOOD.o 2>/dev/null \
+         | grep -q 'parser_asm_lex_peel_next_buf_into'; then
+    cp -f /tmp/p9a_lex_bridge_peel_GOOD.o "$_bo"
+    echo "g05_ensure: P9a bridge using GOOD peel (peel_next_buf_into)" >&2
+    return 0
+  fi
   rm -f "$_bo"
   if ! (
     export XLANG_PREFER_ASM_O=1
@@ -4674,13 +4683,17 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   g05_frontend_x_drop_stale parser_x src/parser src/lexer src/ast
   if [ ! -f parser_x.o ]; then
     echo "g05_ensure: parser_x.o missing; pure-asm src/parser/parser.x (no host-cc)"
-    if bash scripts/ensure_gen_x_o.sh parser_x && g05_stamp_parser_x_pure_asm .; then
+    # note742: stamp only when tip exports key T (hollow Ubuntu egg rejects).
+    if bash scripts/ensure_gen_x_o.sh parser_x \
+      && nm -gU parser_x.o 2>/dev/null | grep -E "T _?parser_parse_into_buf$" >/dev/null \
+      && g05_stamp_parser_x_pure_asm .; then
       echo "g05_ensure: parser_x.o <- tip pure-asm OK (missing-path)"
     else
-      # knife256/10.2: tip/egg cannot emit large parser.x (CG002/stack) —
+      # knife256/10.2: tip/egg cannot emit large parser.x (CG002/stack/hollow) —
       # same Track L archaeology restore as the needs-host-cc path below.
-      # PLATFORM: SHARED.
-      echo "g05_ensure: parser_x pure-asm failed (missing); restore Track L cold seed" >&2
+      # PLATFORM: SHARED. note742: hollow tip must not keep a pure_asm stamp.
+      rm -f parser_x.o parser_x.pure_asm
+      echo "g05_ensure: parser_x pure-asm failed/hollow (missing); restore Track L cold seed" >&2
       export XLANG_MIGRATE_TRACK_L_COLD_SEED=1
       if ! bash scripts/migrate_x_objs.sh parser_x.o >&2; then
         echo "g05_ensure: parser_x.o Track L restore failed (missing-path)" >&2
@@ -4701,11 +4714,15 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     _px_had_trackl=0
     [ -f parser_x.o ] && [ ! -f parser_x.pure_asm ] && _px_had_trackl=1
     rm -f parser_x.o parser_x.pure_asm
-    if bash scripts/ensure_gen_x_o.sh parser_x && g05_stamp_parser_x_pure_asm .; then
+    # note742: do not stamp hollow tip (~134KB); restore Track L instead.
+    if bash scripts/ensure_gen_x_o.sh parser_x \
+      && nm -gU parser_x.o 2>/dev/null | grep -E "T _?parser_parse_into_buf$" >/dev/null \
+      && g05_stamp_parser_x_pure_asm .; then
       echo "g05_ensure: parser_x.o <- tip pure-asm OK"
       _px_rc=1
     else
-      echo "g05_ensure: parser_x pure-asm failed; restore Track L cold seed (egg cannot emit parser.x)" >&2
+      rm -f parser_x.o parser_x.pure_asm
+      echo "g05_ensure: parser_x pure-asm failed/hollow; restore Track L cold seed (egg cannot emit parser.x)" >&2
       export XLANG_MIGRATE_TRACK_L_COLD_SEED=1
       if ! bash scripts/migrate_x_objs.sh parser_x.o >&2; then
         echo "g05_ensure: parser_x.o Track L restore failed" >&2
