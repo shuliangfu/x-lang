@@ -271,12 +271,22 @@ _try_frontend_track_l_cold_seed() {
 build_parser() {
   # w1633 Cap tip L4: pure-asm via ensure_gen_x_o (LEGACY heat tip can emit;
   # Cap tip tip SEGV on parser.x). Prefer before archaeology host-cc of parser_gen.c.
+  # knife256/10.2 note741: Ubuntu tip-cold egg pure-asm parser can be hollow
+  # (~134KB, no T parser_parse_into_buf) → phase1 pure-ld UNDEF. Require key T
+  # or fall through to Track L cold seed / parser_gen.cc (ban soft SKIP).
   if [ -f scripts/ensure_gen_x_o.sh ]; then
     if bash scripts/ensure_gen_x_o.sh parser_x.o; then
-      log "parser_x.o <- ensure_gen_x_o pure-asm (w1633)"
-      return 0
+      if obj_has_t_sym parser_x.o parser_parse_into_buf \
+        && obj_has_t_sym parser_x.o parser_parse_expr_into \
+        && obj_has_t_sym parser_x.o parser_parse_one_function_impl; then
+        log "parser_x.o <- ensure_gen_x_o pure-asm (w1633)"
+        return 0
+      fi
+      log "parser_x.o: pure-asm hollow (missing parser_parse_* T); try Track L cold seed (note741)"
+      rm -f parser_x.o
+    else
+      log "parser_x.o: ensure_gen pure-asm failed; try migrate gen/cc archaeology"
     fi
-    log "parser_x.o: ensure_gen pure-asm failed; try migrate gen/cc archaeology"
   fi
   if want_ensure_gen parser parser_gen.c seeds/parser_gen.linux.x86_64.c; then
     ensure_gen_via_shell parser
