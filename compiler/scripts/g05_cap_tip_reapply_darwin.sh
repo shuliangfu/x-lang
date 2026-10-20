@@ -613,6 +613,15 @@ if [ -f scripts/cap_tip_ensure_stdtest_leave_darwin.sh ]; then
     || echo "g05_cap_tip_reapply: WARN stdtest leave ensure failed" >&2
 fi
 
+# knife256/10.2: Cap tip leftover backtrace — cold seed drops public
+# backtrace_symbolicate_c (9.1). Rebuild thin.x + FROM_X rest. Prefer asm;
+# no FORCE_CC. PLATFORM: MACOS Cap tip.
+if [ -f scripts/cap_tip_ensure_backtrace_leave_darwin.sh ]; then
+  bash scripts/cap_tip_ensure_backtrace_leave_darwin.sh \
+    && echo "g05_cap_tip_reapply: ensured Cap tip backtrace leave" >&2 \
+    || echo "g05_cap_tip_reapply: WARN backtrace leave ensure failed" >&2
+fi
+
 # knife256/10.2: Cap tip Queue_i32 (>16B) by-value at/get/length hollow;
 # push_* call at(*q) → SEGV on leftover run-queue. Also queue.o U
 # _sync_queue_contention_smoke_c (BLD001). Hand-asm byref + weak smoke
