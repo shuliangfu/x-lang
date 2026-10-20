@@ -5919,8 +5919,9 @@ ensure_deleted_seed_leaf_pure() {
       ;;
     src/x_seed_bridge.o) x=src/x_seed_bridge.x ;;
     src/runtime/rt_emit_state.o)
-      # note743e: BSS rename / cold BSS — never raw pure-asm leaf.
-      ensure_rt_emit_state_prefer || return 1
+      # note743e: prefer then leaf+cold BSS (never unremaned Lxml-only).
+      if ensure_rt_emit_state_prefer; then return 0; fi
+      ensure_deleted_seed_leaf_pure_rt_emit_bss "$o" || return 1
       return 0
       ;;
     *)
@@ -6112,11 +6113,15 @@ ensure_one() {
         return 0
         ;;
       src/runtime/rt_emit_state.o)
-        # note743e: try-heat must NOT raw pure-asm (Lxml unremaned + hollow
-        # code stubs for driver_x_emit_* → tip -E SEGV on want_extern_slot).
-        # Prefer renames or merges seeds/rt_emit_state_bss_cold.from_x.c.
+        # note743e: prefer (rename/cold BSS) first; if L4-env pure-asm
+        # flakes, fall back to deleted-seed pure-asm then attach cold BSS.
+        # Hollow weak .bss still covers tip if C names stay missing.
         # PLATFORM: SHARED.
-        ensure_rt_emit_state_prefer || exit 1
+        if ensure_rt_emit_state_prefer; then
+          return 0
+        fi
+        echo "ensure: rt-emit-state prefer failed; deleted-seed + cold BSS" >&2
+        ensure_deleted_seed_leaf_pure_rt_emit_bss "$out" || exit 1
         return 0
         ;;
       src/runtime/rt_preamble.o)
