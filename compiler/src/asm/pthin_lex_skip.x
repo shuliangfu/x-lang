@@ -275,14 +275,20 @@ export extern "C" function lexer_src_len_store(out: *u8): void;
 
 export function parser_asm_copy_slice_to_name64_buf_c(source: *u8, source_len: i32, start: usize, nlen: i32, out: *u8): void {
   // knife256 / 10.2: tip may pass source=0x3a (smashed u8[]); use parked lexer BSS.
+  // knife256 / 10.2 io-context: hard-cap nlen to 256 — Cap tip trampoline name[256]
+  // ends at stack canary; uncapped nlen smashed __stack_chk (Abort trap:6).
   // PLATFORM: SHARED.
   let i: i32 = 0;
   let off: usize = 0;
   let slen: usize = 0;
   let c: u8 = 0;
   let sp: *u8 = source;
-  if (out == 0 as *u8 || nlen <= 0) {
+  let n: i32 = nlen;
+  if (out == 0 as *u8 || n <= 0) {
     return;
+  }
+  if (n > 256) {
+    n = 256;
   }
   slen = source_len as usize;
   if (sp == 0 as *u8 || ((sp as usize) <= (4096 as usize))) {
@@ -294,7 +300,7 @@ export function parser_asm_copy_slice_to_name64_buf_c(source: *u8, source_len: i
   if (sp == 0 as *u8) {
     return;
   }
-  while (i < nlen) {
+  while (i < n) {
     off = start + i as usize;
     if (off < slen) {
       unsafe {

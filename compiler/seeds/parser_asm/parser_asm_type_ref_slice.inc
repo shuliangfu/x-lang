@@ -487,7 +487,7 @@ extern int32_t parser_asm_parse_postfix_array_x_into_c(void *arena, int32_t elem
                                                       uint8_t *label_scratch);
 /**
  * PLATFORM: SHARED — P3g trampoline. Language has no local u8[N]; this
- * C face holds label[64] for the empty-`[]` first-postfix slice path
+ * C face holds label[256] for the empty-`[]` first-postfix slice path
  * (array_x calls slice_x). Entry cursor is unconsumed; no `[` leaves
  * *out_lex == entry and returns elem_tr. parse_type_ref_impl stays C.
  * The slice C twin is skipped here: parse_type_ref_impl only calls the
@@ -498,7 +498,7 @@ static int32_t parser_asm_parse_postfix_array_type_ref_c(void *arena, int32_t el
                                                        struct parser_asm_slice_u8 *source,
                                                        struct parser_asm_lexer *out_lex) {
   struct parser_asm_lexer cur;
-  uint8_t label[64];
+  uint8_t label[256];
   int32_t ref;
   if (!out_lex || elem_tr == 0)
     return elem_tr;
@@ -648,14 +648,14 @@ extern int32_t parser_asm_parse_prefix_array_x_into_c(void *arena, void *lex_ino
                                                      uint8_t *label_scratch);
 /**
  * PLATFORM: SHARED — P3h trampoline. Language has no local u8[N]; this
- * C face holds label[64] for `[]T<label>`. Entry cursor is unconsumed
+ * C face holds label[256] for `[]T<label>`. Entry cursor is unconsumed
  * `[`; parse_type_ref_impl stays C and only calls this on LBRACKET.
  */
 static int32_t parser_asm_parse_prefix_array_type_ref_c(void *arena, struct parser_asm_lexer lex,
                                                        struct parser_asm_slice_u8 *source,
                                                        struct parser_asm_lexer *out_lex) {
   struct parser_asm_lexer cur;
-  uint8_t label[64];
+  uint8_t label[256];
   int32_t ref;
   if (!out_lex)
     return 0;
@@ -874,7 +874,7 @@ extern int32_t parser_asm_parse_star_type_x_into_c(void *arena, void *lex_inout,
                                                   uint8_t *label_scratch);
 /**
  * PLATFORM: SHARED — P3j trampoline. Language has no local u8[N] and no
- * &local i32; this C face holds name[256] + qn_len + label[64]. Entry
+ * &local i32; this C face holds name[256] + qn_len + label[256]. Entry
  * cursor is unconsumed `*`; parse_type_ref_impl stays C and only calls
  * this on TOKEN_STAR. PTR wrap + NAMED/scalar writers live in .x.
  */
@@ -883,7 +883,7 @@ static int32_t parser_asm_parse_star_type_ref_c(void *arena, struct parser_asm_l
                                                struct parser_asm_lexer *out_lex) {
   struct parser_asm_lexer cur;
   uint8_t name[256];
-  uint8_t label[64];
+  uint8_t label[256];
   int32_t qn_len;
   int32_t ref;
   if (!out_lex)
@@ -1512,18 +1512,20 @@ extern int32_t parser_asm_parse_type_ref_impl_x_into_c(void *arena, void *lex_in
                                                       uint8_t *label_scratch);
 /**
  * PLATFORM: SHARED — P3r trampoline. Language has no local u8[N] and no
- * &local i32; this C face holds name[256] + qn_len + label[64] for the
- * NAMED / star / wrap_dyn / prefix / postfix arms. AUDIT stays here
- * (product no-op). Published face stays this static; slice_c and the
- * primary parse_type_ref_ptr shim still call it (do not dest-buffer
- * parse_type_ref — P3f hello/fmt red).
+ * &local i32; this C face holds name[256] + qn_len + label[256] for the
+ * NAMED / star / wrap_dyn / prefix / postfix arms (wave577 Type.region_label
+ * is [256]; label[256] left canary adjacent to name and Cap tip io-context
+ * Abort trap:6 on context_read_write). AUDIT stays here (product no-op).
+ * Published face stays this static; slice_c and the primary
+ * parse_type_ref_ptr shim still call it (do not dest-buffer parse_type_ref
+ * — P3f hello/fmt red).
  */
 static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_lexer lex,
                                                 struct parser_asm_slice_u8 *source,
                                                 struct parser_asm_lexer *out_lex) {
   struct parser_asm_lexer cur;
   uint8_t name[256];
-  uint8_t label[64];
+  uint8_t label[256];
   int32_t qn_len;
   int32_t ref;
   if (!source || !out_lex)
