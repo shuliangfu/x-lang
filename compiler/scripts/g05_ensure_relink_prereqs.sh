@@ -4659,11 +4659,10 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   done
-  # w1546 (checklist 7.2, lexer only): rebuild lexer_x.o from src/lexer/lexer.x
-  # every generation. A warm host-cc object is not a timestamp hit — delete it
-  # first. Authority is build_lexer_x in ensure_gen_x_o.sh. No $CC fallback.
-  # PLATFORM: SHARED. lexer_gen seed stays (removal is 9.2).
-  rm -f lexer_x.o
+  # w1546 (checklist 7.2, lexer only): ensure lexer_x.o from src/lexer/lexer.x.
+  # Authority is build_lexer_x in ensure_gen_x_o.sh. No $CC fallback.
+  # note743k: do NOT rm first — tip-cold seed may already own a good pure-asm
+  # object; build_lexer_x keep-seeds / multi-xl / pin-egg. PLATFORM: SHARED.
   if ! bash scripts/ensure_gen_x_o.sh lexer_x; then
     echo "g05_ensure: lexer_x.o pure-asm failed" >&2
     exit 1

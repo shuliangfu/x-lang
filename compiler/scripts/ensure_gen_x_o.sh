@@ -329,49 +329,87 @@ build_lexer_x() {
   # w1546 (checklist 7.2, lexer only): lexer_x.o is one pure-asm emit of
   # src/lexer/lexer.x. No host cc of seeds/lexer_gen.linux.x86_64.c or of
   # lexer_gen.c, and no fallback. The seed file stays on disk (removal is 9.2).
-  # Caller deletes a warm object first; this function also removes lexer_x.o
-  # before emit so a failed emit cannot leave the previous host-cc object.
   # xlang_panic_ is weakened so Darwin runtime_panic.o stays the strong copy.
+  # note743k / knife256 (10.2): tip-cold seed may emit lexer_x.o with the pin
+  # egg, then overwrite ./xlang+bootstrap with a tip that SEGV on lexer.x.
+  # Do not delete a good same-session object until a new emit lands; try the
+  # archived pin egg (seeds/bootstrap_xlangc.<os>.<arch>) after product xl.
   # PLATFORM: SHARED.
+  local _lex_keep="" _lex_xl _lex_os _lex_arch _lex_egg="" _lex_ok=0
   if [ ! -f scripts/pure_ld_shared.sh ] || [ ! -f src/lexer/lexer.x ]; then
     log "lexer_x.o: pure_ld_shared.sh or src/lexer/lexer.x missing"
     return 1
   fi
-  rm -f lexer_x.o
-  if (
-    # shellcheck disable=SC1091
-    . scripts/pure_ld_shared.sh
-    export XLANG_PREFER_ASM_O=1
-    unset G05_X_O_WEAK G05_X_O_SYM_RENAME
-    export G05_X_O_WEAK_FUNCS=xlang_panic_
-    pure_asm_x_to_o lexer_x.o src/lexer/lexer.x
-  ) && [ -s lexer_x.o ]; then
-    log "lexer_x.o <- pure-asm src/lexer/lexer.x (w1546)"
+  # note743k: keep-seed skip when .x not newer and object non-empty.
+  if [ "${XLANG_HOST_CC_SEED_FORCE:-0}" != "1" ] && [ -s lexer_x.o ] \
+    && [ ! src/lexer/lexer.x -nt lexer_x.o ]; then
+    log "lexer_x.o skip up-to-date (w1546; note743k keep seed)"
     return 0
   fi
-  # knife256 / 10.2: product tip may T001 on imported Token allow(padding) or
-  # SEGV on huge lexer.x; pin egg / xlang-c still pure-asm emits store-not-return
-  # (no tip u8[] 1024 clamp). Prefer them before declaring failure — no host cc.
-  # PLATFORM: MACOS|DARWIN arm64 cold L4.
-  rm -f lexer_x.o
-  for _lex_xl in ./xlang-c ./bootstrap_xlangc; do
-    if [ -x "$_lex_xl" ]; then
-      if (
-        # shellcheck disable=SC1091
-        . scripts/pure_ld_shared.sh
-        export XLANG_PREFER_ASM_O=1
-        export XLANG="$_lex_xl"
-        unset G05_X_O_WEAK G05_X_O_SYM_RENAME
-        export G05_X_O_WEAK_FUNCS=xlang_panic_
-        pure_asm_x_to_o lexer_x.o src/lexer/lexer.x
-      ) && [ -s lexer_x.o ]; then
-        log "lexer_x.o <- pure-asm src/lexer/lexer.x via $_lex_xl (w1546/knife256)"
-        return 0
-      fi
-      rm -f lexer_x.o
+  if [ -s lexer_x.o ]; then
+    _lex_keep="$(mktemp "${TMPDIR:-/tmp}/lexer_x_keep.XXXXXX")"
+    cp -f lexer_x.o "$_lex_keep" || _lex_keep=""
+  fi
+  _lexer_try_xl() {
+    local xl="$1"
+    [ -n "$xl" ] && [ -x "$xl" ] || return 1
+    rm -f lexer_x.o
+    (
+      # shellcheck disable=SC1091
+      . scripts/pure_ld_shared.sh
+      export XLANG_PREFER_ASM_O=1
+      export XLANG="$xl"
+      unset G05_X_O_WEAK G05_X_O_SYM_RENAME
+      export G05_X_O_WEAK_FUNCS=xlang_panic_
+      pure_asm_x_to_o lexer_x.o src/lexer/lexer.x
+    ) && [ -s lexer_x.o ]
+  }
+  # tip first (product path), then product eggs, then archived pin egg.
+  _lex_ok=0
+  if [ -n "${XLANG:-}" ] && [ -x "$XLANG" ] && _lexer_try_xl "$XLANG"; then
+    _lex_ok=1
+  elif _lexer_try_xl ./xlang; then
+    _lex_ok=1
+  fi
+  if [ "$_lex_ok" = "1" ]; then
+    log "lexer_x.o <- pure-asm src/lexer/lexer.x (w1546)"
+    rm -f "$_lex_keep"
+    return 0
+  fi
+  for _lex_xl in ./xlang-c ./bootstrap_xlangc ./xlang_asm; do
+    if _lexer_try_xl "$_lex_xl"; then
+      log "lexer_x.o <- pure-asm src/lexer/lexer.x via $_lex_xl (w1546/note743k)"
+      rm -f "$_lex_keep"
+      return 0
     fi
   done
-  rm -f lexer_x.o
+  _lex_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
+  _lex_arch="$(uname -m 2>/dev/null)"
+  case "$_lex_os" in
+    darwin) _lex_os=darwin ;;
+    linux) _lex_os=linux ;;
+    *) _lex_os="" ;;
+  esac
+  case "$_lex_arch" in
+    x86_64|amd64) _lex_arch=x86_64 ;;
+    arm64|aarch64) _lex_arch=arm64 ;;
+    *) _lex_arch="" ;;
+  esac
+  if [ -n "$_lex_os" ] && [ -n "$_lex_arch" ]; then
+    _lex_egg="seeds/bootstrap_xlangc.${_lex_os}.${_lex_arch}"
+  fi
+  if [ -n "$_lex_egg" ] && _lexer_try_xl "$_lex_egg"; then
+    log "lexer_x.o <- pure-asm src/lexer/lexer.x via $_lex_egg (w1546/note743k pin egg)"
+    rm -f "$_lex_keep"
+    return 0
+  fi
+  # note743k: restore same-session seed object when tip re-emit SEGV.
+  if [ -n "$_lex_keep" ] && [ -s "$_lex_keep" ]; then
+    mv -f "$_lex_keep" lexer_x.o
+    log "lexer_x.o keep seed (note743k; tip/pin re-emit failed)"
+    return 0
+  fi
+  rm -f lexer_x.o "$_lex_keep"
   log "lexer_x.o pure-asm failed (w1546; no cc fallback)"
   return 1
 }
