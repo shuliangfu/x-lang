@@ -66,6 +66,11 @@ resolve_shu() {
 
 [ -f "$SMOKE" ] || die "missing $SMOKE"
 
+# Cap tip / 9.1: cold log_os lacks public log_set_*_c; ensure thin+darwin.
+if [ -f compiler/scripts/cap_tip_ensure_log_leave_darwin.sh ]; then
+  ( cd compiler && bash scripts/cap_tip_ensure_log_leave_darwin.sh ) \
+    || echo "run-log: WARN log leave ensure failed" >&2
+fi
 echo "=== log leftover (prefer asm; hard; refuse leftover ensure) ==="
 if [ -n "${XLANG:-}" ]; then
   if ! XLANG_BIN="$(resolve_shu)"; then
