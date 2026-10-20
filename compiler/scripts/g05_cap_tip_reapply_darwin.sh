@@ -586,6 +586,15 @@ if [ -f scripts/cap_tip_ensure_fs_leave_darwin.sh ]; then
   fi
 fi
 
+# knife256/10.2: Cap tip leftover crypto — cold seed drops public
+# ed25519_ref10_{create_keypair,sign,verify} wrappers (9.1). Rebuild
+# thin.x + FROM_X rest. Prefer asm; no FORCE_CC. PLATFORM: MACOS Cap tip.
+if [ -f scripts/cap_tip_ensure_crypto_leave_darwin.sh ]; then
+  bash scripts/cap_tip_ensure_crypto_leave_darwin.sh \
+    && echo "g05_cap_tip_reapply: ensured Cap tip crypto leave" >&2 \
+    || echo "g05_cap_tip_reapply: WARN crypto leave ensure failed" >&2
+fi
+
 # knife256/10.2: Cap tip Queue_i32 (>16B) by-value at/get/length hollow;
 # push_* call at(*q) → SEGV on leftover run-queue. Also queue.o U
 # _sync_queue_contention_smoke_c (BLD001). Hand-asm byref + weak smoke
