@@ -107,7 +107,10 @@ export function asm_module_top_level_let_name_exists(m: *u8, name: *u8, name_len
       if (nl == name_len && nl > 0) {
         let k: i32 = 0;
         while (k < name_len) {
-          if (pipeline_module_top_level_let_name_byte_at(m, tl, k) != (name[k] as i32)) {
+          // note743q: extern byte_at in condition — declare-then-assign.
+          let nb: i32 = 0;
+          unsafe { nb = pipeline_module_top_level_let_name_byte_at(m, tl, k); }
+          if (nb != (name[k] as i32)) {
             break;
           }
           k = k + 1;
@@ -2466,8 +2469,10 @@ function pipe_modlet_array_lit_has_ptr_addr_elem(
       if (etk == 10) {
         // Nested row: recurse with the row's elem type (seeder twin walk).
         if (ek == 46) {
-          if (pipe_modlet_array_lit_has_ptr_addr_elem(
-              arena, eref, pipeline_type_elem_ref_at(arena, elem_ty)) != 0) {
+          // note743q: bare extern in arg → T001; declare-then-assign (header contract).
+          let row_et: i32 = 0;
+          unsafe { row_et = pipeline_type_elem_ref_at(arena, elem_ty); }
+          if (pipe_modlet_array_lit_has_ptr_addr_elem(arena, eref, row_et) != 0) {
             return 1;
           }
         }
@@ -3709,9 +3714,12 @@ function pipe_modlet_bake_ptr_addr_elem_to_data(
     return 0 - 1;
   }
   if (is_addr_of != 0) {
-    idx = pipeline_asm_modlet_find(&name[0], vlen);
+    // note743q: same-TU find may still be typed extern-before-def on egg/tip.
+    unsafe { idx = pipeline_asm_modlet_find(&name[0], vlen); }
     if (idx >= 0) {
-      unsafe { llen = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_label_len(idx)); }
+      let lab_off: i32 = 0;
+      unsafe { lab_off = pipe_modlet_off_label_len(idx); }
+      unsafe { llen = pipe_load_i32_le(&g_pipeline_asm_modlet[0], lab_off); }
       lbase = pipe_modlet_off_label(idx);
       if (llen <= 0 || llen > 24) {
         return 0 - 1;
@@ -3734,7 +3742,8 @@ function pipe_modlet_bake_ptr_addr_elem_to_data(
     if (fi < 0) {
       return 0 - 1;
     }
-    slen = pipe_modlet_fn_sym_spell_into(elf_ctx, &name[0], vlen, &sym[0]);
+    // note743q: pipe_modlet_fn_sym_spell_into is export extern — wrap.
+    unsafe { slen = pipe_modlet_fn_sym_spell_into(elf_ctx, &name[0], vlen, &sym[0]); }
     if (slen <= 0) {
       return 0 - 1;
     }
@@ -3755,7 +3764,7 @@ function pipe_modlet_bake_ptr_addr_elem_to_data(
   if (fi < 0) {
     return 1;
   }
-  slen = pipe_modlet_fn_sym_spell_into(elf_ctx, &name[0], vlen, &sym[0]);
+  unsafe { slen = pipe_modlet_fn_sym_spell_into(elf_ctx, &name[0], vlen, &sym[0]); }
   if (slen <= 0) {
     return 0 - 1;
   }
@@ -4098,7 +4107,8 @@ export function pipe_modlet_lea_fn_sym_to_rax(elf_ctx: *u8, name: *u8, name_len:
   if (elf_ctx == (0 as *u8) || name == (0 as *u8) || name_len <= 0 || name_len > 255 || (ta != 0 && ta != 1)) {
     return 0 - 1;
   }
-  len = pipe_modlet_fn_sym_spell_into(elf_ctx, name, name_len, &sym[0]);
+  // note743q: spell_into is export extern.
+  unsafe { len = pipe_modlet_fn_sym_spell_into(elf_ctx, name, name_len, &sym[0]); }
   if (len <= 0) {
     return 0 - 1;
   }
