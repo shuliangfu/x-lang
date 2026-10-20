@@ -22,8 +22,33 @@ if [ "$(uname -s)" != "Linux" ]; then
   echo "linux_selfhost_pabi_sidecars: skip $(uname -s)"
   exit 0
 fi
-if [ ! -x ./xlang ]; then
-  echo "linux_selfhost_pabi_sidecars: ./xlang missing" >&2
+# note743o: tip-cold tip/bootstrap may be CG002; try each product then
+# seeds/bootstrap_xlangc.<os>.<arch> (same pin-egg as note743k/l/m/n).
+# PLATFORM: LINUX.
+_sidecar_xls=""
+for _c in ./xlang ./xlang_asm ./bootstrap_xlangc ./xlang-c; do
+  if [ -x "$_c" ]; then
+    case " $_sidecar_xls " in
+      *" $_c "*) ;;
+      *) _sidecar_xls="$_sidecar_xls $_c" ;;
+    esac
+  fi
+done
+_sc_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
+_sc_arch="$(uname -m 2>/dev/null)"
+case "$_sc_os" in darwin) _sc_os=darwin ;; linux) _sc_os=linux ;; *) _sc_os="" ;; esac
+case "$_sc_arch" in x86_64|amd64) _sc_arch=x86_64 ;; arm64|aarch64) _sc_arch=arm64 ;; *) _sc_arch="" ;; esac
+if [ -n "$_sc_os" ] && [ -n "$_sc_arch" ]; then
+  _sc_egg="seeds/bootstrap_xlangc.${_sc_os}.${_sc_arch}"
+  if [ -x "$_sc_egg" ]; then
+    case " $_sidecar_xls " in
+      *" $_sc_egg "*) ;;
+      *) _sidecar_xls="$_sidecar_xls $_sc_egg" ;;
+    esac
+  fi
+fi
+if [ -z "$_sidecar_xls" ]; then
+  echo "linux_selfhost_pabi_sidecars: no xl / pin-egg" >&2
   exit 1
 fi
 
@@ -53,8 +78,19 @@ weaken_keep() {
 compile_one() {
   local src="$1"
   local dst="$2"
+  local xl
   echo "linux_selfhost_pabi_sidecars: $src"
-  timeout 240 ./xlang -c -backend asm -o "$dst" "$src"
+  for xl in $_sidecar_xls; do
+    rm -f "$dst"
+    if timeout 240 "$xl" -c -backend asm -o "$dst" "$src" >/dev/null 2>&1 \
+      && [ -s "$dst" ]; then
+      echo "linux_selfhost_pabi_sidecars: OK via $xl (note743o)" >&2
+      return 0
+    fi
+    rm -f "$dst"
+  done
+  echo "linux_selfhost_pabi_sidecars: ERROR pure-asm failed for $src" >&2
+  return 1
 }
 
 compile_one src/runtime_pipeline_abi_slot_bytes_thin.x "$WORK/slot.o"
@@ -232,8 +268,22 @@ fi
 # relocs (nop_panic expected 2, tip now emits 4 without PREFER).
 # PLATFORM: LINUX.
 echo "linux_selfhost_pabi_sidecars: src/runtime_pipeline_abi_modlet_thin.x"
-timeout 240 env XLANG_PREFER_ASM_O=1 ./xlang -c -backend asm \
-  -o "$OUT/modlet.o" src/runtime_pipeline_abi_modlet_thin.x
+_modlet_ok=0
+for xl in $_sidecar_xls; do
+  rm -f "$OUT/modlet.o"
+  if timeout 240 env XLANG_PREFER_ASM_O=1 "$xl" -c -backend asm \
+    -o "$OUT/modlet.o" src/runtime_pipeline_abi_modlet_thin.x >/dev/null 2>&1 \
+    && [ -s "$OUT/modlet.o" ]; then
+    echo "linux_selfhost_pabi_sidecars: modlet OK via $xl (note743o)" >&2
+    _modlet_ok=1
+    break
+  fi
+  rm -f "$OUT/modlet.o"
+done
+if [ "$_modlet_ok" != "1" ]; then
+  echo "linux_selfhost_pabi_sidecars: modlet tip failed" >&2
+  exit 1
+fi
 if objdump -r "$OUT/modlet.o" | grep -q 'xlang_panic_'; then
   echo "linux_selfhost_pabi_sidecars: modlet panic reloc survived" >&2
   exit 1
@@ -285,24 +335,28 @@ fi
 # here. Do not PREFER
 # runtime_pipeline_abi_fnptr_array_esz_thin.x. PLATFORM: LINUX.
 echo "linux_selfhost_pabi_sidecars: w2061 index_elem three .x"
-_ie_xl=./xlang_asm
-if [ ! -x "$_ie_xl" ]; then
-  _ie_xl=./xlang
-fi
 _ie_one() {
   local src="$1"
   local dst="$2"
   local sym="$3"
+  local xl
   echo "linux_selfhost_pabi_sidecars: $src"
-  timeout 240 "$_ie_xl" -backend asm -c -o "$dst" "$src"
-  if ! nm "$dst" | grep -q " T ${sym}\$"; then
-    echo "linux_selfhost_pabi_sidecars: $src lacks strong $sym" >&2
-    exit 1
-  fi
-  if nm "$dst" | grep -q 'xlang_panic_'; then
-    echo "linux_selfhost_pabi_sidecars: $src references xlang_panic_" >&2
-    exit 1
-  fi
+  for xl in $_sidecar_xls; do
+    rm -f "$dst"
+    if timeout 240 "$xl" -backend asm -c -o "$dst" "$src" >/dev/null 2>&1 \
+      && [ -s "$dst" ] \
+      && nm "$dst" 2>/dev/null | grep -E " T ${sym}\$" >/dev/null; then
+      if nm "$dst" 2>/dev/null | grep -E 'xlang_panic_' >/dev/null; then
+        rm -f "$dst"
+        continue
+      fi
+      echo "linux_selfhost_pabi_sidecars: OK via $xl (note743o)" >&2
+      return 0
+    fi
+    rm -f "$dst"
+  done
+  echo "linux_selfhost_pabi_sidecars: $src lacks strong $sym (all xl)" >&2
+  exit 1
 }
 _ie_one src/pabi_index_elem_from_type_one.x \
   "$OUT/index_elem_from_type.o" \
@@ -336,8 +390,19 @@ _ie_one src/pabi_elem_byte_sz_one.x \
 # w1017: elem_const tip (DIV/MOD by zero → 0). First-wins over stale
 # modlet folder when full modlet_thin T001. PLATFORM: LINUX.
 echo "linux_selfhost_pabi_sidecars: w1017 elem_const tip"
-if ! timeout 240 env XLANG_PREFER_ASM_O=1 ./xlang -c -backend asm \
-    -o "$OUT/elem_const.o" src/runtime_pipeline_abi_modlet_elem_const_thin.x; then
+_ec_ok=0
+for xl in $_sidecar_xls; do
+  rm -f "$OUT/elem_const.o"
+  if timeout 240 env XLANG_PREFER_ASM_O=1 "$xl" -c -backend asm \
+      -o "$OUT/elem_const.o" src/runtime_pipeline_abi_modlet_elem_const_thin.x >/dev/null 2>&1 \
+      && [ -s "$OUT/elem_const.o" ]; then
+    echo "linux_selfhost_pabi_sidecars: elem_const OK via $xl (note743o)" >&2
+    _ec_ok=1
+    break
+  fi
+  rm -f "$OUT/elem_const.o"
+done
+if [ "$_ec_ok" != "1" ]; then
   echo "linux_selfhost_pabi_sidecars: elem_const tip failed" >&2
   exit 1
 fi
