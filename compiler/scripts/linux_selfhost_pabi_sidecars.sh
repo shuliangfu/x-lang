@@ -55,8 +55,17 @@ fi
 OUT=build_asm/selfhost_pabi
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/selfhost_pabi.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
-rm -rf "$OUT"
+# note743s: never rm -rf "$OUT". g05_ensure evals g05_relink_env first and
+# drops pure overlays (call_spill / cltd_cqo / elf_layout_64k / …) into the
+# same dir; a full wipe then leaves G05_OBJS listing ghosts → MISSING×19.
+# Clear only sidecar-owned faces (+ READY / egg stub); keep peer overlays.
+# PLATFORM: LINUX.
 mkdir -p "$OUT"
+_sidecar_owned="slot.o esz.o loc.o lea.o rec.o two.o one.o as.o sizeof.o base.o spill.o assign.o modlet.o pabi_alias.o elem_const.o index_elem_from_type.o index_elem_true_i8.o index_elem_wrap.o emit_index_arms_true_i8.o emit_index_elf_true_i8.o assign_index_true_i8.o force_esz_true_i8.o array_lit_esz_true_i8.o index_base_rbx_egg_stub.o index_base_rbx_egg_stub.s READY"
+for _sf in $_sidecar_owned; do
+  rm -f "$OUT/$_sf"
+done
+rm -f "$OUT"/runtime_pipeline_abi_fnptr_as_*.o
 
 # Weaken every global function except the names passed after dst.
 weaken_keep() {
