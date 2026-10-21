@@ -279,6 +279,7 @@ export extern function pipeline_expr_call_resolved_func_index_at(arena: *u8, er:
 export extern function driver_get_current_dep_path_for_codegen(): *u8;
 export extern function pipeline_asm_module_func_name_len_at(m: *u8, fi: i32): i32;
 export extern function pipeline_asm_module_func_name_copy64(m: *u8, fi: i32, dst: *u8): void;
+export extern function codegen_find_impl_method_for_type(module: *u8, arena: *u8, method_name: *u8, method_name_len: i32, receiver_type_ref: i32): i32;
 export extern function pipeline_module_func_num_params_at(m: *u8, fi: i32): i32;
 export extern function pipeline_module_func_is_variadic_at(m: *u8, fi: i32): i32;
 export extern function pipeline_module_func_param_type_ref_at(m: *u8, fi: i32, pi: i32): i32;
@@ -5973,6 +5974,50 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
                 if (da_u == 0 as *u8) { da_u = arena; }
                 call_sym_len = glue_asm_build_func_export_sym_c(dm_u, da_u, r_fn_call, &call_sym[0], 256);
               }
+            }
+          }
+        }
+        // Bound-method / LANG-005: typeck leaves func_ix=-1 (C6 mono on C
+        // backend). Asm has no mono_active; bare method name then hits libc
+        // (clone→clone@GLIBC, run=255). Prefer same-module name+arity
+        // (self+extras == n_place) export sym, then find_impl on concrete
+        // receiver, then bare name. PLATFORM: SHARED.
+        if (call_sym_len <= 0 && mod_ref != 0 as *u8 && name_len > 0) {
+          let nfunc_bm: i32 = pipeline_module_num_funcs(mod_ref);
+          let fi_bm: i32 = 0;
+          let fname_bm: u8[256] = [];
+          while (fi_bm < nfunc_bm) {
+            let fl_bm: i32 = pipeline_asm_module_func_name_len_at(mod_ref, fi_bm);
+            let np_bm: i32 = pipeline_module_func_num_params_at(mod_ref, fi_bm);
+            let match_bm: i32 = 0;
+            let bi_bm: i32 = 0;
+            if (fl_bm == name_len && np_bm == n_place) {
+              pipeline_asm_module_func_name_copy64(mod_ref, fi_bm, &fname_bm[0]);
+              match_bm = 1;
+              bi_bm = 0;
+              while (bi_bm < name_len) {
+                if (fname_bm[bi_bm] != name[bi_bm]) {
+                  match_bm = 0;
+                  bi_bm = name_len;
+                } else {
+                  bi_bm = bi_bm + 1;
+                }
+              }
+            }
+            if (match_bm != 0) {
+              call_sym_len = glue_asm_build_func_export_sym_c(mod_ref, arena, fi_bm, &call_sym[0], 256);
+              fi_bm = nfunc_bm;
+            } else {
+              fi_bm = fi_bm + 1;
+            }
+          }
+        }
+        if (call_sym_len <= 0 && mod_ref != 0 as *u8 && name_len > 0 && base_ref != 0) {
+          let recv_ty_bm: i32 = pipeline_expr_resolved_type_ref(arena, base_ref);
+          if (recv_ty_bm > 0) {
+            let impl_fi_bm: i32 = codegen_find_impl_method_for_type(mod_ref, arena, &name[0], name_len, recv_ty_bm);
+            if (impl_fi_bm >= 0) {
+              call_sym_len = glue_asm_build_func_export_sym_c(mod_ref, arena, impl_fi_bm, &call_sym[0], 256);
             }
           }
         }

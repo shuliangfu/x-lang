@@ -2818,6 +2818,7 @@ export function parser_asm_generic_bound_scan_into_c(lex_inout: *u8, source: *u8
   let gn: i32 = 0;
   let pi: i32 = 0;
   let k: i32 = 0;
+  let arg_slot: i32 = 0;
   let simple: i32 = 0;
   let nargs: i32 = 0;
   let expect_arg: i32 = 0;
@@ -3032,7 +3033,12 @@ export function parser_asm_generic_bound_scan_into_c(lex_inout: *u8, source: *u8
                 if (ts == 0 as usize) {
                   ts = parser_asm_lex_pos_c(lex_inout);
                 }
-                slot_off = ((gp_slot as usize) * (GENERIC_CALL_MAX_ARGS as usize) + pi as usize) * (BOUND_NAME_CAP as usize);
+                // Same staged index as call_typeargs (wave660 family).
+                // PLATFORM: SHARED.
+                arg_slot = gp_slot;
+                arg_slot = arg_slot * GENERIC_CALL_MAX_ARGS;
+                arg_slot = arg_slot + pi;
+                slot_off = (arg_slot as usize) * (BOUND_NAME_CAP as usize);
                 zi = 0;
                 while (zi < BOUND_NAME_CAP) {
                   gp_names[slot_off + zi as usize] = 0;
@@ -3041,7 +3047,7 @@ export function parser_asm_generic_bound_scan_into_c(lex_inout: *u8, source: *u8
                 if (pl > 0 && data != 0 as *u8) {
                   parser_asm_copy_slice_to_name64_buf_c(data, slen, ts, pl, gp_names + slot_off);
                 }
-                gp_lens[(gp_slot as usize) * (GENERIC_CALL_MAX_ARGS as usize) + pi as usize] = pl;
+                gp_lens[arg_slot as usize] = pl;
                 gp_nargs[gp_slot] = pi + 1;
               }
               expect_tp = 0;
@@ -3099,7 +3105,14 @@ export function parser_asm_generic_bound_scan_into_c(lex_inout: *u8, source: *u8
               if (ts == 0 as usize) {
                 ts = parser_asm_lex_pos_c(lex_inout);
               }
-              slot_off = ((cn as usize) * (GENERIC_CALL_MAX_ARGS as usize) + nargs as usize) * (BOUND_NAME_CAP as usize);
+              // Stage (cn*MAX_ARGS)+nargs: tip commutative park can emit
+              // (cn*MAX)+MAX for cast-wrapped nargs (wave660 / bound_method
+              // T001 — lens/typeargs land at slot MAX). Linear temps force
+              // left-first. PLATFORM: SHARED.
+              arg_slot = cn;
+              arg_slot = arg_slot * GENERIC_CALL_MAX_ARGS;
+              arg_slot = arg_slot + nargs;
+              slot_off = (arg_slot as usize) * (BOUND_NAME_CAP as usize);
               zi = 0;
               while (zi < BOUND_NAME_CAP) {
                 call_typeargs[slot_off + zi as usize] = 0;
@@ -3108,7 +3121,7 @@ export function parser_asm_generic_bound_scan_into_c(lex_inout: *u8, source: *u8
               if (pl > 0 && data != 0 as *u8) {
                 parser_asm_copy_slice_to_name64_buf_c(data, slen, ts, pl, call_typeargs + slot_off);
               }
-              call_typearg_lens[(cn as usize) * (GENERIC_CALL_MAX_ARGS as usize) + nargs as usize] = pl;
+              call_typearg_lens[arg_slot as usize] = pl;
               nargs = nargs + 1;
               expect_arg = 0;
               parser_asm_lex_step_kind_c(lex_inout, source);
@@ -3975,6 +3988,7 @@ export function xlang_skip_rewrite_self_type_ref_into_c(arena: *u8, type_ref: i3
  */
 #[no_mangle]
 export function xlang_generic_func_register_type_params_into_c(fn_name: *u8, fn_name_len: i32, names: *u8, lens: *i32, n: i32, gp_fname: *u8, gp_fname_len: *i32, gp_names: *u8, gp_lens: *i32, gp_nargs: *i32, gp_n: *i32): i32 {
+  let arg_slot: i32 = 0;
   let fi: i32 = 0;
   let pi: i32 = 0;
   let slot: i32 = -1;
@@ -4024,8 +4038,12 @@ export function xlang_generic_func_register_type_params_into_c(fn_name: *u8, fn_
     pi = 0;
     while (pi < n) {
       in_off = (pi as usize) * (BOUND_NAME_CAP as usize);
-      name_off = ((slot as usize) * (GENERIC_CALL_MAX_ARGS as usize) + pi as usize) * (BOUND_NAME_CAP as usize);
-      lens_off = (slot as usize) * (GENERIC_CALL_MAX_ARGS as usize) + pi as usize;
+      // Stage slot*MAX+pi (wave660 family). PLATFORM: SHARED.
+      arg_slot = slot;
+      arg_slot = arg_slot * GENERIC_CALL_MAX_ARGS;
+      arg_slot = arg_slot + pi;
+      lens_off = arg_slot as usize;
+      name_off = lens_off * (BOUND_NAME_CAP as usize);
       pl = lens[pi];
       if (pl <= 0) {
         pl = skip_fill_for_copy(names + in_off, 0, gp_names + name_off);
@@ -4062,6 +4080,7 @@ export function xlang_generic_func_type_param_index_into_c(fn_name: *u8, fn_name
   let fi: i32 = 0;
   let pi: i32 = 0;
   let nargs: i32 = 0;
+  let arg_slot: i32 = 0;
   let fname_off: usize = 0;
   let name_off: usize = 0;
   let lens_off: usize = 0;
@@ -4088,7 +4107,13 @@ export function xlang_generic_func_type_param_index_into_c(fn_name: *u8, fn_name
         nargs = gp_nargs[fi];
         pi = 0;
         while (pi < nargs) {
-          lens_off = (fi as usize) * (GENERIC_CALL_MAX_ARGS as usize) + pi as usize;
+          // Stage fi*MAX+pi (wave660 / bound_method method_on_param):
+          // tip can emit fi*MAX+MAX so lens_off misses slot 0 → pos=-1.
+          // PLATFORM: SHARED.
+          arg_slot = fi;
+          arg_slot = arg_slot * GENERIC_CALL_MAX_ARGS;
+          arg_slot = arg_slot + pi;
+          lens_off = arg_slot as usize;
           name_off = lens_off * (BOUND_NAME_CAP as usize);
           if (skip_named_bytes_eq(gp_names + name_off, gp_lens[lens_off], tp_name, tp_name_len) != 0) {
             return pi;
