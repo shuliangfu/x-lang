@@ -992,6 +992,8 @@ export function parser_asm_consume_qualified_type_ident_name_into_c(source: *u8,
   let kind: i32 = 0;
   let zi: i32 = 0;
   let start: usize = 0;
+  let dest_base: *u8 = 0 as *u8;
+  let src_base: *u8 = 0 as *u8;
   if (source == 0 as *u8 || lex_inout == 0 as *u8 || out == 0 as *u8 || out_len == 0 as *i32 || first_ident_len <= 0) {
     return -1;
   }
@@ -1039,14 +1041,20 @@ export function parser_asm_consume_qualified_type_ident_name_into_c(source: *u8,
       kind = parser_asm_lex_step_kind_c(lex_inout, source);
       // Subsequent segments write at out[total]; P1b at_end dest is out[0]
       // only. Index copy matches name64_buf (skip bytes past slen).
+      // note743y.6.3: tip miscompiled out[(total+zi)]=data[start+zi] — it
+      // reused the source address as zi and wrote "LibcArena64" onto the
+      // as_suffix return slot (SEGV/CG002 on std heap/string/encoding).
+      // Use base pointers + a single index so tip cannot fold the addends.
       zi = 0;
       start = parser_asm_lex_pos_c(lex_inout) - (seg_len as usize);
+      dest_base = out + (total as usize);
+      src_base = data + start;
       while (zi < seg_len) {
         if (total + zi >= 256) {
           return -1;
         }
-        if (start + zi as usize < slen as usize) {
-          out[(total + zi) as usize] = data[start + zi as usize];
+        if (start + (zi as usize) < (slen as usize)) {
+          dest_base[zi as usize] = src_base[zi as usize];
         }
         zi = zi + 1;
       }
