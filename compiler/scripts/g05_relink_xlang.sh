@@ -292,10 +292,10 @@ else
   run_g05_pure_ld_required
 fi
 
-# note743y.6: tip-cold first link uses pin-egg sidecars (single sub $imm undercount).
-# Tip emits chkstk with the true frame total. Refresh sidecars (+ call_dispatch)
-# with tip, then pure-ld again. Egg frame patch above stays for the first link
-# only (tip objs use chkstk; do not re-patch). PLATFORM: LINUX.
+# note743y.6.1: tip-cold egg one.o undercounts frames; tip emits chkstk.
+# Full tip sidecars refresh broke the second pure-ld (skip_egg UNDEFs).
+# Only tip-rebuild one.o (for_call_args); keep first-link product on fail.
+# PLATFORM: LINUX. Egg ELF frame patch remains for the first link.
 if [ "$(uname -s)" = "Linux" ] && [ "${XLANG_G05_TIP_SIDECAR_REFRESH:-1}" = "1" ]; then
   _y6_tip=""
   if [ -x "$OUT" ]; then
@@ -305,26 +305,34 @@ if [ "$(uname -s)" = "Linux" ] && [ "${XLANG_G05_TIP_SIDECAR_REFRESH:-1}" = "1" 
   elif [ -x ./xlang_asm ]; then
     _y6_tip=./xlang_asm
   fi
-  if [ -n "$_y6_tip" ] && [ -f scripts/linux_selfhost_pabi_sidecars.sh ]; then
-    echo "g05_relink_xlang: note743y.6 tip-sidecar refresh via $_y6_tip" >&2
-    # sidecars prefer ./xlang_asm then ./xlang then egg — stage tip as xlang_asm.
-    if [ "$_y6_tip" != "./xlang_asm" ] && [ "$_y6_tip" != "xlang_asm" ]; then
-      cp -f "$_y6_tip" ./xlang_asm
-      chmod +x ./xlang_asm
-    fi
-    if bash scripts/linux_selfhost_pabi_sidecars.sh; then
-      if [ -f src/asm/backend_call_dispatch.x ] && [ -x ./xlang_asm ]; then
-        if timeout 300 ./xlang_asm -c -backend asm -o src/asm/backend_call_dispatch.o             src/asm/backend_call_dispatch.x >/dev/null 2>&1           && [ -s src/asm/backend_call_dispatch.o ]; then
-          echo "g05_relink_xlang: note743y.6 tip-rebuilt backend_call_dispatch.o" >&2
-        else
-          echo "g05_relink_xlang: WARN tip backend_call_dispatch rebuild failed" >&2
-        fi
+  if [ -n "$_y6_tip" ] && [ -f src/runtime_pipeline_abi_for_call_args_thin.x ]; then
+    echo "g05_relink_xlang: note743y.6.1 tip-refresh one.o via $_y6_tip" >&2
+    cp -f "$_y6_tip" "${OUT}.pre_y6"
+    _y6_work="$(mktemp -d "${TMPDIR:-/tmp}/g05_y6_one.XXXXXX")"
+    if timeout 300 "$_y6_tip" -c -backend asm \
+        -o "$_y6_work/one.o" src/runtime_pipeline_abi_for_call_args_thin.x >/dev/null 2>&1 \
+      && [ -s "$_y6_work/one.o" ]; then
+      mkdir -p build_asm/selfhost_pabi
+      cp -f "$_y6_work/one.o" build_asm/selfhost_pabi/one.o
+      # weaken extras; keep for_call_args strong (same as sidecars)
+      while read -r _ys; do
+        [ -n "$_ys" ] || continue
+        [ "$_ys" = "pipeline_asm_emit_expr_elf_for_call_args" ] && continue
+        objcopy --weaken-symbol="$_ys" build_asm/selfhost_pabi/one.o 2>/dev/null || true
+      done < <(nm "$_y6_work/one.o" | awk '$2=="T"{print $3}')
+      echo "g05_relink_xlang: note743y.6.1 tip one.o OK; second pure-ld" >&2
+      if run_g05_pure_ld_required; then
+        rm -f "${OUT}.pre_y6"
+      else
+        echo "g05_relink_xlang: WARN tip one.o second pure-ld failed; restore first-link product" >&2
+        mv -f "${OUT}.pre_y6" "$OUT"
+        chmod +x "$OUT" 2>/dev/null || true
       fi
-      echo "g05_relink_xlang: note743y.6 second pure-ld after tip sidecars" >&2
-      run_g05_pure_ld_required
     else
-      echo "g05_relink_xlang: WARN tip-sidecar refresh failed; keeping first-link product" >&2
+      echo "g05_relink_xlang: WARN tip one.o rebuild failed; keeping first-link product" >&2
+      rm -f "${OUT}.pre_y6"
     fi
+    rm -rf "$_y6_work"
   fi
 fi
 
