@@ -1735,8 +1735,27 @@ case "$UNAME_S" in
         echo "g05_relink_env: $_lw156_x missing (Linux w156 guard)" >&2
         exit 1
       fi
-      if [ ! -x ./xlang_asm ]; then
-        echo "g05_relink_env: ./xlang_asm missing (Linux w156 guard)" >&2
+      # note743v: tip-cold may lack ./xlang_asm (only ./xlang); tip also
+      # CG002 on w156_guard_thin. Walk product bins then pin-egg like
+      # refresh_tip note743u. PLATFORM: LINUX.
+      _lw156_bins=""
+      for _c in ./xlang_asm ./xlang ./bootstrap_xlangc ./xlang-c; do
+        if [ -x "$_c" ]; then
+          case " $_lw156_bins " in
+            *" $_c "*) ;;
+            *) _lw156_bins="$_lw156_bins $_c" ;;
+          esac
+        fi
+      done
+      _lw156_egg="seeds/bootstrap_xlangc.linux.x86_64"
+      if [ -x "$_lw156_egg" ]; then
+        case " $_lw156_bins " in
+          *" $_lw156_egg "*) ;;
+          *) _lw156_bins="$_lw156_bins $_lw156_egg" ;;
+        esac
+      fi
+      if [ -z "$_lw156_bins" ]; then
+        echo "g05_relink_env: no xl / pin-egg (Linux w156 guard)" >&2
         exit 1
       fi
       mkdir -p build_asm/selfhost_pabi
@@ -1746,9 +1765,19 @@ case "$UNAME_S" in
       else
         _lw156_to=""
       fi
-      if ! env XLANG_PREFER_ASM_O=1 $_lw156_to ./xlang_asm -backend asm -c \
-          "$_lw156_x" -o "$_lw156_o.tmp.o" >/dev/null 2>&1; then
+      _lw156_ok=0
+      for _lw156_xl in $_lw156_bins; do
         rm -f "$_lw156_o.tmp.o"
+        if env XLANG_PREFER_ASM_O=1 $_lw156_to "$_lw156_xl" -backend asm -c \
+            "$_lw156_x" -o "$_lw156_o.tmp.o" >/dev/null 2>&1 \
+          && [ -s "$_lw156_o.tmp.o" ]; then
+          echo "g05_relink_env: w156 via $_lw156_xl (note743v)" >&2
+          _lw156_ok=1
+          break
+        fi
+        rm -f "$_lw156_o.tmp.o"
+      done
+      if [ "$_lw156_ok" != "1" ]; then
         echo "g05_relink_env: $_lw156_x failed (Linux w156 guard)" >&2
         exit 1
       fi
