@@ -1983,8 +1983,18 @@ export function pipeline_asm_wpo_pgo_emit_order_at(m: *u8, order_index: i32): i3
       pipeline_asm_wpo_pgo_emit_order_prepare(m);
     }
     // Belt: reject OOB past array capacity even if emit_n were stale/corrupt.
-    if (order_index < 0 || order_index >= g_aw_pgo_emit_n ||
-        order_index >= asm_wpo_max_funcs()) {
+    // note743y.5: tip -c folded `order_index >= g_aw_pgo_emit_n` to
+    // `>= 0` (BSS global as imm 0) → at() always -1 → mega empty → CG002.
+    // Load emit_n to a local first (same shape as order_count return).
+    // PLATFORM: LINUX tip cold · SHARED.
+    if (order_index < 0) {
+      return -1;
+    }
+    let emit_n: i32 = g_aw_pgo_emit_n;
+    if (order_index >= emit_n) {
+      return -1;
+    }
+    if (order_index >= asm_wpo_max_funcs()) {
       return -1;
     }
     return g_aw_pgo_emit_order[order_index];
