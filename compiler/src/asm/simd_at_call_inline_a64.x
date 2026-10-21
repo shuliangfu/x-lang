@@ -277,7 +277,7 @@ export function pipeline_asm_simd_try_inline_shuffle_call_elf_c(
   let nargs: i32 = 0;
   let callee_ref: i32 = 0;
   let clen: i32 = 0;
-  let cname: u8[64] = [];
+  let cname: u8[256] = [];
   let expect: i32 = 0;
   let lanes: i32 = 0;
   let esz: i32 = 0;
@@ -311,9 +311,9 @@ export function pipeline_asm_simd_try_inline_shuffle_call_elf_c(
     return 0;
   }
   unsafe {
-    clen = glue_call_callee_func_name_into_c(arena, callee_ref, &cname[0], 64);
+    clen = glue_call_callee_func_name_into_c(arena, callee_ref, &cname[0], 256);
   }
-  if (clen <= 0 || clen >= 64) {
+  if (clen <= 0 || clen >= 256) {
     return 0;
   }
   expect = at_shuffle_expect_lanes(&cname[0], clen);
@@ -388,7 +388,7 @@ export function pipeline_asm_simd_try_inline_select_call_elf_c(
   let nargs: i32 = 0;
   let callee_ref: i32 = 0;
   let clen: i32 = 0;
-  let cname: u8[64] = [];
+  let cname: u8[256] = [];
   let expect: i32 = 0;
   let lanes: i32 = 0;
   let esz: i32 = 0;
@@ -421,9 +421,9 @@ export function pipeline_asm_simd_try_inline_select_call_elf_c(
     return 0;
   }
   unsafe {
-    clen = glue_call_callee_func_name_into_c(arena, callee_ref, &cname[0], 64);
+    clen = glue_call_callee_func_name_into_c(arena, callee_ref, &cname[0], 256);
   }
-  if (clen <= 0 || clen >= 64) {
+  if (clen <= 0 || clen >= 256) {
     return 0;
   }
   expect = at_select_expect_lanes(&cname[0], clen);
