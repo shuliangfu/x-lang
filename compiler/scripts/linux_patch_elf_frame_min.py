@@ -46,6 +46,10 @@ def patch_obj(path: str, dry: bool = False) -> int:
         if mh <= imm + 0x20:
             continue
         new_imm = (mh + 0x100 + 0xF) & ~0xF
+        # Skip absurd homes (misparse) or frames needing chkstk (>32KiB).
+        if new_imm > 0x8000 or (new_imm - imm) > 0x6000:
+            print(f"SKIP {path}::{name}: grow {hex(imm)}->{hex(new_imm)} too large")
+            continue
         old = bytes([0x48, 0x81, 0xEC]) + imm.to_bytes(4, "little")
         rel = bytes(data[foff : foff + 64]).find(old)
         if rel < 0:
@@ -70,6 +74,9 @@ DEFAULT_OBJS = [
     "build_asm/selfhost_pabi/emit_expr_elf_fast_mega.o",
     "build_asm/selfhost_pabi/return_sret.o",
     "build_asm/selfhost_pabi/body_sync_let_order.o",
+    # egg alias blob: struct_lit / local_var_slot (note743y.5 si SEGV)
+    "build_asm/selfhost_pabi/pabi_alias.skip_egg.o",
+    "build_asm/selfhost_pabi/fixed_array_let_init_module_var.o",
 ]
 
 
