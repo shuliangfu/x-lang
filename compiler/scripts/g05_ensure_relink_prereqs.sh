@@ -654,10 +654,13 @@ g05_primary_tramp_pure() {
     return 1
   fi
   rm -f "$_bo"
+  # note743y.6.3: tip product may SEGV on tramp.x (same qualified-name smash
+  # as ensure-std). Retry pin-egg like note743m so g05 can relink the fixed
+  # pthin_type_ref bodies. PLATFORM: SHARED.
   if ! (
     export XLANG_PREFER_ASM_O=1
     unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
-    pure_asm_x_to_o "$_bo" "$_bx"
+    pure_asm_x_to_o_or_pin_egg "$_bo" "$_bx"
   ) || [ ! -s "$_bo" ]; then
     echo "g05_ensure: P4 primary trampoline pure-asm failed" >&2
     rm -f "$_bo"
