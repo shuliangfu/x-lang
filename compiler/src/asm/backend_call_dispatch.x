@@ -9264,12 +9264,12 @@ export function pipeline_asm_emit_vtable_wrapper_def(elf_ctx: *u8, ta: i32, modu
     let sym_nlen: i32 = wrap_nlen;
     if (macho != 0) {
       sym_nm[0] = 95;
-      let k: i32 = 0;
-      while (k < wrap_nlen && k < 168) { sym_nm[k + 1] = wrap_nm[k]; k = k + 1; }
+      let km: i32 = 0;
+      while (km < wrap_nlen && km < 168) { sym_nm[km + 1] = wrap_nm[km]; km = km + 1; }
       sym_nlen = wrap_nlen + 1;
     } else {
-      let k: i32 = 0;
-      while (k < wrap_nlen && k < 169) { sym_nm[k] = wrap_nm[k]; k = k + 1; }
+      let ke: i32 = 0;
+      while (ke < wrap_nlen && ke < 169) { sym_nm[ke] = wrap_nm[ke]; ke = ke + 1; }
     }
     let entry_off: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
     if (entry_off < 0) { return 0 - 1; }
@@ -9443,12 +9443,12 @@ export function pipeline_asm_emit_module_vtable_statics(elf_ctx: *u8, ta: i32, m
       let vt_sym_nlen: i32 = vt_nlen;
       if (macho != 0) {
         vt_sym[0] = 95;
-        let k: i32 = 0;
-        while (k < vt_nlen && k < 150) { vt_sym[k + 1] = vt_nm[k]; k = k + 1; }
+        let km: i32 = 0;
+        while (km < vt_nlen && km < 150) { vt_sym[km + 1] = vt_nm[km]; km = km + 1; }
         vt_sym_nlen = vt_nlen + 1;
       } else {
-        let k: i32 = 0;
-        while (k < vt_nlen && k < 151) { vt_sym[k] = vt_nm[k]; k = k + 1; }
+        let ke: i32 = 0;
+        while (ke < vt_nlen && ke < 151) { vt_sym[ke] = vt_nm[ke]; ke = ke + 1; }
       }
       /* F7: vtable static data goes to __DATA,__const section (separate from
        * __TEXT,__text which rejects absolute pointer relocations). Override the
@@ -9495,12 +9495,12 @@ export function pipeline_asm_emit_module_vtable_statics(elf_ctx: *u8, ta: i32, m
           let wrap_sym_nlen: i32 = wrap_nlen;
           if (macho != 0) {
             wrap_sym[0] = 95;
-            let k: i32 = 0;
-            while (k < wrap_nlen && k < 168) { wrap_sym[k + 1] = wrap_nm[k]; k = k + 1; }
+            let km: i32 = 0;
+            while (km < wrap_nlen && km < 168) { wrap_sym[km + 1] = wrap_nm[km]; km = km + 1; }
             wrap_sym_nlen = wrap_nlen + 1;
           } else {
-            let k: i32 = 0;
-            while (k < wrap_nlen && k < 169) { wrap_sym[k] = wrap_nm[k]; k = k + 1; }
+            let ke: i32 = 0;
+            while (ke < wrap_nlen && ke < 169) { wrap_sym[ke] = wrap_nm[ke]; ke = ke + 1; }
           }
           if (pipeline_elf_ctx_append_reloc_absolute64(elf_ctx, slot_off,
                   &wrap_sym[0], wrap_sym_nlen) != 0) {
@@ -9624,12 +9624,12 @@ export function pipeline_asm_try_emit_dyn_coerce_let(arena: *u8, elf_ctx: *u8,
     let vt_sym_nlen: i32 = vt_nlen;
     if (macho != 0) {
       vt_sym[0] = 95;
-      let k: i32 = 0;
-      while (k < vt_nlen && k < 160) { vt_sym[k + 1] = vt_nm[k]; k = k + 1; }
+      let km: i32 = 0;
+      while (km < vt_nlen && km < 160) { vt_sym[km + 1] = vt_nm[km]; km = km + 1; }
       vt_sym_nlen = vt_nlen + 1;
     } else {
-      let k: i32 = 0;
-      while (k < vt_nlen && k < 161) { vt_sym[k] = vt_nm[k]; k = k + 1; }
+      let ke: i32 = 0;
+      while (ke < vt_nlen && ke < 161) { vt_sym[ke] = vt_nm[ke]; ke = ke + 1; }
     }
     if (backend_enc_lea_sym_to_reg_arch(elf_ctx, 1, &vt_sym[0], vt_sym_nlen, ta) != 0) {
       return 0 - 1;
