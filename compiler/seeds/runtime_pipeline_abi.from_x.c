@@ -30343,6 +30343,26 @@ void pipeline_module_func_owner_from_impl(void *m, int32_t fi) {
   g_pmfo_owner_len[fi] = g_pmfo_cur_len;
 }
 
+/* Copy latched impl owner for func slot fi into dst.
+ * Empty owner = free function. Overload export appends _Owner so A.g and
+ * B.g do not share one mangled symbol (note743y.6.15 / LANG-005).
+ * Lives in seed rest: module_func thin is wave385 HARD BAN reinject, so
+ * the .x definition alone never reaches Linux phase1 pure-ld.
+ * PLATFORM: SHARED — same bytes as pipeline_module_func_owner_binds_base_at. */
+int32_t pipeline_module_func_owner_copy(void *m, int32_t fi, uint8_t *dst,
+                                        int32_t cap) {
+  int32_t n;
+  int32_t i;
+  if (!m || !dst || fi < 0 || fi >= PMFO_MAX || cap <= 0)
+    return 0;
+  n = g_pmfo_owner_len[fi];
+  if (n <= 0 || n > cap)
+    return 0;
+  for (i = 0; i < n; i++)
+    dst[i] = g_pmfo_owner[fi][i];
+  return n;
+}
+
 /* 1 when row fi may bind associated call on base struct name: empty owner
  * (free fn / UFCS / legacy) or owner == base. 0 = foreign impl method. */
 int32_t pipeline_module_func_owner_binds_base_at(void *m, int32_t fi, const uint8_t *base, int32_t base_len) {
