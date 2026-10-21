@@ -17,11 +17,14 @@ function main(): i32 {
   if (empty.length != 0) { return 3; }
 
   // ——— i32[] split_at ———
-  let sp: Split_i32 = slice.split_at_i32(s, 2);
+  /* PLATFORM: SHARED — Split_i32 via out ptr (≡ u8/u64; note743y.6.8). */
+  let sp: Split_i32 = { left: { data: 0, length: 0 as usize }, right: { data: 0, length: 0 as usize } };
+  slice.split_at_i32(s, 2, &sp);
   if (sp.left.length != 2 || sp.right.length != 2) { return 4; }
   if (sp.left[0] != 10 || sp.left[1] != 20) { return 5; }
   if (sp.right[0] != 30 || sp.right[1] != 40) { return 6; }
-  let sp2: Split_i32 = slice.split_at_i32(s, 99);
+  let sp2: Split_i32 = { left: { data: 0, length: 0 as usize }, right: { data: 0, length: 0 as usize } };
+  slice.split_at_i32(s, 99, &sp2);
   if (sp2.left.length != 4 || sp2.right.length != 0) { return 7; }
 
   // ——— i32[] chunks ———

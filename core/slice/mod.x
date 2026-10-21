@@ -93,14 +93,23 @@ export function subslice_i32(s: []i32, start: usize, len: usize): []i32 {
   return r;
 }
 
-/** `split_at_i32`: purpose/params/returns per signature; panics or error codes follow local contracts. */
-export function split_at_i32(s: []i32, at: usize): Split_i32 {
+/**
+ * Write i32 split through out. Clamps `at` to length.
+ * @param s []i32 — source slice
+ * @param at usize — split index; clamped to the length
+ * @param out *Split_i32 — destination; must not be null
+ * @return i32 — always 0
+ * PLATFORM: SHARED — product cannot asm-emit Split_i32 return (≡ split_at_u8).
+ * note743y.6.8: align i32 with u8/u64 out-ptr; sret nested-slice lit was BLD/runtime red.
+ */
+export function split_at_i32(s: []i32, at: usize, out: *Split_i32): i32 {
   let at_clamped: usize = at;
   if (at_clamped > s.length) { at_clamped = s.length; }
-  return {
-    left: subslice_i32(s, 0 as usize, at_clamped),
-    right: subslice_i32(s, at_clamped, s.length - at_clamped),
-  };
+  unsafe {
+    core_subslice_i32_c(&out.left, s.data, s.length, 0 as usize, at_clamped);
+    core_subslice_i32_c(&out.right, s.data, s.length, at_clamped, s.length - at_clamped);
+  }
+  return 0;
 }
 
 /** `chunks_len_i32`: purpose/params/returns per signature; panics or error codes follow local contracts. */
