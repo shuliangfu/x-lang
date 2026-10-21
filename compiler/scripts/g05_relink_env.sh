@@ -5088,8 +5088,8 @@ esac
 # file-private and the thin is not linked, so the weak copies still
 # return the 16384 offsets. sizeof on this host is already the 64k
 # end. The egg also inlines e_machine/reloc_type at the 16384
-# offsets (add $17432600 / $17432604, six stores each, two mega
-# copies). Getter-only link reads a zero slot and ld reports EM: 0.
+# offsets (add $17432600 / $17432604; three stores per mega,
+# tip peel keeps one). Getter-only link reads a zero slot (EM: 0).
 # Patch those adds on a copy. Do not rebuild the egg and do not
 # edit the original .o. Linux only: Darwin and Windows sizeof is
 # not that end. Does not change pipe_elf_table_cap.
