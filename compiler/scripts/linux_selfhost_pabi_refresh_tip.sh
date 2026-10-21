@@ -51,6 +51,25 @@ case " $_rt_xls " in
   *" $XL "*) ;;
   *) _rt_xls="$XL $_rt_xls" ;;
 esac
+# note743u.1: tip may CG002 early refresh thins (asl / cimp); try each xl.
+# Usage: rt_compile DST SRC [ENV_ASSIGN ...]  — ENV like XLANG_PREFER_ASM_O=1
+# or ENV -u XLANG_PREFER_ASM_O. Writes DST on success. PLATFORM: LINUX.
+rt_compile() {
+  local _dst="$1" _src="$2"
+  shift 2
+  local _xl _ok=0
+  for _xl in $_rt_xls; do
+    rm -f "$_dst"
+    if timeout 240 env "$@" "$_xl" -backend asm -c "$_src" -o "$_dst" \
+      && [ -s "$_dst" ]; then
+      echo "linux_selfhost_pabi_refresh_tip: OK via $_xl ($_src)" >&2
+      _ok=1
+      break
+    fi
+    rm -f "$_dst"
+  done
+  [ "$_ok" = "1" ]
+}
 
 # 1. pabi_alias
 # w1493: the tip pabi keeps LOCAL copies of four C-rest modlet faces next
@@ -145,7 +164,7 @@ for _asl in call_bulk call_elems copy_bulk copy_elems call_one_elem; do
   if [ -s "$_dst" ] && [ ! "$_src" -nt "$_dst" ] && [ ! "$XL" -nt "$_dst" ]; then
     continue
   fi
-  if ! timeout 240 env XLANG_PREFER_ASM_O=1 "$XL" -backend asm -c "$_src" -o "$_tmp"; then
+  if ! rt_compile "$_tmp" "$_src" XLANG_PREFER_ASM_O=1; then
     echo "linux_selfhost_pabi_refresh_tip: $_src failed" >&2
     rm -f "$_tmp"
     exit 1
@@ -163,7 +182,7 @@ _slot_dst="$OUT/slot.o"
 if [ -f "$_slot_src" ] && { [ ! -s "$_slot_dst" ] || [ "$_slot_src" -nt "$_slot_dst" ] \
     || ! nm "$_slot_dst" | awk '$2=="T"&&$3=="pipe_slot_bytes_named_in_mod"{f++} $2=="T"&&$3=="asm_fixed_array_total_bytes_mod"{f++} END{exit f!=2}'; }; then
   _slot_tmp="$OUT/slot.tmp.o"
-  if ! timeout 240 "$XL" -backend asm -c "$_slot_src" -o "$_slot_tmp"; then
+  if ! rt_compile "$_slot_tmp" "$_slot_src"; then
     echo "linux_selfhost_pabi_refresh_tip: $_slot_src failed" >&2
     rm -f "$_slot_tmp"
     exit 1
@@ -194,7 +213,7 @@ _base_sym=glue_try_index_var_or_field_base_to_rbx_elf_c
 if [ -f "$_base_src" ] && { [ ! -s "$_base_dst" ] || [ "$_base_src" -nt "$_base_dst" ]     || [ "$XL" -nt "$_base_dst" ]     || ! nm "$_base_dst" | awk -v s="$_base_sym" '$2=="T"&&$3==s{f=1} END{exit !f}'; }; then
   _base_tmp="$OUT/base.tmp.o"
   rm -f "$_base_tmp"
-  if ! timeout 240 "$XL" -backend asm -c "$_base_src" -o "$_base_tmp"; then
+  if ! rt_compile "$_base_tmp" "$_base_src"; then
     echo "linux_selfhost_pabi_refresh_tip: $_base_src failed" >&2
     rm -f "$_base_tmp"
     exit 1
@@ -224,19 +243,8 @@ if [ ! -f "$_cimp_src" ]; then
 fi
 _cimp_tmp="$OUT/cimp.tmp.o"
 rm -f "$_cimp_dst" "$_cimp_tmp"
-# note743u: tip often CG002 on collect_imports; walk _rt_xls (pin-egg last).
-_cimp_ok=0
-for _cimp_xl in $_rt_xls; do
-  rm -f "$_cimp_tmp"
-  if timeout 240 env XLANG_PREFER_ASM_O=1 "$_cimp_xl" -backend asm -c "$_cimp_src" -o "$_cimp_tmp" \
-    && [ -s "$_cimp_tmp" ]; then
-    echo "linux_selfhost_pabi_refresh_tip: cimp via $_cimp_xl (note743u)" >&2
-    _cimp_ok=1
-    break
-  fi
-  rm -f "$_cimp_tmp"
-done
-if [ "$_cimp_ok" != "1" ]; then
+# note743u.1: tip often CG002 on collect_imports; rt_compile walks pin-egg.
+if ! rt_compile "$_cimp_tmp" "$_cimp_src" XLANG_PREFER_ASM_O=1; then
   echo "linux_selfhost_pabi_refresh_tip: $_cimp_src failed" >&2
   rm -f "$_cimp_tmp"
   exit 1
@@ -281,7 +289,7 @@ _ens_strong() {
 }
 _ens_tmp="$OUT/enum_ns_tag.tmp.o"
 rm -f "$_ens_dst" "$_ens_tmp"
-if ! timeout 240 env XLANG_PREFER_ASM_O=1 "$XL" -backend asm -c "$_ens_src" -o "$_ens_tmp"; then
+if ! rt_compile "$_ens_tmp" "$_ens_src" XLANG_PREFER_ASM_O=1; then
   echo "linux_selfhost_pabi_refresh_tip: $_ens_src failed" >&2
   rm -f "$_ens_tmp"
   exit 1
@@ -322,7 +330,7 @@ if [ ! -s "$_fca_dst" ] || [ "$_fca_src" -nt "$_fca_dst" ] || [ "$XL" -nt "$_fca
     || ! nm "$_fca_dst" | awk -v s="$_fca_sym" '$2=="T"&&$3==s{f=1} END{exit !f}'; then
   _fca_tmp="$OUT/one.tmp.o"
   rm -f "$_fca_tmp"
-  if ! timeout 240 "$XL" -backend asm -c "$_fca_src" -o "$_fca_tmp"; then
+  if ! rt_compile "$_fca_tmp" "$_fca_src"; then
     echo "linux_selfhost_pabi_refresh_tip: $_fca_src failed" >&2
     rm -f "$_fca_tmp"
     exit 1
@@ -372,7 +380,7 @@ if [ ! -s "$_rec_dst" ] || [ "$_rec_src" -nt "$_rec_dst" ] || [ "$XL" -nt "$_rec
     || ! _rec_has_pair "$_rec_dst"; then
   _rec_tmp="$OUT/rec.tmp.o"
   rm -f "$_rec_tmp"
-  if ! timeout 240 "$XL" -backend asm -c "$_rec_src" -o "$_rec_tmp"; then
+  if ! rt_compile "$_rec_tmp" "$_rec_src"; then
     echo "linux_selfhost_pabi_refresh_tip: $_rec_src failed" >&2
     rm -f "$_rec_tmp"
     exit 1
@@ -425,7 +433,7 @@ if [ ! -f "$_stp_src" ]; then
 fi
 _stp_tmp="$OUT/store_retval_pair.tmp.o"
 rm -f "$_stp_dst" "$_stp_tmp"
-if ! timeout 240 "$XL" -backend asm -c "$_stp_src" -o "$_stp_tmp"; then
+if ! rt_compile "$_stp_tmp" "$_stp_src"; then
   echo "linux_selfhost_pabi_refresh_tip: $_stp_src failed" >&2
   rm -f "$_stp_tmp"
   exit 1
@@ -482,7 +490,7 @@ if [ ! -f "$_fag_src" ]; then
 fi
 _fag_tmp="$OUT/field_agg_load.tmp.o"
 rm -f "$_fag_dst" "$_fag_tmp"
-if ! timeout 240 env -u XLANG_PREFER_ASM_O "$XL" -backend asm -c "$_fag_src" -o "$_fag_tmp"; then
+if ! rt_compile "$_fag_tmp" "$_fag_src" -u XLANG_PREFER_ASM_O; then
   echo "linux_selfhost_pabi_refresh_tip: $_fag_src failed" >&2
   rm -f "$_fag_tmp"
   exit 1
