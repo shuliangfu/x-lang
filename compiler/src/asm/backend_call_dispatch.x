@@ -33,6 +33,7 @@ export extern function parser_get_module_import_path(mod: *u8, ix: i32, path_byt
 export extern function pipeline_module_num_funcs(m: *u8): i32;
 export extern function pipeline_asm_module_func_is_extern_at(m: *u8, i: i32): i32;
 export extern function pipeline_module_func_name_equal_at(m: *u8, i: i32, name: *u8, nlen: i32): i32;
+export extern function pipeline_module_func_owner_copy(m: *u8, fi: i32, dst: *u8, cap: i32): i32;
 export extern function parser_get_module_num_imports(mod: *u8): i32;
 export extern function pipeline_module_import_path_len(mod: *u8, idx: i32): i32;
 export extern function pipeline_module_import_path_byte_at(mod: *u8, idx: i32, k: i32): u8;
@@ -2935,6 +2936,20 @@ export function glue_asm_build_func_export_sym_c(m: *u8, a: *u8, func_ix: i32, o
     }
     if (glue_asm_std_c_wrapper_fname_needs_export_c_suffix(&fname[0], fname_len) != 0) {
       pos = glue_asm_append_export_c_suffix(out, pos, out_cap);
+    }
+    /* LANG-005: same-name overload impl methods — append _Owner so B.g≠A.g. */
+    let own: u8[64] = [];
+    let olen: i32 = pipeline_module_func_owner_copy(m, func_ix, &own[0], 63);
+    if (olen > 0) {
+      if (pos + 1 + olen >= out_cap) { return 0 - 1; }
+      out[pos] = 95;
+      pos = pos + 1;
+      let oi: i32 = 0;
+      while (oi < olen) {
+        out[pos] = own[oi];
+        pos = pos + 1;
+        oi = oi + 1;
+      }
     }
     if (pos > 0) { return pos; }
   }
