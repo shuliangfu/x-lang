@@ -29544,12 +29544,13 @@ int32_t glue_vector_var_lane_stack_off_elf_c(uint8_t * arena, uint8_t * ctx, int
   int32_t ltk = 0;
   int32_t field_off = 0;
   uint8_t * mod = 0;
-  int32_t chain_fa[16] = {};
+  /* note743y.6.9: no ={} — avoids GCC movaps under tip rsp misalign. */
+  int32_t chain_fa[16];
   int32_t chain_n = 0;
   int32_t walk_cur = 0;
   int32_t walk_i = 0;
   int32_t fa_ref = 0;
-  uint8_t vname[256] = {};
+  uint8_t vname[256];
   int32_t vlen = 0;
   if ((((((arena ==0) || (ctx ==0)) || (var_expr_ref <=0)) || (lane < 0)) || (esz <=0))) {
     return -1;

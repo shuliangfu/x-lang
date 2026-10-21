@@ -44895,12 +44895,14 @@ export function glue_vector_var_lane_stack_off_elf_c(arena: *u8, ctx: *u8, var_e
   let ltk: i32 = 0;
   let field_off: i32 = 0;
   let mod: *u8 = 0 as *u8;
-  let chain_fa: i32[16] = [];
+  /* note743y.6.9: no =[] — tip-E/GCC emits movaps for zero-init; tip callers
+   * may enter with rsp misaligned → SEGV on chain_fa. Slots written before read. */
+  let chain_fa: i32[16];
   let chain_n: i32 = 0;
   let walk_cur: i32 = 0;
   let walk_i: i32 = 0;
   let fa_ref: i32 = 0;
-  let vname: u8[256] = [];
+  let vname: u8[256];
   let vlen: i32 = 0;
   if (arena == (0 as *u8) || ctx == (0 as *u8) || var_expr_ref <= 0 || lane < 0 || esz <= 0) {
     return 0 - 1;
