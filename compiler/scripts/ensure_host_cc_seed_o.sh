@@ -26502,10 +26502,17 @@ pipeline_abi_inject_block_domain_thin() {
   local had_prefer=0 had_e_repl=0 had_force=0
   local rc=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  # note743y.6.9 Soft Cap: w526 stamp-only left egg static expr_has_inner_block
-  # (walks all slots → if_nested infinite recurse). One PREFER reinject then HARD BAN.
+  # note743y.6.9 Soft Cap: reinject until tip owns pipeline_patch_block_parent_links
+  # (hybrid rebuild can restore GCC leftover after stamp). HARD BAN only when tip.
   if [ -f "$stamp" ]; then
-    return 0
+    if command -v objdump >/dev/null 2>&1 \
+      && objdump -d "$o" 2>/dev/null | awk "/<pipeline_patch_block_parent_links>:/,/^\$/" | head -5 \
+        | grep -q endbr64; then
+      log "pipeline_abi w531-block-domain: stamp present but endbr leftover → reinject"
+      rm -f "$stamp"
+    else
+      return 0
+    fi
   fi
   if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
   if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi

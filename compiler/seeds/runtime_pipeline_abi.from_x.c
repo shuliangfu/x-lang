@@ -26131,10 +26131,11 @@ static void patch_block_expr_parents(void *a, int32_t block_ref) {
 }
 
 static int32_t expr_has_inner_block(void *a, int32_t expr_ref, int32_t parent_block, int32_t depth) {
+  /* note743y.6.9: kind-specific children only (was: every slot → if_nested hang). */
   int32_t kind;
   int32_t inner_blk;
   int32_t ne;
-  int32_t left, right, op, th, el, br, cal;
+  int32_t left, right, op, th, el, cal;
   if (!a || expr_ref <= 0 || depth > 64) return 0;
   memcpy(&ne, (uint8_t *)a + 4, 4);
   if (expr_ref > ne) return 0;
@@ -26148,21 +26149,34 @@ static int32_t expr_has_inner_block(void *a, int32_t expr_ref, int32_t parent_bl
       }
       patch_block_expr_parents(a, inner_blk);
     }
+    return 0;
   }
-  left = pipeline_expr_binop_left_ref_at(a, expr_ref);
-  right = pipeline_expr_binop_right_ref_at(a, expr_ref);
-  op = pipeline_expr_unary_operand_ref_at(a, expr_ref);
-  th = pipeline_expr_if_then_ref_at(a, expr_ref);
-  el = pipeline_expr_if_else_ref_at(a, expr_ref);
-  br = pipeline_expr_block_ref_at(a, expr_ref);
-  cal = pipeline_expr_call_callee_ref_at(a, expr_ref);
-  if (left > 0) expr_has_inner_block(a, left, parent_block, depth + 1);
-  if (right > 0) expr_has_inner_block(a, right, parent_block, depth + 1);
-  if (op > 0) expr_has_inner_block(a, op, parent_block, depth + 1);
-  if (th > 0) expr_has_inner_block(a, th, parent_block, depth + 1);
-  if (el > 0) expr_has_inner_block(a, el, parent_block, depth + 1);
-  if (br > 0 && kind != 26) expr_has_inner_block(a, br, parent_block, depth + 1);
-  if (cal > 0) expr_has_inner_block(a, cal, parent_block, depth + 1);
+  if ((kind >= 4 && kind <= 21) || (kind >= 28 && kind <= 38)) {
+    left = pipeline_expr_binop_left_ref_at(a, expr_ref);
+    if (left > 0 && left != expr_ref) expr_has_inner_block(a, left, parent_block, depth + 1);
+    right = pipeline_expr_binop_right_ref_at(a, expr_ref);
+    if (right > 0 && right != expr_ref) expr_has_inner_block(a, right, parent_block, depth + 1);
+    return 0;
+  }
+  if (kind == 22 || kind == 23 || kind == 24 || kind == 41 || kind == 50 || kind == 51) {
+    op = pipeline_expr_unary_operand_ref_at(a, expr_ref);
+    if (op > 0 && op != expr_ref) expr_has_inner_block(a, op, parent_block, depth + 1);
+    return 0;
+  }
+  if (kind == 25 || kind == 27) {
+    left = pipeline_expr_if_cond_ref_at(a, expr_ref);
+    if (left > 0 && left != expr_ref) expr_has_inner_block(a, left, parent_block, depth + 1);
+    th = pipeline_expr_if_then_ref_at(a, expr_ref);
+    if (th > 0 && th != expr_ref) expr_has_inner_block(a, th, parent_block, depth + 1);
+    el = pipeline_expr_if_else_ref_at(a, expr_ref);
+    if (el > 0 && el != expr_ref) expr_has_inner_block(a, el, parent_block, depth + 1);
+    return 0;
+  }
+  if (kind == 48 || kind == 49) {
+    cal = pipeline_expr_call_callee_ref_at(a, expr_ref);
+    if (cal > 0 && cal != expr_ref) expr_has_inner_block(a, cal, parent_block, depth + 1);
+    return 0;
+  }
   return 0;
 }
 
