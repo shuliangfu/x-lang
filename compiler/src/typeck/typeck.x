@@ -19606,9 +19606,24 @@ return_type_ref: i32, ctx: *PipelineDepCtx, field_i: i32, num_fields: i32): i32 
     if (field_i >= num_fields) {
       return 0;
     }
+    /* note743y.6.6: imported Split_u8 + nested anon struct lit can leave
+     * init_ref == parent (or out-of-range), and check_expr recurses forever
+     * through typeck_check_expr_struct_lit. Skip cyclic / bogus inits.
+     * PLATFORM: SHARED — subslice_split_chunks SEGV on Ubuntu tip. */
+    if (num_fields < 0 || num_fields > 256) {
+      return 0 - 1;
+    }
     init_sl = pipeline_expr_struct_lit_init_ref(arena, expr_ref, field_i);
+    if (ast.ref_is_null(init_sl) || init_sl <= 0 || init_sl == expr_ref) {
+      return typeck_check_expr_struct_lit_field(module, arena, expr_ref, return_type_ref, ctx,
+      field_i + 1, num_fields);
+    }
+    if (init_sl > arena.num_exprs) {
+      return typeck_check_expr_struct_lit_field(module, arena, expr_ref, return_type_ref, ctx,
+      field_i + 1, num_fields);
+    }
     /* expected=0: do not pass outer function return type into field METHOD_CALL/CALL. */
-    if (!ast.ref_is_null(init_sl) && check_expr(module, arena, init_sl, no_expected, ctx) != 0) {
+    if (check_expr(module, arena, init_sl, no_expected, ctx) != 0) {
       return - 1;
     }
     return typeck_check_expr_struct_lit_field(module, arena, expr_ref, return_type_ref, ctx,
@@ -19782,6 +19797,10 @@ export function typeck_check_expr_struct_lit(
     let name_buf: u8[256] = [];
     let tr: i32 = 0;
     let ord_named: i32 = 8;
+    /* note743y.6.6: refuse absurd field counts before recursive field walk. */
+    if (num_fields < 0 || num_fields > 256) {
+      return 0 - 1;
+    }
     name_len = pipeline_expr_struct_lit_type_name_len(arena, expr_ref);
     /**
      * LANG-009: named `Type { fields }` / `Type<Args> { fields }` (parse-mangled

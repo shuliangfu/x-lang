@@ -1003,6 +1003,18 @@ case "$UNAME_S" in
         echo "g05_relink_env: ERROR expr_sidecar glue_var tip-peel overlay missing" >&2
         exit 1
       fi
+      # note743y.6.6: nest guard for typeck struct-lit field walk
+      # (imported Split_u8 + nested anon SEGV). PLATFORM: LINUX tip cold.
+      _g05_pure_overlay src/typeck/typeck_check_expr_struct_lit_field_nest_guard_thin.x \
+        build_asm/selfhost_pabi/typeck_struct_lit_field_nest_guard.o \
+        typeck_check_expr_struct_lit_field
+      if [ -n "$_G05_PO_OUT" ]; then
+        _PABI_TIP_PEEL="$_G05_PO_OUT $_PABI_TIP_PEEL"
+        echo "g05_relink_env: note743y.6.6 tip-peel struct_lit_field nest guard" >&2
+      else
+        echo "g05_relink_env: ERROR struct_lit_field nest guard tip-peel missing" >&2
+        exit 1
+      fi
       # note743y.4: tip parser still calls struct-returning lexer_init; tip
       # lexer_init is out-ptr and smashes source when rdi==parked data
       # (num_funcs=0 / P001 / no main). Ret-by-value dual-ABI shim + demote
