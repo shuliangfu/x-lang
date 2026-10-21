@@ -941,10 +941,9 @@ case "$UNAME_S" in
         build_asm/selfhost_pabi/addr_of_call.o \
         glue_addr_simd_lane_type_c
       [ -n "$_G05_PO_OUT" ] && _PABI_TIP_PEEL="$_PABI_TIP_PEEL $_G05_PO_OUT"
-      _g05_pure_overlay src/runtime_pipeline_abi_fnptr_var_lea_thin.x \
-        build_asm/selfhost_pabi/emit_expr_elf_fast.o \
-        pipeline_asm_emit_expr_elf_fast
-      [ -n "$_G05_PO_OUT" ] && _PABI_TIP_PEEL="$_PABI_TIP_PEEL $_G05_PO_OUT"
+      # note743y.2: do NOT overlay fnptr_var_lea_thin for emit_expr_elf_fast —
+      # that thin UNDEFs pipeline_asm_emit_expr_elf_fast_mega (egg-only). Hollow
+      # W covers emit_expr_elf_fast after note743y.1 unpoison. PLATFORM: LINUX.
       # SHARED lane writers (file name says a64; body is tip SIMD @shuffle/@select).
       _g05_pure_overlay src/asm/simd_at_call_inline_a64.x \
         build_asm/selfhost_pabi/simd_at_call_inline.o \
