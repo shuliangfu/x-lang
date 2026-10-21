@@ -555,7 +555,16 @@ export function pipeline_elf_ctx_append_data_zeros(ctx_bytes: *u8, n: i32): i32 
  */
 #[no_mangle]
 export function pipeline_elf_ctx_data_poke_u8(ctx_bytes: *u8, off: i32, b: i32): i32 {
-  if (ctx_bytes == 0 as *u8 || off < 0 || off >= g_pipe_elf_data_len) {
+  /* note743y.6.4: tip folds off>=g_pipe_elf_data_len to off>=0 inside compound ||.
+   * Split checks; load len via emit_data_len (lea+load, not const 0). */
+  if (ctx_bytes == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (off < 0) {
+    return 0 - 1;
+  }
+  let cur: i32 = pipeline_elf_ctx_emit_data_len(ctx_bytes);
+  if (off >= cur) {
     return 0 - 1;
   }
   unsafe {
