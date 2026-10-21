@@ -94,6 +94,8 @@ export extern function pipeline_asm_emit_func_index_c(): i32;
 export extern function pipeline_asm_emit_ctx_sret_ret_sz_get(): i32;
 export extern function pipeline_module_func_return_type_at(m: *u8, func_index: i32): i32;
 export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
+export extern function pipeline_type_array_size_at(arena: *u8, type_ref: i32): i32;
+export extern function pipeline_type_elem_ref_at(arena: *u8, type_ref: i32): i32;
 export extern function glue_is_vector_lane_scalar_binop_ko(ko: i32): i32;
 export extern function vlet_lane_cmp_ko(ko: i32): i32;
 export extern function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32;
@@ -109,7 +111,15 @@ export extern function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i3
 //     lane-compare temps.
 // [6] arm64 sret CALL result temps + x8 save slot; Win64 by-ref arg copies (w1521);
 //     Linux x86_64 SysV push-helper temps (w1587).
-let w1500_cs_st: i32[7] = [];
+// [7] 1 only while this call is the direct initializer of a let or const.
+//     The local slot is the sret destination, so the frame keeps the 16-byte
+//     x8 save and not a second copy of the return value. Nested calls see 0.
+//     2 only while this STRUCT_LIT is that same initializer, or the
+//     operand of a return whose value is written straight into the sret
+//     pointer. The frame does not also keep a value temp. Nested
+//     STRUCT_LIT fields share that destination. Any other child sees 0
+//     and may still take a temp. PLATFORM: SHARED.
+let w1500_cs_st: i32[8] = [];
 
 /** Record the widest outgoing GP unit count. PLATFORM: SHARED. */
 function w1500_cs_note_gp(gp: i32): void {
@@ -503,6 +513,92 @@ function w1500_cs_addr_simd_binop_temp(arena: *u8, op: i32): void {
   w1500_cs_st[5] = w1500_cs_st[5] + need;
 }
 
+/**
+ * Reserve a private zero slot for an arm64 `return []` whose TYPE_ARRAY
+ * is wider than 16 bytes.
+ *
+ * The durable helper leaves x0 = 0 so a struct field can memset instead
+ * of copying the shared zero page. A direct return of that null is then
+ * loaded by the caller. An 8-byte or 16-byte return is the value itself
+ * and does not need this slot. A wider array needs an address the caller
+ * can copy from. The slot is align8(nbytes) plus 8 bytes of alignment
+ * slack, the same shape as a struct-literal temp, and it is added to
+ * st[5]. Only an empty literal (element count 0) is counted. A field
+ * `pad: []` is not the return operand, so it does not take a second slot.
+ * The byte count is the function return type. Above 16777216 bytes the
+ * frame is not reserved.
+ *
+ * @param arena *u8 — AST arena; null skips
+ * @param op i32 — return operand; values <= 0 skip
+ * @return void
+ * PLATFORM: MACOS|ARM64. The caller already required st[2] == 0.
+ */
+function w1500_cs_empty_array_ret_temp(arena: *u8, op: i32): void {
+  let opk: i32 = 0;
+  let n: i32 = 0;
+  let mod_p: *u8 = 0 as *u8;
+  let fi: i32 = 0;
+  let rty: i32 = 0;
+  let rk: i32 = 0;
+  let an: i32 = 0;
+  let esz: i32 = 0;
+  let nbytes: i32 = 0;
+  let cap: i32 = 16777216;
+  if (arena == (0 as *u8) || op <= 0) {
+    return;
+  }
+  unsafe {
+    opk = pipeline_expr_kind_ord_at(arena, op);
+  }
+  // EXPR_ARRAY_LIT = 46. A struct literal is 45 and is not this slot.
+  if (opk != 46) {
+    return;
+  }
+  unsafe {
+    n = pipeline_expr_array_lit_num_elems_at(arena, op);
+  }
+  if (n != 0) {
+    return;
+  }
+  unsafe {
+    mod_p = pipeline_asm_emit_module_ref_c();
+    fi = pipeline_asm_emit_func_index_c();
+  }
+  if (mod_p == (0 as *u8) || fi < 0) {
+    return;
+  }
+  unsafe {
+    rty = pipeline_module_func_return_type_at(mod_p, fi);
+  }
+  if (rty <= 0) {
+    return;
+  }
+  unsafe {
+    rk = pipeline_type_kind_ord_at(arena, rty);
+  }
+  // TYPE_ARRAY = 10. A slice return is a different arm.
+  if (rk != 10) {
+    return;
+  }
+  unsafe {
+    an = pipeline_type_array_size_at(arena, rty);
+    rk = pipeline_type_elem_ref_at(arena, rty);
+    esz = glue_array_lit_force_esz_from_elem_type_c(arena, rk);
+  }
+  if (an <= 0 || esz <= 0 || esz > cap) {
+    return;
+  }
+  if (an > cap / esz) {
+    return;
+  }
+  nbytes = an * esz;
+  if (nbytes <= 16 || nbytes > cap) {
+    return;
+  }
+  nbytes = ((nbytes + 7) / 8) * 8 + 8;
+  w1500_cs_st[5] = w1500_cs_st[5] + nbytes;
+}
+
 /** Count args that are not EXPR_VAR(3). PLATFORM: SHARED. */
 function w1500_cs_non_var(arena: *u8, e: i32): i32 {
   let k: i32 = 0;
@@ -531,17 +627,26 @@ function w1500_cs_expr(arena: *u8, expr_ref: i32): void {
   let et_w: i32 = 0;
   let esz_w: i32 = 0;
   let span_w: i32 = 0;
+  let into_slot: i32 = 0;
   if (arena == (0 as *u8) || expr_ref <= 0) {
     return;
   }
   w1500_cs_st[1] = w1500_cs_st[1] + 1;
-  if (w1500_cs_st[1] > 32768) {
+  /* note743y.6.7: 32768 allowed stack blow before trip; imported Split_u8
+   * nested anon cycles SEGV in w1500_cs_expr. Cap nest depth. PLATFORM: SHARED. */
+  if (w1500_cs_st[1] > 256) {
     return;
   }
   unsafe {
     ko = pipeline_expr_kind_ord_at(arena, expr_ref);
   }
   if (ko == 48) {
+    /* Remember a direct let/const dest, then hide it from arguments.
+     * emit writes that call straight into the local (mov x8, x0) and
+     * does not allocate a second result temp. A nested call still needs
+     * its own temp. PLATFORM: SHARED. MACOS|ARM64 result temp. */
+    into_slot = w1500_cs_st[7];
+    w1500_cs_st[7] = 0;
     unsafe {
       n = pipeline_expr_call_num_args_at(arena, expr_ref);
     }
@@ -589,7 +694,12 @@ function w1500_cs_expr(arena: *u8, expr_ref: i32): void {
       op = glue_call_return_byte_size_c(arena, expr_ref);
     }
     if (op > 16) {
-      w1500_cs_st[6] = w1500_cs_st[6] + ((op + 7) & (0 - 8)) + 16;
+      if (into_slot != 0) {
+        /* x8 save only. The return bytes already live in the let slot. */
+        w1500_cs_st[6] = w1500_cs_st[6] + 16;
+      } else {
+        w1500_cs_st[6] = w1500_cs_st[6] + ((op + 7) & (0 - 8)) + 16;
+      }
     }
     op = 0;
     // w2060: AAPCS64 byref caller-copy temps (st[6]). PLATFORM: MACOS|ARM64.
@@ -746,10 +856,37 @@ function w1500_cs_expr(arena: *u8, expr_ref: i32): void {
     if (ko == 41) {
       w1500_cs_wide_named_ret_temp(arena, op);
     }
+    // Arm64 `return Holder { ... }` is written into the sret pointer.
+    // st[7] == 2 tells the STRUCT_LIT walk not to reserve another copy.
+    // ret_sz is already set; the home slot is assigned after this walk.
+    // PLATFORM: MACOS|ARM64.
+    if (ko == 41 && w1500_cs_st[2] == 0 && op > 0) {
+      need = 0;
+      unsafe {
+        need = pipeline_expr_kind_ord_at(arena, op);
+      }
+      if (need == 45) {
+        unsafe {
+          need = pipeline_asm_emit_ctx_sret_ret_sz_get();
+        }
+        if (need > 16 && need <= 16777216) {
+          w1500_cs_st[7] = 2;
+          w1500_cs_expr(arena, op);
+          w1500_cs_st[7] = 0;
+          return;
+        }
+      }
+    }
     // Kind 51 is ADDR_OF. The named-SIMD lane slot is allocated
     // in the addr-of emitter, not in the operand. PLATFORM: MACOS|ARM64.
     if (ko == 51) {
       w1500_cs_addr_simd_binop_temp(arena, op);
+    }
+    // Empty TYPE_ARRAY wider than 16 bytes. The struct-literal arm
+    // above already returned when the operand is kind 45.
+    // PLATFORM: MACOS|ARM64.
+    if (ko == 41 && w1500_cs_st[2] == 0 && op > 0) {
+      w1500_cs_empty_array_ret_temp(arena, op);
     }
     w1500_cs_expr(arena, op);
     return;
@@ -791,7 +928,10 @@ function w1500_cs_expr(arena: *u8, expr_ref: i32): void {
     // past the frame onto the caller's saved fp/lr. The epilogue then
     // returns to a misaligned address (SIGBUS). Count the same rvalue
     // bucket the struct-lit walk fills. The extra 8 is that base-align
-    // slack. 4096 is the array-lit payload cap. PLATFORM: SHARED.
+    // slack. The payload reserve matches the 16MB literal cap. A
+    // 4104-byte literal was left at x29+16 in a 32-byte frame and the
+    // stores crossed the saved fp/lr (SIGSEGV). The one-element spill
+    // below still stops at 4096. PLATFORM: SHARED.
     // The overrun was measured on MACOS|ARM64.
     unsafe {
       need = glue_array_temp_bytes_for_let_init(arena, 0, expr_ref);
@@ -821,7 +961,7 @@ function w1500_cs_expr(arena: *u8, expr_ref: i32): void {
       }
     }
     if (need > 0) {
-      if (need <= 4096) {
+      if (need <= 16777216) {
         need = ((need + 7) / 8) * 8 + 8;
         w1500_cs_st[5] = w1500_cs_st[5] + need;
       }
@@ -853,6 +993,9 @@ function w1500_cs_expr(arena: *u8, expr_ref: i32): void {
     // home from next_offset while the body is emitted (Windows leftover
     // pipeline_asm_emit_struct_lit_fields_elf_c, stack_slot_off -1). Count
     // max(value bytes, 8 per field) + 8 alignment so the frame covers it.
+    // The emitter accepts a whole literal up to 16 MiB. Stopping the count
+    // at 4096 left the temp past the frame: a 4112-byte return memset from
+    // x29+4136 in a 4176-byte frame (SIGSEGV). PLATFORM: MACOS|ARM64.
     need = 0;
     unsafe {
       mod_p = pipeline_asm_emit_module_ref_c();
@@ -866,16 +1009,49 @@ function w1500_cs_expr(arena: *u8, expr_ref: i32): void {
     if (need < 8) {
       need = 8;
     }
-    if (need <= 4096) {
-      need = ((need + 7) / 8) * 8 + 8;
-      w1500_cs_st[5] = w1500_cs_st[5] + need;
+    // st[7] == 2: this literal is a let or const init (or a STRUCT_LIT
+    // field of one). pipeline_asm_emit_struct_let_init writes the bytes
+    // into the local home and does not bump next_offset. Counting the
+    // value here reserved a second copy: `let h = Holder { ... }` kept
+    // a 2MB frame for a 1MB local. A return literal still has st[7] == 0
+    // and still takes the temp. PLATFORM: SHARED.
+    if (w1500_cs_st[7] != 2) {
+      if (need <= 16777216) {
+        need = ((need + 7) / 8) * 8 + 8;
+        w1500_cs_st[5] = w1500_cs_st[5] + need;
+      }
     }
     i = 0;
     while (i < n) {
       unsafe {
         arg_ref = pipeline_expr_struct_lit_init_ref(arena, expr_ref, i);
       }
-      w1500_cs_expr(arena, arg_ref);
+      /* note743y.6.7: skip missing / self init_ref (cycle). PLATFORM: SHARED. */
+      if (arg_ref <= 0 || arg_ref == expr_ref) {
+        i = i + 1;
+        continue;
+      }
+      // Hide the flag from a child that is not itself a STRUCT_LIT.
+      // `Wrap { n: (Inner { ... }).n }` builds Inner in a real temp.
+      // A nested STRUCT_LIT field stays on the parent home.
+      // PLATFORM: SHARED.
+      if (w1500_cs_st[7] == 2) {
+        op = 0;
+        if (arg_ref > 0) {
+          unsafe {
+            op = pipeline_expr_kind_ord_at(arena, arg_ref);
+          }
+        }
+        if (op != 45) {
+          w1500_cs_st[7] = 0;
+          w1500_cs_expr(arena, arg_ref);
+          w1500_cs_st[7] = 2;
+        } else {
+          w1500_cs_expr(arena, arg_ref);
+        }
+      } else {
+        w1500_cs_expr(arena, arg_ref);
+      }
       i = i + 1;
     }
     return;
@@ -896,6 +1072,34 @@ function w1500_cs_expr(arena: *u8, expr_ref: i32): void {
   }
 }
 
+/**
+ * Walk one initializer. A direct CALL (kind 48) into a let or const
+ * sets st[7] to 1 so the call reserves 16 bytes, not a second copy of
+ * the return value. A direct STRUCT_LIT (kind 45) sets st[7] to 2 so
+ * the literal is not counted as a value temp. The flag is cleared
+ * before this function returns. The call walker clears 1 before
+ * arguments. The literal walker clears 2 around a non-literal field.
+ * @param arena *u8 — AST arena; null walks nothing
+ * @param expr_ref i32 — initializer expression; <=0 walks nothing
+ * PLATFORM: SHARED.
+ */
+function w1500_cs_expr_as_slot(arena: *u8, expr_ref: i32): void {
+  let ko: i32 = 0;
+  if (arena != (0 as *u8) && expr_ref > 0) {
+    unsafe {
+      ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+    }
+  }
+  if (ko == 48) {
+    w1500_cs_st[7] = 1;
+  }
+  if (ko == 45) {
+    w1500_cs_st[7] = 2;
+  }
+  w1500_cs_expr(arena, expr_ref);
+  w1500_cs_st[7] = 0;
+}
+
 /** One stmt_order entry. PLATFORM: SHARED. */
 function w1500_cs_stmt(arena: *u8, cur: i32, sok: i32, soi: i32, depth: i32): void {
   let er: i32 = 0;
@@ -909,12 +1113,12 @@ function w1500_cs_stmt(arena: *u8, cur: i32, sok: i32, soi: i32, depth: i32): vo
     unsafe {
       er = ast_pipeline_block_let_init_ref(arena, cur, soi);
     }
-    w1500_cs_expr(arena, er);
+    w1500_cs_expr_as_slot(arena, er);
   } else if (sok == 0) {
     unsafe {
       er = ast_pipeline_block_const_init_ref(arena, cur, soi);
     }
-    w1500_cs_expr(arena, er);
+    w1500_cs_expr_as_slot(arena, er);
   } else if (sok == 5) {
     unsafe {
       er = ast_pipeline_block_if_cond_ref(arena, cur, soi);
@@ -1000,7 +1204,7 @@ function w1500_cs_block_legacy(arena: *u8, cur: i32, depth: i32): void {
     unsafe {
       er = ast_pipeline_block_const_init_ref(arena, cur, i);
     }
-    w1500_cs_expr(arena, er);
+    w1500_cs_expr_as_slot(arena, er);
     i = i + 1;
   }
   unsafe {
@@ -1011,7 +1215,7 @@ function w1500_cs_block_legacy(arena: *u8, cur: i32, depth: i32): void {
     unsafe {
       er = ast_pipeline_block_let_init_ref(arena, cur, i);
     }
-    w1500_cs_expr(arena, er);
+    w1500_cs_expr_as_slot(arena, er);
     i = i + 1;
   }
   unsafe {
@@ -1098,7 +1302,9 @@ function w1500_cs_block(arena: *u8, cur: i32, depth: i32): void {
   if (arena == (0 as *u8) || cur <= 0 || depth <= 0) {
     return;
   }
-  if (w1500_cs_st[1] > 32768) {
+  /* note743y.6.7: 32768 allowed stack blow before trip; imported Split_u8
+   * nested anon cycles SEGV in w1500_cs_expr. Cap nest depth. PLATFORM: SHARED. */
+  if (w1500_cs_st[1] > 256) {
     return;
   }
   unsafe {
@@ -1143,6 +1349,7 @@ export function glue_asm_sum_block_call_spill_bytes(arena: *u8, block_ref: i32):
   w1500_cs_st[4] = 0;
   w1500_cs_st[5] = 0;
   w1500_cs_st[6] = 0;
+  w1500_cs_st[7] = 0;
   unsafe {
     arm = pipeline_asm_host_is_arm64_c();
   }
