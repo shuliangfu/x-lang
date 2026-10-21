@@ -941,9 +941,17 @@ case "$UNAME_S" in
         build_asm/selfhost_pabi/addr_of_call.o \
         glue_addr_simd_lane_type_c
       [ -n "$_G05_PO_OUT" ] && _PABI_TIP_PEEL="$_PABI_TIP_PEEL $_G05_PO_OUT"
-      # note743y.2: do NOT overlay fnptr_var_lea_thin for emit_expr_elf_fast —
-      # that thin UNDEFs pipeline_asm_emit_expr_elf_fast_mega (egg-only). Hollow
-      # W covers emit_expr_elf_fast after note743y.1 unpoison. PLATFORM: LINUX.
+      # note743y.3: wave152 mega tip thin + fnptr_var_lea (Cap tip twin).
+      # Mega replaces !FROM_X leftover body; lea is the typed-fnptr face.
+      # Poison hollow emit_expr_elf_fast below. PLATFORM: LINUX tip cold.
+      _g05_pure_overlay src/runtime_pipeline_abi_emit_expr_elf_fast_mega_thin.x \
+        build_asm/selfhost_pabi/emit_expr_elf_fast_mega.o \
+        pipeline_asm_emit_expr_elf_fast_mega
+      [ -n "$_G05_PO_OUT" ] && _PABI_TIP_PEEL="$_PABI_TIP_PEEL $_G05_PO_OUT"
+      _g05_pure_overlay src/runtime_pipeline_abi_fnptr_var_lea_thin.x \
+        build_asm/selfhost_pabi/emit_expr_elf_fast.o \
+        pipeline_asm_emit_expr_elf_fast
+      [ -n "$_G05_PO_OUT" ] && _PABI_TIP_PEEL="$_PABI_TIP_PEEL $_G05_PO_OUT"
       # SHARED lane writers (file name says a64; body is tip SIMD @shuffle/@select).
       _g05_pure_overlay src/asm/simd_at_call_inline_a64.x \
         build_asm/selfhost_pabi/simd_at_call_inline.o \
@@ -5468,7 +5476,7 @@ case "$UNAME_S" in
               ;;
             # Tip peel overlays own these; demote hollow so a mis-ordered
             # link cannot silently keep return-0 W.
-            pipeline_asm_emit_lvalue_eff_addr_elf_c|glue_copy_large_struct_from_rax_ptr_elf_c|glue_emit_struct_type_let_init_elf_c|glue_emit_index_eff_addr_scaled_elf_c|glue_try_index_var_or_field_base_to_rax_elf_c|glue_try_index_var_or_field_base_to_rbx_elf_c|pipeline_elf_ctx_add_sym|pipeline_elf_ctx_ensure_label|pipeline_elf_ctx_add_common_sym|pipeline_elf_ctx_add_label|glue_emit_index_bounds_guard_elf_c|glue_addr_simd_lane_type_c|pipeline_asm_simd_try_inline_shuffle_call_elf_c|pipeline_asm_simd_try_inline_select_call_elf_c)
+            pipeline_asm_emit_lvalue_eff_addr_elf_c|glue_copy_large_struct_from_rax_ptr_elf_c|glue_emit_struct_type_let_init_elf_c|glue_emit_index_eff_addr_scaled_elf_c|glue_try_index_var_or_field_base_to_rax_elf_c|glue_try_index_var_or_field_base_to_rbx_elf_c|pipeline_elf_ctx_add_sym|pipeline_elf_ctx_ensure_label|pipeline_elf_ctx_add_common_sym|pipeline_elf_ctx_add_label|glue_emit_index_bounds_guard_elf_c|glue_addr_simd_lane_type_c|pipeline_asm_simd_try_inline_shuffle_call_elf_c|pipeline_asm_simd_try_inline_select_call_elf_c|pipeline_asm_emit_expr_elf_fast|pipeline_asm_emit_expr_elf_fast_mega)
               if [ -n "$_PABI_TIP_PEEL" ]; then
                 _poison_args="$_poison_args --redefine-sym=${_ps}=${_ps}_hollow_tip_peel_dead"
               fi
