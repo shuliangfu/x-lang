@@ -5116,7 +5116,7 @@ case "$UNAME_S" in
     ;;
 esac
 # w1624: the egg skip_heavy body does not call asm_env_force_full_bodies.
-# Twelve PLT32 sites inside that object call the symbol. Alias the bytes
+# PLT32 sites inside that object call the symbol (12 dual-mega / 2 tip peel). Alias the bytes
 # and undefine the link name in a copy, then link the thin prefix ahead
 # of that copy. FORCE unset calls the egg body. Do not edit pabi_alias.o
 # or the 64k copy in place, and do not rebuild the egg. Darwin and
