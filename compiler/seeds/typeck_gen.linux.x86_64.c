@@ -18143,14 +18143,31 @@ static int typeck_is_const_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_re
    * ARRAY_LIT recursion above. PLATFORM: SHARED.
    */
   if (kd == ast_ExprKind_EXPR_STRUCT_LIT) {
+    /* note743y.6.7: imported Split_u8 + nested anon struct lit can cycle
+     * init_ref (A→B→A or init_ref==parent) and blow the stack in this
+     * walker (subslice_split_chunks product -o SEGV). Depth + self-ref
+     * guards; treat over-deep / cyclic as non-const. PLATFORM: SHARED. */
+    static int struct_lit_const_depth;
+    int saved_depth;
     ne = e->struct_lit_num_fields;
+    if (ne < 0 || ne > 256)
+      return 0;
+    if (struct_lit_const_depth > 64)
+      return 0;
+    saved_depth = struct_lit_const_depth;
+    struct_lit_const_depth++;
     for (i = 0; i < ne; i++) {
       int32_t init_ref = pipeline_expr_struct_lit_init_ref(a, expr_ref, i);
-      if (init_ref <= 0)
+      if (init_ref <= 0 || init_ref == expr_ref) {
+        struct_lit_const_depth = saved_depth;
         return 0;
-      if (!typeck_is_const_expr_ref_impl(a, init_ref, const_names, n_const_names))
+      }
+      if (!typeck_is_const_expr_ref_impl(a, init_ref, const_names, n_const_names)) {
+        struct_lit_const_depth = saved_depth;
         return 0;
+      }
     }
+    struct_lit_const_depth = saved_depth;
     return 1;
   }
   /**
