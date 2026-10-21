@@ -2981,9 +2981,17 @@ export function parser_asm_generic_bound_scan_into_c(lex_inout: *u8, source: *u8
               bn = bound_n[0];
               if (bn < FN_BOUND_MAX) {
                 slot_off = (bn as usize) * (BOUND_NAME_CAP as usize);
+                // Split clears: tip emitter can leave rbx holding store1's
+                // address across a same-index dual store (P12g BM4 family),
+                // so bound_trait[slot+zi]=0 wrote base+addr → SEGV. One
+                // store per loop forces zi reload. PLATFORM: SHARED.
                 zi = 0;
                 while (zi < BOUND_NAME_CAP) {
                   bound_name[slot_off + zi as usize] = 0;
+                  zi = zi + 1;
+                }
+                zi = 0;
+                while (zi < BOUND_NAME_CAP) {
                   bound_trait[slot_off + zi as usize] = 0;
                   zi = zi + 1;
                 }
@@ -3118,9 +3126,15 @@ export function parser_asm_generic_bound_scan_into_c(lex_inout: *u8, source: *u8
             nk = parser_asm_lex_peek_kind_c(lex_inout, source);
             if (nk == TOKEN_LPAREN || nk == TOKEN_LBRACE || nk == TOKEN_ASSIGN || nk == TOKEN_SEMICOLON || nk == TOKEN_COMMA || nk == TOKEN_RPAREN) {
               slot_off = (cn as usize) * (BOUND_NAME_CAP as usize);
+              // Same split as bound_name/bound_trait clear above.
+              // PLATFORM: SHARED.
               zi = 0;
               while (zi < BOUND_NAME_CAP) {
                 call_callee[slot_off + zi as usize] = 0;
+                zi = zi + 1;
+              }
+              zi = 0;
+              while (zi < BOUND_NAME_CAP) {
                 call_typearg[slot_off + zi as usize] = 0;
                 zi = zi + 1;
               }
