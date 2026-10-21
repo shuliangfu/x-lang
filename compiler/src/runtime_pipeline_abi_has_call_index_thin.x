@@ -355,16 +355,22 @@ export function glue_expr_tree_has_call_index_c(arena: *u8, expr_ref: i32): i32 
     return 0;
   }
   if (ko == 45) {
+    /* note743y.6.7: skip self/missing init_ref; cap field walk. PLATFORM: SHARED. */
     unsafe {
       n = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
+    }
+    if (n < 0 || n > 256) {
+      return 0;
     }
     i = 0;
     while (i < n) {
       unsafe {
         left_ref = pipeline_expr_struct_lit_init_ref(arena, expr_ref, i);
       }
-      if (glue_expr_tree_has_call_index_c(arena, left_ref) != 0) {
-        return 1;
+      if (left_ref > 0 && left_ref != expr_ref) {
+        if (glue_expr_tree_has_call_index_c(arena, left_ref) != 0) {
+          return 1;
+        }
       }
       i = i + 1;
     }

@@ -900,9 +900,14 @@ export function pipeline_expr_array_lit_elem_ref(a: *u8, expr_ref: i32, idx: i32
 
 /** Struct lit field init_ref. PLATFORM: SHARED */
 export function pipeline_expr_struct_lit_init_ref(a: *u8, expr_ref: i32, j: i32): i32 {
+  /* note743y.6.7: break cyclic init_ref==parent (imported Split_u8 nested
+   * anon). Callers that walk STRUCT_LIT forever SEGV otherwise. PLATFORM: SHARED. */
   let fe: *u8 = expr_struct_lit_field_at(a, expr_ref, j, 0);
+  let init_ref: i32 = 0;
   if (fe == (0 as *u8)) { return 0; }
-  return w327_load(fe, W327_SLF_INIT_REF);
+  init_ref = w327_load(fe, W327_SLF_INIT_REF);
+  if (init_ref == expr_ref) { return 0; }
+  return init_ref;
 }
 
 

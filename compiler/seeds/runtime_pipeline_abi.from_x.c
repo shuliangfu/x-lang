@@ -28079,8 +28079,15 @@ void pipeline_expr_struct_lit_field_name_into(void *a, int32_t expr_ref, int32_t
 }
 
 int32_t pipeline_expr_struct_lit_init_ref(void *a, int32_t expr_ref, int32_t j) {
+  /* note743y.6.7: cyclic init_ref==parent SEGV walkers. PLATFORM: SHARED. */
   W278_StructLitField *fe = expr_struct_lit_field_at(a, expr_ref, j, 0);
-  return fe ? fe->init_ref : 0;
+  int32_t init_ref;
+  if (!fe)
+    return 0;
+  init_ref = fe->init_ref;
+  if (init_ref == expr_ref)
+    return 0;
+  return init_ref;
 }
 
 /*

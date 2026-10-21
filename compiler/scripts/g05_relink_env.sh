@@ -980,16 +980,19 @@ case "$UNAME_S" in
         _gv_full="$_G05_PO_OUT"
         _gv_kg=build_asm/selfhost_pabi/expr_sidecar_glue_var_kg.o
         _gv_keep=build_asm/selfhost_pabi/expr_sidecar_glue_var_keep.txt
-        printf '%s\n' glue_fill_var_block_refs_c glue_var_blk_walk_expr >"$_gv_keep"
+        # note743y.6.7: also keep pipeline_expr_struct_lit_init_ref (self-ref
+        # guard) so walkers do not bind seed cyclic init_ref. PLATFORM: LINUX.
+        printf '%s\n' glue_fill_var_block_refs_c glue_var_blk_walk_expr pipeline_expr_struct_lit_init_ref >"$_gv_keep"
         _oc=""
         if command -v llvm-objcopy >/dev/null 2>&1; then _oc=llvm-objcopy
         elif command -v objcopy >/dev/null 2>&1; then _oc=objcopy
         fi
         if [ -n "$_oc" ] && "$_oc" --keep-global-symbols="$_gv_keep" "$_gv_full" "$_gv_kg" 2>/tmp/g05_glue_var_kg.err; then
           if nm "$_gv_kg" 2>/dev/null | grep -qE ' T glue_var_blk_walk_expr$' \
-            && nm "$_gv_kg" 2>/dev/null | grep -qE ' T glue_fill_var_block_refs_c$'; then
+            && nm "$_gv_kg" 2>/dev/null | grep -qE ' T glue_fill_var_block_refs_c$' \
+            && nm "$_gv_kg" 2>/dev/null | grep -qE ' T pipeline_expr_struct_lit_init_ref$'; then
             _PABI_TIP_PEEL="$_gv_kg $_PABI_TIP_PEEL"
-            echo "g05_relink_env: note743y.6.5 tip-peel glue_var keep-global fill+walk" >&2
+            echo "g05_relink_env: note743y.6.5/6.7 tip-peel glue_var+init_ref keep-global" >&2
           else
             echo "g05_relink_env: ERROR glue_var kg missing T fill/walk" >&2
             exit 1
