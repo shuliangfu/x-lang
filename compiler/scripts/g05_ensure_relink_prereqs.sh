@@ -369,7 +369,7 @@ g05_p9a_bridge_pure() {
   if ! (
     export XLANG_PREFER_ASM_O=1
     unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
-    pure_asm_x_to_o "$_bo" "$_bx"
+    pure_asm_x_to_o_or_pin_egg "$_bo" "$_bx"
   ) || [ ! -s "$_bo" ]; then
     echo "g05_ensure: P9a lexer-step bridge pure-asm failed" >&2
     rm -f "$_bo"
@@ -404,7 +404,7 @@ g05_binop_set_pure() {
   if ! (
     export XLANG_PREFER_ASM_O=1
     unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
-    pure_asm_x_to_o "$_bo" "$_bx"
+    pure_asm_x_to_o_or_pin_egg "$_bo" "$_bx"
   ) || [ ! -s "$_bo" ]; then
     echo "g05_ensure: P4 binop setter pure-asm failed" >&2
     rm -f "$_bo"
@@ -436,7 +436,7 @@ g05_binop_tramp_pure() {
   if ! (
     export XLANG_PREFER_ASM_O=1
     unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
-    pure_asm_x_to_o "$_bo" "$_bx"
+    pure_asm_x_to_o_or_pin_egg "$_bo" "$_bx"
   ) || [ ! -s "$_bo" ]; then
     echo "g05_ensure: P4 binop trampoline pure-asm failed" >&2
     rm -f "$_bo"
@@ -473,7 +473,7 @@ g05_unary_set_pure() {
   if ! (
     export XLANG_PREFER_ASM_O=1
     unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
-    pure_asm_x_to_o "$_bo" "$_bx"
+    pure_asm_x_to_o_or_pin_egg "$_bo" "$_bx"
   ) || [ ! -s "$_bo" ]; then
     echo "g05_ensure: P4 unary setter pure-asm failed" >&2
     rm -f "$_bo"
@@ -505,7 +505,7 @@ g05_unary_tramp_pure() {
   if ! (
     export XLANG_PREFER_ASM_O=1
     unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
-    pure_asm_x_to_o "$_bo" "$_bx"
+    pure_asm_x_to_o_or_pin_egg "$_bo" "$_bx"
   ) || [ ! -s "$_bo" ]; then
     echo "g05_ensure: P4 unary trampoline pure-asm failed" >&2
     rm -f "$_bo"
@@ -541,7 +541,7 @@ g05_as_suffix_set_pure() {
   if ! (
     export XLANG_PREFER_ASM_O=1
     unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
-    pure_asm_x_to_o "$_bo" "$_bx"
+    pure_asm_x_to_o_or_pin_egg "$_bo" "$_bx"
   ) || [ ! -s "$_bo" ]; then
     echo "g05_ensure: P4 as_suffix setter pure-asm failed" >&2
     rm -f "$_bo"
@@ -573,7 +573,7 @@ g05_as_suffix_tramp_pure() {
   if ! (
     export XLANG_PREFER_ASM_O=1
     unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
-    pure_asm_x_to_o "$_bo" "$_bx"
+    pure_asm_x_to_o_or_pin_egg "$_bo" "$_bx"
   ) || [ ! -s "$_bo" ]; then
     echo "g05_ensure: P4 as_suffix trampoline pure-asm failed" >&2
     rm -f "$_bo"
@@ -609,7 +609,7 @@ g05_ternary_tramp_pure() {
   if ! (
     export XLANG_PREFER_ASM_O=1
     unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
-    pure_asm_x_to_o "$_bo" "$_bx"
+    pure_asm_x_to_o_or_pin_egg "$_bo" "$_bx"
   ) || [ ! -s "$_bo" ]; then
     echo "g05_ensure: P4 ternary trampoline pure-asm failed" >&2
     rm -f "$_bo"
