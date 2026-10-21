@@ -18702,12 +18702,25 @@ static void typeck_fold_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref,
    *           two ALU dependencies.
    */
   if (kd == ast_ExprKind_EXPR_STRUCT_LIT) {
+    /* note743y.6.7: same cycle as is_const walker — nested anon / imported
+     * Split_u8 can loop init_ref and SEGV here. Depth + self-ref guards.
+     * PLATFORM: SHARED. */
+    static int struct_lit_fold_depth;
+    int saved_depth;
     int nf = e->struct_lit_num_fields;
+    if (nf < 0 || nf > 256)
+      return;
+    if (struct_lit_fold_depth > 64)
+      return;
+    saved_depth = struct_lit_fold_depth;
+    struct_lit_fold_depth++;
     for (i = 0; i < nf; i++) {
       int32_t init_ref = pipeline_expr_struct_lit_init_ref(a, expr_ref, i);
-      if (init_ref > 0)
-        typeck_fold_expr_ref_impl(a, init_ref, const_names, const_values, n_const_names);
+      if (init_ref <= 0 || init_ref == expr_ref)
+        continue;
+      typeck_fold_expr_ref_impl(a, init_ref, const_names, const_values, n_const_names);
     }
+    struct_lit_fold_depth = saved_depth;
     return;
   }
 
