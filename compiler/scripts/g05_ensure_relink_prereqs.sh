@@ -5284,6 +5284,14 @@ if [ "$(uname -s)" = "Linux" ]; then
       echo "g05_ensure_relink_prereqs: linux_selfhost_pabi_sidecars failed" >&2
       exit 1
     fi
+    # note743u: full sidecars creates READY but does not emit cimp.o /
+    # enum_ns_tag / store_retval_pair / field_agg_load (those live in
+    # refresh_tip). Always refresh after a cold sidecars rebuild.
+    # PLATFORM: LINUX.
+    if ! bash scripts/linux_selfhost_pabi_refresh_tip.sh >&2; then
+      echo "g05_ensure_relink_prereqs: selfhost_pabi tip refresh failed (after sidecars)" >&2
+      exit 1
+    fi
   elif [ -f "$_pabi_dir/READY" ]; then
     if ! bash scripts/linux_selfhost_pabi_refresh_tip.sh >&2; then
       echo "g05_ensure_relink_prereqs: selfhost_pabi tip refresh failed" >&2

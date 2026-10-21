@@ -27,6 +27,30 @@ if [ ! -x "$XL" ]; then
   echo "linux_selfhost_pabi_refresh_tip: no product compiler" >&2
   exit 1
 fi
+# note743u: tip-cold tip may CG002 Cap thins (collect_imports); try each
+# product then seeds/bootstrap_xlangc.linux.x86_64 (same pin-egg as
+# sidecars note743o). PLATFORM: LINUX.
+_rt_xls=""
+for _c in ./xlang_asm ./xlang ./bootstrap_xlangc ./xlang-c; do
+  if [ -x "$_c" ]; then
+    case " $_rt_xls " in
+      *" $_c "*) ;;
+      *) _rt_xls="$_rt_xls $_c" ;;
+    esac
+  fi
+done
+_rt_egg="seeds/bootstrap_xlangc.linux.x86_64"
+if [ -x "$_rt_egg" ]; then
+  case " $_rt_xls " in
+    *" $_rt_egg "*) ;;
+    *) _rt_xls="$_rt_xls $_rt_egg" ;;
+  esac
+fi
+# Prefer the single XL first (historical), then the rest of _rt_xls.
+case " $_rt_xls " in
+  *" $XL "*) ;;
+  *) _rt_xls="$XL $_rt_xls" ;;
+esac
 
 # 1. pabi_alias
 # w1493: the tip pabi keeps LOCAL copies of four C-rest modlet faces next
@@ -200,7 +224,19 @@ if [ ! -f "$_cimp_src" ]; then
 fi
 _cimp_tmp="$OUT/cimp.tmp.o"
 rm -f "$_cimp_dst" "$_cimp_tmp"
-if ! timeout 240 env XLANG_PREFER_ASM_O=1 "$XL" -backend asm -c "$_cimp_src" -o "$_cimp_tmp"; then
+# note743u: tip often CG002 on collect_imports; walk _rt_xls (pin-egg last).
+_cimp_ok=0
+for _cimp_xl in $_rt_xls; do
+  rm -f "$_cimp_tmp"
+  if timeout 240 env XLANG_PREFER_ASM_O=1 "$_cimp_xl" -backend asm -c "$_cimp_src" -o "$_cimp_tmp" \
+    && [ -s "$_cimp_tmp" ]; then
+    echo "linux_selfhost_pabi_refresh_tip: cimp via $_cimp_xl (note743u)" >&2
+    _cimp_ok=1
+    break
+  fi
+  rm -f "$_cimp_tmp"
+done
+if [ "$_cimp_ok" != "1" ]; then
   echo "linux_selfhost_pabi_refresh_tip: $_cimp_src failed" >&2
   rm -f "$_cimp_tmp"
   exit 1
