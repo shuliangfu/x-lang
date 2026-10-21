@@ -932,19 +932,32 @@ case "$UNAME_S" in
         build_asm/selfhost_pabi/index_base_rax.o \
         glue_try_index_var_or_field_base_to_rax_elf_c
       [ -n "$_G05_PO_OUT" ] && _PABI_TIP_PEEL="$_PABI_TIP_PEEL $_G05_PO_OUT"
-      # elf_ctx tip faces (add_sym / ensure_label / add_common_sym). Prefer the
-      # focused phase1 twin when present; else full thin into selfhost_pabi
-      # (not src/*.o — ensure bans auto leftover inject that dups undef_cap).
-      _g05_pure_overlay src/asm/phase1_elf_ctx_add_label_sym.x \
-        build_asm/selfhost_pabi/elf_ctx_add_label_sym.o \
-        pipeline_elf_ctx_add_sym
+      _g05_pure_overlay src/runtime_pipeline_abi_index_bounds_guard_thin.x \
+        build_asm/selfhost_pabi/index_bounds_guard.o \
+        glue_emit_index_bounds_guard_elf_c
       [ -n "$_G05_PO_OUT" ] && _PABI_TIP_PEEL="$_PABI_TIP_PEEL $_G05_PO_OUT"
+      # addr_of_call thin also exports glue_addr_simd_lane_type_c (call_spill U).
+      _g05_pure_overlay src/runtime_pipeline_abi_addr_of_call_thin.x \
+        build_asm/selfhost_pabi/addr_of_call.o \
+        glue_addr_simd_lane_type_c
+      [ -n "$_G05_PO_OUT" ] && _PABI_TIP_PEEL="$_PABI_TIP_PEEL $_G05_PO_OUT"
+      _g05_pure_overlay src/runtime_pipeline_abi_fnptr_var_lea_thin.x \
+        build_asm/selfhost_pabi/emit_expr_elf_fast.o \
+        pipeline_asm_emit_expr_elf_fast
+      [ -n "$_G05_PO_OUT" ] && _PABI_TIP_PEEL="$_PABI_TIP_PEEL $_G05_PO_OUT"
+      # SHARED lane writers (file name says a64; body is tip SIMD @shuffle/@select).
+      _g05_pure_overlay src/asm/simd_at_call_inline_a64.x \
+        build_asm/selfhost_pabi/simd_at_call_inline.o \
+        pipeline_asm_simd_try_inline_shuffle_call_elf_c
+      [ -n "$_G05_PO_OUT" ] && _PABI_TIP_PEEL="$_PABI_TIP_PEEL $_G05_PO_OUT"
+      # elf_ctx tip faces (add_sym / ensure_label / add_common_sym). Full thin
+      # into selfhost_pabi (not src/*.o — ensure bans leftover inject dups).
+      # Do NOT link phase1_elf_ctx_add_label_sym: it UNDEFs pipe_elf_sym_shndx_set
+      # while elf_ctx_tip already exports add_sym. PLATFORM: LINUX tip cold.
       _g05_pure_overlay src/runtime_pipeline_abi_elf_ctx_thin.x \
         build_asm/selfhost_pabi/elf_ctx_tip.o \
         pipeline_elf_ctx_ensure_label
       if [ -n "$_G05_PO_OUT" ]; then
-        # Front via _PABI_TIP_PEEL so first-wins over hollow W; clear the
-        # late _PABI_ELF_CTX slot to avoid double-link.
         _PABI_TIP_PEEL="$_PABI_TIP_PEEL $_G05_PO_OUT"
         _PABI_ELF_CTX=""
         _PABI_DATA_LEN=""
@@ -5456,7 +5469,7 @@ case "$UNAME_S" in
               ;;
             # Tip peel overlays own these; demote hollow so a mis-ordered
             # link cannot silently keep return-0 W.
-            pipeline_asm_emit_lvalue_eff_addr_elf_c|glue_copy_large_struct_from_rax_ptr_elf_c|glue_emit_struct_type_let_init_elf_c|glue_emit_index_eff_addr_scaled_elf_c|glue_try_index_var_or_field_base_to_rax_elf_c|glue_try_index_var_or_field_base_to_rbx_elf_c|pipeline_elf_ctx_add_sym|pipeline_elf_ctx_ensure_label|pipeline_elf_ctx_add_common_sym|pipeline_elf_ctx_add_label|pipeline_asm_emit_expr_elf_fast)
+            pipeline_asm_emit_lvalue_eff_addr_elf_c|glue_copy_large_struct_from_rax_ptr_elf_c|glue_emit_struct_type_let_init_elf_c|glue_emit_index_eff_addr_scaled_elf_c|glue_try_index_var_or_field_base_to_rax_elf_c|glue_try_index_var_or_field_base_to_rbx_elf_c|pipeline_elf_ctx_add_sym|pipeline_elf_ctx_ensure_label|pipeline_elf_ctx_add_common_sym|pipeline_elf_ctx_add_label|glue_emit_index_bounds_guard_elf_c|glue_addr_simd_lane_type_c|pipeline_asm_simd_try_inline_shuffle_call_elf_c|pipeline_asm_simd_try_inline_select_call_elf_c)
               if [ -n "$_PABI_TIP_PEEL" ]; then
                 _poison_args="$_poison_args --redefine-sym=${_ps}=${_ps}_hollow_tip_peel_dead"
               fi
