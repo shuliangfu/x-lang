@@ -6,6 +6,11 @@
 // PLATFORM: SHARED · LINUX tip-cold gold · no host-cc.
 
 export extern "C" function pipe_load_i32_le(base: *u8, off: i32): i32;
+export extern "C" function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
+export extern "C" function pipe_load_ptr_slot(base: *u8, i: i32): *u8;
+export extern "C" function pipe_store_ptr_slot(base: *u8, i: i32, val: *u8): void;
+export extern "C" function pipeline_arena_expr_ptr(a: *u8, ref: i32): *u8;
+export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 export extern "C" function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_const_folded_valid_at(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_const_folded_val_at(arena: *u8, expr_ref: i32): i32;
@@ -125,11 +130,35 @@ export function pipeline_asm_emit_expr_elf_fast_mega(arena: *u8, elf_ctx: *u8, e
       }
     }
     if (ko == 0 || ko == 2) {
-      let v64: i64 = pipeline_expr_int64_val_at(arena, expr_ref);
+      /* note743y.6.12 Soft Cap: INT_VAL lo/hi via expr* pipe loads — ban
+       * tip int64_val_at U-starve + `as i32` of 0x80000000 → 0. */
+      let lo4: i32 = 0;
+      let hi4: i32 = 0;
+      let ex: *u8 = 0 as *u8;
+      let pcell: u8[8] = [];
+      let fits: i32 = 0;
+      let v64: i64 = 0;
+      let vcell: u8[8] = [];
+      pipe_store_ptr_slot(&pcell[0], 0, pipeline_arena_expr_ptr(arena, expr_ref));
+      ex = pipe_load_ptr_slot(&pcell[0], 0);
+      if (ex == 0 as *u8) {
+        return 0 - 1;
+      }
+      lo4 = pipe_load_i32_le(ex, 16);
+      hi4 = pipe_load_i32_le(ex, 20);
+      if (hi4 == 0 && lo4 >= 0) {
+        fits = 1;
+      }
+      if (hi4 == (0 - 1) && lo4 < 0) {
+        fits = 1;
+      }
       if (ko == 0) {
         let rty: i32 = pipeline_expr_resolved_type_ref(arena, expr_ref);
         if (rty > 0) {
           let rk: i32 = pipeline_type_kind_ord_at(arena, rty);
+          pipe_store_i32_le(&vcell[0], 0, lo4);
+          pipe_store_i32_le(&vcell[0], 4, hi4);
+          memcpy((&v64 as *u8), &vcell[0], 8 as usize);
           if (rk == f32_ord) {
             return backend_enc_mov_imm32_to_w0_arch(elf_ctx, glue_i64_to_f32_bits(v64), ta);
           }
@@ -141,14 +170,10 @@ export function pipeline_asm_emit_expr_elf_fast_mega(arena: *u8, elf_ctx: *u8, e
           }
         }
       }
-      if (ko == 2 || (v64 >= 0 && v64 <= 2147483647 as i64)) {
-        return backend_enc_mov_imm32_to_w0_arch(elf_ctx, v64 as i32, ta);
+      if (ko == 2 || fits != 0) {
+        return backend_enc_mov_imm32_to_w0_arch(elf_ctx, lo4, ta);
       }
-      {
-        let lo4: i32 = (v64 as i32);
-        let hi4: i32 = ((v64 >> 32) as i32);
-        return backend_enc_mov_imm64_to_rax_arch(elf_ctx, lo4, hi4, ta);
-      }
+      return backend_enc_mov_imm64_to_rax_arch(elf_ctx, lo4, hi4, ta);
     }
     if (ko == 1) {
       return glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, expr_ref, ta, 0, 0);

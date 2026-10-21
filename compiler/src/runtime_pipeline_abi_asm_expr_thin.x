@@ -107,6 +107,9 @@ export extern function backend_enc_load_qword_rbx8_to_rdx_arch(elf_ctx: *u8, ta:
 
 export extern function pipe_load_i32_le(p: *u8, off: i32): i32;
 export extern function pipe_store_i32_le(p: *u8, off: i32, v: i32): void;
+export extern function pipe_load_ptr_slot(base: *u8, i: i32): *u8;
+export extern function pipe_store_ptr_slot(base: *u8, i: i32, val: *u8): void;
+export extern function pipeline_arena_expr_ptr(a: *u8, ref: i32): *u8;
 
 /**
  * Load i32 from pipe cell (local; tip-stable mid `x=cell_load()`).
@@ -136,18 +139,35 @@ function w495_cell_i32(base: *u8): i32 {
  * PLATFORM: SHARED freestanding emit (Linux/Win fast already emit the same imm64).
  */
 function w1504_emit_wide_int_lit(arena: *u8, elf_ctx: *u8, expr_ref: i32, ta: i32): i32 {
-  let v64: i64 = 0;
-  let i32_max: i64 = 2147483647;
-  let i32_min: i64 = 0;
+  /* note743y.6.12 Soft Cap: ban int64_val_at + `as i32`/`>>32` for lo/hi —
+   * tip U-starves i64 return (rax=expr*) and tip `0x80000000 as i32` → 0.
+   * Read INT_VAL words via expr* + pipe_load_i32_le (off 16/20). */
   let tref: i32 = 0;
   let tk: i32 = 0;
   let lo: i32 = 0;
   let hi: i32 = 0;
+  let ex: *u8 = 0 as *u8;
+  let pcell: u8[8] = [];
+  let fits: i32 = 0;
   unsafe {
-    v64 = pipeline_expr_int64_val_at(arena, expr_ref);
+    pipe_store_ptr_slot(&pcell[0], 0, pipeline_arena_expr_ptr(arena, expr_ref));
+    ex = pipe_load_ptr_slot(&pcell[0], 0);
   }
-  i32_min = 0 - 2147483647 - 1;
-  if (v64 >= i32_min && v64 <= i32_max) {
+  if (ex == (0 as *u8)) {
+    return 0 - 99;
+  }
+  unsafe {
+    lo = pipe_load_i32_le(ex, 16);
+    hi = pipe_load_i32_le(ex, 20);
+  }
+  /* Fits signed i32 iff sign-extend(lo) == (hi:lo). */
+  if (hi == 0 && lo >= 0) {
+    fits = 1;
+  }
+  if (hi == (0 - 1) && lo < 0) {
+    fits = 1;
+  }
+  if (fits != 0) {
     return 0 - 99;
   }
   unsafe {
@@ -161,8 +181,6 @@ function w1504_emit_wide_int_lit(arena: *u8, elf_ctx: *u8, expr_ref: i32, ta: i3
       return 0 - 99;
     }
   }
-  lo = v64 as i32;
-  hi = (v64 >> 32) as i32;
   unsafe {
     return backend_enc_mov_imm64_to_rax_arch(elf_ctx, lo, hi, ta);
   }

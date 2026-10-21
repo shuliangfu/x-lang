@@ -621,11 +621,18 @@ export function pipeline_expr_field_access_soa_stride(a: *u8, expr_ref: i32): i3
 }
 
 
-/** Getter pipeline_expr_int_val_at. PLATFORM: SHARED */
+/**
+ * Getter pipeline_expr_int_val_at.
+ * note743y.6.12 Soft Cap: ban `load_i64 as i32` — Ubuntu tip turns
+ * 0x80000000 (i64) into 0 via that cast, so `2147483648 as u32` emitted 0
+ * and run-builtin clz/popcount(0x80000000) failed (exit=6).
+ * Low 32 bits via pipe_load_i32_le keep the bit pattern.
+ * PLATFORM: SHARED Soft Cap tip heal (note743y.6.12).
+ */
 export function pipeline_expr_int_val_at(a: *u8, expr_ref: i32): i32 {
   let ex: *u8 = w327_expr(a, expr_ref);
   if (ex == (0 as *u8)) { return 0; }
-  return w327_load_i64(ex, W327_E_INT_VAL) as i32;
+  return w327_load(ex, W327_E_INT_VAL);
 }
 
 
@@ -693,11 +700,30 @@ export function pipeline_expr_index_proven_in_bounds_at(a: *u8, expr_ref: i32): 
 }
 
 
-/** Getter pipeline_expr_int64_val_at. PLATFORM: SHARED */
+/**
+ * Getter pipeline_expr_int64_val_at.
+ * note743y.6.12 Soft Cap: ban mid `return w327_load_i64(...)` — Ubuntu tip
+ * U-starves the i64 call and leaves rax as the expr* from w327_expr, so
+ * wide INT_LIT emit became movabs $<stack/arena ptr> (lit probe EC=1/2)
+ * and `as u32` sibling hit the int_val_at cast→0 path (EC=3 / builtin=6).
+ * Rebuild i64 from two LE i32 loads + memcpy (no tip i64 return mid-call).
+ * PLATFORM: SHARED Soft Cap tip heal (note743y.6.12).
+ */
 export function pipeline_expr_int64_val_at(a: *u8, expr_ref: i32): i64 {
   let ex: *u8 = w327_expr(a, expr_ref);
+  let cell: u8[8] = [];
+  let r: i64 = 0;
+  let lo: i32 = 0;
+  let hi: i32 = 0;
   if (ex == (0 as *u8)) { return 0; }
-  return w327_load_i64(ex, W327_E_INT_VAL);
+  lo = w327_load(ex, W327_E_INT_VAL);
+  hi = w327_load(ex, W327_E_INT_VAL + 4);
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, lo);
+    pipe_store_i32_le(&cell[0], 4, hi);
+    memcpy((&r as *u8), &cell[0], 8 as usize);
+  }
+  return r;
 }
 
 
