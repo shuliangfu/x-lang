@@ -237,7 +237,7 @@ else
   # async_asm_pool: unbundled from pipeline_glue; required in no_c product link too.
   _DRIVER_SEED_SUPPORT="src/async/async_asm_pool.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o"
 fi
-_X_FRONTEND="parser_x.o lexer_x.o typeck_x.o codegen_x.o x_frontend_link_alias.o"
+_X_FRONTEND="parser_x.o ${_G05_LEXER_X_O:-lexer_x.o} typeck_x.o codegen_x.o x_frontend_link_alias.o"
 _DRIVER_SUBCMD="driver_fmt_x.o driver_check_x.o driver_test_x.o driver_compile_x.o driver_build_x.o driver_run_x.o driver_emit_x.o"
 # _GLUE_SUFFIX: stubs only at link END.
 # wave304 G.7 8.3.6: pipeline_glue_strict_minimal seed shell retired (0 residual T
@@ -908,6 +908,7 @@ fi
 # index_base_rax / …). Rebuild the same SHARED thins and prepend so first-wins
 # over skip_egg U. PLATFORM: LINUX tip cold · gold.
 _PABI_TIP_PEEL=""
+_G05_LEXER_X_O=""
 case "$UNAME_S" in
   Linux)
     if [ "${XLANG_TIP_PEEL_OVERLAY:-1}" = "1" ]; then
@@ -968,6 +969,53 @@ case "$UNAME_S" in
         _PABI_TIP_PEEL="$_PABI_TIP_PEEL $_G05_PO_OUT"
         _PABI_ELF_CTX=""
         _PABI_DATA_LEN=""
+      fi
+      # note743y.4: tip parser still calls struct-returning lexer_init; tip
+      # lexer_init is out-ptr and smashes source when rdi==parked data
+      # (num_funcs=0 / P001 / no main). Ret-by-value dual-ABI shim + demote
+      # tip lexer_x.o::lexer_init (keep next_* tip). PLATFORM: LINUX tip cold.
+      _shim_s=src/asm/lexer_init_ret_by_value_shim_x86_64.s
+      _shim_o=build_asm/selfhost_pabi/lexer_init_ret_by_value_shim.o
+      mkdir -p build_asm/selfhost_pabi
+      if [ ! -f "$_shim_s" ]; then
+        echo "g05_relink_env: ERROR missing $_shim_s (note743y.4)" >&2
+        exit 1
+      fi
+      if ! as -o "$_shim_o" "$_shim_s" 2>/tmp/g05_lexer_init_shim_as.err; then
+        echo "g05_relink_env: ERROR as failed for $_shim_s" >&2
+        cat /tmp/g05_lexer_init_shim_as.err >&2 || true
+        exit 1
+      fi
+      if ! nm "$_shim_o" 2>/dev/null | grep -qE ' T lexer_init$'; then
+        echo "g05_relink_env: ERROR shim missing T lexer_init" >&2
+        exit 1
+      fi
+      _PABI_TIP_PEEL="$_shim_o $_PABI_TIP_PEEL"
+      _G05_LEXER_X_O=""
+      if [ -f lexer_x.o ]; then
+        _lex_f=build_asm/selfhost_pabi/lexer_x_tip_peel.o
+        _exp=build_asm/selfhost_pabi/lexer_x_tip_peel_exports.txt
+        nm -g --defined-only lexer_x.o 2>/dev/null | awk '/ [Tt] /{print $3}' \
+          | grep -v '^lexer_init$' | grep -v '^_lexer_init$' >"$_exp" \
+          || true
+        if [ ! -s "$_exp" ]; then
+          echo "g05_relink_env: ERROR empty lexer_x tip-peel export list" >&2
+          exit 1
+        fi
+        if ! ld -r -o "$_lex_f" --retain-symbols-file="$_exp" lexer_x.o 2>/tmp/g05_lexer_x_tip_peel.err; then
+          echo "g05_relink_env: ERROR ld -r filter lexer_init failed" >&2
+          cat /tmp/g05_lexer_x_tip_peel.err >&2 || true
+          exit 1
+        fi
+        if nm "$_lex_f" 2>/dev/null | grep -qE ' T lexer_init$'; then
+          echo "g05_relink_env: ERROR lexer_x tip-peel still exports T lexer_init" >&2
+          exit 1
+        fi
+        _G05_LEXER_X_O="$_lex_f"
+        echo "g05_relink_env: note743y.4 lexer_init ret-by-value shim + demoted tip lexer_x" >&2
+      else
+        echo "g05_relink_env: ERROR lexer_x.o missing for note743y.4 demote" >&2
+        exit 1
       fi
       _PABI_TIP_PEEL="$(echo $_PABI_TIP_PEEL | tr -s ' ')"
       if [ -n "$_PABI_TIP_PEEL" ]; then
@@ -5429,7 +5477,7 @@ case "$UNAME_S" in
     _WIN_V1_CALL_ALIAS="$_walias_o"
     ;;
 esac
-_X_FRONTEND="parser_x.o lexer_x.o typeck_x.o ${_TYPECK_CAP_RESIDUAL} ${_TYPECK_CTFE} codegen_x.o x_frontend_link_alias.o ${_WIN_V1_CALL_ALIAS}"
+_X_FRONTEND="parser_x.o ${_G05_LEXER_X_O:-lexer_x.o} typeck_x.o ${_TYPECK_CAP_RESIDUAL} ${_TYPECK_CTFE} codegen_x.o x_frontend_link_alias.o ${_WIN_V1_CALL_ALIAS}"
 _DRIVER_SEED_OBJS="$_PABI_ADDR_OF_CALL $_PABI_ELF_LAYOUT_64K $_PABI_INDEX_BASE_FIELD $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_ELF_UNDEF_CAP $_PABI_NAMED_SIZE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_REENT_SUM $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_WPO_ALIAS $_PABI_RELOC_TYPED $_PABI_ELF_CTX $_PABI_DATA_LEN $_G05_W211_CALL_ARG $_G05_W211_VAR_OFF $_G05_W211_REGISTER $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_SKIP_HEAVY $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_CODEGEN_CAP_RESIDUAL $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
