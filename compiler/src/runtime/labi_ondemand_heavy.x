@@ -2708,6 +2708,8 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
               }
             }
             // g9: co-push glue slice.o after formal mod.o
+            // note743y.6.8: also co-push option.o (mod.o U core_option_*);
+            // g9 fires for split_at_i32 without needs_core_slice (u64/from_ptr table).
             if (sg == 9) {
               let rtg: *u8 = 0 as *u8;
               unsafe {
@@ -2717,12 +2719,17 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
                 if (rtg[0] != 0) {
                   unsafe {
                     let _feg: i32 = xlang_ensure_formal_std_make_o(rtg, "core/slice/slice.o", "../core/slice/slice.o");
+                    let _feo: i32 = xlang_ensure_formal_std_make_o(rtg, "core/option/option.o", "../core/option/option.o");
                   }
                 }
               }
               let csgl: *u8 = labi_od_rel_core_slice();
               unsafe {
                 let _csg: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, csgl, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+              }
+              let orel: *u8 = "core/option/option.o";
+              unsafe {
+                let _cso: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, orel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
               }
             }
           }
