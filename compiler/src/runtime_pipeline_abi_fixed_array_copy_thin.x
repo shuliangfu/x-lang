@@ -970,14 +970,15 @@ export function fa_array_lit_into_rbx(
     if (rc != 0) {
       return 0 - 1;
     }
-    // Arm64 pop_rbx restores the dest into x1. The copy reads x19.
-    // PLATFORM: MACOS|ARM64. x86 pop_rbx restores rbx directly; this mov
-    // is x19 = x1 and is the same word the struct-lit pointer copy uses.
-    unsafe {
-      rc = backend_enc_append_u32_le_c(elf_ctx, 2852193267 as u32);
-    }
-    if (rc != 0) {
-      return 0 - 1;
+    // Arm64: mov x19,x1 after pop. x86: rbx already holds dest — skip.
+    // PLATFORM: SHARED. note743y.6.9 follow-up
+    if (ta == 1) {
+      unsafe {
+        rc = backend_enc_append_u32_le_c(elf_ctx, 2852193267 as u32);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
     }
     unsafe {
       rc = glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, 0 - 3, total, ta);

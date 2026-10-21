@@ -23,6 +23,13 @@ export extern function glue_struct_lit_field_store_sz(arena: *u8, expr_ref: i32,
 export extern function pipeline_asm_emit_expr_elf_rec(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 export extern function backend_enc_pop_rbx_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_push_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+/* ADD imm to parked dest in rbx. x86 path when store_off > 0.
+ * @param elf_ctx *u8 — emit context
+ * @param imm i32 — byte addend
+ * @param ta i32 — 0 x86_64, 1 arm64
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: SHARED. */
+export extern function backend_enc_add_imm_to_rbx_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
 export extern function backend_enc_store_rax_to_rbx_offset_arch(elf_ctx: *u8, off: i32, load_sz: i32, ta: i32): i32;
 export extern function backend_enc_append_u32_le_c(elf_ctx: *u8, w: u32): i32;
 export extern function backend_enc_lea_rbp_to_rax_arch(elf_ctx: *u8, off: i32, ta: i32): i32;
@@ -152,12 +159,21 @@ function struct_lit_store_match_bind_field(
     if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
     pipe_store_i32_le(&cell[0], 0, backend_enc_push_rbx_arch(elf_ctx, ta));
     if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
-    pipe_store_i32_le(&cell[0], 0, backend_enc_append_u32_le_c(elf_ctx, 2852193267 as u32));
-    if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
-    if (store_off > 0) {
-      add_x19 = (2432696947 as u32) | ((store_off as u32) * 1024);
-      pipe_store_i32_le(&cell[0], 0, backend_enc_append_u32_le_c(elf_ctx, add_x19));
+    /* Arm64 mov x19,x1 only. x86 keeps dest in rbx.
+     * PLATFORM: SHARED. note743y.6.9 follow-up */
+    if (ta == 1) {
+      pipe_store_i32_le(&cell[0], 0, backend_enc_append_u32_le_c(elf_ctx, 2852193267 as u32));
       if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+      if (store_off > 0) {
+        add_x19 = (2432696947 as u32) | ((store_off as u32) * 1024);
+        pipe_store_i32_le(&cell[0], 0, backend_enc_append_u32_le_c(elf_ctx, add_x19));
+        if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+      }
+    } else {
+      if (store_off > 0) {
+        pipe_store_i32_le(&cell[0], 0, backend_enc_add_imm_to_rbx_arch(elf_ctx, store_off, ta));
+        if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+      }
     }
     pipe_store_i32_le(&cell[0], 0, glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, 0 - 3, nbytes, ta));
     if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
@@ -484,11 +500,21 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
           if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
           pipe_store_i32_le(&cell[0], 0, backend_enc_push_rbx_arch(elf_ctx, ta));
           if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
-          pipe_store_i32_le(&cell[0], 0, backend_enc_append_u32_le_c(elf_ctx, 2852193267 as u32));
-          if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
-          if (store_off > 0) {
-            pipe_store_i32_le(&cell[0], 0, backend_enc_append_u32_le_c(elf_ctx, add_x19));
+          /* Arm64: dest in x1 after pop; copy reads x19. x86: rbx already
+           * holds dest — never append the ARM64 mov word (0xAA0103F3).
+           * PLATFORM: SHARED. note743y.6.9 follow-up */
+          if (ta == 1) {
+            pipe_store_i32_le(&cell[0], 0, backend_enc_append_u32_le_c(elf_ctx, 2852193267 as u32));
             if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+            if (store_off > 0) {
+              pipe_store_i32_le(&cell[0], 0, backend_enc_append_u32_le_c(elf_ctx, add_x19));
+              if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+            }
+          } else {
+            if (store_off > 0) {
+              pipe_store_i32_le(&cell[0], 0, backend_enc_add_imm_to_rbx_arch(elf_ctx, store_off, ta));
+              if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+            }
           }
           pipe_store_i32_le(&cell[0], 0, glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, 0 - 3, arr_bytes, ta));
           if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
@@ -854,11 +880,21 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
             if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
             pipe_store_i32_le(&cell[0], 0, backend_enc_push_rbx_arch(elf_ctx, ta));
             if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
-            pipe_store_i32_le(&cell[0], 0, backend_enc_append_u32_le_c(elf_ctx, 2852193267 as u32));
-            if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
-            if (store_off > 0) {
-              pipe_store_i32_le(&cell[0], 0, backend_enc_append_u32_le_c(elf_ctx, add_x19));
+            /* Arm64: dest in x1 after pop; copy reads x19. x86: rbx already
+             * holds dest — never append the ARM64 mov word (0xAA0103F3).
+             * PLATFORM: SHARED. note743y.6.9 follow-up */
+            if (ta == 1) {
+              pipe_store_i32_le(&cell[0], 0, backend_enc_append_u32_le_c(elf_ctx, 2852193267 as u32));
               if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+              if (store_off > 0) {
+                pipe_store_i32_le(&cell[0], 0, backend_enc_append_u32_le_c(elf_ctx, add_x19));
+                if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+              }
+            } else {
+              if (store_off > 0) {
+                pipe_store_i32_le(&cell[0], 0, backend_enc_add_imm_to_rbx_arch(elf_ctx, store_off, ta));
+                if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+              }
             }
             pipe_store_i32_le(&cell[0], 0, glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, 0 - 3, wide, ta));
             if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
@@ -866,7 +902,8 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
           fi = fi + 1;
           continue;
         }
-        if (iko != 46) {
+        /* Pair-spill words are arm64-only. PLATFORM: MACOS|ARM64. */
+        if (iko != 46 && ta == 1) {
           unsafe {
             pipe_store_i32_le(&cell[0], 0, backend_enc_append_u32_le_c(elf_ctx, 2847868896 as u32));
             if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
