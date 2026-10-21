@@ -18286,43 +18286,54 @@ ensure_rt_prefer_one() {
               fi
             fi
           fi
-          if [ -n "$_rt_fo_o" ] && [ -f "$_rt_fmt_one_seed" ]; then
-            # R2 full H=0：PREFER_X_O=1 时 full .x + rest seed (-D，仅 marker) → cc -r 合并
-            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_fmt_one_x" ]; then
-              _rt_fo_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_fmt_one_thin.XXXXXX") || true
-              _rt_fo_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_fmt_one_rest.XXXXXX") || true
-              _rt_fo_pure=0
-              # w1170: some pure-asm tries segfault. Darwin retries the
-              # whole translation unit. Other hosts keep rt_prefer_try.
-              # PLATFORM: MACOS|DARWIN arm64 for the pure path.
-              if [ -n "$_rt_fo_thin_o" ] && [ -n "$_rt_fo_rest_o" ] \
-                && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
-                && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
-                && [ -f scripts/ensure_host_cc_seed_o.sh ] \
-                && bash scripts/ensure_host_cc_seed_o.sh rt-fmt-one-pure "$_rt_fo_thin_o"; then
-                _rt_fo_pure=1
-              fi
-              if [ -n "$_rt_fo_thin_o" ] && [ -n "$_rt_fo_rest_o" ] \
-                && { [ "$_rt_fo_pure" = "1" ] \
-                  || rt_prefer_try_x_to_o "$_rt_fmt_one_x" "$_rt_fo_thin_o"; } \
+          if [ -n "$_rt_fo_o" ] && [ -f "$_rt_fmt_one_x" ]; then
+            # knife256 / 10.2 / note743y.6.10: 记253／9.1 emptied cold
+            # #ifndef body in seeds/rt_fmt_one.from_x.c. Seed-only is
+            # marker-only → phase1 hollow ret0 wins → fmt silent no-op
+            # (run-fmt-cmd expects "fmt OK"). Product authority is the .x
+            # on every PREFER setting. Marker rest optional when seed
+            # present. PLATFORM: SHARED — no host-cc of emptied cold body.
+            _rt_fo_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_fmt_one_thin.XXXXXX") || true
+            _rt_fo_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_fmt_one_rest.XXXXXX") || true
+            _rt_fo_pure=0
+            # w1170: some pure-asm tries segfault. Darwin retries the
+            # whole translation unit. Other hosts keep rt_prefer_try.
+            # PLATFORM: MACOS|DARWIN arm64 for the pure path.
+            if [ -n "$_rt_fo_thin_o" ] \
+              && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+              && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+              && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+              && bash scripts/ensure_host_cc_seed_o.sh rt-fmt-one-pure "$_rt_fo_thin_o"; then
+              _rt_fo_pure=1
+            fi
+            if [ -n "$_rt_fo_thin_o" ] \
+              && { [ "$_rt_fo_pure" = "1" ] \
+                || rt_prefer_try_x_to_o "$_rt_fmt_one_x" "$_rt_fo_thin_o"; }; then
+              if [ -n "$_rt_fo_rest_o" ] && [ -f "$_rt_fmt_one_seed" ] \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_FMT_ONE_FROM_X \
-                     -c -o "$_rt_fo_rest_o" "$_rt_fmt_one_seed" \
+                     -c -o "$_rt_fo_rest_o" "$_rt_fmt_one_seed" 2>/dev/null \
                 && pure_ld_partial_merge "$_rt_fo_o" "$_rt_fo_thin_o" "$_rt_fo_rest_o" 2>/dev/null; then
                 _rt_fo_ok=1
                 if [ "$_rt_fo_pure" = "1" ]; then
                   echo "rt-prefer: rest fmt_one ← pure-asm three symbols (w1170)"
                 else
-                  echo "rt-prefer: rest fmt_one ← full .x + rest marker (R2 full H=0)"
+                  echo "rt-prefer: rest fmt_one ← full .x + rest marker (R2 H=0; knife256)"
                 fi
+              else
+                cp -f "$_rt_fo_thin_o" "$_rt_fo_o" && _rt_fo_ok=1 \
+                  && echo "rt-prefer: rest fmt_one ← pure-asm $_rt_fmt_one_x (knife256; no cold seed body)"
               fi
-              rm -f "$_rt_fo_thin_o" "$_rt_fo_rest_o"
+            fi
+            rm -f "$_rt_fo_thin_o" "$_rt_fo_rest_o"
+            if [ "$_rt_fo_ok" = "1" ]; then
+              if ! nm "$_rt_fo_o" 2>/dev/null | grep -qE " T _?driver_fmt_one_file$"; then
+                echo "rt-prefer: ERROR fmt_one .o lacks T driver_fmt_one_file (note743y.6.10)" >&2
+                rm -f "$_rt_fo_o"
+                _rt_fo_ok=0
+              fi
             fi
             if [ "$_rt_fo_ok" = "0" ]; then
-              # shellcheck disable=SC2086
-              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_fo_o" "$_rt_fmt_one_seed"; then
-                _rt_fo_ok=1
-                echo "rt-prefer: rest fmt_one ← $_rt_fmt_one_seed (G-02f-311 seed slice cold)"
-              fi
+              echo "rt-prefer: ERROR fmt_one pure-asm failed; emptied cold seed is not a fallback (knife256/note743y.6.10)" >&2
             fi
           fi
           if [ -n "$_rt_dt_o" ] && [ -f "$_rt_dispatch_thin_x" ]; then

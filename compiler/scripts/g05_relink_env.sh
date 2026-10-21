@@ -1066,6 +1066,19 @@ case "$UNAME_S" in
         echo "g05_relink_env: ERROR lexer_x.o missing for note743y.4 demote" >&2
         exit 1
       fi
+      # note743y.6.10: emptied cold rt_fmt_one seed → hollow ret0 wins;
+      # tip-compile .x and prepend so first-wins beats phase1 hollow
+      # (run-fmt-cmd needs real fmt + "fmt OK"). PLATFORM: LINUX tip cold.
+      _g05_pure_overlay src/runtime/rt_fmt_one.x \
+        build_asm/selfhost_pabi/rt_fmt_one.o \
+        driver_fmt_one_file
+      if [ -n "$_G05_PO_OUT" ]; then
+        _PABI_TIP_PEEL="$_G05_PO_OUT $_PABI_TIP_PEEL"
+        echo "g05_relink_env: note743y.6.10 tip-peel rt_fmt_one (driver_fmt_one_file)" >&2
+      else
+        echo "g05_relink_env: ERROR rt_fmt_one tip-peel missing (note743y.6.10)" >&2
+        exit 1
+      fi
       _PABI_TIP_PEEL="$(echo $_PABI_TIP_PEEL | tr -s ' ')"
       if [ -n "$_PABI_TIP_PEEL" ]; then
         echo "g05_relink_env: Linux tip-peel overlays ($(echo $_PABI_TIP_PEEL | wc -w | tr -d ' ') objs)" >&2
