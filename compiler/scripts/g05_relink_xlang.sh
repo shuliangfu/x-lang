@@ -34,6 +34,24 @@
 set -e
 cd "$(dirname "$0")/.."
 
+# knife256/10.2: install GOOD lex peel (fill→next_into + hard peek +20/+24)
+# Demote peel's source_data/length so nopark (real lexer globals) wins.
+if [ -s /tmp/p9a_lex_bridge_peel_GOOD.o ]; then
+  mkdir -p build_asm/selfhost_pabi
+  cp -f /tmp/p9a_lex_bridge_peel_GOOD.o build_asm/selfhost_pabi/p9a_lex_bridge_peel.o
+  echo "g05_relink_xlang: installed GOOD p9a_lex_bridge_peel.o" >&2
+  _oc="${LLVM_OBJCOPY:-/opt/homebrew/opt/llvm/bin/llvm-objcopy}"
+  _peel=build_asm/selfhost_pabi/p9a_lex_bridge_peel.o
+  if [ -x "$_oc" ] && [ -s "$_peel" ]; then
+    for _s in _parser_asm_lex_source_data_c _parser_asm_lex_source_length_c; do
+      if nm -gU "$_peel" 2>/dev/null | awk '{print $3}' | grep -qxF "$_s"; then
+        "$_oc" --redefine-sym="${_s}=${_s}__peel_dup" "$_peel" 2>/dev/null \
+          && echo "g05_relink_xlang: demoted peel $_s (nopark wins)" >&2 || true
+      fi
+    done
+  fi
+fi
+
 # w1484: refuse to link when ensure / relink_env logged a g05 pure-asm crash
 # (a retry or cc fallback may have hidden it). PLATFORM: SHARED.
 # knife256/10.2: overlay-missing = Cap prior kept, not a product crash.
@@ -214,6 +232,12 @@ for pair in sys.argv[2:]:
 sys.exit(1 if bad else 0)
 PYEOF
 }
+
+# note743y.5: egg frame undercount → patch sub $imm,%rsp before pure-ld.
+# PLATFORM: LINUX only (objdump x86_64 ELF). Darwin Cap uses tip chkstk.
+if [ "$(uname -s)" = "Linux" ] && [ -f scripts/linux_patch_elf_frame_min.py ]; then
+  python3 scripts/linux_patch_elf_frame_min.py || true
+fi
 
 # pure-ld required when freestanding-eligible and not forced to CC residual.
 run_g05_pure_ld_required() {
