@@ -5246,6 +5246,15 @@ if [ "$(uname -s)" = "Darwin" ] && [ -f scripts/darwin_phase1_hollow_fill.sh ]; 
     || echo "g05_ensure: WARN hollow_fill refresh failed" >&2
 fi
 
+# note743y / 10.2: Linux phase1 hollow-fill must refresh on every g05 ensure so
+# tip-cold residual U (m8_tail / lexer_src_* / driver_* W) can bind after tip
+# peel. PLATFORM: LINUX tip cold.
+if [ "$(uname -s)" = "Linux" ] && [ -f scripts/linux_phase1_hollow_fill.sh ]; then
+  echo "g05_ensure: linux_phase1_hollow_fill refresh (note743y)" >&2
+  bash scripts/linux_phase1_hollow_fill.sh >&2 \
+    || echo "g05_ensure: WARN linux hollow_fill refresh failed" >&2
+fi
+
 # w1483: Linux selfhost_pabi tip refresh (pabi_alias + arr_struct_lit peers).
 # knife256 / 10.2 note743h: L4 wipe (or partial sidecars) can leave READY
 # while core .o (esz/loc/lea/…) are gone. Tip-only refresh then leaves

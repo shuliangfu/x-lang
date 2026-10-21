@@ -901,6 +901,64 @@ if [ "${XLANG_INDEX_BASE_FIELD_OVERLAY:-1}" = "1" ]; then
     build_asm/selfhost_pabi/index_base_field.o glue_emit_index_eff_addr_base_elf_c
   _PABI_INDEX_BASE_FIELD="$_G05_PO_OUT"
 fi
+# note743y / 10.2: tip peel left egg U for these faces; Darwin Cap overlays
+# already rebuild them every tip-cold relink. Linux gold still relied on egg T
+# (or leftover gcc .o). After tip peel + skip_heavy, pure-ld UNDEFs them
+# (lvalue_eff_addr / struct_let_init / copy_large / index_eff_scaled /
+# index_base_rax / …). Rebuild the same SHARED thins and prepend so first-wins
+# over skip_egg U. PLATFORM: LINUX tip cold · gold.
+_PABI_TIP_PEEL=""
+case "$UNAME_S" in
+  Linux)
+    if [ "${XLANG_TIP_PEEL_OVERLAY:-1}" = "1" ]; then
+      unset XLANG_PREFER_ASM_O
+      _g05_pure_overlay src/runtime_pipeline_abi_lvalue_eff_addr_elf_thin.x \
+        build_asm/selfhost_pabi/lvalue_eff_addr_elf.o \
+        pipeline_asm_emit_lvalue_eff_addr_elf_c
+      [ -n "$_G05_PO_OUT" ] && _PABI_TIP_PEEL="$_PABI_TIP_PEEL $_G05_PO_OUT"
+      _g05_pure_overlay src/runtime_pipeline_abi_copy_large_thin.x \
+        build_asm/selfhost_pabi/copy_large.o \
+        glue_copy_large_struct_from_rax_ptr_elf_c
+      [ -n "$_G05_PO_OUT" ] && _PABI_TIP_PEEL="$_PABI_TIP_PEEL $_G05_PO_OUT"
+      _g05_pure_overlay src/runtime_pipeline_abi_struct_let_init_thin.x \
+        build_asm/selfhost_pabi/struct_let_init.o \
+        glue_emit_struct_type_let_init_elf_c
+      [ -n "$_G05_PO_OUT" ] && _PABI_TIP_PEEL="$_PABI_TIP_PEEL $_G05_PO_OUT"
+      _g05_pure_overlay src/runtime_pipeline_abi_index_eff_addr_scaled_thin.x \
+        build_asm/selfhost_pabi/index_eff_addr_scaled.o \
+        glue_emit_index_eff_addr_scaled_elf_c
+      [ -n "$_G05_PO_OUT" ] && _PABI_TIP_PEEL="$_PABI_TIP_PEEL $_G05_PO_OUT"
+      _g05_pure_overlay src/runtime_pipeline_abi_index_base_rax_thin.x \
+        build_asm/selfhost_pabi/index_base_rax.o \
+        glue_try_index_var_or_field_base_to_rax_elf_c
+      [ -n "$_G05_PO_OUT" ] && _PABI_TIP_PEEL="$_PABI_TIP_PEEL $_G05_PO_OUT"
+      # elf_ctx tip faces (add_sym / ensure_label / add_common_sym). Prefer the
+      # focused phase1 twin when present; else full thin into selfhost_pabi
+      # (not src/*.o — ensure bans auto leftover inject that dups undef_cap).
+      _g05_pure_overlay src/asm/phase1_elf_ctx_add_label_sym.x \
+        build_asm/selfhost_pabi/elf_ctx_add_label_sym.o \
+        pipeline_elf_ctx_add_sym
+      [ -n "$_G05_PO_OUT" ] && _PABI_TIP_PEEL="$_PABI_TIP_PEEL $_G05_PO_OUT"
+      _g05_pure_overlay src/runtime_pipeline_abi_elf_ctx_thin.x \
+        build_asm/selfhost_pabi/elf_ctx_tip.o \
+        pipeline_elf_ctx_ensure_label
+      if [ -n "$_G05_PO_OUT" ]; then
+        # Front via _PABI_TIP_PEEL so first-wins over hollow W; clear the
+        # late _PABI_ELF_CTX slot to avoid double-link.
+        _PABI_TIP_PEEL="$_PABI_TIP_PEEL $_G05_PO_OUT"
+        _PABI_ELF_CTX=""
+        _PABI_DATA_LEN=""
+      fi
+      _PABI_TIP_PEEL="$(echo $_PABI_TIP_PEEL | tr -s ' ')"
+      if [ -n "$_PABI_TIP_PEEL" ]; then
+        echo "g05_relink_env: Linux tip-peel overlays ($(echo $_PABI_TIP_PEEL | wc -w | tr -d ' ') objs)" >&2
+      else
+        echo "g05_relink_env: ERROR Linux tip-peel overlays empty (note743y)" >&2
+        exit 1
+      fi
+    fi
+    ;;
+esac
 # ADDR_OF of a CALL or METHOD returned -99 (CG002 on Darwin `&pick()`).
 # The thin stores a 1..8 byte non-float result into a frame slot and
 # returns that address. Float results and results wider than 8 bytes
@@ -5371,6 +5429,50 @@ fi
 _PABI_ARCHIVE_LEAF=""
 _PABI_M8_RELOC_STUBS=""
 case "$UNAME_S" in
+  Linux)
+    # note743y / 10.2: phase1 hollow-fill supplies m8_tail / lexer_src_* /
+    # driver_* / residual W after tip peel. Tip peel overlays above first-win
+    # strong T for pabi faces; hollow fills remaining U (same role as Darwin
+    # m8_reloc_stubs). Poison hollow W when no_c already has strong T so g05
+    # does not silently ret-0 over a real body. PLATFORM: LINUX tip cold.
+    if [ -s build_asm/selfhost_pabi/linux_phase1_hollow_stubs.o ]; then
+      _m8_g05=build_asm/selfhost_pabi/linux_phase1_hollow_stubs_g05.o
+      cp -f build_asm/selfhost_pabi/linux_phase1_hollow_stubs.o "$_m8_g05"
+      _oc=""
+      if command -v llvm-objcopy >/dev/null 2>&1; then _oc=llvm-objcopy
+      elif command -v objcopy >/dev/null 2>&1; then _oc=objcopy
+      fi
+      if [ -n "$_oc" ]; then
+        _poison_args=""
+        _noc=src/runtime_driver_no_c.o
+        while read -r _ps; do
+          [ -n "$_ps" ] || continue
+          case "$_ps" in
+            driver_*|cfg_*)
+              if [ -s "$_noc" ] && nm "$_noc" 2>/dev/null \
+                  | grep -qE " T ${_ps}$"; then
+                _poison_args="$_poison_args --redefine-sym=${_ps}=${_ps}_hollow_phase1_dead"
+              fi
+              ;;
+            # Tip peel overlays own these; demote hollow so a mis-ordered
+            # link cannot silently keep return-0 W.
+            pipeline_asm_emit_lvalue_eff_addr_elf_c|glue_copy_large_struct_from_rax_ptr_elf_c|glue_emit_struct_type_let_init_elf_c|glue_emit_index_eff_addr_scaled_elf_c|glue_try_index_var_or_field_base_to_rax_elf_c|glue_try_index_var_or_field_base_to_rbx_elf_c|pipeline_elf_ctx_add_sym|pipeline_elf_ctx_ensure_label|pipeline_elf_ctx_add_common_sym|pipeline_elf_ctx_add_label|pipeline_asm_emit_expr_elf_fast)
+              if [ -n "$_PABI_TIP_PEEL" ]; then
+                _poison_args="$_poison_args --redefine-sym=${_ps}=${_ps}_hollow_tip_peel_dead"
+              fi
+              ;;
+          esac
+        done < <(nm "$_m8_g05" 2>/dev/null | awk '/ [TW] /{print $NF}')
+        if [ -n "$_poison_args" ]; then
+          # shellcheck disable=SC2086
+          $_oc $_poison_args "$_m8_g05" 2>/dev/null \
+            || echo "g05_relink_env: WARN demote Linux hollow driver stubs failed" >&2
+        fi
+      fi
+      _PABI_M8_RELOC_STUBS="$_m8_g05"
+      echo "g05_relink_env: Linux phase1 hollow stubs for g05 residual U" >&2
+    fi
+    ;;
   Darwin*)
     if [ -s build_asm/selfhost_pabi/archive_leaf_extract.o ]; then
       _PABI_ARCHIVE_LEAF="build_asm/selfhost_pabi/archive_leaf_extract.o"
@@ -5708,7 +5810,7 @@ case "$UNAME_S" in
     ;;
 esac
 
-G05_OBJS="$_CAP_TIP_FRONT $_PABI_M8_RELOC_STUBS $_DRIVER_SEED_OBJS driver_x.o $_PIPELINE_LINK_O lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $_DRIVER_SUBCMD src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $_USER_ASM_LINK $_GLUE_SUFFIX $_AST_GEN2 $_PABI_ARCHIVE_LEAF"
+G05_OBJS="$_PABI_TIP_PEEL $_CAP_TIP_FRONT $_PABI_M8_RELOC_STUBS $_DRIVER_SEED_OBJS driver_x.o $_PIPELINE_LINK_O lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $_DRIVER_SUBCMD src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $_USER_ASM_LINK $_GLUE_SUFFIX $_AST_GEN2 $_PABI_ARCHIVE_LEAF"
 
 G05_CFLAGS="$_BASE_CFLAGS $_DRIVER_SEED_LINK_FLAGS $_ASM_GLUE_DUP_LDFLAGS $_MAIN_LINK_FLAGS"
 
