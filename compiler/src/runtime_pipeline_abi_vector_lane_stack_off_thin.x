@@ -102,7 +102,9 @@ export function glue_vector_var_lane_stack_off_elf_c(arena: *u8, ctx: *u8, var_e
         return 0 - 1;
       }
     }
-    off = glue_asm_local_var_stack_off_scoped(arena, ctx, walk_cur);
+    unsafe {
+      off = glue_asm_local_var_stack_off_scoped(arena, ctx, walk_cur);
+    }
     if (off < 0) {
       return 0 - 1;
     }
@@ -152,7 +154,9 @@ export function glue_vector_var_lane_stack_off_elf_c(arena: *u8, ctx: *u8, var_e
       if (field_off < 0) {
         return 0 - 1;
       }
-      off = glue_struct_field_frame_mag_c(off, field_off, ta);
+      unsafe {
+        off = glue_struct_field_frame_mag_c(off, field_off, ta);
+      }
       if (off < 0) {
         return 0 - 1;
       }
@@ -166,7 +170,9 @@ export function glue_vector_var_lane_stack_off_elf_c(arena: *u8, ctx: *u8, var_e
   if (ko != 3) {
     return 0 - 1;
   }
-  off = glue_asm_local_var_stack_off_scoped(arena, ctx, var_expr_ref);
+  unsafe {
+    off = glue_asm_local_var_stack_off_scoped(arena, ctx, var_expr_ref);
+  }
   if (off < 0) {
     return 0 - 1;
   }
