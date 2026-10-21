@@ -21,8 +21,11 @@ function main(): i32 {
   let sp: Split_i32 = { left: { data: 0, length: 0 as usize }, right: { data: 0, length: 0 as usize } };
   slice.split_at_i32(s, 2, &sp);
   if (sp.left.length != 2 || sp.right.length != 2) { return 4; }
-  if (sp.left[0] != 10 || sp.left[1] != 20) { return 5; }
-  if (sp.right[0] != 30 || sp.right[1] != 40) { return 6; }
+  /* PLATFORM: SHARED — field[index] on Split_* emits extra deref (SEGV); copy to local. */
+  let sp_l: []i32 = sp.left;
+  let sp_r: []i32 = sp.right;
+  if (sp_l[0] != 10 || sp_l[1] != 20) { return 5; }
+  if (sp_r[0] != 30 || sp_r[1] != 40) { return 6; }
   let sp2: Split_i32 = { left: { data: 0, length: 0 as usize }, right: { data: 0, length: 0 as usize } };
   slice.split_at_i32(s, 99, &sp2);
   if (sp2.left.length != 4 || sp2.right.length != 0) { return 7; }
@@ -87,7 +90,9 @@ function main(): i32 {
   let wsp: Split_u64 = { left: { data: 0, length: 0 as usize }, right: { data: 0, length: 0 as usize } };
   slice.split_at_u64(sw, 2 as usize, &wsp);
   if (wsp.left.length != 2 as usize || wsp.right.length != 2 as usize) { return 28; }
-  if (wsp.left[0] != 100 || wsp.right[0] != 300) { return 29; }
+  let wsp_l: []u64 = wsp.left;
+  let wsp_r: []u64 = wsp.right;
+  if (wsp_l[0] != 100 || wsp_r[0] != 300) { return 29; }
   if (slice.chunks_len_u64(sw, 3 as usize) != 2 as usize) { return 30; }
   let wc: u64[] = { data: 0, length: 0 as usize };
   slice.chunk_u64(sw, 3 as usize, 1 as usize, &wc);
