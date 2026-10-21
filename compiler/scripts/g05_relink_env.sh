@@ -970,6 +970,39 @@ case "$UNAME_S" in
         _PABI_ELF_CTX=""
         _PABI_DATA_LEN=""
       fi
+      # note743y.6.5: egg glue_var_blk_walk is AS-early (subslice SEGV).
+      # Compile full expr_sidecar thin, keep-global only fill+walk, prepend
+      # (Linux --allow-multiple-definition first-wins). PLATFORM: LINUX tip cold.
+      _g05_pure_overlay src/runtime_pipeline_abi_expr_sidecar_thin.x \
+        build_asm/selfhost_pabi/expr_sidecar_glue_var_full.o \
+        glue_var_blk_walk_expr
+      if [ -n "$_G05_PO_OUT" ]; then
+        _gv_full="$_G05_PO_OUT"
+        _gv_kg=build_asm/selfhost_pabi/expr_sidecar_glue_var_kg.o
+        _gv_keep=build_asm/selfhost_pabi/expr_sidecar_glue_var_keep.txt
+        printf '%s\n' glue_fill_var_block_refs_c glue_var_blk_walk_expr >"$_gv_keep"
+        _oc=""
+        if command -v llvm-objcopy >/dev/null 2>&1; then _oc=llvm-objcopy
+        elif command -v objcopy >/dev/null 2>&1; then _oc=objcopy
+        fi
+        if [ -n "$_oc" ] && "$_oc" --keep-global-symbols="$_gv_keep" "$_gv_full" "$_gv_kg" 2>/tmp/g05_glue_var_kg.err; then
+          if nm "$_gv_kg" 2>/dev/null | grep -qE ' T glue_var_blk_walk_expr$' \
+            && nm "$_gv_kg" 2>/dev/null | grep -qE ' T glue_fill_var_block_refs_c$'; then
+            _PABI_TIP_PEEL="$_gv_kg $_PABI_TIP_PEEL"
+            echo "g05_relink_env: note743y.6.5 tip-peel glue_var keep-global fill+walk" >&2
+          else
+            echo "g05_relink_env: ERROR glue_var kg missing T fill/walk" >&2
+            exit 1
+          fi
+        else
+          echo "g05_relink_env: ERROR objcopy keep-global glue_var failed" >&2
+          cat /tmp/g05_glue_var_kg.err >&2 || true
+          exit 1
+        fi
+      else
+        echo "g05_relink_env: ERROR expr_sidecar glue_var tip-peel overlay missing" >&2
+        exit 1
+      fi
       # note743y.4: tip parser still calls struct-returning lexer_init; tip
       # lexer_init is out-ptr and smashes source when rdi==parked data
       # (num_funcs=0 / P001 / no main). Ret-by-value dual-ABI shim + demote

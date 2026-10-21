@@ -1683,7 +1683,8 @@ export function pipeline_expr_var_name_len_for_string_lit_c(a: *u8, expr_ref: i3
  * Recurse expr tree stamping block_ref on VAR nodes.
  * PLATFORM: SHARED
  */
-function glue_var_blk_walk_expr(a: *u8, er: i32, blk: i32): void {
+#[no_mangle]
+export function glue_var_blk_walk_expr(a: *u8, er: i32, blk: i32): void {
   let ko: i32 = 0;
   let l: i32 = 0;
   let i: i32 = 0;
@@ -1700,14 +1701,20 @@ function glue_var_blk_walk_expr(a: *u8, er: i32, blk: i32): void {
   }
   if ((ko >= 4 && ko <= 21) || (ko >= 28 && ko <= 38)) {
     unsafe { l = pipeline_expr_binop_left_ref_at(a, er); }
-    glue_var_blk_walk_expr(a, l, blk);
+    if (l > 0 && l != er) {
+      glue_var_blk_walk_expr(a, l, blk);
+    }
     unsafe { l = pipeline_expr_binop_right_ref_at(a, er); }
-    glue_var_blk_walk_expr(a, l, blk);
+    if (l > 0 && l != er) {
+      glue_var_blk_walk_expr(a, l, blk);
+    }
     return;
   }
   if (ko == 22 || ko == 23 || ko == 24 || ko == 41 || ko == 50 || ko == 51) {
     unsafe { l = pipeline_expr_unary_operand_ref_at(a, er); }
-    glue_var_blk_walk_expr(a, l, blk);
+    if (l > 0 && l != er) {
+      glue_var_blk_walk_expr(a, l, blk);
+    }
     return;
   }
   // Field, struct lit, array lit, index, and call before the AS slot.

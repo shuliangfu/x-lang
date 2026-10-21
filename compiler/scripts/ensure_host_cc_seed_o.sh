@@ -26521,16 +26521,35 @@ pipeline_abi_inject_block_domain_thin() {
 pipeline_abi_inject_expr_sidecar_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_expr_sidecar_thin.x"
-  local stamp="src/.pabi_w529_expr_sidecar.stamp"
+  local stamp="src/.pabi_w530_expr_sidecar.stamp"
+  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+  local saved_force="${XLANG_PABI_THIN_FORCE_INJECT-}"
+  local had_prefer=0 had_e_repl=0 had_force=0
+  local rc=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  # PLATFORM: SHARED — hard BAN PREFER (do not call inject_thin_leaf).
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+  # note743y.6.5 Soft Cap: w529 stamp-only left egg AS-early glue_var_blk_walk
+  # (subslice_split_chunks SEGV). One PREFER reinject then HARD BAN again.
+  if [ -f "$stamp" ]; then
     return 0
   fi
-  touch "$stamp"
-  rm -f src/.pabi_w327_expr_sidecar.stamp src/.pabi_w365_expr_sidecar.stamp
-  log "pipeline_abi w529-expr-sidecar: tip SEGV+pipe-cell+Darwin tipU stamped; tip PRODUCT reinject HARD BAN (keep prior)"
-  return 0
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
+  if [ "${XLANG_PABI_THIN_FORCE_INJECT+x}" = "x" ]; then had_force=1; fi
+  export XLANG_PABI_THIN_PREFER_ASM=1
+  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+  export XLANG_PABI_THIN_FORCE_INJECT=1
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w530-expr-sidecar-glue-var-blk"
+  rc=$?
+  if [ "$had_prefer" = "1" ]; then export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"; else unset XLANG_PABI_THIN_PREFER_ASM; fi
+  if [ "$had_e_repl" = "1" ]; then export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"; else unset XLANG_PABI_THIN_ALLOW_E_REPLACE; fi
+  if [ "$had_force" = "1" ]; then export XLANG_PABI_THIN_FORCE_INJECT="$saved_force"; else unset XLANG_PABI_THIN_FORCE_INJECT; fi
+  if [ "$rc" -eq 0 ]; then
+    touch "$stamp"
+    rm -f src/.pabi_w529_expr_sidecar.stamp src/.pabi_w327_expr_sidecar.stamp src/.pabi_w365_expr_sidecar.stamp
+    log "pipeline_abi w530-expr-sidecar: Soft Cap reinject glue_var_blk (note743y.6.5); further reinject HARD BAN"
+  fi
+  return "$rc"
 }
 
 
