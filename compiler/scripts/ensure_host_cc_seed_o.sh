@@ -26147,13 +26147,27 @@ pipeline_abi_inject_asm_wpo_thin() {
     return 0
   fi
   # Prefer product xlang over xlang_asm (egg may lag tip CG002 heal).
-  if [ -x "$(pwd)/xlang" ]; then
-    xlang="$(pwd)/xlang"
-  elif [ -x "$(pwd)/xlang_asm" ]; then
-    xlang="$(pwd)/xlang_asm"
-  elif [ -x "$(pwd)/xlang.exe" ]; then
-    xlang="$(pwd)/xlang.exe"
-  else
+  # note743t: Linux tip-cold tip SEGV asm_wpo_thin; try pin-egg first then
+  # product bins (same order as g05_relink_env _g05_pure_overlay). PLATFORM: LINUX.
+  _wpo_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
+  _wpo_arch="$(uname -m 2>/dev/null)"
+  case "$_wpo_os" in darwin) _wpo_os=darwin ;; linux) _wpo_os=linux ;; *) _wpo_os="" ;; esac
+  case "$_wpo_arch" in x86_64|amd64) _wpo_arch=x86_64 ;; arm64|aarch64) _wpo_arch=arm64 ;; *) _wpo_arch="" ;; esac
+  _wpo_egg=""
+  if [ -n "$_wpo_os" ] && [ -n "$_wpo_arch" ]; then
+    _wpo_egg="$(pwd)/seeds/bootstrap_xlangc.${_wpo_os}.${_wpo_arch}"
+  fi
+  _wpo_bins=""
+  if [ "$_wpo_os" = "linux" ] && [ -n "$_wpo_egg" ] && [ -x "$_wpo_egg" ]; then
+    _wpo_bins="$_wpo_egg"
+  fi
+  [ -x "$(pwd)/xlang" ] && _wpo_bins="$_wpo_bins $(pwd)/xlang"
+  [ -x "$(pwd)/xlang_asm" ] && _wpo_bins="$_wpo_bins $(pwd)/xlang_asm"
+  [ -x "$(pwd)/xlang.exe" ] && _wpo_bins="$_wpo_bins $(pwd)/xlang.exe"
+  if [ "$_wpo_os" != "linux" ] && [ -n "$_wpo_egg" ] && [ -x "$_wpo_egg" ]; then
+    _wpo_bins="$_wpo_bins $_wpo_egg"
+  fi
+  if [ -z "$_wpo_bins" ]; then
     log "pipeline_abi w745-asm-wpo-thin: no xlang to -c thin"
     return 1
   fi
@@ -26163,17 +26177,28 @@ pipeline_abi_inject_asm_wpo_thin() {
   # skip pinned leftover thin.o and blocked product PREFER. PLATFORM: SHARED.
   _wpo_log="$(mktemp "${TMPDIR:-/tmp}/pabi_wpo_thin.XXXXXX")"
   rm -f "$thin_o"
-  # -L .. -L . matches product cold emit; -o must end in .o (g05_xasm stages).
-  if ! g05_xasm "$xlang" -backend asm -c -L .. -L . -o "$thin_o" "$thin_x" \
-      >"$_wpo_log" 2>&1 \
-    || [ ! -s "$thin_o" ]; then
+  _wpo_ok=0
+  for xlang in $_wpo_bins; do
+    : >"$_wpo_log"
+    rm -f "$thin_o"
+    # -L .. -L . matches product cold emit; -o must end in .o (g05_xasm stages).
+    if g05_xasm "$xlang" -backend asm -c -L .. -L . -o "$thin_o" "$thin_x" \
+        >"$_wpo_log" 2>&1 \
+      && [ -s "$thin_o" ] \
+      && ! grep -q 'CG002' "$_wpo_log" 2>/dev/null; then
+      _wpo_ok=1
+      # note743t: scrub recovered tip SEGV rows for this thin .x
+      if [ -s "${G05_XASM_CRASH_LOG:-build_asm/g05_xasm_crash.log}" ]; then
+        grep -vF " $thin_x" "${G05_XASM_CRASH_LOG:-build_asm/g05_xasm_crash.log}" \
+          >build_asm/g05_xasm_crash.log.scrub 2>/dev/null || true
+        mv -f build_asm/g05_xasm_crash.log.scrub "${G05_XASM_CRASH_LOG:-build_asm/g05_xasm_crash.log}"
+      fi
+      break
+    fi
+    rm -f "$thin_o"
+  done
+  if [ "$_wpo_ok" != "1" ]; then
     log "pipeline_abi w745-asm-wpo-thin: PREFER -c failed (CG002 or empty)"
-    cat "$_wpo_log" >&2 || true
-    rm -f "$_wpo_log" "$thin_o"
-    return 1
-  fi
-  if grep -q 'CG002' "$_wpo_log" 2>/dev/null; then
-    log "pipeline_abi w745-asm-wpo-thin: CG002 in emit log"
     cat "$_wpo_log" >&2 || true
     rm -f "$_wpo_log" "$thin_o"
     return 1

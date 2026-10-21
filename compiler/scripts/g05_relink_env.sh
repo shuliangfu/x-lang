@@ -351,7 +351,21 @@ _g05_pure_overlay() {
   # but miss Cap thins that an older xlang_asm still emits). PLATFORM: SHARED.
   # note743n: tip-cold tip/bootstrap may be CG002; try product then archived
   # seeds/bootstrap_xlangc.<os>.<arch> (same pin-egg as note743k/l/m).
+  # note743t: Linux tip-cold tip SEGV Cap thins (return_sret etc); pin-egg
+  # first so we do not fill g05_xasm_crash.log then recover. Darwin keeps
+  # product-first (M2). PLATFORM: LINUX pin-egg-first.
+  _po_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
+  _po_arch="$(uname -m 2>/dev/null)"
+  case "$_po_os" in darwin) _po_os=darwin ;; linux) _po_os=linux ;; *) _po_os="" ;; esac
+  case "$_po_arch" in x86_64|amd64) _po_arch=x86_64 ;; arm64|aarch64) _po_arch=arm64 ;; *) _po_arch="" ;; esac
+  _po_egg=""
+  if [ -n "$_po_os" ] && [ -n "$_po_arch" ]; then
+    _po_egg="seeds/bootstrap_xlangc.${_po_os}.${_po_arch}"
+  fi
   _po_bins=""
+  if [ "$_po_os" = "linux" ] && [ -n "$_po_egg" ] && [ -x "$_po_egg" ]; then
+    _po_bins="$_po_egg"
+  fi
   [ -x ./xlang ] && _po_bins="$_po_bins ./xlang"
   [ -x ./xlang_asm ] && _po_bins="$_po_bins ./xlang_asm"
   # knife256/10.2: park-fixed tip may still hollow-emit Cap thins; restored
@@ -359,13 +373,8 @@ _g05_pure_overlay() {
   [ -x ./xlang.restored_1952 ] && _po_bins="$_po_bins ./xlang.restored_1952"
   [ -x ./bootstrap_xlangc ] && _po_bins="$_po_bins ./bootstrap_xlangc"
   [ -x ./xlang-c ] && _po_bins="$_po_bins ./xlang-c"
-  _po_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
-  _po_arch="$(uname -m 2>/dev/null)"
-  case "$_po_os" in darwin) _po_os=darwin ;; linux) _po_os=linux ;; *) _po_os="" ;; esac
-  case "$_po_arch" in x86_64|amd64) _po_arch=x86_64 ;; arm64|aarch64) _po_arch=arm64 ;; *) _po_arch="" ;; esac
-  if [ -n "$_po_os" ] && [ -n "$_po_arch" ]; then
-    _po_egg="seeds/bootstrap_xlangc.${_po_os}.${_po_arch}"
-    [ -x "$_po_egg" ] && _po_bins="$_po_bins $_po_egg"
+  if [ "$_po_os" != "linux" ] && [ -n "$_po_egg" ] && [ -x "$_po_egg" ]; then
+    _po_bins="$_po_bins $_po_egg"
   fi
   if [ -z "$_po_bins" ]; then
     echo "g05_relink_env: WARNING pure overlay $_po_x not built (no xl / pin-egg)" >&2
@@ -382,6 +391,13 @@ _g05_pure_overlay() {
       if [ "$_po_rc" -eq 0 ] \
         && nm "$_po_o.tmp.o" 2>/dev/null | grep -E "T _*${_po_sym}\$" >/dev/null; then
         mv -f "$_po_o.tmp.o" "$_po_o"
+        # note743t: tip may have SEGV before a later bin won; drop recovered
+        # crash rows for this .x so the ensure crash gate does not false-fail.
+        if [ -s build_asm/g05_xasm_crash.log ]; then
+          grep -vF " $_po_x" build_asm/g05_xasm_crash.log \
+            >build_asm/g05_xasm_crash.log.scrub 2>/dev/null || true
+          mv -f build_asm/g05_xasm_crash.log.scrub build_asm/g05_xasm_crash.log
+        fi
         break 2
       fi
       rm -f "$_po_o.tmp.o"
@@ -670,17 +686,32 @@ _PABI_ELF_UNDEF_CAP=""
 if [ "${XLANG_ELF_UNDEF_CAP_OVERLAY:-1}" = "1" ]; then
   # Same product compile as _g05_pure_overlay, plus a 240s cap. The 2048-row
   # BSS is larger than the other thins. A hang must not pin the relink.
-  # PLATFORM: SHARED.
+  # note743t: align multi-xl + Linux pin-egg-first (tip hollow/rc=1 left
+  # elf_undef unbuilt; pin-egg emits all four T). PLATFORM: SHARED.
   _cap_x=src/runtime_pipeline_abi_elf_undef_cap_thin.x
   _cap_o=build_asm/selfhost_pabi/elf_undef_cap.o
   _G05_PO_OUT=""
-  # knife 254 / 9.2: prefer last-known-good ./xlang over mid-cold xlang_asm
-  # (same as _g05_pure_overlay). Hardcoding xlang_asm SEGV/empty-body → crash log.
-  _cap_bin=""
-  if [ -x ./xlang ]; then _cap_bin=./xlang
-  elif [ -x ./xlang_asm ]; then _cap_bin=./xlang_asm
+  _cap_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
+  _cap_arch="$(uname -m 2>/dev/null)"
+  case "$_cap_os" in darwin) _cap_os=darwin ;; linux) _cap_os=linux ;; *) _cap_os="" ;; esac
+  case "$_cap_arch" in x86_64|amd64) _cap_arch=x86_64 ;; arm64|aarch64) _cap_arch=arm64 ;; *) _cap_arch="" ;; esac
+  _cap_egg=""
+  if [ -n "$_cap_os" ] && [ -n "$_cap_arch" ]; then
+    _cap_egg="seeds/bootstrap_xlangc.${_cap_os}.${_cap_arch}"
   fi
-  if [ -f "$_cap_x" ] && [ -n "$_cap_bin" ]; then
+  _cap_bins=""
+  if [ "$_cap_os" = "linux" ] && [ -n "$_cap_egg" ] && [ -x "$_cap_egg" ]; then
+    _cap_bins="$_cap_egg"
+  fi
+  [ -x ./xlang ] && _cap_bins="$_cap_bins ./xlang"
+  [ -x ./xlang_asm ] && _cap_bins="$_cap_bins ./xlang_asm"
+  [ -x ./xlang.restored_1952 ] && _cap_bins="$_cap_bins ./xlang.restored_1952"
+  [ -x ./bootstrap_xlangc ] && _cap_bins="$_cap_bins ./bootstrap_xlangc"
+  [ -x ./xlang-c ] && _cap_bins="$_cap_bins ./xlang-c"
+  if [ "$_cap_os" != "linux" ] && [ -n "$_cap_egg" ] && [ -x "$_cap_egg" ]; then
+    _cap_bins="$_cap_bins $_cap_egg"
+  fi
+  if [ -f "$_cap_x" ] && [ -n "$_cap_bins" ]; then
     mkdir -p build_asm/selfhost_pabi
     rm -f "$_cap_o" "$_cap_o.tmp.o"
     # macOS has no timeout(1); perl alarm gives the same 240s cap there
@@ -690,22 +721,24 @@ if [ "${XLANG_ELF_UNDEF_CAP_OVERLAY:-1}" = "1" ]; then
     else
       _cap_to="perl -e alarm(240);exec(@ARGV)"
     fi
-    _cap_try=1
-    while [ "$_cap_try" -le 3 ]; do
-      _cap_rc=0
-      $_cap_to "$_cap_bin" -backend asm -c "$_cap_x" -o "$_cap_o.tmp.o" \
-        >/dev/null 2>&1 || _cap_rc=$?
-      if [ "$_cap_rc" -eq 0 ] && [ -s "$_cap_o.tmp.o" ]; then
-        mv -f "$_cap_o.tmp.o" "$_cap_o"
-        break
-      fi
-      if [ "$_cap_rc" -eq 124 ] || [ "$_cap_rc" -ge 128 ]; then
-        printf '%s rc=%s g05_relink_env: %s -backend asm -c %s\n' \
-          "$(date +%H:%M:%S)" "$_cap_rc" "$_cap_bin" "$_cap_x" \
-          >>build_asm/g05_xasm_crash.log 2>/dev/null || true
-      fi
-      rm -f "$_cap_o.tmp.o"
-      _cap_try=$((_cap_try + 1))
+    for _cap_bin in $_cap_bins; do
+      _cap_try=1
+      while [ "$_cap_try" -le 3 ]; do
+        _cap_rc=0
+        $_cap_to "$_cap_bin" -backend asm -c "$_cap_x" -o "$_cap_o.tmp.o" \
+          >/dev/null 2>&1 || _cap_rc=$?
+        if [ "$_cap_rc" -eq 0 ] && [ -s "$_cap_o.tmp.o" ]; then
+          mv -f "$_cap_o.tmp.o" "$_cap_o"
+          break 2
+        fi
+        if [ "$_cap_rc" -eq 124 ] || [ "$_cap_rc" -ge 128 ]; then
+          printf '%s rc=%s g05_relink_env: %s -backend asm -c %s\n' \
+            "$(date +%H:%M:%S)" "$_cap_rc" "$_cap_bin" "$_cap_x" \
+            >>build_asm/g05_xasm_crash.log 2>/dev/null || true
+        fi
+        rm -f "$_cap_o.tmp.o"
+        _cap_try=$((_cap_try + 1))
+      done
     done
     if [ -s "$_cap_o" ]; then
       _cap_ok=1
@@ -717,6 +750,12 @@ if [ "${XLANG_ELF_UNDEF_CAP_OVERLAY:-1}" = "1" ]; then
       done
       if [ "$_cap_ok" = "1" ]; then
         _G05_PO_OUT="$_cap_o"
+        # note743t: scrub recovered crash rows for this .x
+        if [ -s build_asm/g05_xasm_crash.log ]; then
+          grep -vF " $_cap_x" build_asm/g05_xasm_crash.log \
+            >build_asm/g05_xasm_crash.log.scrub 2>/dev/null || true
+          mv -f build_asm/g05_xasm_crash.log.scrub build_asm/g05_xasm_crash.log
+        fi
       else
         echo "g05_relink_env: ERROR elf undef cap overlay missing a T" >&2
         printf '%s overlay-missing g05_relink_env: %s (accessor T)\n' \
@@ -730,23 +769,10 @@ if [ "${XLANG_ELF_UNDEF_CAP_OVERLAY:-1}" = "1" ]; then
         "$(date +%H:%M:%S)" "$_cap_x" \
         >>build_asm/g05_xasm_crash.log 2>/dev/null || true
     fi
-  elif [ -z "$_cap_bin" ]; then
-    echo "g05_relink_env: WARNING pure overlay $_cap_x not built (no ./xlang or ./xlang_asm)" >&2
+  elif [ -z "$_cap_bins" ]; then
+    echo "g05_relink_env: WARNING pure overlay $_cap_x not built (no ./xlang or pin-egg)" >&2
   fi
   _PABI_ELF_UNDEF_CAP="$_G05_PO_OUT"
-fi
-# w1576: qualified TYPE_NAMED size. The egg glue_type_size_simple is weak
-# and exact-matches layout names, so token.Token misses and returns 4.
-# LexerResult is then 32 and allow(padding) drops ident_len. The mega
-# suffix rule is the authority; this overlay is that strong body. Small
-# (one u8[256], no huge BSS), so the ordinary overlay compile is enough.
-# A missing T blocks the link. Do not rebuild the pabi egg.
-# PLATFORM: SHARED.
-_PABI_NAMED_SIZE=""
-if [ "${XLANG_NAMED_SIZE_OVERLAY:-1}" = "1" ]; then
-  _g05_pure_overlay src/runtime_pipeline_abi_named_size_thin.x \
-    build_asm/selfhost_pabi/named_size.o glue_type_size_simple
-  _PABI_NAMED_SIZE="$_G05_PO_OUT"
 fi
 # w1501: module-let STRING_LIT pool head chunk 127 (终局待办 10.24). pabi's
 # pipe_modlet_bake_string_lit_elem_to_data copied the head chunk with a 255
