@@ -4592,6 +4592,9 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
   if (elf_ctx == 0) { return 0 - 1; }
   if (ctx == 0 as *u8) { return 0 - 1; }
   unsafe {
+    // note743y.5: tip frame was 0x18e8 while locals used to -0x34b0 (SEGV in
+    // import METHOD). Pad so tip-emitted prologue covers nested spill arrays.
+    let _frame_pad_y5_m: u8[8192] = [];
     let mod_ref: *u8 = call_dispatch_load_ptr_le(ctx, 16);
     let nargs: i32 = pipeline_expr_method_call_num_args_at(arena, expr_ref);
     /** Product parses core.xlang_io_submit_*_batch as METHOD_CALL with >5 args; seed _impl is authority. */
