@@ -1689,6 +1689,25 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
             if (p_csmod)
                 link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_csmod);
         }
+        /*
+         * note743y.6.8: core/slice/mod.o U core_option_{none,some}_* (get/first/last).
+         * User.o for subslice_split_chunks only U core_slice_* so g6 option
+         * simple-group never fires → BLD001. Co-push formal option.o with
+         * needs_core_slice (≡ encoding→string companion). PLATFORM: SHARED.
+         */
+        {
+            const char *opt_rel = "core/option/option.o";
+            const char *root_opt = xlang_repo_root_from_argv0(link_argv0);
+            if (root_opt && root_opt[0])
+                (void)xlang_ensure_formal_std_make_o(root_opt, opt_rel, "../core/option/option.o");
+            {
+                const char *p_opt = asm_link_obj_skip_missing(xlang_rel_o_path_from_argv0(link_argv0, opt_rel));
+                if (!p_opt && bank)
+                    p_opt = xlang_asm_ld_try_under_lib_roots(opt_rel, lib_roots, n_lib_roots, bank);
+                if (p_opt)
+                    link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_opt);
+            }
+        }
     }
     if (labi_od_user_needs_any_sym_table(user_o, labi_od_kv_sym_count(), labi_od_kv_sym_at)) {
         /* PLATFORM: SHARED — L4 wipe deletes kv.o; push skip-missing is not
@@ -1904,6 +1923,12 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
                     (void)xlang_ensure_formal_std_make_o(include_root, "core/slice/slice.o",
                                                         "../core/slice/slice.o");
                 link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_core_slice(), lib_roots, n_lib_roots,
+                                         bank, argv, la, max_la, NULL);
+                /* note743y.6.8: mod.o U core_option_* — co-push option.o. */
+                if (include_root && include_root[0])
+                    (void)xlang_ensure_formal_std_make_o(include_root, "core/option/option.o",
+                                                        "../core/option/option.o");
+                link_abi_asm_ld_push_obj(NULL, link_argv0, "core/option/option.o", lib_roots, n_lib_roots,
                                          bank, argv, la, max_la, NULL);
             }
         }

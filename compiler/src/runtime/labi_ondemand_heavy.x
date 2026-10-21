@@ -2102,6 +2102,34 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
           link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_csmod);
         }
       }
+      /*
+       * note743y.6.8: core/slice/mod.o U core_option_{none,some}_*.
+       * User.o for subslice_split_chunks only U core_slice_* so g6 never
+       * fires → BLD001. Co-push formal option.o with needs_core_slice.
+       * PLATFORM: SHARED.
+       */
+      let opt_rel: *u8 = "core/option/option.o";
+      let root_opt: *u8 = 0 as *u8;
+      unsafe {
+        root_opt = xlang_repo_root_from_argv0(link_argv0);
+      }
+      if (root_opt != 0 as *u8) {
+        if (root_opt[0] != 0) {
+          unsafe {
+            let _eopt: i32 = xlang_ensure_formal_std_make_o(root_opt, opt_rel, "../core/option/option.o");
+          }
+        }
+      }
+      let opt_prim: *u8 = 0 as *u8;
+      unsafe {
+        opt_prim = xlang_rel_o_path_from_argv0(link_argv0, opt_rel);
+      }
+      let p_opt: *u8 = labi_od_resolve_or_try(opt_prim, opt_rel, lib_roots, n_lib_roots, bank);
+      if (p_opt != 0 as *u8) {
+        unsafe {
+          link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_opt);
+        }
+      }
     }
 
     // --- kv + glue ---
