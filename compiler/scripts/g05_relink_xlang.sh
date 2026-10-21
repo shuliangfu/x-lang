@@ -321,7 +321,8 @@ if [ "$(uname -s)" = "Linux" ] && [ "${XLANG_G05_TIP_SIDECAR_REFRESH:-1}" = "1" 
         objcopy --weaken-symbol="$_ys" build_asm/selfhost_pabi/one.o 2>/dev/null || true
       done < <(nm "$_y6_work/one.o" | awk '$2=="T"{print $3}')
       echo "g05_relink_xlang: note743y.6.1 tip one.o OK; second pure-ld" >&2
-      if run_g05_pure_ld_required; then
+      # Subshell: run_g05_pure_ld_required uses exit 1 on fail.
+      if ( run_g05_pure_ld_required ); then
         rm -f "${OUT}.pre_y6"
       else
         echo "g05_relink_xlang: WARN tip one.o second pure-ld failed; restore first-link product" >&2
