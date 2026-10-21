@@ -26833,6 +26833,7 @@ pipeline_abi_inject_cap_residual_egg_thins() {
     src/runtime_pipeline_abi_block_body_sync_let_order_thin.x \
     src/runtime_pipeline_abi_hw_vector_add_thin.x \
     src/runtime_pipeline_abi_lane_scalar_binop_thin.x \
+    src/runtime_pipeline_abi_vector_lane_stack_off_thin.x \
     src/runtime_pipeline_abi_lane_f32_lit_operand_thin.x \
     src/runtime_pipeline_abi_has_call_index_thin.x \
     src/runtime_pipeline_abi_has_nonlocal_var_thin.x \
@@ -26854,6 +26855,7 @@ pipeline_abi_inject_cap_residual_egg_thins() {
       *block_body_sync_let_order*) _probe='pipeline_asm_emit_block_prefix_elf' ;;
       *hw_vector_add*) _probe='glue_try_hw_vector_add_binop_elf_c' ;;
       *lane_scalar*) _probe='glue_emit_vector_lane_scalar_binop_elf_c' ;;
+      *vector_lane_stack_off*) _probe='glue_vector_var_lane_stack_off_elf_c' ;;
       *lane_f32_lit*) _probe='glue_emit_vector_operand_lane_elf_c' ;;
       *has_call_index*) _probe='glue_expr_tree_has_call_index_c' ;;
       *has_nonlocal*) _probe='glue_expr_tree_has_nonlocal_var_c' ;;
