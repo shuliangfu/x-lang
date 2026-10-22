@@ -23,6 +23,10 @@ export extern "C" function backend_enc_append_u8_c(elf_ctx: *u8, b: i32): i32;
 export extern "C" function pipeline_expr_int_val_at(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_type_kind_ord_at(arena: *u8, ty: i32): i32;
+export extern "C" function pipe_load_i32_le(base: *u8, off: i32): i32;
+export extern "C" function pipe_store_ptr_slot(base: *u8, i: i32, val: *u8): void;
+export extern "C" function pipe_load_ptr_slot(base: *u8, i: i32): *u8;
+export extern "C" function pipeline_arena_expr_ptr(a: *u8, ref: i32): *u8;
 
 /**
  * Sign-extend w0 into x0 after a negative i32 immediate.
@@ -94,8 +98,32 @@ export function pipeline_asm_emit_expr_elf_fast(arena: *u8, elf_ctx: *u8, expr_r
       let tr_lit: i32 = 0;
       let tk_lit: i32 = 0 - 1;
       let signed_lit: i32 = 0;
+      let lo_fit: i32 = 0;
+      let hi_fit: i32 = 0;
+      let ex_fit: *u8 = 0 as *u8;
+      let pcell_fit: u8[8] = [];
+      let fits_i32: i32 = 0;
       if (rc_lit != 0) {
         return rc_lit;
+      }
+      /* note743y.6.19: Soft Cap imm64 already filled rax. int_val_at of
+       * INT64_MAX truncates to -1; fast_sxt would emit cdqe and wipe hi
+       * (primary_int_i64 28→27). Skip sxt when lit does not fit i32 —
+       * same lo/hi fits test as mega Soft Cap (note743y.6.12). */
+      pipe_store_ptr_slot(&pcell_fit[0], 0, pipeline_arena_expr_ptr(arena, expr_ref));
+      ex_fit = pipe_load_ptr_slot(&pcell_fit[0], 0);
+      if (ex_fit != 0 as *u8) {
+        lo_fit = pipe_load_i32_le(ex_fit, 16);
+        hi_fit = pipe_load_i32_le(ex_fit, 20);
+        if (hi_fit == 0 && lo_fit >= 0) {
+          fits_i32 = 1;
+        }
+        if (hi_fit == (0 - 1) && lo_fit < 0) {
+          fits_i32 = 1;
+        }
+      }
+      if (fits_i32 == 0) {
+        return 0;
       }
       tr_lit = pipeline_expr_resolved_type_ref(arena, expr_ref);
       if (tr_lit > 0) {
@@ -104,7 +132,7 @@ export function pipeline_asm_emit_expr_elf_fast(arena: *u8, elf_ctx: *u8, expr_r
       if (tr_lit <= 0 || tk_lit == 0 || tk_lit == 5 || tk_lit == 7) {
         signed_lit = 1;
       }
-      return fast_sxt_neg_i32(elf_ctx, pipeline_expr_int_val_at(arena, expr_ref), ta, signed_lit);
+      return fast_sxt_neg_i32(elf_ctx, lo_fit, ta, signed_lit);
     }
     if (arena != 0 as *u8 && expr_ref > 0 && pipeline_expr_kind_ord_at(arena, expr_ref) == 3) {
       nlen = pipeline_expr_var_name_len(arena, expr_ref);
