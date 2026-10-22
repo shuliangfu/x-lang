@@ -5937,10 +5937,110 @@ case "$UNAME_S" in
       _CAP_TIP_FRONT="$_CAP_TIP_FRONT $_CAP_TIP_OV"
       echo "g05_relink_env: Darwin Cap tip overlays ($(echo $_CAP_TIP_OV | wc -w | tr -d ' ') objs: pthin/local_slot/lvalue)" >&2
     fi
+    # note743y.6.21: tip-cold Darwin L2 Undefined _main — tip lexer_init is
+    # OK when lex_source_data is nopark (Cap tip identity). Without nopark,
+    # thin_glue park poisons dep names → P001 / num_funcs=0 / no _main.
+    # Prepend nopark + weaken thin_glue lex_source* (same as Cap tip reapply).
+    # PLATFORM: MACOS tip cold. No new host-cc .c.
+    _nopark_o=build_asm/selfhost_pabi/lex_source_data_nopark_a64.o
+    if [ ! -s "$_nopark_o" ]; then
+      _nopark_s=build_asm/selfhost_pabi/lex_source_data_nopark.s
+      [ -f src/asm/lex_source_data_nopark_a64.s ] && _nopark_s=src/asm/lex_source_data_nopark_a64.s
+      if [ -f "$_nopark_s" ]; then
+        as -o "$_nopark_o" "$_nopark_s" 2>/tmp/g05_nopark_as.err           || { echo "g05_relink_env: ERROR as nopark failed" >&2; cat /tmp/g05_nopark_as.err >&2; exit 1; }
+      fi
+    fi
+    if [ -s "$_nopark_o" ]; then
+      case " $_CAP_TIP_FRONT " in
+        *" lex_source_data_nopark_a64.o "*) ;;
+        *)
+          _CAP_TIP_FRONT="$_nopark_o $_CAP_TIP_FRONT"
+          echo "g05_relink_env: note743y.6.21 prepended lex_source_data_nopark_a64.o" >&2
+          ;;
+      esac
+      if [ -n "${_oc:-}" ] && [ -s parser_asm_thin_glue.o ]; then
+        for _ls in _parser_asm_lex_source_data_c _parser_asm_lex_source_length_c; do
+          if nm -gU parser_asm_thin_glue.o 2>/dev/null | awk '{print $3}' | grep -qxF "$_ls"; then
+            "$_oc" --weaken-symbol="$_ls" parser_asm_thin_glue.o 2>/dev/null               && echo "g05_relink_env: note743y.6.21 weaken thin_glue $_ls (nopark wins)" >&2 || true
+          fi
+        done
+      fi
+    else
+      echo "g05_relink_env: ERROR note743y.6.21 missing $_nopark_o" >&2
+      exit 1
+    fi
+    # note743y.6.21: tip lexer_init is out-ptr (#0x8a0) → P001 / no _main.
+    # Ret-by-value dual-ABI shim + demote tip lexer_x::_lexer_init (keep next_*).
+    # Twin of note743y.4 Linux x86_64 shim. PLATFORM: MACOS tip cold.
+    _shim_s=src/asm/lexer_init_ret_by_value_shim_arm64.s
+    _shim_o=build_asm/selfhost_pabi/lexer_init_ret_by_value_shim.o
+    if [ ! -f "$_shim_s" ]; then
+      echo "g05_relink_env: ERROR missing $_shim_s (note743y.6.21)" >&2
+      exit 1
+    fi
+    if ! as -o "$_shim_o" "$_shim_s" 2>/tmp/g05_lexer_init_shim_as.err; then
+      echo "g05_relink_env: ERROR as failed for $_shim_s" >&2
+      cat /tmp/g05_lexer_init_shim_as.err >&2 || true
+      exit 1
+    fi
+    if ! nm -gU "$_shim_o" 2>/dev/null | grep -q 'T _lexer_init$'; then
+      echo "g05_relink_env: ERROR shim missing T _lexer_init" >&2
+      exit 1
+    fi
+    case " $_CAP_TIP_FRONT " in
+      *" lexer_init_ret_by_value_shim.o "*) ;;
+      *)
+        _CAP_TIP_FRONT="$_shim_o $_CAP_TIP_FRONT"
+        echo "g05_relink_env: note743y.6.21 lexer_init ret-by-value shim" >&2
+        ;;
+    esac
+    if [ -f lexer_x.o ] && [ -n "${_oc:-}" ]; then
+      _lex_f=build_asm/selfhost_pabi/lexer_x_tip_peel.o
+      cp -f lexer_x.o "$_lex_f"
+      if nm -gU "$_lex_f" 2>/dev/null | awk '{print $3}' | grep -qxF '_lexer_init'; then
+        "$_oc" --redefine-sym=_lexer_init=_lexer_init__tip_outptr_dead "$_lex_f" 2>/dev/null           || { echo "g05_relink_env: ERROR demote tip lexer_init failed" >&2; exit 1; }
+      fi
+      if nm -gU "$_lex_f" 2>/dev/null | grep -qE ' T _lexer_init$'; then
+        echo "g05_relink_env: ERROR lexer_x tip-peel still exports T _lexer_init" >&2
+        exit 1
+      fi
+      _G05_LEXER_X_O="$_lex_f"
+      echo "g05_relink_env: note743y.6.21 demoted tip lexer_x::_lexer_init (shim wins)" >&2
+    elif [ -f lexer_x.o ]; then
+      echo "g05_relink_env: ERROR llvm-objcopy required to demote tip lexer_init" >&2
+      exit 1
+    fi
+    # note743y.6.21: when PREFER asm_wpo_thin and pabi_weak both export the
+    # same asm_wpo_* T, Darwin ld errors. Weaken pabi_weak copies so thin wins
+    # (Cap tip reapply does the same). PLATFORM: MACOS tip cold.
+    if [ -n "${_oc:-}" ] && [ -s src/runtime_pipeline_abi_asm_wpo_thin.o ] \
+      && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+      while read -r _ws; do
+        [ -n "$_ws" ] || continue
+        if nm -gU build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null | awk '{print $3}' | grep -qxF "$_ws"; then
+          "$_oc" --weaken-symbol="$_ws" build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+        fi
+      done < <(nm -gU src/runtime_pipeline_abi_asm_wpo_thin.o 2>/dev/null | awk '/ T /{print $NF}')
+      echo "g05_relink_env: note743y.6.21 weaken pabi_weak asm_wpo_* (thin wins)" >&2
+    fi
     ;;
 esac
 
 G05_OBJS="$_PABI_TIP_PEEL $_CAP_TIP_FRONT $_PABI_M8_RELOC_STUBS $_DRIVER_SEED_OBJS driver_x.o $_PIPELINE_LINK_O lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $_DRIVER_SUBCMD src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $_USER_ASM_LINK $_GLUE_SUFFIX $_AST_GEN2 $_PABI_ARCHIVE_LEAF"
+# note743y.6.21: Darwin Cap tip block sets _G05_LEXER_X_O after _X_FRONTEND
+# was already baked into _DRIVER_SEED_OBJS — swap lexer_x.o → peel here.
+if [ -n "${_G05_LEXER_X_O:-}" ]; then
+  _g05_new=""
+  for _o in $G05_OBJS; do
+    if [ "$_o" = "lexer_x.o" ]; then
+      _g05_new="$_g05_new $_G05_LEXER_X_O"
+    else
+      _g05_new="$_g05_new $_o"
+    fi
+  done
+  G05_OBJS=$(echo $_g05_new)
+  echo "g05_relink_env: note743y.6.21 G05_OBJS lexer_x → tip-peel" >&2
+fi
 
 G05_CFLAGS="$_BASE_CFLAGS $_DRIVER_SEED_LINK_FLAGS $_ASM_GLUE_DUP_LDFLAGS $_MAIN_LINK_FLAGS"
 
