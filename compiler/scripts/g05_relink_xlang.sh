@@ -112,7 +112,7 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ] \
     _g05_oc=$(command -v llvm-objcopy)
   fi
   if [ -n "$_g05_oc" ]; then
-    if printf '%s' " $OBJS " | grep -q ' register_tl_const\.o ' \
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])register_tl_const\.o([[:space:]]|$)' \
       && nm -gU src/runtime_pipeline_abi.o 2>/dev/null \
            | grep -q ' T _pipeline_asm_register_module_top_level_lets_c$'; then
       "$_g05_oc" --weaken-symbol=_pipeline_asm_register_module_top_level_lets_c \
@@ -121,7 +121,7 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ] \
         || true
     fi
     # note743y.6.20: weaken mega copies so Cap tip overlays first-win.
-    if printf '%s' " $OBJS " | grep -q ' modlet_float_imm\.o ' \
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])modlet_float_imm\.o([[:space:]]|$)' \
       && nm -gU src/runtime_pipeline_abi.o 2>/dev/null \
            | grep -q ' T _pipe_modlet_scalar_init_common_imm$'; then
       "$_g05_oc" --weaken-symbol=_pipe_modlet_scalar_init_common_imm \
@@ -129,7 +129,7 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ] \
         && echo "g05_relink_xlang: pre-ld weaken pabi scalar_init_common_imm (float_imm wins)" >&2 \
         || true
     fi
-    if printf '%s' " $OBJS " | grep -q ' modlet_strpool\.o ' \
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])modlet_strpool\.o([[:space:]]|$)' \
       && nm -gU src/runtime_pipeline_abi.o 2>/dev/null \
            | grep -q ' T _pipe_modlet_bake_string_lit_elem_to_data$'; then
       "$_g05_oc" --weaken-symbol=_pipe_modlet_bake_string_lit_elem_to_data \
