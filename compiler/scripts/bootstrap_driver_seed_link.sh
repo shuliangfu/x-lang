@@ -290,7 +290,8 @@ done
 # parse_into_buf uses lexer_next_buf_into (out-ptr; ABI-compatible with tip).
 # Fix: demote tip _lexer_init to local; prepend strong return-by-value asm
 # shim. Keep tip lexer for next_* so parser_asm bridges stay tip-ABI.
-# PLATFORM: SHARED phase1/final with Track L parser.
+# note743y.6.22: re-enable Darwin shim (twin Linux). P001 needs ret-by-value.
+# PLATFORM: SHARED phase1/final (Darwin+Linux).
 if [ -f parser_x.o ] && [ -f lexer_x.o ]; then
   _psz=$(wc -c <parser_x.o | tr -d ' ')
   if [ "$_psz" -lt 400000 ]; then

@@ -452,6 +452,14 @@ _PABI_CALL_SPILL="$_G05_PO_OUT"
 # pabi_weak T (Windows). Also ahead of _PABI_SELFHOST. PLATFORM: SHARED.
 _g05_pure_overlay src/runtime_pipeline_abi_frame_size_thin.x \
   build_asm/selfhost_pabi/compute_frame_size.o pipeline_asm_compute_frame_size_c
+# note743y.6.22: tip Soft Cap arm64 call-spill under-budget (8B vs 16B; w1484
+# class). fill_nested sub #0x8c0 but stores [x29,#0x8c0] → clobber caller fp.
+# Patch overlay .o prologue/epilogue 0x8c0→0x900. PLATFORM: MACOS|DARWIN.
+if [ "$(uname -s)" = "Darwin" ] && [ -f build_asm/selfhost_pabi/compute_frame_size.o ]; then
+  python3 -c "from pathlib import Path; import sys; p=Path('build_asm/selfhost_pabi/compute_frame_size.o'); d=bytearray(p.read_bytes()); a,b=bytes.fromhex('ff0323d1'),bytes.fromhex('ff0324d1'); c,e=bytes.fromhex('ff032391'),bytes.fromhex('ff032491');
+import sys as _s
+(d.count(a)==1 and d.count(c)==1) and (p.write_bytes(d.replace(a,b,1).replace(c,e,1)), _s.stderr.write('g05_relink_env: note743y.6.22 fill_nested frame 0x8c0->0x900\n'))"
+fi
 _PABI_FRAME_SIZE="$_G05_PO_OUT"
 # w1544/w2056: CALL-returned slice deep-copy, one rule with no size cap:
 # data on the callee's (now popped) stack is copied in full into a malloc
@@ -5936,6 +5944,19 @@ case "$UNAME_S" in
       fi
       _CAP_TIP_FRONT="$_CAP_TIP_FRONT $_CAP_TIP_OV"
       echo "g05_relink_env: Darwin Cap tip overlays ($(echo $_CAP_TIP_OV | wc -w | tr -d ' ') objs: pthin/local_slot/lvalue)" >&2
+      # note743y.6.22: egg runtime_pipeline_abi.o also defines local_slot/lvalue;
+      # Darwin ld no multidef — weaken egg so Cap tip overlays first-win.
+      if [ -n "${_oc:-}" ] && [ -s src/runtime_pipeline_abi.o ]; then
+        if [ -s build_asm/selfhost_pabi/local_slot_ptr_tramp_a64.o ]; then
+          "$_oc" --weaken-symbol=_glue_enc_local_slot_ptr_or_addr_elf_c             src/runtime_pipeline_abi.o 2>/dev/null \
+            && echo "g05_relink_env: note743y.6.22 weaken egg local_slot (overlay wins)" >&2 || true
+        fi
+        if [ -s build_asm/selfhost_pabi/lvalue_eff_addr_elf_a64.o ]; then
+          "$_oc" --weaken-symbol=_pipeline_asm_emit_lvalue_eff_addr_elf_c \
+            src/runtime_pipeline_abi.o 2>/dev/null \
+            && echo "g05_relink_env: note743y.6.22 weaken egg lvalue_eff_addr (overlay wins)" >&2 || true
+        fi
+      fi
     fi
     # note743y.6.21: tip-cold Darwin L2 Undefined _main — tip lexer_init is
     # OK when lex_source_data is nopark (Cap tip identity). Without nopark,
@@ -5969,13 +5990,13 @@ case "$UNAME_S" in
       echo "g05_relink_env: ERROR note743y.6.21 missing $_nopark_o" >&2
       exit 1
     fi
-    # note743y.6.21: tip lexer_init is out-ptr (#0x8a0) → P001 / no _main.
-    # Ret-by-value dual-ABI shim + demote tip lexer_x::_lexer_init (keep next_*).
-    # Twin of note743y.4 Linux x86_64 shim. PLATFORM: MACOS tip cold.
+    # note743y.6.22: restore note743y.6.21/a89 ret-by-value shim + demote tip
+    # lexer_init (Linux twin). tip Soft Cap-only init → P001 no _main; probe
+    # SEGV under lldb next. PLATFORM: MACOS tip cold.
     _shim_s=src/asm/lexer_init_ret_by_value_shim_arm64.s
     _shim_o=build_asm/selfhost_pabi/lexer_init_ret_by_value_shim.o
     if [ ! -f "$_shim_s" ]; then
-      echo "g05_relink_env: ERROR missing $_shim_s (note743y.6.21)" >&2
+      echo "g05_relink_env: ERROR missing $_shim_s (note743y.6.22)" >&2
       exit 1
     fi
     if ! as -o "$_shim_o" "$_shim_s" 2>/tmp/g05_lexer_init_shim_as.err; then
@@ -5991,24 +6012,56 @@ case "$UNAME_S" in
       *" lexer_init_ret_by_value_shim.o "*) ;;
       *)
         _CAP_TIP_FRONT="$_shim_o $_CAP_TIP_FRONT"
-        echo "g05_relink_env: note743y.6.21 lexer_init ret-by-value shim" >&2
+        echo "g05_relink_env: note743y.6.22 lexer_init ret-by-value shim" >&2
         ;;
     esac
     if [ -f lexer_x.o ] && [ -n "${_oc:-}" ]; then
       _lex_f=build_asm/selfhost_pabi/lexer_x_tip_peel.o
       cp -f lexer_x.o "$_lex_f"
       if nm -gU "$_lex_f" 2>/dev/null | awk '{print $3}' | grep -qxF '_lexer_init'; then
-        "$_oc" --redefine-sym=_lexer_init=_lexer_init__tip_outptr_dead "$_lex_f" 2>/dev/null           || { echo "g05_relink_env: ERROR demote tip lexer_init failed" >&2; exit 1; }
+        "$_oc" --redefine-sym=_lexer_init=_lexer_init__tip_outptr_dead "$_lex_f" 2>/dev/null \
+          || { echo "g05_relink_env: ERROR demote tip lexer_init failed" >&2; exit 1; }
       fi
       if nm -gU "$_lex_f" 2>/dev/null | grep -qE ' T _lexer_init$'; then
         echo "g05_relink_env: ERROR lexer_x tip-peel still exports T _lexer_init" >&2
         exit 1
       fi
       _G05_LEXER_X_O="$_lex_f"
-      echo "g05_relink_env: note743y.6.21 demoted tip lexer_x::_lexer_init (shim wins)" >&2
+      echo "g05_relink_env: note743y.6.22 demoted tip lexer_x::_lexer_init (shim wins)" >&2
     elif [ -f lexer_x.o ]; then
       echo "g05_relink_env: ERROR llvm-objcopy required to demote tip lexer_init" >&2
       exit 1
+    fi
+    # note743y.6.22: Apple clang packs consecutive stack i32s; tip Soft Cap
+    # into_c expects 8-byte slots → bound_scan gets len as data (FAR=0x72).
+    # Cap tip twin: strong noop complete_c; demote typeck/thin_glue bodies.
+    # PLATFORM: MACOS tip cold.
+    _noop_s=src/asm/trait_check_noop_a64.s
+    _noop_o=build_asm/selfhost_pabi/trait_check_noop_a64.o
+    if [ ! -f "$_noop_s" ]; then
+      echo "g05_relink_env: ERROR missing $_noop_s (note743y.6.22)" >&2
+      exit 1
+    fi
+    if ! as -o "$_noop_o" "$_noop_s" 2>/tmp/g05_trait_noop_as.err; then
+      echo "g05_relink_env: ERROR as failed for $_noop_s" >&2
+      cat /tmp/g05_trait_noop_as.err >&2 || true
+      exit 1
+    fi
+    case " $_CAP_TIP_FRONT " in
+      *" trait_check_noop_a64.o "*) ;;
+      *)
+        _CAP_TIP_FRONT="$_noop_o $_CAP_TIP_FRONT"
+        echo "g05_relink_env: note743y.6.22 trait_check noop (Apple stack ABI)" >&2
+        ;;
+    esac
+    if [ -n "${_oc:-}" ]; then
+      for _to in typeck_x.o parser_asm_thin_glue.o; do
+        if [ -f "$_to" ] && nm -gU "$_to" 2>/dev/null | awk '{print $3}' | grep -qxF '_xlang_trait_check_impls_complete_c'; then
+          "$_oc" --weaken-symbol=_xlang_trait_check_impls_complete_c "$_to" 2>/dev/null \
+            && echo "g05_relink_env: note743y.6.22 weaken $_to::trait_check (noop wins)" >&2 \
+            || true
+        fi
+      done
     fi
     # note743y.6.21: when PREFER asm_wpo_thin and pabi_weak both export the
     # same asm_wpo_* T, Darwin ld errors. Weaken pabi_weak copies so thin wins
