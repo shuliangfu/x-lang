@@ -2313,18 +2313,44 @@ if [ "$UNAME_S" = "Darwin" ]; then
     _dfca_bins=""
   fi
   mkdir -p build_asm/selfhost_pabi
-  rm -f "$_dfca_o" "$_dfca_o.tmp.o"
+  # note743y.6.23: keep prior Cap tip for_call_args_a64.o on tip miss.
+  # Tip-cold product CG002s on call-with-args (id(7)/hello/opt/si) when this
+  # object is wiped and Darwin falls back to the hollow egg in pabi_weak.
+  # Only replace $_dfca_o after a successful tip/Cap rebuild (same keep-prior
+  # class as _g05_pure_overlay). PLATFORM: MACOS tip cold.
+  rm -f "$_dfca_o.tmp.o"
   _dfca_ok=0
-  for _dfca_bin in $_dfca_bins; do
-    if XLANG_PREFER_ASM_O=1 "$_dfca_bin" -backend asm -c "$_dfca_x" -o "$_dfca_o.tmp.o" >/dev/null 2>&1 \
-      && nm "$_dfca_o.tmp.o" 2>/dev/null | grep -q " T ${_dfca_s}\$"; then
-      _dfca_ok=1
-      break
-    fi
-    rm -f "$_dfca_o.tmp.o"
-  done
+  # note743y.6.23: Cap tip cache .o FIRST. Tip-cold tip/xlang_asm "succeeds"
+  # at emitting for_call_args_thin but the body is hollow/mega (~245KB) and
+  # still CG002s call-with-args; Cap tip's ~32KB packer is the known-good.
+  # Skip tip emitters unless XLANG_G05_FCA_TIP=1. PLATFORM: MACOS tip cold.
+  if [ "${XLANG_G05_FCA_TIP:-0}" != "1" ]; then
+    for _dfca_cap_o in /tmp/cap_tip_l4_safe_*/pabi/for_call_args_a64.o; do
+      if [ -s "$_dfca_cap_o" ] \
+        && nm "$_dfca_cap_o" 2>/dev/null | grep -q " T ${_dfca_s}\$"; then
+        cp -f "$_dfca_cap_o" "$_dfca_o.tmp.o"
+        _dfca_ok=1
+        echo "g05_relink_env: note743y.6.23 Cap tip cache for_call_args_a64.o (prefer)" >&2
+        break
+      fi
+    done
+  fi
   if [ "$_dfca_ok" != "1" ]; then
-    echo "g05_relink_env: WARNING $_dfca_x tip miss (Darwin call-arg packer; keep egg)" >&2
+    for _dfca_bin in $_dfca_bins; do
+      if XLANG_PREFER_ASM_O=1 "$_dfca_bin" -backend asm -c "$_dfca_x" -o "$_dfca_o.tmp.o" >/dev/null 2>&1 \
+        && nm "$_dfca_o.tmp.o" 2>/dev/null | grep -q " T ${_dfca_s}\$"; then
+        _dfca_ok=1
+        break
+      fi
+      rm -f "$_dfca_o.tmp.o"
+    done
+  fi
+  if [ "$_dfca_ok" != "1" ]; then
+    if [ -s "$_dfca_o" ] && nm "$_dfca_o" 2>/dev/null | grep -q " T ${_dfca_s}\$"; then
+      echo "g05_relink_env: note743y.6.23 keep prior for_call_args_a64.o (tip miss)" >&2
+    else
+      echo "g05_relink_env: WARNING $_dfca_x tip miss (Darwin call-arg packer; keep egg)" >&2
+    fi
   fi
   _dfca_oc=""
   if command -v llvm-objcopy >/dev/null 2>&1; then
