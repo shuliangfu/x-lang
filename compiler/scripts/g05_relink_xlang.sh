@@ -96,9 +96,12 @@ fi
 # knife256/10.2: g05_ensure re-runs darwin_phase1_hollow_fill AFTER g05_relink_env
 # w211 weaken. Egg/mega refresh can restore strong T on pabi → Darwin ld dup vs
 # register_tl_const.o. Re-weaken on the live pabi just before pure-ld.
+# note743y.6.20: same for modlet_float_imm / modlet_strpool overlays — tip-cold
+# Cap tip rebuilds src/runtime_pipeline_abi.o with strong T of
+# pipe_modlet_scalar_init_common_imm and pipe_modlet_bake_string_lit_elem_to_data
+# while overlays also export them → ld duplicate (primary L4 FAIL).
 # PLATFORM: MACOS · no FORCE_CC.
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ] \
-  && printf '%s' " $OBJS " | grep -q ' register_tl_const\.o ' \
   && [ -s src/runtime_pipeline_abi.o ]; then
   _g05_oc=""
   if [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
@@ -108,13 +111,32 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ] \
   elif command -v llvm-objcopy >/dev/null 2>&1; then
     _g05_oc=$(command -v llvm-objcopy)
   fi
-  if [ -n "$_g05_oc" ] \
-    && nm -gU src/runtime_pipeline_abi.o 2>/dev/null \
-         | grep -q ' T _pipeline_asm_register_module_top_level_lets_c$'; then
-    "$_g05_oc" --weaken-symbol=_pipeline_asm_register_module_top_level_lets_c \
-      src/runtime_pipeline_abi.o 2>/dev/null \
-      && echo "g05_relink_xlang: pre-ld weaken pabi register_tl (overlay wins)" >&2 \
-      || true
+  if [ -n "$_g05_oc" ]; then
+    if printf '%s' " $OBJS " | grep -q ' register_tl_const\.o ' \
+      && nm -gU src/runtime_pipeline_abi.o 2>/dev/null \
+           | grep -q ' T _pipeline_asm_register_module_top_level_lets_c$'; then
+      "$_g05_oc" --weaken-symbol=_pipeline_asm_register_module_top_level_lets_c \
+        src/runtime_pipeline_abi.o 2>/dev/null \
+        && echo "g05_relink_xlang: pre-ld weaken pabi register_tl (overlay wins)" >&2 \
+        || true
+    fi
+    # note743y.6.20: weaken mega copies so Cap tip overlays first-win.
+    if printf '%s' " $OBJS " | grep -q ' modlet_float_imm\.o ' \
+      && nm -gU src/runtime_pipeline_abi.o 2>/dev/null \
+           | grep -q ' T _pipe_modlet_scalar_init_common_imm$'; then
+      "$_g05_oc" --weaken-symbol=_pipe_modlet_scalar_init_common_imm \
+        src/runtime_pipeline_abi.o 2>/dev/null \
+        && echo "g05_relink_xlang: pre-ld weaken pabi scalar_init_common_imm (float_imm wins)" >&2 \
+        || true
+    fi
+    if printf '%s' " $OBJS " | grep -q ' modlet_strpool\.o ' \
+      && nm -gU src/runtime_pipeline_abi.o 2>/dev/null \
+           | grep -q ' T _pipe_modlet_bake_string_lit_elem_to_data$'; then
+      "$_g05_oc" --weaken-symbol=_pipe_modlet_bake_string_lit_elem_to_data \
+        src/runtime_pipeline_abi.o 2>/dev/null \
+        && echo "g05_relink_xlang: pre-ld weaken pabi bake_string_lit (strpool wins)" >&2 \
+        || true
+    fi
   fi
   unset _g05_oc
 fi
