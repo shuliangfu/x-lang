@@ -543,6 +543,9 @@ if [ -s build_asm/selfhost_pabi/field_cap_residual_load.o ]; then
   _G05_LINK_WINNERS="$_G05_LINK_WINNERS _pipeline_expr_field_access_load_byte_sz=build_asm/selfhost_pabi/field_cap_residual_load.o"
   _G05_LINK_WINNERS="$_G05_LINK_WINNERS _glue_field_access_load_bytes_for_type_ref=build_asm/selfhost_pabi/field_cap_residual_load.o"
   _G05_LINK_WINNERS="$_G05_LINK_WINNERS _glue_field_access_emit_scalar_load_from_rax_elf_c=build_asm/selfhost_pabi/field_cap_residual_load.o"
+  # note743y.6.23: tip-cold opt/si — var_field_access must be field_cap (0xd00),
+  # not mega egg (0x2a0 stack-chk). PLATFORM: SHARED tip cold.
+  _G05_LINK_WINNERS="$_G05_LINK_WINNERS _pipeline_asm_emit_var_field_access_elf_c=build_asm/selfhost_pabi/field_cap_residual_load.o"
 fi
 # 记213: AAPCS64 f64/f32 epilogue fmov (ta==1). Old mega only did ta==0 SysV,
 # so math.pi/e out-pointer locals left garbage in d0. PLATFORM: SHARED.

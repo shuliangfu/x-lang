@@ -160,6 +160,29 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ] \
         && echo "g05_relink_xlang: note743y.6.23 pre-ld demote pabi_weak w211_fold" >&2 \
         || true
     fi
+    # note743y.6.23: tip-cold opt/si Abort — mega egg
+    # pipeline_asm_emit_var_field_access_elf_c (frame 0x2a0) stack-chk fails
+    # on core/option. Cap tip / field_cap_residual_load (frame 0xd00) is the
+    # known-good body. Darwin llvm-objcopy --weaken often leaves T; demote
+    # mega (and pabi_weak if T) via redefine-sym so field_cap is sole strong.
+    # PLATFORM: MACOS tip cold.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])field_cap_residual_load\.o([[:space:]]|$)' \
+      && nm -gU src/runtime_pipeline_abi.o 2>/dev/null \
+           | grep -q ' T _pipeline_asm_emit_var_field_access_elf_c$'; then
+      "$_g05_oc" --redefine-sym=_pipeline_asm_emit_var_field_access_elf_c=_pipeline_asm_emit_var_field_access_elf_c__demoted \
+        src/runtime_pipeline_abi.o 2>/dev/null \
+        && echo "g05_relink_xlang: note743y.6.23 pre-ld demote pabi var_field_access (field_cap wins)" >&2 \
+        || true
+    fi
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])field_cap_residual_load\.o([[:space:]]|$)' \
+      && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
+      && nm build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+           | grep -q ' T _pipeline_asm_emit_var_field_access_elf_c$'; then
+      "$_g05_oc" --redefine-sym=_pipeline_asm_emit_var_field_access_elf_c=_pipeline_asm_emit_var_field_access_elf_c__demoted \
+        build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+        && echo "g05_relink_xlang: note743y.6.23 pre-ld demote pabi_weak var_field_access (field_cap wins)" >&2 \
+        || true
+    fi
   fi
   unset _g05_oc
 fi
