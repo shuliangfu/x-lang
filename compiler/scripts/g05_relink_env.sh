@@ -2472,26 +2472,62 @@ if [ "$UNAME_S" = "Darwin" ]; then
     _PABI_SELFHOST="$_dmc_o $_PABI_SELFHOST"
   fi
 fi
-# note743y.6.23: Cap tip prefer pabi_weak.o OUTSIDE lea_cold gate.
-# tip-cold wipe deletes pabi_weak; without it the Darwin lea_cold/pabi_weak
-# gate skips (~67 overlays) → tip product ~7MB vs Cap tip ~9.6MB and
-# core/option CG002 even after field_cap alone is linked. PLATFORM: MACOS.
+# note743y.6.23: do NOT Cap tip prefer pabi_weak alone to force-open the
+# Darwin lea_cold gate — that pulls ~67 overlays that need Cap tip fill
+# objs (cap_tip_pabi_sym_fill / fa_array_lit / …) or pure-ld U. tip-cold
+# CG002 on option after field_cap was hollow pipeline_backend_asm_codegen
+# (frame 0x50); Cap tip archive_leaf_extract (0x8e0) is preferred below.
+# PLATFORM: MACOS tip cold.
+# note743y.6.23: Cap tip prefer archive_leaf_extract OUTSIDE lea_cold gate.
+# tip-cold wipe drops it; Darwin ARCHIVE_LEAF only links when -s. Without
+# it tip binds mega/hollow pipeline_backend_asm_codegen_ast_to_elf_c
+# (frame 0x50) → CG002 at unwrap_or_i32. Cap tip body is frame 0x8e0.
+# PLATFORM: MACOS tip cold.
 if [ "$UNAME_S" = "Darwin" ]; then
   mkdir -p build_asm/selfhost_pabi
-  _dpw_o=build_asm/selfhost_pabi/pabi_weak.o
-  if [ "${XLANG_G05_TIP_THIN:-0}" != "1" ] && [ ! -s "$_dpw_o" ]; then
-    for _dpw_cap in /tmp/cap_tip_l4_safe_*/pabi/pabi_weak.o; do
-      if [ -s "$_dpw_cap" ]; then
-        cp -f "$_dpw_cap" "$_dpw_o"
-        echo "g05_relink_env: note743y.6.23 Cap tip cache pabi_weak.o (open Darwin lea_cold gate)" >&2
-        break
-      fi
-    done
+  _dal_o=build_asm/selfhost_pabi/archive_leaf_extract.o
+  _dal_ok=0
+  _dal_oc=""
+  if [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+    _dal_oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+  elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+    _dal_oc=/usr/local/opt/llvm/bin/llvm-objcopy
+  elif command -v llvm-objcopy >/dev/null 2>&1; then
+    _dal_oc=$(command -v llvm-objcopy)
   fi
-  if [ ! -s "$_dpw_o" ]; then
-    echo "g05_relink_env: WARNING pabi_weak Cap tip miss (Darwin gate may skip)" >&2
+  if [ "${XLANG_G05_TIP_THIN:-0}" != "1" ]; then
+    if [ ! -s "$_dal_o" ] \
+      || ! nm "$_dal_o" 2>/dev/null | grep -q " T _pipeline_backend_asm_codegen_ast_to_elf_c\$"; then
+      for _dal_cap in /tmp/cap_tip_l4_safe_*/pabi/archive_leaf_extract.o; do
+        if [ -s "$_dal_cap" ] \
+          && nm "$_dal_cap" 2>/dev/null | grep -q " T _pipeline_backend_asm_codegen_ast_to_elf_c\$"; then
+          cp -f "$_dal_cap" "$_dal_o"
+          _dal_ok=1
+          echo "g05_relink_env: note743y.6.23 Cap tip cache archive_leaf_extract.o (prefer backend codegen)" >&2
+          break
+        fi
+      done
+    fi
   fi
-  unset _dpw_o _dpw_cap
+  if [ -s "$_dal_o" ] \
+    && nm "$_dal_o" 2>/dev/null | grep -q " T _pipeline_backend_asm_codegen_ast_to_elf_c\$"; then
+    _dal_ok=1
+  fi
+  if [ "$_dal_ok" = "1" ]; then
+    if [ -n "$_dal_oc" ] && [ -s src/runtime_pipeline_abi.o ] \
+      && nm -gU src/runtime_pipeline_abi.o 2>/dev/null \
+           | grep -q " T _pipeline_backend_asm_codegen_ast_to_elf_c\$"; then
+      "$_dal_oc" --redefine-sym=_pipeline_backend_asm_codegen_ast_to_elf_c=_pipeline_backend_asm_codegen_ast_to_elf_c__demoted \
+        src/runtime_pipeline_abi.o 2>/dev/null \
+        && echo "g05_relink_env: note743y.6.23 demote mega backend_asm_codegen_ast_to_elf (archive_leaf wins)" >&2 \
+        || true
+    fi
+    _G05_LINK_WINNERS="$_G05_LINK_WINNERS _pipeline_backend_asm_codegen_ast_to_elf_c=$_dal_o"
+    _G05_LINK_WINNERS="$_G05_LINK_WINNERS _pipeline_backend_asm_codegen_ast_to_elf_mega_body_c=$_dal_o"
+  else
+    echo "g05_relink_env: WARNING archive_leaf Cap tip miss (Darwin; tip-cold may keep hollow codegen)" >&2
+  fi
+  unset _dal_o _dal_ok _dal_oc _dal_cap
 fi
 # note743y.6.23: field_cap_residual_load OUTSIDE lea_cold/pabi_weak Darwin
 # gate (same class as macho_write Cap tip prefer). tip-cold often skips that
