@@ -1999,18 +1999,28 @@ if [ -s "$_wpo_tramp" ]; then
   esac
 fi
 _wpo_alias=src/runtime/asm_wpo_collect_walk_alias.o
-if [ ! -s "$_wpo_alias" ] && [ -f src/runtime/asm_wpo_collect_walk_alias.s ]; then
-  clang -c -arch arm64 src/runtime/asm_wpo_collect_walk_alias.s -o "$_wpo_alias" 2>/dev/null || true
+# note743y.6.23: Cap tip L4 tip thin may already export _pipeline_asm_wpo_collect_walk;
+# alias (pipeline→short) then duplicates. Only prepend when thin lacks pipeline T.
+_wpo_thin_has_pipeline=0
+if [ -s src/runtime_pipeline_abi_asm_wpo_thin.o ]   && nm -gU src/runtime_pipeline_abi_asm_wpo_thin.o 2>/dev/null        | grep -q ' T _pipeline_asm_wpo_collect_walk$'; then
+  _wpo_thin_has_pipeline=1
 fi
-if [ -s "$_wpo_alias" ]; then
-  case " $G05_OBJS " in
-    *" $_wpo_alias "*|*" src/runtime/asm_wpo_collect_walk_alias.o "*) ;;
-    *)
-      G05_OBJS="$_wpo_alias $G05_OBJS"
-      export G05_OBJS
-      echo "g05_cap_tip_reapply: note743y.6.23 prepended asm_wpo_collect_walk_alias.o" >&2
-      ;;
-  esac
+if [ "$_wpo_thin_has_pipeline" != "1" ]; then
+  if [ ! -s "$_wpo_alias" ] && [ -f src/runtime/asm_wpo_collect_walk_alias.s ]; then
+    clang -c -arch arm64 src/runtime/asm_wpo_collect_walk_alias.s -o "$_wpo_alias" 2>/dev/null || true
+  fi
+  if [ -s "$_wpo_alias" ]; then
+    case " $G05_OBJS " in
+      *" $_wpo_alias "*|*" src/runtime/asm_wpo_collect_walk_alias.o "*) ;;
+      *)
+        G05_OBJS="$_wpo_alias $G05_OBJS"
+        export G05_OBJS
+        echo "g05_cap_tip_reapply: note743y.6.23 prepended asm_wpo_collect_walk_alias.o" >&2
+        ;;
+    esac
+  fi
+else
+  echo "g05_cap_tip_reapply: note743y.6.23 skip walk alias (thin has pipeline T)" >&2
 fi
 
 bash scripts/g05_relink_xlang.sh
