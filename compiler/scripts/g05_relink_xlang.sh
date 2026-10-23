@@ -137,6 +137,29 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ] \
         && echo "g05_relink_xlang: pre-ld weaken pabi bake_string_lit (strpool wins)" >&2 \
         || true
     fi
+    # note743y.6.23: Cap tip G05 lists struct_lit_field.o + pabi_weak; both
+    # define glue_struct_lit_field_store_sz as T. Windows weakens pabi_weak
+    # in g05_relink_env; Darwin Cap tip must demote pabi_weak pre-ld (Apple
+    # ld rejects duplicate strong). Same for w211 vs const_lit_fold.
+    # PLATFORM: MACOS Cap tip / tip-cold.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])struct_lit_field\.o([[:space:]]|$)' \
+      && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
+      && nm build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+           | grep -q ' T _glue_struct_lit_field_store_sz$'; then
+      "$_g05_oc" --redefine-sym=_glue_struct_lit_field_store_sz=_glue_struct_lit_field_store_sz__demoted \
+        build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+        && echo "g05_relink_xlang: note743y.6.23 pre-ld demote pabi_weak struct_lit_field_store_sz" >&2 \
+        || true
+    fi
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])const_lit_fold\.o([[:space:]]|$)' \
+      && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
+      && nm build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+           | grep -q ' T _w211_fold_const_expr_i32$'; then
+      "$_g05_oc" --redefine-sym=_w211_fold_const_expr_i32=_w211_fold_const_expr_i32__demoted \
+        build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+        && echo "g05_relink_xlang: note743y.6.23 pre-ld demote pabi_weak w211_fold" >&2 \
+        || true
+    fi
   fi
   unset _g05_oc
 fi

@@ -80,6 +80,15 @@ if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
   && [ -s build_asm/selfhost_pabi/named_size.o ] \
   && nm -gU build_asm/selfhost_pabi/named_size.o 2>/dev/null \
        | grep -q 'T _glue_type_size_simple$'; then
+  # note743y.6.23: bak_cap once had external U WPO refs renamed to
+  # __demoted_wpo (objcopy redefine on U). That breaks Cap tip pure-ld.
+  # Refresh bak from clean pabi when polluted. PLATFORM: MACOS Cap tip.
+  if [ -s build_asm/selfhost_pabi/pabi_weak.o.bak_cap ] \
+    && nm build_asm/selfhost_pabi/pabi_weak.o.bak_cap 2>/dev/null \
+         | grep -q '__demoted_wpo'; then
+    echo "g05_cap_tip_reapply: note743y.6.23 refresh bak_cap (drop demoted_wpo U)" >&2
+    rm -f build_asm/selfhost_pabi/pabi_weak.o.bak_cap
+  fi
   [ -s build_asm/selfhost_pabi/pabi_weak.o.bak_cap ] \
     || cp -f build_asm/selfhost_pabi/pabi_weak.o build_asm/selfhost_pabi/pabi_weak.o.bak_cap
   # Prefer bak then demote size_simple so named_size wins.
@@ -1889,6 +1898,101 @@ elif [ -f src/asm/glue_addr_simd_lane_type_stub_a64.s ]; then
         ;;
     esac
   fi
+fi
+
+# note743y.6.23: tip Track L pastes Cap residual into codegen_x /
+# typeck_x.cap_repr_weak. Cap tip G05_OBJS still lists the separate
+# residual .o → Darwin ld64 37 duplicate symbols. Match g05_relink_env:
+# drop residual when tip sentinel is T. Also demote tip fmt / pabi soft
+# overlaps so Cap tip softs win. PLATFORM: MACOS Cap tip.
+_drop_obj_from_g05() {
+  _drop="$1"
+  case " $G05_OBJS " in
+    *" $_drop "*)
+      G05_OBJS=$(echo " $G05_OBJS " | sed "s| $_drop | |g" | sed 's/^ *//;s/ *$//')
+      export G05_OBJS
+      echo "g05_cap_tip_reapply: note743y.6.23 dropped $_drop (tip Track L paste)" >&2
+      ;;
+  esac
+}
+if [ -s codegen_x.o ] \
+  && nm -gU codegen_x.o 2>/dev/null \
+       | grep -q ' T _codegen_set_host_call_arg_param_ty$'; then
+  _drop_obj_from_g05 build_asm/selfhost_pabi/codegen_cap_residual.o
+fi
+if { [ -s build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o ] \
+      && nm -gU build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o 2>/dev/null \
+           | grep -q ' T _typeck_set_allow_legacy_extern_calls$'; } \
+  || { [ -s typeck_x.o ] \
+      && nm -gU typeck_x.o 2>/dev/null \
+           | grep -q ' T _typeck_set_allow_legacy_extern_calls$'; }; then
+  _drop_obj_from_g05 build_asm/selfhost_pabi/typeck_cap_residual.o
+fi
+# rt_fmt_one soft wins over runtime_driver_no_c copies.
+if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/rt_fmt_one_a64.o ] \
+  && [ -s src/runtime_driver_no_c.o ]; then
+  _fmt_redefs=()
+  for _fs in _driver_fmt_one_file _rt_fmt_path_copy_nul _rt_fmt_path_ends_x; do
+    if nm -gU build_asm/selfhost_pabi/rt_fmt_one_a64.o 2>/dev/null | grep -q " T ${_fs}$" \
+      && nm -gU src/runtime_driver_no_c.o 2>/dev/null | grep -q " T ${_fs}$"; then
+      _fmt_redefs+=(--redefine-sym=${_fs}=${_fs}__demoted)
+    fi
+  done
+  if [ "${#_fmt_redefs[@]}" -gt 0 ]; then
+    "$OC" "${_fmt_redefs[@]}" src/runtime_driver_no_c.o \
+      && echo "g05_cap_tip_reapply: note743y.6.23 demoted runtime_driver_no_c fmt (${#_fmt_redefs[@]}) " >&2 || true
+  fi
+fi
+# pabi_weak soft overlaps with Cap tip thin winners.
+# Use nm (not -gU only): some Mach-O locals still collide as T in both.
+if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+  _pw_redefs=()
+  if [ -s build_asm/selfhost_pabi/const_lit_fold.o ] \
+    && nm build_asm/selfhost_pabi/const_lit_fold.o 2>/dev/null | grep -q ' T _w211_fold_const_expr_i32$' \
+    && nm build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null | grep -q ' T _w211_fold_const_expr_i32$'; then
+    _pw_redefs+=(--redefine-sym=_w211_fold_const_expr_i32=_w211_fold_const_expr_i32__demoted)
+  fi
+  if [ -s build_asm/selfhost_pabi/struct_lit_field.o ] \
+    && nm build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null | grep -q ' T _glue_struct_lit_field_store_sz$' \
+    && nm build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null | grep -q ' T _glue_struct_lit_field_store_sz$'; then
+    _pw_redefs+=(--redefine-sym=_glue_struct_lit_field_store_sz=_glue_struct_lit_field_store_sz__demoted)
+  fi
+  if [ "${#_pw_redefs[@]}" -gt 0 ]; then
+    "$OC" "${_pw_redefs[@]}" build_asm/selfhost_pabi/pabi_weak.o \
+      && echo "g05_cap_tip_reapply: note743y.6.23 demoted pabi_weak soft overlaps (${#_pw_redefs[@]})" >&2 || true
+  fi
+fi
+
+# note743y.6.23: demoted WPO tramp + short-name alias for Cap tip pure-ld.
+# Covers polluted bak_cap U->__demoted_wpo and leftover short asm_wpo_collect_walk.
+# PLATFORM: MACOS|ARM64 Cap tip.
+_wpo_tramp=build_asm/selfhost_pabi/wpo_demoted_tramp_a64.o
+if [ ! -s "$_wpo_tramp" ] && [ -f src/asm/wpo_demoted_tramp_a64.s ]; then
+  clang -c -arch arm64 src/asm/wpo_demoted_tramp_a64.s -o "$_wpo_tramp" 2>/dev/null || true
+fi
+if [ -s "$_wpo_tramp" ]; then
+  case " $G05_OBJS " in
+    *" $_wpo_tramp "*|*" build_asm/selfhost_pabi/wpo_demoted_tramp_a64.o "*) ;;
+    *)
+      G05_OBJS="$_wpo_tramp $G05_OBJS"
+      export G05_OBJS
+      echo "g05_cap_tip_reapply: note743y.6.23 prepended wpo_demoted_tramp_a64.o" >&2
+      ;;
+  esac
+fi
+_wpo_alias=src/runtime/asm_wpo_collect_walk_alias.o
+if [ ! -s "$_wpo_alias" ] && [ -f src/runtime/asm_wpo_collect_walk_alias.s ]; then
+  clang -c -arch arm64 src/runtime/asm_wpo_collect_walk_alias.s -o "$_wpo_alias" 2>/dev/null || true
+fi
+if [ -s "$_wpo_alias" ]; then
+  case " $G05_OBJS " in
+    *" $_wpo_alias "*|*" src/runtime/asm_wpo_collect_walk_alias.o "*) ;;
+    *)
+      G05_OBJS="$_wpo_alias $G05_OBJS"
+      export G05_OBJS
+      echo "g05_cap_tip_reapply: note743y.6.23 prepended asm_wpo_collect_walk_alias.o" >&2
+      ;;
+  esac
 fi
 
 bash scripts/g05_relink_xlang.sh
