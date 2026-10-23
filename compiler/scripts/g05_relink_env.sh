@@ -2472,6 +2472,73 @@ if [ "$UNAME_S" = "Darwin" ]; then
     _PABI_SELFHOST="$_dmc_o $_PABI_SELFHOST"
   fi
 fi
+# note743y.6.23: field_cap_residual_load OUTSIDE lea_cold/pabi_weak Darwin
+# gate (same class as macho_write Cap tip prefer). tip-cold often skips that
+# gate → mega egg var_field_access (frame 0x2a0) sole def → stack-chk Abort
+# on core/option|result (opt/si FAIL). Cap tip body is frame 0xd00.
+# PLATFORM: MACOS tip cold.
+if [ "$UNAME_S" = "Darwin" ]; then
+  mkdir -p build_asm/selfhost_pabi
+  _dfc_o=build_asm/selfhost_pabi/field_cap_residual_load.o
+  _dfc_ok=0
+  _dfc_oc=""
+  if [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+    _dfc_oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+  elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+    _dfc_oc=/usr/local/opt/llvm/bin/llvm-objcopy
+  elif command -v llvm-objcopy >/dev/null 2>&1; then
+    _dfc_oc=$(command -v llvm-objcopy)
+  fi
+  # Prefer Cap tip cache when tip emit missing / lacks var_field_access T.
+  if [ "${XLANG_G05_TIP_THIN:-0}" != "1" ]; then
+    if [ ! -s "$_dfc_o" ] \
+      || ! nm "$_dfc_o" 2>/dev/null | grep -q " T _pipeline_asm_emit_var_field_access_elf_c\$"; then
+      for _dfc_cap in /tmp/cap_tip_l4_safe_*/pabi/field_cap_residual_load.o; do
+        if [ -s "$_dfc_cap" ] \
+          && nm "$_dfc_cap" 2>/dev/null | grep -q " T _pipeline_asm_emit_var_field_access_elf_c\$"; then
+          cp -f "$_dfc_cap" "$_dfc_o"
+          _dfc_ok=1
+          echo "g05_relink_env: note743y.6.23 Cap tip cache field_cap_residual_load.o (prefer var_field_access)" >&2
+          break
+        fi
+      done
+    fi
+  fi
+  if [ -s "$_dfc_o" ] \
+    && nm "$_dfc_o" 2>/dev/null | grep -q " T _pipeline_asm_emit_var_field_access_elf_c\$"; then
+    _dfc_ok=1
+  fi
+  if [ "$_dfc_ok" = "1" ]; then
+    # Demote mega egg (Darwin --weaken leaves T). PLATFORM: MACOS tip cold.
+    if [ -n "$_dfc_oc" ] && [ -s src/runtime_pipeline_abi.o ] \
+      && nm -gU src/runtime_pipeline_abi.o 2>/dev/null \
+           | grep -q " T _pipeline_asm_emit_var_field_access_elf_c\$"; then
+      "$_dfc_oc" --redefine-sym=_pipeline_asm_emit_var_field_access_elf_c=_pipeline_asm_emit_var_field_access_elf_c__demoted \
+        src/runtime_pipeline_abi.o 2>/dev/null \
+        && echo "g05_relink_env: note743y.6.23 demote mega var_field_access (field_cap wins)" >&2 \
+        || true
+    fi
+    if [ -n "$_dfc_oc" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
+      && nm build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+           | grep -q " T _pipeline_asm_emit_var_field_access_elf_c\$"; then
+      "$_dfc_oc" --redefine-sym=_pipeline_asm_emit_var_field_access_elf_c=_pipeline_asm_emit_var_field_access_elf_c__demoted \
+        build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+        && echo "g05_relink_env: note743y.6.23 demote pabi_weak var_field_access (field_cap wins)" >&2 \
+        || true
+    fi
+    _G05_LINK_WINNERS="$_G05_LINK_WINNERS _pipeline_asm_emit_var_field_access_elf_c=$_dfc_o"
+    _G05_LINK_WINNERS="$_G05_LINK_WINNERS _pipeline_expr_field_access_load_byte_sz=$_dfc_o"
+    _G05_LINK_WINNERS="$_G05_LINK_WINNERS _glue_field_access_load_bytes_for_type_ref=$_dfc_o"
+    _G05_LINK_WINNERS="$_G05_LINK_WINNERS _glue_field_access_emit_scalar_load_from_rax_elf_c=$_dfc_o"
+    case " $_PABI_SELFHOST " in
+      *" field_cap_residual_load.o "*) ;;
+      *) _PABI_SELFHOST="$_dfc_o $_PABI_SELFHOST" ;;
+    esac
+  else
+    echo "g05_relink_env: WARNING field_cap Cap tip miss (Darwin; tip-cold may keep mega egg)" >&2
+  fi
+  unset _dfc_o _dfc_ok _dfc_oc _dfc_cap
+fi
 if [ "$UNAME_S" = "Darwin" ] \
   && [ -s build_asm/selfhost_pabi/lea_cold_fwd.o ] \
   && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
@@ -2659,8 +2726,12 @@ EOF
   fi
   # w1007: Cap residual struct field load_sz → 4 (LDRSW / esz-4 cells).
   # Strong beats pabi_weak glue + load_byte_sz. PLATFORM: MACOS|DARWIN.
+  # note743y.6.23: may already be on _PABI_SELFHOST from outside-gate prefer.
   if [ -s build_asm/selfhost_pabi/field_cap_residual_load.o ]; then
-    _PABI_SELFHOST="build_asm/selfhost_pabi/field_cap_residual_load.o $_PABI_SELFHOST"
+    case " $_PABI_SELFHOST " in
+      *" field_cap_residual_load.o "*) ;;
+      *) _PABI_SELFHOST="build_asm/selfhost_pabi/field_cap_residual_load.o $_PABI_SELFHOST" ;;
+    esac
   fi
   if [ -s build_asm/selfhost_pabi/emit_epilogue_f64.o ]; then
     _PABI_SELFHOST="build_asm/selfhost_pabi/emit_epilogue_f64.o $_PABI_SELFHOST"
