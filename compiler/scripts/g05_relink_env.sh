@@ -2384,6 +2384,91 @@ if [ "$UNAME_S" = "Darwin" ]; then
     mv -f "$_dfca_o.tmp.o" "$_dfca_o"
   fi
 fi
+# note743y.6.23: Cap tip macho_write + undef_cap PREFER — OUTSIDE the
+# lea_cold/pabi_weak Darwin gate. That gate is skipped when pabi_weak.o
+# is not yet sized; tip-cold then keeps the 256-slot egg → CG002 on
+# opt/si/hello. Mirror for_call_args (runs unconditionally on Darwin).
+# PLATFORM: MACOS tip cold.
+if [ "$UNAME_S" = "Darwin" ]; then
+  # w2055: Mach-O writer + undef cap. pabi_weak egg cap=256 → CG002 on
+  # import-heavy modules (opt/si/hello). Cap tip cache keeps the known-good
+  # ~21KB writer + 2048-slot cap. Do NOT use g05_darwin_pabi_thin_sidecar
+  # alone: that helper returns 0 when pabi_weak is not yet sized, silently
+  # skipping Cap tip prefer (tip-cold left with egg cap → macho_write=-1).
+  # Mirror for_call_args Cap tip prefer. PLATFORM: MACOS tip cold. note743y.6.23.
+  mkdir -p build_asm/selfhost_pabi
+  # --- macho_write_a64.o ---
+  _dmw_o=build_asm/selfhost_pabi/macho_write_a64.o
+  _dmw_ok=0
+  if [ "${XLANG_G05_TIP_THIN:-0}" != "1" ]; then
+    for _dmw_cap in /tmp/cap_tip_l4_safe_*/pabi/macho_write_a64.o; do
+      if [ -s "$_dmw_cap" ] \
+        && nm "$_dmw_cap" 2>/dev/null | grep -q " T _pipeline_macho_write_o_to_buf_c\$" \
+        && nm "$_dmw_cap" 2>/dev/null | grep -q " T _platform_macho_write_macho_o_to_buf\$"; then
+        cp -f "$_dmw_cap" "$_dmw_o"
+        _dmw_ok=1
+        echo "g05_relink_env: note743y.6.23 Cap tip cache macho_write_a64.o (prefer macho writer)" >&2
+        break
+      fi
+    done
+  fi
+  if [ "$_dmw_ok" != "1" ]; then
+    # Sidecar is defined later (inside lea_cold/pabi gate). Cap tip miss:
+    # keep prior .o if present; else warn (gate sidecar may rebuild).
+    if [ -s "$_dmw_o" ] && nm "$_dmw_o" 2>/dev/null | grep -q " T _pipeline_macho_write_o_to_buf_c\$"; then
+      echo "g05_relink_env: note743y.6.23 keep prior macho_write_a64.o (Cap tip miss)" >&2
+      _dmw_ok=1
+    else
+      echo "g05_relink_env: WARNING macho_write Cap tip miss (Darwin; gate sidecar may rebuild)" >&2
+    fi
+  fi
+  if [ "$_dmw_ok" = "1" ]; then
+    for _dmw_s in _pipeline_macho_write_o_to_buf_c _platform_macho_write_macho_o_to_buf; do
+      if [ -s build_asm/selfhost_pabi/pabi_weak.o ] && nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+          | grep "external.* $_dmw_s\$" | grep -qv weak; then
+        if [ -z "${_oc:-}" ] || ! "$_oc" --weaken-symbol="$_dmw_s" build_asm/selfhost_pabi/pabi_weak.o; then
+          echo "g05_relink_env: weaken pabi_weak $_dmw_s failed (Darwin macho writer)" >&2
+          exit 1
+        fi
+      fi
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS $_dmw_s=$_dmw_o"
+    done
+    _PABI_SELFHOST="$_dmw_o $_PABI_SELFHOST"
+  fi
+  # --- macho_undef_cap_a64.o ---
+  _dmc_o=build_asm/selfhost_pabi/macho_undef_cap_a64.o
+  _dmc_ok=0
+  if [ "${XLANG_G05_TIP_THIN:-0}" != "1" ]; then
+    for _dmc_cap in /tmp/cap_tip_l4_safe_*/pabi/macho_undef_cap_a64.o; do
+      if [ -s "$_dmc_cap" ] \
+        && nm "$_dmc_cap" 2>/dev/null | grep -q " T _pipe_elf_macho_undef_cap\$"; then
+        cp -f "$_dmc_cap" "$_dmc_o"
+        _dmc_ok=1
+        echo "g05_relink_env: note743y.6.23 Cap tip cache macho_undef_cap_a64.o (prefer macho undef cap)" >&2
+        break
+      fi
+    done
+  fi
+  if [ "$_dmc_ok" != "1" ]; then
+    if [ -s "$_dmc_o" ] && nm "$_dmc_o" 2>/dev/null | grep -q " T _pipe_elf_macho_undef_cap\$"; then
+      echo "g05_relink_env: note743y.6.23 keep prior macho_undef_cap_a64.o (Cap tip miss)" >&2
+      _dmc_ok=1
+    else
+      echo "g05_relink_env: WARNING macho_undef_cap Cap tip miss (Darwin; gate sidecar may rebuild)" >&2
+    fi
+  fi
+  if [ "$_dmc_ok" = "1" ]; then
+    if [ -s build_asm/selfhost_pabi/pabi_weak.o ] && nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+        | grep "external.* _pipe_elf_macho_undef_cap\$" | grep -qv weak; then
+      if [ -z "${_oc:-}" ] || ! "$_oc" --weaken-symbol="_pipe_elf_macho_undef_cap" build_asm/selfhost_pabi/pabi_weak.o; then
+        echo "g05_relink_env: weaken pabi_weak _pipe_elf_macho_undef_cap failed (Darwin macho undef cap)" >&2
+        exit 1
+      fi
+    fi
+    _G05_LINK_WINNERS="$_G05_LINK_WINNERS _pipe_elf_macho_undef_cap=$_dmc_o"
+    _PABI_SELFHOST="$_dmc_o $_PABI_SELFHOST"
+  fi
+fi
 if [ "$UNAME_S" = "Darwin" ] \
   && [ -s build_asm/selfhost_pabi/lea_cold_fwd.o ] \
   && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
@@ -2722,6 +2807,43 @@ EOF
     _ts_x="$1"; _ts_o="$2"; _ts_syms="$3"; _ts_tag="$4"
     [ "$UNAME_S" = "Darwin" ] && [ -f "$_ts_x" ] && [ -x ./xlang_asm ] \
       && [ -s build_asm/selfhost_pabi/pabi_weak.o ] || return 0
+    # note743y.6.23: Cap tip cache FIRST for Darwin tip-cold CG002.
+    # Tip-cold tip/xlang_asm can emit thins that still carry T names but
+    # return macho_write=-1 (256-slot egg body). Cap tip L4 cache keeps
+    # the known-good ~21KB macho_write_a64 / undef_cap. Skip tip emitters
+    # unless XLANG_G05_TIP_THIN=1. PLATFORM: MACOS tip cold.
+    _ts_cap_ok=0
+    if [ "${XLANG_G05_TIP_THIN:-0}" != "1" ]; then
+      _ts_base=$(basename "$_ts_o")
+      for _ts_cap in /tmp/cap_tip_l4_safe_*/pabi/"$_ts_base"; do
+        [ -s "$_ts_cap" ] || continue
+        _ts_cap_ok=1
+        for _ts_s in $_ts_syms; do
+          if ! nm -m "$_ts_cap" 2>/dev/null | grep -v weak | grep -q "external $_ts_s\$" \
+            && ! nm "$_ts_cap" 2>/dev/null | grep -q " T ${_ts_s}\$"; then
+            _ts_cap_ok=0
+            break
+          fi
+        done
+        if [ "$_ts_cap_ok" = "1" ]; then
+          mkdir -p build_asm/selfhost_pabi
+          cp -f "$_ts_cap" "$_ts_o"
+          echo "g05_relink_env: note743y.6.23 Cap tip cache $_ts_base (prefer $_ts_tag)" >&2
+          for _ts_s in $_ts_syms; do
+            if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+                | grep "external.* $_ts_s\$" | grep -qv weak; then
+              if [ -z "${_oc:-}" ] || ! "$_oc" --weaken-symbol="$_ts_s" build_asm/selfhost_pabi/pabi_weak.o; then
+                echo "g05_relink_env: weaken pabi_weak $_ts_s copy failed (Darwin $_ts_tag)" >&2
+                exit 1
+              fi
+            fi
+            _G05_LINK_WINNERS="$_G05_LINK_WINNERS $_ts_s=$_ts_o"
+          done
+          _PABI_SELFHOST="$_ts_o $_PABI_SELFHOST"
+          return 0
+        fi
+      done
+    fi
     # w2060: always rebuild with the current product (see cimp above).
       rm -f "$_ts_o"
       # knife256/10.2: Cap tip -c hollows export-extern FFI (no BR26). Prefer
@@ -2819,23 +2941,6 @@ g05_darwin_pabi_thin_sidecar src/runtime_pipeline_abi_dual_gp_byte_size_thin.x \
         || { echo "g05_relink_env: demote trait_check failed" >&2; exit 1; }
     fi
   fi
-  # w2055: Mach-O writer. pabi_weak keeps the pre-w1814 C writer whose
-  # unique-undef cap is 256 with 1024-byte index tables; parser.x has more
-  # than 256 unique undefined relocs, so the writer returns -1 (CG002,
-  # out_len=0). The thin owns its 2048-slot tables; the cap is the next
-  # sidecar.
-  g05_darwin_pabi_thin_sidecar src/runtime_pipeline_abi_macho_write_thin.x \
-    build_asm/selfhost_pabi/macho_write_a64.o \
-    "_pipeline_macho_write_o_to_buf_c _platform_macho_write_macho_o_to_buf" \
-    "macho writer"
-  # w2055: Mach-O unique-undef cap. pabi_weak keeps a copy of
-  # pipe_elf_macho_undef_cap that returns 256; the writer above calls the
-  # cap and sizes its tables to 2048. The cap has one definition, in its
-  # own thin. PLATFORM: MACOS|DARWIN.
-  g05_darwin_pabi_thin_sidecar src/runtime_pipeline_abi_macho_undef_cap_thin.x \
-    build_asm/selfhost_pabi/macho_undef_cap_a64.o \
-    "_pipe_elf_macho_undef_cap" \
-    "macho undef cap"
   # w2055: assignment through a pointer. pabi_weak keeps the pre-wave324
   # pipeline_asm_emit_assign_elf_c: for `*p = s` with a struct s it loads s
   # into x0/x1 and stores only 8 bytes, so the rest of the struct is lost.
