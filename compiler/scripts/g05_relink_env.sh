@@ -2586,22 +2586,37 @@ if [ "$UNAME_S" = "Darwin" ]; then
       echo "g05_relink_env: note743y.6.23 fat/missing asm_backend_partial seed_mega → force pure-asm rebuild" >&2
       rm -f "$_dal_partial"
       _dal_rb=0
-      if XLANG="${XLANG:-}" bash scripts/build_asm_backend_partial_pure.sh >/tmp/g05_partial_rebuild.err 2>&1; then
-        _dal_rb=1
-        echo "g05_relink_env: note743y.6.23 rebuilt asm_backend_partial (thin seed_mega tramp)" >&2
-      else
-        for _dal_xlang in /tmp/cap_tip_l4_safe_*/bootstrap_xlangc /tmp/cap_tip_l4_safe_*/xlang_asm ./xlang_asm ./xlang; do
-          [ -x "$_dal_xlang" ] || continue
-          if XLANG="$_dal_xlang" bash scripts/build_asm_backend_partial_pure.sh >/tmp/g05_partial_rebuild.err 2>&1; then
-            _dal_rb=1
-            echo "g05_relink_env: note743y.6.23 rebuilt asm_backend_partial via $_dal_xlang" >&2
-            break
-          fi
-        done
-      fi
+      # tip-cold XLANG often emits fat seed_mega; Cap tip product emits thin 0x90.
+      # Prefer Cap tip hosts first, then verify thin before accepting. PLATFORM: MACOS.
+      for _dal_xlang in /tmp/cap_tip_l4_safe_*/bootstrap_xlangc /tmp/cap_tip_l4_safe_*/xlang_asm \
+          "${XLANG:-}" ./xlang_asm ./xlang; do
+        [ -n "$_dal_xlang" ] || continue
+        [ -x "$_dal_xlang" ] || continue
+        rm -f "$_dal_partial"
+        if ! XLANG="$_dal_xlang" bash scripts/build_asm_backend_partial_pure.sh >/tmp/g05_partial_rebuild.err 2>&1; then
+          continue
+        fi
+        # verify thin tramp (frame 0x90 or bl to pipeline_)
+        _dal_ok_thin=0
+        _dal_sa2=$(nm "$_dal_partial" 2>/dev/null | awk '/ T _backend_asm_codegen_ast_to_elf_seed_mega\$/{print $1; exit}')
+        if [ -n "$_dal_od" ] && [ -n "$_dal_sa2" ] && [ -s "$_dal_partial" ]; then
+          _dal_chk=$("$_dal_od" -d --start-address=$((0x$_dal_sa2)) --stop-address=$((0x$_dal_sa2+96)) "$_dal_partial" 2>/dev/null || true)
+          case "$_dal_chk" in
+            *'#0x880'*|*'#0x890'*) _dal_ok_thin=0 ;;
+            *'#0x90'*|*pipeline_backend_asm_codegen_ast_to_elf_c*) _dal_ok_thin=1 ;;
+          esac
+        fi
+        if [ "$_dal_ok_thin" = "1" ]; then
+          _dal_rb=1
+          echo "g05_relink_env: note743y.6.23 rebuilt asm_backend_partial thin via $_dal_xlang" >&2
+          break
+        fi
+        echo "g05_relink_env: note743y.6.23 $_dal_xlang still fat seed_mega; try next host" >&2
+      done
       if [ "$_dal_rb" != "1" ]; then
-        echo "g05_relink_env: WARNING asm_backend_partial rebuild failed (see /tmp/g05_partial_rebuild.err)" >&2
+        echo "g05_relink_env: WARNING asm_backend_partial thin rebuild failed (see /tmp/g05_partial_rebuild.err)" >&2
       fi
+      unset _dal_ok_thin _dal_sa2 _dal_chk
     fi
     unset _dal_partial _dal_fat _dal_od _dal_sa _dal_insn _dal_more _dal_xlang _dal_rb
   else
