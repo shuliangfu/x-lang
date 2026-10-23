@@ -532,26 +532,10 @@ if [ -n "$_oc_sz" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
     fi
   fi
 fi
-# Demote hollow split_at in leaf mod.o so hand-asm slice.o wins at user link.
-# True-cold may rebuild mod.o later; demote runs here and again after slice install.
-_demote_slice_mod() {
-  local _oc="${1:-${_oc_sz:-${OC:-}}}"
-  if [ -z "$_oc" ] || [ ! -s ../core/slice/mod.o ]; then
-    return 0
-  fi
-  if ! nm -gU ../core/slice/mod.o 2>/dev/null | grep -qE 'T _core_slice_split_at_(i32|u8|u64)$'; then
-    return 0
-  fi
-  [ -s ../core/slice/mod.o.bak_pre_split ] || cp -f ../core/slice/mod.o ../core/slice/mod.o.bak_pre_split
-  "$_oc" \
-    --redefine-sym=_core_slice_split_at_i32=_core_slice_split_at_i32__demoted \
-    --redefine-sym=_core_slice_split_at_u8=_core_slice_split_at_u8__demoted \
-    --redefine-sym=_core_slice_split_at_u64=_core_slice_split_at_u64__demoted \
-    ../core/slice/mod.o \
-    && echo "g05_cap_tip_reapply: demoted leaf mod.o split_at (slice.o wins)" >&2 \
-    || echo "g05_cap_tip_reapply: WARN demote leaf mod.o split_at failed" >&2
-}
-_demote_slice_mod "${_oc_sz:-}"
+# note743y.6.23: do NOT demote split_at in leaf mod.o.
+# Hand-asm runtime_slice_glue_a64.s only has from_ptr/subslice (no split_at).
+# Cap tip mod.x split_at is out-ptr and real; demote caused UNDEF at run-slice.
+_demote_slice_mod() { return 0; }
 
 # knife256/10.2: Cap tip/LEGACY pure-asm of runtime_slice_glue.x is hollow
 # (bl next-insn). Install hand-asm leaf into ../core/slice/slice.o.
@@ -561,7 +545,7 @@ if [ -f src/asm/runtime_slice_glue_a64.s ]; then
     && echo "g05_cap_tip_reapply: installed hand-asm core/slice/slice.o" >&2 \
     || echo "g05_cap_tip_reapply: WARN slice glue install failed" >&2
 fi
-_demote_slice_mod "${_oc_sz:-${OC:-}}"
+# _demote_slice_mod skipped (note743y.6.23)
 
 # knife256/10.2: Cap tip String (>16B) by-value callees are hollow (8B GP
 # slot +0x100). Callers already AAPCS64-byref. Install hand-asm byref

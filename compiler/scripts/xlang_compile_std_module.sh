@@ -4115,16 +4115,8 @@ for x_path in "$@"; do
             && nm "$obj" 2>/dev/null | grep -qE ' T _?core_slice_get_u64$' \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?core_slice_chunks_len_u8$'; then
             echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
-            # knife256/10.2: demote hollow split_at so hand-asm slice.o wins at
-            # user link. True-cold rebuilds mod.o after g05 reapply; without
-            # this, run-slice ld hits 3 duplicate split_at symbols.
-            _oc_dem=""
-            for _c in "${LLVM_OBJCOPY:-}" /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
-              if [ -n "$_c" ] && [ -x "$_c" ]; then _oc_dem="$_c"; break; fi
-            done
-            if [ -n "$_oc_dem" ] && nm -gU "$obj" 2>/dev/null | grep -qE 'T _core_slice_split_at_(i32|u8|u64)$'; then
-              "$_oc_dem"                 --redefine-sym=_core_slice_split_at_i32=_core_slice_split_at_i32__demoted                 --redefine-sym=_core_slice_split_at_u8=_core_slice_split_at_u8__demoted                 --redefine-sym=_core_slice_split_at_u64=_core_slice_split_at_u64__demoted                 "$obj"                 && echo "xlang_compile_std_module: demoted $obj split_at (slice.o wins)" >&2                 || echo "xlang_compile_std_module: WARN demote split_at failed" >&2
-            fi
+            # note743y.6.23: keep Cap tip mod.o split_at (out-ptr). Hand-asm
+            # slice.o has no split_at; demote caused UNDEF at run-slice.
             if [ -z "$obj_files" ]; then
               obj_files="$obj"
             else

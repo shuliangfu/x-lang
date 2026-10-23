@@ -10,10 +10,12 @@ function main(): i32 {
   // ——— i32[] subslice ———
   let a: i32[4] = [10, 20, 30, 40];
   let s: i32[] = a;
-  let sub: i32[] = slice.subslice_i32(s, 1, 2);
+  let sub: i32[] = { data: 0, length: 0 as usize };
+  slice.subslice_i32(s, 1, 2, &sub);
   if (sub.length != 2) { return 1; }
   if (sub[0] != 20 || sub[1] != 30) { return 2; }
-  let empty: i32[] = slice.subslice_i32(s, 10, 5);
+  let empty: i32[] = { data: 0, length: 0 as usize };
+  slice.subslice_i32(s, 10, 5, &empty);
   if (empty.length != 0) { return 3; }
 
   // ——— i32[] split_at ———
@@ -34,11 +36,14 @@ function main(): i32 {
   let b: i32[5] = [1, 2, 3, 4, 5];
   let sb: i32[] = b;
   if (slice.chunks_len_i32(sb, 2) != 3) { return 8; }
-  let c0: i32[] = slice.chunk_i32(sb, 2, 0);
-  let c2: i32[] = slice.chunk_i32(sb, 2, 2);
+  let c0: i32[] = { data: 0, length: 0 as usize };
+  let c2: i32[] = { data: 0, length: 0 as usize };
+  slice.chunk_i32(sb, 2, 0, &c0);
+  slice.chunk_i32(sb, 2, 2, &c2);
   if (c0.length != 2 || c0[0] != 1 || c0[1] != 2) { return 9; }
   if (c2.length != 1 || c2[0] != 5) { return 10; }
-  let c_oob: i32[] = slice.chunk_i32(sb, 2, 99);
+  let c_oob: i32[] = { data: 0, length: 0 as usize };
+  slice.chunk_i32(sb, 2, 99, &c_oob);
   if (c_oob.length != 0) { return 11; }
   if (slice.chunks_len_i32(sb, 0) != 0) { return 12; }
 

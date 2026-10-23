@@ -86,11 +86,14 @@ export function last_i32(s: []i32): Option_i32 {
   return get_i32(s, s.length - 1 as usize);
 }
 
-/** `subslice_i32`: purpose/params/returns per signature; panics or error codes follow local contracts. */
-export function subslice_i32(s: []i32, start: usize, len: usize): []i32 {
-  let r: []i32;
-  unsafe { core_subslice_i32_c(&r, s.data, s.length, start, len); }
-  return r;
+/**
+ * Write an i32 subslice through out.
+ * PLATFORM: SHARED — Cap tip cannot asm-emit []i32 by-value return (≡ u8/u64).
+ * note743y.6.23: align with subslice_u8 out-ptr.
+ */
+export function subslice_i32(s: []i32, start: usize, len: usize, out: *[]i32): i32 {
+  unsafe { core_subslice_i32_c(out, s.data, s.length, start, len); }
+  return 0;
 }
 
 /**
@@ -119,22 +122,23 @@ export function chunks_len_i32(s: []i32, chunk_size: usize): usize {
   return (s.length + chunk_size - 1 as usize) / chunk_size;
 }
 
-/** `chunk_i32`: purpose/params/returns per signature; panics or error codes follow local contracts. */
-export function chunk_i32(s: []i32, chunk_size: usize, index: usize): []i32 {
+/**
+ * Write i32 chunk index through out. A zero chunk size writes an empty slice.
+ * PLATFORM: SHARED — Cap tip cannot asm-emit []i32 by-value (note743y.6.23).
+ */
+export function chunk_i32(s: []i32, chunk_size: usize, index: usize, out: *[]i32): i32 {
   if (chunk_size == 0 as usize) {
-    let empty0: []i32;
-    unsafe { core_slice_i32_from_ptr_c(&empty0, s.data, 0 as usize); }
-    return empty0;
+    unsafe { core_slice_i32_from_ptr_c(out, s.data, 0 as usize); }
+    return 0;
   }
   let off: usize = index * chunk_size;
   if (off >= s.length) {
-    let empty1: []i32;
-    unsafe { core_slice_i32_from_ptr_c(&empty1, s.data, 0 as usize); }
-    return empty1;
+    unsafe { core_slice_i32_from_ptr_c(out, s.data, 0 as usize); }
+    return 0;
   }
   let n: usize = chunk_size;
   if (off + n > s.length) { n = s.length - off; }
-  return subslice_i32(s, off, n);
+  return subslice_i32(s, off, n, out);
 }
 
 // ——— []u8 ———
