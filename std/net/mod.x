@@ -900,9 +900,12 @@ export struct TcpConnPool {
  * @return TcpConnPool
  */
 export function tcp_pool_new(host: u32, port: u32, max_idle: i32): TcpConnPool {
-  let _rc: TcpConnPool = 0;
-  unsafe { _rc = { handle: tcp_pool_plat.net_tcp_pool_create_c(host, port, max_idle) }; }
-  return _rc;
+  /* note743y.6.23: Cap tip hangs on `let Struct = 0` then struct-literal assign
+   * (glue_emit_assign_var_try_let / transparent_value_ref). Return composite
+   * directly — same semantics, Cap tip compiles in <2s. */
+  unsafe {
+    return { handle: tcp_pool_plat.net_tcp_pool_create_c(host, port, max_idle) };
+  }
 }
 
 /** Exported function `tcp_pool_acquire`.
