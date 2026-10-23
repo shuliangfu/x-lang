@@ -204,6 +204,26 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ] \
       fi
       unset _al_demote
     fi
+    # note743y.6.23: tip fat seed_mega on asm_backend_partial never calls
+    # pipeline_; demote when Cap tip front tramp is in OBJS so pure-ld first-wins.
+    # PLATFORM: MACOS tip cold.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])backend_codegen_to_elf_tramp_a64\.o([[:space:]]|$)' \
+      && [ -s build_asm/seed_host/asm_backend_partial.o ]; then
+      _sm_demote=""
+      for _sm_sy in _backend_asm_codegen_ast_to_elf_seed_mega _backend_asm_codegen_ast_to_elf; do
+        if nm -gU build_asm/seed_host/asm_backend_partial.o 2>/dev/null \
+             | grep -q " T ${_sm_sy}\$"; then
+          _sm_demote="$_sm_demote --redefine-sym=${_sm_sy}=${_sm_sy}__demoted"
+        fi
+      done
+      if [ -n "$_sm_demote" ]; then
+        # shellcheck disable=SC2086
+        "$_g05_oc" $_sm_demote build_asm/seed_host/asm_backend_partial.o 2>/dev/null \
+          && echo "g05_relink_xlang: note743y.6.23 pre-ld demote fat seed_mega (tramp wins)" >&2 \
+          || true
+      fi
+      unset _sm_demote _sm_sy
+    fi
   fi
   unset _g05_oc
 fi
