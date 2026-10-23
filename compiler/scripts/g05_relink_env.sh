@@ -2524,6 +2524,23 @@ if [ "$UNAME_S" = "Darwin" ]; then
     fi
     _G05_LINK_WINNERS="$_G05_LINK_WINNERS _pipeline_backend_asm_codegen_ast_to_elf_c=$_dal_o"
     _G05_LINK_WINNERS="$_G05_LINK_WINNERS _pipeline_backend_asm_codegen_ast_to_elf_mega_body_c=$_dal_o"
+    # archive_leaf U-deps emit_epilogue_f64; normally only prepended inside
+    # Darwin lea_cold/pabi_weak gate. tip-cold skips that gate → pure-ld U
+    # _w499_mega_emit_epilogue. PLATFORM: MACOS tip cold.
+    if [ -s build_asm/selfhost_pabi/emit_epilogue_f64.o ]; then
+      case " $_PABI_SELFHOST " in
+        *" emit_epilogue_f64.o "*) ;;
+        *)
+          _PABI_SELFHOST="build_asm/selfhost_pabi/emit_epilogue_f64.o $_PABI_SELFHOST"
+          echo "g05_relink_env: note743y.6.23 prepend emit_epilogue_f64 (archive_leaf dep; outside gate)" >&2
+          ;;
+      esac
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS _w499_mega_emit_epilogue=build_asm/selfhost_pabi/emit_epilogue_f64.o"
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS _w499_mega_emit_f64_ret=build_asm/selfhost_pabi/emit_epilogue_f64.o"
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS _w499_mega_emit_f32_ret=build_asm/selfhost_pabi/emit_epilogue_f64.o"
+    else
+      echo "g05_relink_env: WARNING emit_epilogue_f64 miss (archive_leaf may U)" >&2
+    fi
   else
     echo "g05_relink_env: WARNING archive_leaf Cap tip miss (Darwin; tip-cold may keep hollow codegen)" >&2
   fi
