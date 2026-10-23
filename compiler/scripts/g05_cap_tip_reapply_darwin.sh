@@ -31,6 +31,12 @@ fi
 [ -n "$OC" ] || { echo "need llvm-objcopy" >&2; exit 1; }
 
 echo "g05_cap_tip_reapply: cache=$CACHE"
+# note743y.6.23: tip cfg_eval exports _cfg_*; Cap tip bak face wants _lexer_cfg_*.
+if [ -f src/runtime/lexer_cfg_alias_a64.s ]; then
+  as -arch arm64 -o src/runtime/lexer_cfg_alias_a64.o src/runtime/lexer_cfg_alias_a64.s \
+    || { echo "g05_cap_tip_reapply: as lexer_cfg_alias failed" >&2; exit 1; }
+fi
+
 
 # Cap tip this-wave: ASM_DEBUG note path SEGVs on diag loc (ctx); keep off for reapply/L2.
 unset XLANG_ASM_DEBUG || true
@@ -167,6 +173,18 @@ else
   exit 1
 fi
 bash scripts/g05_cap_tip_typeck_soft_prep.sh
+# note743y.6.23 prepend lexer_cfg aliases (after soft prep mutates G05_OBJS)
+if [ -s src/runtime/lexer_cfg_alias_a64.o ]; then
+  case " $G05_OBJS " in
+    *" src/runtime/lexer_cfg_alias_a64.o "*) ;;
+    *)
+      G05_OBJS="src/runtime/lexer_cfg_alias_a64.o $G05_OBJS"
+      export G05_OBJS
+      echo "g05_cap_tip_reapply: prepended lexer_cfg_alias_a64.o" >&2
+      ;;
+  esac
+fi
+
 
 # Cap tip env + relink (OUT=xlang.cap_g05_l2)
 set -a
