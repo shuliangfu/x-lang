@@ -2514,13 +2514,23 @@ if [ "$UNAME_S" = "Darwin" ]; then
     _dal_ok=1
   fi
   if [ "$_dal_ok" = "1" ]; then
-    if [ -n "$_dal_oc" ] && [ -s src/runtime_pipeline_abi.o ] \
-      && nm -gU src/runtime_pipeline_abi.o 2>/dev/null \
+    if [ -n "$_dal_oc" ] && [ -s src/runtime_pipeline_abi.o ]; then
+      _dal_demote=""
+      if nm -gU src/runtime_pipeline_abi.o 2>/dev/null \
            | grep -q " T _pipeline_backend_asm_codegen_ast_to_elf_c\$"; then
-      "$_dal_oc" --redefine-sym=_pipeline_backend_asm_codegen_ast_to_elf_c=_pipeline_backend_asm_codegen_ast_to_elf_c__demoted \
-        src/runtime_pipeline_abi.o 2>/dev/null \
-        && echo "g05_relink_env: note743y.6.23 demote mega backend_asm_codegen_ast_to_elf (archive_leaf wins)" >&2 \
-        || true
+        _dal_demote="$_dal_demote --redefine-sym=_pipeline_backend_asm_codegen_ast_to_elf_c=_pipeline_backend_asm_codegen_ast_to_elf_c__demoted"
+      fi
+      if nm -gU src/runtime_pipeline_abi.o 2>/dev/null \
+           | grep -q " T _pipeline_backend_asm_codegen_ast_to_elf_mega_body_c\$"; then
+        _dal_demote="$_dal_demote --redefine-sym=_pipeline_backend_asm_codegen_ast_to_elf_mega_body_c=_pipeline_backend_asm_codegen_ast_to_elf_mega_body_c__demoted"
+      fi
+      if [ -n "$_dal_demote" ]; then
+        # shellcheck disable=SC2086
+        "$_dal_oc" $_dal_demote src/runtime_pipeline_abi.o 2>/dev/null \
+          && echo "g05_relink_env: note743y.6.23 demote mega backend_asm_codegen (+mega_body; archive_leaf wins)" >&2 \
+          || true
+      fi
+      unset _dal_demote
     fi
     _G05_LINK_WINNERS="$_G05_LINK_WINNERS _pipeline_backend_asm_codegen_ast_to_elf_c=$_dal_o"
     _G05_LINK_WINNERS="$_G05_LINK_WINNERS _pipeline_backend_asm_codegen_ast_to_elf_mega_body_c=$_dal_o"

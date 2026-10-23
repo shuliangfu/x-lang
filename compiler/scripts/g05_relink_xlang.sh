@@ -183,6 +183,27 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ] \
         && echo "g05_relink_xlang: note743y.6.23 pre-ld demote pabi_weak var_field_access (field_cap wins)" >&2 \
         || true
     fi
+    # note743y.6.23: Cap tip archive_leaf owns backend_asm_codegen (+mega_body).
+    # ensure may rebuild mega after env demote → pure-ld duplicate mega_body.
+    # pre-ld demote both T on runtime_pipeline_abi.o. PLATFORM: MACOS tip cold.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])archive_leaf_extract\.o([[:space:]]|$)'; then
+      _al_demote=""
+      if nm -gU src/runtime_pipeline_abi.o 2>/dev/null \
+           | grep -q ' T _pipeline_backend_asm_codegen_ast_to_elf_c\$'; then
+        _al_demote="$_al_demote --redefine-sym=_pipeline_backend_asm_codegen_ast_to_elf_c=_pipeline_backend_asm_codegen_ast_to_elf_c__demoted"
+      fi
+      if nm -gU src/runtime_pipeline_abi.o 2>/dev/null \
+           | grep -q ' T _pipeline_backend_asm_codegen_ast_to_elf_mega_body_c\$'; then
+        _al_demote="$_al_demote --redefine-sym=_pipeline_backend_asm_codegen_ast_to_elf_mega_body_c=_pipeline_backend_asm_codegen_ast_to_elf_mega_body_c__demoted"
+      fi
+      if [ -n "$_al_demote" ]; then
+        # shellcheck disable=SC2086
+        "$_g05_oc" $_al_demote src/runtime_pipeline_abi.o 2>/dev/null \
+          && echo "g05_relink_xlang: note743y.6.23 pre-ld demote mega backend_asm_codegen (+mega_body; archive_leaf wins)" >&2 \
+          || true
+      fi
+      unset _al_demote
+    fi
   fi
   unset _g05_oc
 fi
