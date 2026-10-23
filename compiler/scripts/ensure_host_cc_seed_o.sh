@@ -3889,20 +3889,43 @@ ensure_slice_glue_darwin_pure() {
   local o="${1:-../core/slice/slice.o}"
   local xsrc="src/asm/runtime_slice_glue.x"
   local seed="seeds/runtime_slice_glue.from_x.c"
+  local asrc="src/asm/runtime_slice_glue_a64.s"
   local try=0
+  local _sl_s _sl_m
   if [ ! -f "$xsrc" ]; then
     echo "ensure_host_cc_seed_o slice-glue: missing $xsrc" >&2
+    return 1
+  fi
+  mkdir -p "$(dirname "$o")"
+  # note743y.6.23: Cap tip / tip-cold pure-asm of runtime_slice_glue.x is
+  # hollow (builds slice on stack, sret; never str through out=x0). Darwin
+  # arm64 must install hand-asm .s — same leaf as g05_cap_tip_reapply.
+  # PLATFORM: MACOS|DARWIN arm64 only. Linux keeps .x path below.
+  _sl_s="$(uname -s 2>/dev/null || echo Unknown)"
+  _sl_m="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_sl_s" = "Darwin" ] && [ "$_sl_m" = "arm64" ] && [ -f "$asrc" ]; then
+    if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$asrc" -nt "$o" ]; then
+      # Hollow Cap tip .o is ~1.9K with `sub sp,#0xd0`; hand-asm ~1K with stp #-0x30.
+      if otool -tv "$o" 2>/dev/null | grep -q 'stp	x29, x30, \[sp, #-0x30\]!'; then
+        log "skip $o (hand-asm up-to-date vs $asrc)"
+        return 0
+      fi
+    fi
+    if clang -c -o "$o" "$asrc" 2>/dev/null && [ -s "$o" ]; then
+      log "hand-asm $asrc → $o (note743y.6.23 Cap tip .x hollow)"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o slice-glue: hand-asm $asrc → $o failed" >&2
     return 1
   fi
   if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
     log "skip $o (up-to-date vs $xsrc)"
     return 0
   fi
-  mkdir -p "$(dirname "$o")"
   # w1202: some pure-asm tries segfault. Retry before the eight-try
   # path. A failed retry still falls back to that path and then the
   # C seed. Symbols stay strong. No undefined symbols.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # PLATFORM: LINUX (Darwin arm64 handled above).
   if [ -f scripts/ensure_host_cc_seed_o.sh ] \
     && bash scripts/ensure_host_cc_seed_o.sh slice-glue-retry "$o"; then
     log "prefer slice glue ← pure-asm eight symbols (w1202)"
@@ -29859,6 +29882,21 @@ ensure_std_core_prefer_one() {
     fi
     if [ -n "$x_src" ] && [ -f "$x_src" ] && [ "$x_src" -nt "$o" ]; then
       stale=1
+    fi
+    # note743y.6.23: Darwin arm64 slice.o must be hand-asm. Cap tip .x pure-asm
+    # is hollow (sret, no str through out). Treat hollow or stale .s as rebuild.
+    if [ "$stale" = "0" ] && [ "$x_src" = "src/asm/runtime_slice_glue.x" ] \
+      && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+      && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ]; then
+      if [ -f src/asm/runtime_slice_glue_a64.s ] \
+        && [ src/asm/runtime_slice_glue_a64.s -nt "$o" ]; then
+        stale=1
+      fi
+      if [ "$stale" = "0" ] && [ -f "$o" ]; then
+        if ! otool -tv "$o" 2>/dev/null | grep -q 'stp	x29, x30, \[sp, #-0x30\]!'; then
+          stale=1
+        fi
+      fi
     fi
     if [ "$leaf_kind" = "process_merge" ]; then
       if [ -f runtime_process_argv.o ] && [ runtime_process_argv.o -nt "$o" ]; then
