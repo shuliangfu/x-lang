@@ -6368,50 +6368,116 @@ case "$UNAME_S" in
     ;;
 esac
 
-# note743y.6.23: tip XLANG emits fat seed_mega (0x880) that never calls
-# pipeline_; Cap tip rebuild is fragile under tip-cold. Prefer a tiny
-# hand-written a64 tramp .s → pipeline_backend_asm_codegen_ast_to_elf_c,
-# demote fat T on asm_backend_partial. Must run AFTER _CAP_TIP_FRONT="" init.
+# note743y.6.23: tip XLANG emits fat seed_mega; Cap tip emits Cap-good
+# bodies (ast 0x90, seed_mega 0x3d0, to_elf→pipeline_). Force Cap tip
+# rebuild of asm_backend_partial IN PLACE (already in G05_OBJS once —
+# do not Cap tip front duplicate). Hand tramp fallback if Cap miss.
 # PLATFORM: MACOS tip cold.
+_dal_partial=build_asm/seed_host/asm_backend_partial.o
 _dal_tramp_s=src/asm/backend_codegen_to_elf_tramp_a64.s
 _dal_tramp_o=build_asm/seed_host/backend_codegen_to_elf_tramp_a64.o
-_dal_partial=build_asm/seed_host/asm_backend_partial.o
-if [ "$(uname -s 2>/dev/null || true)" = "Darwin" ] && [ -f "$_dal_tramp_s" ]; then
+_dal_cap_host=""
+for _dal_h in \
+  /tmp/cap_tip_l4_safe_406200eef/bootstrap_xlangc \
+  /tmp/cap_tip_l4_safe_406200eef/xlang \
+  /tmp/cap_tip_l4_safe_*/bootstrap_xlangc; do
+  if [ -x "$_dal_h" ]; then _dal_cap_host="$_dal_h"; break; fi
+done
+_dal_ok_cap=0
+if [ "$(uname -s 2>/dev/null || true)" = "Darwin" ] && [ -n "$_dal_cap_host" ]; then
   mkdir -p build_asm/seed_host
-  if ! as -o "$_dal_tramp_o" "$_dal_tramp_s" 2>/tmp/g05_tramp_as.err; then
-    echo "g05_relink_env: ERROR as failed for $_dal_tramp_s" >&2
-    cat /tmp/g05_tramp_as.err >&2 || true
+  rm -f "$_dal_partial"
+  if XLANG="$_dal_cap_host" bash scripts/build_asm_backend_partial_pure.sh \
+       >/tmp/g05_cap_partial_rebuild.log 2>&1 \
+    && [ -s "$_dal_partial" ]; then
+    _dal_od=""
+    if [ -x /opt/homebrew/opt/llvm/bin/llvm-objdump ]; then
+      _dal_od=/opt/homebrew/opt/llvm/bin/llvm-objdump
+    elif command -v llvm-objdump >/dev/null 2>&1; then
+      _dal_od=$(command -v llvm-objdump)
+    fi
+    _dal_sa=$(nm -gU "$_dal_partial" 2>/dev/null \
+      | awk '/ T _backend_asm_codegen_ast_seed_mega$/{print $1; exit}')
+    if [ -n "$_dal_od" ] && [ -n "$_dal_sa" ]; then
+      _dal_chk=$("$_dal_od" -d --start-address=$((0x$_dal_sa)) \
+        --stop-address=$((0x$_dal_sa + 16)) "$_dal_partial" 2>/dev/null || true)
+      case "$_dal_chk" in
+        *'#0x3d0'*|*'#0x90'*) _dal_ok_cap=1 ;;
+      esac
+    fi
+  fi
+  if [ "$_dal_ok_cap" = "1" ]; then
+    echo "g05_relink_env: note743y.6.23 Cap-built asm_backend_partial in place (seed_mega 0x3d0)" >&2
+    _G05_LINK_WINNERS="$_G05_LINK_WINNERS _backend_asm_codegen_ast_seed_mega=$_dal_partial"
+    _G05_LINK_WINNERS="$_G05_LINK_WINNERS _backend_asm_codegen_ast_to_elf_seed_mega=$_dal_partial"
+    _G05_LINK_WINNERS="$_G05_LINK_WINNERS _backend_asm_codegen_ast_to_elf=$_dal_partial"
+    _G05_LINK_WINNERS="$_G05_LINK_WINNERS _backend_asm_codegen_ast=$_dal_partial"
+    # Cap tip also emits Cap-thin arch_emit (0xd0) + emit_expr (0xb0);
+    # tip XLANG fat (0x880/0x890) still SEGV option after Cap partial alone.
+    # Rebuild in place + replace filtered stubs (no Cap tip front dup).
+    # PLATFORM: MACOS tip cold. note743y.6.23.
+    if [ -f src/asm/backend_arch_emit_dispatch_thin.x ]; then
+      if (
+        export XLANG="$_dal_cap_host" XLANG_PREFER_ASM_O=1 XLANG_ALLOW_TREE_PREFER_ASM=1
+        . scripts/pure_ld_shared.sh
+        pure_asm_x_to_o src/asm/backend_arch_emit_dispatch.o src/asm/backend_arch_emit_dispatch_thin.x
+      ) >/tmp/g05_cap_arch_rebuild.log 2>&1 \
+        && nm -gU src/asm/backend_arch_emit_dispatch.o 2>/dev/null \
+             | grep -q " T _backend_arch_emit_ret_imm32\$"; then
+        echo "g05_relink_env: note743y.6.23 Cap-built backend_arch_emit_dispatch (thin)" >&2
+      else
+        echo "g05_relink_env: note743y.6.23 Cap arch_emit rebuild miss (keep tip)" >&2
+      fi
+    fi
+    if [ -f src/asm/asm_backend_compat_stubs.x ]; then
+      if (
+        export XLANG="$_dal_cap_host" XLANG_PREFER_ASM_O=1 XLANG_ALLOW_TREE_PREFER_ASM=1
+        . scripts/pure_ld_shared.sh
+        pure_asm_x_to_o src/asm/asm_backend_compat_stubs.o src/asm/asm_backend_compat_stubs.x
+      ) >/tmp/g05_cap_stubs_rebuild.log 2>&1 \
+        && [ -s src/asm/asm_backend_compat_stubs.o ]; then
+        cp -f src/asm/asm_backend_compat_stubs.o \
+          build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o
+        echo "g05_relink_env: note743y.6.23 Cap-built asm_backend_compat_stubs → filtered" >&2
+      else
+        echo "g05_relink_env: note743y.6.23 Cap stubs rebuild miss (keep filtered)" >&2
+      fi
+    fi
   else
-    _dal_oc2=""
-    if [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
-      _dal_oc2=/opt/homebrew/opt/llvm/bin/llvm-objcopy
-    elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
-      _dal_oc2=/usr/local/opt/llvm/bin/llvm-objcopy
-    elif command -v llvm-objcopy >/dev/null 2>&1; then
-      _dal_oc2=$(command -v llvm-objcopy)
-    fi
-    if [ -n "$_dal_oc2" ] && [ -s "$_dal_partial" ]; then
-      # Only demote symbols the tramp defines; keep _backend_asm_codegen_ast_seed_mega
-      # on partial (still referenced from runtime_pipeline_abi).
-      for _dal_sy in _backend_asm_codegen_ast_to_elf_seed_mega _backend_asm_codegen_ast_to_elf; do
-        if nm -gU "$_dal_partial" 2>/dev/null | grep -q " T ${_dal_sy}\$"; then
-          "$_dal_oc2" --redefine-sym=${_dal_sy}=${_dal_sy}__demoted \
-            "$_dal_partial" 2>/dev/null || true
+    echo "g05_relink_env: note743y.6.23 Cap partial rebuild miss; hand tramp fallback" >&2
+    if [ -f "$_dal_tramp_s" ]; then
+      as -o "$_dal_tramp_o" "$_dal_tramp_s" 2>/tmp/g05_tramp_as.err || true
+      if [ -s "$_dal_tramp_o" ]; then
+        _dal_oc2=""
+        if [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+          _dal_oc2=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+        elif command -v llvm-objcopy >/dev/null 2>&1; then
+          _dal_oc2=$(command -v llvm-objcopy)
         fi
-      done
+        if [ -n "$_dal_oc2" ] && [ -s "$_dal_partial" ]; then
+          for _dal_sy in _backend_asm_codegen_ast_to_elf_seed_mega _backend_asm_codegen_ast_to_elf; do
+            if nm -gU "$_dal_partial" 2>/dev/null | grep -q " T ${_dal_sy}\$"; then
+              "$_dal_oc2" --redefine-sym=${_dal_sy}=${_dal_sy}__demoted \
+                "$_dal_partial" 2>/dev/null || true
+            fi
+          done
+        fi
+        case " $_CAP_TIP_FRONT " in
+          *" backend_codegen_to_elf_tramp_a64.o "*) ;;
+          *)
+            _CAP_TIP_FRONT="$_dal_tramp_o $_CAP_TIP_FRONT"
+            echo "g05_relink_env: note743y.6.23 Cap tip front seed_mega tramp → pipeline_" >&2
+            ;;
+        esac
+        _G05_LINK_WINNERS="$_G05_LINK_WINNERS _backend_asm_codegen_ast_to_elf_seed_mega=$_dal_tramp_o"
+        _G05_LINK_WINNERS="$_G05_LINK_WINNERS _backend_asm_codegen_ast_to_elf=$_dal_tramp_o"
+      fi
     fi
-    case " $_CAP_TIP_FRONT " in
-      *" backend_codegen_to_elf_tramp_a64.o "*) ;;
-      *)
-        _CAP_TIP_FRONT="$_dal_tramp_o $_CAP_TIP_FRONT"
-        echo "g05_relink_env: note743y.6.23 Cap tip front seed_mega tramp → pipeline_" >&2
-        ;;
-    esac
-    _G05_LINK_WINNERS="$_G05_LINK_WINNERS _backend_asm_codegen_ast_to_elf_seed_mega=$_dal_tramp_o"
-    _G05_LINK_WINNERS="$_G05_LINK_WINNERS _backend_asm_codegen_ast_to_elf=$_dal_tramp_o"
   fi
 fi
-unset _dal_tramp_s _dal_tramp_o _dal_partial _dal_oc2 _dal_sy
+unset _dal_partial _dal_tramp_s _dal_tramp_o _dal_cap_host _dal_ok_cap _dal_h _dal_od _dal_sa _dal_chk _dal_oc2 _dal_sy
+
+
 
 G05_OBJS="$_PABI_TIP_PEEL $_CAP_TIP_FRONT $_PABI_M8_RELOC_STUBS $_DRIVER_SEED_OBJS driver_x.o $_PIPELINE_LINK_O lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $_DRIVER_SUBCMD src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $_USER_ASM_LINK $_GLUE_SUFFIX $_AST_GEN2 $_PABI_ARCHIVE_LEAF"
 # note743y.6.21: Darwin Cap tip block sets _G05_LEXER_X_O after _X_FRONTEND

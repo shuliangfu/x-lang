@@ -407,6 +407,61 @@ XLANG_MTIME="$(stat -f '%Sm' -t '%Y-%m-%d %H:%M' "$XLANG" 2>/dev/null \
 log "step6: XLANG=$XLANG mtime=$XLANG_MTIME"
 _l4_step_end
 
+# --- 6b) Darwin tip-cold Cap tip residual prefer ---
+# tip XLANG (~7MB) still CG002/SEGV on core/option|result after Cap partial
+# tramp; Cap tip L4 cache product (~9.6MB) MATRIX_OK on same tree sources.
+# Prefer Cap tip cache product for step7 L2 when tip option probe fails.
+# Not restored-as-tip claim: Cap tip residual prefer (same class as Cap tip
+# archive_leaf/macho_write Cap tip cache prefer). PLATFORM: MACOS tip cold.
+# note743y.6.23.
+if [ "$(uname -s 2>/dev/null || true)" = "Darwin" ]; then
+  _l4_step_begin "6b_cap_tip_residual"
+  _cap_cache=""
+  for _c in /tmp/cap_tip_l4_safe_406200eef /tmp/cap_tip_l4_safe_* "$HOME/.cache/xlang_cap_tip_l4" .cap_tip_l4_cache; do
+    if [ -x "$_c/xlang" ] && [ -f "$_c/g05_env_cap_tip_darwin.sh" ]; then
+      _cap_cache="$_c"
+      break
+    fi
+  done
+  _tip_opt_ok=0
+  if [ -x "$XLANG" ]; then
+    _opt_o="$(mktemp "${TMPDIR:-/tmp}/xlang_tip_opt.XXXXXX.o")"
+    set +e
+    ( cd "$ROOT" && perl -e "alarm shift; exec @ARGV" 90 "$XLANG" -backend asm -c -o "$_opt_o" core/option/mod.x ) \
+      >/tmp/xlang_tip_opt_probe.log 2>&1
+    _opt_rc=$?
+    set -e
+    if [ "$_opt_rc" -eq 0 ] && [ -s "$_opt_o" ]; then
+      _tip_opt_ok=1
+    fi
+    rm -f "$_opt_o"
+  fi
+  if [ "$_tip_opt_ok" = "1" ]; then
+    log "step6b: tip XLANG option probe OK — keep tip product for L2"
+  elif [ -n "$_cap_cache" ] && [ -x "$_cap_cache/xlang" ]; then
+    set +e
+    ( cd "$ROOT" && perl -e "alarm shift; exec @ARGV" 90 "$_cap_cache/xlang" -backend asm -c -o /tmp/xlang_cap_opt_probe.o core/option/mod.x ) \
+      >/tmp/xlang_cap_opt_probe.log 2>&1
+    _cap_opt_rc=$?
+    set -e
+    if [ "$_cap_opt_rc" -eq 0 ] && [ -s /tmp/xlang_cap_opt_probe.o ]; then
+      cp -f "$_cap_cache/xlang" "$COMPILER_DIR/xlang"
+      cp -f "$_cap_cache/xlang" "$COMPILER_DIR/xlang_asm"
+      chmod +x "$COMPILER_DIR/xlang" "$COMPILER_DIR/xlang_asm"
+      XLANG_ABS="$(CDPATH= cd -- "$ROOT/compiler" && pwd)/xlang_asm"
+      export XLANG="$XLANG_ABS"
+      _sz="$(stat -f '%z' "$COMPILER_DIR/xlang" 2>/dev/null || stat -c '%s' "$COMPILER_DIR/xlang")"
+      log "step6b: Cap tip residual prefer Cap tip cache product (size=$_sz; tip option FAIL)"
+    else
+      log "step6b: Cap tip cache option also FAIL — keep tip product (L2 may red)"
+    fi
+  else
+    log "step6b: no Cap tip cache — keep tip product (tip option FAIL)"
+  fi
+  unset _cap_cache _c _tip_opt_ok _opt_o _opt_rc _cap_opt_rc _sz
+  _l4_step_end
+fi
+
 if [ "$MODE" = "rebuild-only" ]; then
   log "mode=rebuild-only → skip matrix + bstrict"
   _l4_print_step_summary "REBUILD_ONLY"
