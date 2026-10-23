@@ -17382,18 +17382,32 @@ rt_prefer_try_x_to_o() {
   # Ubuntu 主机偶发 -E SIGSEGV：最多 5 次重试（对齐 prove harness b12bf000）。
   # PLATFORM: SHARED harness
   # shellcheck disable=SC2086
+  # Cap tip may accept -E with exit 0 but write 0 bytes (CLI drift vs egg).
+  # tip-cold hybrid (try-pipeline-abi-prefer) needs non-empty -E; fall through
+  # to ./xlang-c / ./bootstrap_xlangc when the preferred tip emits nothing.
+  # PLATFORM: SHARED · Darwin Cap tip aside + Linux gold egg.
   _e_ok=0
-  for _e_try in 1 2 3 4 5; do
-    if "$_xxlang" -E "$_xsrc" >"$_xtmp" 2>/dev/null && [ -s "$_xtmp" ]; then
-      _e_ok=1
-      break
+  _e_bins="$_xxlang"
+  for _ecand in ./xlang-c ./bootstrap_xlangc ./xlang; do
+    if [ -x "$_ecand" ] && [ "$_ecand" != "$_xxlang" ]; then
+      _e_bins="$_e_bins $_ecand"
     fi
-    : >"$_xtmp"
-    if "$_xxlang" -backend c -E "$_xsrc" >"$_xtmp" 2>/dev/null && [ -s "$_xtmp" ]; then
-      _e_ok=1
-      break
-    fi
-    : >"$_xtmp"
+  done
+  for _xxlang_e in $_e_bins; do
+    for _e_try in 1 2 3 4 5; do
+      if "$_xxlang_e" -E "$_xsrc" >"$_xtmp" 2>/dev/null && [ -s "$_xtmp" ]; then
+        _e_ok=1
+        _xxlang="$_xxlang_e"
+        break 2
+      fi
+      : >"$_xtmp"
+      if "$_xxlang_e" -backend c -E "$_xsrc" >"$_xtmp" 2>/dev/null && [ -s "$_xtmp" ]; then
+        _e_ok=1
+        _xxlang="$_xxlang_e"
+        break 2
+      fi
+      : >"$_xtmp"
+    done
   done
   if [ "$_e_ok" != "1" ]; then
     rm -f "$_xtmp"
