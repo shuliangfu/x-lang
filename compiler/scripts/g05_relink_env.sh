@@ -2551,6 +2551,59 @@ if [ "$UNAME_S" = "Darwin" ]; then
     else
       echo "g05_relink_env: WARNING emit_epilogue_f64 miss (archive_leaf may U)" >&2
     fi
+    # note743y.6.23: tip-cold often keeps STALE fat asm_backend_partial
+    # (seed_mega frame 0x880 that does NOT call pipeline_). Fresh pure-asm of
+    # backend_seed_mega_fallback.x is thin 0x90 tramp → archive_leaf body.
+    # Without rebuild, CG002 at unwrap_or_i32 persists. PLATFORM: MACOS tip cold.
+    _dal_partial=build_asm/seed_host/asm_backend_partial.o
+    _dal_fat=1
+    if [ -s "$_dal_partial" ]; then
+      _dal_od=""
+      if [ -x /opt/homebrew/opt/llvm/bin/llvm-objdump ]; then
+        _dal_od=/opt/homebrew/opt/llvm/bin/llvm-objdump
+      elif [ -x /usr/local/opt/llvm/bin/llvm-objdump ]; then
+        _dal_od=/usr/local/opt/llvm/bin/llvm-objdump
+      elif command -v llvm-objdump >/dev/null 2>&1; then
+        _dal_od=$(command -v llvm-objdump)
+      fi
+      _dal_sa=$(nm "$_dal_partial" 2>/dev/null | awk '/ T _backend_asm_codegen_ast_to_elf_seed_mega\$/{print $1; exit}')
+      if [ -n "$_dal_od" ] && [ -n "$_dal_sa" ]; then
+        _dal_insn=$("$_dal_od" -d --start-address=$((0x$_dal_sa)) --stop-address=$((0x$_dal_sa+8)) "$_dal_partial" 2>/dev/null || true)
+        case "$_dal_insn" in
+          *'#0x90'*|*', #0x90'*) _dal_fat=0 ;;
+          *'#0x880'*|*'#0x890'*) _dal_fat=1 ;;
+          *)
+            # unknown: if bl to pipeline_ present in first 64B, treat thin
+            _dal_more=$("$_dal_od" -d --start-address=$((0x$_dal_sa)) --stop-address=$((0x$_dal_sa+96)) "$_dal_partial" 2>/dev/null || true)
+            case "$_dal_more" in
+              *pipeline_backend_asm_codegen_ast_to_elf_c*) _dal_fat=0 ;;
+            esac
+            ;;
+        esac
+      fi
+    fi
+    if [ "$_dal_fat" = "1" ]; then
+      echo "g05_relink_env: note743y.6.23 fat/missing asm_backend_partial seed_mega → force pure-asm rebuild" >&2
+      rm -f "$_dal_partial"
+      _dal_rb=0
+      if XLANG="${XLANG:-}" bash scripts/build_asm_backend_partial_pure.sh >/tmp/g05_partial_rebuild.err 2>&1; then
+        _dal_rb=1
+        echo "g05_relink_env: note743y.6.23 rebuilt asm_backend_partial (thin seed_mega tramp)" >&2
+      else
+        for _dal_xlang in /tmp/cap_tip_l4_safe_*/bootstrap_xlangc /tmp/cap_tip_l4_safe_*/xlang_asm ./xlang_asm ./xlang; do
+          [ -x "$_dal_xlang" ] || continue
+          if XLANG="$_dal_xlang" bash scripts/build_asm_backend_partial_pure.sh >/tmp/g05_partial_rebuild.err 2>&1; then
+            _dal_rb=1
+            echo "g05_relink_env: note743y.6.23 rebuilt asm_backend_partial via $_dal_xlang" >&2
+            break
+          fi
+        done
+      fi
+      if [ "$_dal_rb" != "1" ]; then
+        echo "g05_relink_env: WARNING asm_backend_partial rebuild failed (see /tmp/g05_partial_rebuild.err)" >&2
+      fi
+    fi
+    unset _dal_partial _dal_fat _dal_od _dal_sa _dal_insn _dal_more _dal_xlang _dal_rb
   else
     echo "g05_relink_env: WARNING archive_leaf Cap tip miss (Darwin; tip-cold may keep hollow codegen)" >&2
   fi
