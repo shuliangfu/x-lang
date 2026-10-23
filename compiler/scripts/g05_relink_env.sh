@@ -2472,6 +2472,27 @@ if [ "$UNAME_S" = "Darwin" ]; then
     _PABI_SELFHOST="$_dmc_o $_PABI_SELFHOST"
   fi
 fi
+# note743y.6.23: Cap tip prefer pabi_weak.o OUTSIDE lea_cold gate.
+# tip-cold wipe deletes pabi_weak; without it the Darwin lea_cold/pabi_weak
+# gate skips (~67 overlays) → tip product ~7MB vs Cap tip ~9.6MB and
+# core/option CG002 even after field_cap alone is linked. PLATFORM: MACOS.
+if [ "$UNAME_S" = "Darwin" ]; then
+  mkdir -p build_asm/selfhost_pabi
+  _dpw_o=build_asm/selfhost_pabi/pabi_weak.o
+  if [ "${XLANG_G05_TIP_THIN:-0}" != "1" ] && [ ! -s "$_dpw_o" ]; then
+    for _dpw_cap in /tmp/cap_tip_l4_safe_*/pabi/pabi_weak.o; do
+      if [ -s "$_dpw_cap" ]; then
+        cp -f "$_dpw_cap" "$_dpw_o"
+        echo "g05_relink_env: note743y.6.23 Cap tip cache pabi_weak.o (open Darwin lea_cold gate)" >&2
+        break
+      fi
+    done
+  fi
+  if [ ! -s "$_dpw_o" ]; then
+    echo "g05_relink_env: WARNING pabi_weak Cap tip miss (Darwin gate may skip)" >&2
+  fi
+  unset _dpw_o _dpw_cap
+fi
 # note743y.6.23: field_cap_residual_load OUTSIDE lea_cold/pabi_weak Darwin
 # gate (same class as macho_write Cap tip prefer). tip-cold often skips that
 # gate → mega egg var_field_access (frame 0x2a0) sole def → stack-chk Abort
