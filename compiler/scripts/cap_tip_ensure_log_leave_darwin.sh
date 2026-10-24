@@ -8,6 +8,41 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR/.."
 
+
+# note743y.6.23: tip pure-asm of source ___open emits Mach-O U ____open;
+# libsystem_kernel exports ___open. Cap tip emits ___open. Same egg as
+# NSGetArgc / ensure_log_os_darwin_pure. PLATFORM: MACOS|DARWIN.
+_cap_tip_log_fix_open_egg() {
+  local o="$1"
+  [ -s "$o" ] || return 0
+  if ! nm -u "$o" 2>/dev/null | awk '$NF=="____open" { f=1 } END { exit f?0:1 }'; then
+    return 0
+  fi
+  local oc=""
+  for c in "${LLVM_OBJCOPY:-}" /opt/homebrew/opt/llvm/bin/llvm-objcopy \
+    /usr/local/opt/llvm/bin/llvm-objcopy; do
+    [ -n "$c" ] && [ -x "$c" ] && oc="$c" && break
+  done
+  if [ -z "$oc" ] && command -v llvm-objcopy >/dev/null 2>&1; then
+    oc="$(command -v llvm-objcopy)"
+  fi
+  [ -n "$oc" ] || {
+    echo "cap_tip_ensure_log: llvm-objcopy missing for ____open→___open" >&2
+    return 1
+  }
+  if ! "$oc" --redefine-sym '____open=___open' "$o"; then
+    echo "cap_tip_ensure_log: ____open→___open redefine failed" >&2
+    return 1
+  fi
+  if nm -u "$o" 2>/dev/null | awk '$NF=="____open" { f=1 } END { exit f?0:1 }'; then
+    echo "cap_tip_ensure_log: U ____open remains after redefine" >&2
+    return 1
+  fi
+  echo "cap_tip_ensure_log: Darwin tip ____open → ___open" >&2
+  return 0
+}
+
+
 out=runtime_log_os.o
 x_thin=src/asm/runtime_log_os.x
 x_os=src/asm/runtime_log_os_darwin.x
@@ -25,6 +60,8 @@ else
 fi
 if [ "$need_rebuild" = "0" ]; then
   echo "cap_tip_ensure_log: $out already has public log_set_*_c wrappers" >&2
+  # Still fix tip ____open egg left from a prior thin+darwin merge.
+  _cap_tip_log_fix_open_egg "$out" || exit 1
   exit 0
 fi
 
@@ -73,3 +110,4 @@ for s in _log_set_file_sink_c _log_set_min_level_c _log_set_rotate_c _log_set_si
   nm -gU "$out" 2>/dev/null | grep -q "T ${s}\$" \
     || { echo "cap_tip_ensure_log: merged $out missing $s" >&2; exit 1; }
 done
+_cap_tip_log_fix_open_egg "$out" || exit 1
