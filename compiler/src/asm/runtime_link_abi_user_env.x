@@ -21,7 +21,7 @@
 //
 // PLATFORM: MACOS|DARWIN arm64.
 
-export extern "C" function __NSGetEnviron(): ***u8;
+export extern "C" function _NSGetEnviron(): ***u8;
 
 /**
  * Count bytes in a NUL-terminated string, capped at 4096.
@@ -55,7 +55,7 @@ export function link_abi_getenv_impl(name: *u8): *u8 {
   let nlen: i32 = user_env_cstr_len(name);
   if (nlen <= 0) { return 0; }
   unsafe {
-    let slot: ***u8 = __NSGetEnviron();
+    let slot: ***u8 = _NSGetEnviron();
     if (slot == 0) { return 0; }
     let env: **u8 = slot[0];
     if (env == 0) { return 0; }
