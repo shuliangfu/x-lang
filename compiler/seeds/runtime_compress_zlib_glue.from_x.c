@@ -66,5 +66,25 @@ int inflateInit2_impl_c(void *strm, int windowBits) {
 }
 
 #ifndef XLANG_RUNTIME_COMPRESS_ZLIB_GLUE_FROM_X
-/* 记253／9.1: cold under #ifndef XLANG_RUNTIME_COMPRESS_ZLIB_GLUE_FROM_X removed */
+/* Cold path public wrappers: when XLANG_RUNTIME_COMPRESS_ZLIB_GLUE_FROM_X is
+ * NOT defined, these wrappers provide the full implementation (call _impl_c).
+ * When the guard IS defined, the thin (.x) provides the wrappers and calls
+ * _impl_c above.
+ *
+ * Tip-cold PREFER=0 hosts only this seed (no thin.x merge). 记253 hollow
+ * left deflateInit2/inflateInit2 UNDEF on Linux run-compress; restore.
+ *
+ * 包装 deflateInit2 宏：调用真实 deflateInit2_ 并传入版本和结构体大小。
+ * 参数与 libz.x extern function deflateInit2 完全一致。 */
+int deflateInit2(void *strm, int level, int method, int windowBits, int memLevel, int strategy) {
+    return deflateInit2_impl_c(strm, level, method, windowBits, memLevel, strategy);
+}
+
+/**
+ * 包装 inflateInit2 宏：调用真实 inflateInit2_ 并传入版本和结构体大小。
+ * 参数与 libz.x extern function inflateInit2 完全一致。
+ */
+int inflateInit2(void *strm, int windowBits) {
+    return inflateInit2_impl_c(strm, windowBits);
+}
 #endif /* !XLANG_RUNTIME_COMPRESS_ZLIB_GLUE_FROM_X */
