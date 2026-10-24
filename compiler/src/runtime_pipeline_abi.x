@@ -47345,6 +47345,9 @@ export function glue_expr_block_transparent_value_ref_at(arena: *u8, expr_ref: i
           fin = ast_ast_block_final_expr_ref(arena, inner);
         }
         if (nlet == 0 && nloop == 0 && fin > 0) {
+          if (fin == expr_ref) {
+            return 0;
+          }
           return fin;
         }
       }
@@ -47353,6 +47356,10 @@ export function glue_expr_block_transparent_value_ref_at(arena: *u8, expr_ref: i
   }
   /* Bare `{ e }` block-expr: final_expr is the value. */
   if (nexpr <= 1 && fin > 0) {
+    /* Refuse self-peel (Cap tip hang → try_binop infinite recurse). */
+    if (fin == expr_ref) {
+      return 0;
+    }
     return fin;
   }
   return 0;
@@ -47382,7 +47389,7 @@ export function glue_try_binop_load_operand_elf_c(arena: *u8, elf_ctx: *u8, expr
     }
     /* Peel unsafe { e } / { e } so DEREF/INDEX load as themselves (not BLOCK). */
     blk_inner = glue_expr_block_transparent_value_ref_at(arena, expr_ref);
-    if (blk_inner > 0) {
+    if (blk_inner > 0 && blk_inner != expr_ref) {
       return glue_try_binop_load_operand_elf_c(arena, elf_ctx, blk_inner, ctx, ta, to_rbx);
     }
     ko = pipeline_expr_kind_ord_at(arena, expr_ref);

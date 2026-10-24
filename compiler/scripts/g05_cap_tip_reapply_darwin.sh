@@ -2007,6 +2007,36 @@ else
   echo "g05_cap_tip_reapply: note743y.6.23 skip walk alias (thin has pipeline T)" >&2
 fi
 
+# note743y.6.23 transparent hang: LEGACY-built peel helpers + load_operand
+# first-win over pabi_weak; thin try_let replaces Cap tip mega leftover.
+# PLATFORM: MACOS Cap tip.
+for _peel_o in \
+  build_asm/selfhost_pabi/binop_block_peel_helpers_thin.o \
+  build_asm/selfhost_pabi/binop_block_peel_load_operand_thin.o \
+  build_asm/selfhost_pabi/av_assign_var_try_let.o; do
+  if [ -s "$_peel_o" ]; then
+    case " $G05_OBJS " in
+      *" $_peel_o "*) ;;
+      *)
+        G05_OBJS="$_peel_o $G05_OBJS"
+        export G05_OBJS
+        echo "g05_cap_tip_reapply: note743y.6.23 prepended $_peel_o" >&2
+        ;;
+    esac
+  fi
+done
+# Demote pabi_weak duplicates so peel/try_let thins first-win.
+_oc="${LLVM_OBJCOPY:-/opt/homebrew/opt/llvm/bin/llvm-objcopy}"
+_pw=build_asm/selfhost_pabi/pabi_weak.o
+if [ -x "$_oc" ] && [ -s "$_pw" ]; then
+  for _s in _glue_expr_block_transparent_value_ref_at _glue_try_binop_load_operand_elf_c _glue_emit_assign_var_try_let_elf_c; do
+    if nm -gU "$_pw" 2>/dev/null | awk '{print $3}' | grep -qxF "$_s"; then
+      "$_oc" --redefine-sym="${_s}=${_s}__pabi_weak_dup" "$_pw" 2>/dev/null \
+        && echo "g05_cap_tip_reapply: demoted pabi_weak $_s" >&2 || true
+    fi
+  done
+fi
+
 bash scripts/g05_relink_xlang.sh
 
 if [ ! -x xlang.cap_g05_l2 ]; then

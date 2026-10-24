@@ -459,6 +459,23 @@ if [ "$(uname -s 2>/dev/null || true)" = "Darwin" ]; then
       if command -v codesign >/dev/null 2>&1; then
         codesign -s - -f "$COMPILER_DIR/xlang" "$COMPILER_DIR/xlang_asm" >/dev/null 2>&1 || true
       fi
+      # note743y.6.23: Cap tip mega try_let hangs on struct-lit assign
+      # (glue_expr_block_transparent_value_ref_at). Re-inject thin try_let
+      # into Cap tip cache then refresh tip products. PLATFORM: MACOS.
+      if [ -x "$COMPILER_DIR/scripts/cap_tip_inject_try_let_thin_darwin.sh" ]         && [ -x "$COMPILER_DIR/xlang.product_legacy_bak" ]; then
+        XLANG_CAP_TIP_L4_CACHE="$_cap_cache"           bash "$COMPILER_DIR/scripts/cap_tip_inject_try_let_thin_darwin.sh"           >>"$LOG" 2>&1 || log "step6b: WARN try_let thin inject failed"
+        cp -f "$_cap_cache/xlang" "$COMPILER_DIR/xlang"
+        if [ -x "$_cap_cache/xlang_asm" ]; then
+          cp -f "$_cap_cache/xlang_asm" "$COMPILER_DIR/xlang_asm"
+        else
+          cp -f "$_cap_cache/xlang" "$COMPILER_DIR/xlang_asm"
+        fi
+        chmod +x "$COMPILER_DIR/xlang" "$COMPILER_DIR/xlang_asm"
+        if command -v codesign >/dev/null 2>&1; then
+          codesign -s - -f "$COMPILER_DIR/xlang" "$COMPILER_DIR/xlang_asm" >/dev/null 2>&1 || true
+        fi
+        log "step6b: Cap tip try_let thin inject refreshed"
+      fi
       XLANG_ABS="$(CDPATH= cd -- "$ROOT/compiler" && pwd)/xlang_asm"
       export XLANG="$XLANG_ABS"
       _sz="$(stat -f '%z' "$COMPILER_DIR/xlang" 2>/dev/null || stat -c '%s' "$COMPILER_DIR/xlang")"
