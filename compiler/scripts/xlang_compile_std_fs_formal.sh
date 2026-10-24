@@ -299,8 +299,18 @@ fi
 # resolve without libc opendir. Darwin arm64 and Linux x86_64 compile
 # their asm bodies. Windows compiles the C seed, which calls
 # xlang_dir_cap.h. The four export names stay the same.
+# After tip-cold cd to repo root, compiler-relative paths need
+# $_fs_compiler_dir (set in the asm arm above). Fallback keeps
+# cwd=compiler layout for archaeology callers.
 # PLATFORM: SHARED face.
-_dir_cap_c="seeds/runtime_dir_cap.from_x.c"
+_fs_compiler_dir="${_fs_compiler_dir:-}"
+if [ -z "$_fs_compiler_dir" ]; then
+  _fs_compiler_dir=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
+fi
+_dir_cap_c="$_fs_compiler_dir/seeds/runtime_dir_cap.from_x.c"
+if [ ! -f "$_dir_cap_c" ]; then
+  _dir_cap_c="seeds/runtime_dir_cap.from_x.c"
+fi
 if [ ! -f "$_dir_cap_c" ]; then
   _dir_cap_c="../compiler/seeds/runtime_dir_cap.from_x.c"
 fi
@@ -311,16 +321,25 @@ if [ -f "$_dir_cap_c" ]; then
   # Windows stays cc -c of the seed.
   _dir_os="$(uname -s 2>/dev/null || echo Unknown)"
   _dir_mach="$(uname -m 2>/dev/null || echo unknown)"
-  _dir_x="src/asm/runtime_dir_cap_darwin.x"
+  _dir_x="$_fs_compiler_dir/src/asm/runtime_dir_cap_darwin.x"
+  if [ ! -f "$_dir_x" ]; then
+    _dir_x="src/asm/runtime_dir_cap_darwin.x"
+  fi
   if [ ! -f "$_dir_x" ]; then
     _dir_x="../compiler/src/asm/runtime_dir_cap_darwin.x"
   fi
-  _dir_lx="src/asm/runtime_dir_cap_linux.x"
+  _dir_lx="$_fs_compiler_dir/src/asm/runtime_dir_cap_linux.x"
+  if [ ! -f "$_dir_lx" ]; then
+    _dir_lx="src/asm/runtime_dir_cap_linux.x"
+  fi
   if [ ! -f "$_dir_lx" ]; then
     _dir_lx="../compiler/src/asm/runtime_dir_cap_linux.x"
   fi
   if [ "$_dir_os" = "Darwin" ] && [ "$_dir_mach" = "arm64" ] && [ -f "$_dir_x" ]; then
-    _ensure="scripts/ensure_host_cc_seed_o.sh"
+    _ensure="$_fs_compiler_dir/scripts/ensure_host_cc_seed_o.sh"
+    if [ ! -f "$_ensure" ]; then
+      _ensure="scripts/ensure_host_cc_seed_o.sh"
+    fi
     if [ ! -f "$_ensure" ]; then
       _ensure="../compiler/scripts/ensure_host_cc_seed_o.sh"
     fi
@@ -330,13 +349,15 @@ if [ -f "$_dir_cap_c" ]; then
     # PLATFORM: MACOS|DARWIN arm64.
     export CFLAGS
     export PIPELINE_GEN_CFLAGS="${PIPELINE_GEN_CFLAGS-}"
-    if ! bash "$_ensure" dir-cap-pure "$_dir_cap_o" 2>"$tmp_dir/dir_cap.err"; then
+    # ensure expects cwd=compiler for relative seed paths
+    if ! (cd "$_fs_compiler_dir" && bash "$_ensure" dir-cap-pure "$_dir_cap_o") 2>"$tmp_dir/dir_cap.err"; then
       echo "xlang_compile_std_fs_formal.sh: dir Cap pure-asm failed" >&2
       tail -40 "$tmp_dir/dir_cap.err" >&2 || true
       exit 1
     fi
   elif [ "$_dir_os" = "Linux" ] && [ "$_dir_mach" = "x86_64" ] && [ -f "$_dir_lx" ]; then
     # Fail closed. A miss must not cc the seed and look green.
+    # From repo root: -L . + compiler/... entry (tip import root).
     # Retry: the same class of pure-asm try sometimes dies on the first pass.
     # PLATFORM: LINUX x86_64.
     _dc_try=0
@@ -344,8 +365,15 @@ if [ -f "$_dir_cap_c" ]; then
     while [ "$_dc_try" -lt 12 ]; do
       _dc_try=$((_dc_try + 1))
       rm -f "$_dir_cap_o"
-      if "$XLANG_BIN" -backend asm -c -L .. -o "$_dir_cap_o" "$_dir_lx" \
+      if "$XLANG_BIN" -backend asm -c -L . -o "$_dir_cap_o" "$_dir_lx" \
           >"$tmp_dir/dir_cap.err" 2>&1 && [ -s "$_dir_cap_o" ]; then
+        _dc_ok=1
+        break
+      fi
+      # cwd=compiler fallback
+      if (cd "$_fs_compiler_dir" && "$XLANG_BIN" -backend asm -c -L .. -o "$_dir_cap_o" \
+            src/asm/runtime_dir_cap_linux.x >"$tmp_dir/dir_cap.err" 2>&1) \
+          && [ -s "$_dir_cap_o" ]; then
         _dc_ok=1
         break
       fi
@@ -356,7 +384,7 @@ if [ -f "$_dir_cap_c" ]; then
       exit 1
     fi
     for _dc_sym in xlang_dir_opendir xlang_dir_readdir xlang_dir_closedir \
-        xlang_dir_readdir_name_c runtime_dir_cap_linux_x_doc_anchor; do
+        xlang_dir_readdir_name_c runtime_dir_cap_linux_x_doc_anchor xlang_formal_bare_open; do
       if ! nm "$_dir_cap_o" 2>/dev/null | grep -qE " T ${_dc_sym}\$"; then
         echo "xlang_compile_std_fs_formal.sh: Linux dir Cap missing ${_dc_sym}" >&2
         exit 1
