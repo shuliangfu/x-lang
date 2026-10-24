@@ -33,5 +33,17 @@ int32_t test_call_i32_void_impl_c(uintptr_t fn) {
 }
 
 #ifndef XLANG_RUNTIME_TEST_FN_INVOKE_FROM_X
-/* 记253／9.1: cold under #ifndef XLANG_RUNTIME_TEST_FN_INVOKE_FROM_X removed */
+/* Cold path public wrapper: when XLANG_RUNTIME_TEST_FN_INVOKE_FROM_X is NOT
+ * defined, this _c wrapper provides the full implementation (null check +
+ * indirect call). When the guard IS defined, the thin (.x) provides the _c
+ * wrapper and calls _impl_c above.
+ *
+ * 经函数指针调用无参返回 i32 的测试函数。
+ * 参数：fn 函数地址（0 非法）。
+ * 返回值：fn() 或 fn 为 0 时 -1。 */
+int32_t test_call_i32_void_c(void *fn) {
+    if (fn == 0)
+        return -1;
+    return test_call_i32_void_impl_c((uintptr_t)fn);
+}
 #endif /* !XLANG_RUNTIME_TEST_FN_INVOKE_FROM_X */
