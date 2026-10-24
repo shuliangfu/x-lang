@@ -1015,6 +1015,14 @@ int32_t http_request_timeout_ex_c(const char *method, const uint8_t *url, int32_
 int32_t xlang_http_send_all(int fd, const char *buf, int len, int is_socket) {
   return xlang_http_send_all_impl(fd, buf, len, is_socket);
 }
+
+int32_t http_connect_timeout(int fd, const struct addrinfo *res, uint32_t timeout_ms) {
+  return http_connect_timeout_impl(fd, res, timeout_ms);
+}
+
+int32_t http_drain_request(int fd) {
+  return http_drain_request_impl(fd);
+}
 #endif /* XLANG_RUNTIME_HTTP_GLUE_FROM_X */
 
 
