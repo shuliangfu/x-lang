@@ -428,13 +428,15 @@ function process_environ(): **u8 {
 }
 
 /**
- * Store one pointer at argv[i]. The base is a parameter.
- * @param argv **u8 — vector
+ * Store one pointer at base[i] (base is argv bytes; slot stride 8).
+ * Takes *u8 so tip body_sync cannot hoist a **u8 cast of a pre-malloc null.
+ * @param base *u8 — argv allocation
  * @param i i32 — slot
  * @param v *u8 — pointer, or null
  * PLATFORM: MACOS|DARWIN
  */
-function process_store_ptr(argv: **u8, i: i32, v: *u8): void {
+function process_store_ptr(base: *u8, i: i32, v: *u8): void {
+  let argv: **u8 = base as **u8;
   argv[i] = v;
 }
 
@@ -914,9 +916,10 @@ export function process_spawn_simple_impl(program: *u8): i32 {
   if (raw == 0) {
     return 0 - 1;
   }
-  let argv: **u8 = raw as **u8;
-  process_store_ptr(argv, 0, program);
-  process_store_ptr(argv, 1, 0);
+  // Pass raw (*u8) — do not let-cast to **u8 before/after malloc (tip body_sync
+  // hoists that let to the raw=0 init and spawn_wait SEGV on null argv).
+  process_store_ptr(raw, 0, program);
+  process_store_ptr(raw, 1, 0);
   return process_spawn_impl(program, raw);
 }
 
@@ -938,9 +941,8 @@ export function process_exec_simple_impl(program: *u8): i32 {
   if (raw == 0) {
     return 0 - 1;
   }
-  let argv: **u8 = raw as **u8;
-  process_store_ptr(argv, 0, program);
-  process_store_ptr(argv, 1, 0);
+  process_store_ptr(raw, 0, program);
+  process_store_ptr(raw, 1, 0);
   return process_exec_impl(program, raw);
 }
 
@@ -1034,6 +1036,21 @@ export function process_spawn_io_impl(program: *u8, argv_ptr: *u8, io_void: *u8)
 }
 
 /**
+ * Copy pipe ends from a filled 8-byte buffer into out slots.
+ * raw is a parameter so tip body_sync cannot hoist loads before malloc.
+ * @param raw *u8 — pipe(2) buffer
+ * @param read_fd *i32 — read end out
+ * @param write_fd *i32 — write end out
+ * PLATFORM: MACOS|DARWIN
+ */
+function process_pipe_copy_fds(raw: *u8, read_fd: *i32, write_fd: *i32): void {
+  let r: i32 = process_load_i32(raw, 0);
+  let w: i32 = process_load_i32(raw, 4);
+  process_set_i32(read_fd, r);
+  process_set_i32(write_fd, w);
+}
+
+/**
  * Create a pipe. The two descriptors are written through the out pointers.
  * @param read_fd *i32 — read end out
  * @param write_fd *i32 — write end out
@@ -1059,9 +1076,7 @@ export function process_pipe_impl(read_fd: *i32, write_fd: *i32): i32 {
   if (rc != 0) {
     return 0 - 1;
   }
-  let r: i32 = process_load_i32(raw, 0);
-  let w: i32 = process_load_i32(raw, 4);
-  process_set_i32(read_fd, r);
-  process_set_i32(write_fd, w);
+  // Delegate loads: tip body_sync hoists let r/w = load(raw) to raw=0 init → SEGV.
+  process_pipe_copy_fds(raw, read_fd, write_fd);
   return 0;
 }
