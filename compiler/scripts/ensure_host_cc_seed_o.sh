@@ -5104,7 +5104,7 @@ ensure_env_os_darwin_pure() {
   # PLATFORM: MACOS|DARWIN arm64.
   if [ -f scripts/ensure_host_cc_seed_o.sh ] \
     && bash scripts/ensure_host_cc_seed_o.sh env-os-retry "$os_o"; then
-    log "prefer env os ← pure-asm twenty-eight symbols (w1215)"
+    log "prefer env os ← pure-asm thirty symbols (w1215)"
   fi
   while [ "$try" -lt 8 ]; do
     try=$((try + 1))
@@ -8271,7 +8271,7 @@ env_os_retry_pure() {
     return 1
   fi
   n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
-  if [ "$n" != "28" ]; then
+  if [ "$n" != "30" ]; then
     rm -f "$o"
     return 1
   fi
@@ -33681,7 +33681,7 @@ case "$MODE" in
     exit $?
     ;;
   env-os-retry|env_os_retry_pure)
-    # w1215: twenty-eight pure-asm symbols of runtime_env_os_darwin.x.
+    # w1215: thirty pure-asm symbols of runtime_env_os_darwin.x.
     # Does not write runtime_env_os.o and does not compile the thin half.
     # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
