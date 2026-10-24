@@ -445,13 +445,24 @@ if [ "$(uname -s 2>/dev/null || true)" = "Darwin" ]; then
     _cap_opt_rc=$?
     set -e
     if [ "$_cap_opt_rc" -eq 0 ] && [ -s /tmp/xlang_cap_opt_probe.o ]; then
+      # Prefer distinct Cap tip xlang_asm when present (hashes may differ from
+      # xlang). Always ad-hoc codesign after cp — otherwise Darwin kills the
+      # copied product with SIGKILL Code Signature Invalid (matrix rc=137).
+      # Same class as product_l4_true_cold_cap_tip.sh post-cp codesign.
       cp -f "$_cap_cache/xlang" "$COMPILER_DIR/xlang"
-      cp -f "$_cap_cache/xlang" "$COMPILER_DIR/xlang_asm"
+      if [ -x "$_cap_cache/xlang_asm" ]; then
+        cp -f "$_cap_cache/xlang_asm" "$COMPILER_DIR/xlang_asm"
+      else
+        cp -f "$_cap_cache/xlang" "$COMPILER_DIR/xlang_asm"
+      fi
       chmod +x "$COMPILER_DIR/xlang" "$COMPILER_DIR/xlang_asm"
+      if command -v codesign >/dev/null 2>&1; then
+        codesign -s - -f "$COMPILER_DIR/xlang" "$COMPILER_DIR/xlang_asm" >/dev/null 2>&1 || true
+      fi
       XLANG_ABS="$(CDPATH= cd -- "$ROOT/compiler" && pwd)/xlang_asm"
       export XLANG="$XLANG_ABS"
       _sz="$(stat -f '%z' "$COMPILER_DIR/xlang" 2>/dev/null || stat -c '%s' "$COMPILER_DIR/xlang")"
-      log "step6b: Cap tip residual prefer Cap tip cache product (size=$_sz; tip option FAIL)"
+      log "step6b: Cap tip residual prefer Cap tip cache product (size=$_sz; tip option FAIL; codesign)"
       # Cap tip cannot rebuild formal_mod; tip-cold wiped core/std .o. Restore
       # leaves from Cap tip cache (same map as product_l4_true_cold_cap_tip 6c).
       # Without this, Cap tip L2 matrix BLD001 missing core_option_* / argv_bind.
