@@ -6316,10 +6316,67 @@ function try_emit_raw_syscall_call_elf_c(
 function try_emit_va_cap_ov_select_elf_c(
   elf_ctx: *u8, ctx: *u8, ta: i32, is_fp: i32, gp_n: i32
 ): i32 {
-  /* Class BK: Cap residual body retired (always miss). */
-  return 0;
+  unsafe {
+    let end_delta: i32 = 0;
+    let step: i32 = 0 - 1;
+    let cc: i32 = 3;
+    let lbl_sv: u8[64] = [];
+    let lbl_dn: u8[64] = [];
+    let n_sv: i32 = 0;
+    let n_dn: i32 = 0;
+    if (elf_ctx == 0 as *u8 || ctx == 0 as *u8) { return 0 - 1; }
+    if (gp_n < 6) { gp_n = 6; }
+    /* PLATFORM: LINUX|x86_64 rbp-off walks down (step=-1, LE).
+     * PLATFORM: LINUX|aarch64 / MACOS|ARM64 x29+off walks up (step=+1, GE). */
+    if (ta == 1) {
+      step = 1;
+      cc = 5;
+    }
+    /* header(24) + GP save; FP class_end is past FP save too. */
+    end_delta = 24 + gp_n * 8;
+    if (is_fp != 0) { end_delta = end_delta + 64; }
+    n_sv = pipeline_asm_emit_next_label_c(ctx, &lbl_sv[0], 64);
+    n_dn = pipeline_asm_emit_next_label_c(ctx, &lbl_dn[0], 64);
+    if (n_sv <= 0 || n_dn <= 0) { return 0 - 1; }
+    /* rbx = class_cursor (mov does not clobber flags we have not set yet). */
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    /* rax = header (parked r10 / x8). */
+    if (ta == 1) {
+      if (arch_arm64_enc_enc_mov_x8_to_rax(elf_ctx) != 0) { return 0 - 1; }
+    } else {
+      if (arch_x86_64_enc_enc_mov_r10_to_rax(elf_ctx) != 0) { return 0 - 1; }
+    }
+    if (backend_enc_add_imm_to_rax_arch(elf_ctx, step * end_delta, ta) != 0) {
+      return 0 - 1;
+    }
+    /* rax = class_end, rbx = class_cursor. cmp cursor, end. */
+    if (backend_enc_cmp_rbx_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    /* x86 cc=3 LE; aarch64 cc=5 GE. */
+    if (backend_enc_cmp_setcc_movzbl_arch(elf_ctx, cc, ta) != 0) { return 0 - 1; }
+    if (backend_enc_test_eax_eax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    if (backend_enc_jz_arch(elf_ctx, &lbl_sv[0], n_sv, ta) != 0) { return 0 - 1; }
+    /* overflow: ov_cell = header + step*16 (x86 -16, aarch64 +16). */
+    if (ta == 1) {
+      if (arch_arm64_enc_enc_mov_x8_to_rax(elf_ctx) != 0) { return 0 - 1; }
+    } else {
+      if (arch_x86_64_enc_enc_mov_r10_to_rax(elf_ctx) != 0) { return 0 - 1; }
+    }
+    if (backend_enc_add_imm_to_rax_arch(elf_ctx, step * 16, ta) != 0) { return 0 - 1; }
+    if (ta == 1) {
+      if (arch_arm64_enc_enc_mov_x0_to_x3(elf_ctx) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_ldr_x0_x3(elf_ctx) != 0) { return 0 - 1; }
+    } else {
+      if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0) { return 0 - 1; }
+      if (arch_x86_64_enc_enc_movq_mem_rcx_to_rax(elf_ctx) != 0) { return 0 - 1; }
+    }
+    if (backend_enc_jmp_arch(elf_ctx, &lbl_dn[0], n_dn, ta) != 0) { return 0 - 1; }
+    if (backend_enc_label_arch(elf_ctx, &lbl_sv[0], n_sv, 0, ta) != 0) { return 0 - 1; }
+    /* in-save: slot = class_cursor (rbx); writeback stays class_cell. */
+    if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    if (backend_enc_label_arch(elf_ctx, &lbl_dn[0], n_dn, 0, ta) != 0) { return 0 - 1; }
+    return 0;
+  }
 }
-
 /**
  * Cap 10.7.1 slice12–18: language va_start / va_end / va_arg_{i32,i64,ptr} /
  * typed va_arg<T>(ap) including f32/f64 + stack extras → asm Cap.
@@ -6354,10 +6411,374 @@ function try_emit_va_cap_ov_select_elf_c(
 function try_emit_va_cap_builtin_call_elf_c(
   arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
 ): i32 {
-  /* Class BK: Cap residual body retired (always miss). */
-  return 0;
-}
+  if (arena == 0 as *u8 || elf_ctx == 0 || ctx == 0 as *u8 || expr_ref <= 0) {
+    return 0;
+  }
+  if (ta != 0 && ta != 1) {
+    return 0;
+  }
+  unsafe {
+    let ko: i32 = 0;
+    let name: u8[256] = [];
+    let nlen: i32 = 0;
+    let n_args: i32 = 0;
+    let is_method: i32 = 0;
+    let which: i32 = 0;
+    let i: i32 = 0;
+    let nm_start: u8[8] = [118, 97, 95, 115, 116, 97, 114, 116]; /* va_start */
+    let nm_end: u8[6] = [118, 97, 95, 101, 110, 100]; /* va_end */
+    let nm_argi32_full: u8[10] = [118, 97, 95, 97, 114, 103, 95, 105, 51, 50]; /* va_arg_i32 */
+    let nm_argi64_full: u8[10] = [118, 97, 95, 97, 114, 103, 95, 105, 54, 52]; /* va_arg_i64 */
+    let nm_argptr_full: u8[10] = [118, 97, 95, 97, 114, 103, 95, 112, 116, 114]; /* va_arg_ptr */
+    let nm_arg_typed: u8[6] = [118, 97, 95, 97, 114, 103]; /* va_arg */
+    let ty_ref: i32 = 0;
+    let tk: i32 = 0;
+    let tsz: i32 = 0;
+    let ap_ref: i32 = 0;
+    let ap_off: i32 = 0;
+    let cur: i32 = 0;
+    let save_off: i32 = 0;
+    let mod: *u8 = 0 as *u8;
+    let fi: i32 = 0;
+    let np: i32 = 0;
+    let k: i32 = 0;
+    let gp_n: i32 = 6;
+    let fp_n: i32 = 8;
+    let np_gp: i32 = 0;
+    let np_fp: i32 = 0;
+    let gp_save: i32 = 0;
+    let fp_save: i32 = 0;
+    let ov: i32 = 0;
+    let ov_n: i32 = 8;
+    let named_stk: i32 = 0;
+    let stk_pos: i32 = 0;
+    let pty: i32 = 0;
+    let is_fp: i32 = 0;
 
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+    if (ko == 49) {
+      nlen = pipeline_expr_method_call_name_len(arena, expr_ref);
+      if (nlen <= 0 || nlen > 255) { return 0; }
+      pipeline_expr_method_call_name_into(arena, expr_ref, &name[0]);
+      n_args = pipeline_expr_method_call_num_args_at(arena, expr_ref);
+      is_method = 1;
+    } else if (ko == 48) {
+      let callee_ref: i32 = pipeline_expr_call_callee_ref_at(arena, expr_ref);
+      let cko: i32 = 0;
+      if (callee_ref <= 0) { return 0; }
+      cko = pipeline_expr_kind_ord_at(arena, callee_ref);
+      if (cko == 44) {
+        nlen = pipeline_expr_field_access_name_len(arena, callee_ref);
+        if (nlen <= 0 || nlen > 255) { return 0; }
+        pipeline_expr_field_access_name_into(arena, callee_ref, &name[0]);
+      } else if (cko == 3) {
+        nlen = pipeline_expr_var_name_len(arena, callee_ref);
+        if (nlen <= 0 || nlen > 255) { return 0; }
+        pipeline_expr_var_name_into(arena, callee_ref, &name[0]);
+      } else {
+        return 0;
+      }
+      n_args = pipeline_expr_call_num_args_at(arena, expr_ref);
+    } else {
+      return 0;
+    }
+
+    which = 0;
+    if (nlen == 8) {
+      i = 0;
+      while (i < 8) {
+        if (name[i] != nm_start[i]) { i = 99; }
+        else { i = i + 1; }
+      }
+      if (i == 8) { which = 1; }
+    }
+    if (which == 0 && nlen == 6) {
+      i = 0;
+      while (i < 6) {
+        if (name[i] != nm_end[i]) { i = 99; }
+        else { i = i + 1; }
+      }
+      if (i == 6) { which = 2; }
+      if (which == 0) {
+        i = 0;
+        while (i < 6) {
+          if (name[i] != nm_arg_typed[i]) { i = 99; }
+          else { i = i + 1; }
+        }
+        if (i == 6) { which = 6; }
+      }
+    }
+    if (which == 0 && nlen == 10) {
+      i = 0;
+      while (i < 10) {
+        if (name[i] != nm_argi32_full[i]) { i = 99; }
+        else { i = i + 1; }
+      }
+      if (i == 10) { which = 3; }
+      if (which == 0) {
+        i = 0;
+        while (i < 10) {
+          if (name[i] != nm_argi64_full[i]) { i = 99; }
+          else { i = i + 1; }
+        }
+        if (i == 10) { which = 4; }
+      }
+      if (which == 0) {
+        i = 0;
+        while (i < 10) {
+          if (name[i] != nm_argptr_full[i]) { i = 99; }
+          else { i = i + 1; }
+        }
+        if (i == 10) { which = 5; }
+      }
+    }
+    if (which == 0) { return 0; }
+
+    /* va_end(ap): Cap no-op (do not emit call). */
+    if (which == 2) {
+      if (n_args != 1) { return 0; }
+      return 1;
+    }
+
+    if (which == 1) {
+      /* va_start(ap, last): need ap as local VAR. */
+      if (n_args != 2) { return 0; }
+      if (is_method != 0) {
+        ap_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, 0);
+      } else {
+        ap_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+      }
+      if (ap_ref <= 0) { return 0 - 1; }
+      if (pipeline_expr_kind_ord_at(arena, ap_ref) != 3) { return 0; }
+      ap_off = glue_asm_local_var_stack_off_scoped(arena, ctx, ap_ref);
+      if (ap_off < 16) { return 0 - 1; }
+
+      mod = call_dispatch_load_ptr_le(ctx, 16);
+      fi = pipeline_asm_emit_func_index_c();
+      np = 0;
+      if (mod != 0 as *u8 && fi >= 0) {
+        np = pipeline_module_func_num_params_at(mod, fi);
+      }
+      if (np < 0) { np = 0; }
+      gp_n = 6;
+      if (ta == 1) { gp_n = 8; }
+      fp_n = 8;
+      /* Named params consume GP or XMM/NEON independently (SysV / AAPCS). */
+      np_gp = 0;
+      np_fp = 0;
+      k = 0;
+      while (k < np) {
+        pty = 0;
+        if (mod != 0 as *u8 && fi >= 0) {
+          pty = pipeline_module_func_param_type_ref_at(mod, fi, k);
+        }
+        if (glue_call_param_is_f32_c(arena, pty) != 0) {
+          np_fp = np_fp + 1;
+        } else {
+          np_gp = np_gp + 1;
+        }
+        k = k + 1;
+      }
+      /* Named stack formals sit at the front of the incoming overflow area. */
+      named_stk = 0;
+      if (np_gp > gp_n) { named_stk = named_stk + (np_gp - gp_n); }
+      if (np_fp > fp_n) { named_stk = named_stk + (np_fp - fp_n); }
+      if (np_gp > gp_n) { np_gp = gp_n; }
+      if (np_fp > fp_n) { np_fp = fp_n; }
+
+      /* Reserve header(24) + GP save + FP save + shared OV in call-spill
+       * scratch (frame already ≥512). ov_n=8 extra 8-byte slots, one copy.
+       * PLATFORM: LINUX|x86_64 SysV · LINUX|aarch64 AAPCS (cross-emit). */
+      cur = call_dispatch_load_i32_le(ctx, 4);
+      save_off = cur + 16;
+      if (save_off < 16) { save_off = 16; }
+      gp_save = save_off + 24;
+      ov_n = 8;
+      fp_save = gp_save + gp_n * 8;
+      ov = fp_save + fp_n * 8;
+      call_dispatch_store_i32_le(ctx, 4, ov + ov_n * 8);
+
+      /* Spill GP arg regs while entry values still live. */
+      k = 0;
+      while (k < gp_n) {
+        if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, k, ta) != 0) { return 0 - 1; }
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, gp_save + k * 8, ta) != 0) {
+          return 0 - 1;
+        }
+        k = k + 1;
+      }
+      /* Spill FP arg regs (xmmK / vK) as 8-byte slots. G.7 existing encoders. */
+      k = 0;
+      while (k < fp_n) {
+        if (backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, k, ta) != 0) { return 0 - 1; }
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, fp_save + k * 8, ta) != 0) {
+          return 0 - 1;
+        }
+        k = k + 1;
+      }
+
+      /* Copy incoming stack extras once into shared OV. G.7 existing
+       * load_rbp_pos / load_x29_pos (param_home twins). rax/x0 is free: GP
+       * and FP files already spilled. */
+      stk_pos = 16;
+      if (ta == 1) {
+        /* PLATFORM: LINUX|aarch64 — prologue grows frame by 16 (x19). */
+        cur = call_dispatch_load_i32_le(ctx, 0);
+        if (cur > 16) { stk_pos = cur; }
+        stk_pos = stk_pos + 16;
+      }
+      stk_pos = stk_pos + named_stk * 8;
+      k = 0;
+      while (k < ov_n) {
+        if (ta == 1) {
+          if (backend_enc_load_x29_pos_to_rax_arch(elf_ctx, stk_pos + k * 8, ta) != 0) {
+            return 0 - 1;
+          }
+        } else {
+          if (backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, stk_pos + k * 8, ta) != 0) {
+            return 0 - 1;
+          }
+        }
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, ov + k * 8, ta) != 0) {
+          return 0 - 1;
+        }
+        k = k + 1;
+      }
+
+      /* header[0] = &GP[np_gp] (first trailing GP). */
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, gp_save + np_gp * 8, ta) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, save_off, ta) != 0) { return 0 - 1; }
+      /* header[8] = &FP[np_fp] (first trailing FP). */
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, fp_save + np_fp * 8, ta) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, save_off + 8, ta) != 0) { return 0 - 1; }
+      /* header[16] = &OV[0] (shared overflow; named_stk already skipped in copy). */
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, ov, ta) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, save_off + 16, ta) != 0) { return 0 - 1; }
+      /* *ap = &header. */
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, save_off, ta) != 0) { return 0 - 1; }
+      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, ap_off, ta) != 0) { return 0 - 1; }
+      if (ta == 1) {
+        /* x3 = &ap; x0 = header; str x0, [x3]. G.7 existing encoders. */
+        if (arch_arm64_enc_enc_mov_x0_to_x3(elf_ctx) != 0) { return 0 - 1; }
+        if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+        if (arch_arm64_enc_enc_str_x0_x3(elf_ctx) != 0) { return 0 - 1; }
+        return 1;
+      }
+      if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0) { return 0 - 1; }
+      if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+      if (arch_x86_64_enc_enc_movq_rax_to_mem_rcx(elf_ctx) != 0) { return 0 - 1; }
+      return 1;
+    }
+
+    /* which == 6: typed va_arg<T>(ap) → classify T into 3/4/5/7/8. */
+    if (which == 6) {
+      if (n_args != 1) { return 0; }
+      if (pipeline_expr_call_num_type_args_at(arena, expr_ref) < 1) { return 0; }
+      ty_ref = pipeline_expr_call_type_arg_ref_at(arena, expr_ref, 0);
+      if (ty_ref <= 0) { return 0; }
+      tk = pipeline_type_kind_ord_at(arena, ty_ref);
+      /* TYPE_F32=14 / TYPE_F64=15: FP cursor (slice16). */
+      if (tk == 14) {
+        which = 7;
+      } else if (tk == 15) {
+        which = 8;
+      } else {
+        mod = call_dispatch_load_ptr_le(ctx, 16);
+        tsz = glue_type_size_simple(mod, arena, ty_ref, 0);
+        if (tk == 9) {
+          which = 5;
+        } else if (tsz >= 8) {
+          which = 4;
+        } else {
+          which = 3;
+        }
+      }
+    }
+    /* 3=i32 4=i64 5=ptr (GP) · 7=f32 8=f64 (FP). */
+    if (which < 3 || which == 6 || which > 8) { return 0; }
+    is_fp = 0;
+    if (which >= 7) { is_fp = 1; }
+    if (n_args != 1) { return 0; }
+    if (is_method != 0) {
+      ap_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, 0);
+    } else {
+      ap_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+    }
+    if (ap_ref <= 0) { return 0 - 1; }
+    if (pipeline_expr_kind_ord_at(arena, ap_ref) != 3) { return 0; }
+    ap_off = glue_asm_local_var_stack_off_scoped(arena, ctx, ap_ref);
+    if (ap_off < 16) { return 0 - 1; }
+
+    /* *ap = header; GP cursor at header[0], FP at header[8], OV at header[16].
+     * Park header, load class cursor, then slice18 shared-OV select. */
+    gp_n = 6;
+    if (ta == 1) { gp_n = 8; }
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, ap_off, ta) != 0) { return 0 - 1; }
+    if (ta == 1) {
+      /* x3=&ap; x0=header; park x8; optional +8; x3=&cursor_cell; ldr cursor. */
+      if (arch_arm64_enc_enc_mov_x0_to_x3(elf_ctx) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_ldr_x0_x3(elf_ctx) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_mov_rax_to_x8(elf_ctx) != 0) { return 0 - 1; }
+      if (is_fp != 0) {
+        /* PLATFORM: MACOS|ARM64 / LINUX|aarch64 — x29+off; header[8] is +8. */
+        if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0) { return 0 - 1; }
+      }
+      if (arch_arm64_enc_enc_mov_x0_to_x3(elf_ctx) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_ldr_x0_x3(elf_ctx) != 0) { return 0 - 1; }
+      if (try_emit_va_cap_ov_select_elf_c(elf_ctx, ctx, ta, is_fp, gp_n) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+      if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 0, 1, 0, ta) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_mov_x0_to_x4(elf_ctx) != 0) { return 0 - 1; }
+      if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+      /* Next slot is higher x29-off → +8. PLATFORM: MACOS|ARM64 / LINUX|aarch64. */
+      if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_str_x0_x3(elf_ctx) != 0) { return 0 - 1; }
+      if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, 4, ta) != 0) { return 0 - 1; }
+      return 1;
+    }
+    if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0) { return 0 - 1; }
+    if (arch_x86_64_enc_enc_movq_mem_rcx_to_rax(elf_ctx) != 0) { return 0 - 1; }
+    if (arch_x86_64_enc_enc_mov_rax_to_r10(elf_ctx) != 0) { return 0 - 1; }
+    if (is_fp != 0) {
+      /* header+8 rbp-off = lower addr = pointer-8 (same -8 as slot walk). */
+      if (backend_enc_add_imm_to_rax_arch(elf_ctx, 0 - 8, ta) != 0) { return 0 - 1; }
+    }
+    if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0) { return 0 - 1; }
+    if (arch_x86_64_enc_enc_movq_mem_rcx_to_rax(elf_ctx) != 0) { return 0 - 1; }
+    if (try_emit_va_cap_ov_select_elf_c(elf_ctx, ctx, ta, is_fp, gp_n) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    if (which == 3 || which == 7) {
+      /* i32/f32: eax = *(i32*)cursor; park in edx across bump. */
+      if (arch_x86_64_enc_enc_movl_mem_rax_to_eax(elf_ctx) != 0) { return 0 - 1; }
+      if (arch_x86_64_enc_enc_mov_eax_to_edx(elf_ctx) != 0) { return 0 - 1; }
+    } else {
+      /* i64 / ptr / f64: rax = *cursor; park in r10 across bump. */
+      if (arch_x86_64_enc_enc_movq_mem_rax_to_rax(elf_ctx) != 0) { return 0 - 1; }
+      if (arch_x86_64_enc_enc_mov_rax_to_r10(elf_ctx) != 0) { return 0 - 1; }
+    }
+    if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    /* Spill layout: save+k*8 is rbp-(save_off+k*8); next slot is lower addr → -8. */
+    if (backend_enc_add_imm_to_rax_arch(elf_ctx, 0 - 8, ta) != 0) { return 0 - 1; }
+    if (arch_x86_64_enc_enc_movq_rax_to_mem_rcx(elf_ctx) != 0) { return 0 - 1; }
+    if (which == 3 || which == 7) {
+      if (arch_x86_64_enc_enc_mov_edx_to_eax(elf_ctx) != 0) { return 0 - 1; }
+    } else {
+      if (arch_x86_64_enc_enc_mov_r10_to_rax(elf_ctx) != 0) { return 0 - 1; }
+    }
+    return 1;
+  }
+}
 /**
  * Stage 10 (10.4.1) slice1–3 + (10.4.2) fences + arm64 i32/fence:
  * atomic load/store/cas i16/i32/i64 (x86) and i32 (aarch64 LSE),
