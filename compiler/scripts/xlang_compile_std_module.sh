@@ -3535,23 +3535,80 @@ for x_path in "$@"; do
       # Do not pass -lib-name "". Exports stay std_context_*.
       # A miss stops here. context.x has its own bare-impl arm (记212). Windows keeps the C path.
       # Do not fall through to cc for this file.
+      # note743y.6.23: Cap tip residual product hangs forever on
+      # `_rc = { handle: … }` (glue_emit_assign_var_try_let →
+      # glue_expr_block_transparent_value_ref_at busy-loop; pthread_join
+      # large-stack). Bound wall-clock; Darwin falls back to
+      # xlang.product_legacy_bak (verified emits std_context_*). Same class
+      # as Cap tip residual prefer / fmt Cap tip|egg first — not host-cc.
       _ctx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_ctx_os" in
         Darwin|Linux)
-          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
-              >"$tmp_dir/ctx_x_asm_${idx}.log" 2>&1 \
-            && [ -s "$obj" ] \
-            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_context_background$' \
-            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_context_with_cancel$' \
-            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_context_with_deadline$' \
-            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_context_with_timeout$' \
-            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_context_is_cancelled$' \
-            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_context_deadline_ns$' \
-            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_context_remaining_ns$' \
-            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_context_get_value$' \
-            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_context_set_value$' \
-            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_context_cancel$' \
-            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_context_free$'; then
+          _ctx_nm_ok() {
+            [ -s "$1" ] \
+              && nm "$1" 2>/dev/null | grep -qE ' T _?std_context_background$' \
+              && nm "$1" 2>/dev/null | grep -qE ' T _?std_context_with_cancel$' \
+              && nm "$1" 2>/dev/null | grep -qE ' T _?std_context_with_deadline$' \
+              && nm "$1" 2>/dev/null | grep -qE ' T _?std_context_with_timeout$' \
+              && nm "$1" 2>/dev/null | grep -qE ' T _?std_context_is_cancelled$' \
+              && nm "$1" 2>/dev/null | grep -qE ' T _?std_context_deadline_ns$' \
+              && nm "$1" 2>/dev/null | grep -qE ' T _?std_context_remaining_ns$' \
+              && nm "$1" 2>/dev/null | grep -qE ' T _?std_context_get_value$' \
+              && nm "$1" 2>/dev/null | grep -qE ' T _?std_context_set_value$' \
+              && nm "$1" 2>/dev/null | grep -qE ' T _?std_context_cancel$' \
+              && nm "$1" 2>/dev/null | grep -qE ' T _?std_context_free$'
+          }
+          _ctx_ok=0
+          _ctx_to="${XLANG_CONTEXT_ASM_TIMEOUT:-120}"
+          case "$x_path" in
+            ../*) _ctx_src="$XLANG_REPO_ROOT/${x_path#../}" ;;
+            /*) _ctx_src="$x_path" ;;
+            *) _ctx_src="$XLANG_REPO_ROOT/$x_path" ;;
+          esac
+          rm -f "$obj"
+          # perl cannot exec the XLANG_RUN shell function — use BIN_REAL at ROOT.
+          if command -v perl >/dev/null 2>&1; then
+            ( cd "$XLANG_REPO_ROOT" && perl -e "alarm shift; exec @ARGV" "$_ctx_to" \
+              "$XLANG_BIN_REAL" -backend asm -c -L "$XLANG_REPO_ROOT" -o "$obj" "$_ctx_src" ) \
+              >"$tmp_dir/ctx_x_asm_${idx}.log" 2>&1 || true
+          else
+            "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/ctx_x_asm_${idx}.log" 2>&1 || true
+          fi
+          if _ctx_nm_ok "$obj"; then
+            _ctx_ok=1
+          fi
+          if [ "$_ctx_ok" != 1 ] && [ "$_ctx_os" = Darwin ]; then
+            _leg=""
+            for _lc in \
+              "$XLANG_REPO_ROOT/compiler/xlang.product_legacy_bak" \
+              ./xlang.product_legacy_bak \
+              ../compiler/xlang.product_legacy_bak; do
+              if [ -x "$_lc" ]; then
+                _leg="$_lc"
+                break
+              fi
+            done
+            if [ -n "$_leg" ]; then
+              echo "xlang_compile_std_module: Darwin context hang residual → LEGACY ($(basename "$_leg"))" >&2
+              if command -v codesign >/dev/null 2>&1; then
+                codesign -s - -f "$_leg" >/dev/null 2>&1 || true
+              fi
+              rm -f "$obj"
+              if command -v perl >/dev/null 2>&1; then
+                ( cd "$XLANG_REPO_ROOT" && perl -e "alarm shift; exec @ARGV" "$_ctx_to" \
+                  "$_leg" -backend asm -c -L "$XLANG_REPO_ROOT" -o "$obj" "$_ctx_src" ) \
+                  >"$tmp_dir/ctx_x_asm_${idx}.log" 2>&1 || true
+              else
+                ( cd "$XLANG_REPO_ROOT" && "$_leg" -backend asm -c -L "$XLANG_REPO_ROOT" -o "$obj" "$_ctx_src" ) \
+                  >"$tmp_dir/ctx_x_asm_${idx}.log" 2>&1 || true
+              fi
+              if _ctx_nm_ok "$obj"; then
+                _ctx_ok=1
+              fi
+            fi
+          fi
+          if [ "$_ctx_ok" = 1 ]; then
             echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
             if [ -z "$obj_files" ]; then
               obj_files="$obj"
