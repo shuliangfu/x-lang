@@ -369,20 +369,18 @@ _g05_pure_overlay() {
   fi
   # note743y.6.23: Darwin tip-cold tip SEGV Cap thins + fmt; Cap tip cache +
   # pin-egg first (class note743t Linux egg-first). PLATFORM: MACOS tip cold.
-  # note743y.6.23 hang: Cap tip busy-loops on struct-lit assign
-  # (glue_expr_block_transparent_value_ref_at ← try_let mega). Prefer
-  # LEGACY bak + pin-egg BEFORE Cap tip so overlays still build. PLATFORM: MACOS.
+  # note743y.6.23 hang nail: NO product_legacy_bak / LEGACY prefer (manager
+  # 2026-10-24). Cap tip (thin try_let injected) + pin-egg only. PLATFORM: MACOS.
   if [ "$_po_os" = "darwin" ]; then
-    [ -x ./xlang.product_legacy_bak ] && _po_bins="$_po_bins ./xlang.product_legacy_bak"
-    if [ -n "$_po_egg" ] && [ -x "$_po_egg" ]; then
-      _po_bins="$_po_bins $_po_egg"
-    fi
     for _po_cap in /tmp/cap_tip_l4_safe_406200eef /tmp/cap_tip_l4_safe_* \
       "${HOME:-}/.cache/xlang_cap_tip_l4" .cap_tip_l4_cache; do
       [ -n "$_po_cap" ] || continue
       [ -x "$_po_cap/xlang_asm" ] && _po_bins="$_po_bins $_po_cap/xlang_asm"
       [ -x "$_po_cap/xlang" ] && _po_bins="$_po_bins $_po_cap/xlang"
     done
+    if [ -n "$_po_egg" ] && [ -x "$_po_egg" ]; then
+      _po_bins="$_po_bins $_po_egg"
+    fi
   fi
   [ -x ./xlang ] && _po_bins="$_po_bins ./xlang"
   [ -x ./xlang_asm ] && _po_bins="$_po_bins ./xlang_asm"

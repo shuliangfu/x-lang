@@ -462,7 +462,8 @@ if [ "$(uname -s 2>/dev/null || true)" = "Darwin" ]; then
       # note743y.6.23: Cap tip mega try_let hangs on struct-lit assign
       # (glue_expr_block_transparent_value_ref_at). Re-inject thin try_let
       # into Cap tip cache then refresh tip products. PLATFORM: MACOS.
-      if [ -x "$COMPILER_DIR/scripts/cap_tip_inject_try_let_thin_darwin.sh" ]         && [ -x "$COMPILER_DIR/xlang.product_legacy_bak" ]; then
+      # HARD: inject compiles thin via Cap tip/egg — no product_legacy_bak gate.
+      if [ -x "$COMPILER_DIR/scripts/cap_tip_inject_try_let_thin_darwin.sh" ]; then
         XLANG_CAP_TIP_L4_CACHE="$_cap_cache"           bash "$COMPILER_DIR/scripts/cap_tip_inject_try_let_thin_darwin.sh"           >>"$LOG" 2>&1 || log "step6b: WARN try_let thin inject failed"
         cp -f "$_cap_cache/xlang" "$COMPILER_DIR/xlang"
         if [ -x "$_cap_cache/xlang_asm" ]; then

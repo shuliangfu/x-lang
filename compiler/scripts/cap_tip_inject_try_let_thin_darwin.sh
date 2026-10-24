@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # cap_tip_inject_try_let_thin_darwin.sh — note743y.6.23
 # Cap tip mega try_let (2744B) busy-loops via glue_expr_block_transparent_value_ref_at
-# on struct-lit assign (context/mod.x hang). LEGACY-build thin try_let and
+# on struct-lit assign (context/mod.x hang). Cap tip/egg-build thin try_let (NO LEGACY) and
 # BRANCH26-reloc-inject into Cap tip T slot (pad with ret). PLATFORM: MACOS.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -12,11 +12,24 @@ if [ -z "$CAP" ]; then
   done
 fi
 [ -n "$CAP" ] && [ -x "$CAP/xlang" ] || { echo "need Cap tip cache" >&2; exit 1; }
-LEGACY=./xlang.product_legacy_bak
-[ -x "$LEGACY" ] || { echo "need $LEGACY" >&2; exit 1; }
+# HARD (manager 2026-10-24): NEVER product_legacy_bak — Cap tip or pin-egg only.
 mkdir -p build_asm/selfhost_pabi
 O=build_asm/selfhost_pabi/av_assign_var_try_let.o
-"$LEGACY" -backend asm -c src/runtime_pipeline_abi_assign_var_try_let_thin.x -o "$O"
+SRC=src/runtime_pipeline_abi_assign_var_try_let_thin.x
+_compiler=""
+# Cap tip (post prior inject) can compile thin; else pin-egg.
+if perl -e 'alarm 90; exec @ARGV' -- "$CAP/xlang" -backend asm -c "$SRC" -o "$O" \
+    >/tmp/cap_tip_inject_thin.log 2>&1 && [ -s "$O" ]; then
+  _compiler="$CAP/xlang"
+elif [ -x seeds/bootstrap_xlangc.darwin.arm64 ] && \
+     perl -e 'alarm 90; exec @ARGV' -- seeds/bootstrap_xlangc.darwin.arm64 -backend asm -c "$SRC" -o "$O" \
+       >/tmp/cap_tip_inject_thin.log 2>&1 && [ -s "$O" ]; then
+  _compiler=seeds/bootstrap_xlangc.darwin.arm64
+else
+  echo "inject: Cap tip/egg cannot compile try_let thin (no LEGACY fallback)" >&2
+  exit 1
+fi
+echo "inject: thin via $_compiler"
 nm -gU "$O" | grep -q 'T _glue_emit_assign_var_try_let_elf_c'
 python3 - "$CAP" "$O" <<'PY'
 import struct,subprocess,sys,os
