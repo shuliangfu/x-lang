@@ -74,6 +74,7 @@ function lexer_tok_with_kind(t: *Token, k: TokenKind): void {
 
 export extern function cfg_eval_expr_c(start: *u8, len: i32): i32;
 
+
 /** See implementation for details. */
 allow(padding) struct Lexer {
   pos: usize;
@@ -3556,7 +3557,8 @@ export function skip_cfg_attr_if_present(out: *Lexer, lex: Lexer, data: u8[]): v
 
 /**
  * B-01 v1: If `l` is at `#[cfg(...)]`, evaluate host match, write TOKEN_ATTR_CFG, return 1.
- * Copies the expression into a stack buffer before cfg_eval_expr_c (avoids C-frontend ambiguity).
+ * Passes &data[expr_start] to cfg_eval_expr_c (no stack u8[256] / hollow BSS).
+ * Tip Linux smash on stack &tmp[0] (wave703) made cfg arms empty → net listen UNDEF.
  * PLATFORM: SHARED — LANG-007 S0: cfg_eval_expr_c is extern FFI inside unsafe (Cap-T001).
  */
 export function lexer_try_cfg_attr_into(out: *LexerResult, l: Lexer, data: u8[]): i32 {
@@ -3595,16 +3597,13 @@ export function lexer_try_cfg_attr_into(out: *LexerResult, l: Lexer, data: u8[])
   if (expr_len <= 0 || expr_len > 255) {
     return 0;
   }
-  let tmp: u8[256] = [];
-  let ti: i32 = 0;
-  while (ti < expr_len) {
-    tmp[ti] = data[expr_start + (ti as usize)];
-    ti = ti + 1;
-  }
+  // wave703 / 10.2: do not copy into stack u8[256] (&tmp[0] tip Linux smash)
+  // or file-level u8[256] BSS in lexer_x.o (tip emits no DATA; adrp hits TEXT).
+  // data[] is the source buffer — pass &data[expr_start] with length bound.
   // PLATFORM: SHARED — LANG-007 S0: extern call requires unsafe (Cap-T001).
   let enabled: i32 = 0;
   unsafe {
-    enabled = cfg_eval_expr_c(&tmp[0], expr_len) as i32;
+    enabled = cfg_eval_expr_c(&data[expr_start], expr_len) as i32;
   }
   p = p + (1 as usize);
   let l2: Lexer = { pos: p, line: l.line, col: l.col };
