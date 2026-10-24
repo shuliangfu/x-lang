@@ -113,6 +113,27 @@ _l4_restore_tip_aside() {
     fi
     chmod +x "$COMPILER_DIR/xlang_asm" 2>/dev/null || true
     log "step2b: restored tip aside for hybrid pabi ($cand)"
+    # note743y.6.23: refuse hollow Cap tip (ec=0 but 0-byte .o on
+    # runtime_asm_io_stubs.x). That aside left tip-cold failing try-heat
+    # stubs / missing parser_asm_thin_glue after SIGILL spam. PLATFORM: DARWIN.
+    if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+      && [ -f "$COMPILER_DIR/src/asm/runtime_asm_io_stubs.x" ] \
+      && [ -x "$COMPILER_DIR/xlang_asm" ]; then
+      _l4_probe="$COMPILER_DIR/build_asm/l4_aside_stubs_probe.o"
+      mkdir -p "$COMPILER_DIR/build_asm"
+      rm -f "$_l4_probe"
+      if ! (
+        cd "$COMPILER_DIR" || exit 1
+        ./xlang_asm -backend asm -c src/asm/runtime_asm_io_stubs.x -o "$_l4_probe" \
+          >/dev/null 2>&1
+      ) || [ ! -s "$_l4_probe" ] \
+        || ! nm "$_l4_probe" 2>/dev/null | grep -qE 'T _*runtime_asm_io_stubs_x_doc_anchor$'; then
+        rm -f "$_l4_probe"
+        fail "step2b: Cap tip aside hollow on runtime_asm_io_stubs.x (refuse 0-byte; restore a Cap tip that emits T doc_anchor)"
+      fi
+      rm -f "$_l4_probe"
+      log "step2b: Cap tip aside stubs smoke OK (runtime_asm_io_stubs T doc_anchor)"
+    fi
   fi
 }
 
