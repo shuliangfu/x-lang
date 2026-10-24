@@ -3137,8 +3137,9 @@ for x_path in "$@"; do
     ../std/math/math.x|std/math/math.x)
       # PLATFORM: MACOS|DARWIN|LINUX — bare-impl file for std.math.
       # -lib-name "" keeps math_pi_c, math_e_c, and math_tau_c.
-      # A miss stops here. mod.x has its own arm (记213). Windows keeps the C path.
-      # Do not fall through to cc for this file.
+      # Prefer pure-asm. tip Linux XT001 on math_tau_c→math_pi_c call: fall
+      # back to seeds/std_math_constants.from_x.c (not a new host-cc product).
+      # mod.x has its own arm (记213). Windows keeps the C path.
       _math_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_math_os" in
         Darwin|Linux)
@@ -3157,8 +3158,29 @@ for x_path in "$@"; do
             idx=$((idx + 1))
             continue
           fi
-          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          _math_seed="seeds/std_math_constants.from_x.c"
+          if [ ! -f "$_math_seed" ]; then
+            _math_seed="../compiler/seeds/std_math_constants.from_x.c"
+          fi
+          if [ -f "$_math_seed" ] \
+            && cc -c -I. -Iinclude -Isrc -o "$obj" "$_math_seed" \
+                >"$tmp_dir/math_x_seed_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?math_pi_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?math_e_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?math_tau_c$'; then
+            echo "xlang_compile_std_module: $obj <- $_math_seed (cold-seed; tip-asm miss)" >&2
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm+seed failed for $x_path" >&2
           cat "$tmp_dir/math_x_asm_${idx}.log" >&2
+          cat "$tmp_dir/math_x_seed_${idx}.log" 2>/dev/null >&2 || true
           exit 1
           ;;
       esac
