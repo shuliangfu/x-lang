@@ -452,6 +452,40 @@ if [ "$(uname -s 2>/dev/null || true)" = "Darwin" ]; then
       export XLANG="$XLANG_ABS"
       _sz="$(stat -f '%z' "$COMPILER_DIR/xlang" 2>/dev/null || stat -c '%s' "$COMPILER_DIR/xlang")"
       log "step6b: Cap tip residual prefer Cap tip cache product (size=$_sz; tip option FAIL)"
+      # Cap tip cannot rebuild formal_mod; tip-cold wiped core/std .o. Restore
+      # leaves from Cap tip cache (same map as product_l4_true_cold_cap_tip 6c).
+      # Without this, Cap tip L2 matrix BLD001 missing core_option_* / argv_bind.
+      mkdir -p "$ROOT/core/option" "$ROOT/core/result" "$ROOT/core/mem" "$ROOT/core/types" \
+        "$ROOT/std/string" "$ROOT/std/set" "$ROOT/std/queue" "$ROOT/std/fs" \
+        "$ROOT/std/compress/gzip" "$ROOT/std/net" "$ROOT/std/thread" "$ROOT/std/io"
+      _leaf_n=0
+      for _lf in option.o result.o mem.o types.o string.o set.o queue.o fs.o gzip.o net.o thread.o driver.o \
+                 runtime_process_argv.o runtime_thread_glue.o runtime_net_workers.o runtime_compress_zlib_glue.o; do
+        if [ -f "$_cap_cache/leaves/$_lf" ]; then
+          case "$_lf" in
+            runtime_process_argv.o) _ldest="$COMPILER_DIR/runtime_process_argv.o" ;;
+            runtime_thread_glue.o) _ldest="$COMPILER_DIR/runtime_thread_glue.o" ;;
+            runtime_net_workers.o) _ldest="$COMPILER_DIR/runtime_net_workers.o" ;;
+            string.o) _ldest="$ROOT/std/string/string.o" ;;
+            set.o) _ldest="$ROOT/std/set/set.o" ;;
+            queue.o) _ldest="$ROOT/std/queue/queue.o" ;;
+            fs.o) _ldest="$ROOT/std/fs/fs.o" ;;
+            gzip.o) _ldest="$ROOT/std/compress/gzip/gzip.o" ;;
+            runtime_compress_zlib_glue.o) _ldest="$COMPILER_DIR/runtime_compress_zlib_glue.o" ;;
+            net.o) _ldest="$ROOT/std/net/net.o" ;;
+            thread.o) _ldest="$ROOT/std/thread/thread.o" ;;
+            driver.o) _ldest="$ROOT/std/io/driver.o" ;;
+            option.o) _ldest="$ROOT/core/option/option.o" ;;
+            result.o) _ldest="$ROOT/core/result/result.o" ;;
+            mem.o) _ldest="$ROOT/core/mem/mem.o" ;;
+            types.o) _ldest="$ROOT/core/types/types.o" ;;
+          esac
+          cp -f "$_cap_cache/leaves/$_lf" "$_ldest"
+          _leaf_n=$((_leaf_n + 1))
+        fi
+      done
+      log "step6b: restored $_leaf_n Cap tip formal_mod leaves for L2"
+      unset _lf _ldest _leaf_n
     else
       log "step6b: Cap tip cache option also FAIL — keep tip product (L2 may red)"
     fi
