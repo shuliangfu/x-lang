@@ -1502,6 +1502,8 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
             if (include_root && include_root[0]) {
                 (void)xlang_ensure_formal_std_make_o(include_root, "std/heap/heap.o",
                                                     "../std/heap/heap.o");
+                (void)xlang_ensure_formal_std_make_o(include_root, "std/heap/page_mmap.o",
+                                                    "../std/heap/page_mmap.o");
                 (void)xlang_ensure_formal_std_make_o(include_root, "core/mem/mem.o",
                                                     "../core/mem/mem.o");
             }
@@ -1642,6 +1644,15 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
             link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_core_mem(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
         }
         if (need_page_mmap) {
+            /* PLATFORM: SHARED — L4 wipe deletes page_mmap.o; push skip-missing
+             * leaves std_heap_page_mmap_page_mmap_heap_* UNDEF (run-string
+             * BLD001). Mirror linux.o / sys.o formal ensure. Mirrors .x twin. */
+            {
+                const char *include_root = xlang_repo_root_from_argv0(link_argv0);
+                if (include_root && include_root[0])
+                    (void)xlang_ensure_formal_std_make_o(include_root, "std/heap/page_mmap.o",
+                                                        "../std/heap/page_mmap.o");
+            }
             link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_page_mmap(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
         }
         if (need_sys) {

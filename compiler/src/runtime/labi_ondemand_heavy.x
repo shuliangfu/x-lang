@@ -1794,6 +1794,8 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
         if (root_h[0] != 0) {
           unsafe {
             let _eh: i32 = xlang_ensure_formal_std_make_o(root_h, "std/heap/heap.o", "../std/heap/heap.o");
+            // L4 wipe: heap.o U page_mmap_*; ensure companion leaf (twin need_pm).
+            let _epm_h: i32 = xlang_ensure_formal_std_make_o(root_h, "std/heap/page_mmap.o", "../std/heap/page_mmap.o");
             let _em: i32 = xlang_ensure_formal_std_make_o(root_h, "core/mem/mem.o", "../core/mem/mem.o");
           }
         }
@@ -2027,6 +2029,21 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
         }
       }
       if (need_pm != 0) {
+        // PLATFORM: SHARED — L4 wipe deletes page_mmap.o; push_obj skip-missing
+        // then leaves std_heap_page_mmap_page_mmap_heap_* UNDEF (run-string
+        // BLD001). Mirror linux.o / sys.o formal ensure. G.7: complete
+        // existing need_pm path; no second table / no host-cc.
+        let root_pm: *u8 = 0 as *u8;
+        unsafe {
+          root_pm = xlang_repo_root_from_argv0(link_argv0);
+        }
+        if (root_pm != 0 as *u8) {
+          if (root_pm[0] != 0) {
+            unsafe {
+              let _epm: i32 = xlang_ensure_formal_std_make_o(root_pm, "std/heap/page_mmap.o", "../std/heap/page_mmap.o");
+            }
+          }
+        }
         let rpm: *u8 = labi_od_rel_page_mmap();
         unsafe {
           let _pm: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rpm, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
