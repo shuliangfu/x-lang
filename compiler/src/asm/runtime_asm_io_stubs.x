@@ -1096,14 +1096,19 @@ export function std_io_unregister_provided(): void {
   return;
 }
 
-/** Zero-copy stdin slice. PLATFORM: SHARED */
+/** Zero-copy stdin slice. PLATFORM: SHARED
+ * tip body_sync pass0 must not hoist a RaisSliceU8 let past the if that
+ * writes length (that left length=0 in the cell and a scalar-only return).
+ * Return the struct lit from each arm so dual-GP (x0=data,x1=len) is set
+ * at the return site. Same ABI as Cap tip Oct22 stubs. */
 #[no_mangle]
 export function std_io_read_stdin_ptr_slice(): RaisSliceU8 {
   let d: *u8 = io_read_ptr(0, 0);
-  let n: usize = 0;
-  if (d != 0 as *u8) { n = g_rais_read_ptr_len[0] as usize; }
-  let s: RaisSliceU8 = RaisSliceU8 { data: d, length: n };
-  return s;
+  if (d != 0 as *u8) {
+    let n: usize = g_rais_read_ptr_len[0] as usize;
+    return RaisSliceU8 { data: d, length: n };
+  }
+  return RaisSliceU8 { data: d, length: 0 };
 }
 
 /** io.stdin_slice. PLATFORM: SHARED */
@@ -1112,14 +1117,15 @@ export function std_io_stdin_slice(): RaisSliceU8 {
   return std_io_read_stdin_ptr_slice();
 }
 
-/** Zero-copy slice on a handle. PLATFORM: SHARED */
+/** Zero-copy slice on a handle. PLATFORM: SHARED — same pass0/dual-GP shape. */
 #[no_mangle]
 export function std_io_read_ptr_slice(handle: usize, timeout_ms: u32): RaisSliceU8 {
   let d: *u8 = io_read_ptr(handle as u32, timeout_ms);
-  let n: usize = 0;
-  if (d != 0 as *u8) { n = g_rais_read_ptr_len[0] as usize; }
-  let s: RaisSliceU8 = RaisSliceU8 { data: d, length: n };
-  return s;
+  if (d != 0 as *u8) {
+    let n: usize = g_rais_read_ptr_len[0] as usize;
+    return RaisSliceU8 { data: d, length: n };
+  }
+  return RaisSliceU8 { data: d, length: 0 };
 }
 
 // ---- batch / uring / fixed / driver / backend stubs ----
