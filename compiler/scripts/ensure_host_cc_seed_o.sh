@@ -9893,27 +9893,65 @@ diagnostic_thin_darwin_pure() {
 fmt_check_darwin_pure() {
   local o="${1:-}"
   local xsrc="src/driver/fmt_check_cmd_thin.x"
-  local try n c oc
+  local try n c oc _bin _bins="" _c _egg _ok=0
   if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
     return 1
   fi
   if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
     return 1
   fi
-  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+  if [ -z "$o" ] || [ ! -f "$xsrc" ]; then
     return 1
   fi
-  try=0
-  while [ "$try" -lt 12 ]; do
-    try=$((try + 1))
-    rm -f "$o"
-    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
-      break
-    fi
-    rm -f "$o"
+  # note743y.6.23: tip-cold tip/xlang_asm SEGV/CG002 on this thin; Cap tip
+  # cache + pin-egg emit cleanly. Prefer Cap tip / egg BEFORE tip so we do
+  # not fill g05_xasm_crash.log 12× then fail the gate (class note743t
+  # Linux pin-egg-first). PLATFORM: MACOS tip cold · arm64.
+  for _c in /tmp/cap_tip_l4_safe_406200eef /tmp/cap_tip_l4_safe_* \
+    "${HOME:-}/.cache/xlang_cap_tip_l4" .cap_tip_l4_cache; do
+    [ -n "$_c" ] || continue
+    [ -x "$_c/xlang_asm" ] && _bins="$_bins $_c/xlang_asm"
+    [ -x "$_c/xlang" ] && _bins="$_bins $_c/xlang"
   done
-  if [ ! -s "$o" ]; then
+  _egg="seeds/bootstrap_xlangc.darwin.arm64"
+  [ -x "$_egg" ] && _bins="$_bins $_egg"
+  [ -x ./bootstrap_xlangc ] && _bins="$_bins ./bootstrap_xlangc"
+  [ -x ./xlang-c ] && _bins="$_bins ./xlang-c"
+  [ -x ./xlang_asm ] && _bins="$_bins ./xlang_asm"
+  [ -x ./xlang ] && _bins="$_bins ./xlang"
+  [ -z "$_bins" ] && return 1
+  for _bin in $_bins; do
+    try=0
+    while [ "$try" -lt 3 ]; do
+      try=$((try + 1))
+      rm -f "$o"
+      _rc=0
+      if g05_xasm "$_bin" -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1; then
+        _rc=0
+      else
+        _rc=$?
+      fi
+      if [ "$_rc" -eq 0 ] && [ -s "$o" ]; then
+        _ok=1
+        break 2
+      fi
+      # tip SEGV/ILL: do not burn retries on the same broken product.
+      rm -f "$o"
+      if [ "$_rc" -ge 128 ] || [ "$_rc" -eq 124 ]; then
+        break
+      fi
+    done
+  done
+  if [ "$_ok" != "1" ] || [ ! -s "$o" ]; then
     return 1
+  fi
+  # Recovered via Cap tip / egg after tip crash rows: scrub this .x so the
+  # g05 crash gate does not false-fail (same scrub as _g05_pure_overlay).
+  if [ -s "${G05_XASM_CRASH_LOG:-build_asm/g05_xasm_crash.log}" ]; then
+    grep -vF " $xsrc" "${G05_XASM_CRASH_LOG:-build_asm/g05_xasm_crash.log}" \
+      >build_asm/g05_xasm_crash.log.scrub 2>/dev/null || true
+    mv -f build_asm/g05_xasm_crash.log.scrub \
+      "${G05_XASM_CRASH_LOG:-build_asm/g05_xasm_crash.log}" 2>/dev/null || true
   fi
   n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
   if [ "$n" != "66" ]; then

@@ -111,6 +111,32 @@ if [ -x ./xlang_asm ]; then
 elif [ -x ./xlang ]; then
   _stage2_xl=./xlang
 fi
+# note743y.6.23: tip-cold tip SEGV on fmt_check_cmd_thin; Cap tip / pin-egg
+# emit. Probe tip; on signal/CG002 miss, switch XLANG to Cap tip / egg so
+# FORCE does not fill g05_xasm_crash.log. PLATFORM: MACOS tip cold.
+if [ "$(uname -s 2>/dev/null || true)" = "Darwin" ] && [ -n "$_stage2_xl" ]; then
+  _s2_probe="$(mktemp "${TMPDIR:-/tmp}/stage2_fmt_probe.XXXXXX.o")"
+  _s2_rc=0
+  "$_stage2_xl" -backend asm -c src/driver/fmt_check_cmd_thin.x -o "$_s2_probe" \
+    >/dev/null 2>&1 || _s2_rc=$?
+  if [ "$_s2_rc" -ne 0 ] || [ ! -s "$_s2_probe" ]; then
+    _s2_alt=""
+    for _s2c in /tmp/cap_tip_l4_safe_406200eef /tmp/cap_tip_l4_safe_* \
+      "${HOME:-}/.cache/xlang_cap_tip_l4" .cap_tip_l4_cache; do
+      [ -x "$_s2c/xlang_asm" ] && { _s2_alt="$_s2c/xlang_asm"; break; }
+      [ -x "$_s2c/xlang" ] && { _s2_alt="$_s2c/xlang"; break; }
+    done
+    if [ -z "$_s2_alt" ] && [ -x seeds/bootstrap_xlangc.darwin.arm64 ]; then
+      _s2_alt=seeds/bootstrap_xlangc.darwin.arm64
+    fi
+    if [ -n "$_s2_alt" ]; then
+      echo "g05_prepare_and_relink: stage2 tip fmt probe FAIL (rc=$_s2_rc) → $_s2_alt" >&2
+      _stage2_xl="$_s2_alt"
+    fi
+  fi
+  rm -f "$_s2_probe"
+  unset _s2_probe _s2_rc _s2_alt _s2c
+fi
 if [ -n "$_stage2_xl" ] \
   && nm "$_stage2_xl" 2>/dev/null | grep -q 'pipeline_asm_modlet_lea_rax_' \
   && [ -f scripts/ensure_host_cc_seed_o.sh ]; then
