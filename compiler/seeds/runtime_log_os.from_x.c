@@ -50,7 +50,7 @@ extern int rename(const char *oldpath, const char *newpath);
 int log_write_fd_impl(int fd, const void *buf, size_t len) { return (int)xlang_io_write(fd, buf, len); }
 
 #ifndef XLANG_RUNTIME_LOG_OS_FROM_X
-/* 记253／9.1: cold under #ifndef XLANG_RUNTIME_LOG_OS_FROM_X removed */
+int log_write_fd(int fd, const void *buf, size_t len) { return log_write_fd_impl(fd, buf, len); }
 #endif
 
 #define LOG_SINK_STDERR 1
@@ -109,6 +109,9 @@ void log_apply_env_once_impl(void) {
 }
 
 #ifndef XLANG_RUNTIME_LOG_OS_FROM_X
+void log_apply_env_once(void) {
+  log_apply_env_once_impl();
+}
 #endif
 
 /** Get current min log level (0-3). */
@@ -122,6 +125,9 @@ void log_set_min_level_impl(int32_t level) {
 }
 
 #ifndef XLANG_RUNTIME_LOG_OS_FROM_X
+void log_set_min_level_c(int32_t level) {
+  if (level >= 0 && level <= 3) s_min_level = level;
+}
 #endif
 
 /** Set active sink mask (LOG_SINK_STDERR | LOG_SINK_FILE). */
@@ -130,6 +136,9 @@ void log_set_sink_mask_impl(int32_t mask) {
 }
 
 #ifndef XLANG_RUNTIME_LOG_OS_FROM_X
+void log_set_sink_mask_c(int32_t mask) {
+  s_sink_mask = mask;
+}
 #endif
 
 /** Open file sink for append; path[len] need not be NUL-terminated. Returns 0 success, -1 failure. */
@@ -158,6 +167,9 @@ int32_t log_set_file_sink_impl(const uint8_t *path, int32_t len) {
 }
 
 #ifndef XLANG_RUNTIME_LOG_OS_FROM_X
+int32_t log_set_file_sink_c(const uint8_t *path, int32_t len) {
+  return log_set_file_sink_impl(path, len);
+}
 #endif
 
 /** Close file sink if open. */
@@ -173,6 +185,9 @@ void log_close_file_sink_impl(void) {
 }
 
 #ifndef XLANG_RUNTIME_LOG_OS_FROM_X
+void log_close_file_sink_c(void) {
+  log_close_file_sink_impl();
+}
 #endif
 
 /** Rotate log file when size threshold reached. Returns 0 success, -1 failure. */
@@ -217,6 +232,9 @@ int32_t log_do_rotate_impl(void) {
 }
 
 #ifndef XLANG_RUNTIME_LOG_OS_FROM_X
+int32_t log_do_rotate(void) {
+  return log_do_rotate_impl();
+}
 #endif
 
 /** Set rotation threshold; must call set_file_sink first. Returns 0 success, -1 failure. */
@@ -228,6 +246,12 @@ int32_t log_set_rotate_impl(int32_t max_bytes, int32_t max_backups) {
 }
 
 #ifndef XLANG_RUNTIME_LOG_OS_FROM_X
+int32_t log_set_rotate_c(int32_t max_bytes, int32_t max_backups) {
+  if (max_bytes < 0 || max_backups < 0 || max_backups > 8) return -1;
+  s_rotate_max_bytes = max_bytes;
+  s_rotate_max_backups = max_backups;
+  return 0;
+}
 #endif
 
 /** Enable/disable async buffering; flush before disabling. Returns 0 success, -1 failure. */
@@ -244,6 +268,17 @@ int32_t log_set_async_enabled_impl(int32_t enabled) {
 }
 
 #ifndef XLANG_RUNTIME_LOG_OS_FROM_X
+int32_t log_set_async_enabled_c(int32_t enabled) {
+  if (enabled) {
+    s_async_enabled = 1;
+    return 0;
+  }
+  if (s_async_enabled) {
+    if (log_async_flush_c() != 0) return -1;
+    s_async_enabled = 0;
+  }
+  return 0;
+}
 #endif
 
 /** Flush async buffer to active sinks. Returns 0 success, -1 failure. */
@@ -257,6 +292,14 @@ int32_t log_async_flush_impl(void) {
 }
 
 #ifndef XLANG_RUNTIME_LOG_OS_FROM_X
+int32_t log_async_flush_c(void) {
+  int32_t i;
+  for (i = 0; i < s_async_count; i++) {
+    if (log_write_sync(s_async_queue[i].data, (size_t)s_async_queue[i].length) != 0) return -1;
+  }
+  s_async_count = 0;
+  return 0;
+}
 #endif
 
 /** Write buffer to file sink, with rotation check. Returns 0 success, -1 failure. */
@@ -271,6 +314,9 @@ int32_t log_write_file_sync_impl(const void *buf, size_t len) {
 }
 
 #ifndef XLANG_RUNTIME_LOG_OS_FROM_X
+int32_t log_write_file_sync(const void *buf, size_t len) {
+  return log_write_file_sync_impl(buf, len);
+}
 #endif
 
 /** Write buffer to all active sinks (stderr + file). Returns 0 success, -1 failure. */
@@ -283,6 +329,9 @@ int32_t log_write_sync_impl(const void *buf, size_t len) {
 }
 
 #ifndef XLANG_RUNTIME_LOG_OS_FROM_X
+int32_t log_write_sync(const void *buf, size_t len) {
+  return log_write_sync_impl(buf, len);
+}
 #endif
 
 /** Enqueue buffer in async ring buffer; flush first if full. Returns 0 success, -1 failure. */
@@ -299,6 +348,9 @@ int32_t log_async_enqueue_impl(const void *buf, size_t len) {
 }
 
 #ifndef XLANG_RUNTIME_LOG_OS_FROM_X
+int32_t log_async_enqueue(const void *buf, size_t len) {
+  return log_async_enqueue_impl(buf, len);
+}
 #endif
 
 /** Write buffer: async queue if enabled, else direct write. Returns 0 success, -1 failure. */
@@ -308,15 +360,29 @@ int32_t log_emit_bytes_impl(const void *buf, size_t len) {
 }
 
 #ifndef XLANG_RUNTIME_LOG_OS_FROM_X
+int32_t log_emit_bytes(const void *buf, size_t len) {
+  return log_emit_bytes_impl(buf, len);
+}
 #endif
 
 #ifndef XLANG_RUNTIME_LOG_OS_FROM_X
+void log_apply_env_once_c(void) {
+  log_apply_env_once();
+}
 #endif
 
 #ifndef XLANG_RUNTIME_LOG_OS_FROM_X
+int32_t log_get_min_level_c(void) {
+  log_apply_env_once();
+  return s_min_level;
+}
 #endif
 
 #ifndef XLANG_RUNTIME_LOG_OS_FROM_X
+int32_t log_emit_bytes_c(const uint8_t *buf, int32_t len) {
+  if (!buf || len <= 0) return -1;
+  return log_emit_bytes(buf, (size_t)len);
+}
 #endif
 
 extern int32_t log_write_c(int32_t level, const uint8_t *ptr, int32_t len);
