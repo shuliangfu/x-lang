@@ -70,7 +70,9 @@ void *backtrace_read_frame_addr_impl(const uint8_t *buf, int32_t i) {
 }
 
 #ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X
-/* 记253／9.1: cold under #ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X removed */
+void *backtrace_read_frame_addr_c(const uint8_t *buf, int32_t i) {
+  return backtrace_read_frame_addr_impl(buf, i);
+}
 #endif
 
 /** Write frame address into buffer at position i. */
@@ -85,6 +87,9 @@ void backtrace_write_frame_addr_impl(uint8_t *buf, int32_t i, void *addr) {
 }
 
 #ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X
+void backtrace_write_frame_addr_c(uint8_t *buf, int32_t i, void *addr) {
+  backtrace_write_frame_addr_impl(buf, i, addr);
+}
 #endif
 
 /** Convert single byte to two lowercase hex characters. */
@@ -97,6 +102,9 @@ void backtrace_u8_hex2_impl(uint8_t b, uint8_t *out) {
 }
 
 #ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X
+void backtrace_u8_hex2(uint8_t b, uint8_t *out) {
+  backtrace_u8_hex2_impl(b, out);
+}
 #endif
 
 /** Copy symbol name into output buffer (max name_cap-1 bytes + NUL). */
@@ -111,6 +119,10 @@ void backtrace_copy_sym_name_impl(uint8_t *out, int32_t name_cap, const uint8_t 
 }
 
 #ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X
+int32_t backtrace_copy_sym_name_c(uint8_t *out, int32_t name_cap, const uint8_t *name) {
+  backtrace_copy_sym_name_impl(out, name_cap, name);
+  return 0;
+}
 #endif
 
 /** Format address as "0x" + hex digits into out[0..cap).
@@ -141,6 +153,9 @@ void backtrace_format_hex_addr_impl(uint8_t *out, int32_t cap, void *addr) {
 }
 
 #ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X
+void backtrace_format_hex_addr_c(uint8_t *out, int32_t cap, void *addr) {
+  backtrace_format_hex_addr_impl(out, cap, addr);
+}
 #endif
 
 /** Check if symbol name contains gold_anchor substring. */
@@ -150,9 +165,15 @@ int32_t backtrace_name_has_gold_anchor_impl(const uint8_t *name) {
 }
 
 #ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X
+int32_t backtrace_name_has_gold_anchor_c(const uint8_t *name) {
+  return backtrace_name_has_gold_anchor_impl(name);
+}
 #endif
 
 #ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X
+int32_t name_has_gold_anchor(const uint8_t *name) {
+  return backtrace_name_has_gold_anchor_impl(name);
+}
 #endif
 
 /* === Platform-specific _impl functions === */
@@ -229,6 +250,9 @@ int32_t backtrace_capture_impl(uint8_t *buf, int32_t max_frames) {
 }
 
 #ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X
+int32_t backtrace_capture_c(uint8_t *buf, int32_t max_frames) {
+  return backtrace_capture_impl(buf, max_frames);
+}
 #endif
 
 /** Symbolicate captured buffer. */
@@ -297,6 +321,9 @@ int32_t backtrace_symbolicate_impl(const uint8_t *buf, int32_t len, uint8_t *out
 }
 
 #ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X
+int32_t backtrace_symbolicate_c(const uint8_t *buf, int32_t len, uint8_t *out_ptrs, uint8_t *out_names, int32_t max) {
+  return backtrace_symbolicate_impl(buf, len, out_ptrs, out_names, max);
+}
 #endif
 
 /** Get address of gold_anchor function. */
@@ -313,6 +340,9 @@ void *backtrace_gold_anchor_addr_impl(void) {
 }
 
 #ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X
+void *backtrace_gold_anchor_addr_c(void) {
+  return backtrace_gold_anchor_addr_impl();
+}
 #endif
 
 /** Capture and check for gold_anchor symbol. */
@@ -332,6 +362,9 @@ int32_t backtrace_capture_and_check_gold_c_impl(void) {
 }
 
 #ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X
+int32_t backtrace_capture_and_check_gold_c(void) {
+  return backtrace_capture_and_check_gold_c_impl();
+}
 #endif
 
 /** Get current platform name. */
@@ -348,6 +381,9 @@ const uint8_t *backtrace_xplat_platform_name_impl(void) {
 }
 
 #ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X
+const uint8_t *backtrace_xplat_platform_name_c(void) {
+  return backtrace_xplat_platform_name_impl();
+}
 #endif
 
 /** Cross-platform symbol quality probe. */
@@ -380,6 +416,9 @@ int32_t backtrace_xplat_quality_impl(void) {
 }
 
 #ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X
+int32_t backtrace_xplat_quality_c(void) {
+  return backtrace_xplat_quality_impl();
+}
 #endif
 
 /** Collect crash evidence when XLANG_CRASH_EVIDENCE=1.
@@ -440,6 +479,9 @@ void xlang_crash_evidence_collect_impl(int has_msg, int msg_val) {
 }
 
 #ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X
+void xlang_crash_evidence_collect_c(int has_msg, int msg_val) {
+  xlang_crash_evidence_collect_impl(has_msg, msg_val);
+}
 #endif
 
 /* === Smoke tests + noinline functions (stay in C, no thin wrapper) === */
