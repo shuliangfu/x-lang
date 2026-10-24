@@ -17322,8 +17322,9 @@ try_ensure_labi_prefer_one() {
 #   → slice .o (else cold layer seed); rest = seeds/runtime.from_x.c under
 #   XLANG_RT_*_FROM_X for ok layers; merge $CC -r -nostdlib slices + rest → OUT.
 # PLATFORM: SHARED — do NOT merge RT_SEED_SLICE permanent .o into no_c
-#   (arena/emit_state/preamble/stack/parse_diag stay external; FROM_X on rest
-#   leaves them U in no_c — historic Darwin 22× multidef fix).
+#   (arena/emit_state/preamble/stack/parse_diag/rt_run_exec stay external;
+#   FROM_X on rest leaves them U in no_c — historic Darwin 22× multidef fix;
+#   knife254 added rt_run_exec to the g05 slice list — must not merge R7).
 # Prefer fail / partial slices → **refuse** monofile by default (wave320);
 #   set XLANG_RT_ALLOW_MONOFILE_LAST_RESORT=1 to restore monofile + NO_C last resort.
 # wave319: PREFER=0 still multi-slices from cold layer seeds; omit empty mega when full.
@@ -18724,16 +18725,20 @@ ensure_rt_prefer_one() {
             # PLATFORM: SHARED — do NOT merge RT_SEED_SLICE objs into no_c.
             # g05_relink_env always links:
             #   rt_arena_buf / rt_emit_state / rt_preamble / rt_stack / rt_parse_diag
-            # as separate .o. Merging them here caused Darwin 22× duplicate symbols
-            # (parse_diag recovery + arena/emit/preamble/stack). Keep FROM_X on rest
-            # (above) so no_c leaves those symbols U; permanent slice .o provide them.
-            # Still merge non-slice hybrid pieces (content/util/argv/…/fs/fmt/dispatch…).
+            #   / rt_run_exec
+            # as separate .o. Merging the five historic slices caused Darwin 22×
+            # duplicate symbols (parse_diag recovery + arena/emit/preamble/stack).
+            # knife254 / 9.2 also put rt_run_exec on that list (driver_exec_* /
+            # driver_run_test authority); merging R7 into no_c then dups the
+            # permanent src/runtime/rt_run_exec.o at pure-ld (17 symbols).
+            # Keep FROM_X on rest so no_c leaves those symbols U; permanent
+            # slice .o provide them. Still merge non-slice hybrid pieces
+            # (content/util/argv/…/fs/fmt/dispatch…).
             if [ "$_rt_compile_ok" = "1" ]; then
               _rt_link_objs="$_rt_link_objs $_rt_cmp_o"
             fi
-            if [ "$_rt_run_ok" = "1" ]; then
-              _rt_link_objs="$_rt_link_objs $_rt_run_o"
-            fi
+            # R7 rt_run_exec: build/ok for FROM_X + full_slices gate only —
+            # do NOT append $_rt_run_o (RT_SEED_SLICE; knife254/256).
             if [ "$_rt_asm_ok" = "1" ]; then
               _rt_link_objs="$_rt_link_objs $_rt_asm_o"
             fi

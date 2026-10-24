@@ -254,7 +254,8 @@ _GLUE_SUFFIX="src/runtime_driver_strict_glue_stubs.o"
 # Cap residual：与 Makefile RT_SEED_SLICE_OBJS / build_xlang_asm asm_bootstrap_support_extra_link 同源。
 # runtime_driver_abi 始终 extern 这些符号；no_c runtime 在 XLANG_RT_*_FROM_X 下不内嵌 BSS 定义。
 # PLATFORM: SHARED — nm on runtime_driver_no_c.o shows U for driver_arena_buf /
-# write_io_net_abi_inline / driver_x_emit_c_* / runtime_report_* after true L4 wipe.
+# write_io_net_abi_inline / driver_x_emit_c_* / runtime_report_* / driver_run_test
+# / driver_exec_* after true L4 wipe (rt_run_exec is RT_SEED_SLICE, not in no_c).
 # Always link RT seed slices (same list as Makefile). Omitting them (922487e5) made
 # L2/L3 look green only when an old binary residual remained; L4 g05 link UNDEF.
 # Do NOT empty this when no_c is U; if no_c ever merges strong defs, fix no_c merge
