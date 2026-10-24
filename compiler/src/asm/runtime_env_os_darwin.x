@@ -289,6 +289,13 @@ function env_os_name_ok(name: *u8): i32 {
  * PLATFORM: MACOS|DARWIN
  */
 function env_os_scan(env: **u8, name: *u8, nlen: i32, idx_out: *i32): i32 {
+  // note743y.6.23: tip codegen may call scan before strlen stores nlen (nlen=0).
+  // Always measure name here so setenv cannot publish "=value" entries.
+  let use_nlen: i32 = nlen;
+  unsafe {
+    let sl: i64 = strlen(name);
+    use_nlen = sl as i32;
+  }
   let i: i32 = 0;
   let found: i32 = 0 - 1;
   while (i < 4096) {
@@ -297,7 +304,7 @@ function env_os_scan(env: **u8, name: *u8, nlen: i32, idx_out: *i32): i32 {
       idx_out[0] = found;
       return i;
     }
-    if (found < 0 && env_os_key_eq(ent, name, nlen) == 1) {
+    if (found < 0 && env_os_key_eq(ent, name, use_nlen) == 1) {
       found = i;
     }
     i = i + 1;
@@ -331,11 +338,16 @@ function env_os_copy_slots(dst: **u8, src: **u8, n: i32): void {
  * PLATFORM: MACOS|DARWIN
  */
 function env_os_make_entry(name: *u8, nlen: i32, value: *u8): *u8 {
+  // note743y.6.23: tip may invoke make_entry with stale nlen=0 (strlen not yet stored).
+  let use_nlen: i64 = nlen as i64;
+  unsafe {
+    use_nlen = strlen(name);
+  }
   let vlen: i64 = 0;
   unsafe {
     vlen = strlen(value);
   }
-  let nbytes: i64 = (nlen as i64) + 1 + vlen + 1;
+  let nbytes: i64 = use_nlen + 1 + vlen + 1;
   let entry: *u8 = 0;
   unsafe {
     entry = malloc(nbytes);
@@ -344,13 +356,13 @@ function env_os_make_entry(name: *u8, nlen: i32, value: *u8): *u8 {
     return 0;
   }
   unsafe {
-    memcpy(entry, name, nlen as i64);
+    memcpy(entry, name, use_nlen);
   }
-  entry[nlen] = 61 as u8;
+  entry[use_nlen as i32] = 61 as u8;
   unsafe {
-    memcpy(&entry[nlen + 1], value, vlen);
+    memcpy(&entry[(use_nlen as i32) + 1], value, vlen);
   }
-  entry[nlen + 1 + (vlen as i32)] = 0 as u8;
+  entry[(use_nlen as i32) + 1 + (vlen as i32)] = 0 as u8;
   return entry;
 }
 
@@ -544,17 +556,10 @@ export function env_getenv_exists_c_impl(key: *u8, key_len: i32): i32 {
 }
 
 /**
- * Insert or replace name=value in the Darwin environ block.
- * A new vector is malloc'd on append. The previous vector is freed
- * only when this TU allocated it. Existing entries are not freed.
- * @param name *u8 — NUL-terminated key
- * @param value *u8 — NUL-terminated value, or null for ""
- * @param overwrite i32 — 0 keeps an existing value
- * @return i32 — 0 on success, -1 on failure
- * PLATFORM: MACOS|DARWIN — no libc setenv
+ * Insert or replace name=value (work). nlen_in must be strlen(name).
+ * PLATFORM: MACOS|DARWIN
  */
-#[no_mangle]
-export function env_setenv_c_impl(name: *u8, value: *u8, overwrite: i32): i32 {
+function env_setenv_c_impl_work(name: *u8, value: *u8, overwrite: i32, nlen_in: i64): i32 {
   if (env_os_name_ok(name) == 0) {
     return 0 - 1;
   }
@@ -566,10 +571,7 @@ export function env_setenv_c_impl(name: *u8, value: *u8, overwrite: i32): i32 {
   if (use == 0) {
     use = "";
   }
-  let nlen: i64 = 0;
-  unsafe {
-    nlen = strlen(name);
-  }
+  let nlen: i64 = nlen_in;
   let idx_slot: i32 = 0 - 1;
   let count: i32 = env_os_scan(env, name, nlen as i32, &idx_slot);
   if (idx_slot >= 0 && overwrite == 0) {
@@ -606,6 +608,31 @@ export function env_setenv_c_impl(name: *u8, value: *u8, overwrite: i32): i32 {
   env_os_publish(neu);
   env_os_owned_set(neu);
   return 0;
+}
+
+/**
+ * Insert or replace name=value in the Darwin environ block.
+ * Thin wrapper measures strlen before work so tip cannot schedule
+ * scan/make_entry with nlen=0 (note743y.6.23 setenv_unsetenv exit=2).
+ * @param name *u8 — NUL-terminated key
+ * @param value *u8 — NUL-terminated value, or null for ""
+ * @param overwrite i32 — 0 keeps an existing value
+ * @return i32 — 0 on success, -1 on failure
+ * PLATFORM: MACOS|DARWIN — no libc setenv
+ */
+#[no_mangle]
+export function env_setenv_c_impl(name: *u8, value: *u8, overwrite: i32): i32 {
+  if (name == 0) {
+    return 0 - 1;
+  }
+  let nlen: i64 = 0;
+  unsafe {
+    nlen = strlen(name);
+  }
+  if (nlen <= 0) {
+    return 0 - 1;
+  }
+  return env_setenv_c_impl_work(name, value, overwrite, nlen);
 }
 
 /**
