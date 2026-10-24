@@ -408,7 +408,9 @@ export function pipeline_asm_simd_try_inline_shuffle_call_elf_c(
   if (mask_lit <= 0) {
     return 0;
   }
-  src_off = glue_asm_local_var_stack_off_scoped(arena, ctx, arg0);
+  unsafe {
+    src_off = glue_asm_local_var_stack_off_scoped(arena, ctx, arg0);
+  }
   if (src_off < 0) {
     return 0;
   }
@@ -606,9 +608,11 @@ export function pipeline_asm_simd_try_inline_select_call_elf_c(
   if (ko != 3) {
     return 0;
   }
-  off_m = glue_asm_local_var_stack_off_scoped(arena, ctx, arg_m);
-  off_a = glue_asm_local_var_stack_off_scoped(arena, ctx, arg_a);
-  off_b = glue_asm_local_var_stack_off_scoped(arena, ctx, arg_b);
+  unsafe {
+    off_m = glue_asm_local_var_stack_off_scoped(arena, ctx, arg_m);
+    off_a = glue_asm_local_var_stack_off_scoped(arena, ctx, arg_a);
+    off_b = glue_asm_local_var_stack_off_scoped(arena, ctx, arg_b);
+  }
   if (off_m < 0 || off_a < 0 || off_b < 0) {
     return 0;
   }
