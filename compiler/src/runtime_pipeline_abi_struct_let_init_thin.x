@@ -295,10 +295,11 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   unsafe {
     ko = pipeline_expr_kind_ord_at(arena, init_ref);
   }
-  // @shuffle / @select are kind 48 with no callee body. The lane
-  // writers store the slot. Kind 49 and a dest-in-rbx slot stay here.
-  // PLATFORM: MACOS|ARM64 call. The writers are SHARED.
-  if (ko == 48 && stack_slot_off >= 0) {
+  // @shuffle / @select are kind 48; import simd.shuffle/select is
+  // METHOD_CALL kind 49. Both must hit the SHARED try_inline writers
+  // (pshufd / HW select) before falling through to a real call.
+  // PLATFORM: SHARED. Windows twin already did 48|49.
+  if ((ko == 48 || ko == 49) && stack_slot_off >= 0) {
     inl = pipeline_asm_simd_try_inline_shuffle_call_elf_c(
       arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, let_ty_ref);
     if (inl == 1) {

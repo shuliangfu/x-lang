@@ -14,13 +14,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Darwin body of the SIMD @shuffle / @select inline.
-// Typeck lowers @shuffle and @select to a bare CALL named
-// simd_shuffle or simd_select. That name has no module function.
-// The lane writers already in the product are the body. Method
-// calls (kind 49) stay on the import path and return 0 here.
-// PLATFORM: SHARED lane writers. This name gate is the Darwin
-// hole: the Windows C twin already owns the same symbol.
+// SHARED body of the SIMD @shuffle / @select inline.
+// Typeck lowers @shuffle/@select to bare CALL (simd_shuffle /
+// simd_select). Import simd.shuffle/select is METHOD_CALL kind 49
+// with bare name "shuffle"/"select". Try pshufd / HW select first
+// (Windows twin), then lane-scalar. PLATFORM: SHARED.
 
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_call_num_args_at(arena: *u8, expr_ref: i32): i32;
@@ -35,6 +33,18 @@ export extern function glue_emit_vector_shuffle_lane_scalar_elf_c(
 export extern function glue_emit_vector_select_lane_scalar_elf_c(
   arena: *u8, elf_ctx: *u8, mask_ref: i32, a_ref: i32, b_ref: i32, dst_off: i32, type_ref: i32, ctx: *u8, ta: i32
 ): i32;
+export extern function pipeline_expr_method_call_num_args_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_method_call_name_len(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_method_call_name_into(arena: *u8, expr_ref: i32, out: *u8): void;
+export extern function pipeline_expr_method_call_arg_ref(arena: *u8, expr_ref: i32, idx: i32): i32;
+export extern function glue_asm_local_var_stack_off_scoped(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
+export extern function glue_shuffle_pshufd_imm8_from_mask_c(arena: *u8, mask_ref: i32, lanes: i32, out_imm: *i32): i32;
+export extern function glue_simd_emit_cpu_features_c(): u32;
+export extern function xlang_target_cpu_detect_host(): u32;
+export extern function simd_enc_try_pshufd_rbp(elf_ctx: *u8, src: i32, dst: i32, imm8: i32, lanes: i32, ta: i32, feats: u32): i32;
+export extern function simd_enc_try_hw_vector_select_rbp(elf_ctx: *u8, m: i32, a: i32, b: i32, d: i32, lanes: i32, is_f32: i32, ta: i32, feats: u32): i32;
+export extern function glue_vector_elem_is_f32_c(arena: *u8, type_ref: i32): i32;
+export extern function link_abi_getenv(name: *u8): *u8;
 
 /**
  * Read one callee-name byte as i32.
@@ -229,6 +239,10 @@ function at_shuffle_expect_lanes(buf: *u8, n: i32): i32 {
   if (n == 13 && at_name_vec8i_us(buf) != 0 && at_name_shuffle_at(buf, 6) != 0) {
     return 8;
   }
+  /* import METHOD bare name: simd.shuffle → "shuffle". */
+  if (n == 7 && at_name_shuffle_at(buf, 0) != 0) {
+    return 0;
+  }
   return 0 - 1;
 }
 
@@ -250,23 +264,25 @@ function at_select_expect_lanes(buf: *u8, n: i32): i32 {
   if (n == 12 && at_name_vec8i_us(buf) != 0 && at_name_select_at(buf, 6) != 0) {
     return 8;
   }
+  /* import METHOD bare name: simd.select → "select". */
+  if (n == 6 && at_name_select_at(buf, 0) != 0) {
+    return 0;
+  }
   return 0 - 1;
 }
 
 /**
- * Inline a bare simd_shuffle / vec4f_shuffle / vec8i_shuffle CALL.
+ * Inline simd_shuffle / vec4f_shuffle / vec8i_shuffle CALL or METHOD.
  * @param arena *u8 — AST arena; null returns 0
  * @param elf_ctx *u8 — encoder; null returns 0
- * @param call_ref i32 — CALL expr; not kind 48 returns 0
+ * @param call_ref i32 — CALL(48) or METHOD_CALL(49)
  * @param ctx *u8 — asm function frame; null returns 0
  * @param ta i32 — 0 x86_64, 1 arm64
  * @param stack_slot_off i32 — destination slot of lane 0; negative returns 0
  * @param type_ref i32 — result vector type
- * @return i32 — 1 stored; 0 not this call; -1 the lane writer failed
- * Kind 49 is the import method and returns 0. The source must be a
- * VAR. The mask is peeled to an array literal, or used as-is when it
- * already is one (kind 46). The lane writer returns 0 on success.
- * PLATFORM: SHARED. pshufd stays on the Windows twin.
+ * @return i32 — 1 stored; 0 not this call; -1 error
+ * Import simd.shuffle is METHOD with bare name "shuffle". Try pshufd
+ * first (unless XLANG_SIMD_HW=0), then lane-scalar. PLATFORM: SHARED.
  */
 #[no_mangle]
 export function pipeline_asm_simd_try_inline_shuffle_call_elf_c(
@@ -286,6 +302,14 @@ export function pipeline_asm_simd_try_inline_shuffle_call_elf_c(
   let mask_lit: i32 = 0;
   let mask_ko: i32 = 0;
   let rc: i32 = 0;
+  let is_method: i32 = 0;
+  let src_off: i32 = 0;
+  let imm8: i32 = 0;
+  let imm_cell: i32[1] = [];
+  let feats: u32 = 0;
+  let hw_env: *u8 = 0 as *u8;
+  let hw_key: u8[16] = [];
+  let hw_off: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8)) {
     return 0;
   }
@@ -295,26 +319,47 @@ export function pipeline_asm_simd_try_inline_shuffle_call_elf_c(
   unsafe {
     ko = pipeline_expr_kind_ord_at(arena, call_ref);
   }
-  if (ko != 48) {
+  if (ko != 48 && ko != 49) {
     return 0;
   }
-  unsafe {
-    nargs = pipeline_expr_call_num_args_at(arena, call_ref);
+  if (ko == 49) {
+    is_method = 1;
+  }
+  if (is_method != 0) {
+    unsafe {
+      nargs = pipeline_expr_method_call_num_args_at(arena, call_ref);
+    }
+  } else {
+    unsafe {
+      nargs = pipeline_expr_call_num_args_at(arena, call_ref);
+    }
   }
   if (nargs != 2) {
     return 0;
   }
-  unsafe {
-    callee_ref = pipeline_expr_call_callee_ref_at(arena, call_ref);
-  }
-  if (callee_ref <= 0) {
-    return 0;
-  }
-  unsafe {
-    clen = glue_call_callee_func_name_into_c(arena, callee_ref, &cname[0], 256);
-  }
-  if (clen <= 0 || clen >= 256) {
-    return 0;
+  if (is_method != 0) {
+    unsafe {
+      clen = pipeline_expr_method_call_name_len(arena, call_ref);
+    }
+    if (clen <= 0 || clen >= 64) {
+      return 0;
+    }
+    unsafe {
+      pipeline_expr_method_call_name_into(arena, call_ref, &cname[0]);
+    }
+  } else {
+    unsafe {
+      callee_ref = pipeline_expr_call_callee_ref_at(arena, call_ref);
+    }
+    if (callee_ref <= 0) {
+      return 0;
+    }
+    unsafe {
+      clen = glue_call_callee_func_name_into_c(arena, callee_ref, &cname[0], 256);
+    }
+    if (clen <= 0 || clen >= 256) {
+      return 0;
+    }
   }
   expect = at_shuffle_expect_lanes(&cname[0], clen);
   if (expect < 0) {
@@ -329,9 +374,16 @@ export function pipeline_asm_simd_try_inline_shuffle_call_elf_c(
   if (expect != 0 && lanes != expect) {
     return 0;
   }
-  unsafe {
-    arg0 = pipeline_expr_call_arg_ref(arena, call_ref, 0);
-    arg1 = pipeline_expr_call_arg_ref(arena, call_ref, 1);
+  if (is_method != 0) {
+    unsafe {
+      arg0 = pipeline_expr_method_call_arg_ref(arena, call_ref, 0);
+      arg1 = pipeline_expr_method_call_arg_ref(arena, call_ref, 1);
+    }
+  } else {
+    unsafe {
+      arg0 = pipeline_expr_call_arg_ref(arena, call_ref, 0);
+      arg1 = pipeline_expr_call_arg_ref(arena, call_ref, 1);
+    }
   }
   if (arg0 <= 0 || arg1 <= 0) {
     return 0 - 1;
@@ -356,6 +408,56 @@ export function pipeline_asm_simd_try_inline_shuffle_call_elf_c(
   if (mask_lit <= 0) {
     return 0;
   }
+  src_off = glue_asm_local_var_stack_off_scoped(arena, ctx, arg0);
+  if (src_off < 0) {
+    return 0;
+  }
+  /* XLANG_SIMD_HW=0 disables HW pshufd (lane-scalar only). */
+  hw_key[0] = 88;
+  hw_key[1] = 76;
+  hw_key[2] = 65;
+  hw_key[3] = 78;
+  hw_key[4] = 71;
+  hw_key[5] = 95;
+  hw_key[6] = 83;
+  hw_key[7] = 73;
+  hw_key[8] = 77;
+  hw_key[9] = 68;
+  hw_key[10] = 95;
+  hw_key[11] = 72;
+  hw_key[12] = 87;
+  hw_key[13] = 0;
+  unsafe {
+    hw_env = link_abi_getenv(&hw_key[0]);
+  }
+  hw_off = 0;
+  if (hw_env != (0 as *u8)) {
+    unsafe {
+      hw_off = hw_env[0] as i32;
+    }
+  }
+  if (hw_env == (0 as *u8) || hw_off != 48) {
+    unsafe {
+      rc = glue_shuffle_pshufd_imm8_from_mask_c(arena, mask_lit, lanes, &imm_cell[0]);
+    }
+    if (rc == 0) {
+      imm8 = imm_cell[0];
+      unsafe {
+        feats = glue_simd_emit_cpu_features_c();
+      }
+      if (feats == (0 as u32)) {
+        unsafe {
+          feats = xlang_target_cpu_detect_host();
+        }
+      }
+      unsafe {
+        rc = simd_enc_try_pshufd_rbp(elf_ctx, src_off, stack_slot_off, imm8, lanes, ta, feats);
+      }
+      if (rc == 0) {
+        return 1;
+      }
+    }
+  }
   unsafe {
     rc = glue_emit_vector_shuffle_lane_scalar_elf_c(
       arena, elf_ctx, arg0, mask_lit, stack_slot_off, type_ref, ctx, ta);
@@ -367,17 +469,18 @@ export function pipeline_asm_simd_try_inline_shuffle_call_elf_c(
 }
 
 /**
- * Inline a bare simd_select / vec4f_select / vec8i_select CALL.
+ * Inline simd_select / vec4f_select / vec8i_select CALL or METHOD.
  * @param arena *u8 — AST arena; null returns 0
  * @param elf_ctx *u8 — encoder; null returns 0
- * @param call_ref i32 — CALL expr; not kind 48 returns 0
+ * @param call_ref i32 — CALL(48) or METHOD_CALL(49)
  * @param ctx *u8 — asm function frame; null returns 0
  * @param ta i32 — 0 x86_64, 1 arm64
  * @param stack_slot_off i32 — destination slot of lane 0; negative returns 0
  * @param type_ref i32 — result vector type
- * @return i32 — 1 stored; 0 not this call; -1 the lane writer failed
- * All three arguments must be VARs. Kind 49 returns 0. The lane
- * writer returns 0 on success. PLATFORM: SHARED.
+ * @return i32 — 1 stored; 0 not this call; -1 error
+ * Import simd.select is METHOD with bare name "select". Try HW
+ * blend first (unless XLANG_SIMD_HW=0), then lane-scalar.
+ * Smoke args are VARs (stack-off via scoped local). PLATFORM: SHARED.
  */
 #[no_mangle]
 export function pipeline_asm_simd_try_inline_select_call_elf_c(
@@ -396,6 +499,15 @@ export function pipeline_asm_simd_try_inline_select_call_elf_c(
   let arg_a: i32 = 0;
   let arg_b: i32 = 0;
   let rc: i32 = 0;
+  let is_method: i32 = 0;
+  let off_m: i32 = 0;
+  let off_a: i32 = 0;
+  let off_b: i32 = 0;
+  let is_f32: i32 = 0;
+  let feats: u32 = 0;
+  let hw_env: *u8 = 0 as *u8;
+  let hw_key: u8[16] = [];
+  let hw_off: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8)) {
     return 0;
   }
@@ -405,26 +517,47 @@ export function pipeline_asm_simd_try_inline_select_call_elf_c(
   unsafe {
     ko = pipeline_expr_kind_ord_at(arena, call_ref);
   }
-  if (ko != 48) {
+  if (ko != 48 && ko != 49) {
     return 0;
   }
-  unsafe {
-    nargs = pipeline_expr_call_num_args_at(arena, call_ref);
+  if (ko == 49) {
+    is_method = 1;
+  }
+  if (is_method != 0) {
+    unsafe {
+      nargs = pipeline_expr_method_call_num_args_at(arena, call_ref);
+    }
+  } else {
+    unsafe {
+      nargs = pipeline_expr_call_num_args_at(arena, call_ref);
+    }
   }
   if (nargs != 3) {
     return 0;
   }
-  unsafe {
-    callee_ref = pipeline_expr_call_callee_ref_at(arena, call_ref);
-  }
-  if (callee_ref <= 0) {
-    return 0;
-  }
-  unsafe {
-    clen = glue_call_callee_func_name_into_c(arena, callee_ref, &cname[0], 256);
-  }
-  if (clen <= 0 || clen >= 256) {
-    return 0;
+  if (is_method != 0) {
+    unsafe {
+      clen = pipeline_expr_method_call_name_len(arena, call_ref);
+    }
+    if (clen <= 0 || clen >= 64) {
+      return 0;
+    }
+    unsafe {
+      pipeline_expr_method_call_name_into(arena, call_ref, &cname[0]);
+    }
+  } else {
+    unsafe {
+      callee_ref = pipeline_expr_call_callee_ref_at(arena, call_ref);
+    }
+    if (callee_ref <= 0) {
+      return 0;
+    }
+    unsafe {
+      clen = glue_call_callee_func_name_into_c(arena, callee_ref, &cname[0], 256);
+    }
+    if (clen <= 0 || clen >= 256) {
+      return 0;
+    }
   }
   expect = at_select_expect_lanes(&cname[0], clen);
   if (expect < 0) {
@@ -439,10 +572,18 @@ export function pipeline_asm_simd_try_inline_select_call_elf_c(
   if (expect != 0 && lanes != expect) {
     return 0;
   }
-  unsafe {
-    arg_m = pipeline_expr_call_arg_ref(arena, call_ref, 0);
-    arg_a = pipeline_expr_call_arg_ref(arena, call_ref, 1);
-    arg_b = pipeline_expr_call_arg_ref(arena, call_ref, 2);
+  if (is_method != 0) {
+    unsafe {
+      arg_m = pipeline_expr_method_call_arg_ref(arena, call_ref, 0);
+      arg_a = pipeline_expr_method_call_arg_ref(arena, call_ref, 1);
+      arg_b = pipeline_expr_method_call_arg_ref(arena, call_ref, 2);
+    }
+  } else {
+    unsafe {
+      arg_m = pipeline_expr_call_arg_ref(arena, call_ref, 0);
+      arg_a = pipeline_expr_call_arg_ref(arena, call_ref, 1);
+      arg_b = pipeline_expr_call_arg_ref(arena, call_ref, 2);
+    }
   }
   if (arg_m <= 0 || arg_a <= 0 || arg_b <= 0) {
     return 0 - 1;
@@ -464,6 +605,55 @@ export function pipeline_asm_simd_try_inline_select_call_elf_c(
   }
   if (ko != 3) {
     return 0;
+  }
+  off_m = glue_asm_local_var_stack_off_scoped(arena, ctx, arg_m);
+  off_a = glue_asm_local_var_stack_off_scoped(arena, ctx, arg_a);
+  off_b = glue_asm_local_var_stack_off_scoped(arena, ctx, arg_b);
+  if (off_m < 0 || off_a < 0 || off_b < 0) {
+    return 0;
+  }
+  unsafe {
+    is_f32 = glue_vector_elem_is_f32_c(arena, type_ref);
+  }
+  hw_key[0] = 88;
+  hw_key[1] = 76;
+  hw_key[2] = 65;
+  hw_key[3] = 78;
+  hw_key[4] = 71;
+  hw_key[5] = 95;
+  hw_key[6] = 83;
+  hw_key[7] = 73;
+  hw_key[8] = 77;
+  hw_key[9] = 68;
+  hw_key[10] = 95;
+  hw_key[11] = 72;
+  hw_key[12] = 87;
+  hw_key[13] = 0;
+  unsafe {
+    hw_env = link_abi_getenv(&hw_key[0]);
+  }
+  hw_off = 0;
+  if (hw_env != (0 as *u8)) {
+    unsafe {
+      hw_off = hw_env[0] as i32;
+    }
+  }
+  if (hw_env == (0 as *u8) || hw_off != 48) {
+    unsafe {
+      feats = glue_simd_emit_cpu_features_c();
+    }
+    if (feats == (0 as u32)) {
+      unsafe {
+        feats = xlang_target_cpu_detect_host();
+      }
+    }
+    unsafe {
+      rc = simd_enc_try_hw_vector_select_rbp(
+        elf_ctx, off_m, off_a, off_b, stack_slot_off, lanes, is_f32, ta, feats);
+    }
+    if (rc == 0) {
+      return 1;
+    }
   }
   unsafe {
     rc = glue_emit_vector_select_lane_scalar_elf_c(
