@@ -606,8 +606,13 @@ ensure_user_env_darwin_pure() {
     return 1
   fi
   if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
-    log "skip $o (up-to-date vs $xsrc)"
-    return 0
+    # note743y.6.23: egg pure-asm left U _NSGetArgc (need __NSGetArgc). Do not
+    # skip a stale object that still has the egg-shaped undef.
+    if ! nm -u "$o" 2>/dev/null | awk '$NF=="_NSGetArgc" { f=1 } END { exit f?0:1 }'; then
+      log "skip $o (up-to-date vs $xsrc)"
+      return 0
+    fi
+    log "refresh $o (stale U _NSGetArgc; Darwin libSystem needs __NSGetArgc)"
   fi
   log "pure-asm $xsrc → $o"
   if ! (
@@ -4307,8 +4312,12 @@ ensure_process_argv_darwin_pure() {
     return 1
   fi
   if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
-    log "skip $o (up-to-date vs $xsrc)"
-    return 0
+    # note743y.6.23: egg left U _NSGetArgc; libSystem needs __NSGetArgc.
+    if ! nm -u "$o" 2>/dev/null | awk '$NF=="_NSGetArgc" { f=1 } END { exit f?0:1 }'; then
+      log "skip $o (up-to-date vs $xsrc)"
+      return 0
+    fi
+    log "refresh $o (stale U _NSGetArgc; Darwin libSystem needs __NSGetArgc)"
   fi
   mkdir -p "$(dirname "$o")"
   # w1195: some pure-asm tries segfault. Retry before the three-try
@@ -4441,6 +4450,27 @@ ensure_process_argv_darwin_pure() {
       echo "ensure_host_cc_seed_o process-argv: process faces are not weak" >&2
       rm -f "$o"
       continue
+    fi
+    # note743y.6.23 / knife256: egg|tip pure-asm of C name _NSGetArgc emits
+    # Mach-O U _NSGetArgc; Cap tip emits U __NSGetArgc (libSystem). Same class
+    # as labi __error→___error. Redefine only when egg-shaped undef is present.
+    # PLATFORM: MACOS|DARWIN arm64.
+    if nm -u "$o" 2>/dev/null | awk '$NF=="_NSGetArgc" { f=1 } END { exit f?0:1 }'; then
+      _pa_oc="$(pure_asm_find_objcopy)" || return 1
+      if ! "$_pa_oc" \
+        --redefine-sym '_NSGetArgc=__NSGetArgc' \
+        --redefine-sym '_NSGetArgv=__NSGetArgv' \
+        "$o"; then
+        echo "ensure_host_cc_seed_o process-argv: NSGet Darwin mangling redefine failed" >&2
+        rm -f "$o"
+        continue
+      fi
+      if nm -u "$o" 2>/dev/null | awk '$NF=="_NSGetArgc" { f=1 } END { exit f?0:1 }'; then
+        echo "ensure_host_cc_seed_o process-argv: U _NSGetArgc remains after redefine" >&2
+        rm -f "$o"
+        continue
+      fi
+      log "process argv: Darwin NSGetArgc/Argv → libSystem mangling (note743y.6.23)"
     fi
     if [ "$_pa_from_retry" = "1" ]; then
       log "prefer process argv ← pure-asm eight symbols (w1529 anchor)"
