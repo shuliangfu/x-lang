@@ -27,9 +27,10 @@
 // variadic, and this compiler puts the third argument in a register
 // while Darwin reads it from the stack. fcntl takes the flags in
 // the third register, so non-blocking mode goes through that symbol.
-// Measured on this Mac: F_SETFL is 4, O_NONBLOCK is 4, SOL_SOCKET is
-// 65535, SO_REUSEADDR is 4. AF_INET is 2, SOCK_STREAM is 1, SOCK_DGRAM
-// is 2, IPPROTO_TCP is 6, IPPROTO_UDP is 17.
+// Measured on Linux x86_64: F_SETFL is 4, O_NONBLOCK is 2048,
+// SOL_SOCKET is 1, SO_REUSEADDR is 2 (SO_ERROR is 4 — do not confuse).
+// AF_INET is 2, SOCK_STREAM is 1, SOCK_DGRAM is 2, IPPROTO_TCP is 6,
+// IPPROTO_UDP is 17.
 //
 // net_tcp_errno_ptr, net_udp_errno_ptr, and net_ipv6_errno_ptr are
 // already exported by std/net/tcp.x, udp.x, and ipv6.x. This file only
@@ -293,7 +294,8 @@ function sock_new_sin(): *u8 {
   return p;
 }
 
-/** Turn SO_REUSEADDR on. SOL_SOCKET is 65535 and SO_REUSEADDR is 4.
+/** Turn SO_REUSEADDR on. SOL_SOCKET is 1 and SO_REUSEADDR is 2 on Linux.
+ * (Darwin uses SOL_SOCKET=65535 / SO_REUSEADDR=4; SO_ERROR is 4 on Linux.)
  * @param fd socket
  * @return 0 on success, or -1
  * PLATFORM: LINUX
@@ -304,7 +306,7 @@ function sock_reuse(fd: i32): i32 {
   let pad: u8[64] = [];
   pad[0] = 0;
   let bit: i32 = 1;
-  unsafe { return setsockopt(fd, 1, 4, &bit, 4); }
+  unsafe { return setsockopt(fd, 1, 2, &bit, 4); }
   return 0 - 1;
 }
 
