@@ -3535,12 +3535,11 @@ for x_path in "$@"; do
       # Do not pass -lib-name "". Exports stay std_context_*.
       # A miss stops here. context.x has its own bare-impl arm (记212). Windows keeps the C path.
       # Do not fall through to cc for this file.
-      # note743y.6.23: Cap tip residual product hangs forever on
-      # `_rc = { handle: … }` (glue_emit_assign_var_try_let →
-      # glue_expr_block_transparent_value_ref_at busy-loop; pthread_join
-      # large-stack). Bound wall-clock; Darwin falls back to
-      # xlang.product_legacy_bak (verified emits std_context_*). Same class
-      # as Cap tip residual prefer / fmt Cap tip|egg first — not host-cc.
+      # note743y.6.23: Cap tip mega try_let hung on `_rc = { handle: … }`
+      # (transparent_value_ref busy-loop). Root fix = thin try_let inject
+      # into Cap tip (cap_tip_inject_try_let_thin_darwin.sh). Bound
+      # wall-clock only — NO product_legacy_bak / LEGACY residual
+      # (manager nail 2026-10-24). Fail hard if tip/Cap tip miss.
       _ctx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_ctx_os" in
         Darwin|Linux)
@@ -3577,36 +3576,6 @@ for x_path in "$@"; do
           fi
           if _ctx_nm_ok "$obj"; then
             _ctx_ok=1
-          fi
-          if [ "$_ctx_ok" != 1 ] && [ "$_ctx_os" = Darwin ]; then
-            _leg=""
-            for _lc in \
-              "$XLANG_REPO_ROOT/compiler/xlang.product_legacy_bak" \
-              ./xlang.product_legacy_bak \
-              ../compiler/xlang.product_legacy_bak; do
-              if [ -x "$_lc" ]; then
-                _leg="$_lc"
-                break
-              fi
-            done
-            if [ -n "$_leg" ]; then
-              echo "xlang_compile_std_module: Darwin context hang residual → LEGACY ($(basename "$_leg"))" >&2
-              if command -v codesign >/dev/null 2>&1; then
-                codesign -s - -f "$_leg" >/dev/null 2>&1 || true
-              fi
-              rm -f "$obj"
-              if command -v perl >/dev/null 2>&1; then
-                ( cd "$XLANG_REPO_ROOT" && perl -e "alarm shift; exec @ARGV" "$_ctx_to" \
-                  "$_leg" -backend asm -c -L "$XLANG_REPO_ROOT" -o "$obj" "$_ctx_src" ) \
-                  >"$tmp_dir/ctx_x_asm_${idx}.log" 2>&1 || true
-              else
-                ( cd "$XLANG_REPO_ROOT" && "$_leg" -backend asm -c -L "$XLANG_REPO_ROOT" -o "$obj" "$_ctx_src" ) \
-                  >"$tmp_dir/ctx_x_asm_${idx}.log" 2>&1 || true
-              fi
-              if _ctx_nm_ok "$obj"; then
-                _ctx_ok=1
-              fi
-            fi
           fi
           if [ "$_ctx_ok" = 1 ]; then
             echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
