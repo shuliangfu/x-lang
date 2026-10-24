@@ -64,7 +64,11 @@ void xlang_udp_batch_set_addr_port_impl(struct sockaddr_in *sin, uint32_t addr_u
 }
 
 #ifndef XLANG_RUNTIME_NET_UDP_BATCH_FROM_X
-/* 记253／9.1: cold under #ifndef XLANG_RUNTIME_NET_UDP_BATCH_FROM_X removed */
+/* tip-cold PREFER=0 cold seed: public wrappers (thin .x owns them under FROM_X).
+ * 记253／9.1 removed these; recvmmsg/sendmmsg then UNDEF on L4 wipe Linux. */
+void xlang_udp_batch_set_addr_port(struct sockaddr_in *sin, uint32_t addr_u32, uint32_t port_u32) {
+    xlang_udp_batch_set_addr_port_impl(sin, addr_u32, port_u32);
+}
 #endif
 
 /** poll 可读；失败 -1。 */
@@ -83,6 +87,9 @@ int xlang_udp_batch_poll_readable_impl(int fd, uint32_t timeout_ms) {
 }
 
 #ifndef XLANG_RUNTIME_NET_UDP_BATCH_FROM_X
+int xlang_udp_batch_poll_readable(int fd, uint32_t timeout_ms) {
+    return xlang_udp_batch_poll_readable_impl(fd, timeout_ms);
+}
 #endif
 
 /**
