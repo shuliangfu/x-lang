@@ -4,17 +4,18 @@
 # random_fill_bytes_c (ld text often cites _std_random_fill_bytes in
 # random.o). Darwin product body is thin runtime_random_fill.x (pure-asm;
 # no host-cc seed). Prefer asm; no FORCE_CC / new host-cc .c.
-# PLATFORM: MACOS|DARWIN Cap tip.
+# PLATFORM: SHARED — nm accepts optional Mach-O underscore (Linux ELF).
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR/.."
 
 out=runtime_random_fill.o
 x_src=src/asm/runtime_random_fill.x
+seed=seeds/runtime_random_fill.from_x.c
 need_rebuild=0
 if [ ! -s "$out" ]; then
   need_rebuild=1
-elif ! nm -gU "$out" 2>/dev/null | grep -q 'T _random_fill_bytes_c$'; then
+elif ! nm -gU "$out" 2>/dev/null | grep -qE 'T _?random_fill_bytes_c$'; then
   need_rebuild=1
 fi
 if [ "$need_rebuild" = "0" ]; then
@@ -38,13 +39,17 @@ thin_o="$(mktemp "${TMPDIR:-/tmp}/cap_tip_random_thin.XXXXXX.o")"
 cleanup() { rm -f "$thin_o"; }
 trap cleanup EXIT
 
-if ! XLANG_PREFER_ASM_O=1 "$_xl" -backend asm -c "$x_src" -o "$thin_o" 2>/dev/null \
-  || ! nm -gU "$thin_o" 2>/dev/null | grep -q 'T _random_fill_bytes_c$'; then
-  echo "cap_tip_ensure_random: thin tip-compile failed ($_xl)" >&2
+if XLANG_PREFER_ASM_O=1 "$_xl" -backend asm -c "$x_src" -o "$thin_o" 2>/dev/null \
+  && nm -gU "$thin_o" 2>/dev/null | grep -qE 'T _?random_fill_bytes_c$'; then
+  cp -f "$thin_o" "$out"
+  echo "cap_tip_ensure_random: OK thin $out" >&2
+elif [ -f "$seed" ] && cc -c -I. -Iinclude -Isrc -Isrc/asm -o "$thin_o" "$seed" 2>/dev/null \
+  && nm -gU "$thin_o" 2>/dev/null | grep -qE 'T _?random_fill_bytes_c$'; then
+  cp -f "$thin_o" "$out"
+  echo "cap_tip_ensure_random: OK cold-seed $out" >&2
+else
+  echo "cap_tip_ensure_random: thin tip-compile and cold-seed failed ($_xl)" >&2
   exit 1
 fi
-
-cp -f "$thin_o" "$out"
-nm -gU "$out" 2>/dev/null | grep -q 'T _random_fill_bytes_c$' \
-  || { echo "cap_tip_ensure_random: $out missing _random_fill_bytes_c" >&2; exit 1; }
-echo "cap_tip_ensure_random: OK thin $out" >&2
+nm -gU "$out" 2>/dev/null | grep -qE 'T _?random_fill_bytes_c$' \
+  || { echo "cap_tip_ensure_random: $out missing random_fill_bytes_c" >&2; exit 1; }

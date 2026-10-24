@@ -4,7 +4,7 @@
 # math_tan_c / math_trunc_c. Prefer thin.x + FROM_X rest; smoke-gate
 # (tip Cap asm currently miscompiles fdlibm sqrt/tan). Fallback: cold seed
 # cc without FROM_X (restored bit-level / fdlibm twins in seed — not a new
-# host-cc .c). No FORCE_CC. PLATFORM: MACOS|DARWIN Cap tip.
+# host-cc .c). No FORCE_CC. PLATFORM: SHARED — nm accepts optional Mach-O underscore; smoke links -lm (Linux).
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR/.."
@@ -30,7 +30,7 @@ int main(void) {
   return 0;
 }
 C
-  if ! cc -o "$bin" "$probe" "$o" 2>/dev/null; then
+  if ! cc -o "$bin" "$probe" "$o" -lm 2>/dev/null; then
     rm -f "$bin" "$probe"
     return 1
   fi
@@ -46,8 +46,8 @@ need_rebuild=0
 if [ ! -s "$out" ]; then
   need_rebuild=1
 else
-  for s in _math_sqrt_c _math_tan_c _math_trunc_c; do
-    if ! nm -gU "$out" 2>/dev/null | grep -q "T ${s}\$"; then
+  for s in math_sqrt_c math_tan_c math_trunc_c; do
+    if ! nm -gU "$out" 2>/dev/null | grep -qE "T _?${s}\$"; then
       need_rebuild=1
       break
     fi
@@ -81,7 +81,7 @@ trap cleanup EXIT
 merged=0
 if [ -n "$_xl" ] && [ -f "$x_src" ]; then
   if XLANG_PREFER_ASM_O=1 "$_xl" -backend asm -c "$x_src" -o "$thin_o" 2>/dev/null \
-    && nm -gU "$thin_o" 2>/dev/null | grep -q 'T _math_sqrt_c$' \
+    && nm -gU "$thin_o" 2>/dev/null | grep -qE 'T _?math_sqrt_c$' \
     && cc -c -I. -Iinclude -Isrc -Isrc/asm -DXLANG_RUNTIME_MATH_LIBM_FROM_X \
          -o "$rest_o" "$seed" 2>/dev/null \
     && ld -r -o "$out" "$thin_o" "$rest_o" 2>/dev/null \
@@ -103,8 +103,8 @@ if [ "$merged" = "0" ]; then
       exit 1
     }
   fi
-  for s in _math_sqrt_c _math_tan_c _math_trunc_c; do
-    nm -gU "$out" 2>/dev/null | grep -q "T ${s}\$" \
+  for s in math_sqrt_c math_tan_c math_trunc_c; do
+    nm -gU "$out" 2>/dev/null | grep -qE "T _?${s}\$" \
       || { echo "cap_tip_ensure_math: cold $out missing $s" >&2; exit 1; }
   done
   _smoke_ok "$out" || { echo "cap_tip_ensure_math: cold smoke failed" >&2; exit 1; }

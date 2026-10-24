@@ -3,7 +3,7 @@
 # only — 9.1 removed cold public wrappers, so dynlib.o UNDEFs
 # dynlib_os_{copy_last_error,open,sym,win_path_smoke}_c. Prefer
 # darwin_text.x + darwin.x (pure-asm); fallback thin.x + FROM_X rest.
-# No FORCE_CC / new host-cc .c. PLATFORM: MACOS|DARWIN Cap tip.
+# No FORCE_CC / new host-cc .c. PLATFORM: SHARED — nm _?; cold-seed fallback for Linux tip-cold.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR/.."
@@ -17,8 +17,8 @@ need_rebuild=0
 if [ ! -s "$out" ]; then
   need_rebuild=1
 else
-  for s in _dynlib_os_copy_last_error_c _dynlib_os_open_c _dynlib_os_sym_c _dynlib_os_win_path_smoke_c; do
-    if ! nm -gU "$out" 2>/dev/null | grep -q "T ${s}\$"; then
+  for s in dynlib_os_copy_last_error_c dynlib_os_open_c dynlib_os_sym_c dynlib_os_win_path_smoke_c; do
+    if ! nm -gU "$out" 2>/dev/null | grep -qE "T _?${s}\$"; then
       need_rebuild=1
       break
     fi
@@ -58,7 +58,7 @@ if XLANG_PREFER_ASM_O=1 "$_xl" -backend asm -c "$x_text" -o "$text_o" 2>/dev/nul
   echo "cap_tip_ensure_dynlib: OK darwin_text+darwin $out" >&2
 elif [ -f "$x_thin" ] && [ -f "$seed" ] \
   && XLANG_PREFER_ASM_O=1 "$_xl" -backend asm -c "$x_thin" -o "$thin_o" 2>/dev/null \
-  && nm -gU "$thin_o" 2>/dev/null | grep -q 'T _dynlib_os_open_c$' \
+  && nm -gU "$thin_o" 2>/dev/null | grep -qE 'T _?dynlib_os_open_c$' \
   && cc -c -I. -Iinclude -Isrc -Isrc/asm -DXLANG_RUNTIME_DYNLIB_OS_FROM_X \
        -o "$rest_o" "$seed" 2>/dev/null \
   && [ -s "$rest_o" ] \
@@ -66,9 +66,16 @@ elif [ -f "$x_thin" ] && [ -f "$seed" ] \
   merged=1
   echo "cap_tip_ensure_dynlib: OK thin+FROM_X rest $out" >&2
 fi
+if [ "$merged" != "1" ] && [ -f "$seed" ]; then
+  # Linux tip-cold: Darwin .x path often misses; cold seed restores public *_c (记253).
+  if cc -c -I. -Iinclude -Isrc -Isrc/asm -o "$rest_o" "$seed" 2>/dev/null     && cp -f "$rest_o" "$out"; then
+    merged=1
+    echo "cap_tip_ensure_dynlib: OK cold-seed $out" >&2
+  fi
+fi
 [ "$merged" = "1" ] || { echo "cap_tip_ensure_dynlib: merge failed" >&2; exit 1; }
 
-for s in _dynlib_os_copy_last_error_c _dynlib_os_open_c _dynlib_os_sym_c _dynlib_os_win_path_smoke_c; do
-  nm -gU "$out" 2>/dev/null | grep -q "T ${s}\$" \
+for s in dynlib_os_copy_last_error_c dynlib_os_open_c dynlib_os_sym_c dynlib_os_win_path_smoke_c; do
+  nm -gU "$out" 2>/dev/null | grep -qE "T _?${s}\$" \
     || { echo "cap_tip_ensure_dynlib: merged $out missing $s" >&2; exit 1; }
 done

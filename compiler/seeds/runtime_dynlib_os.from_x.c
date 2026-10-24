@@ -31,7 +31,23 @@ typedef HMODULE dynlib_handle_t;
 /* R2 full: dynlib_win_normalize_path is pure computation, implemented in .x.
  * Guarded here to avoid duplicate definition when FROM_X is active. */
 #ifndef XLANG_RUNTIME_DYNLIB_OS_FROM_X
-/* 记253／9.1: cold under #ifndef XLANG_RUNTIME_DYNLIB_OS_FROM_X removed */
+/* Public wrapper — only compiled in cold (non-FROM_X) mode.
+ * Real implementation is in .x (src/asm/runtime_dynlib_os.x). */
+size_t dynlib_win_normalize_path(char *out, size_t out_cap, const char *path) {
+    /* Cold-path fallback: minimal C implementation matching .x semantics.
+     * This exists only for bootstrapping before .x is available. */
+    size_t i = 0;
+    if (!out || out_cap < 2 || !path)
+        return 0;
+    for (; path[i] != '\0' && i + 1 < out_cap; i++) {
+        char c = path[i];
+        if (c == '/')
+            c = '\\';
+        out[i] = c;
+    }
+    out[i] = '\0';
+    return i;
+}
 #endif
 
 /* OS bridge _impl: UTF-8 path → LoadLibraryW (STD-097).
@@ -51,6 +67,10 @@ HMODULE dynlib_win_load_library_w_utf8_impl(const char *path_utf8) {
 }
 
 #ifndef XLANG_RUNTIME_DYNLIB_OS_FROM_X
+/* Public wrapper — delegates to _impl. Only in cold mode. */
+HMODULE dynlib_win_load_library_w_utf8(const char *path_utf8) {
+    return dynlib_win_load_library_w_utf8_impl(path_utf8);
+}
 #endif
 
 #else /* !_WIN32 && !_WIN64 */
@@ -98,6 +118,10 @@ int32_t dynlib_os_copy_last_error_impl(uint8_t *buf, int32_t cap) {
 }
 
 #ifndef XLANG_RUNTIME_DYNLIB_OS_FROM_X
+/* Public wrapper — only in cold mode. */
+int32_t dynlib_os_copy_last_error_c(uint8_t *buf, int32_t cap) {
+    return dynlib_os_copy_last_error_impl(buf, cap);
+}
 #endif
 
 /* OS bridge _impl: open dynamic library.
@@ -119,6 +143,10 @@ void *dynlib_os_open_impl(const uint8_t *path) {
 }
 
 #ifndef XLANG_RUNTIME_DYNLIB_OS_FROM_X
+/* Public wrapper — only in cold mode. */
+void *dynlib_os_open_c(const uint8_t *path) {
+    return dynlib_os_open_impl(path);
+}
 #endif
 
 /* OS bridge _impl: look up symbol in library.
@@ -135,6 +163,10 @@ void *dynlib_os_sym_impl(void *lib, const uint8_t *name) {
 }
 
 #ifndef XLANG_RUNTIME_DYNLIB_OS_FROM_X
+/* Public wrapper — only in cold mode. */
+void *dynlib_os_sym_c(void *lib, const uint8_t *name) {
+    return dynlib_os_sym_impl(lib, name);
+}
 #endif
 
 /* OS bridge _impl: close dynamic library handle.
@@ -151,6 +183,10 @@ void dynlib_os_close_impl(void *lib) {
 }
 
 #ifndef XLANG_RUNTIME_DYNLIB_OS_FROM_X
+/* Public wrapper — only in cold mode. */
+void dynlib_os_close_c(void *lib) {
+    dynlib_os_close_impl(lib);
+}
 #endif
 
 /* OS bridge _impl: Windows-only path smoke test.
@@ -180,4 +216,8 @@ int32_t dynlib_os_win_path_smoke_impl(void) {
 }
 
 #ifndef XLANG_RUNTIME_DYNLIB_OS_FROM_X
+/* Public wrapper — only in cold mode. */
+int32_t dynlib_os_win_path_smoke_c(void) {
+    return dynlib_os_win_path_smoke_impl();
+}
 #endif
