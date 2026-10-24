@@ -1067,6 +1067,38 @@ export function log_set_async_enabled_impl(enabled: i32): i32 {
  * Read XLANG_LOG_MIN_LEVEL once. A value outside 0..3 is ignored.
  * PLATFORM: MACOS|DARWIN
  */
+/**
+ * Parse a non-null XLANG_LOG_MIN_LEVEL string. No null check here — caller
+ * must prove v. tip body_sync hoists `let l = log_os_atoi(v)` to the
+ * prologue of any function that also null-checks v, so atoi stays alone.
+ * @param v *u8 — non-null, non-empty getenv result
+ * PLATFORM: MACOS|DARWIN
+ */
+function log_apply_min_level_parse(v: *u8): void {
+  let l: i32 = log_os_atoi(v);
+  if (l >= 0 && l <= 3) {
+    let slot: *i32 = &log_os_min_level;
+    log_os_set_i32(slot, l);
+  }
+}
+
+/**
+ * Apply XLANG_LOG_MIN_LEVEL when getenv returned a pointer.
+ * Null / empty are no-ops. Calls parse via a statement (not a let) so tip
+ * cannot hoist atoi onto a still-null v.
+ * @param v *u8 — getenv result; null or empty is a no-op
+ * PLATFORM: MACOS|DARWIN
+ */
+function log_apply_min_level_from_env(v: *u8): void {
+  if (v == 0) {
+    return;
+  }
+  if (v[0] == 0 as u8) {
+    return;
+  }
+  log_apply_min_level_parse(v);
+}
+
 #[no_mangle]
 export function log_apply_env_once_impl(): void {
   log_os_init();
@@ -1075,20 +1107,9 @@ export function log_apply_env_once_impl(): void {
   }
   let applied: *i32 = &log_os_env_applied;
   log_os_set_i32(applied, 1);
-  let v: *u8 = 0;
+  // tip: do not null-init then assign then atoi in one body (hoists atoi).
   unsafe {
-    v = link_abi_getenv("XLANG_LOG_MIN_LEVEL");
-  }
-  if (v == 0) {
-    return;
-  }
-  if (v[0] == 0 as u8) {
-    return;
-  }
-  let l: i32 = log_os_atoi(v);
-  if (l >= 0 && l <= 3) {
-    let slot: *i32 = &log_os_min_level;
-    log_os_set_i32(slot, l);
+    log_apply_min_level_from_env(link_abi_getenv("XLANG_LOG_MIN_LEVEL"));
   }
 }
 

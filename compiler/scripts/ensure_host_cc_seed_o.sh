@@ -727,8 +727,12 @@ ensure_kv_mmap_darwin_pure() {
     return 1
   fi
   if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
-    log "skip $o (up-to-date vs $xsrc)"
-    return 0
+    # note743y.6.23: tip left U ____open (need ___open). Do not skip stale egg.
+    if ! nm -u "$o" 2>/dev/null | awk '$NF=="____open" { f=1 } END { exit f?0:1 }'; then
+      log "skip $o (up-to-date vs $xsrc)"
+      return 0
+    fi
+    log "refresh $o (stale U ____open; libsystem_kernel needs ___open)"
   fi
   log "pure-asm $xsrc → $o"
   # w1191: some pure-asm tries segfault. Retry before the one-shot
@@ -737,9 +741,8 @@ ensure_kv_mmap_darwin_pure() {
   if [ -f scripts/ensure_host_cc_seed_o.sh ] \
     && bash scripts/ensure_host_cc_seed_o.sh kv-mmap-pure "$o"; then
     log "prefer kv mmap ← pure-asm seven symbols (w1191)"
-    return 0
-  fi
-  if ! (
+    # Fall through to tip ____open→___open fix below.
+  elif ! (
     export XLANG_PREFER_ASM_O=1
     pure_asm_x_to_o "$o" "$xsrc"
   ); then
@@ -749,6 +752,23 @@ ensure_kv_mmap_darwin_pure() {
       # shellcheck disable=SC2086
       $CC ${CFLAGS:-} -I. -Iinclude -Isrc -c "$seed" -o "$o" || return 1
     fi
+  fi
+  # note743y.6.23: tip ____open → libsystem ___open (same as log-os).
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ -s "$o" ] && nm -u "$o" 2>/dev/null | awk '$NF=="____open" { f=1 } END { exit f?0:1 }'; then
+    _kv_oc="$(pure_asm_find_objcopy)" || {
+      echo "ensure_host_cc_seed_o kv-mmap: objcopy missing for ____open" >&2
+      return 1
+    }
+    if ! "$_kv_oc" --redefine-sym '____open=___open' "$o"; then
+      echo "ensure_host_cc_seed_o kv-mmap: ____open→___open redefine failed" >&2
+      return 1
+    fi
+    if nm -u "$o" 2>/dev/null | awk '$NF=="____open" { f=1 } END { exit f?0:1 }'; then
+      echo "ensure_host_cc_seed_o kv-mmap: U ____open remains after redefine" >&2
+      return 1
+    fi
+    log "kv mmap: Darwin tip ____open → ___open (note743y.6.23)"
   fi
   return 0
 }
@@ -1203,8 +1223,12 @@ ensure_dir_cap_darwin_pure() {
     return 1
   fi
   if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
-    log "skip $o (up-to-date vs $xsrc)"
-    return 0
+    # note743y.6.23: tip left U ____open (need ___open). Do not skip stale egg.
+    if ! nm -u "$o" 2>/dev/null | awk '$NF=="____open" { f=1 } END { exit f?0:1 }'; then
+      log "skip $o (up-to-date vs $xsrc)"
+      return 0
+    fi
+    log "refresh $o (stale U ____open; libsystem_kernel needs ___open)"
   fi
   mkdir -p "$(dirname "$o")"
   # w1198: some pure-asm tries segfault. Retry before the eight-try
@@ -1240,6 +1264,31 @@ ensure_dir_cap_darwin_pure() {
         echo "ensure_host_cc_seed_o dir-cap: required text symbols missing" >&2
         rm -f "$o"
         continue
+      fi
+      # note743y.6.23: tip ____open / ____getdirentries64 → libsystem names.
+      if nm -u "$o" 2>/dev/null | awk '$NF=="____open" { f=1 } END { exit f?0:1 }'; then
+        _dc_oc="$(pure_asm_find_objcopy)" || {
+          echo "ensure_host_cc_seed_o dir-cap: objcopy missing for ____open" >&2
+          rm -f "$o"
+          continue
+        }
+        if ! "$_dc_oc" --redefine-sym '____open=___open' "$o"; then
+          echo "ensure_host_cc_seed_o dir-cap: ____open→___open redefine failed" >&2
+          rm -f "$o"
+          continue
+        fi
+      fi
+      if nm -u "$o" 2>/dev/null | awk '$NF=="____getdirentries64" { f=1 } END { exit f?0:1 }'; then
+        _dc_oc="$(pure_asm_find_objcopy)" || {
+          echo "ensure_host_cc_seed_o dir-cap: objcopy missing for ____getdirentries64" >&2
+          rm -f "$o"
+          continue
+        }
+        if ! "$_dc_oc" --redefine-sym '____getdirentries64=___getdirentries64' "$o"; then
+          echo "ensure_host_cc_seed_o dir-cap: ____getdirentries64 redefine failed" >&2
+          rm -f "$o"
+          continue
+        fi
       fi
       if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="___getdirentries64" { n++ } END { exit (n==1)?0:1 }'; then
         echo "ensure_host_cc_seed_o dir-cap: ___getdirentries64 is not undefined" >&2
@@ -5198,8 +5247,12 @@ ensure_log_os_darwin_pure() {
   fi
   if [ "$FORCE" != "1" ] && [ -f "$o" ] \
     && [ ! "$x_thin" -nt "$o" ] && [ ! "$x_os" -nt "$o" ]; then
-    log "skip $o (up-to-date vs $x_thin and $x_os)"
-    return 0
+    # note743y.6.23: tip left U ____open (need ___open). Do not skip stale egg.
+    if ! nm -u "$o" 2>/dev/null | awk '$NF=="____open" { f=1 } END { exit f?0:1 }'; then
+      log "skip $o (up-to-date vs $x_thin and $x_os)"
+      return 0
+    fi
+    log "refresh $o (stale U ____open; libsystem_kernel needs ___open)"
   fi
   mkdir -p "$(dirname "$o")"
   thin_o="$(mktemp "${TMPDIR:-/tmp}/log_thin.XXXXXX.o")"
@@ -5219,7 +5272,7 @@ ensure_log_os_darwin_pure() {
   # PLATFORM: MACOS|DARWIN arm64.
   if [ -f scripts/ensure_host_cc_seed_o.sh ] \
     && bash scripts/ensure_host_cc_seed_o.sh log-os-retry "$os_o"; then
-    log "prefer log os ← pure-asm thirty-four symbols (w1217)"
+    log "prefer log os ← pure-asm thirty-six symbols (w1217)"
   fi
   while [ "$try" -lt 8 ]; do
     try=$((try + 1))
@@ -5279,6 +5332,33 @@ ensure_log_os_darwin_pure() {
       done
       if [ "$_lo_ok" != "1" ]; then
         echo "ensure_host_cc_seed_o log-os: required text symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      # note743y.6.23: tip pure-asm of source ___open emits Mach-O U ____open;
+      # Cap tip emits ___open (libsystem_kernel). Same class as NSGetArgc /
+      # labi __error→___error. Redefine only when tip-shaped undef is present.
+      # PLATFORM: MACOS|DARWIN arm64.
+      if nm -u "$o" 2>/dev/null | awk '$NF=="____open" { f=1 } END { exit f?0:1 }'; then
+        _lo_oc="$(pure_asm_find_objcopy)" || {
+          echo "ensure_host_cc_seed_o log-os: objcopy missing for ____open" >&2
+          rm -f "$o"
+          continue
+        }
+        if ! "$_lo_oc" --redefine-sym '____open=___open' "$o"; then
+          echo "ensure_host_cc_seed_o log-os: ____open→___open redefine failed" >&2
+          rm -f "$o"
+          continue
+        fi
+        if nm -u "$o" 2>/dev/null | awk '$NF=="____open" { f=1 } END { exit f?0:1 }'; then
+          echo "ensure_host_cc_seed_o log-os: U ____open remains after redefine" >&2
+          rm -f "$o"
+          continue
+        fi
+        log "log os: Darwin tip ____open → ___open (note743y.6.23)"
+      fi
+      if ! nm -u "$o" 2>/dev/null | awk '$NF=="___open" { n++ } END { exit (n>=1)?0:1 }'; then
+        echo "ensure_host_cc_seed_o log-os: ___open is not undefined" >&2
         rm -f "$o"
         continue
       fi
@@ -8172,7 +8252,8 @@ log_os_retry_pure() {
     return 1
   fi
   n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
-  if [ "$n" != "34" ]; then
+  # note743y.6.23: +from_env +parse (tip atoi hoist split).
+  if [ "$n" != "36" ]; then
     rm -f "$o"
     return 1
   fi
@@ -8182,6 +8263,20 @@ log_os_retry_pure() {
       return 1
     fi
   done
+  # note743y.6.23: tip emits U ____open from source ___open; Cap tip emits
+  # ___open. Redefine egg-shaped undef before the Cap tip U gate.
+  # PLATFORM: MACOS|DARWIN arm64.
+  if nm -u "$o" 2>/dev/null | awk '$NF=="____open" { f=1 } END { exit f?0:1 }'; then
+    _lo_oc="$(pure_asm_find_objcopy)" || { rm -f "$o"; return 1; }
+    if ! "$_lo_oc" --redefine-sym '____open=___open' "$o"; then
+      rm -f "$o"
+      return 1
+    fi
+    if nm -u "$o" 2>/dev/null | awk '$NF=="____open" { f=1 } END { exit f?0:1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  fi
   for c in ___open _link_abi_getenv _malloc _stat; do
     if ! nm -u "$o" | awk -v s="$c" '$NF==s { n++ } END { exit (n==1)?0:1 }'; then
       rm -f "$o"
@@ -9339,6 +9434,22 @@ dir_cap_retry_pure() {
       return 1
     fi
   done
+  # note743y.6.23: tip may emit ____open / ____getdirentries64; Cap tip
+  # emits the three-underscore libsystem names. Redefine before the gate.
+  if nm -u "$o" 2>/dev/null | awk '$NF=="____open" { f=1 } END { exit f?0:1 }'; then
+    _dc_oc="$(pure_asm_find_objcopy)" || { rm -f "$o"; return 1; }
+    if ! "$_dc_oc" --redefine-sym '____open=___open' "$o"; then
+      rm -f "$o"
+      return 1
+    fi
+  fi
+  if nm -u "$o" 2>/dev/null | awk '$NF=="____getdirentries64" { f=1 } END { exit f?0:1 }'; then
+    _dc_oc="$(pure_asm_find_objcopy)" || { rm -f "$o"; return 1; }
+    if ! "$_dc_oc" --redefine-sym '____getdirentries64=___getdirentries64' "$o"; then
+      rm -f "$o"
+      return 1
+    fi
+  fi
   if ! nm -u "$o" | awk '{ s=$NF } s=="___open" { n++ } END { exit (n==1)?0:1 }'; then
     rm -f "$o"
     return 1
@@ -9699,6 +9810,14 @@ kv_mmap_retry_pure() {
       return 1
     fi
   done
+  # note743y.6.23: tip ____open → ___open.
+  if nm -u "$o" 2>/dev/null | awk '$NF=="____open" { f=1 } END { exit f?0:1 }'; then
+    _kv_oc="$(pure_asm_find_objcopy)" || { rm -f "$o"; return 1; }
+    if ! "$_kv_oc" --redefine-sym '____open=___open' "$o"; then
+      rm -f "$o"
+      return 1
+    fi
+  fi
   return 0
 }
 
