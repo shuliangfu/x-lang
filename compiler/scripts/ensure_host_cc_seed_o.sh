@@ -5427,7 +5427,7 @@ ensure_crypto_inc_darwin_pure() {
   # PLATFORM: MACOS|DARWIN arm64.
   if [ -f scripts/ensure_host_cc_seed_o.sh ] \
     && bash scripts/ensure_host_cc_seed_o.sh crypto-os-retry "$os_o"; then
-    log "prefer crypto os ← pure-asm thirty-five symbols (w1218)"
+    log "prefer crypto os ← pure-asm thirty-seven symbols (w1218)"
   fi
   while [ "$try" -lt 8 ]; do
     try=$((try + 1))
@@ -8121,7 +8121,7 @@ crypto_os_retry_pure() {
     return 1
   fi
   n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
-  if [ "$n" != "35" ]; then
+  if [ "$n" != "37" ]; then
     rm -f "$o"
     return 1
   fi
@@ -33648,7 +33648,7 @@ case "$MODE" in
     exit $?
     ;;
   crypto-os-retry|crypto_os_retry_pure)
-    # w1218: thirty-five pure-asm symbols of runtime_crypto_inc_glue_darwin.x.
+    # w1218: thirty-seven pure-asm symbols of runtime_crypto_inc_glue_darwin.x.
     # Does not write runtime_crypto_inc_glue.o and does not compile the thin half.
     # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
