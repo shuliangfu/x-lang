@@ -51,7 +51,13 @@ void xlang_cpu_set_impl(unsigned int cpu, cpu_set_t *set) {
 }
 
 #ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
-/* 记253／9.1: cold under #ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X removed */
+/* Cold mode fallback: public wrapper provided by seed. */
+void xlang_cpu_zero(cpu_set_t *set) {
+    xlang_cpu_zero_impl(set);
+}
+void xlang_cpu_set(unsigned int cpu, cpu_set_t *set) {
+    xlang_cpu_set_impl(cpu, set);
+}
 #endif
 #else
 /* Non-Linux fallback stubs for CPU set helpers */
@@ -62,6 +68,8 @@ void xlang_cpu_set_impl(unsigned int cpu, void *set) {
     (void)cpu; (void)set;
 }
 #ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
+void xlang_cpu_zero(void *set) { xlang_cpu_zero_impl(set); }
+void xlang_cpu_set(unsigned int cpu, void *set) { xlang_cpu_set_impl(cpu, set); }
 #endif
 #endif /* __linux__ */
 
@@ -138,6 +146,7 @@ int64_t thread_self_impl(void) {
 #endif
 }
 #ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
+int64_t thread_self_c(void) { return thread_self_impl(); }
 #endif
 
 /* ========== _impl: thread_create ========== */
@@ -167,6 +176,7 @@ int64_t thread_create_impl(void *entry, void *arg) {
 #endif
 }
 #ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
+int64_t thread_create_c(void *entry, void *arg) { return thread_create_impl(entry, arg); }
 #endif
 
 /* ========== _impl: thread_create_with_stack ========== */
@@ -216,6 +226,9 @@ int64_t thread_create_with_stack_impl(void *entry, void *arg, size_t stack_size)
 #endif
 }
 #ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
+int64_t thread_create_with_stack_c(void *entry, void *arg, size_t stack_size) {
+    return thread_create_with_stack_impl(entry, arg, stack_size);
+}
 #endif
 
 /* ========== _impl: thread_join ========== */
@@ -241,6 +254,7 @@ int32_t thread_join_impl(int64_t thread_id) {
 #endif
 }
 #ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
+int32_t thread_join_c(int64_t thread_id) { return thread_join_impl(thread_id); }
 #endif
 
 /* ========== _impl: thread_set_affinity_self (Cap residual 9.4.6) ========== */
@@ -248,6 +262,9 @@ int32_t thread_set_affinity_self_impl(int32_t cpu_index) {
     return xlang_thread_set_affinity_self(cpu_index);
 }
 #ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
+int32_t thread_set_affinity_self_c(int32_t cpu_index) {
+    return thread_set_affinity_self_impl(cpu_index);
+}
 #endif
 
 /* ========== _impl: thread_set_affinity (Cap residual 9.4.6) ========== */
@@ -257,6 +274,9 @@ int32_t thread_set_affinity_impl(int64_t thread_id, int32_t cpu_index) {
     return xlang_thread_set_affinity(join, cpu_index);
 }
 #ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
+int32_t thread_set_affinity_c(int64_t thread_id, int32_t cpu_index) {
+    return thread_set_affinity_impl(thread_id, cpu_index);
+}
 #endif
 
 /* ========== _impl: thread_set_qos_class_self (Cap residual 9.4.6) ========== */
@@ -264,6 +284,9 @@ int32_t thread_set_qos_class_self_impl(int32_t qos_class) {
     return xlang_thread_set_qos_self(qos_class);
 }
 #ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
+int32_t thread_set_qos_class_self_c(int32_t qos_class) {
+    return thread_set_qos_class_self_impl(qos_class);
+}
 #endif
 
 /* ========== _impl: thread_set_name_self ========== */
@@ -297,6 +320,9 @@ int32_t thread_set_name_self_impl(const uint8_t *name, int32_t len) {
 #endif
 }
 #ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
+int32_t thread_set_name_self_c(const uint8_t *name, int32_t len) {
+    return thread_set_name_self_impl(name, len);
+}
 #endif
 
 /* ========== thread_dummy_entry (real C function; address-taken via ptr_c) ========== */
@@ -310,10 +336,29 @@ uintptr_t thread_dummy_entry_ptr_impl(void) {
     return (uintptr_t)&thread_dummy_entry;
 }
 #ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
+uintptr_t thread_dummy_entry_ptr_c(void) {
+    return thread_dummy_entry_ptr_impl();
+}
 #endif
 
 /* ========== std.thread pipeline wrappers ========== */
 #ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
+int64_t std_thread_thread_self_c(void) { return thread_self_c(); }
+int64_t std_thread_thread_create_c(void *entry, void *arg) { return thread_create_c(entry, arg); }
+int64_t std_thread_thread_create_with_stack_c(void *entry, void *arg, size_t stack_size) {
+    return thread_create_with_stack_c(entry, arg, stack_size);
+}
+int32_t std_thread_thread_join_c(int64_t thread_id) { return thread_join_c(thread_id); }
+int32_t std_thread_thread_set_affinity_self_c(int32_t cpu_index) {
+    return thread_set_affinity_self_c(cpu_index);
+}
+int32_t std_thread_thread_set_affinity_c(int64_t thread_id, int32_t cpu_index) {
+    return thread_set_affinity_c(thread_id, cpu_index);
+}
+int32_t std_thread_thread_set_qos_class_self_c(int32_t qos_class) {
+    return thread_set_qos_class_self_c(qos_class);
+}
+uintptr_t std_thread_thread_dummy_entry_ptr_c(void) { return thread_dummy_entry_ptr_c(); }
 #endif /* XLANG_RUNTIME_THREAD_GLUE_FROM_X */
 
 /* ========== Worker thread pool (global state in rest C) ========== */
@@ -498,6 +543,7 @@ int32_t thread_pool_start_impl(int32_t workers) {
 #endif
 }
 #ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
+int32_t thread_pool_start_c(int32_t workers) { return thread_pool_start_impl(workers); }
 #endif
 
 /* _impl: thread_pool_submit */
@@ -549,6 +595,9 @@ int32_t thread_pool_submit_impl(uintptr_t entry, uintptr_t arg) {
 #endif
 }
 #ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
+int32_t thread_pool_submit_c(uintptr_t entry, uintptr_t arg) {
+    return thread_pool_submit_impl(entry, arg);
+}
 #endif
 
 /* _impl: thread_pool_drain */
@@ -576,6 +625,7 @@ int32_t thread_pool_drain_impl(void) {
 #endif
 }
 #ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
+int32_t thread_pool_drain_c(void) { return thread_pool_drain_impl(); }
 #endif
 
 /* _impl: thread_pool_stop */
@@ -629,6 +679,7 @@ int32_t thread_pool_stop_impl(void) {
 #endif
 }
 #ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
+int32_t thread_pool_stop_c(void) { return thread_pool_stop_impl(); }
 #endif
 
 /* _impl: thread_pool_pending */
@@ -656,4 +707,5 @@ int32_t thread_pool_pending_impl(void) {
 #endif
 }
 #ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
+int32_t thread_pool_pending_c(void) { return thread_pool_pending_impl(); }
 #endif

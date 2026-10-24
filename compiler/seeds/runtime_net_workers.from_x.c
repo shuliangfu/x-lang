@@ -51,8 +51,13 @@ extern int32_t net_close_socket_c(int32_t fd);
 int32_t thread_set_affinity_self_c(int32_t cpu_index);
 
 #ifndef XLANG_RUNTIME_NET_WORKERS_FROM_X
-/* 记253／9.1: cold under #ifndef XLANG_RUNTIME_NET_WORKERS_FROM_X removed */
+/* 可选绑核：弱 stub；链接 std/thread/thread.o 时由强符号覆盖。
+ * R2 mode: weak stub provided by thin (.x). This block is skipped. */
 #if defined(__GNUC__) || defined(__clang__)
+XLANG_WEAK int32_t thread_set_affinity_self_c(int32_t cpu_index) {
+    (void)cpu_index;
+    return 0;
+}
 #endif
 #endif /* !XLANG_RUNTIME_NET_WORKERS_FROM_X */
 
@@ -96,4 +101,10 @@ uintptr_t xlang_net_worker_accept_entry_ptr_impl_c(void) {
 }
 
 #ifndef XLANG_RUNTIME_NET_WORKERS_FROM_X
+/* Cold path public wrapper: when XLANG_RUNTIME_NET_WORKERS_FROM_X is NOT
+ * defined, this _c wrapper provides the full implementation. When the guard
+ * IS defined, the thin (.x) provides the _c wrapper and calls _impl_c above. */
+uintptr_t xlang_net_worker_accept_entry_ptr_c(void) {
+    return xlang_net_worker_accept_entry_ptr_impl_c();
+}
 #endif /* !XLANG_RUNTIME_NET_WORKERS_FROM_X */
