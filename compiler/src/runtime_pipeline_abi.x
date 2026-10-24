@@ -45738,6 +45738,8 @@ export function glue_peel_comptime_array_lit_mask_c(arena: *u8, ctx: *u8, mask_r
   let is_match: i32 = 0;
   let init_ref: i32 = 0;
   let depth: i32 = 0;
+  let fi_peel: i32 = 0;
+  let mod_peel: *u8 = 0 as *u8;
   let vbuf: u8[256] = [];
   let lb: u8[256] = [];
   if (arena == (0 as *u8) || mask_ref <= 0) {
@@ -45754,6 +45756,19 @@ export function glue_peel_comptime_array_lit_mask_c(arena: *u8, ctx: *u8, mask_r
   }
   unsafe {
     br = asm_ctx_scope_block_ref_at(ctx);
+  }
+  /* Top-level func emit often leaves scope_block_ref 0 while unscoped
+   * local_find still resolves VAR offs (simd.shuffle smoke VAR mask). */
+  if (br <= 0) {
+    unsafe {
+      fi_peel = pipeline_asm_emit_func_index_c();
+      mod_peel = pipe_load_ptr_slot(ctx, 2);
+    }
+    if (mod_peel != (0 as *u8) && fi_peel >= 0) {
+      unsafe {
+        br = pipeline_module_func_body_ref_at(mod_peel, fi_peel);
+      }
+    }
   }
   if (br <= 0) {
     return 0;
@@ -45815,6 +45830,7 @@ export function glue_peel_comptime_array_lit_mask_c(arena: *u8, ctx: *u8, mask_r
   }
   return 0;
 }
+
 
 /**
  * Inline vec4f/vec8i/simd_shuffle / @shuffle / simd.shuffle into stack slot.

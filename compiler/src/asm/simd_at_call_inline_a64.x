@@ -45,6 +45,136 @@ export extern function simd_enc_try_pshufd_rbp(elf_ctx: *u8, src: i32, dst: i32,
 export extern function simd_enc_try_hw_vector_select_rbp(elf_ctx: *u8, m: i32, a: i32, b: i32, d: i32, lanes: i32, is_f32: i32, ta: i32, feats: u32): i32;
 export extern function glue_vector_elem_is_f32_c(arena: *u8, type_ref: i32): i32;
 export extern function link_abi_getenv(name: *u8): *u8;
+export extern function pipeline_expr_var_name_len(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_var_name_into(arena: *u8, expr_ref: i32, out: *u8): void;
+export extern function pipeline_asm_emit_func_index_c(): i32;
+export extern function pipeline_module_func_body_ref_at(module: *u8, fi: i32): i32;
+export extern function pipe_load_ptr_slot(base: *u8, i: i32): *u8;
+export extern function asm_ctx_scope_block_ref_at(ctx: *u8): i32;
+export extern function ast_ast_block_num_lets(arena: *u8, block_ref: i32): i32;
+export extern function pipeline_block_let_name_len(arena: *u8, block_ref: i32, let_idx: i32): i32;
+export extern function pipeline_block_let_name_copy64(arena: *u8, block_ref: i32, let_idx: i32, dst: *u8): void;
+export extern function pipeline_block_let_init_ref(arena: *u8, block_ref: i32, let_idx: i32): i32;
+export extern function pipeline_block_parent_block_ref_at(arena: *u8, block_ref: i32): i32;
+
+
+
+/**
+ * Peel mask expr to a comptime ARRAY_LIT ref.
+ * glue_peel needs asm scope_block_ref; top-level function emit often
+ * leaves it 0 while unscoped local_find still resolves VAR stack offs.
+ * When glue_peel misses, walk the current emit function body (and
+ * parents) by VAR name — same contract as glue_peel, for simd.shuffle
+ * smoke `let m = [...]; simd.shuffle(v, m)`.
+ * @return i32 — array-lit expr ref; 0 if not peelable
+ * PLATFORM: SHARED.
+ */
+function at_peel_mask_lit(arena: *u8, ctx: *u8, mask_ref: i32): i32 {
+  let got: i32 = 0;
+  let ko: i32 = 0;
+  let br: i32 = 0;
+  let fi: i32 = 0;
+  let mod: *u8 = 0 as *u8;
+  let nlet: i32 = 0;
+  let li: i32 = 0;
+  let vlen: i32 = 0;
+  let llen: i32 = 0;
+  let kk: i32 = 0;
+  let is_match: i32 = 0;
+  let init_ref: i32 = 0;
+  let depth: i32 = 0;
+  let vbuf: u8[256] = [];
+  let lb: u8[256] = [];
+  if (arena == (0 as *u8) || mask_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    got = glue_peel_comptime_array_lit_mask_c(arena, ctx, mask_ref);
+  }
+  if (got > 0) {
+    return got;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, mask_ref);
+  }
+  if (ko == 46) {
+    return mask_ref;
+  }
+  if (ko != 3 || ctx == (0 as *u8)) {
+    return 0;
+  }
+  unsafe {
+    br = asm_ctx_scope_block_ref_at(ctx);
+  }
+  if (br <= 0) {
+    unsafe {
+      fi = pipeline_asm_emit_func_index_c();
+      mod = pipe_load_ptr_slot(ctx, 2);
+    }
+    if (mod != (0 as *u8) && fi >= 0) {
+      unsafe {
+        br = pipeline_module_func_body_ref_at(mod, fi);
+      }
+    }
+  }
+  if (br <= 0) {
+    return 0;
+  }
+  unsafe {
+    vlen = pipeline_expr_var_name_len(arena, mask_ref);
+  }
+  if (vlen <= 0 || vlen > 255) {
+    return 0;
+  }
+  unsafe {
+    pipeline_expr_var_name_into(arena, mask_ref, &vbuf[0]);
+  }
+  depth = 0;
+  while (br > 0 && depth < 128) {
+    unsafe {
+      nlet = ast_ast_block_num_lets(arena, br);
+    }
+    li = 0;
+    while (li < nlet) {
+      unsafe {
+        llen = pipeline_block_let_name_len(arena, br, li);
+      }
+      if (llen == vlen) {
+        is_match = 1;
+        unsafe {
+          pipeline_block_let_name_copy64(arena, br, li, &lb[0]);
+        }
+        kk = 0;
+        while (kk < vlen) {
+          if (lb[kk] != vbuf[kk]) {
+            is_match = 0;
+          }
+          kk = kk + 1;
+        }
+        if (is_match != 0) {
+          unsafe {
+            init_ref = pipeline_block_let_init_ref(arena, br, li);
+          }
+          if (init_ref > 0) {
+            unsafe {
+              ko = pipeline_expr_kind_ord_at(arena, init_ref);
+            }
+            if (ko == 46) {
+              return init_ref;
+            }
+          }
+          return 0;
+        }
+      }
+      li = li + 1;
+    }
+    unsafe {
+      br = pipeline_block_parent_block_ref_at(arena, br);
+    }
+    depth = depth + 1;
+  }
+  return 0;
+}
 
 /**
  * Read one callee-name byte as i32.
@@ -395,7 +525,7 @@ export function pipeline_asm_simd_try_inline_shuffle_call_elf_c(
     return 0;
   }
   unsafe {
-    mask_lit = glue_peel_comptime_array_lit_mask_c(arena, ctx, arg1);
+    mask_lit = at_peel_mask_lit(arena, ctx, arg1);
   }
   if (mask_lit <= 0) {
     unsafe {
