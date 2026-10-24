@@ -81,12 +81,29 @@ asm_ok=0
 _fs_os="$(uname -s 2>/dev/null || echo Unknown)"
 _fs_mach="$(uname -m 2>/dev/null || echo unknown)"
 if [ "$_fs_os" = "Darwin" ] || { [ "$_fs_os" = "Linux" ] && [ "$_fs_mach" = "x86_64" ]; }; then
-    _fs_mod="../std/fs/mod.x"
-    [ -f "$_fs_mod" ] || _fs_mod="std/fs/mod.x"
-    _fs_posix="../std/fs/posix.x"
-    [ -f "$_fs_posix" ] || _fs_posix="std/fs/posix.x"
-    _fs_L=".."
-    [ -d ../std/fs ] || _fs_L="."
+    # tip-cold import root: with cwd=compiler and entry ../std/... tip
+    # resolves std.* to ../std/debug/std/... (IMP001). Repo-root relative
+    # entry + -L . works. Absolute XLANG_BIN so cd away from compiler/ is safe.
+    # PLATFORM: SHARED tip cold (Linux gold; Darwin same layout).
+    _fs_script_dir=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
+    _fs_compiler_dir=$(CDPATH= cd -- "$_fs_script_dir/.." && pwd)
+    _fs_root=$(CDPATH= cd -- "$_fs_compiler_dir/.." && pwd)
+    case "$XLANG_BIN" in
+      /*) ;;
+      *) XLANG_BIN="$_fs_compiler_dir/${XLANG_BIN#./}" ;;
+    esac
+    case "$tmp_dir" in
+      /*) ;;
+      *) tmp_dir="$_fs_compiler_dir/$tmp_dir" ;;
+    esac
+    case "$out_o" in
+      /*) ;;
+      *) out_o="$_fs_compiler_dir/$out_o" ;;
+    esac
+    cd "$_fs_root" || exit 1
+    _fs_mod="std/fs/mod.x"
+    _fs_posix="std/fs/posix.x"
+    _fs_L="."
     # Linux mod.x imports std.fs.freestanding_linux, and that file imports
     # std.sys. The asm co-emit skip covers every std.fs path, so each of
     # those files is its own entry. std.sys is not skipped; -c still emits
@@ -96,14 +113,10 @@ if [ "$_fs_os" = "Darwin" ] || { [ "$_fs_os" = "Linux" ] && [ "$_fs_mach" = "x86
     # PLATFORM: LINUX x86_64.
     _fs_more=""
     if [ "$_fs_os" = "Linux" ]; then
-      _fs_free="../std/fs/freestanding_linux.x"
-      [ -f "$_fs_free" ] || _fs_free="std/fs/freestanding_linux.x"
-      _sys_mod="../std/sys/mod.x"
-      [ -f "$_sys_mod" ] || _sys_mod="std/sys/mod.x"
-      _sys_linux="../std/sys/linux.x"
-      [ -f "$_sys_linux" ] || _sys_linux="std/sys/linux.x"
-      _sys_mmap="../std/sys/mmap.x"
-      [ -f "$_sys_mmap" ] || _sys_mmap="std/sys/mmap.x"
+      _fs_free="std/fs/freestanding_linux.x"
+      _sys_mod="std/sys/mod.x"
+      _sys_linux="std/sys/linux.x"
+      _sys_mmap="std/sys/mmap.x"
       if ! "$XLANG_BIN" -backend asm -c -L "$_fs_L" -o "$tmp_dir/free.o" "$_fs_free" \
           >"$tmp_dir/free_asm.log" 2>&1 \
         || ! "$XLANG_BIN" -backend asm -c -L "$_fs_L" -o "$tmp_dir/sysmod.o" "$_sys_mod" \
@@ -178,7 +191,10 @@ if [ "$_fs_os" = "Darwin" ] || { [ "$_fs_os" = "Linux" ] && [ "$_fs_mach" = "x86
       # (same vehicle Cap tip heat uses). Prefer asm; no FORCE_CC / new .c.
       # PLATFORM: MACOS Cap tip.
       _leg=""
-      if [ -x ./xlang.product_legacy_bak ]; then
+      # After cd to repo root: LEGACY bak lives under compiler/.
+      if [ -x "$_fs_compiler_dir/xlang.product_legacy_bak" ]; then
+        _leg="$_fs_compiler_dir/xlang.product_legacy_bak"
+      elif [ -x ./xlang.product_legacy_bak ]; then
         _leg=$PWD/xlang.product_legacy_bak
       elif [ -x ../compiler/xlang.product_legacy_bak ]; then
         _leg=$(cd ../compiler && pwd)/xlang.product_legacy_bak
