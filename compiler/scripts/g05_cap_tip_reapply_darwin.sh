@@ -2302,6 +2302,39 @@ if [ -s "$_sm_o" ] && nm "$_sm_o" 2>/dev/null | grep -q 'T _glue_emit_slice_from
   fi
 fi
 
+
+# 10.22: take_field_slice — reverse_infer soft (Wf/Wi xs) + call_arg STRUCT_LIT.field.
+_ri_o=build_asm/selfhost_pabi/typeck_field_reverse_infer_soft.o
+_ri_src=src/typeck/typeck_field_reverse_infer_soft.x
+if [ -f "$_ri_src" ] && [ -x "${xl:-./xlang}" ]; then
+  "${xl:-./xlang}" -backend asm -c -o "$_ri_o" "$_ri_src" 2>/dev/null \
+    && echo "g05_cap_tip_reapply: 10.22 tip-compiled typeck_field_reverse_infer_soft.o" >&2 \
+    || rm -f "$_ri_o"
+fi
+if [ -s "$_ri_o" ] && nm "$_ri_o" 2>/dev/null | grep -q "T _typeck_field_reverse_infer_base_type$"; then
+  if printf "%s" " $G05_OBJS " | grep -Eq "(^|[[:space:]/])typeck_field_reverse_infer_soft\.o([[:space:]]|$)"; then
+    :
+  else
+    G05_OBJS="$_ri_o $G05_OBJS"; export G05_OBJS
+    echo "g05_cap_tip_reapply: 10.22 prepended typeck_field_reverse_infer_soft.o" >&2
+  fi
+fi
+_ca_o=build_asm/selfhost_pabi/call_arg_struct_lit_field.o
+_ca_src=src/runtime_pipeline_abi_call_arg_struct_lit_field_thin.x
+if [ -f "$_ca_src" ] && [ -x "${xl:-./xlang}" ]; then
+  "${xl:-./xlang}" -backend asm -c -o "$_ca_o" "$_ca_src" 2>/dev/null \
+    && echo "g05_cap_tip_reapply: 10.22 tip-compiled call_arg_struct_lit_field.o" >&2 \
+    || rm -f "$_ca_o"
+fi
+if [ -s "$_ca_o" ] && nm "$_ca_o" 2>/dev/null | grep -q "T _glue_emit_one_call_arg_elf_c$"; then
+  if printf "%s" " $G05_OBJS " | grep -Eq "(^|[[:space:]/])call_arg_struct_lit_field\.o([[:space:]]|$)"; then
+    :
+  else
+    G05_OBJS="$_ca_o $G05_OBJS"; export G05_OBJS
+    echo "g05_cap_tip_reapply: 10.22 prepended call_arg_struct_lit_field.o" >&2
+  fi
+fi
+
 bash scripts/g05_relink_xlang.sh
 
 if [ ! -x xlang.cap_g05_l2 ]; then

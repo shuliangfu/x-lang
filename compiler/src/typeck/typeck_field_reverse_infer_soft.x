@@ -28,8 +28,6 @@
 // PLATFORM: SHARED — the type rule is the same on macOS, Ubuntu, and
 // Windows. The alias is the Darwin link step.
 
-export extern "C" function typeck_field_reverse_infer_base_type_mega(module: *u8, arena: *u8,
-expr_ref: i32, outer_expected: i32): i32;
 export extern "C" function pipeline_expr_field_access_base_ref(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_field_access_name_len(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_field_access_name_into(arena: *u8, expr_ref: i32, out: *u8): void;
@@ -82,7 +80,6 @@ expr_ref: i32, outer_expected: i32): i32 {
     let ord_array: i32 = 10;
     let ord_f32: i32 = 14;
     let ord_f64: i32 = 15;
-    let got: i32 = 0;
     let base_er: i32 = 0;
     let base_k: i32 = 0;
     let fl: i32 = 0;
@@ -110,10 +107,7 @@ expr_ref: i32, outer_expected: i32): i32 {
     let fn_buf: u8[256] = [];
     let fjn: u8[256] = [];
     let lnm: u8[256] = [];
-    got = typeck_field_reverse_infer_base_type_mega(module, arena, expr_ref, outer_expected);
-    if (got > 0) {
-      return got;
-    }
+    /* Self-contained: unique owner first (was mega). No redefine-sym dance. */
     if (module == 0 as *u8) {
       return 0;
     }
@@ -122,6 +116,63 @@ expr_ref: i32, outer_expected: i32): i32 {
     }
     if (expr_ref <= 0) {
       return 0;
+    }
+    fl = pipeline_expr_field_access_name_len(arena, expr_ref);
+    if (fl <= 0) {
+      return 0;
+    }
+    if (fl > 255) {
+      return 0;
+    }
+    pipeline_expr_field_access_name_into(arena, expr_ref, &fn_buf[0]);
+    nsl = pipeline_module_num_struct_layouts_at(module);
+    hits = 0;
+    unique_ty = 0;
+    k = 0;
+    while (k < nsl) {
+      nf = pipeline_module_struct_layout_num_fields(module, k);
+      j = 0;
+      while (j < nf) {
+        fjl = pipeline_module_struct_layout_field_name_len(module, k, j);
+        if (fjl == fl) {
+          pipeline_module_struct_layout_field_name_into(module, k, j, &fjn[0]);
+          match_f = 1;
+          bi = 0;
+          while (bi < fl) {
+            if (fjn[bi] != fn_buf[bi]) {
+              match_f = 0;
+            }
+            bi = bi + 1;
+          }
+          if (match_f != 0) {
+            lnl = pipeline_module_struct_layout_name_len(module, k);
+            if (lnl > 0) {
+              if (lnl <= 255) {
+                pipeline_module_struct_layout_name_into(module, k, &lnm[0]);
+                nty = typeck_find_or_alloc_named_type_ref(arena, &lnm[0], lnl);
+                if (nty > 0) {
+                  if (!(hits == 1 && unique_ty == nty)) {
+                    hits = hits + 1;
+                    unique_ty = nty;
+                    if (hits > 1) {
+                      /* ambiguous — fall through to STRUCT_LIT elem filter */
+                      hits = 0;
+                      unique_ty = 0;
+                      k = nsl;
+                      j = nf;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        j = j + 1;
+      }
+      k = k + 1;
+    }
+    if (hits == 1) {
+      return unique_ty;
     }
     base_er = pipeline_expr_field_access_base_ref(arena, expr_ref);
     if (base_er <= 0) {

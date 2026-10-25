@@ -252,6 +252,70 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ] \
       fi
       unset _sm_has_prev _sm_stub _sm_o
     fi
+
+    # 10.22: take_field_slice — weaken egg reverse_infer so soft T first-wins.
+    # Do NOT redefine-sym (rewrites call sites inside typeck_x to the dead name).
+    if printf "%s" " $OBJS " | grep -Eq "(^|[[:space:]/])typeck_field_reverse_infer_soft\.o([[:space:]]|$)"; then
+      for _ri_pw in build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o \
+                    build_asm/selfhost_pabi/typeck_x.cap_repr_weak.binop_cmp_peel.o \
+                    typeck_x.o \
+                    build_asm/selfhost_pabi/typeck_x_binop_cmp_peel.o; do
+        [ -s "$_ri_pw" ] || continue
+        if nm "$_ri_pw" 2>/dev/null | grep -Eq " T _typeck_field_reverse_infer_base_type$"; then
+          "$_g05_oc" --weaken-symbol=_typeck_field_reverse_infer_base_type \
+            "$_ri_pw" 2>/dev/null \
+            && echo "g05_relink_xlang: 10.22 weaken $_ri_pw reverse_infer (soft wins)" >&2 \
+            || true
+        fi
+      done
+      unset _ri_pw
+    fi
+    if printf "%s" " $OBJS " | grep -Eq "(^|[[:space:]/])call_arg_struct_lit_field\.o([[:space:]]|$)"; then
+      # Extract egg body as _prev (redefine on a COPY). Weaken egg definition so
+      # call sites still name glue_emit_one_call_arg_elf_c and bind to thin T.
+      _ca_prev=build_asm/selfhost_pabi/call_arg_emit_one_prev_a64.o
+      _ca_src_o=""
+      for _ca_pw in src/asm/backend_call_dispatch.o \
+                    build_asm/selfhost_pabi/pabi_weak.o \
+                    build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o \
+                    src/runtime_pipeline_abi.o; do
+        [ -s "$_ca_pw" ] || continue
+        if nm "$_ca_pw" 2>/dev/null | grep -Eq " [TW] _glue_emit_one_call_arg_elf_c$"; then
+          _ca_src_o="$_ca_pw"
+          break
+        fi
+      done
+      if [ -n "$_ca_src_o" ]; then
+        _ca_exp="/tmp/g05_call_arg_prev_$$.exp"
+        printf "%s\n" "_glue_emit_one_call_arg_elf_c" > "$_ca_exp"
+        if ld -r -o "$_ca_prev" -exported_symbols_list "$_ca_exp" "$_ca_src_o" 2>/dev/null; then
+          "$_g05_oc" --redefine-sym=_glue_emit_one_call_arg_elf_c=_glue_emit_one_call_arg_elf_c_prev \
+            "$_ca_prev" 2>/dev/null \
+            && echo "g05_relink_xlang: 10.22 call_arg _prev ld-r extract from $_ca_src_o" >&2 \
+            || rm -f "$_ca_prev"
+        else
+          rm -f "$_ca_prev"
+        fi
+        rm -f "$_ca_exp"
+        for _ca_pw in src/asm/backend_call_dispatch.o \
+                      build_asm/selfhost_pabi/pabi_weak.o \
+                      build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o \
+                      src/runtime_pipeline_abi.o; do
+          [ -s "$_ca_pw" ] || continue
+          if nm "$_ca_pw" 2>/dev/null | grep -Eq " T _glue_emit_one_call_arg_elf_c$"; then
+            "$_g05_oc" --weaken-symbol=_glue_emit_one_call_arg_elf_c "$_ca_pw" 2>/dev/null \
+              && echo "g05_relink_xlang: 10.22 weaken $_ca_pw call_arg (thin wins)" >&2 \
+              || true
+          fi
+        done
+        if [ -s "$_ca_prev" ] && nm "$_ca_prev" 2>/dev/null | grep -Eq " [TW] _glue_emit_one_call_arg_elf_c_prev$"; then
+          OBJS="$_ca_prev $OBJS"
+          echo "g05_relink_xlang: 10.22 prepended call_arg _prev extract" >&2
+        fi
+      fi
+      unset _ca_prev _ca_src_o _ca_pw
+    fi
+
     # note743y.6.23: Cap tip archive_leaf owns backend_asm_codegen (+mega_body).
     # ensure may rebuild mega after env demote → pure-ld duplicate mega_body.
     # pre-ld demote both T on runtime_pipeline_abi.o. PLATFORM: MACOS tip cold.
