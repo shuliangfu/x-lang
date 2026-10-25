@@ -923,6 +923,16 @@ if [ -s build_asm/selfhost_pabi/typeck_method_call_resolve_generic_bound_soft.o 
       ;;
   esac
 fi
+if [ -s build_asm/selfhost_pabi/typeck_call_generic_bounds_soft.o ]; then
+  case " $G05_OBJS " in
+    *" build_asm/selfhost_pabi/typeck_call_generic_bounds_soft.o "*) ;;
+    *)
+      G05_OBJS="build_asm/selfhost_pabi/typeck_call_generic_bounds_soft.o $G05_OBJS"
+      export G05_OBJS
+      echo "g05_cap_tip_reapply: prepended typeck_call_generic_bounds_soft.o" >&2
+      ;;
+  esac
+fi
 if [ -s build_asm/selfhost_pabi/generic_bound_scan_from_stash_a64.o ]; then
   case " $G05_OBJS " in
     *" build_asm/selfhost_pabi/generic_bound_scan_from_stash_a64.o "*) ;;
@@ -2230,6 +2240,21 @@ if [ -f "$_1037_cmp_x" ] && [ -f "$_1037_disp_x" ]; then
         ;;
     esac
     echo "g05_cap_tip_reapply: 10.37 demote typeck_x.cap_repr_weak peel::binop+cmp" >&2
+    # 10.22: unconditional mega rename on peel+cap (soft faces)
+    for _mg_o in "$_cap_peel" "$_cap_ty"; do
+      [ -s "$_mg_o" ] || continue
+      "$_oc1037" --redefine-sym=_pipeline_typeck_check_call_generic_type_args_c=_pipeline_typeck_check_call_generic_type_args_c_mega "$_mg_o" 2>/dev/null || true
+      "$_oc1037" --redefine-sym=_typeck_x_ast=_typeck_x_ast_mega "$_mg_o" 2>/dev/null || true
+    done
+    # Avoid pipefail SIGPIPE false-fail from nm|grep -q
+    nm -gU "$_cap_peel" >/tmp/g05_peel_nm_cgb.txt 2>/dev/null || true
+    if ! grep -qE " T _pipeline_typeck_check_call_generic_type_args_c_mega$" /tmp/g05_peel_nm_cgb.txt \
+      || ! grep -qE " T _typeck_x_ast_mega$" /tmp/g05_peel_nm_cgb.txt; then
+      echo "g05_cap_tip_reapply: ERROR 10.22 peel missing mega faces for call_generic_bounds soft" >&2
+      grep -E "call_generic|typeck_x_ast" /tmp/g05_peel_nm_cgb.txt | head -20 >&2 || true
+      exit 1
+    fi
+    echo "g05_cap_tip_reapply: 10.22 peel mega faces OK (call_generic_bounds soft)" >&2
     # mega still bls seed_dead after redefine — weaken peel bodies, strong trampoline wins.
     for _sym in _typeck_check_expr_binop__seed_dead _typeck_check_expr_binop_cmp__seed_dead; do
       if nm -gU "$_cap_peel" 2>/dev/null | awk '{print $3}' | grep -qxF "$_sym"; then

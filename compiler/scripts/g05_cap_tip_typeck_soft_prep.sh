@@ -62,6 +62,8 @@ _soft_keep build_asm/selfhost_pabi/typeck_type_is_free_type_param_soft.o \
   src/typeck/typeck_type_is_free_type_param_soft.x
 _soft_keep build_asm/selfhost_pabi/typeck_method_call_resolve_generic_bound_soft.o \
   src/typeck/typeck_method_call_resolve_generic_bound_soft.x
+_soft_keep build_asm/selfhost_pabi/typeck_call_generic_bounds_soft.o \
+  src/typeck/typeck_call_generic_bounds_soft.x
 OC="${LLVM_OBJCOPY:-}"
 if [ -z "$OC" ]; then
   for c in /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
@@ -105,6 +107,20 @@ cp -f typeck_x.o build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o
   --weaken-symbol=_typeck_type_is_free_type_param__demoted \
   --weaken-symbol=_typeck_method_call_resolve_generic_bound__demoted \
   build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o
+# 10.22: call_generic_bounds soft — separate mega rename (verify)
+"$OC" \
+  --redefine-sym=_pipeline_typeck_check_call_generic_type_args_c=_pipeline_typeck_check_call_generic_type_args_c_mega \
+  --redefine-sym=_typeck_x_ast=_typeck_x_ast_mega \
+  build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o \
+  || { echo "g05_cap_tip_typeck_soft_prep: mega redefine failed" >&2; exit 1; }
+nm -gU build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o >/tmp/g05_soft_nm_cgb.txt 2>/dev/null || true
+if ! grep -qE " T _pipeline_typeck_check_call_generic_type_args_c_mega$" /tmp/g05_soft_nm_cgb.txt \
+  || ! grep -qE " T _typeck_x_ast_mega$" /tmp/g05_soft_nm_cgb.txt; then
+  echo "g05_cap_tip_typeck_soft_prep: ERROR mega faces missing after redefine" >&2
+  grep -E "call_generic|typeck_x_ast" /tmp/g05_soft_nm_cgb.txt | head -20 >&2 || true
+  exit 1
+fi
+echo "g05_cap_tip_typeck_soft_prep: mega faces OK" >&2
 python3 scripts/g05_cap_tip_typeck_retarget.py build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o
 as -arch arm64 -o build_asm/selfhost_pabi/generic_bound_scan_from_stash_a64.o \
   src/asm/generic_bound_scan_from_stash_a64.s \
