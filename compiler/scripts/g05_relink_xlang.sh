@@ -194,6 +194,16 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ] \
         && echo "g05_relink_xlang: note743y.6.23 pre-ld demote pabi_weak transparent_value (helpers wins)" >&2 \
         || true
     fi
+    # 10.22: slice_length_to_rbx thin first-wins TYPE_SLICE dual-GP length.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])slice_length_to_rbx_a64\.o([[:space:]]|$)' \
+      && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
+      && nm build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+           | grep -q ' T _glue_emit_slice_length_to_rbx_elf_c$'; then
+      "$_g05_oc" --redefine-sym=_glue_emit_slice_length_to_rbx_elf_c=_glue_emit_slice_length_to_rbx_elf_c__demoted \
+        build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+        && echo "g05_relink_xlang: 10.22 pre-ld demote pabi_weak slice_length (thin wins)" >&2 \
+        || true
+    fi
     # note743y.6.23: Cap tip archive_leaf owns backend_asm_codegen (+mega_body).
     # ensure may rebuild mega after env demote → pure-ld duplicate mega_body.
     # pre-ld demote both T on runtime_pipeline_abi.o. PLATFORM: MACOS tip cold.

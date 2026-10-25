@@ -967,6 +967,11 @@ case "$UNAME_S" in
         build_asm/selfhost_pabi/index_bounds_guard.o \
         glue_emit_index_bounds_guard_elf_c
       [ -n "$_G05_PO_OUT" ] && _PABI_TIP_PEEL="$_PABI_TIP_PEEL $_G05_PO_OUT"
+      # 10.22: TYPE_SLICE INDEX/DEREF dual-GP length (dyn_add_arr_slice).
+      _g05_pure_overlay src/runtime_pipeline_abi_slice_length_to_rbx_thin.x \
+        build_asm/selfhost_pabi/slice_length_to_rbx.o \
+        glue_emit_slice_length_to_rbx_elf_c
+      [ -n "$_G05_PO_OUT" ] && _PABI_TIP_PEEL="$_PABI_TIP_PEEL $_G05_PO_OUT"
       # addr_of_call thin also exports glue_addr_simd_lane_type_c (call_spill U).
       _g05_pure_overlay src/runtime_pipeline_abi_addr_of_call_thin.x \
         build_asm/selfhost_pabi/addr_of_call.o \

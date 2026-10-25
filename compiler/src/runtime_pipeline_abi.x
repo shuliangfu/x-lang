@@ -43725,15 +43725,18 @@ export function glue_emit_slice_length_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, ct
   } else {
     btk = 0;
   }
-  if (bty > 0 && btk == 11 && (base_ko == 48 || base_ko == 49)) {
-    if (base_ko != 48) {
-      nd = 0;
-    } else {
+  // 10.22: INDEX(47)/DEREF(52)/any TYPE_SLICE rvalue also returns dual-GP
+  // {data,len}; *(data+8) peels .data and panics (dyn_add_arr_slice p[0][0]).
+  // CALL(48) still checks struct16-ret needs rax deref. PLATFORM: SHARED.
+  if (bty > 0 && btk == 11) {
+    if (base_ko == 48) {
       unsafe {
         nd = pipeline_asm_call_struct16_ret_needs_rax_deref_c(arena, base_ref);
       }
+    } else {
+      nd = 0;
     }
-    if (base_ko != 48 || nd == 0) {
+    if (nd == 0) {
       // SysV arg_reg 2 = rdx — length half after dual-GP return
       unsafe {
         rc = backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, 2, ta);

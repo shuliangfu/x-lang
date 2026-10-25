@@ -1290,6 +1290,7 @@ build_asm/selfhost_pabi/simd_at_call_a64.o|src/asm/simd_at_call_inline_a64.x
 build_asm/selfhost_pabi/arg_byte_size_a64.o|src/runtime_pipeline_abi_arg_byte_size_thin.x
 build_asm/selfhost_pabi/index_eff_addr_scaled_a64.o|src/runtime_pipeline_abi_index_eff_addr_scaled_thin.x
 build_asm/selfhost_pabi/index_bounds_guard_a64.o|src/runtime_pipeline_abi_index_bounds_guard_thin.x
+build_asm/selfhost_pabi/slice_length_to_rbx_a64.o|src/runtime_pipeline_abi_slice_length_to_rbx_thin.x
 build_asm/selfhost_pabi/parser_asm_struct_dup_field_soft.o|src/asm/parser_asm_struct_dup_field_soft.x
 build_asm/selfhost_pabi/pthin_imports_a64.o|src/asm/pthin_imports.x
 src/asm/pthin_stretch.o|src/asm/pthin_stretch.x
@@ -2196,6 +2197,33 @@ if [ -f "$_1037_cmp_x" ] && [ -f "$_1037_disp_x" ]; then
     export G05_OBJS
     echo "g05_cap_tip_reapply: 10.37 seed_dead trampoline + weakened peel" >&2
   fi
+fi
+
+# 10.22: slice_length_to_rbx thin first-wins (INDEX/DEREF TYPE_SLICE dual-GP).
+_sl_o=build_asm/selfhost_pabi/slice_length_to_rbx_a64.o
+_sl_src=src/runtime_pipeline_abi_slice_length_to_rbx_thin.x
+if [ ! -s "$_sl_o" ] && [ -f "$_sl_src" ] && [ -x "${xl:-./xlang}" ]; then
+  "${xl:-./xlang}" -backend asm -c -o "$_sl_o" "$_sl_src" 2>/dev/null || rm -f "$_sl_o"
+fi
+if [ -s "$_sl_o" ] && nm "$_sl_o" 2>/dev/null | grep -q 'T _glue_emit_slice_length_to_rbx_elf_c$'; then
+  _oc_sl=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+  [ -x "$_oc_sl" ] || _oc_sl=$(command -v llvm-objcopy 2>/dev/null || true)
+  for _pw in build_asm/selfhost_pabi/pabi_weak.o build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o; do
+    if [ -f "$_pw" ] && nm "$_pw" 2>/dev/null | grep -q 'T _glue_emit_slice_length_to_rbx_elf_c$'; then
+      if [ -n "$_oc_sl" ] && [ -x "$_oc_sl" ]; then
+        "$_oc_sl" --redefine-sym=_glue_emit_slice_length_to_rbx_elf_c=_glue_emit_slice_length_to_rbx_elf_c__demoted "$_pw" \
+          && echo "g05_cap_tip_reapply: 10.22 demoted $_pw slice_length" >&2 \
+          || echo "g05_cap_tip_reapply: WARN 10.22 demote failed $_pw" >&2
+      else
+        echo "g05_cap_tip_reapply: ERROR 10.22 no llvm-objcopy" >&2
+      fi
+    fi
+  done
+  case " $G05_OBJS " in
+    *" slice_length_to_rbx_a64.o "*) ;;
+    *) G05_OBJS="$_sl_o $G05_OBJS"; export G05_OBJS
+       echo "g05_cap_tip_reapply: 10.22 prepended slice_length_to_rbx_a64.o" >&2 ;;
+  esac
 fi
 
 bash scripts/g05_relink_xlang.sh
