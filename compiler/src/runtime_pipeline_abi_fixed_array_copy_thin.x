@@ -53,6 +53,13 @@ export extern function pipeline_expr_array_lit_elem_ref(arena: *u8, expr_ref: i3
 export extern function pipeline_expr_array_lit_num_elems_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_field_access_base_ref(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_field_access_is_enum_variant(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_field_access_name_len(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_field_access_name_into(arena: *u8, expr_ref: i32, out: *u8): void;
+export extern function pipeline_expr_struct_lit_num_fields(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_struct_lit_field_name_len(arena: *u8, expr_ref: i32, j: i32): i32;
+export extern function pipeline_expr_struct_lit_field_name_into(arena: *u8, expr_ref: i32, j: i32, out: *u8): void;
+export extern function pipeline_expr_struct_lit_init_ref(arena: *u8, expr_ref: i32, j: i32): i32;
+export extern function pipeline_expr_struct_lit_field_offset_at(arena: *u8, mod: *u8, expr_ref: i32, fi: i32): i32;
 export extern function pipeline_expr_index_base_ref(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_index_index_ref(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_int64_val_at(arena: *u8, expr_ref: i32): i64;
@@ -396,6 +403,102 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
       }
       handled = 1;
     }
+    // Path B0b: STRUCT_LIT.field to []T. FIELD of a literal often has no
+    // stamped TYPE_ARRAY on sty (Path B0 measure skips); peel the
+    // matching ARRAY_LIT init and dual-GP pack like Path C.
+    // PLATFORM: SHARED freestanding · 10.22 ret_array_as_slice from_lit.
+    if (handled == 0 && arena != (0 as *u8) && ctx != (0 as *u8) && elf_ctx != (0 as *u8)
+    && (ta == 0 || ta == 1) && ko == 44 && mod != (0 as *u8) && fi >= 0) {
+      unsafe {
+        rty = pipeline_module_func_return_type_at(mod, fi);
+        rar_src = pipeline_expr_field_access_base_ref(arena, ret_op);
+      }
+      rar_dst = 0;
+      if (rar_src > 0) {
+        unsafe {
+          rar_dst = pipeline_expr_kind_ord_at(arena, rar_src);
+        }
+      }
+      if (rar_dst == 45 && rty > 0) {
+        unsafe {
+          tk = pipeline_type_kind_ord_at(arena, rty);
+        }
+        if (tk == 11) {
+          unsafe {
+            rar_nd = pipeline_expr_struct_lit_num_fields(arena, rar_src);
+          }
+          rar_elem = 0;
+          if (rar_nd == 1) {
+            unsafe {
+              rar_elem = pipeline_expr_struct_lit_init_ref(arena, rar_src, 0);
+            }
+          } else {
+            rar_di = 0;
+            while (rar_di < rar_nd && rar_elem == 0) {
+              unsafe {
+                rar_llen = glue_field_access_effective_offset_c(arena, mod, ret_op);
+                rar_v = pipeline_expr_struct_lit_field_offset_at(arena, mod, rar_src, rar_di);
+              }
+              if (rar_v == rar_llen || (rar_llen < 0 && rar_di == 0)) {
+                unsafe {
+                  rar_elem = pipeline_expr_struct_lit_init_ref(arena, rar_src, rar_di);
+                }
+              }
+              rar_di = rar_di + 1;
+            }
+          }
+          if (rar_elem > 0) {
+            unsafe {
+              rar_noff = pipeline_expr_kind_ord_at(arena, rar_elem);
+            }
+            if (rar_noff == 46) {
+              unsafe {
+                n_arr = pipeline_expr_array_lit_num_elems_at(arena, rar_elem);
+                rar_noff = pipeline_type_elem_ref_at(arena, rty);
+                force_esz = glue_array_lit_force_esz_from_elem_type_c(arena, rar_noff);
+              }
+              if (n_arr > 0 && n_arr <= 1024 && force_esz > 0) {
+                unsafe {
+                  rc = glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, rar_elem, force_esz, ta, ctx, rar_noff);
+                }
+                if (rc == 0) {
+                  unsafe {
+                    rc = backend_enc_push_rax_arch(elf_ctx, ta);
+                  }
+                  if (rc != 0) {
+                    return 0 - 1;
+                  }
+                  unsafe {
+                    rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_arr, 0, ta);
+                  }
+                  if (rc != 0) {
+                    return 0 - 1;
+                  }
+                  if (ta == 1) {
+                    len_arg = 1;
+                  } else {
+                    len_arg = 2;
+                  }
+                  unsafe {
+                    rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, len_arg, ta);
+                  }
+                  if (rc != 0) {
+                    return 0 - 1;
+                  }
+                  unsafe {
+                    rc = backend_enc_pop_rax_arch(elf_ctx, ta);
+                  }
+                  if (rc != 0) {
+                    return 0 - 1;
+                  }
+                  handled = 1;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
     // Path B0: already-typed [N]T VAR/FIELD/INDEX → []T (fat) or T[N] (E*).
     // Durable COMMON copy then either dual-GP (dest SLICE) or rax=E*
     // (dest TYPE_ARRAY). Stack view / lea-local dangles after return
@@ -501,14 +604,83 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
             }
           }
         } else {
+          // FIELD: VAR/INDEX base via lvalue; STRUCT_LIT.field peels
+          // ARRAY_LIT init to durable (not an lvalue — CG002 otherwise).
+          // PLATFORM: SHARED freestanding · 10.22 ret_array_as_slice.
           unsafe {
-            rc = glue_try_index_var_or_field_base_to_rax_elf_c(arena, elf_ctx, ret_op, ctx, ta);
+            rar_src = pipeline_expr_field_access_base_ref(arena, ret_op);
           }
-          if (rc == (0 - 1)) {
-            return 0 - 1;
+          rar_dst = 0;
+          if (rar_src > 0) {
+            unsafe {
+              rar_dst = pipeline_expr_kind_ord_at(arena, rar_src);
+            }
           }
-          if (rc != 0) {
-            n_arr = 0;
+          if (ko == 44 && rar_dst == 45) {
+            unsafe {
+              rar_nd = pipeline_expr_struct_lit_num_fields(arena, rar_src);
+            }
+            rar_seq = 0;
+            rar_di = 0;
+            if (rar_nd == 1) {
+              unsafe {
+                rar_elem = pipeline_expr_struct_lit_init_ref(arena, rar_src, 0);
+              }
+              if (rar_elem > 0) {
+                unsafe {
+                  rar_noff = pipeline_expr_kind_ord_at(arena, rar_elem);
+                }
+                if (rar_noff == 46) {
+                  unsafe {
+                    rar_noff = pipeline_type_elem_ref_at(arena, sty);
+                    rc = glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, rar_elem, force_esz, ta, ctx, rar_noff);
+                  }
+                  if (rc == 0) {
+                    rar_seq = 1;
+                  }
+                }
+              }
+            }
+            while (rar_di < rar_nd && rar_seq == 0) {
+              unsafe {
+                rar_llen = glue_field_access_effective_offset_c(arena, mod, ret_op);
+                rar_v = pipeline_expr_struct_lit_field_offset_at(arena, mod, rar_src, rar_di);
+              }
+              if (rar_v == rar_llen || (rar_llen < 0 && rar_di == 0)) {
+                unsafe {
+                  rar_elem = pipeline_expr_struct_lit_init_ref(arena, rar_src, rar_di);
+                }
+                if (rar_elem > 0) {
+                  unsafe {
+                    rar_noff = pipeline_expr_kind_ord_at(arena, rar_elem);
+                  }
+                  if (rar_noff == 46) {
+                    unsafe {
+                      rar_noff = pipeline_type_elem_ref_at(arena, sty);
+                      rc = glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, rar_elem, force_esz, ta, ctx, rar_noff);
+                    }
+                    if (rc == 0) {
+                      rar_seq = 1;
+                    }
+                  }
+                }
+              }
+              rar_di = rar_di + 1;
+            }
+            if (rar_seq == 0) {
+              return 0 - 1;
+            }
+            rc = 0;
+          } else {
+            unsafe {
+              rc = glue_try_index_var_or_field_base_to_rax_elf_c(arena, elf_ctx, ret_op, ctx, ta);
+            }
+            if (rc == (0 - 1)) {
+              return 0 - 1;
+            }
+            if (rc != 0) {
+              n_arr = 0;
+            }
           }
         }
       } else {
