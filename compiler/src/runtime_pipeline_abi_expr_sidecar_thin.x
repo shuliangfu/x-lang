@@ -918,9 +918,16 @@ export function pipeline_expr_method_call_arg_ref(a: *u8, expr_ref: i32, idx: i3
 
 /** Slot ref pipeline_expr_array_lit_elem_ref. PLATFORM: SHARED */
 export function pipeline_expr_array_lit_elem_ref(a: *u8, expr_ref: i32, idx: i32): i32 {
+  /* note743y.6.7 / 10.22: break cyclic elem_ref==parent (nested ARRAY_LIT
+   * when egg append wins over thin relocate — Ubuntu tip compile SEGV in
+   * typeck_check_expr_array_lit). Peer of struct_lit_init_ref guard.
+   * PLATFORM: SHARED. */
   let slot: *u8 = expr_array_lit_elem_slot(a, expr_ref, idx, 0);
+  let er: i32 = 0;
   if (slot == (0 as *u8)) { return 0; }
-  return w327_load(slot, 0);
+  er = w327_load(slot, 0);
+  if (er == expr_ref) { return 0; }
+  return er;
 }
 
 

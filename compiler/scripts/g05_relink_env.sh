@@ -1017,7 +1017,9 @@ case "$UNAME_S" in
         _gv_keep=build_asm/selfhost_pabi/expr_sidecar_glue_var_keep.txt
         # note743y.6.7: also keep pipeline_expr_struct_lit_init_ref (self-ref
         # guard) so walkers do not bind seed cyclic init_ref. PLATFORM: LINUX.
-        printf '%s\n' glue_fill_var_block_refs_c glue_var_blk_walk_expr pipeline_expr_struct_lit_init_ref pipeline_expr_append_struct_lit_field >"$_gv_keep"
+        # 10.22: keep nested ARRAY_LIT append+elem_ref (thin relocate + cyclic
+        # elem guard). Egg/alias append lacks child-run move → e0==parent SEGV.
+        printf '%s\n' glue_fill_var_block_refs_c glue_var_blk_walk_expr pipeline_expr_struct_lit_init_ref pipeline_expr_append_struct_lit_field pipeline_expr_append_array_lit_elem pipeline_expr_array_lit_elem_ref >"$_gv_keep"
         _oc=""
         if command -v llvm-objcopy >/dev/null 2>&1; then _oc=llvm-objcopy
         elif command -v objcopy >/dev/null 2>&1; then _oc=objcopy
@@ -1026,9 +1028,11 @@ case "$UNAME_S" in
           if nm "$_gv_kg" 2>/dev/null | grep -qE ' T glue_var_blk_walk_expr$' \
             && nm "$_gv_kg" 2>/dev/null | grep -qE ' T glue_fill_var_block_refs_c$' \
             && nm "$_gv_kg" 2>/dev/null | grep -qE ' T pipeline_expr_struct_lit_init_ref$' \
-            && nm "$_gv_kg" 2>/dev/null | grep -qE ' T pipeline_expr_append_struct_lit_field$'; then
+            && nm "$_gv_kg" 2>/dev/null | grep -qE ' T pipeline_expr_append_struct_lit_field$' \
+            && nm "$_gv_kg" 2>/dev/null | grep -qE ' T pipeline_expr_append_array_lit_elem$' \
+            && nm "$_gv_kg" 2>/dev/null | grep -qE ' T pipeline_expr_array_lit_elem_ref$'; then
             _PABI_TIP_PEEL="$_gv_kg $_PABI_TIP_PEEL"
-            echo "g05_relink_env: note743y.6.7 tip-peel glue_var+init_ref+append_struct_lit keep-global" >&2
+            echo "g05_relink_env: note743y.6.7/10.22 tip-peel glue_var+struct+array_lit keep-global" >&2
           else
             echo "g05_relink_env: ERROR glue_var kg missing T fill/walk" >&2
             exit 1
