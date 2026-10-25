@@ -4,6 +4,9 @@
 //   w1032/w1033/w1040/w1042 call-spill scratch (leaf 0, small measured,
 //     medium +64 pad and +64 trailer, heavy 2048 floor);
 //   w1043 48-byte cap for param-home-only forwarders (num_params <= 4);
+//   10.22: skip w1043 + reserve 48 when return is TYPE_ARRAY/SLICE (Path B0
+//     durable rar_src/rar_dst spills; else row0_slc frame 0x30 writes fp+0x38
+//     over caller LR → Bus error 138 on ret_index_array_param);
 //   w1047 x86_64 forwarders with 5+ formals reserve shadow + stack args;
 //   w1484 arm64 doubles the call-spill budget (16-byte temp slots);
 //   w1490 locals of blocks reached only through EXPR_IF / EXPR_BLOCK /
@@ -266,6 +269,7 @@ function w1500_fs_core(num_params: i32, arena: *u8, block_ref: i32, mod: *u8, fu
   let hoist: i32 = 0;
   let rem: i32 = 0;
   let homes: i32 = 0;
+  let ret_tk: i32 = 0;
   if (arena == (0 as *u8) || block_ref <= 0) {
     return 64;
   }
@@ -308,6 +312,22 @@ function w1500_fs_core(num_params: i32, arena: *u8, block_ref: i32, mod: *u8, fu
   if (mod != (0 as *u8) && func_index >= 0) {
     unsafe {
       ret_sz = glue_func_return_byte_size_c(mod, arena, func_index);
+    }
+    unsafe {
+      ret_tk = pipeline_module_func_return_type_at(mod, func_index);
+    }
+    if (ret_tk > 0) {
+      unsafe {
+        ret_tk = pipeline_type_kind_ord_at(arena, ret_tk);
+      }
+    } else {
+      ret_tk = 0;
+    }
+    // Path B0 durable COMMON copy: rar_src + rar_dst (16+16) + align slack.
+    // Must be in next_off before fill so prologue covers fp+0x38 stores.
+    // PLATFORM: SHARED · TYPE_ARRAY=10 · TYPE_SLICE=11.
+    if (ret_tk == 10 || ret_tk == 11) {
+      next_off = next_off + 48;
     }
     if (ret_sz > 16) {
       next_off = next_off + 8;
@@ -402,7 +422,8 @@ function w1500_fs_core(num_params: i32, arena: *u8, block_ref: i32, mod: *u8, fu
   // w1043: param-home-only forwarders cap at 48 (num_params <= 4).
   // w1503: arm64 saves x19 at [sp+size], so the cap only applies when every
   // home (params, locals, binop left-preserve homes) ends at or below 48.
-  if (ret_sz <= 16 && call_spill == 0 && arr_temp == 0 && wa_temp == 0 && reent_dc == 0 && (is_arm == 0 || next_off + homes * 8 <= 48)) {
+  // 10.22: never cap when return is ARRAY/SLICE — Path B0 needs the +48.
+  if (ret_tk != 10 && ret_tk != 11 && ret_sz <= 16 && call_spill == 0 && arr_temp == 0 && wa_temp == 0 && reent_dc == 0 && (is_arm == 0 || next_off + homes * 8 <= 48)) {
     if (num_params <= 4 && size > 48 && size <= 64) {
       return 48;
     }
