@@ -713,6 +713,7 @@ export function parser_asm_skip_one_trait_body_into_c(lex_inout: *u8, source: *u
   let fn_line: i32 = 0;
   let fn_col: i32 = 0;
   let mlen: i32 = 0;
+  let di: i32 = 0;
   let ts: usize = 0;
   let pii: i32 = 0;
   let k: i32 = 0;
@@ -778,6 +779,12 @@ export function parser_asm_skip_one_trait_body_into_c(lex_inout: *u8, source: *u
           p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ARRAY_NDIMS + mi_reg * 4, 0);
           p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi_reg * 4, 0);
           p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ELEM_KINDS + mi_reg * 4, -1);
+          di = 0;
+          while (di < P12G_DIM_MAX) {
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ARRAY_DIMS + mi_reg * P12G_PARAM_DIMS_ROW_INNER + di * 4, 0);
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi_reg * P12G_PARAM_DIMS_ROW_INNER + di * 4, 0);
+            di = di + 1;
+          }
           p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_COUNTS + mi_reg * 4, -1);
           pii = 0;
           while (pii < P12G_PARAM_MAX) {
@@ -787,6 +794,15 @@ export function parser_asm_skip_one_trait_body_into_c(lex_inout: *u8, source: *u
             p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ARRAY_NDIMS + mi_reg * P12G_PARAM_LENS_ROW + pii * 4, 0);
             p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS + mi_reg * P12G_PARAM_LENS_ROW + pii * 4, 0);
             p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ELEM_KINDS + mi_reg * P12G_PARAM_KINDS_ROW + pii * 4, -1);
+            // wave 10.22: zero unused-slot dim counts. eand==0 walk reads
+            // dims[0] as extra PTR wrap; garbage here mis-fires T001 on
+            // `[][]T` (Darwin often lucked into zeros; Ubuntu did not).
+            di = 0;
+            while (di < P12G_DIM_MAX) {
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ARRAY_DIMS + mi_reg * P12G_PARAM_DIMS_ROW + pii * P12G_PARAM_DIMS_ROW_INNER + di * 4, 0);
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi_reg * P12G_PARAM_DIMS_ROW + pii * P12G_PARAM_DIMS_ROW_INNER + di * 4, 0);
+              di = di + 1;
+            }
             pii = pii + 1;
           }
           mlen = nlen;
