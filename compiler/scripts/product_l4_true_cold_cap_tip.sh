@@ -70,6 +70,12 @@ WALL_START="$(date +%s)"
 # user -o / bstrict (same contract as product_l4_true_cold.sh).
 # PLATFORM: SHARED — Darwin Cap tip L4 / ARM64 sdiv#0.
 unset XLANG_PREFER_ASM_O
+# 10.22: ambient XLANG_ALLOW_HOST_CC=1 (from seed/smoke shells) forces
+# run-hello -backend c → BLD001 on Cap tip C residual; Cap tip L4 is asm gold.
+# Same scrub class as PREFER_ASM_O. Also clear FORCE_LINK_BACKEND.
+# PLATFORM: MACOS Cap tip L4.
+unset XLANG_ALLOW_HOST_CC || true
+unset XLANG_FORCE_LINK_BACKEND || true
 log "product_l4_true_cold_cap_tip START SHA=$SHA host=$HOST mode=$MODE log=$LOG"
 
 case "$HOST" in
@@ -386,6 +392,9 @@ fi
 # --- 8) bstrict 129 ---
 # Re-scrub: ambient or earlier steps must not leave PREFER_ASM_O=1 into user -o.
 unset XLANG_PREFER_ASM_O
+# Re-scrub host-cc ambient before bstrict (seed steps may re-export).
+unset XLANG_ALLOW_HOST_CC || true
+unset XLANG_FORCE_LINK_BACKEND || true
 log "step8: run-all-bstrict (SKIP_BUILD=1)"
 # 5.1 Cap tip Darwin: default JOBS=4 jetsam-kills Cap tip xlang mid -o
 # (Killed: 9 / ec=137 on core-types／string／let-const under parallel load).
