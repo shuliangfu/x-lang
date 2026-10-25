@@ -1589,20 +1589,12 @@ export function pipeline_elf_ctx_append_reloc_typed(ctx_bytes: *u8, offset: i32,
   if (pipeline_elf_ctx_append_reloc(ctx_bytes, offset, name, name_len) != 0) {
     return -1;
   }
-  // 10.22: capture shndx before optional sidecar reset. reset clears
-  // g_pipe_elf_reloc_shndx; without restore, absolute64 (F7 vtable) loses
-  // data shndx=4 and lands in rela.text — linker patches wrapper prologue.
-  let keep_shndx: i32 = pipe_elf_current_shndx(ctx_bytes);
+  // 10.22: tip-asm lowers BSS scalar owner assigns/loads to stack slots, so
+  // `g_pipe_elf_reloc_sidecar_owner != ctx` fires on every typed append and
+  // reloc_sidecar_reset wipes prior absolute64 r_type/shndx — only the last
+  // F7 vtable slot survives (dyn_add_f32 run=139). append_reloc already sets
+  // shndx + r_type=0 + pcrel=255 for the new row; do NOT reset here.
   let ri: i32 = w312_load(ctx_bytes, pipe_elf_off_num_relocs()) - 1;
-  // First typed row for this ctx: bind owner and prefill pcrel to 255 so
-  // untyped call slots keep writer-default pcrel=1 (BRANCH26 r_pcrel=0 is
-  // rejected by Darwin ld). Table-path append_reloc never called reset.
-  if (g_pipe_elf_reloc_sidecar_owner != ctx_bytes) {
-    pipeline_elf_ctx_reloc_sidecar_reset(ctx_bytes);
-    if (ri >= 0) {
-      pipe_elf_reloc_shndx_set(ctx_bytes, ri, keep_shndx);
-    }
-  }
   g_pipe_elf_reloc_sidecar_owner = ctx_bytes;
   if (ri >= 0 && ri < pipe_elf_table_cap()) {
     pipe_elf_bss_store_i32(&g_pipe_elf_reloc_r_type[0], ri, r_type);
