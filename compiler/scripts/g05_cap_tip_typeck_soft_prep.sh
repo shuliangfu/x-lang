@@ -121,6 +121,8 @@ if ! grep -qE " T _pipeline_typeck_check_call_generic_type_args_c_mega$" /tmp/g0
   exit 1
 fi
 echo "g05_cap_tip_typeck_soft_prep: mega faces OK" >&2
+"$OC" --redefine-sym=_pipeline_typeck_check_call_generic_type_args_c_Module_ptr_ASTArena_ptr_i32_PipelineDepCtx_ptr_i32_reti32=_pipeline_typeck_check_call_generic_type_args_c_Module_ptr_ASTArena_ptr_i32_PipelineDepCtx_ptr_i32_reti32__demoted   build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o   || { echo "g05_cap_tip_typeck_soft_prep: mangled demote failed" >&2; exit 1; }
+"$OC" --redefine-sym=_typeck_check_call_generic_type_args=_typeck_check_call_generic_type_args__demoted build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o || { echo "g05_cap_tip_typeck_soft_prep: typeck_check demote failed" >&2; exit 1; }
 python3 scripts/g05_cap_tip_typeck_retarget.py build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o
 as -arch arm64 -o build_asm/selfhost_pabi/generic_bound_scan_from_stash_a64.o \
   src/asm/generic_bound_scan_from_stash_a64.s \
@@ -133,6 +135,7 @@ _soft_keep build_asm/selfhost_pabi/link_abi_user_o_needs_std_heap_api_soft.o \
 _soft_keep build_asm/selfhost_pabi/link_abi_user_o_needs_heap_user_syms_soft.o \
   src/typeck/link_abi_user_o_needs_heap_user_syms_soft.x
 
+as -arch arm64 -o build_asm/selfhost_pabi/typeck_call_generic_mangled_tramp_a64.o   src/asm/typeck_call_generic_mangled_tramp_a64.s   || { echo "g05_cap_tip_typeck_soft_prep: mangled tramp as failed" >&2; exit 1; }
 echo "g05_cap_tip_typeck_soft_prep: OK"
 
 # knife256/10.2: demote pthin p6 pack_dup_field so Cap tip soft can first-win.

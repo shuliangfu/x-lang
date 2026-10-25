@@ -933,6 +933,17 @@ if [ -s build_asm/selfhost_pabi/typeck_call_generic_bounds_soft.o ]; then
       ;;
   esac
 fi
+
+if [ -s build_asm/selfhost_pabi/typeck_call_generic_mangled_tramp_a64.o ]; then
+  case " $G05_OBJS " in
+    *" build_asm/selfhost_pabi/typeck_call_generic_mangled_tramp_a64.o "*) ;;
+    *)
+      G05_OBJS="build_asm/selfhost_pabi/typeck_call_generic_mangled_tramp_a64.o $G05_OBJS"
+      export G05_OBJS
+      echo "g05_cap_tip_reapply: prepended typeck_call_generic_mangled_tramp_a64.o" >&2
+      ;;
+  esac
+fi
 if [ -s build_asm/selfhost_pabi/generic_bound_scan_from_stash_a64.o ]; then
   case " $G05_OBJS " in
     *" build_asm/selfhost_pabi/generic_bound_scan_from_stash_a64.o "*) ;;
@@ -2245,6 +2256,8 @@ if [ -f "$_1037_cmp_x" ] && [ -f "$_1037_disp_x" ]; then
       [ -s "$_mg_o" ] || continue
       "$_oc1037" --redefine-sym=_pipeline_typeck_check_call_generic_type_args_c=_pipeline_typeck_check_call_generic_type_args_c_mega "$_mg_o" 2>/dev/null || true
       "$_oc1037" --redefine-sym=_typeck_x_ast=_typeck_x_ast_mega "$_mg_o" 2>/dev/null || true
+      "$_oc1037" --redefine-sym=_pipeline_typeck_check_call_generic_type_args_c_Module_ptr_ASTArena_ptr_i32_PipelineDepCtx_ptr_i32_reti32=_pipeline_typeck_check_call_generic_type_args_c_Module_ptr_ASTArena_ptr_i32_PipelineDepCtx_ptr_i32_reti32__demoted "$_mg_o" 2>/dev/null || true
+      "$_oc1037" --redefine-sym=_typeck_check_call_generic_type_args=_typeck_check_call_generic_type_args__demoted "$_mg_o" 2>/dev/null || true
     done
     # Avoid pipefail SIGPIPE false-fail from nm|grep -q
     nm -gU "$_cap_peel" >/tmp/g05_peel_nm_cgb.txt 2>/dev/null || true
@@ -2255,6 +2268,9 @@ if [ -f "$_1037_cmp_x" ] && [ -f "$_1037_disp_x" ]; then
       exit 1
     fi
     echo "g05_cap_tip_reapply: 10.22 peel mega faces OK (call_generic_bounds soft)" >&2
+    python3 scripts/g05_cap_tip_typeck_retarget.py "$_cap_peel" \
+      || { echo "g05_cap_tip_reapply: ERROR 10.22 peel retarget call_generic soft" >&2; return 1; }
+    echo "g05_cap_tip_reapply: 10.22 peel retarget call_generic soft OK" >&2
     # mega still bls seed_dead after redefine — weaken peel bodies, strong trampoline wins.
     for _sym in _typeck_check_expr_binop__seed_dead _typeck_check_expr_binop_cmp__seed_dead; do
       if nm -gU "$_cap_peel" 2>/dev/null | awk '{print $3}' | grep -qxF "$_sym"; then

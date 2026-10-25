@@ -50,6 +50,9 @@ def main() -> int:
         b"_typeck_check_expr_try_propagate": b"_typeck_check_expr_try_propagate__demoted",
         b"_typeck_get_field_type_ref_from_layout_deps": b"_typeck_get_field_type_ref_from_layout_deps__demoted",
         b"_typeck_get_field_offset_from_layout_deps": b"_typeck_get_field_offset_from_layout_deps__demoted",
+        # 10.22: mega bodies — retarget call sites to soft face (else peel bl mega bypasses soft)
+        b"_pipeline_typeck_check_call_generic_type_args_c": b"_pipeline_typeck_check_call_generic_type_args_c_mega",
+        b"_typeck_x_ast": b"_typeck_x_ast_mega",
     }
     demoted_names = set(demoted_of.values())
     targets = list(demoted_of.keys())
