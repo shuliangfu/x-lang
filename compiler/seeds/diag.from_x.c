@@ -9,6 +9,7 @@
  *         merge diag_report from .x; keep code table / va_list / JSON C tail.
  * .x covers: report/human/json/print/code-query/levenshtein/…; C: table data + va_list.
  * Cap residual 10.7.2／9.5.3: reportf formats via xlang_vsnprintf (no libc vsnprintf).
+ * 5.1／10.9: XLANG_L2_DIAG_REPORTF_FROM_X omits four reportf C bodies (src/diag_reportf.x).
  * Cap residual 10.7.1: Cap va face via xlang_va_cap (no <stdarg.h>).
  */
 #include "diag.h"
@@ -344,6 +345,8 @@ extern void diag_report_with_code(const char *file, int line, int col, const cha
 extern void diag_report(const char *file, int line, int col, const char *kind, const char *msg, const char *detail);
 #endif
 
+/* 5.1／10.9: Cap tip pure .x reportf (src/diag_reportf.x) under FROM_X. */
+#ifndef XLANG_L2_DIAG_REPORTF_FROM_X
 void diag_vreportf_with_code(const char *file, int line, int col, const char *kind, const char *code, const char *detail, const char *fmt, xlang_va_list ap) {
     char buf[1024];
 
@@ -358,8 +361,6 @@ void diag_vreportf(const char *file, int line, int col, const char *kind, const 
     diag_vreportf_with_code(file, line, col, kind, NULL, detail, fmt, ap);
 }
 
-
-
 void diag_reportf_with_code(const char *file, int line, int col, const char *kind, const char *code, const char *detail, const char *fmt, ...) {
     xlang_va_list ap;
 
@@ -368,10 +369,6 @@ void diag_reportf_with_code(const char *file, int line, int col, const char *kin
     xlang_va_end(ap);
 }
 
-
-
-
-
 void diag_reportf(const char *file, int line, int col, const char *kind, const char *detail, const char *fmt, ...) {
     xlang_va_list ap;
 
@@ -379,6 +376,7 @@ void diag_reportf(const char *file, int line, int col, const char *kind, const c
     diag_vreportf_with_code(file, line, col, kind, NULL, detail, fmt, ap);
     xlang_va_end(ap);
 }
+#endif /* !XLANG_L2_DIAG_REPORTF_FROM_X */
 
 
 

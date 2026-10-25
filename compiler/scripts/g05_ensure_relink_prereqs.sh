@@ -357,12 +357,17 @@ g05_p9a_bridge_pure() {
     return 1
   fi
   # knife256/10.2: Cap tip pure_asm collapses lexer_next_buf_into→into.
-  # Prefer prebuilt peel that calls parser_asm_lex_peel_next_buf_into.
+  # GOOD peel is the Oct-20 known-good bridge (U:_lexer_next_into + T step/peek/anchor).
+  # Prior gate grepped U peel_next_buf_into — that symbol is never U in GOOD.o, so the
+  # gate never fired and every Cap tip tip-cold rebuilt a collapsed bridge → SEGV.
+  # PLATFORM: MACOS Cap tip L4 / Darwin g05.
   if [ -s /tmp/p9a_lex_bridge_peel_GOOD.o ] \
-    && /usr/bin/nm -u /tmp/p9a_lex_bridge_peel_GOOD.o 2>/dev/null \
-         | grep -q 'parser_asm_lex_peel_next_buf_into'; then
+    && /usr/bin/nm -gU /tmp/p9a_lex_bridge_peel_GOOD.o 2>/dev/null \
+         | grep -q 'parser_asm_lex_step_bridge_w1534_anchor' \
+    && /usr/bin/nm -gU /tmp/p9a_lex_bridge_peel_GOOD.o 2>/dev/null \
+         | grep -q 'parser_asm_lex_step_kind_c'; then
     cp -f /tmp/p9a_lex_bridge_peel_GOOD.o "$_bo"
-    echo "g05_ensure: P9a bridge using GOOD peel (peel_next_buf_into)" >&2
+    echo "g05_ensure: P9a bridge using GOOD peel (anchor+step_kind)" >&2
     return 0
   fi
   rm -f "$_bo"
@@ -784,6 +789,11 @@ g05_try_x_to_o() {
     rm -f "$_xtmp"
     return 1
   fi
+  # Cap 10.7.1 / 5.1: Cap tip -E emits `xlang_va_list ap = ;` for bare
+  # `let ap: VaList;` (empty init expr → nothing after `=`). Host-cc rejects.
+  # Rewrite to a bare decl (same face as seeds/diag.from_x.c reportf).
+  # PLATFORM: SHARED — Darwin/Linux tip -E+$CC.
+  perl -i -pe 's/\bxlang_va_list\s+(\w+)\s*=\s*;/xlang_va_list $1;/g' "$_xtmp" || true
   if [ "${G05_X_O_WEAK:-0}" = "1" ]; then
     # 仅改非 static 的简单返回类型函数定义行（-E 产物形态）
     # G-02f-335/336：含 uint8_t * / char * / int64_t 返回（diag_color_prefix / get_source_len 等）
@@ -1005,6 +1015,10 @@ g05_try_x_to_o() {
         -e '/^extern int mkstemp(/d' \
         -e '/^extern int32_t rename(/d' \
         -e '/^extern int rename(/d' \
+        -e '/^extern int32_t xlang_vsnprintf(/d' \
+        -e '/^extern int xlang_vsnprintf(/d' \
+        -e '/^extern int32_t vsnprintf(/d' \
+        -e '/^extern int vsnprintf(/d' \
         "$_xtmp"
   } >"${_xtmp}.full" && mv "${_xtmp}.full" "$_xtmp"
   # shellcheck disable=SC2086
@@ -4532,17 +4546,21 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # w2060: always try diag_thin.x + seed-rest (snap_* live only in thin);
   # full seed alone omits diag_snap_* / diag_store_ptr_le. PREFER_X_O=0
   # still needs the hybrid. PLATFORM: SHARED.
+  # 5.1／10.9: also merge src/diag_reportf.x (Cap va reportf; no host-cc).
   _diag=seeds/diag.from_x.c
   _diag_thin_x=src/diag_thin.x
+  _diag_reportf_x=src/diag_reportf.x
   _diag_o=src/diag.o
   if [ -f "$_diag" ]; then
     # 记250／8.7: also src/diag.x (basename surface; thin is diag_thin.x).
     if [ ! -f "$_diag_o" ] || [ "$_diag" -nt "$_diag_o" ] \
       || { [ -f "$_diag_thin_x" ] && [ "$_diag_thin_x" -nt "$_diag_o" ]; } \
+      || { [ -f "$_diag_reportf_x" ] && [ "$_diag_reportf_x" -nt "$_diag_o" ]; } \
       || { [ -f src/diag.x ] && [ src/diag.x -nt "$_diag_o" ]; }; then
       _diag_done=0
       if [ -f "$_diag_thin_x" ]; then
         _diag_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_diag_thin.XXXXXX") || true
+        _diag_reportf_o=$(mktemp "${TMPDIR:-/tmp}/g05_diag_reportf.XXXXXX") || true
         _diag_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_diag_rest.XXXXXX") || true
         # w1140: Darwin arm64 compiles eight pure-asm pieces. Other hosts
         # keep the single-file -E path. The on-disk src/diag.o is replaced
@@ -4565,22 +4583,64 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # compiler that folds the checks still accepts the flag.
         # PLATFORM: SHARED flag. Measured on WINDOWS x86_64.
         # shellcheck disable=SC2086
+        if [ -f "$_diag_reportf_x" ]; then
+          # 5.1/10.9: Cap tip pure-asm still leaves U _va_start/_va_end (Cap
+          # asm Cap-va rewrite not firing for export-extern faces). Force
+          # -E+$CC so Cap tip rewrites to xlang_va_* macros (L4 gold path).
+          # PLATFORM: SHARED — no new host-cc .c; .x remains authority.
+          if ! { [ -n "$_diag_reportf_o" ] \
+            && XLANG_PREFER_ASM_O_G05=0 XLANG_PURE_ASM_ALLOW_U_PANIC=1 G05_X_O_WEAK=1 \
+                 g05_try_x_to_o "$_diag_reportf_x" "$_diag_reportf_o"; }; then
+            echo "g05_ensure: diag_reportf.x -E+$CC failed; seed reportf C bodies kept" >&2
+            rm -f "$_diag_reportf_o"
+            _diag_reportf_o=""
+          elif nm -u "$_diag_reportf_o" 2>/dev/null | grep -E ' (_)?va_(start|end)$' >/dev/null; then
+            echo "g05_ensure: diag_reportf.o still U va_start/end; seed reportf kept" >&2
+            rm -f "$_diag_reportf_o"
+            _diag_reportf_o=""
+          fi
+        else
+          _diag_reportf_o=""
+        fi
+        _diag_rest_flags="-DXLANG_L2_DIAG_THIN_FROM_X"
+        if [ -n "$_diag_reportf_o" ] && [ -f "$_diag_reportf_o" ]; then
+          _diag_rest_flags="$_diag_rest_flags -DXLANG_L2_DIAG_REPORTF_FROM_X"
+        fi
+        _diag_merge_ok=0
         if [ -n "$_diag_thin_o" ] && [ -n "$_diag_rest_o" ] \
           && { [ "$_diag_pure" = "1" ] \
             || XLANG_PURE_ASM_ALLOW_U_PANIC=1 G05_X_O_WEAK=1 g05_try_x_to_o "$_diag_thin_x" "$_diag_thin_o"; } \
-          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_L2_DIAG_THIN_FROM_X \
-               -c -o "$_diag_rest_o" "$_diag" \
-          && pure_ld_partial_merge "$_diag_o" "$_diag_thin_o" "$_diag_rest_o" 2>/dev/null; then
-          if [ "$_diag_pure" = "1" ]; then
-            echo "g05_ensure: $_diag_o ← pure-asm eight .x pieces (w1140) + seed rest"
+          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc $_diag_rest_flags \
+               -c -o "$_diag_rest_o" "$_diag"; then
+          if [ -n "$_diag_reportf_o" ] && [ -f "$_diag_reportf_o" ]; then
+            if pure_ld_partial_merge "$_diag_o" "$_diag_thin_o" "$_diag_reportf_o" "$_diag_rest_o" 2>/dev/null; then
+              _diag_merge_ok=1
+            fi
           else
-            echo "g05_ensure: $_diag_o ← $_diag_thin_x + seed-rest (G-02f-347/420/421 L2 hybrid diag thin)"
+            if pure_ld_partial_merge "$_diag_o" "$_diag_thin_o" "$_diag_rest_o" 2>/dev/null; then
+              _diag_merge_ok=1
+            fi
+          fi
+        fi
+        if [ "$_diag_merge_ok" = "1" ]; then
+          if [ "$_diag_pure" = "1" ]; then
+            if [ -n "$_diag_reportf_o" ] && [ -f "$_diag_reportf_o" ]; then
+              echo "g05_ensure: $_diag_o ← pure-asm eight .x pieces (w1140) + diag_reportf.x + seed rest"
+            else
+              echo "g05_ensure: $_diag_o ← pure-asm eight .x pieces (w1140) + seed rest"
+            fi
+          else
+            if [ -n "$_diag_reportf_o" ] && [ -f "$_diag_reportf_o" ]; then
+              echo "g05_ensure: $_diag_o ← $_diag_thin_x + $_diag_reportf_x + seed-rest (5.1/10.9 Cap va reportf)"
+            else
+              echo "g05_ensure: $_diag_o ← $_diag_thin_x + seed-rest (G-02f-347/420/421 L2 hybrid diag thin)"
+            fi
           fi
           _diag_done=1
         else
           echo "g05_ensure: L2 hybrid diag thin failed; fallback full seed" >&2
         fi
-        rm -f "$_diag_thin_o" "$_diag_rest_o"
+        rm -f "$_diag_thin_o" "$_diag_reportf_o" "$_diag_rest_o"
       fi
       if [ "$_diag_done" = "0" ]; then
         echo "g05_ensure: $_diag_o ← seed (G-02f-11)"

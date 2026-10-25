@@ -183,6 +183,17 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ] \
         && echo "g05_relink_xlang: note743y.6.23 pre-ld demote pabi_weak var_field_access (field_cap wins)" >&2 \
         || true
     fi
+    # note743y.6.23: peel helpers_thin first-wins transparent_value over pabi_weak.
+    # PLATFORM: MACOS Cap tip.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])binop_block_peel_helpers_thin\.o([[:space:]]|$)' \
+      && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
+      && nm build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+           | grep -q ' T _glue_expr_block_transparent_value_ref_at$'; then
+      "$_g05_oc" --redefine-sym=_glue_expr_block_transparent_value_ref_at=_glue_expr_block_transparent_value_ref_at__pabi_weak_dup \
+        build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+        && echo "g05_relink_xlang: note743y.6.23 pre-ld demote pabi_weak transparent_value (helpers wins)" >&2 \
+        || true
+    fi
     # note743y.6.23: Cap tip archive_leaf owns backend_asm_codegen (+mega_body).
     # ensure may rebuild mega after env demote → pure-ld duplicate mega_body.
     # pre-ld demote both T on runtime_pipeline_abi.o. PLATFORM: MACOS tip cold.

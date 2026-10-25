@@ -6395,10 +6395,15 @@ _dal_partial=build_asm/seed_host/asm_backend_partial.o
 _dal_tramp_s=src/asm/backend_codegen_to_elf_tramp_a64.s
 _dal_tramp_o=build_asm/seed_host/backend_codegen_to_elf_tramp_a64.o
 _dal_cap_host=""
+# knife256/5.1: prefer Cap tip xlang/xlang_asm over bootstrap_xlangc.
+# Cache bootstrap (~12.5MB) fails mega_fallback pure-asm 3x and poisons
+# build_asm/g05_xasm_crash.log → g05 ensure hard-fails after hand-tramp OK.
+# Cap tip xlang (~10.9MB) emits Cap-good partial. PLATFORM: MACOS Cap tip.
 for _dal_h in \
-  /tmp/cap_tip_l4_safe_406200eef/bootstrap_xlangc \
   /tmp/cap_tip_l4_safe_406200eef/xlang \
-  /tmp/cap_tip_l4_safe_*/bootstrap_xlangc; do
+  /tmp/cap_tip_l4_safe_406200eef/xlang_asm \
+  /tmp/cap_tip_l4_safe_406200eef/bootstrap_xlangc \
+  /tmp/cap_tip_l4_safe_*/xlang; do
   if [ -x "$_dal_h" ]; then _dal_cap_host="$_dal_h"; break; fi
 done
 _dal_ok_cap=0
@@ -6463,6 +6468,12 @@ if [ "$(uname -s 2>/dev/null || true)" = "Darwin" ] && [ -n "$_dal_cap_host" ]; 
     fi
   else
     echo "g05_relink_env: note743y.6.23 Cap partial rebuild miss; hand tramp fallback" >&2
+    # Drop Cap-probe mega_fallback crash ledger lines (intentional miss; LEGACY ensure rebuilds).
+    if [ -s build_asm/g05_xasm_crash.log ]; then
+      grep -v 'build_asm_backend_partial_pure: pure asm src/asm/backend_seed_mega_fallback.x failed' \
+        build_asm/g05_xasm_crash.log >build_asm/g05_xasm_crash.log.scrub 2>/dev/null || true
+      mv -f build_asm/g05_xasm_crash.log.scrub build_asm/g05_xasm_crash.log 2>/dev/null || true
+    fi
     if [ -f "$_dal_tramp_s" ]; then
       as -o "$_dal_tramp_o" "$_dal_tramp_s" 2>/tmp/g05_tramp_as.err || true
       if [ -s "$_dal_tramp_o" ]; then

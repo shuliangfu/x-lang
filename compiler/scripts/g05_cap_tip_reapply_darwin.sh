@@ -1364,10 +1364,11 @@ if [ -f build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o ]; then
   if [ -n "$_oc_sf" ]; then
     "$_oc_sf" \
       --globalize-symbol=_glue_emit_vector_type_let_init_elf_c \
+      --globalize-symbol=_glue_struct_lit_field_store_sz \
       --redefine-sym=_pipeline_asm_emit_array_lit_force_esz_elf_c=_pipeline_asm_emit_array_lit_force_esz_elf_c_symfill_localdead \
       --redefine-sym=_pipeline_asm_emit_array_lit_elf_c=_pipeline_asm_emit_array_lit_elf_c_symfill_localdead \
       build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o \
-      && echo "g05_cap_tip_reapply: globalized fill glue_emit_vector; demoted fill array_lit locals" >&2 || true
+      && echo "g05_cap_tip_reapply: globalized fill glue_emit_vector+struct_lit; demoted fill array_lit locals" >&2 || true
     # knife256/10.2: LEGACY-tip decline pulls lane/modlet; keep them global in fill.
     "$_oc_sf" \
       --globalize-symbol=_glue_lane_f32_lit_dest_set \
@@ -2012,7 +2013,6 @@ fi
 # PLATFORM: MACOS Cap tip.
 for _peel_o in \
   build_asm/selfhost_pabi/binop_block_peel_helpers_thin.o \
-  build_asm/selfhost_pabi/binop_block_peel_load_operand_thin.o \
   build_asm/selfhost_pabi/av_assign_var_try_let.o; do
   if [ -s "$_peel_o" ]; then
     case " $G05_OBJS " in
@@ -2026,9 +2026,14 @@ for _peel_o in \
   fi
 done
 # Demote pabi_weak duplicates so peel/try_let thins first-win.
-_oc="${LLVM_OBJCOPY:-/opt/homebrew/opt/llvm/bin/llvm-objcopy}"
+# Resolve llvm-objcopy by full path: a bare LLVM_OBJCOPY=llvm-objcopy makes
+# `[ -x]` fail (no PATH search) and skip demote → Apple ld duplicate T.
+_oc=""
+for c in "${LLVM_OBJCOPY:-}" /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
+  [ -n "$c" ] && [ -x "$c" ] && _oc=$c && break
+done
 _pw=build_asm/selfhost_pabi/pabi_weak.o
-if [ -x "$_oc" ] && [ -s "$_pw" ]; then
+if [ -n "$_oc" ] && [ -s "$_pw" ]; then
   for _s in _glue_expr_block_transparent_value_ref_at _glue_try_binop_load_operand_elf_c _glue_emit_assign_var_try_let_elf_c; do
     if nm -gU "$_pw" 2>/dev/null | awk '{print $3}' | grep -qxF "$_s"; then
       "$_oc" --redefine-sym="${_s}=${_s}__pabi_weak_dup" "$_pw" 2>/dev/null \
