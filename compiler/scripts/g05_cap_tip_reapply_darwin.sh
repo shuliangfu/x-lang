@@ -2081,6 +2081,123 @@ if [ -n "$_oc" ] && [ -s "$_pw" ]; then
   done
 fi
 
+# 10.37 Cap residual: usual-arith i32↔i64 cmp + parent binop dispatcher.
+# redefine-sym on cap_repr_weak retargets in-object bl → must overlay parent too.
+# PLATFORM: MACOS Cap tip.
+_1037_cmp_ov=build_asm/selfhost_pabi/typeck_binop_cmp_usual_arith.o
+_1037_disp_ov=build_asm/selfhost_pabi/typeck_binop_dispatch.o
+_1037_cmp_x=src/typeck/typeck_check_expr_binop_cmp_usual_arith_thin.x
+_1037_disp_x=src/typeck/typeck_check_expr_binop_dispatch_thin.x
+if [ -f "$_1037_cmp_x" ] && [ -f "$_1037_disp_x" ]; then
+  _1037_host=""
+  for _h in ./xlang /tmp/cap_tip_l4_safe_406200eef/xlang "$CACHE/xlang" \
+    seeds/bootstrap_xlangc.darwin.arm64; do
+    [ -x "$_h" ] && _1037_host="$_h" && break
+  done
+  if [ -z "$_1037_host" ]; then
+    echo "g05_cap_tip_reapply: ERROR 10.37 no host to compile thin" >&2
+    exit 1
+  fi
+  mkdir -p build_asm/selfhost_pabi
+  if ! "$_1037_host" -backend asm -c "$_1037_cmp_x" -o "$_1037_cmp_ov" \
+      >/tmp/g05_1037_thin_compile.log 2>&1 \
+    || ! nm -gU "$_1037_cmp_ov" 2>/dev/null | grep -qE 'T _typeck_check_expr_binop_cmp$'; then
+    echo "g05_cap_tip_reapply: ERROR 10.37 cmp thin compile failed" >&2
+    cat /tmp/g05_1037_thin_compile.log >&2 || true
+    exit 1
+  fi
+  if ! "$_1037_host" -backend asm -c "$_1037_disp_x" -o "$_1037_disp_ov" \
+      >/tmp/g05_1037_disp_compile.log 2>&1 \
+    || ! nm -gU "$_1037_disp_ov" 2>/dev/null | grep -qE 'T _typeck_check_expr_binop$'; then
+    echo "g05_cap_tip_reapply: ERROR 10.37 dispatch thin compile failed" >&2
+    cat /tmp/g05_1037_disp_compile.log >&2 || true
+    exit 1
+  fi
+  case " $G05_OBJS " in
+    *" typeck_binop_cmp_usual_arith.o "*) ;;
+    *)
+      G05_OBJS="$_1037_cmp_ov $G05_OBJS"
+      ;;
+  esac
+  case " $G05_OBJS " in
+    *" typeck_binop_dispatch.o "*) ;;
+    *)
+      G05_OBJS="$_1037_disp_ov $G05_OBJS"
+      ;;
+  esac
+  export G05_OBJS
+  echo "g05_cap_tip_reapply: 10.37 prepended binop dispatch+cmp usual-arith overlays" >&2
+  _oc1037=""
+  for c in "${LLVM_OBJCOPY:-}" /opt/homebrew/opt/llvm/bin/llvm-objcopy \
+    /usr/local/opt/llvm/bin/llvm-objcopy; do
+    [ -n "$c" ] && [ -x "$c" ] && _oc1037=$c && break
+  done
+  _cap_ty=build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o
+  _cap_peel=build_asm/selfhost_pabi/typeck_x.cap_repr_weak.binop_cmp_peel.o
+  if [ -n "$_oc1037" ] && [ -s "$_cap_ty" ]; then
+    cp -f "$_cap_ty" "$_cap_peel"
+    for _sym in _typeck_check_expr_binop_cmp _typeck_check_expr_binop; do
+      if nm -gU "$_cap_peel" 2>/dev/null | awk '{print $3}' | grep -qxF "$_sym"; then
+        "$_oc1037" --redefine-sym="${_sym}=${_sym}__seed_dead" "$_cap_peel" 2>/dev/null \
+          || { echo "g05_cap_tip_reapply: ERROR 10.37 demote $_sym failed" >&2; exit 1; }
+      fi
+    done
+    if nm -gU "$_cap_peel" 2>/dev/null | grep -qE ' T _typeck_check_expr_binop_cmp$' \
+      || nm -gU "$_cap_peel" 2>/dev/null | grep -qE ' T _typeck_check_expr_binop$'; then
+      echo "g05_cap_tip_reapply: ERROR 10.37 peel still exports binop T" >&2
+      exit 1
+    fi
+    _new_objs=""
+    for _o in $G05_OBJS; do
+      case "$_o" in
+        */typeck_x.cap_repr_weak.o|typeck_x.cap_repr_weak.o)
+          _new_objs="$_new_objs $_cap_peel"
+          ;;
+        *)
+          _new_objs="$_new_objs $_o"
+          ;;
+      esac
+    done
+    G05_OBJS=$(echo $_new_objs)
+    export G05_OBJS
+    case " $G05_OBJS " in
+      *"typeck_x.cap_repr_weak.o "*)
+        echo "g05_cap_tip_reapply: ERROR 10.37 still has typeck_x.cap_repr_weak.o" >&2
+        exit 1
+        ;;
+    esac
+    case " $G05_OBJS " in
+      *"typeck_x.cap_repr_weak.binop_cmp_peel.o "*) ;;
+      *)
+        echo "g05_cap_tip_reapply: ERROR 10.37 peel not in G05_OBJS" >&2
+        exit 1
+        ;;
+    esac
+    echo "g05_cap_tip_reapply: 10.37 demote typeck_x.cap_repr_weak peel::binop+cmp" >&2
+    # mega still bls seed_dead after redefine — weaken peel bodies, strong trampoline wins.
+    for _sym in _typeck_check_expr_binop__seed_dead _typeck_check_expr_binop_cmp__seed_dead; do
+      if nm -gU "$_cap_peel" 2>/dev/null | awk '{print $3}' | grep -qxF "$_sym"; then
+        "$_oc1037" --weaken-symbol="$_sym" "$_cap_peel" 2>/dev/null           || { echo "g05_cap_tip_reapply: ERROR 10.37 weaken $_sym failed" >&2; exit 1; }
+      fi
+    done
+    _1037_tramp=build_asm/selfhost_pabi/typeck_binop_seed_dead_trampoline_a64.o
+    _1037_tramp_s=src/asm/typeck_binop_seed_dead_trampoline_a64.s
+    if [ ! -f "$_1037_tramp_s" ]; then
+      echo "g05_cap_tip_reapply: ERROR 10.37 missing $_1037_tramp_s" >&2
+      exit 1
+    fi
+    clang -c -o "$_1037_tramp" "$_1037_tramp_s"       || { echo "g05_cap_tip_reapply: ERROR 10.37 trampoline assemble failed" >&2; exit 1; }
+    case " $G05_OBJS " in
+      *" typeck_binop_seed_dead_trampoline_a64.o "*) ;;
+      *)
+        G05_OBJS="$_1037_tramp $G05_OBJS"
+        ;;
+    esac
+    export G05_OBJS
+    echo "g05_cap_tip_reapply: 10.37 seed_dead trampoline + weakened peel" >&2
+  fi
+fi
+
 bash scripts/g05_relink_xlang.sh
 
 if [ ! -x xlang.cap_g05_l2 ]; then

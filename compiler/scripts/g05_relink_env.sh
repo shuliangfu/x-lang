@@ -237,7 +237,7 @@ else
   # async_asm_pool: unbundled from pipeline_glue; required in no_c product link too.
   _DRIVER_SEED_SUPPORT="src/async/async_asm_pool.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o"
 fi
-_X_FRONTEND="parser_x.o ${_G05_LEXER_X_O:-lexer_x.o} typeck_x.o codegen_x.o x_frontend_link_alias.o"
+_X_FRONTEND="parser_x.o ${_G05_LEXER_X_O:-lexer_x.o} ${_G05_TYPECK_X_O:-typeck_x.o} codegen_x.o x_frontend_link_alias.o"
 _DRIVER_SUBCMD="driver_fmt_x.o driver_check_x.o driver_test_x.o driver_compile_x.o driver_build_x.o driver_run_x.o driver_emit_x.o"
 # _GLUE_SUFFIX: stubs only at link END.
 # wave304 G.7 8.3.6: pipeline_glue_strict_minimal seed shell retired (0 residual T
@@ -938,6 +938,7 @@ fi
 # over skip_egg U. PLATFORM: LINUX tip cold · gold.
 _PABI_TIP_PEEL=""
 _G05_LEXER_X_O=""
+_G05_TYPECK_X_O=""
 case "$UNAME_S" in
   Linux)
     if [ "${XLANG_TIP_PEEL_OVERLAY:-1}" = "1" ]; then
@@ -1047,6 +1048,52 @@ case "$UNAME_S" in
       else
         echo "g05_relink_env: ERROR struct_lit_field nest guard tip-peel missing" >&2
         exit 1
+      fi
+      # 10.37 Cap residual: usual-arith i32↔i64 cmp + parent binop dispatch.
+      # Parent overlay so cmp call is external (in-object bl stays on seed). PLATFORM: LINUX tip cold.
+      _g05_pure_overlay src/typeck/typeck_check_expr_binop_cmp_usual_arith_thin.x \
+        build_asm/selfhost_pabi/typeck_binop_cmp_usual_arith.o \
+        typeck_check_expr_binop_cmp
+      if [ -n "$_G05_PO_OUT" ]; then
+        _PABI_TIP_PEEL="$_G05_PO_OUT $_PABI_TIP_PEEL"
+        echo "g05_relink_env: 10.37 tip-peel binop_cmp usual-arith" >&2
+      else
+        echo "g05_relink_env: ERROR 10.37 binop_cmp usual-arith tip-peel missing" >&2
+        exit 1
+      fi
+      _g05_pure_overlay src/typeck/typeck_check_expr_binop_dispatch_thin.x \
+        build_asm/selfhost_pabi/typeck_binop_dispatch.o \
+        typeck_check_expr_binop
+      if [ -n "$_G05_PO_OUT" ]; then
+        _PABI_TIP_PEEL="$_G05_PO_OUT $_PABI_TIP_PEEL"
+        echo "g05_relink_env: 10.37 tip-peel binop dispatch" >&2
+      else
+        echo "g05_relink_env: ERROR 10.37 binop dispatch tip-peel missing" >&2
+        exit 1
+      fi
+      # 10.37: mega in typeck_x.o still calls seed after redefine — trampoline.
+      _oc1037=""
+      if command -v llvm-objcopy >/dev/null 2>&1; then _oc1037=llvm-objcopy
+      elif command -v objcopy >/dev/null 2>&1; then _oc1037=objcopy
+      fi
+      if [ -n "$_oc1037" ] && [ -f typeck_x.o ]; then
+        _tx_peel=build_asm/selfhost_pabi/typeck_x_binop_cmp_peel.o
+        cp -f typeck_x.o "$_tx_peel"
+        for _sym in typeck_check_expr_binop_cmp typeck_check_expr_binop; do
+          if nm "$_tx_peel" 2>/dev/null | awk '/ [T] /{print $NF}' | grep -qxF "$_sym"; then
+            "$_oc1037" --redefine-sym="${_sym}=${_sym}__seed_dead" "$_tx_peel" 2>/dev/null               || { echo "g05_relink_env: ERROR 10.37 Linux demote $_sym failed" >&2; exit 1; }
+          fi
+        done
+        for _sym in typeck_check_expr_binop__seed_dead typeck_check_expr_binop_cmp__seed_dead; do
+          if nm "$_tx_peel" 2>/dev/null | awk '/ [T] /{print $NF}' | grep -qxF "$_sym"; then
+            "$_oc1037" --weaken-symbol="$_sym" "$_tx_peel" 2>/dev/null || true
+          fi
+        done
+        _G05_TYPECK_X_O="$_tx_peel"
+        _1037_tramp=build_asm/selfhost_pabi/typeck_binop_seed_dead_trampoline_x64.o
+        clang -c -o "$_1037_tramp" src/asm/typeck_binop_seed_dead_trampoline_x64.s           || { echo "g05_relink_env: ERROR 10.37 Linux trampoline assemble failed" >&2; exit 1; }
+        _PABI_TIP_PEEL="$_1037_tramp $_PABI_TIP_PEEL"
+        echo "g05_relink_env: 10.37 Linux tip peel+trampoline" >&2
       fi
       # note743y.4: tip parser still calls struct-returning lexer_init; tip
       # lexer_init is out-ptr and smashes source when rdi==parked data
@@ -5854,7 +5901,7 @@ case "$UNAME_S" in
     _WIN_V1_CALL_ALIAS="$_walias_o"
     ;;
 esac
-_X_FRONTEND="parser_x.o ${_G05_LEXER_X_O:-lexer_x.o} typeck_x.o ${_TYPECK_CAP_RESIDUAL} ${_TYPECK_CTFE} codegen_x.o x_frontend_link_alias.o ${_WIN_V1_CALL_ALIAS}"
+_X_FRONTEND="parser_x.o ${_G05_LEXER_X_O:-lexer_x.o} ${_G05_TYPECK_X_O:-typeck_x.o} ${_TYPECK_CAP_RESIDUAL} ${_TYPECK_CTFE} codegen_x.o x_frontend_link_alias.o ${_WIN_V1_CALL_ALIAS}"
 _DRIVER_SEED_OBJS="$_PABI_ADDR_OF_CALL $_PABI_ELF_LAYOUT_64K $_PABI_INDEX_BASE_FIELD $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_ELF_UNDEF_CAP $_PABI_NAMED_SIZE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_REENT_SUM $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_WPO_ALIAS $_PABI_RELOC_TYPED $_PABI_ELF_CTX $_PABI_DATA_LEN $_G05_W211_CALL_ARG $_G05_W211_VAR_OFF $_G05_W211_REGISTER $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_SKIP_HEAVY $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_CODEGEN_CAP_RESIDUAL $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
@@ -6369,6 +6416,61 @@ case "$UNAME_S" in
             || true
         fi
       done
+    fi
+    # 10.37 Cap residual: usual-arith cmp + parent binop dispatch overlays.
+    # PLATFORM: MACOS tip cold / Cap tip (typeck_x.o path).
+    _g05_pure_overlay src/typeck/typeck_check_expr_binop_cmp_usual_arith_thin.x \
+      build_asm/selfhost_pabi/typeck_binop_cmp_usual_arith.o \
+      typeck_check_expr_binop_cmp
+    _cmp_ov="$_G05_PO_OUT"
+    _g05_pure_overlay src/typeck/typeck_check_expr_binop_dispatch_thin.x \
+      build_asm/selfhost_pabi/typeck_binop_dispatch.o \
+      typeck_check_expr_binop
+    _disp_ov="$_G05_PO_OUT"
+    if [ -n "$_cmp_ov" ] && [ -n "$_disp_ov" ]; then
+      case " $_CAP_TIP_FRONT " in
+        *" typeck_binop_cmp_usual_arith.o "*) ;;
+        *) _CAP_TIP_FRONT="$_cmp_ov $_CAP_TIP_FRONT" ;;
+      esac
+      case " $_CAP_TIP_FRONT " in
+        *" typeck_binop_dispatch.o "*) ;;
+        *) _CAP_TIP_FRONT="$_disp_ov $_CAP_TIP_FRONT" ;;
+      esac
+      echo "g05_relink_env: 10.37 Cap tip binop dispatch+cmp overlays" >&2
+      if [ -n "${_oc:-}" ] && [ -f typeck_x.o ]; then
+        _tx_peel=build_asm/selfhost_pabi/typeck_x_binop_cmp_peel.o
+        cp -f typeck_x.o "$_tx_peel"
+        for _sym in _typeck_check_expr_binop_cmp _typeck_check_expr_binop; do
+          if nm -gU "$_tx_peel" 2>/dev/null | awk '{print $3}' | grep -qxF "$_sym"; then
+            "$_oc" --redefine-sym="${_sym}=${_sym}__seed_dead" "$_tx_peel" 2>/dev/null \
+              || { echo "g05_relink_env: ERROR 10.37 demote $_sym failed" >&2; exit 1; }
+          fi
+        done
+        _G05_TYPECK_X_O="$_tx_peel"
+        echo "g05_relink_env: 10.37 demote typeck_x peel::binop+cmp" >&2
+        for _sym in _typeck_check_expr_binop__seed_dead _typeck_check_expr_binop_cmp__seed_dead; do
+          if nm -gU "$_tx_peel" 2>/dev/null | awk '{print $3}' | grep -qxF "$_sym"; then
+            "$_oc" --weaken-symbol="$_sym" "$_tx_peel" 2>/dev/null || true
+          fi
+        done
+        _1037_tramp=build_asm/selfhost_pabi/typeck_binop_seed_dead_trampoline_a64.o
+        if [ "$(uname -s)" = "Linux" ]; then
+          _1037_tramp=build_asm/selfhost_pabi/typeck_binop_seed_dead_trampoline_x64.o
+          clang -c -o "$_1037_tramp" src/asm/typeck_binop_seed_dead_trampoline_x64.s             || { echo "g05_relink_env: ERROR 10.37 trampoline assemble failed" >&2; exit 1; }
+        else
+          clang -c -o "$_1037_tramp" src/asm/typeck_binop_seed_dead_trampoline_a64.s             || { echo "g05_relink_env: ERROR 10.37 trampoline assemble failed" >&2; exit 1; }
+        fi
+        case " $_CAP_TIP_FRONT " in
+          *" typeck_binop_seed_dead_trampoline_"*) ;;
+          *)
+            _CAP_TIP_FRONT="$_1037_tramp $_CAP_TIP_FRONT"
+            ;;
+        esac
+        echo "g05_relink_env: 10.37 seed_dead trampoline" >&2
+      fi
+    else
+      echo "g05_relink_env: ERROR 10.37 binop overlays missing" >&2
+      exit 1
     fi
     # note743y.6.21: when PREFER asm_wpo_thin and pabi_weak both export the
     # same asm_wpo_* T, Darwin ld errors. Weaken pabi_weak copies so thin wins

@@ -15451,8 +15451,8 @@ export function typeck_type_is_aggregate_cmp_operand(module: *Module, arena: *AS
  * C integer promotions for compare operands (Defect D / 9.6.1 residual).
  * Sub-int families (u8 / NAMED i8,i16,u16) that true-widen to i32 are
  * stamped to i32 so `u8 == i32` is not mixed-type T001.
- * Does NOT apply usual arithmetic conversions: i32 vs i64 / u32 vs i32
- * stay mismatch (wave666).
+ * Usual-arith i32↔i64 is applied later in binop_cmp (10.37); u32↔i32
+ * and int↔bool stay mismatch (wave666).
  * @param arena *ASTArena — type/expr pool
  * @param expr_ref i32 — operand expr to stamp when promoted
  * @param ty_ref i32 — current resolved type of expr_ref
@@ -15491,6 +15491,8 @@ function typeck_cmp_promote_subint_to_i32(arena: *ASTArena, expr_ref: i32, ty_re
  * wave317: f32 peer + bare FLOAT_LIT coerce. wave657: hard-fail aggregate operands.
  * wave665: LOGAND/LOGOR require bool. wave666: mixed operand types hard-fail
  * except Defect D C integer promotions (sub-int → i32) inside the equal gate.
+ * 10.37: after sub-int→i32, usual-arith stamp narrower int to a 64-bit peer
+ * (i32 vs i64 / neg lit / `0 - 10000`) so compare is not T001.
  * @param module *Module
  * @param arena *ASTArena
  * @param expr_ref i32 — EQ/NE/LT/LE/GT/GE expr
@@ -15635,8 +15637,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
        * (or host warning-only for distinct pointer types).
        * Policy (strict, Cap residual): operands must be equal after peer lit coerce
        * (G.7 reuse typeck_coerce_init_lit_to_decl for bare INT_LIT / 0→ptr; float lit
-       * already coerced above). No float widen, no int↔bool, no i32 vs i64 usual
-       * arithmetic conversions (those were the wave666 false greens).
+       * already coerced above). No float widen, no int↔bool. 10.37 adds usual-arith
+       * stamp when one peer is 64-bit int (after Defect D sub-int→i32).
        * Defect D / 9.6.1 residual: C integer promotions ARE applied — sub-int
        * families (u8 / NAMED i8,i16,u16) stamp to i32 so `u8 == i32` is not T001.
        * Soft: unknown/null operand type (incomplete resolve) is not a hard leaf.
@@ -15665,6 +15667,27 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
             }
             if (typeck_cmp_promote_subint_to_i32(arena, bop_r, rt_cmp) != 0) {
               rt_cmp = pipeline_expr_resolved_type_ref(arena, bop_r);
+            }
+          }
+          /*
+           * 10.37 Cap residual: usual arithmetic conversions when one peer is
+           * 64-bit int (i64/u64/usize/isize). Stamp the narrower operand so
+           * `i64 > -1` / `i64 > (0 - 10000)` / `i32 == i64` are not T001.
+           * Does not open i32↔u32 or int↔bool (wave666 still holds).
+           * PLATFORM: SHARED — typeck.x pure-asm authority.
+           */
+          if (!type_refs_equal(arena, lt_cmp, rt_cmp)) {
+            lko_cmp = pipeline_type_kind_ord_at(arena, lt_cmp);
+            rko_cmp = pipeline_type_kind_ord_at(arena, rt_cmp);
+            /* kind_ord: u64=4 i64=5 usize=6 isize=7 (glue_type_kind_is_64bit_int). */
+            if ((lko_cmp == 4 || lko_cmp == 5 || lko_cmp == 6 || lko_cmp == 7)
+            && typeck_integer_widen_ok_refs(arena, lt_cmp, rt_cmp)) {
+              pipeline_expr_set_resolved_type_ref(arena, bop_r, lt_cmp);
+              rt_cmp = lt_cmp;
+            } else if ((rko_cmp == 4 || rko_cmp == 5 || rko_cmp == 6 || rko_cmp == 7)
+            && typeck_integer_widen_ok_refs(arena, rt_cmp, lt_cmp)) {
+              pipeline_expr_set_resolved_type_ref(arena, bop_l, rt_cmp);
+              lt_cmp = rt_cmp;
             }
           }
           if (!type_refs_equal(arena, lt_cmp, rt_cmp)) {
