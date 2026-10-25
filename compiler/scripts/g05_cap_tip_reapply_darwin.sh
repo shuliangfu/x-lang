@@ -1161,6 +1161,18 @@ fi
 # knife256/10.2: weaken leftover glue_sysv_arg_byte_size_c so Cap tip thin
 # first-wins; redefine-sym would rename packer call sites to _dispatch_dead.
 # PLATFORM: MACOS Cap tip.
+# 10.22: Cap tip bak must track tip-compiled full .x (AAPCS64 f32/f64 → v-slots).
+# Stale bak (pre-AAPCS) packs dyn/normal f32 extras in GP while param_home reads sK/dK.
+# PLATFORM: MACOS Cap tip.
+if [ -f src/asm/backend_call_dispatch.x ] && [ -x ./xlang ]; then
+  if [ ! -s src/asm/backend_call_dispatch.o.bak_pre_argbs ] \
+     || [ src/asm/backend_call_dispatch.x -nt src/asm/backend_call_dispatch.o.bak_pre_argbs ]; then
+    bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer src/asm/backend_call_dispatch.o \
+      && cp -f src/asm/backend_call_dispatch.o src/asm/backend_call_dispatch.o.bak_pre_argbs \
+      && echo "g05_cap_tip_reapply: 10.22 refreshed call_dispatch bak from .x (AAPCS f32)" >&2 \
+      || echo "g05_cap_tip_reapply: WARN 10.22 call_dispatch bak refresh failed" >&2
+  fi
+fi
 if [ -n "$OC" ] && [ -s src/asm/backend_call_dispatch.o ]; then
   if [ -s src/asm/backend_call_dispatch.o.bak_pre_argbs ]; then
     cp -f src/asm/backend_call_dispatch.o.bak_pre_argbs src/asm/backend_call_dispatch.o
@@ -1334,6 +1346,7 @@ MAP
       _glue_array_lit_force_esz_from_elem_type_c \
       _pipeline_asm_array_lit_elem_byte_sz_c \
       _pipeline_asm_emit_field_access_elf_fast_c \
+      _pipeline_module_func_owner_copy \
       >"$_fill_exp"
     if ld -r -o "$_fill_o" -exported_symbols_list "$_fill_exp" \
          src/runtime_pipeline_abi.o 2>/dev/null \
@@ -1366,6 +1379,7 @@ if [ -f build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o ]; then
     "$_oc_sf" \
       --globalize-symbol=_glue_emit_vector_type_let_init_elf_c \
       --globalize-symbol=_glue_struct_lit_field_store_sz \
+      --globalize-symbol=_pipeline_module_func_owner_copy \
       --redefine-sym=_pipeline_asm_emit_array_lit_force_esz_elf_c=_pipeline_asm_emit_array_lit_force_esz_elf_c_symfill_localdead \
       --redefine-sym=_pipeline_asm_emit_array_lit_elf_c=_pipeline_asm_emit_array_lit_elf_c_symfill_localdead \
       build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o \
