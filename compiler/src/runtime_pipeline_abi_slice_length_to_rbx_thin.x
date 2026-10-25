@@ -1,5 +1,5 @@
 // Cap tip／tip-cold thin: glue_emit_slice_length_to_rbx_elf_c — 10.22
-// INDEX(47)/DEREF(52)/any TYPE_SLICE rvalue: dual-GP length (x1/rdx),
+// INDEX(47)/DEREF(52)/any TYPE_SLICE rvalue: dual-GP length (ARM64 x1 / SysV rdx),
 // not *(data+8). Fixes dyn_add_arr_slice p[0][i] panic:0/run1.
 // G.7: first-win over mega T. No FORCE_CC / new host-cc .c.
 // PLATFORM: SHARED freestanding · MACOS Cap tip · LINUX tip-cold.
@@ -193,7 +193,19 @@ export function glue_emit_slice_length_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, ct
       nd = 0;
     }
     if (nd == 0) {
-      // SysV arg_reg 2 = rdx — length half after dual-GP return
+      // Dual-GP length half: SysV rdx = arg_reg 2; AAPCS64 x1 == rbx
+      // (arg_reg 2 is x2 on ARM64 — nested_slice_let_field ss[0][0] panic:0).
+      // After emit_expr, ARM64 length is already in x1/rbx; only pop index.
+      // PLATFORM: SHARED · LINUX|x86_64 rdx · MACOS|ARM64 x1.
+      if (ta == 1) {
+        unsafe {
+          rc = backend_enc_pop_rax_arch(elf_ctx, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        return 0;
+      }
       unsafe {
         rc = backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, 2, ta);
       }
