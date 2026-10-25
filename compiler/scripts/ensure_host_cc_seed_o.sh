@@ -12270,7 +12270,7 @@ PY
 }
 
 # w1154: src/asm/pthin_skip_tl.x exits 139 as one translation unit.
-# Compile the sixty-three functions separately and ld -r. Brace counts
+# Compile the sixty-four functions separately and ld -r. Brace counts
 # ignore comments. Sibling calls are export-extern.
 # Direct xlang_asm, not pure_asm_x_to_o.
 # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
@@ -12289,7 +12289,7 @@ pthin_skip_tl_darwin_pure() {
   fi
   # w2060: whole-TU first. A split ld -r can hit Lxml duplicate symbols
   # and leave no object; the T count gate below is the same contract.
-  if pthin_whole_tu_prefer "$o" "$xsrc" 63; then
+  if pthin_whole_tu_prefer "$o" "$xsrc" 64; then
     return 0
   fi
   dir="$(mktemp -d "${TMPDIR:-/tmp}/pthinsk.XXXXXX")" || return 1
@@ -12303,7 +12303,7 @@ for i, l in enumerate(lines):
     if l.startswith("export function ") or l.startswith("function "):
         s = i - 1 if i > 0 and lines[i - 1].startswith("#[") else i
         fn_at.append(s)
-if len(fn_at) != 63:
+if len(fn_at) != 64:
     sys.exit(1)
 def delta(line, in_block):
     i = 0
@@ -12393,7 +12393,7 @@ PY
     return 1
   fi
   objs=""
-  for c in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62; do
+  for c in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63; do
     src="$dir/t$c.x"
     obj="$dir/t$c.o"
     try=0
@@ -12420,13 +12420,14 @@ PY
   fi
   rm -rf "$dir"
   n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
-  if [ "$n" != "63" ]; then
+  if [ "$n" != "64" ]; then
     rm -f "$o"
     return 1
   fi
   for c in _parser_asm_parse_one_extern_and_add_into_c \
     _parser_asm_skip_one_trait_header_into_c \
     _p12g_load_i32 \
+    _p12g_elem_ptr_to_slice_ndims \
     _parser_asm_skip_one_trait_body_into_c \
     _p12g_param_copy_name \
     _p12g_ret_copy_name \
@@ -34491,7 +34492,7 @@ case "$MODE" in
     exit $?
     ;;
   pthin-skip-tl-pure|pthin_skip_tl_darwin_pure)
-    # w1154: sixty-three pure-asm pieces of src/asm/pthin_skip_tl.x.
+    # w1154: sixty-four pure-asm pieces of src/asm/pthin_skip_tl.x.
     # Does not write parser_asm_thin_glue.o unless that path is passed.
     # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
