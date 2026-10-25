@@ -242,9 +242,12 @@ weaken_keep "$WORK/esz.o" "$OUT/esz.o" \
 weaken_keep "$WORK/loc.o" "$OUT/loc.o" pipeline_asm_local_offset_c
 weaken_keep "$WORK/lea.o" "$OUT/lea.o" glue_call_arg_var_use_lea_not_load_elf_c
 weaken_keep "$WORK/rec.o" "$OUT/rec.o" pipeline_asm_emit_expr_elf_rec
+# 10.22: keep emit_return so Path B0b STRUCT_LIT.field->[]T is first-wins
+# on Linux gold (else mega egg return leaves from_lit run=0).
 weaken_keep "$WORK/two_stripped.o" "$OUT/two.o" \
   glue_struct_lit_store_fixed_array_field_elf_c \
-  pipeline_asm_emit_array_lit_flat_elf_c
+  pipeline_asm_emit_array_lit_flat_elf_c \
+  pipeline_asm_emit_return_elf_impl
 weaken_keep "$WORK/one.o" "$OUT/one.o" pipeline_asm_emit_expr_elf_for_call_args
 weaken_keep "$WORK/as_raw.o" "$OUT/as.o" pipeline_asm_emit_as_elf_impl
 weaken_keep "$WORK/forwarders.o" "$OUT/sizeof.o" pipeline_sizeof_elf_ctx
