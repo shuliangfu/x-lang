@@ -2090,8 +2090,12 @@ _1037_disp_ov=build_asm/selfhost_pabi/typeck_binop_dispatch.o
 _1037_cmp_x=src/typeck/typeck_check_expr_binop_cmp_usual_arith_thin.x
 _1037_disp_x=src/typeck/typeck_check_expr_binop_dispatch_thin.x
 if [ -f "$_1037_cmp_x" ] && [ -f "$_1037_disp_x" ]; then
+  # 10.22: NEVER tip-compile thin with live ./xlang / CACHE Cap tip — a Cap tip
+  # that already linked a broken thin host will miscompile let-init+call (no
+  # mov #0xe / no pipeline_expr_kind_ord_at), and NE/if then fail XT001.
+  # Prefer frozen safe Cap tip, then seed bootstrap only.
   _1037_host=""
-  for _h in ./xlang /tmp/cap_tip_l4_safe_406200eef/xlang "$CACHE/xlang" \
+  for _h in /tmp/cap_tip_l4_safe_406200eef/xlang \
     seeds/bootstrap_xlangc.darwin.arm64; do
     [ -x "$_h" ] && _1037_host="$_h" && break
   done
@@ -2112,6 +2116,12 @@ if [ -f "$_1037_cmp_x" ] && [ -f "$_1037_disp_x" ]; then
     || ! nm -gU "$_1037_disp_ov" 2>/dev/null | grep -qE 'T _typeck_check_expr_binop$'; then
     echo "g05_cap_tip_reapply: ERROR 10.37 dispatch thin compile failed" >&2
     cat /tmp/g05_1037_disp_compile.log >&2 || true
+    exit 1
+  fi
+  # Sanity: safe/seed host must emit EQ const init (mov #0xe). Broken Cap tip
+  # hosts skip let-inits and leave stack garbage → if (x!=5) not bool.
+  if ! otool -tV "$_1037_disp_ov" 2>/dev/null | grep -q "mov\tw0, #0xe"; then
+    echo "g05_cap_tip_reapply: ERROR 10.37 dispatch thin missing mov #0xe (bad host $_1037_host)" >&2
     exit 1
   fi
   case " $G05_OBJS " in
