@@ -227,12 +227,12 @@ print("noped", noped)
 PY
 python3 "$WORK/nop_panic.py" "$WORK/two_raw.o" "$WORK/two_stripped.o"
 
-# w1491: pipe_slot_bytes_named_in_mod stays strong too. The copy in
-# runtime_pipeline_abi.o jumps to its epilogue from the name-match while
-# (returns 1), so every struct local got an 8/16-byte slot and overlapped
-# its neighbours (runtime_read_file_malloc_impl view vs out_len).
-# w1512: asm_fixed_array_total_bytes_mod has the same bug in the pabi copy
-# (returns 1, so a local [N]Struct got an 8-byte slot); keep slot.o's.
+# w1491／10.15: pipe_slot_bytes_named_in_mod stays strong as G.7 thin twin.
+# Historical tip-asm mega pabi jumped to the epilogue after the name-match
+# while (returned 1 → 8/16-byte struct slots). 2026-10-25: tip-asm of the
+# real body + match-exit stress returns 48 not 1 (probes p_10_15_*); keep
+# slot.o as authoritative thin (same body as runtime_pipeline_abi.x).
+# w1512: asm_fixed_array_total_bytes_mod kept strong the same way.
 weaken_keep "$WORK/slot.o" "$OUT/slot.o" pipe_local_slot_bytes_mod pipe_slot_bytes_named_in_mod \
   asm_fixed_array_total_bytes_mod
 weaken_keep "$WORK/esz.o" "$OUT/esz.o" \
