@@ -12,6 +12,7 @@
 //     has a call (gp from glue_asm_last_call_max_gp_units_c). The host check
 //     is link_abi_host_is_windows() at run time instead of #ifdef _WIN32.
 // src/runtime_pipeline_abi.x is not edited (pabi is not rebuilt).
+// 10.22: +512 pad when size>=2048 (method_sig expr-temp smash of caller LR).
 // g05_relink_env.sh compiles this with the current product (pure asm, no host
 // cc) and links it ahead of pabi; Windows weakens the pabi_weak T.
 // PLATFORM: SHARED freestanding frame-size · MACOS|ARM64 · LINUX x86_64 · WINDOWS x86_64.
@@ -604,6 +605,19 @@ export function pipeline_asm_compute_frame_size_c(num_params: i32, arena: *u8, b
         out = out + (16 - rem);
       }
       size = size + out;
+    }
+  }
+  // 10.22: large bodies (e.g. parser_asm_skip_one_trait_method_sig_into_c)
+  // bump next_offset past the prologue frame during expr temps; the first
+  // overrun lands on the caller saved LR (Darwin watch: str [x29,#0xe68]
+  // with frame 0xe60 → EXC_BAD_ACCESS address=0x1 on boundary dyn_*).
+  // Pad when the core frame is already large so emit temps stay inside.
+  // PLATFORM: SHARED.
+  if (size >= 2048) {
+    size = size + 512;
+    rem = size % 16;
+    if (rem != 0) {
+      size = size + (16 - rem);
     }
   }
   return size;

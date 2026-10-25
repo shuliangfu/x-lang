@@ -2341,3 +2341,7 @@ if [ "$SZ" -lt 7000000 ]; then
   exit 1
 fi
 echo "g05_cap_tip_reapply: OK Cap tip-as-product size=$SZ"
+
+# 10.22: method_sig Cap tip frame under-budget (0xe60→0xff0). See helper.
+# PLATFORM: MACOS|DARWIN Cap tip.
+python3 scripts/g05_cap_tip_method_sig_frame_pad_darwin.py || true
