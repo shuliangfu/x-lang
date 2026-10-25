@@ -50,6 +50,12 @@ export extern function backend_enc_lea_rbp_to_rax_arch(elf_ctx: *u8, offset: i32
 export extern function backend_enc_store_rax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
 export extern function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i32, hi: i32, ta: i32): i32;
 export extern function glue_slice_dual_gp_length_off_c(data_home: i32, ta: i32): i32;
+export extern function glue_field_access_field_type_ref_c(arena: *u8, emit_mod: *u8, expr_ref: i32): i32;
+export extern function glue_type_is_fixed_array(arena: *u8, ty: i32): i32;
+export extern function pipeline_type_array_size_at(arena: *u8, ty: i32): i32;
+export extern function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
+export extern function glue_try_index_var_or_field_base_to_rax_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function pipeline_asm_emit_module_ref_c(): *u8;
 
 /**
  * Emit one call argument. A slice formal whose argument is a struct
@@ -211,6 +217,69 @@ export function glue_emit_one_call_arg_elf_c(arena: *u8, elf_ctx: *u8, call_expr
               }
             }
           }
+        }
+      }
+    }
+    // 10.22 wave396/649: FIELD_ACCESS fixed TYPE_ARRAY as TYPE_SLICE formal
+    // (take_field_slice / nested_slice_let_field). STRUCT_LIT.field is above;
+    // VAR/local field base uses index-or-field lea + dual-GP fat.
+    // PLATFORM: SHARED — LINUX x86_64 · MACOS|ARM64.
+    if (pk == ord_slice) {
+      ko = pipeline_expr_kind_ord_at(arena, arg_ref);
+      if (ko == ord_field) {
+        let fty: i32 = 0;
+        let arr_sz: i32 = 0;
+        let rty: i32 = 0;
+        let emit_mod: *u8 = pipeline_asm_emit_module_ref_c();
+        let br: i32 = 0;
+        fty = glue_field_access_field_type_ref_c(arena, emit_mod, arg_ref);
+        if (fty > 0) {
+          if (glue_type_is_fixed_array(arena, fty) != 0) {
+            arr_sz = pipeline_type_array_size_at(arena, fty);
+          }
+        }
+        rty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+        if (arr_sz <= 0) {
+          if (rty > 0) {
+            if (pipeline_type_kind_ord_at(arena, rty) == 10) {
+              arr_sz = pipeline_type_array_size_at(arena, rty);
+            }
+          }
+        }
+        if (arr_sz > 0) {
+          base_off = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+          if ((base_off % 8) != 0) {
+            base_off = (base_off + 7) / 8 * 8;
+          }
+          home = base_off + 16;
+          if (ta == 1) {
+            pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), home + 16);
+          } else {
+            pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), home + 8);
+          }
+          glue_align_next_offset(ctx);
+          br = glue_try_index_var_or_field_base_to_rax_elf_c(arena, elf_ctx, arg_ref, ctx, ta);
+          if (br != 0) {
+            return 0 - 1;
+          }
+          rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta);
+          if (rc != 0) {
+            return 0 - 1;
+          }
+          rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, arr_sz, 0, ta);
+          if (rc != 0) {
+            return 0 - 1;
+          }
+          len_off = glue_slice_dual_gp_length_off_c(home, ta);
+          rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, len_off, ta);
+          if (rc != 0) {
+            return 0 - 1;
+          }
+          rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta);
+          if (rc != 0) {
+            return 0 - 1;
+          }
+          return 0;
         }
       }
     }
