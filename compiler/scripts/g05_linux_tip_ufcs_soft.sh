@@ -92,3 +92,45 @@ _G05_TYPECK_X_O="$_rt"
 _PABI_TIP_PEEL="$_soft_o $_lex_o ${_PABI_TIP_PEEL:-}"
 export _G05_TYPECK_X_O _PABI_TIP_PEEL
 echo "g05_linux_tip_ufcs_soft: peel=$_rt soft+lex prepended" >&2
+
+# --- 10.22 take_field_slice: reverse_infer soft + call_arg thin (optional) ---
+_ri_o=build_asm/selfhost_pabi/typeck_field_reverse_infer_soft.o
+_ri_x=src/typeck/typeck_field_reverse_infer_soft.x
+_ri_cache=/tmp/xlang_soft_cache_linux/typeck_field_reverse_infer_soft.o
+_ca_o=build_asm/selfhost_pabi/call_arg_struct_lit_field.o
+_ca_x=src/runtime_pipeline_abi_call_arg_struct_lit_field_thin.x
+_ca_cache=/tmp/xlang_soft_cache_linux/call_arg_struct_lit_field.o
+
+_try_soft_emit() {
+  local out="$1" src="$2" cache="$3" xl
+  if [ -s "$out" ]; then return 0; fi
+  if [ -s "$cache" ]; then cp -f "$cache" "$out"; return 0; fi
+  for xl in "${XLANG:-}" ./xlang ./xlang_asm /tmp/xlang_ufcs_only; do
+    [ -x "$xl" ] || continue
+    [ -f "$src" ] || continue
+    if "$xl" -backend asm -c -o "${out}.partial" "$src" >/tmp/g05_linux_tfs_emit.log 2>&1 \
+      && [ -s "${out}.partial" ]; then
+      mv -f "${out}.partial" "$out"
+      mkdir -p /tmp/xlang_soft_cache_linux
+      cp -f "$out" "$cache"
+      return 0
+    fi
+    rm -f "${out}.partial"
+  done
+  return 1
+}
+
+if _try_soft_emit "$_ri_o" "$_ri_x" "$_ri_cache"; then
+  case " ${_PABI_TIP_PEEL:-} " in
+    *" typeck_field_reverse_infer_soft.o "*) ;;
+    *) _PABI_TIP_PEEL="$_ri_o ${_PABI_TIP_PEEL:-}"; export _PABI_TIP_PEEL
+       echo "g05_linux_tip_ufcs_soft: prepended reverse_infer soft" >&2 ;;
+  esac
+fi
+if _try_soft_emit "$_ca_o" "$_ca_x" "$_ca_cache"; then
+  case " ${_PABI_TIP_PEEL:-} " in
+    *" call_arg_struct_lit_field.o "*) ;;
+    *) _PABI_TIP_PEEL="$_ca_o ${_PABI_TIP_PEEL:-}"; export _PABI_TIP_PEEL
+       echo "g05_linux_tip_ufcs_soft: prepended call_arg soft" >&2 ;;
+  esac
+fi

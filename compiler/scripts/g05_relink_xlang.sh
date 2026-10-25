@@ -430,6 +430,61 @@ if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
     fi
     unset _sm_has_prev _sm_stub _sm_o
   fi
+  # 10.22: take_field_slice — reverse_infer soft + call_arg thin (Linux ELF names).
+  # --gc-sections drops tip-emitted call_arg soft unless -u forces the T.
+  if [ -n "$_g05_oc" ] \
+    && printf "%s" " $OBJS " | grep -Eq "(^|[[:space:]/])typeck_field_reverse_infer_soft\.o([[:space:]]|$)"; then
+    for _ri_pw in build_asm/selfhost_pabi/typeck_x_ufcs_soft_retarget.o \
+                  build_asm/selfhost_pabi/typeck_x_binop_cmp_peel.o \
+                  typeck_x.o; do
+      [ -s "$_ri_pw" ] || continue
+      if nm "$_ri_pw" 2>/dev/null | grep -Eq " T typeck_field_reverse_infer_base_type$"; then
+        "$_g05_oc" --weaken-symbol=typeck_field_reverse_infer_base_type "$_ri_pw" 2>/dev/null \
+          && echo "g05_relink_xlang: 10.22 Linux weaken $_ri_pw reverse_infer (soft wins)" >&2 \
+          || true
+      fi
+    done
+    unset _ri_pw
+  fi
+  if [ -n "$_g05_oc" ] \
+    && printf "%s" " $OBJS " | grep -Eq "(^|[[:space:]/])call_arg_struct_lit_field\.o([[:space:]]|$)"; then
+    _ca_prev=build_asm/selfhost_pabi/backend_call_dispatch_ca_prev.o
+    _ca_src_o=""
+    for _ca_pw in src/asm/backend_call_dispatch.o \
+                  build_asm/selfhost_pabi/pabi_weak.o \
+                  src/runtime_pipeline_abi.o; do
+      [ -s "$_ca_pw" ] || continue
+      if nm "$_ca_pw" 2>/dev/null | grep -Eq " [TW] glue_emit_one_call_arg_elf_c$"; then
+        _ca_src_o="$_ca_pw"
+        break
+      fi
+    done
+    if [ -n "$_ca_src_o" ]; then
+      cp -f "$_ca_src_o" "$_ca_prev"
+      "$_g05_oc" --redefine-sym=glue_emit_one_call_arg_elf_c=glue_emit_one_call_arg_elf_c_prev \
+        "$_ca_prev" 2>/dev/null \
+        && echo "g05_relink_xlang: 10.22 Linux call_arg _prev from $_ca_src_o" >&2 \
+        || rm -f "$_ca_prev"
+      _ca_objs_new=""
+      for _ca_o in $OBJS; do
+        case "$(basename "$_ca_o")" in
+          backend_call_dispatch.o) _ca_objs_new="${_ca_objs_new:+$_ca_objs_new }$_ca_prev" ;;
+          backend_call_dispatch_ca_prev.o) continue ;;
+          *) _ca_objs_new="${_ca_objs_new:+$_ca_objs_new }$_ca_o" ;;
+        esac
+      done
+      OBJS="$_ca_objs_new"
+      unset _ca_objs_new _ca_o
+      if [ -s "$_ca_prev" ] && nm "$_ca_prev" 2>/dev/null | grep -Eq " [TW] glue_emit_one_call_arg_elf_c_prev$"; then
+        case " $OBJS " in
+          *" $_ca_prev "*) ;;
+          *) OBJS="$_ca_prev $OBJS" ;;
+        esac
+      fi
+      export XLANG_G05_LINUX_FORCE_U_CALL_ARG=1
+    fi
+    unset _ca_prev _ca_src_o _ca_pw
+  fi
   unset _g05_oc
 fi
 # nostdlib policy for Linux product (same as g05_relink_env).
@@ -565,6 +620,10 @@ run_g05_pure_ld_required() {
     # PLATFORM: LINUX — map cc -nostdlib -static -Wl,--gc-sections → pure ld flags.
     # No -lc; freestanding_io + nostdlib stubs already in G05_OBJS.
     extra="-static --gc-sections"
+    if [ "${XLANG_G05_LINUX_FORCE_U_CALL_ARG:-0}" = "1" ]; then
+      extra="$extra -u glue_emit_one_call_arg_elf_c"
+      echo "g05_relink_xlang: 10.22 Linux -u glue_emit_one_call_arg_elf_c (keep call_arg soft)" >&2
+    fi
     tail=""
   else
     # Darwin / Linux-with-libc freestanding (nostartfiles-style).
