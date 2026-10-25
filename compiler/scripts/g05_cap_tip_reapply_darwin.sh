@@ -1548,6 +1548,45 @@ ASM
     export G05_LINK_WINNERS
   fi
 
+  # 5.1 / Cap tip reportf: CACHE/pabi/*.o bulk restore also stomps
+  # m8_reloc_stubs_g05.o with a poisoned copy (driver_* → *_hollow_phase1_dead
+  # from an older no_c-has-T pass). Cap tip G05 lists only m8_g05 — those five
+  # driver fills must stay live T (no_c does not define them). Re-cp from m8
+  # after the stomp, then re-apply intentional demotes only.
+  # PLATFORM: MACOS Cap tip. No FORCE_CC / host-cc .c.
+  if [ -s build_asm/selfhost_pabi/m8_reloc_stubs.o ]; then
+    cp -f build_asm/selfhost_pabi/m8_reloc_stubs.o       build_asm/selfhost_pabi/m8_reloc_stubs_g05.o
+    echo "g05_cap_tip_reapply: post-fill re-cp m8→m8_g05 (restore live driver_* fills)" >&2
+    if [ -n "${OC:-}" ]; then
+      "$OC" --redefine-sym=_driver_fmt_one_file=_driver_fmt_one_file__demoted         build_asm/selfhost_pabi/m8_reloc_stubs_g05.o 2>/dev/null         && echo "g05_cap_tip_reapply: post-fill re-demote m8_g05 driver_fmt_one_file" >&2         || true
+      "$OC" --weaken-symbol=_typeck_x_type_size_from_layout_glue         --weaken-symbol=_typeck_x_type_align_from_layout_glue         build_asm/selfhost_pabi/m8_reloc_stubs_g05.o 2>/dev/null         && echo "g05_cap_tip_reapply: post-fill re-weaken m8_g05 layout_glue" >&2         || true
+      # Re-apply Cap tip thin demotes that ran before CACHE/pabi stomp.
+      for _pair in \
+        "build_asm/selfhost_pabi/body_sync_let_order.o|_backend_emit_block_body_sync_elf" \
+        "build_asm/selfhost_pabi/body_sync_let_order.o|_pipeline_asm_emit_block_body_sync_elf" \
+        "build_asm/selfhost_pabi/return_sret.o|_pipeline_asm_emit_return_elf_impl" \
+        "build_asm/selfhost_pabi/macho_write_a64.o|_platform_macho_write_macho_o_to_buf" \
+        "build_asm/selfhost_pabi/assign_emit_thin_a64.o|_pipeline_asm_emit_assign_elf_c"; do
+        _thin="${_pair%%|*}"
+        _s="${_pair##*|}"
+        case " $G05_OBJS " in
+          *" ${_thin} "*)
+            if [ -s "$_thin" ] && nm -gU "$_thin" 2>/dev/null | grep -q "T ${_s}$" \
+              && nm -gU build_asm/selfhost_pabi/m8_reloc_stubs_g05.o 2>/dev/null \
+                   | grep -q "T ${_s}$"; then
+              "$OC" --redefine-sym="${_s}=${_s}_m8_g05_dead" \
+                build_asm/selfhost_pabi/m8_reloc_stubs_g05.o 2>/dev/null || true
+            fi
+            ;;
+        esac
+      done
+    fi
+  fi
+  # 5.1: egg pure-asm panic left U _NSGetEnviron; libSystem wants __NSGetEnviron.
+  if [ -n "${OC:-}" ] && [ -s runtime_panic.o ]     && nm -u runtime_panic.o 2>/dev/null          | awk '$NF=="_NSGetEnviron" { f=1 } END { exit f?0:1 }'; then
+    "$OC" --redefine-sym '_NSGetEnviron=__NSGetEnviron' runtime_panic.o       && echo "g05_cap_tip_reapply: post-fill Darwin NSGetEnviron → libSystem mangling" >&2       || echo "g05_cap_tip_reapply: WARN NSGetEnviron mangling failed" >&2
+  fi
+
   # knife256/10.2: CACHE/pabi bulk restore above stomps Cap tip weakens done
   # earlier in this script (pabi_weak / return_sret). Re-apply so fa_array /
   # thin first-wins. Also drop typeck_ctfe when cap_repr_weak covers its T

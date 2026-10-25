@@ -31383,6 +31383,23 @@ ensure_r2_panic_one() {
       return 1
       ;;
   esac
+  # note743y.6.23 / 5.1 Cap tip: egg|tip pure-asm of C name _NSGetEnviron emits
+  # Mach-O U _NSGetEnviron; libSystem exports __NSGetEnviron (same class as
+  # NSGetArgc→__NSGetArgc). Redefine whenever the egg-shaped undef is present,
+  # including skip/up-to-date path, so Cap tip pure-ld does not UNDEF.
+  # PLATFORM: MACOS|DARWIN arm64. No FORCE_CC / host-cc .c.
+  if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && [ -s "$o" ]     && nm -u "$o" 2>/dev/null | awk '$NF=="_NSGetEnviron" { f=1 } END { exit f?0:1 }'; then
+    _pa_oc="$(pure_asm_find_objcopy)" || return 1
+    if ! "$_pa_oc" --redefine-sym '_NSGetEnviron=__NSGetEnviron' "$o"; then
+      echo "ensure_host_cc_seed_o r2-panic: NSGetEnviron Darwin mangling redefine failed" >&2
+      return 1
+    fi
+    if nm -u "$o" 2>/dev/null | awk '$NF=="_NSGetEnviron" { f=1 } END { exit f?0:1 }'; then
+      echo "ensure_host_cc_seed_o r2-panic: U _NSGetEnviron remains after redefine" >&2
+      return 1
+    fi
+    log "r2-panic: Darwin NSGetEnviron → libSystem mangling (note743y.6.23 / 5.1)"
+  fi
   # Keep stamp mtime after successful compile so make prereq stays satisfied.
   touch "$stamp"
   return 0
