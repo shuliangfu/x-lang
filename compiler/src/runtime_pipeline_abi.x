@@ -71117,6 +71117,25 @@ export function glue_store_retval_pair_to_rbp_elf_c(
       sz = nsz;
     }
   }
+  // TYPE_ARRAY (10) + CALL(48)/METHOD(49)/INDEX(47)/DEREF(52): always E*
+  // (glue_func_return_byte_size), including nbytes 8 and 16. Storing rax as
+  // value made dyn_ret_arr / plain get2 run=145/129. ARRAY_LIT stays out.
+  // PLATFORM: SHARED.
+  if (sz > 0 && init_ref > 0 && arena != (0 as *u8) && ty_ref > 0) {
+    unsafe {
+      tk = pipeline_type_kind_ord_at(arena, ty_ref);
+    }
+    if (tk == 10) {
+      unsafe {
+        ko = pipeline_expr_kind_ord_at(arena, init_ref);
+      }
+      if (ko == 48 || ko == 49 || ko == 47 || ko == 52) {
+        unsafe {
+          return glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, slot_off, sz, ta);
+        }
+      }
+    }
+  }
   // >16B + CALL(48)/METHOD(49)/INDEX(47)/STRUCT_LIT(45)/VAR(3)/FIELD(44):
   // memcpy from *rax. emit_index esz>16, CALL sret, STRUCT_LIT nbytes>16,
   // a VAR whose glue_load_var saw sz>16, and a FIELD whose payload is >16B

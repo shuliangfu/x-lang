@@ -869,9 +869,9 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
 /**
  * STRUCT_LIT fixed TYPE_ARRAY field store / fixed-array let element-wise authority.
  * Handles ARRAY_LIT, zero LIT, VAR/FIELD, INDEX/DEREF (E* + bulk when esz>8),
- * and CALL/METHOD. Darwin arm64 stores an 8-byte CALL/METHOD result from x0
- * and a 16-byte result from x0:x1. Wider results, and every non-arm64
- * CALL/METHOD, still copy through the pointer emit_expr left in x0.
+ * and CALL/METHOD. TYPE_ARRAY returns are always E* (even nbytes 8/16);
+ * CALL/METHOD copy through the pointer emit_expr left in x0 on every
+ * target. Do not treat arm64 x0 as integer-aggregate payload bits.
  * TYPE_VECTOR force_esz stays 4, the lane. A VAR or FIELD copy whose
  * glue_fixed_array_total_bytes_c payload is wider uses that payload,
  * so [2]Vec8i copies every lane. Zero-fill keeps the lane stride.
@@ -1338,93 +1338,12 @@ export function glue_struct_lit_store_fixed_array_field_elf_c(arena: *u8, elf_ct
     if (emit_rc != 0) {
       return 0 - 1;
     }
-    /* Darwin arm64 AAPCS64 INTEGER aggregate. CALL=48 / METHOD=49 of a
-     * fixed array whose byte size is 8 returns those bits in x0. Size 16
-     * returns the pair in x0 (low) and x1 (high). The spill below treats
-     * x0 as E* and loads through the bits (SIGBUS, or a zero sum when the
-     * low half happens to be readable). INDEX=47 and DEREF=52 still leave
-     * a pointer. x86 stays on that pointer copy. Wider than 16 stays there
-     * too. Push both halves before lea, which clobbers x0; mov rbx→rax
-     * copies x1 into x0 so the second push keeps the high half.
-     * PLATFORM: MACOS|ARM64. ta!=1 skips. */
-    if (ta == 1 && (iko == 48 || iko == 49) && n_arr >= 1 && n_arr <= 16 && esz >= 1 && esz <= 16) {
-      total = n_arr * esz;
-      if (total == 8 || total == 16) {
-        unsafe {
-          rc = backend_enc_push_rax_arch(elf_ctx, ta);
-        }
-        if (rc != 0) {
-          return 0 - 1;
-        }
-        if (total == 16) {
-          unsafe {
-            rc = backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
-          }
-          if (rc != 0) {
-            return 0 - 1;
-          }
-          unsafe {
-            rc = backend_enc_push_rax_arch(elf_ctx, ta);
-          }
-          if (rc != 0) {
-            return 0 - 1;
-          }
-        }
-        if (sret_direct == 0) {
-          unsafe {
-            rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, field_mag, ta);
-          }
-          if (rc != 0) {
-            return 0 - 1;
-          }
-          unsafe {
-            rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
-          }
-          if (rc != 0) {
-            return 0 - 1;
-          }
-          store_off = 0;
-        } else {
-          unsafe {
-            sret_home = pipeline_asm_emit_ctx_sret_home_off_get();
-          }
-          unsafe {
-            rc = backend_enc_load_rbp_to_rbx_arch(elf_ctx, sret_home, ta);
-          }
-          if (rc != 0) {
-            return 0 - 1;
-          }
-          store_off = foff;
-        }
-        if (total == 16) {
-          unsafe {
-            rc = backend_enc_pop_rax_arch(elf_ctx, ta);
-          }
-          if (rc != 0) {
-            return 0 - 1;
-          }
-          unsafe {
-            rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, store_off + 8, 8, ta);
-          }
-          if (rc != 0) {
-            return 0 - 1;
-          }
-        }
-        unsafe {
-          rc = backend_enc_pop_rax_arch(elf_ctx, ta);
-        }
-        if (rc != 0) {
-          return 0 - 1;
-        }
-        unsafe {
-          rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, store_off, 8, ta);
-        }
-        if (rc != 0) {
-          return 0 - 1;
-        }
-        return 0;
-      }
-    }
+    /* TYPE_ARRAY CALL/METHOD return is E* (glue_func_return_byte_size),
+     * not AAPCS64 integer aggregate bits in x0 — even when nbytes is 8 or
+     * 16. A prior Darwin shortcut stored x0 as the payload (dyn_ret_arr
+     * run=145 / plain get2 run=129). Always spill the pointer and copy.
+     * INDEX/DEREF already leave E*. PLATFORM: SHARED · MACOS|ARM64.
+     */
     unsafe {
       rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, spill_off, ta);
     }
