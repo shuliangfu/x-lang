@@ -659,8 +659,15 @@ const P12G_TY_NAMED: i32 = 8;
 const P12G_TY_PTR: i32 = 9;
 const P12G_TY_ARRAY: i32 = 10;
 const P12G_TY_SLICE: i32 = 11;
-/** Sentinel elem_array_ndims: extra SLICE wrap count lives in dims[0..]. */
-const P12G_ELEM_PTR_TO_SLICE_NDIMS: i32 = 0 - 2;
+/** Sentinel elem_array_ndims (-2): extra SLICE wrap count lives in dims[0..]. */
+#[no_mangle]
+function p12g_elem_ptr_to_slice_ndims(): i32 {
+  // wave 10.22: tip emit of `const … = 0 - 2` left the binding uninitialized
+  // (shape read 0 and treated eand==0 as *[]T → T001 on [][]i32).
+  // PLATFORM: SHARED — return -2 via a live local subtract.
+  let two: i32 = 2;
+  return 0 - two;
+}
 
 /** P12g local: load i32 at base+off (LE; mirror of p12g_store_i32). */
 #[no_mangle]
@@ -1385,7 +1392,7 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
                 p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + 0 * 4, extra);
               }
               // stay param_elem_elem_pending to capture leaf T
-            } else if (nd == P12G_ELEM_PTR_TO_SLICE_NDIMS) {
+            } else if (nd == p12g_elem_ptr_to_slice_ndims()) {
               extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + 1 * 4);
               if (extra < 0) {
                 extra = 0;
@@ -1456,8 +1463,8 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
             // Extra empty `[]` after a PTR/SLICE elem: three encodings — the
             // ndims=-2 sentinel (dims[0] counts wraps), an unused-slot count
             // at dims[nd], or dims[nd+1] for SLICE-elem with committed dims.
-            if ((p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_PTR || p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_SLICE) && param_elem_dim_n == 0 && (p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4) == P12G_ELEM_PTR_TO_SLICE_NDIMS || p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4) <= 0) && !(p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_PTR && p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_PTR)) {
-              if (p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4) == P12G_ELEM_PTR_TO_SLICE_NDIMS) {
+            if ((p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_PTR || p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_SLICE) && param_elem_dim_n == 0 && (p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4) == p12g_elem_ptr_to_slice_ndims() || p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4) <= 0) && !(p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_PTR && p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_PTR)) {
+              if (p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4) == p12g_elem_ptr_to_slice_ndims()) {
                 extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + 0 * 4);
                 if (extra <= 0) {
                   extra = 1;
@@ -1467,7 +1474,7 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
                   p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + 0 * 4, extra);
                 }
               } else {
-                p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4, P12G_ELEM_PTR_TO_SLICE_NDIMS);
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4, p12g_elem_ptr_to_slice_ndims());
               }
               param_elem_arr_need_size = 0;
               param_elem_prefix_arr_more = 0;
@@ -1970,7 +1977,7 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
               p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + 0 * 4, extra);
             }
             // stay ret_elem_elem_pending to capture leaf T
-          } else if (nd == P12G_ELEM_PTR_TO_SLICE_NDIMS) {
+          } else if (nd == p12g_elem_ptr_to_slice_ndims()) {
             extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + 1 * 4);
             if (extra < 0) {
               extra = 0;
@@ -2022,7 +2029,7 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
               p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + 0 * 4, extra);
             }
             // stay ret_elem_elem_pending to capture leaf T
-          } else if (nd == P12G_ELEM_PTR_TO_SLICE_NDIMS) {
+          } else if (nd == p12g_elem_ptr_to_slice_ndims()) {
             extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + 1 * 4);
             if (extra < 0) {
               extra = 0;
@@ -2082,7 +2089,7 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
                     extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + 0 * 4);
                   }
                   if (extra <= 0) {
-                    p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4, P12G_ELEM_PTR_TO_SLICE_NDIMS);
+                    p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4, p12g_elem_ptr_to_slice_ndims());
                   }
                 }
               }
@@ -2162,8 +2169,8 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
               nd = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4);
             }
 
-            if ((nd == P12G_ELEM_PTR_TO_SLICE_NDIMS || nd <= 0) && ret_elem_dim_n == 0) {
-              if (nd == P12G_ELEM_PTR_TO_SLICE_NDIMS) {
+            if ((nd == p12g_elem_ptr_to_slice_ndims() || nd <= 0) && ret_elem_dim_n == 0) {
+              if (nd == p12g_elem_ptr_to_slice_ndims()) {
                 extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + 0 * 4);
                 if (extra <= 0) {
                   extra = 1;
@@ -2173,7 +2180,7 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
                   p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + 0 * 4, extra);
                 }
               } else {
-                p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4, P12G_ELEM_PTR_TO_SLICE_NDIMS);
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4, p12g_elem_ptr_to_slice_ndims());
               }
               ret_elem_arr_need_size = 0;
               ret_elem_prefix_arr_more = 0;
@@ -2216,8 +2223,8 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
               nd = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4);
             }
 
-            if ((nd == P12G_ELEM_PTR_TO_SLICE_NDIMS || nd <= 0) && ret_elem_dim_n == 0) {
-              if (nd == P12G_ELEM_PTR_TO_SLICE_NDIMS) {
+            if ((nd == p12g_elem_ptr_to_slice_ndims() || nd <= 0) && ret_elem_dim_n == 0) {
+              if (nd == p12g_elem_ptr_to_slice_ndims()) {
                 extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + 0 * 4);
                 if (extra <= 0) {
                   extra = 1;
@@ -2227,7 +2234,7 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
                   p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + 0 * 4, extra);
                 }
               } else {
-                p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4, P12G_ELEM_PTR_TO_SLICE_NDIMS);
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4, p12g_elem_ptr_to_slice_ndims());
               }
               ret_elem_arr_need_size = 0;
               ret_elem_prefix_arr_more = 0;
@@ -5343,7 +5350,7 @@ function skip_trait_elem_array_dim_at(ent: *u8, dims_base: i32, nd: i32, dim_ix:
   /* ndims==-2: extra SLICE wrap in dims[0] (0 means 1); unused
    * slot dims[1] extra PTR wrap (0 / missing → -1). dim_ix>=nd
    * would reject every dim_ix>=0 because -2 is negative. */
-  if (nd == P12G_ELEM_PTR_TO_SLICE_NDIMS) {
+  if (nd == p12g_elem_ptr_to_slice_ndims()) {
     extra = p12g_load_i32(ent, dims_base + dim_ix * 4);
     if (dim_ix == 0) {
       if (extra <= 0) {
@@ -6596,7 +6603,7 @@ gnl = pipeline_type_named_name_into(arena, elem, gnm);
                     if (eeek >= 0 && pelem != 0) {
                       pgek = pipeline_type_kind_ord_at(arena, pelem);
                       eand = p12g_load_i32(ent, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + pi * 4);
-                      if (eand == P12G_ELEM_PTR_TO_SLICE_NDIMS) {
+                      if (eand == p12g_elem_ptr_to_slice_ndims()) {
                         extra =
                             p12g_load_i32(ent, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + pi * P12G_PARAM_DIMS_ROW_INNER + (0) * 4);
                         
@@ -7124,7 +7131,7 @@ gnl = pipeline_type_named_name_into(arena, pelem, gnm);
                             }
                           }
                         }
-                      } else if (eand == P12G_ELEM_PTR_TO_SLICE_NDIMS) {
+                      } else if (eand == p12g_elem_ptr_to_slice_ndims()) {
                         // 
 // * leftover extra SLICE peels leftover
 // * eek==PTR eand==-2 `[]*[]T` / `[]*[][]T`
@@ -7372,7 +7379,7 @@ gnl = pipeline_type_named_name_into(arena, leaf_tr, gnm);
                                 extra_ptr = extra_ptr - 1;
                               }
                             }
-                          } else if (eand == P12G_ELEM_PTR_TO_SLICE_NDIMS) {
+                          } else if (eand == p12g_elem_ptr_to_slice_ndims()) {
                             extra =
                                 p12g_load_i32(ent, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + pi * P12G_PARAM_DIMS_ROW_INNER + (0) * 4);
                             if (extra <= 0) {
@@ -7800,7 +7807,7 @@ gnl = pipeline_type_named_name_into(arena, elem, gnm);
                   } else {
                     mm = 1;
                   }
-                } else if (eend == P12G_ELEM_PTR_TO_SLICE_NDIMS) {
+                } else if (eend == p12g_elem_ptr_to_slice_ndims()) {
                   // 
 // * PTR_TO_SLICE sentinel eend=-2: extra SLICE wrap
 // * COUNT in dims[0] (0 means 1 = []*[]T / *[]T;
@@ -8009,7 +8016,7 @@ gnl = pipeline_type_named_name_into(arena, pelem, gnm);
                       extra_ptr = extra_ptr - 1;
                     }
                   }
-                } else if (eend == P12G_ELEM_PTR_TO_SLICE_NDIMS) {
+                } else if (eend == p12g_elem_ptr_to_slice_ndims()) {
                   // 
 // * dest extras dest-RET extra STAR SLICE-elem
 // * ndims=-2 `*[][]*T`: leftover after leftover-
