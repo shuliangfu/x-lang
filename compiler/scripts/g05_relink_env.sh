@@ -1118,6 +1118,13 @@ case "$UNAME_S" in
         clang -c -o "$_1037_tramp" src/asm/typeck_binop_seed_dead_trampoline_x64.s           || { echo "g05_relink_env: ERROR 10.37 Linux trampoline assemble failed" >&2; exit 1; }
         _PABI_TIP_PEEL="$_1037_tramp $_PABI_TIP_PEEL"
         echo "g05_relink_env: 10.37 Linux tip peel+trampoline" >&2
+        # 10.22: UFCS soft on tip (impl_bound*); ELF retarget peel call sites.
+        # PLATFORM: LINUX tip. CGB soft intentionally omitted (bound_method SEGV).
+        if [ -f scripts/g05_linux_tip_ufcs_soft.sh ]; then
+          # shellcheck disable=SC1091
+          . scripts/g05_linux_tip_ufcs_soft.sh \
+            || { echo "g05_relink_env: ERROR 10.22 Linux UFCS soft failed" >&2; exit 1; }
+        fi
       fi
       # note743y.4: tip parser still calls struct-returning lexer_init; tip
       # lexer_init is out-ptr and smashes source when rdi==parked data
