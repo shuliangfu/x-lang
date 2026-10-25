@@ -6,6 +6,8 @@
 // wave516: tipU heal — mid `x=call()` pipe-cell; peer-flat load-arms so
 //   Ubuntu tip keeps late-BB U (zext8/deref/type_kind); stamp → w516;
 //   tip PRODUCT reinject still HARD BAN (keep prior overlay).
+// 10.22: after lane load, add sp,#16 when CALL/METHOD spilled SIMD16
+//   (nested arr[add4(...)[0]] must not pop vector as array base).
 // PLATFORM: SHARED.
 
 export extern function backend_enc_load_64_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
@@ -29,6 +31,13 @@ export extern function pipeline_type_named_name_into(arena: *u8, type_ref: i32, 
 /** wave516: pipe-cell helpers (keep tip U across mid-call assign). */
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
+export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
+export extern function glue_var_expr_type_ref_with_decl_fallback_c(arena: *u8, base_ref: i32): i32;
+export extern function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i32): i32;
+export extern function glue_vector_type_lanes_esz_c(arena: *u8, type_ref: i32, out_lanes: *i32, out_esz: *i32): i32;
+export extern function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): i32;
+export extern function pipeline_asm_emit_module_ref_c(): *u8;
+export extern function backend_enc_arm64_add_sp_imm12_c(elf_ctx: *u8, imm: i32): i32;
 
 /**
  * Emit signed byte load from [rax/x0] into eax/w0 (movsbl / LDRSB).
@@ -128,6 +137,94 @@ function emit_index_enc_sext16_from_rax(elf_ctx: *u8, ta: i32): i32 {
  * @return i32 - 0 ok; encoder rc
  * PLATFORM: SHARED Cap A wave516 / w1012 true-pack i8 / w1015 i16.
  */
+
+/**
+ * 1 when index-base emitter spilled 16 bytes for CALL/METHOD (SIMD16 or
+ * 1..8 byte array). Lane load reads the slot; emit_index adds sp back so
+ * nested arr[add4(...)[0]] does not pop the vector as the array base.
+ * PLATFORM: MACOS|ARM64.
+ */
+function emit_index_arm64_call_spill(arena: *u8, base_ref: i32, ta: i32): i32 {
+  let ko: i32 = 0;
+  let tr: i32 = 0;
+  let trk: i32 = 0;
+  let simd: i32 = 0;
+  let lanes_buf: i32[1] = [];
+  let esz_buf: i32[1] = [];
+  let lanes: i32 = 0;
+  let esz: i32 = 0;
+  let nbytes: i32 = 0;
+  let mod: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  if (ta != 1) {
+    return 0;
+  }
+  if (arena == 0 as *u8) {
+    return 0;
+  }
+  if (base_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, base_ref);
+  }
+  if (ko != 48) {
+    if (ko != 49) {
+      return 0;
+    }
+  }
+  unsafe {
+    tr = glue_var_expr_type_ref_with_decl_fallback_c(arena, base_ref);
+  }
+  if (tr <= 0) {
+    unsafe {
+      tr = pipeline_expr_resolved_type_ref(arena, base_ref);
+    }
+  }
+  if (tr <= 0) {
+    return 0;
+  }
+  unsafe {
+    trk = pipeline_type_kind_ord_at(arena, tr);
+  }
+  if (trk == 11) {
+    return 0;
+  }
+  unsafe {
+    simd = asm_type_is_simd_vector_spelling(arena, tr);
+  }
+  if (simd != 0) {
+    unsafe {
+      rc = glue_vector_type_lanes_esz_c(arena, tr, &lanes_buf[0], &esz_buf[0]);
+    }
+    if (rc != 0) {
+      return 0;
+    }
+    lanes = lanes_buf[0];
+    esz = esz_buf[0];
+    if (lanes > 0) {
+      if (esz > 0) {
+        if (lanes * esz == 16) {
+          return 1;
+        }
+      }
+    }
+    return 0;
+  }
+  if (trk == 10) {
+    unsafe {
+      mod = pipeline_asm_emit_module_ref_c();
+      nbytes = glue_type_size_simple(mod, arena, tr, 0);
+    }
+    if (nbytes > 0) {
+      if (nbytes <= 8) {
+        return 1;
+      }
+    }
+  }
+  return 0;
+}
+
 #[no_mangle]
 export function glue_emit_index_load_arms_elf_c(
   arena: *u8, elf_ctx: *u8, expr_ref: i32, ta: i32, esz: i32
@@ -242,8 +339,22 @@ export function pipeline_asm_emit_index_elf_c(arena: *u8, elf_ctx: *u8, expr_ref
     if (pipe_load_i32_le(&rccell[0], 0) != 0) {
       return 0 - 1;
     }
-    return glue_emit_index_load_arms_elf_c(
+    pipe_store_i32_le(&rccell[0], 0, glue_emit_index_load_arms_elf_c(
       arena, elf_ctx, expr_ref, ta, pipe_load_i32_le(&ecell[0], 0)
-    );
+    ));
+    /* Lane in x0. Drop CALL/METHOD spill so outer index pop restores
+     * the array base, not the vector. PLATFORM: MACOS|ARM64. */
+    if (ta == 1) {
+      pipe_store_i32_le(&hcell[0], 0, emit_index_arm64_call_spill(
+        arena, pipe_load_i32_le(&bcell[0], 0), ta
+      ));
+      if (pipe_load_i32_le(&hcell[0], 0) != 0) {
+        pipe_store_i32_le(&icell[0], 0, backend_enc_arm64_add_sp_imm12_c(elf_ctx, 16));
+        if (pipe_load_i32_le(&icell[0], 0) != 0) {
+          return 0 - 1;
+        }
+      }
+    }
+    return pipe_load_i32_le(&rccell[0], 0);
   }
 }

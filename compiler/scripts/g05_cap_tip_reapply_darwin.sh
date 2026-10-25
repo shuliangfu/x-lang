@@ -1407,17 +1407,17 @@ fi
 
 # knife256/10.2: true_i8 index arms lack i32 load → sum2 emits ptr+ptr (exit 10+128=138).
 # Prepend emit_index_thin (has backend_enc_load_i32); demote true_i8 elf/arms.
+# 10.22: ALWAYS tip-compile — CACHE/pabi/*.o stomps stale thin before this block.
 # PLATFORM: MACOS Cap tip.
 if [ -f src/runtime_pipeline_abi_emit_index_thin.x ] && [ -x ./xlang ]; then
   _ix_o=build_asm/selfhost_pabi/emit_index_thin_a64.o
-  if [ ! -s "$_ix_o" ] || [ "$(wc -c <"$_ix_o")" -lt 5000 ]; then
-    env -u XLANG -u XLANG_FORCE -u FORCE -u PREFER -u G05 -u RUN_ALL_USE_C \
-      -u XLANG_CAP_TIP_L4_CACHE \
-      XLANG_PREFER_ASM_O=1 ./xlang -backend asm -c \
-      src/runtime_pipeline_abi_emit_index_thin.x -o "$_ix_o" \
-      || { echo "g05_cap_tip_reapply: emit_index_thin compile failed" >&2; exit 1; }
-    echo "g05_cap_tip_reapply: tip-compiled emit_index_thin_a64.o" >&2
-  fi
+  # 10.22: always tip-compile (CACHE/pabi may stomp stale 7613; size gate skipped fix)
+  env -u XLANG -u XLANG_FORCE -u FORCE -u PREFER -u G05 -u RUN_ALL_USE_C \
+    -u XLANG_CAP_TIP_L4_CACHE \
+    XLANG_PREFER_ASM_O=1 ./xlang -backend asm -c \
+    src/runtime_pipeline_abi_emit_index_thin.x -o "$_ix_o" \
+    || { echo "g05_cap_tip_reapply: emit_index_thin compile failed" >&2; exit 1; }
+  echo "g05_cap_tip_reapply: tip-compiled emit_index_thin_a64.o" >&2
   case " $G05_OBJS " in
     *" $_ix_o "*) ;;
     *) G05_OBJS="$_ix_o $G05_OBJS"; export G05_OBJS
