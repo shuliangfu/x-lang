@@ -1424,6 +1424,37 @@ if [ -f src/runtime_pipeline_abi_emit_index_thin.x ] && [ -x ./xlang ]; then
        echo "g05_cap_tip_reapply: prepended emit_index_thin_a64.o" >&2 ;;
   esac
 fi
+
+# 10.22: Cap tip archive_leaf ast_to_elf always reset_data — wipes dep Lxml
+# payload before entry module, leaving n_sect=2 with no __DATA (cims ld fail).
+# Prefer ast_to_elf_thin (reset only when data_len<=0); demote leaf face only.
+# PLATFORM: MACOS Cap tip.
+if [ -f src/runtime_pipeline_abi_ast_to_elf_thin.x ] && [ -x ./xlang ]; then
+  _ale_o=build_asm/selfhost_pabi/ast_to_elf_thin_a64.o
+  env -u XLANG -u XLANG_FORCE -u FORCE -u PREFER -u G05 -u RUN_ALL_USE_C \
+    -u XLANG_CAP_TIP_L4_CACHE \
+    XLANG_PREFER_ASM_O=1 ./xlang -backend asm -c \
+    src/runtime_pipeline_abi_ast_to_elf_thin.x -o "$_ale_o" \
+    || { echo "g05_cap_tip_reapply: ast_to_elf_thin compile failed" >&2; exit 1; }
+  echo "g05_cap_tip_reapply: tip-compiled ast_to_elf_thin_a64.o" >&2
+  case " $G05_OBJS " in
+    *" $_ale_o "*) ;;
+    *) G05_OBJS="$_ale_o $G05_OBJS"; export G05_OBJS
+       echo "g05_cap_tip_reapply: prepended ast_to_elf_thin_a64.o" >&2 ;;
+  esac
+  _oc_ale=""
+  for c in /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
+    [ -x "$c" ] && _oc_ale=$c && break
+  done
+  if [ -n "$_oc_ale" ] && [ -s build_asm/selfhost_pabi/archive_leaf_extract.o ]; then
+    if nm -gU build_asm/selfhost_pabi/archive_leaf_extract.o 2>/dev/null \
+         | grep -q "T _pipeline_backend_asm_codegen_ast_to_elf_c$"; then
+      "$_oc_ale" --redefine-sym=_pipeline_backend_asm_codegen_ast_to_elf_c=_pipeline_backend_asm_codegen_ast_to_elf_c__demoted \
+        build_asm/selfhost_pabi/archive_leaf_extract.o 2>/dev/null \
+        && echo "g05_cap_tip_reapply: demoted archive_leaf ast_to_elf_c (thin wins)" >&2 || true
+    fi
+  fi
+fi
 _oc_ix=""
 for c in /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
   [ -x "$c" ] && _oc_ix=$c && break

@@ -316,6 +316,20 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ] \
       unset _ca_prev _ca_src_o _ca_pw
     fi
 
+    # 10.22: when ast_to_elf_thin is in OBJS, demote archive_leaf face only
+    # (keep mega_body on leaf). Thin skips reset_data when data_len>0 (cims).
+    # PLATFORM: MACOS Cap tip.
+    if printf "%s" " $OBJS " | grep -Eq "(^|[[:space:]/])ast_to_elf_thin_a64\.o([[:space:]]|$)" \
+      && [ -s build_asm/selfhost_pabi/archive_leaf_extract.o ]; then
+      if nm -gU build_asm/selfhost_pabi/archive_leaf_extract.o 2>/dev/null \
+           | grep -q " T _pipeline_backend_asm_codegen_ast_to_elf_c$"; then
+        "$_g05_oc" --redefine-sym=_pipeline_backend_asm_codegen_ast_to_elf_c=_pipeline_backend_asm_codegen_ast_to_elf_c__demoted \
+          build_asm/selfhost_pabi/archive_leaf_extract.o 2>/dev/null \
+          && echo "g05_relink_xlang: 10.22 demote archive_leaf ast_to_elf_c (thin wins)" >&2 \
+          || true
+      fi
+    fi
+
     # note743y.6.23: Cap tip archive_leaf owns backend_asm_codegen (+mega_body).
     # ensure may rebuild mega after env demote → pure-ld duplicate mega_body.
     # pre-ld demote both T on runtime_pipeline_abi.o. PLATFORM: MACOS tip cold.
