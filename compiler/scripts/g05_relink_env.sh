@@ -6634,6 +6634,21 @@ if [ -n "${_G05_LEXER_X_O:-}" ]; then
   G05_OBJS=$(echo $_g05_new)
   echo "g05_relink_env: note743y.6.21 G05_OBJS lexer_x → tip-peel" >&2
 fi
+# 10.37 Cap tip: demote sets _G05_TYPECK_X_O after _X_FRONTEND was baked into
+# _DRIVER_SEED_OBJS — swap typeck_x.o → peel so overlays win (no Darwin ld
+# duplicate _typeck_check_expr_binop{,_cmp}).
+if [ -n "${_G05_TYPECK_X_O:-}" ]; then
+  _g05_new=""
+  for _o in $G05_OBJS; do
+    if [ "$_o" = "typeck_x.o" ]; then
+      _g05_new="$_g05_new $_G05_TYPECK_X_O"
+    else
+      _g05_new="$_g05_new $_o"
+    fi
+  done
+  G05_OBJS=$(echo $_g05_new)
+  echo "g05_relink_env: 10.37 G05_OBJS typeck_x → binop/cmp peel" >&2
+fi
 
 G05_CFLAGS="$_BASE_CFLAGS $_DRIVER_SEED_LINK_FLAGS $_ASM_GLUE_DUP_LDFLAGS $_MAIN_LINK_FLAGS"
 
