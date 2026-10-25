@@ -1120,11 +1120,18 @@ case "$UNAME_S" in
         echo "g05_relink_env: 10.37 Linux tip peel+trampoline" >&2
         # 10.22: UFCS soft on tip (impl_bound*); ELF retarget peel call sites.
         # PLATFORM: LINUX tip. CGB soft intentionally omitted (bound_method SEGV).
-        if [ -f scripts/g05_linux_tip_ufcs_soft.sh ]; then
+        _ufcs_soft=""
+        for _ufcs_cand in scripts/g05_linux_tip_ufcs_soft.sh \
+                          compiler/scripts/g05_linux_tip_ufcs_soft.sh \
+                          ../compiler/scripts/g05_linux_tip_ufcs_soft.sh; do
+          if [ -f "$_ufcs_cand" ]; then _ufcs_soft="$_ufcs_cand"; break; fi
+        done
+        if [ -n "$_ufcs_soft" ]; then
           # shellcheck disable=SC1091
-          . scripts/g05_linux_tip_ufcs_soft.sh \
+          . "$_ufcs_soft" \
             || { echo "g05_relink_env: ERROR 10.22 Linux UFCS soft failed" >&2; exit 1; }
         fi
+        unset _ufcs_soft _ufcs_cand
       fi
       # note743y.4: tip parser still calls struct-returning lexer_init; tip
       # lexer_init is out-ptr and smashes source when rdi==parked data

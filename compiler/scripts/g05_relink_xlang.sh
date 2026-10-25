@@ -436,15 +436,29 @@ if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
     && printf "%s" " $OBJS " | grep -Eq "(^|[[:space:]/])typeck_field_reverse_infer_soft\.o([[:space:]]|$)"; then
     for _ri_pw in build_asm/selfhost_pabi/typeck_x_ufcs_soft_retarget.o \
                   build_asm/selfhost_pabi/typeck_x_binop_cmp_peel.o \
-                  typeck_x.o; do
+                  typeck_x.o \
+                  /tmp/typeck_peel_tfs.o; do
       [ -s "$_ri_pw" ] || continue
-      if nm "$_ri_pw" 2>/dev/null | grep -Eq " T typeck_field_reverse_infer_base_type$"; then
+      if nm "$_ri_pw" 2>/dev/null | grep -Eq " [TW] typeck_field_reverse_infer_base_type$"; then
         "$_g05_oc" --weaken-symbol=typeck_field_reverse_infer_base_type "$_ri_pw" 2>/dev/null \
           && echo "g05_relink_xlang: 10.22 Linux weaken $_ri_pw reverse_infer (soft wins)" >&2 \
           || true
       fi
     done
-    unset _ri_pw
+    # Also scan OBJS for any other strong reverse_infer (tip peel blobs)
+    for _ri_o in $OBJS; do
+      case "$(basename "$_ri_o")" in
+        typeck_field_reverse_infer_soft.o) continue ;;
+      esac
+      [ -s "$_ri_o" ] || continue
+      if nm "$_ri_o" 2>/dev/null | grep -Eq " T typeck_field_reverse_infer_base_type$"; then
+        "$_g05_oc" --weaken-symbol=typeck_field_reverse_infer_base_type "$_ri_o" 2>/dev/null \
+          && echo "g05_relink_xlang: 10.22 Linux weaken $_ri_o reverse_infer T→W" >&2 \
+          || true
+      fi
+    done
+    unset _ri_pw _ri_o
+    export XLANG_G05_LINUX_FORCE_U_REVERSE_INFER=1
   fi
   if [ -n "$_g05_oc" ] \
     && printf "%s" " $OBJS " | grep -Eq "(^|[[:space:]/])call_arg_struct_lit_field\.o([[:space:]]|$)"; then
@@ -623,6 +637,10 @@ run_g05_pure_ld_required() {
     if [ "${XLANG_G05_LINUX_FORCE_U_CALL_ARG:-0}" = "1" ]; then
       extra="$extra -u glue_emit_one_call_arg_elf_c"
       echo "g05_relink_xlang: 10.22 Linux -u glue_emit_one_call_arg_elf_c (keep call_arg soft)" >&2
+    fi
+    if [ "${XLANG_G05_LINUX_FORCE_U_REVERSE_INFER:-0}" = "1" ]; then
+      extra="$extra -u typeck_field_reverse_infer_base_type"
+      echo "g05_relink_xlang: 10.22 Linux -u typeck_field_reverse_infer_base_type (keep reverse_infer soft)" >&2
     fi
     tail=""
   else
