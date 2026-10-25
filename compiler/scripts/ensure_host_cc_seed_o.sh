@@ -10936,20 +10936,22 @@ rt_emit_flags_darwin_pure() {
   return 0
 }
 
-# w1165: src/runtime/rt_run_x_emit.x segfaults on the first pure-asm
-# tries and emits on a later try. Retry the whole translation unit.
-# Direct xlang_asm, not rt_prefer_try_x_to_o.
-# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1165 / 10.16: src/runtime/rt_run_x_emit.x may SEGV on early pure-asm
+# tries; retry the whole TU. Direct xlang_asm, not rt_prefer_try_x_to_o
+# (which needs product -E — chicken-egg when only phase1 hollow weak
+# driver_run_x_emit_c remains). PLATFORM: SHARED Darwin arm64 + Linux
+# x86_64 (10.16). cwd is compiler/.
 rt_run_x_emit_darwin_pure() {
   local o="${1:-}"
   local xsrc="src/runtime/rt_run_x_emit.x"
-  local try n c
-  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
-    return 1
-  fi
-  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
-    return 1
-  fi
+  local try n c os arch pref
+  os="$(uname -s 2>/dev/null || echo Unknown)"
+  arch="$(uname -m 2>/dev/null || echo unknown)"
+  case "$os:$arch" in
+    Darwin:arm64) pref=_ ;;
+    Linux:x86_64|Linux:amd64) pref= ;;
+    *) return 1 ;;
+  esac
   if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
     return 1
   fi
@@ -10970,8 +10972,8 @@ rt_run_x_emit_darwin_pure() {
     rm -f "$o"
     return 1
   fi
-  for c in _wp_path _wi_nlib _wz_slen _driver_run_x_emit_c; do
-    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+  for c in wp_path wi_nlib wz_slen driver_run_x_emit_c; do
+    if ! nm "$o" | awk -v s="${pref}$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
       rm -f "$o"
       return 1
     fi
@@ -18633,12 +18635,11 @@ ensure_rt_prefer_one() {
               _rt_xe_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_run_x_emit_thin.XXXXXX") || true
               _rt_xe_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_run_x_emit_rest.XXXXXX") || true
               _rt_xe_pure=0
-              # w1165: the first pure-asm tries segfault. Darwin retries
-              # the whole translation unit. Other hosts keep rt_prefer_try.
-              # PLATFORM: MACOS|DARWIN arm64 for the pure path.
+              # w1165 / 10.16: pure-asm first (Darwin arm64 + Linux x86_64).
+              # Avoids -E chicken-egg when product only has phase1 hollow weak
+              # driver_run_x_emit_c. Other hosts keep rt_prefer_try_x_to_o.
+              # PLATFORM: SHARED.
               if [ -n "$_rt_xe_thin_o" ] && [ -n "$_rt_xe_rest_o" ] \
-                && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
-                && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
                 && [ -f scripts/ensure_host_cc_seed_o.sh ] \
                 && bash scripts/ensure_host_cc_seed_o.sh rt-run-x-emit-pure "$_rt_xe_thin_o"; then
                 _rt_xe_pure=1
@@ -34346,9 +34347,9 @@ case "$MODE" in
     exit $?
     ;;
   rt-run-x-emit-pure|rt_run_x_emit_darwin_pure)
-    # w1165: fifty-seven pure-asm symbols of src/runtime/rt_run_x_emit.x.
+    # w1165 / 10.16: fifty-seven pure-asm symbols of src/runtime/rt_run_x_emit.x.
     # Does not write runtime_driver_no_c.o unless that path is passed.
-    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    # PLATFORM: SHARED Darwin arm64 + Linux x86_64. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o rt-run-x-emit-pure: need <out.o>" >&2
       exit 2
