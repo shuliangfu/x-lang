@@ -387,11 +387,22 @@ fi
 # Re-scrub: ambient or earlier steps must not leave PREFER_ASM_O=1 into user -o.
 unset XLANG_PREFER_ASM_O
 log "step8: run-all-bstrict (SKIP_BUILD=1)"
+# 5.1 Cap tip Darwin: default JOBS=4 jetsam-kills Cap tip xlang mid -o
+# (Killed: 9 / ec=137 on core-types／string／let-const under parallel load).
+# Solo and JOBS=1 are green; keep Linux default 4. Override via XLANG_BSTRICT_JOBS.
+# PLATFORM: MACOS Cap tip tip-cold. No FORCE_CC / soft SKIP→OK.
+_bjobs="${XLANG_BSTRICT_JOBS:-}"
+if [ -z "$_bjobs" ]; then
+  case "$(uname -s 2>/dev/null)" in
+    Darwin*) _bjobs=1 ;;
+    *) _bjobs=4 ;;
+  esac
+fi
 set +e
 XLANG_BSTRICT_SKIP_BUILD=1 \
   XLANG="$XLANG" \
   XLANG_LINK_XLANG="$XLANG" \
-  XLANG_BSTRICT_JOBS="${XLANG_BSTRICT_JOBS:-4}" \
+  XLANG_BSTRICT_JOBS="$_bjobs" \
   XLANG_CASE_TIMEOUT="${XLANG_CASE_TIMEOUT:-180}" \
   XLANG_BSTRICT_SCRIPT_TIMEOUT="${XLANG_BSTRICT_SCRIPT_TIMEOUT:-1200}" \
   bash tests/run-all-bstrict.sh 2>&1 | tee -a "$LOG"
