@@ -2243,6 +2243,20 @@ if [ -s "$_rs_o" ] && nm "$_rs_o" 2>/dev/null | grep -q 'T _pipeline_asm_emit_re
     G05_OBJS="$_rs_o $G05_OBJS"; export G05_OBJS
     echo "g05_cap_tip_reapply: 10.22 prepended return_sret.o" >&2
   fi
+
+  # tip-compile restores strong emit_return; fa_array_lit must keep first-win
+  # (post-fill weaken ran earlier). Re-weaken so pure-ld has one T.
+  if [ -s build_asm/selfhost_pabi/fa_array_lit_a64.o ]; then
+    _oc_rs=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+    [ -x "$_oc_rs" ] || _oc_rs=$(command -v llvm-objcopy 2>/dev/null || true)
+    if [ -n "$_oc_rs" ] && [ -x "$_oc_rs" ]; then
+      "$_oc_rs" --weaken-symbol=_pipeline_asm_emit_return_elf_impl "$_rs_o" \
+        && echo "g05_cap_tip_reapply: 10.22 re-weaken return_sret emit_return (fa_array wins)" >&2 \
+        || echo "g05_cap_tip_reapply: WARN 10.22 re-weaken return_sret failed" >&2
+    fi
+    unset _oc_rs
+  fi
+
 fi
 
 # 10.22: STRUCT_LIT.field→[]T — wire slice_modlet (calls _prev).
