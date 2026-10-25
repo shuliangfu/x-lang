@@ -53,6 +53,7 @@ def main() -> int:
         # 10.22: mega bodies — retarget call sites to soft face (else peel bl mega bypasses soft)
         b"_pipeline_typeck_check_call_generic_type_args_c": b"_pipeline_typeck_check_call_generic_type_args_c_mega",
         b"_typeck_x_ast": b"_typeck_x_ast_mega",
+        b"_typeck_method_call_generic_ufcs": b"_typeck_method_call_generic_ufcs_mega",
     }
     demoted_names = set(demoted_of.values())
     targets = list(demoted_of.keys())
