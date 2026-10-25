@@ -222,6 +222,16 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ] \
       unset _sm_pw
       # Cap tip G05_OBJS often omits runtime_pipeline_abi.o — demote then leaves
       # no _prev in the link. Stub returns -1 (same as prior Cap tip CG002).
+      # Drop any prior stub first so demoted egg W/_prev is never doubled.
+      _sm_objs_new=""
+      for _sm_o in $OBJS; do
+        case "$_sm_o" in
+          *glue_slice_from_array_let_init_prev_stub*.o) continue ;;
+        esac
+        _sm_objs_new="${_sm_objs_new:+$_sm_objs_new }$_sm_o"
+      done
+      OBJS="$_sm_objs_new"
+      unset _sm_objs_new
       _sm_has_prev=0
       for _sm_o in $OBJS; do
         [ -s "$_sm_o" ] || continue
@@ -237,6 +247,8 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ] \
           || { echo "g05_relink_xlang: ERROR 10.22 _prev stub assemble failed" >&2; exit 1; }
         OBJS="$_sm_stub $OBJS"
         echo "g05_relink_xlang: 10.22 prepended Cap tip _prev stub (-1)" >&2
+      else
+        echo "g05_relink_xlang: 10.22 _prev present (egg demote); skip stub" >&2
       fi
       unset _sm_has_prev _sm_stub _sm_o
     fi
@@ -311,6 +323,15 @@ if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
   fi
   # If egg demote missed / not in OBJS, still need _prev for slice_modlet.
   if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])slice_modlet(_a64)?\.o([[:space:]]|$)'; then
+    _sm_objs_new=""
+    for _sm_o in $OBJS; do
+      case "$_sm_o" in
+        *glue_slice_from_array_let_init_prev_stub*.o) continue ;;
+      esac
+      _sm_objs_new="${_sm_objs_new:+$_sm_objs_new }$_sm_o"
+    done
+    OBJS="$_sm_objs_new"
+    unset _sm_objs_new
     _sm_has_prev=0
     for _sm_o in $OBJS; do
       [ -s "$_sm_o" ] || continue
@@ -326,6 +347,8 @@ if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
         || { echo "g05_relink_xlang: ERROR 10.22 Linux _prev stub assemble failed" >&2; exit 1; }
       OBJS="$_sm_stub $OBJS"
       echo "g05_relink_xlang: 10.22 prepended Linux _prev stub (-1)" >&2
+    else
+      echo "g05_relink_xlang: 10.22 Linux _prev present (egg demote); skip stub" >&2
     fi
     unset _sm_has_prev _sm_stub _sm_o
   fi
