@@ -71,6 +71,18 @@ _soft_keep build_asm/selfhost_pabi/typeck_method_call_generic_ufcs_soft.o \
 as -arch arm64 -o build_asm/selfhost_pabi/trait_check_noop_a64.o \
   src/asm/trait_check_noop_a64.s \
   || { echo g05_cap_tip_typeck_soft_prep: trait_check hoist as failed >&2; exit 1; }
+# 10.22: skip_hoist is local (t) in thin_glue; globalize so hoist entry U resolves
+_oc=$(command -v llvm-objcopy || true)
+[ -z "$_oc" ] && [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ] && _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+[ -z "$_oc" ] && [ -x /usr/local/opt/llvm/bin/llvm-objcopy ] && _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+if [ -n "$_oc" ]; then
+  for _tg in build_asm/selfhost_pabi/parser_asm_thin_glue.nop9b.o parser_asm_thin_glue.o; do
+    [ -s "$_tg" ] || continue
+    "$_oc" --globalize-symbol=_xlang_skip_hoist_default_methods_c "$_tg" 2>/dev/null \
+      && echo "g05_cap_tip_typeck_soft_prep: globalized skip_hoist in $_tg" >&2 \
+      || true
+  done
+fi
 OC="${LLVM_OBJCOPY:-}"
 if [ -z "$OC" ]; then
   for c in /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
