@@ -1357,7 +1357,7 @@ build_asm/selfhost_pabi/struct_lit_fields_a64.o|src/runtime_pipeline_abi_struct_
 build_asm/selfhost_pabi/arm64_param_home_a64.o|src/runtime_pipeline_abi_arm64_param_home_thin.x
 build_asm/selfhost_pabi/w156_guard_a64.o|src/runtime_pipeline_abi_w156_guard_thin.x
 build_asm/selfhost_pabi/macho_undef_cap_a64.o|src/runtime_pipeline_abi_macho_undef_cap_thin.x
-build_asm/selfhost_pabi/trait_check_noop_a64.o|src/asm/trait_check_noop_thin.x
+build_asm/selfhost_pabi/trait_check_noop_a64.o|src/asm/trait_check_noop_a64.s
 build_asm/selfhost_pabi/enum_ns_tag_a64.o|src/runtime_pipeline_abi_enum_ns_tag_thin.x
 build_asm/selfhost_pabi/param_ptr_slot_a64.o|src/runtime_pipeline_abi_param_ptr_slot_thin.x
 build_asm/selfhost_pabi/fa_array_lit_a64.o|src/runtime_pipeline_abi_fixed_array_copy_thin.x
@@ -1365,6 +1365,10 @@ build_asm/selfhost_pabi/add_common_sym_soft.o|src/runtime_pipeline_abi_add_commo
 build_asm/selfhost_pabi/named_size.o|src/runtime_pipeline_abi_named_size_thin.x
 build_asm/selfhost_pabi/bake_scalar_imm_soft.o|src/runtime_pipeline_abi_bake_scalar_imm_soft.x
 MAP
+
+  # 10.22: always refresh trait_check hoist entry (hand asm)
+  as -arch arm64 -o build_asm/selfhost_pabi/trait_check_noop_a64.o src/asm/trait_check_noop_a64.s \
+    || { echo g05_cap_tip_reapply: trait_check hoist as failed >&2; exit 1; }
   # Cap tip G05_OBJS has no mega pabi — pull egg faces that softs/overlays need.
   if [ -s src/runtime_pipeline_abi.o ]; then
     _fill_exp=$(mktemp "${TMPDIR:-/tmp}/cap_tip_fill.XXXXXX.exp")

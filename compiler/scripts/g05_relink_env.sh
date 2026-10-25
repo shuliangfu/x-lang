@@ -3173,10 +3173,10 @@ g05_darwin_pabi_thin_sidecar src/runtime_pipeline_abi_dual_gp_byte_size_thin.x \
   # knife256 / 10.2 Cap tip: trait_check → generic_bound_scan SEGV/L003 on
   # const-import dep prerun. No-op completeness walk; LEGACY product keeps real body.
   # PLATFORM: MACOS|DARWIN.
-  g05_darwin_pabi_thin_sidecar src/asm/trait_check_noop_thin.x \
-    build_asm/selfhost_pabi/trait_check_noop_a64.o \
-    "_xlang_trait_check_impls_complete_c" \
-    "trait check noop"
+  # 10.22: hand-asm hoist entry (tip-compile thin collapses to mov;ret)
+  as -arch arm64 -o build_asm/selfhost_pabi/trait_check_noop_a64.o \
+    src/asm/trait_check_noop_a64.s \
+    || { echo "g05_relink_env: trait_check hoist as failed" >&2; exit 1; }
   if [ -s build_asm/selfhost_pabi/trait_check_noop_a64.o ] && [ -s parser_asm_thin_glue.o ] && [ -n "$_oc" ]; then
     if [ ! -s parser_asm_thin_glue.o.bak_cap_bridge ]; then
       cp -p parser_asm_thin_glue.o parser_asm_thin_glue.o.bak_cap_bridge
