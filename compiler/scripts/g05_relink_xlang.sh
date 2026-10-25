@@ -204,6 +204,42 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ] \
         && echo "g05_relink_xlang: 10.22 pre-ld demote pabi_weak slice_length (thin wins)" >&2 \
         || true
     fi
+    # 10.22: STRUCT_LIT.field→[]T — slice_modlet calls _prev; demote egg T/W.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])slice_modlet(_a64)?\.o([[:space:]]|$)'; then
+      for _sm_pw in build_asm/selfhost_pabi/pabi_weak.o \
+                    build_asm/selfhost_pabi/pabi_alias.skip_egg.o \
+                    build_asm/selfhost_pabi/pabi.o \
+                    build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o \
+                    src/runtime_pipeline_abi.o; do
+        [ -s "$_sm_pw" ] || continue
+        if nm "$_sm_pw" 2>/dev/null | grep -Eq ' [TW] _glue_emit_slice_from_array_let_init_elf_c$'; then
+          "$_g05_oc" --redefine-sym=_glue_emit_slice_from_array_let_init_elf_c=_glue_emit_slice_from_array_let_init_elf_c_prev \
+            "$_sm_pw" 2>/dev/null \
+            && echo "g05_relink_xlang: 10.22 pre-ld demote $_sm_pw slice_modlet→_prev" >&2 \
+            || true
+        fi
+      done
+      unset _sm_pw
+      # Cap tip G05_OBJS often omits runtime_pipeline_abi.o — demote then leaves
+      # no _prev in the link. Stub returns -1 (same as prior Cap tip CG002).
+      _sm_has_prev=0
+      for _sm_o in $OBJS; do
+        [ -s "$_sm_o" ] || continue
+        if nm "$_sm_o" 2>/dev/null | grep -Eq ' [TW] _glue_emit_slice_from_array_let_init_elf_c_prev$'; then
+          _sm_has_prev=1
+          break
+        fi
+      done
+      if [ "$_sm_has_prev" != "1" ]; then
+        _sm_stub=build_asm/selfhost_pabi/glue_slice_from_array_let_init_prev_stub_a64.o
+        mkdir -p build_asm/selfhost_pabi
+        clang -c -o "$_sm_stub" src/asm/glue_slice_from_array_let_init_prev_stub_a64.s \
+          || { echo "g05_relink_xlang: ERROR 10.22 _prev stub assemble failed" >&2; exit 1; }
+        OBJS="$_sm_stub $OBJS"
+        echo "g05_relink_xlang: 10.22 prepended Cap tip _prev stub (-1)" >&2
+      fi
+      unset _sm_has_prev _sm_stub _sm_o
+    fi
     # note743y.6.23: Cap tip archive_leaf owns backend_asm_codegen (+mega_body).
     # ensure may rebuild mega after env demote → pure-ld duplicate mega_body.
     # pre-ld demote both T on runtime_pipeline_abi.o. PLATFORM: MACOS tip cold.
@@ -245,6 +281,53 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ] \
       fi
       unset _sm_demote _sm_sy
     fi
+  fi
+  unset _g05_oc
+fi
+# 10.22: Linux tip peel — slice_modlet calls _prev; demote egg W on alias.
+# PLATFORM: LINUX tip peel. No FORCE_CC.
+if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
+  _g05_oc=""
+  if command -v llvm-objcopy >/dev/null 2>&1; then
+    _g05_oc=$(command -v llvm-objcopy)
+  elif command -v objcopy >/dev/null 2>&1; then
+    _g05_oc=$(command -v objcopy)
+  fi
+  if [ -n "$_g05_oc" ] \
+    && printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])slice_modlet(_a64)?\.o([[:space:]]|$)'; then
+    for _sm_pw in build_asm/selfhost_pabi/pabi_alias.skip_egg.o \
+                  build_asm/selfhost_pabi/pabi_weak.o \
+                  build_asm/selfhost_pabi/pabi.o \
+                  src/runtime_pipeline_abi.o; do
+      [ -s "$_sm_pw" ] || continue
+      if nm "$_sm_pw" 2>/dev/null | grep -Eq ' [TW] glue_emit_slice_from_array_let_init_elf_c$'; then
+        "$_g05_oc" --redefine-sym=glue_emit_slice_from_array_let_init_elf_c=glue_emit_slice_from_array_let_init_elf_c_prev \
+          "$_sm_pw" 2>/dev/null \
+          && echo "g05_relink_xlang: 10.22 Linux demote $_sm_pw slice_modlet→_prev" >&2 \
+          || true
+      fi
+    done
+    unset _sm_pw
+  fi
+  # If egg demote missed / not in OBJS, still need _prev for slice_modlet.
+  if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])slice_modlet(_a64)?\.o([[:space:]]|$)'; then
+    _sm_has_prev=0
+    for _sm_o in $OBJS; do
+      [ -s "$_sm_o" ] || continue
+      if nm "$_sm_o" 2>/dev/null | grep -Eq ' [TW] glue_emit_slice_from_array_let_init_elf_c_prev$'; then
+        _sm_has_prev=1
+        break
+      fi
+    done
+    if [ "$_sm_has_prev" != "1" ]; then
+      _sm_stub=build_asm/selfhost_pabi/glue_slice_from_array_let_init_prev_stub_x64.o
+      mkdir -p build_asm/selfhost_pabi
+      clang -c -o "$_sm_stub" src/asm/glue_slice_from_array_let_init_prev_stub_x64.s \
+        || { echo "g05_relink_xlang: ERROR 10.22 Linux _prev stub assemble failed" >&2; exit 1; }
+      OBJS="$_sm_stub $OBJS"
+      echo "g05_relink_xlang: 10.22 prepended Linux _prev stub (-1)" >&2
+    fi
+    unset _sm_has_prev _sm_stub _sm_o
   fi
   unset _g05_oc
 fi

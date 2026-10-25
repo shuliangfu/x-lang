@@ -2226,6 +2226,71 @@ if [ -s "$_sl_o" ] && nm "$_sl_o" 2>/dev/null | grep -q 'T _glue_emit_slice_leng
   esac
 fi
 
+# 10.22: return_sret name buffers 256 (name_into clears 256; 64 smashed STRUCT_LIT).
+# Cap tip may have weakened return_sret for cap665 — recompile fresh T so STRUCT_LIT return stays live.
+_rs_o=build_asm/selfhost_pabi/return_sret.o
+_rs_src=src/runtime_pipeline_abi_return_sret_thin.x
+if [ -f "$_rs_src" ] && [ -x "${xl:-./xlang}" ]; then
+  "${xl:-./xlang}" -backend asm -c -o "$_rs_o" "$_rs_src" 2>/dev/null \
+    && echo "g05_cap_tip_reapply: 10.22 tip-compiled return_sret.o (256-byte name buffers)" >&2 \
+    || echo "g05_cap_tip_reapply: WARN 10.22 return_sret tip-compile failed" >&2
+fi
+if [ -s "$_rs_o" ] && nm "$_rs_o" 2>/dev/null | grep -q 'T _pipeline_asm_emit_return_elf_impl$'; then
+  case " $G05_OBJS " in
+    *" return_sret.o "*) ;;
+    *) G05_OBJS="$_rs_o $G05_OBJS"; export G05_OBJS
+       echo "g05_cap_tip_reapply: 10.22 prepended return_sret.o" >&2 ;;
+  esac
+fi
+
+# 10.22: STRUCT_LIT.field→[]T — wire slice_modlet (calls _prev).
+_sm_o=build_asm/selfhost_pabi/slice_modlet.o
+_sm_src=src/runtime_pipeline_abi_slice_modlet_var_thin.x
+if [ -f "$_sm_src" ] && [ -x "${xl:-./xlang}" ]; then
+  "${xl:-./xlang}" -backend asm -c -o "$_sm_o" "$_sm_src" 2>/dev/null \
+    && echo "g05_cap_tip_reapply: 10.22 tip-compiled slice_modlet.o" >&2 \
+    || rm -f "$_sm_o"
+fi
+if [ -s "$_sm_o" ] && nm "$_sm_o" 2>/dev/null | grep -q 'T _glue_emit_slice_from_array_let_init_elf_c$'; then
+  _oc_sm=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+  [ -x "$_oc_sm" ] || _oc_sm=$(command -v llvm-objcopy 2>/dev/null || true)
+  for _pw in build_asm/selfhost_pabi/pabi_weak.o build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o \
+             build_asm/selfhost_pabi/pabi.o src/runtime_pipeline_abi.o; do
+    if [ -f "$_pw" ] && nm "$_pw" 2>/dev/null | grep -Eq ' [TW] _glue_emit_slice_from_array_let_init_elf_c$'; then
+      if [ -n "$_oc_sm" ] && [ -x "$_oc_sm" ]; then
+        "$_oc_sm" --redefine-sym=_glue_emit_slice_from_array_let_init_elf_c=_glue_emit_slice_from_array_let_init_elf_c_prev "$_pw" \
+          && echo "g05_cap_tip_reapply: 10.22 demoted $_pw slice_modlet→_prev" >&2 \
+          || echo "g05_cap_tip_reapply: WARN 10.22 demote failed $_pw" >&2
+      else
+        echo "g05_cap_tip_reapply: ERROR 10.22 no llvm-objcopy" >&2
+      fi
+    fi
+  done
+  case " $G05_OBJS " in
+    *" slice_modlet.o "*) ;;
+    *) G05_OBJS="$_sm_o $G05_OBJS"; export G05_OBJS
+       echo "g05_cap_tip_reapply: 10.22 prepended slice_modlet.o" >&2 ;;
+  esac
+  # Cap tip env has no runtime_pipeline_abi.o — demote alone leaves U _prev.
+  _sm_has_prev=0
+  for _sm_chk in $G05_OBJS; do
+    [ -s "$_sm_chk" ] || continue
+    if nm "$_sm_chk" 2>/dev/null | grep -Eq ' [TW] _glue_emit_slice_from_array_let_init_elf_c_prev$'; then
+      _sm_has_prev=1
+      break
+    fi
+  done
+  if [ "$_sm_has_prev" != "1" ]; then
+    _sm_stub=build_asm/selfhost_pabi/glue_slice_from_array_let_init_prev_stub_a64.o
+    mkdir -p build_asm/selfhost_pabi
+    clang -c -o "$_sm_stub" src/asm/glue_slice_from_array_let_init_prev_stub_a64.s \
+      || { echo "g05_cap_tip_reapply: ERROR 10.22 _prev stub assemble failed" >&2; exit 1; }
+    G05_OBJS="$_sm_stub $G05_OBJS"; export G05_OBJS
+    echo "g05_cap_tip_reapply: 10.22 prepended Cap tip _prev stub (-1)" >&2
+  fi
+  unset _sm_has_prev _sm_stub _sm_chk
+fi
+
 bash scripts/g05_relink_xlang.sh
 
 if [ ! -x xlang.cap_g05_l2 ]; then

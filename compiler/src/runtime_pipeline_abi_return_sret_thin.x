@@ -560,8 +560,8 @@ function w639_rs_lit_init_at(arena: *u8, lit: i32, fa: i32, j: i32): i32 {
   let sl_eq: i32 = 0;
   let sl_k: i32 = 0;
   let init: i32 = 0;
-  let fa_name: u8[64] = [];
-  let sl_name: u8[64] = [];
+  let fa_name: u8[256] = [];
+  let sl_name: u8[256] = [];
   if (arena == (0 as *u8) || lit <= 0 || fa <= 0 || j < 0) {
     return 0;
   }
@@ -569,7 +569,7 @@ function w639_rs_lit_init_at(arena: *u8, lit: i32, fa: i32, j: i32): i32 {
     fa_nlen = pipeline_expr_field_access_name_len(arena, fa);
     sl_nlen = pipeline_expr_struct_lit_field_name_len(arena, lit, j);
   }
-  if (fa_nlen <= 0 || fa_nlen > 63 || sl_nlen != fa_nlen) {
+  if (fa_nlen <= 0 || fa_nlen > 255 || sl_nlen != fa_nlen) {
     return 0;
   }
   unsafe {
@@ -937,8 +937,8 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
       let sl_nlen: i32 = 0;
       let sl_eq: i32 = 0;
       let sl_k: i32 = 0;
-      let fa_name: u8[64] = [];
-      let sl_name: u8[64] = [];
+      let fa_name: u8[256] = [];
+      let sl_name: u8[256] = [];
       let v_slot: i32 = 0;
       let v_rc: i32 = 0;
       let v_mod: *u8 = 0 as *u8;
@@ -1445,13 +1445,13 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                         rk_d = pipeline_type_kind_ord_at(arena, decl_ty);
                       }
                       if (rk_d == 11) {
-                        let sl_nm: u8[64] = [];
+                        let sl_nm: u8[256] = [];
                         let sl_n: i32 = 0;
                         let sl_pty: i32 = 0;
                         unsafe {
                           sl_n = pipeline_expr_var_name_len(arena, ret_op);
                         }
-                        if (sl_n > 0 && sl_n <= 63) {
+                        if (sl_n > 0 && sl_n <= 255) {
                           unsafe {
                             pipeline_expr_var_name_into(arena, ret_op, &sl_nm[0]);
                           }
@@ -1656,7 +1656,7 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                         sl_nf = pipeline_expr_struct_lit_num_fields(arena, base_er);
                       }
                       sl_init = 0;
-                      if (fa_nlen > 0 && fa_nlen <= 63 && sl_nf > 0 && sl_nf <= 64) {
+                      if (fa_nlen > 0 && fa_nlen <= 255 && sl_nf > 0 && sl_nf <= 64) {
                         unsafe {
                           pipeline_expr_field_access_name_into(arena, ret_op, &fa_name[0]);
                         }
