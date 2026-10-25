@@ -32,6 +32,7 @@ export extern function backend_enc_emit_raw_bytes_arch(elf_ctx: *u8, bytes: *u8,
 
 
 export function glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, force_esz: i32, ta: i32, ctx: *u8, dest_elem_ty: i32): i32 {
+  unsafe {
   let n_arr: i32 = 0;
   let esz: i32 = 0;
   let ai: i32 = 0;
@@ -585,6 +586,7 @@ export function glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena: *u8, elf_ct
   }
   unsafe {
     return glue_asm_lea_rax_common_rip_x86(elf_ctx, &label[0], llen);
+  }
   }
 }
 
