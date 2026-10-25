@@ -338,3 +338,26 @@ compiler/xlang-*
 
 # g05 pure-asm sha256 stamps (ensure local markers; do not commit)
 *.pure_asm
+
+# --- local Cap tip / L4 asides & scratch (gitignore knife 2026-10-25) ---
+# L4 true-cold scratch tree
+.l4_run/
+# Product binary side copies (dot-suffix; xlang_* / xlang-* already covered above)
+compiler/xlang.broken_*
+compiler/xlang.cap_*
+compiler/xlang.pre_*
+compiler/xlang.product_*
+# Cap tip asm aside at repo root
+xlang_asm.cap_tip_aside*
+# *.bak does not match foo.o.bak_pre_…
+*.o.bak*
+*.bak_pre_*
+# Local symlink compiler/std → ../std (real tree is std/)
+/compiler/std
+# g05 pure-asm thin scratch dirs
+g05_pthin_p4b.*
+# Local sqlite / probe scratch
+/test.db
+# Informal local probes (leading underscore; not suite cases)
+tests/io/_probe_a.x
+tests/typeck/_idx_assign.x
