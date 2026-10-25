@@ -499,6 +499,22 @@ if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
     fi
     unset _ca_prev _ca_src_o _ca_pw
   fi
+  # 10.22: durable_ptr thin vs pabi_alias hollow W
+  if [ -n "$_g05_oc" ] \
+    && printf "%s" " $OBJS " | grep -Eq "(^|[[:space:]/])array_lit_durable_thin\.o([[:space:]]|$)"; then
+    for _du_pw in build_asm/selfhost_pabi/pabi_alias.skip_egg.o \
+                  build_asm/selfhost_pabi/pabi_alias.elf64k.o \
+                  build_asm/selfhost_pabi/pabi_alias.o; do
+      [ -s "$_du_pw" ] || continue
+      if nm "$_du_pw" 2>/dev/null | grep -Eq " [TW] glue_asm_emit_array_lit_durable_ptr_rax_elf_c$"; then
+        "$_g05_oc" --weaken-symbol=glue_asm_emit_array_lit_durable_ptr_rax_elf_c "$_du_pw" 2>/dev/null \
+          && echo "g05_relink_xlang: 10.22 Linux weaken $_du_pw durable_ptr (thin wins)" >&2 \
+          || true
+      fi
+    done
+    unset _du_pw
+    export XLANG_G05_LINUX_FORCE_U_DURABLE=1
+  fi
   unset _g05_oc
 fi
 # nostdlib policy for Linux product (same as g05_relink_env).
@@ -641,6 +657,10 @@ run_g05_pure_ld_required() {
     if [ "${XLANG_G05_LINUX_FORCE_U_REVERSE_INFER:-0}" = "1" ]; then
       extra="$extra -u typeck_field_reverse_infer_base_type"
       echo "g05_relink_xlang: 10.22 Linux -u typeck_field_reverse_infer_base_type (keep reverse_infer soft)" >&2
+    fi
+    if [ "${XLANG_G05_LINUX_FORCE_U_DURABLE:-0}" = "1" ]; then
+      extra="$extra -u glue_asm_emit_array_lit_durable_ptr_rax_elf_c"
+      echo "g05_relink_xlang: 10.22 Linux -u durable_ptr (keep thin)" >&2
     fi
     tail=""
   else
