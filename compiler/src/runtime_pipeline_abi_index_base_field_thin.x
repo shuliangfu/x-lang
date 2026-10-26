@@ -45,6 +45,7 @@ export extern function glue_vector_type_lanes_esz_c(arena: *u8, type_ref: i32, o
 export extern function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): i32;
 export extern function backend_enc_push_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_append_u32_le_c(elf_ctx: *u8, word: u32): i32;
+export extern function backend_enc_append_u8_c(elf_ctx: *u8, byte: i32): i32;
 
 /**
  * 1 when FIELD_ACCESS fa_ref has a PTR (9) field type, else 0.
@@ -115,7 +116,9 @@ function w1521_ib_field_is_ptr(arena: *u8, fa_ref: i32): i32 {
  * PLATFORM: SHARED body. Darwin ARM64 measured the nested-FIELD fail,
  * the nested-INDEX fail, the FIELD-of-INDEX fail (`arrh[0].v[0]`),
  * the 16-byte CALL-base SIGBUS, and the 8-byte array CALL-base SIGBUS.
- * Both spills are ta == 1 only; x86_64 does not emit those words.
+ * ARM64 uses stp/str; x86_64 pushes rax:rdx (SIMD16) or homes rax
+ * in a 16-byte slot (<=8B ARRAY), then lea rax,[rsp]. emit_index
+ * adds 16 back after the lane load on both arches.
  */
 #[no_mangle]
 export function glue_emit_index_eff_addr_base_elf_c(arena: *u8, elf_ctx: *u8, ix_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -396,20 +399,15 @@ export function glue_emit_index_eff_addr_base_elf_c(arena: *u8, elf_ctx: *u8, ix
       }
     }
   }
-  // CALL (48) or METHOD (49) on arm64. emit_expr left a 16-byte SIMD
-  // in x0:x1. stp stores that pair and add x0, sp, #0 makes x0 the
-  // slot address the lane load expects. Same two words as the pair
-  // address in assign_index_one_pair_finish. Do not add sp back: the
-  // load still reads the slot, and the epilogue restores sp from x29.
-  // Slice (trk 11) is excluded: its header was already loaded. A
-  // pointer is not a SIMD spelling, so it is not spilled. DEREF (52)
-  // stays an rvalue. Wider than 16 stays a value.
-  // TYPE_ARRAY (10) of 1 to 8 bytes is also in x0, not a pointer.
-  // str x0, [sp, #-16]! then the same add x0, sp, #0. An array larger
-  // than 8 bytes stays the rvalue: sret already left a pointer in x0.
-  // PLATFORM: MACOS|ARM64. ta != 1 skips this. Measured add4(a,b)[1]
-  // and pick()[0] where pick returns [2]i32.
-  if (ta == 1 && trk != 11 && (base_ko == 48 || base_ko == 49) && tr > 0) {
+  // CALL (48) or METHOD (49). emit_expr left a 16-byte SIMD in
+  // x0:x1 (arm64) or rax:rdx (x86_64 SysV INTEGER). Spill that pair
+  // and leave the slot address in rax/x0 for the lane load. Do not
+  // add sp back here: emit_index adds 16 after the load. Slice (trk
+  // 11) is excluded. TYPE_ARRAY (10) of 1..8 bytes is the same class
+  // (value in rax/x0, not a pointer). Larger arrays stay the rvalue
+  // pointer. PLATFORM: SHARED. Measured Linux add4(a,b)[0] SEGV when
+  // rax held the low half as a bogus pointer.
+  if ((ta == 0 || ta == 1) && trk != 11 && (base_ko == 48 || base_ko == 49) && tr > 0) {
     unsafe {
       simd = asm_type_is_simd_vector_spelling(arena, tr);
     }
@@ -422,12 +420,47 @@ export function glue_emit_index_eff_addr_base_elf_c(arena: *u8, elf_ctx: *u8, ix
         lanes = lanes_buf[0];
         esz = esz_buf[0];
         if (lanes > 0 && esz > 0 && lanes * esz == 16) {
-          unsafe {
-            rc = backend_enc_append_u32_le_c(elf_ctx, 2847868896 as u32);
-          }
-          if (rc == 0) {
+          if (ta == 1) {
             unsafe {
-              rc = backend_enc_append_u32_le_c(elf_ctx, 2432697312 as u32);
+              rc = backend_enc_append_u32_le_c(elf_ctx, 2847868896 as u32);
+            }
+            if (rc == 0) {
+              unsafe {
+                rc = backend_enc_append_u32_le_c(elf_ctx, 2432697312 as u32);
+              }
+            }
+          }
+          if (ta == 0) {
+            // push rdx; push rax; lea rax,[rsp]
+            unsafe {
+              rc = backend_enc_append_u8_c(elf_ctx, 82);
+            }
+            if (rc == 0) {
+              unsafe {
+                rc = backend_enc_push_rax_arch(elf_ctx, ta);
+              }
+            }
+            if (rc == 0) {
+              unsafe {
+                if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+                  rc = 0 - 1;
+                }
+                if (rc == 0) {
+                  if (backend_enc_append_u8_c(elf_ctx, 141) != 0) {
+                    rc = 0 - 1;
+                  }
+                }
+                if (rc == 0) {
+                  if (backend_enc_append_u8_c(elf_ctx, 4) != 0) {
+                    rc = 0 - 1;
+                  }
+                }
+                if (rc == 0) {
+                  if (backend_enc_append_u8_c(elf_ctx, 36) != 0) {
+                    rc = 0 - 1;
+                  }
+                }
+              }
             }
           }
           if (rc != 0) {
@@ -447,12 +480,77 @@ export function glue_emit_index_eff_addr_base_elf_c(arena: *u8, elf_ctx: *u8, ix
     if (abytes > 0) {
       if (abytes <= 8) {
         rc = 0;
-        unsafe {
-          rc = backend_enc_push_rax_arch(elf_ctx, ta);
-        }
-        if (rc == 0) {
+        if (ta == 1) {
           unsafe {
-            rc = backend_enc_append_u32_le_c(elf_ctx, 2432697312 as u32);
+            rc = backend_enc_push_rax_arch(elf_ctx, ta);
+          }
+          if (rc == 0) {
+            unsafe {
+              rc = backend_enc_append_u32_le_c(elf_ctx, 2432697312 as u32);
+            }
+          }
+        }
+        if (ta == 0) {
+          // sub rsp,16 ; mov [rsp],rax ; lea rax,[rsp]
+          unsafe {
+            if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+              rc = 0 - 1;
+            }
+            if (rc == 0) {
+              if (backend_enc_append_u8_c(elf_ctx, 131) != 0) {
+                rc = 0 - 1;
+              }
+            }
+            if (rc == 0) {
+              if (backend_enc_append_u8_c(elf_ctx, 236) != 0) {
+                rc = 0 - 1;
+              }
+            }
+            if (rc == 0) {
+              if (backend_enc_append_u8_c(elf_ctx, 16) != 0) {
+                rc = 0 - 1;
+              }
+            }
+            if (rc == 0) {
+              if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+                rc = 0 - 1;
+              }
+            }
+            if (rc == 0) {
+              if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+                rc = 0 - 1;
+              }
+            }
+            if (rc == 0) {
+              if (backend_enc_append_u8_c(elf_ctx, 4) != 0) {
+                rc = 0 - 1;
+              }
+            }
+            if (rc == 0) {
+              if (backend_enc_append_u8_c(elf_ctx, 36) != 0) {
+                rc = 0 - 1;
+              }
+            }
+            if (rc == 0) {
+              if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+                rc = 0 - 1;
+              }
+            }
+            if (rc == 0) {
+              if (backend_enc_append_u8_c(elf_ctx, 141) != 0) {
+                rc = 0 - 1;
+              }
+            }
+            if (rc == 0) {
+              if (backend_enc_append_u8_c(elf_ctx, 4) != 0) {
+                rc = 0 - 1;
+              }
+            }
+            if (rc == 0) {
+              if (backend_enc_append_u8_c(elf_ctx, 36) != 0) {
+                rc = 0 - 1;
+              }
+            }
           }
         }
         if (rc != 0) {

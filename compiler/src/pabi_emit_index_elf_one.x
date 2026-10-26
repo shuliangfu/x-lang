@@ -38,18 +38,19 @@ export extern function glue_vector_type_lanes_esz_c(arena: *u8, type_ref: i32, o
 export extern function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): i32;
 export extern function pipeline_asm_emit_module_ref_c(): *u8;
 export extern function backend_enc_arm64_add_sp_imm12_c(elf_ctx: *u8, imm: i32): i32;
+export extern function backend_enc_append_u8_c(elf_ctx: *u8, byte: i32): i32;
 
 /**
  * 1 when the index-base emitter spilled 16 bytes for this CALL/METHOD.
  * @param arena *u8 — expression pool; null returns 0
  * @param base_ref i32 — INDEX base; not positive returns 0
- * @param ta i32 — 1 is arm64; any other target returns 0
+ * @param ta i32 — 0 x86_64 or 1 arm64; other targets return 0
  * @return i32 — 1 when a 16-byte SIMD pair or a 1..8 byte array value
  *   was pushed and x0 was set to that slot; 0 otherwise
  * Same gate as glue_emit_index_eff_addr_base_elf_c. The lane load still
  * reads the slot. emit_index adds sp back afterwards so a surrounding
  * push/pop does not pop the vector. A slice header is not this spill.
- * PLATFORM: MACOS|ARM64. x86_64 never spills here.
+ * PLATFORM: SHARED — same gate as index_base_field spill.
  */
 function emit_index_arm64_call_spill(arena: *u8, base_ref: i32, ta: i32): i32 {
   let ko: i32 = 0;
@@ -63,8 +64,10 @@ function emit_index_arm64_call_spill(arena: *u8, base_ref: i32, ta: i32): i32 {
   let nbytes: i32 = 0;
   let mod: *u8 = 0 as *u8;
   let rc: i32 = 0;
-  if (ta != 1) {
-    return 0;
+  if (ta != 0) {
+    if (ta != 1) {
+      return 0;
+    }
   }
   if (arena == 0 as *u8) {
     return 0;
@@ -190,17 +193,34 @@ export function pipeline_asm_emit_index_elf_c(
     pipe_store_i32_le(&rccell[0], 0, glue_emit_index_load_arms_elf_c(
       arena, elf_ctx, expr_ref, ta, pipe_load_i32_le(&ecell[0], 0)
     ));
-    /* The lane is in x0. Drop the CALL/METHOD spill before return so
+    /* The lane is in rax/x0. Drop the CALL/METHOD 16-byte spill so
      * the outer index pop restores the array base, not the vector.
-     * PLATFORM: MACOS|ARM64. */
-    if (ta == 1) {
+     * PLATFORM: SHARED (arm64 add sp,#16; x86_64 add rsp,16). */
+    if (ta == 0 || ta == 1) {
       pipe_store_i32_le(&hcell[0], 0, emit_index_arm64_call_spill(
         arena, pipe_load_i32_le(&bcell[0], 0), ta
       ));
       if (pipe_load_i32_le(&hcell[0], 0) != 0) {
-        pipe_store_i32_le(&icell[0], 0, backend_enc_arm64_add_sp_imm12_c(elf_ctx, 16));
-        if (pipe_load_i32_le(&icell[0], 0) != 0) {
-          return 0 - 1;
+        if (ta == 1) {
+          pipe_store_i32_le(&icell[0], 0, backend_enc_arm64_add_sp_imm12_c(elf_ctx, 16));
+          if (pipe_load_i32_le(&icell[0], 0) != 0) {
+            return 0 - 1;
+          }
+        }
+        if (ta == 0) {
+          /* add rsp, 16 */
+          if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+            return 0 - 1;
+          }
+          if (backend_enc_append_u8_c(elf_ctx, 131) != 0) {
+            return 0 - 1;
+          }
+          if (backend_enc_append_u8_c(elf_ctx, 196) != 0) {
+            return 0 - 1;
+          }
+          if (backend_enc_append_u8_c(elf_ctx, 16) != 0) {
+            return 0 - 1;
+          }
         }
       }
     }
