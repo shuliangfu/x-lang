@@ -1196,9 +1196,9 @@ case "$UNAME_S" in
         exit 1
       fi
       # 10.22: Tip-compile pthin_skip_tl.x with CURRENT product (not pin-egg).
-      # Other tip symbols prepend first-wins; method_sig is redefined away so
-      # thin_glue W C twin (~54KB archive dest-RET) wins — product tip emits
-      # only ~12KB and drops dest-RET arms (dyn_ret_ptr_ptr* T001). PLATFORM: LINUX.
+      # Other tip symbols prepend first-wins; tip trait body/header/method_sig
+      # redefined away so thin_glue C twins win (tip method_sig ~12KB truncated;
+      # tip body hard-calls it). PLATFORM: LINUX.
       _pthin_o=build_asm/selfhost_pabi/pthin_skip_tl.o
       mkdir -p build_asm/selfhost_pabi
       _pthin_ok=0
@@ -1209,17 +1209,25 @@ case "$UNAME_S" in
           && nm "$_pthin_o.tmp.o" 2>/dev/null | grep -qE "T _*parser_asm_skip_one_trait_method_sig_into_c\$"; then
           mv -f "$_pthin_o.tmp.o" "$_pthin_o"
           # 10.22: product tip emits method_sig ~12KB vs C twin ~54KB (archive
-          # dest-RET dims[1] extra STAR). Tip body is truncated on Linux tip
-          # codegen — drop tip method_sig so thin_glue W (full dest-RET) wins.
-          # Keep other tip pthin symbols. PLATFORM: LINUX.
+          # dest-RET). Tip trait_body hard-calls tip method_sig — renaming only
+          # method_sig leaves body calling the truncated dead stub. Drop tip
+          # trait_body (+ header/method_sig) so thin_glue C twins win and call
+          # full dest-RET method_sig. Keep other tip pthin symbols. PLATFORM: LINUX.
           if command -v objcopy >/dev/null 2>&1; then
-            objcopy --redefine-sym parser_asm_skip_one_trait_method_sig_into_c=__tip_dead_method_sig "$_pthin_o" 2>/dev/null \
-              || objcopy --redefine-sym _parser_asm_skip_one_trait_method_sig_into_c=__tip_dead_method_sig "$_pthin_o" 2>/dev/null \
-              || true
-            if nm "$_pthin_o" 2>/dev/null | grep -qE "T _*parser_asm_skip_one_trait_method_sig_into_c\$"; then
-              echo "g05_relink_env: WARN tip method_sig still live after redefine" >&2
+            for _ts in \
+              parser_asm_skip_one_trait_method_sig_into_c \
+              parser_asm_skip_one_trait_body_into_c \
+              parser_asm_skip_one_trait_header_into_c
+            do
+              objcopy --redefine-sym "$_ts=__tip_dead_$_ts" "$_pthin_o" 2>/dev/null \
+                || objcopy --redefine-sym "_$_ts=__tip_dead_$_ts" "$_pthin_o" 2>/dev/null \
+                || true
+            done
+            unset _ts
+            if nm "$_pthin_o" 2>/dev/null | grep -qE "T _*parser_asm_skip_one_trait_(method_sig|body|header)_into_c\$"; then
+              echo "g05_relink_env: WARN tip trait skip_* still live after redefine" >&2
             else
-              echo "g05_relink_env: 10.22 tip method_sig→C twin (redefine dead)" >&2
+              echo "g05_relink_env: 10.22 tip trait body/header/method_sig→C twin" >&2
             fi
           fi
           _pthin_ok=1
