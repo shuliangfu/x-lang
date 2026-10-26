@@ -1197,17 +1197,30 @@ case "$UNAME_S" in
       fi
       # 10.22: Linux tip product keeps C twin weak stubs for trait method_sig
       # (dest-RET dims[1] extra STAR / dyn_ret_ptr_ptr* T001). Tip-compile
-      # pthin_skip_tl.x and prepend so first-wins upgrades W→T. PLATFORM: LINUX.
-      _g05_pure_overlay src/asm/pthin_skip_tl.x \
-        build_asm/selfhost_pabi/pthin_skip_tl.o \
-        parser_asm_skip_one_trait_method_sig_into_c
-      if [ -n "$_G05_PO_OUT" ]; then
-        _PABI_TIP_PEEL="$_G05_PO_OUT $_PABI_TIP_PEEL"
-        echo "g05_relink_env: 10.22 tip-peel pthin_skip_tl (method_sig dest-RET)" >&2
-      else
-        echo "g05_relink_env: ERROR 10.22 pthin_skip_tl tip-peel missing" >&2
+      # pthin_skip_tl.x with CURRENT product (not pin-egg — egg is Sep-16 and
+      # mis-emits the dest-RET arms; product .o is ~200KB vs egg ~224KB) and
+      # prepend so first-wins upgrades W→T. PLATFORM: LINUX.
+      _pthin_o=build_asm/selfhost_pabi/pthin_skip_tl.o
+      mkdir -p build_asm/selfhost_pabi
+      _pthin_ok=0
+      for _pthin_bin in ./xlang_asm ./xlang ./xlang.restored_1952; do
+        [ -x "$_pthin_bin" ] || continue
+        rm -f "$_pthin_o.tmp.o"
+        if "$_pthin_bin" -backend asm -c src/asm/pthin_skip_tl.x -o "$_pthin_o.tmp.o" >/dev/null 2>&1 \
+          && nm "$_pthin_o.tmp.o" 2>/dev/null | grep -qE "T _*parser_asm_skip_one_trait_method_sig_into_c\$"; then
+          mv -f "$_pthin_o.tmp.o" "$_pthin_o"
+          _pthin_ok=1
+          echo "g05_relink_env: 10.22 tip-peel pthin_skip_tl via $_pthin_bin (method_sig dest-RET)" >&2
+          break
+        fi
+        rm -f "$_pthin_o.tmp.o"
+      done
+      if [ "$_pthin_ok" != "1" ] || [ ! -f "$_pthin_o" ]; then
+        echo "g05_relink_env: ERROR 10.22 pthin_skip_tl product tip-peel missing" >&2
         exit 1
       fi
+      _PABI_TIP_PEEL="$_pthin_o $_PABI_TIP_PEEL"
+      unset _pthin_o _pthin_ok _pthin_bin
       _PABI_TIP_PEEL="$(echo $_PABI_TIP_PEEL | tr -s ' ')"
       if [ -n "$_PABI_TIP_PEEL" ]; then
         echo "g05_relink_env: Linux tip-peel overlays ($(echo $_PABI_TIP_PEEL | wc -w | tr -d ' ') objs)" >&2
