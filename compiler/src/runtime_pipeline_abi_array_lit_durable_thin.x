@@ -208,7 +208,7 @@ export function glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena: *u8, elf_ct
       unsafe {
         rc = pipeline_elf_ctx_append_bytes(elf_ctx, &jmp_short[0], 2);
       }
-      if (rc != 0) {
+      if (rc < 0) {
         return 0 - 1;
       }
     } else {
@@ -221,14 +221,14 @@ export function glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena: *u8, elf_ct
       unsafe {
         rc = pipeline_elf_ctx_append_bytes(elf_ctx, &jmp_near[0], 5);
       }
-      if (rc != 0) {
+      if (rc < 0) {
         return 0 - 1;
       }
     }
     unsafe {
       rc = pipeline_elf_ctx_append_bytes(elf_ctx, &payload[0], nbytes);
     }
-    if (rc != 0) {
+    if (rc < 0) {
       return 0 - 1;
     }
     disp32 = 0 - nbytes - 7;
@@ -504,13 +504,13 @@ export function glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena: *u8, elf_ct
       unsafe {
         rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, temp_home, ta);
       }
-      if (rc != 0) {
+      if (rc < 0) {
         return 0 - 1;
       }
       unsafe {
         rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, src_spill, ta);
       }
-      if (rc != 0) {
+      if (rc < 0) {
         return 0 - 1;
       }
       if (ta == 1) {
@@ -522,7 +522,7 @@ export function glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena: *u8, elf_ct
           rc = glue_asm_lea_rax_common_rip_x86(elf_ctx, &label[0], llen);
         }
       }
-      if (rc != 0) {
+      if (rc < 0) {
         return 0 - 1;
       }
       if (ai * esz != 0) {
@@ -536,13 +536,13 @@ export function glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena: *u8, elf_ct
       unsafe {
         rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, dst_spill, ta);
       }
-      if (rc != 0) {
+      if (rc < 0) {
         return 0 - 1;
       }
       unsafe {
         rc = glue_emit_bulk_mem_copy_spills_elf_c(elf_ctx, src_spill, dst_spill, esz, ta);
       }
-      if (rc != 0) {
+      if (rc < 0) {
         return 0 - 1;
       }
       ai = ai + 1;
@@ -584,14 +584,14 @@ export function glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena: *u8, elf_ct
       unsafe {
         rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, v64_lo, v64_hi, ta);
       }
-      if (rc != 0) {
+      if (rc < 0) {
         return 0 - 1;
       }
     } else {
       unsafe {
         rc = glue_array_lit_emit_scalar_elem_to_rax_elf_c(arena, elf_ctx, expr_ref, elem_ref, ctx, ta, force_esz);
       }
-      if (rc != 0) {
+      if (rc < 0) {
         return 0 - 1;
       }
     }

@@ -247,7 +247,17 @@ export function glue_emit_one_call_arg_elf_c(arena: *u8, elf_ctx: *u8, call_expr
             }
           }
         }
+        // VAR base only: CALL/INDEX/STRUCT_LIT field bases miss lvalue LEA
+        // on Linux tip (CG002). STRUCT_LIT is handled above; others → _prev.
+        base_er = pipeline_expr_field_access_base_ref(arena, arg_ref);
+        base_k = 0;
+        if (base_er > 0) {
+          base_k = pipeline_expr_kind_ord_at(arena, base_er);
+        }
         if (arr_sz > 0) {
+          if (base_k != 3) {
+            return glue_emit_one_call_arg_elf_c_prev(arena, elf_ctx, call_expr_ref, arg_ref, arg_index, ctx, ta);
+          }
           base_off = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
           if ((base_off % 8) != 0) {
             base_off = (base_off + 7) / 8 * 8;
@@ -261,7 +271,7 @@ export function glue_emit_one_call_arg_elf_c(arena: *u8, elf_ctx: *u8, call_expr
           glue_align_next_offset(ctx);
           br = glue_try_index_var_or_field_base_to_rax_elf_c(arena, elf_ctx, arg_ref, ctx, ta);
           if (br != 0) {
-            return 0 - 1;
+            return glue_emit_one_call_arg_elf_c_prev(arena, elf_ctx, call_expr_ref, arg_ref, arg_index, ctx, ta);
           }
           rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta);
           if (rc != 0) {
