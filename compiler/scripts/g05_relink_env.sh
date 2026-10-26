@@ -1195,6 +1195,19 @@ case "$UNAME_S" in
         echo "g05_relink_env: ERROR rt_fmt_one tip-peel missing (note743y.6.10)" >&2
         exit 1
       fi
+      # 10.22: Linux tip product keeps C twin weak stubs for trait method_sig
+      # (dest-RET dims[1] extra STAR / dyn_ret_ptr_ptr* T001). Tip-compile
+      # pthin_skip_tl.x and prepend so first-wins upgrades W→T. PLATFORM: LINUX.
+      _g05_pure_overlay src/asm/pthin_skip_tl.x \
+        build_asm/selfhost_pabi/pthin_skip_tl.o \
+        parser_asm_skip_one_trait_method_sig_into_c
+      if [ -n "$_G05_PO_OUT" ]; then
+        _PABI_TIP_PEEL="$_G05_PO_OUT $_PABI_TIP_PEEL"
+        echo "g05_relink_env: 10.22 tip-peel pthin_skip_tl (method_sig dest-RET)" >&2
+      else
+        echo "g05_relink_env: ERROR 10.22 pthin_skip_tl tip-peel missing" >&2
+        exit 1
+      fi
       _PABI_TIP_PEEL="$(echo $_PABI_TIP_PEEL | tr -s ' ')"
       if [ -n "$_PABI_TIP_PEEL" ]; then
         echo "g05_relink_env: Linux tip-peel overlays ($(echo $_PABI_TIP_PEEL | wc -w | tr -d ' ') objs)" >&2
