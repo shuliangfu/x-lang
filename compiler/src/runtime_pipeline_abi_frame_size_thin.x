@@ -548,8 +548,25 @@ export function pipeline_asm_compute_frame_size_c(num_params: i32, arena: *u8, b
   // literal over the arm64 x19 save slot (the second one into the caller's
   // fp/lr); on SysV x86_64 the literal sat under rsp and the emitter's
   // push rax overwrote the line field.
+  // 10.62: on arm64 the prologue parks x19 at [sp,#align(size)]. A by-value
+  // STRUCT_LIT call arg (`sink(Pair { .. })`) takes its temp from next_offset
+  // up through the end of the lit reservation; without a separate +16 those
+  // bytes land on the x19 slot. Reserve lit and x19 apart, then align.
   // PLATFORM: MACOS|ARM64 · LINUX x86_64 (Windows x86_64 below).
-  if (win == 0 || arm != 0) {
+  if (arm != 0) {
+    unsafe {
+      lit = glue_asm_last_struct_lit_temp_bytes_c();
+    }
+    if (lit > 0) {
+      // 10.62: reserve lit and a dedicated 16B gap before prologue x19.
+      size = size + lit + 16;
+      rem = size % 16;
+      if (rem != 0) {
+        size = size + (16 - rem);
+      }
+    }
+    lit = 0;
+  } else if (win == 0) {
     unsafe {
       lit = glue_asm_last_struct_lit_temp_bytes_c();
     }

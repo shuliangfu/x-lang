@@ -2741,6 +2741,46 @@ if [ -n "$_g05_oc" ] && [ -s "$_ss_o" ] && [ -s build_asm/selfhost_pabi/pabi_wea
   fi
 fi
 
+# 10.62: force tip dual_gp after CACHE dual_gp_new stomp (Pair TYPE_NAMED 16B).
+# PLATFORM: MACOS Cap tip.
+_dg_o=build_asm/selfhost_pabi/dual_gp_byte_size_a64.o
+_dg_src=src/runtime_pipeline_abi_dual_gp_byte_size_thin.x
+_dg_xl=""
+for _b in ./xlang.cap_g05_l2 ./xlang_asm ./xlang /tmp/cap_tip_l4_safe_406200eef/xlang_asm \
+  "${HOME:-}/.cache/xlang_cap_tip_l4/xlang_asm" seeds/bootstrap_xlangc.darwin.arm64; do
+  [ -x "$_b" ] && _dg_xl="$_b" && break
+done
+if [ -n "$_dg_xl" ] && [ -f "$_dg_src" ]; then
+  if XLANG_PREFER_ASM_O=1 "$_dg_xl" -backend asm -c "$_dg_src" -o "$_dg_o" >/dev/null 2>&1 \
+    && nm "$_dg_o" 2>/dev/null | grep -q 'T _glue_sysv_dual_gp_byte_size_c'; then
+    echo "g05_cap_tip_reapply: 10.62 tip-compiled dual_gp" >&2
+    mkdir -p "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi"
+    cp -f "$_dg_o" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/dual_gp_byte_size_a64.o" 2>/dev/null || true
+    cp -f "$_dg_o" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/dual_gp_new.o" 2>/dev/null || true
+    cp -f "$_dg_o" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/dual_gp_new.o" 2>/dev/null || true
+  else
+    echo "g05_cap_tip_reapply: 10.62 dual_gp tip-compile failed" >&2
+  fi
+fi
+
+# 10.62: force tip compute_frame_size (struct-lit temp vs x19 separate) after CACHE/pabi stomp.
+# PLATFORM: MACOS Cap tip.
+_fs_o=build_asm/selfhost_pabi/compute_frame_size.o
+_fs_src=src/runtime_pipeline_abi_frame_size_thin.x
+_fs_xl=""
+for _b in ./xlang.cap_g05_l2 ./xlang_asm ./xlang /tmp/cap_tip_l4_safe_406200eef/xlang_asm   "${HOME:-}/.cache/xlang_cap_tip_l4/xlang_asm" seeds/bootstrap_xlangc.darwin.arm64; do
+  [ -x "$_b" ] && _fs_xl="$_b" && break
+done
+if [ -n "$_fs_xl" ] && [ -f "$_fs_src" ]; then
+  if XLANG_PREFER_ASM_O=1 "$_fs_xl" -backend asm -c "$_fs_src" -o "$_fs_o" >/dev/null 2>&1     && nm "$_fs_o" 2>/dev/null | grep -q 'T _pipeline_asm_compute_frame_size_c'; then
+    echo "g05_cap_tip_reapply: 10.62 tip-compiled compute_frame_size.o" >&2
+    mkdir -p "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi"
+    cp -f "$_fs_o" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/compute_frame_size.o" 2>/dev/null || true
+  else
+    echo "g05_cap_tip_reapply: 10.62 frame_size tip-compile failed" >&2
+  fi
+fi
+
 # 10.56: force tip arms_div (unsigned /= → udiv) after CACHE/pabi stomp.
 # PLATFORM: MACOS Cap tip. Must see U _backend_enc_div_rbx_arch.
 _ad_o=build_asm/selfhost_pabi/av_assign_rhsrax_arms_div.o

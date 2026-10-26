@@ -55,6 +55,15 @@ export function glue_sysv_dual_gp_byte_size_c(arena: *u8, ty_ref: i32): i32 {
       }
     }
   }
+  // 10.62: TYPE_NAMED local structs (Pair etc.) Cap tip soft-floors
+  // named_layout_size to 8; still try size_simple. If that also soft-floors,
+  // name heuristics below remain. PLATFORM: SHARED.
+  if (tk == 8 && mod != (0 as *u8)) {
+    sz = glue_type_size_simple(mod, arena, ty_ref, 0);
+    if (sz > 8 && sz <= 16) {
+      return sz;
+    }
+  }
   // TYPE_NAMED == 8 — name heuristics below
   if (tk != 8) {
     return 0;
