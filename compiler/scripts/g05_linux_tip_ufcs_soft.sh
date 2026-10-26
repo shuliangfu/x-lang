@@ -185,6 +185,37 @@ if _try_soft_emit "$_fa_o" "$_fa_x" "$_fa_cache"; then
 fi
 
 
+# --- 10.22: w211 const off thins (tip-cold must keep T resolve/var_off) ---
+# tip-cold L4_END_RC=1 @6e5b: product only had W glue_call_arg_resolve /
+# glue_var_expr_stack_off → opt/si CG002. Hot prepare rebuilt overlays and
+# OPT/SI greened. Cache+prepend so wipe/bootstrap cannot drop them.
+_w211_cao=build_asm/selfhost_pabi/call_arg_const_off.o
+_w211_cao_x=src/runtime_pipeline_abi_call_arg_const_off_thin.x
+_w211_cao_cache=/tmp/xlang_soft_cache_linux/call_arg_const_off.o
+if [ -s "$_w211_cao_cache" ] && [ -f "$_w211_cao_x" ] && [ "$_w211_cao_x" -nt "$_w211_cao_cache" ]; then
+  rm -f "$_w211_cao_cache" "$_w211_cao"
+fi
+if _try_soft_emit "$_w211_cao" "$_w211_cao_x" "$_w211_cao_cache"; then
+  case " ${_PABI_TIP_PEEL:-} " in
+    *" call_arg_const_off.o "*) ;;
+    *) _PABI_TIP_PEEL="$_w211_cao ${_PABI_TIP_PEEL:-}"; export _PABI_TIP_PEEL
+       echo "g05_linux_tip_ufcs_soft: prepended call_arg_const_off (w211)" >&2 ;;
+  esac
+fi
+_w211_cvo=build_asm/selfhost_pabi/const_var_off.o
+_w211_cvo_x=src/runtime_pipeline_abi_const_var_off_thin.x
+_w211_cvo_cache=/tmp/xlang_soft_cache_linux/const_var_off.o
+if [ -s "$_w211_cvo_cache" ] && [ -f "$_w211_cvo_x" ] && [ "$_w211_cvo_x" -nt "$_w211_cvo_cache" ]; then
+  rm -f "$_w211_cvo_cache" "$_w211_cvo"
+fi
+if _try_soft_emit "$_w211_cvo" "$_w211_cvo_x" "$_w211_cvo_cache"; then
+  case " ${_PABI_TIP_PEEL:-} " in
+    *" const_var_off.o "*) ;;
+    *) _PABI_TIP_PEEL="$_w211_cvo ${_PABI_TIP_PEEL:-}"; export _PABI_TIP_PEEL
+       echo "g05_linux_tip_ufcs_soft: prepended const_var_off (w211)" >&2 ;;
+  esac
+fi
+
 # --- 10.22: lane_scalar_binop thin (i32x4/f32x4 + lane ADD; assign_index_on_method) ---
 _ls_o=build_asm/selfhost_pabi/lane_scalar_binop_linux.o
 _ls_x=src/runtime_pipeline_abi_lane_scalar_binop_thin.x

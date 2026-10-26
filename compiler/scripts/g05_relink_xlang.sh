@@ -590,6 +590,29 @@ if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
     export XLANG_G05_LINUX_FORCE_U_FA_ARRAY=1
   fi
 
+  # 10.22: w211 — weaken rival resolve/var_off so peel T first-wins
+  if [ -n "$_g05_oc" ] \
+    && printf "%s" " $OBJS " | grep -Eq "(^|[[:space:]/])call_arg_const_off\.o([[:space:]]|$)"; then
+    for _w211_pw in src/runtime_pipeline_abi.o \
+                    build_asm/selfhost_pabi/pabi_weak.o \
+                    build_asm/selfhost_pabi/pabi_alias.skip_egg.o \
+                    build_asm/selfhost_pabi/two.o \
+                    build_asm/selfhost_pabi/return_sret.o; do
+      [ -s "$_w211_pw" ] || continue
+      if nm "$_w211_pw" 2>/dev/null | grep -Eq " T glue_call_arg_resolve_var_stack_off_elf_c$"; then
+        "$_g05_oc" --weaken-symbol=glue_call_arg_resolve_var_stack_off_elf_c "$_w211_pw" 2>/dev/null \
+          && echo "g05_relink_xlang: 10.22 Linux weaken $_w211_pw call_arg_resolve (w211 wins)" >&2 \
+          || true
+      fi
+      if nm "$_w211_pw" 2>/dev/null | grep -Eq " T glue_var_expr_stack_off_elf_c$"; then
+        "$_g05_oc" --weaken-symbol=glue_var_expr_stack_off_elf_c "$_w211_pw" 2>/dev/null \
+          && echo "g05_relink_xlang: 10.22 Linux weaken $_w211_pw var_expr_stack_off (w211 wins)" >&2 \
+          || true
+      fi
+    done
+    unset _w211_pw
+  fi
+
   # 10.22: durable_ptr thin vs pabi_alias hollow W
   if [ -n "$_g05_oc" ] \
     && printf "%s" " $OBJS " | grep -Eq "(^|[[:space:]/])array_lit_durable_thin\.o([[:space:]]|$)"; then
@@ -756,6 +779,15 @@ run_g05_pure_ld_required() {
     if [ "${XLANG_G05_LINUX_FORCE_U_FA_ARRAY:-0}" = "1" ]; then
       extra="$extra -u fa_array_lit_into_rbx"
       echo "g05_relink_xlang: 10.22 Linux -u fa_array_lit (egg emit_return; thin helper)" >&2
+    fi
+    # 10.22: keep w211 resolve/var_off T through tip-cold (opt/si CG002 if only W)
+    if printf "%s" " $OBJS " | grep -Eq "(^|[[:space:]/])call_arg_const_off\.o([[:space:]]|$)"; then
+      extra="$extra -u glue_call_arg_resolve_var_stack_off_elf_c"
+      echo "g05_relink_xlang: 10.22 Linux -u call_arg_resolve (w211)" >&2
+    fi
+    if printf "%s" " $OBJS " | grep -Eq "(^|[[:space:]/])const_var_off\.o([[:space:]]|$)"; then
+      extra="$extra -u glue_var_expr_stack_off_elf_c"
+      echo "g05_relink_xlang: 10.22 Linux -u var_expr_stack_off (w211)" >&2
     fi
     if [ "${XLANG_G05_LINUX_FORCE_U_LANE_SCALAR:-0}" = "1" ]; then
       extra="$extra -u glue_emit_vector_lane_scalar_binop_elf_c"
