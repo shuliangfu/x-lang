@@ -569,6 +569,36 @@ if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
       done
       unset _fa_demote
       if [ "${XLANG_LINUX_FA_KEEP_EMIT_RETURN:-0}" = "1" ]; then
+        # Extract egg emit_return as _prev BEFORE weaken (ARRAY_LIT / dest-SLICE defer).
+        _er_prev=build_asm/selfhost_pabi/return_sret_er_prev.o
+        _er_src=""
+        for _fa_er in build_asm/selfhost_pabi/return_sret.o \
+                      build_asm/selfhost_pabi/two.o \
+                      build_asm/selfhost_pabi/pabi_weak.o \
+                      src/runtime_pipeline_abi.o; do
+          [ -s "$_fa_er" ] || continue
+          if nm "$_fa_er" 2>/dev/null | grep -Eq " [TW] pipeline_asm_emit_return_elf_impl$"; then
+            _er_src="$_fa_er"
+            break
+          fi
+        done
+        if [ -n "$_er_src" ]; then
+          cp -f "$_er_src" "$_er_prev"
+          if "$_g05_oc" --redefine-sym=pipeline_asm_emit_return_elf_impl=pipeline_asm_emit_return_elf_impl_prev \
+              "$_er_prev" 2>/dev/null \
+            && nm "$_er_prev" 2>/dev/null | grep -Eq " [TW] pipeline_asm_emit_return_elf_impl_prev$"; then
+            echo "g05_relink_xlang: 10.22 Linux emit_return _prev from $_er_src" >&2
+            case " $OBJS " in
+              *" $_er_prev "*) ;;
+              *) OBJS="$_er_prev $OBJS" ;;
+            esac
+          else
+            echo "g05_relink_xlang: WARN emit_return _prev extract failed" >&2
+            rm -f "$_er_prev"
+          fi
+        else
+          echo "g05_relink_xlang: WARN no egg emit_return for _prev" >&2
+        fi
         for _fa_er in build_asm/selfhost_pabi/return_sret.o \
                       build_asm/selfhost_pabi/two.o \
                       build_asm/selfhost_pabi/pabi_weak.o \
@@ -580,7 +610,7 @@ if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
               || true
           fi
         done
-        unset _fa_er
+        unset _fa_er _er_prev _er_src
       fi
     fi
     for _fa_pw in build_asm/selfhost_pabi/return_sret.o \

@@ -267,6 +267,9 @@ export function glue_call_arg_var_use_lea_not_load_elf_c(arena: *u8, expr_ref: i
  * Public for expr_rec residual callsite. Operand emit uses public emit_expr_elf_c.
  * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
  */
+/* 10.22: soft defer ARRAY_LIT / dest-SLICE to egg _prev; keep Path B0 dest TYPE_ARRAY E* (dyn_ret). */
+export extern function pipeline_asm_emit_return_elf_impl_prev(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
+
 #[no_mangle]
 export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
   let ly: *u8 = 0 as *u8;
@@ -321,6 +324,12 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
       ko = pipeline_expr_kind_ord_at(arena, ret_op);
       mod = pipeline_asm_emit_module_ref_c();
       fi = pipeline_asm_emit_func_index_c();
+    }
+    // 10.22: ARRAY_LIT return — egg Path C keeps nested_slice wrap; FA Path C broke OK248.
+    if (ko == 46) {
+      unsafe {
+        return pipeline_asm_emit_return_elf_impl_prev(arena, elf_ctx, expr_ref, ctx, ta);
+      }
     }
     /* Path A0: INTEGER-class ≤8B named struct `return local`. Load the 8
      * bits into rax/x0. STRUCT_LIT / emit_expr used to lea the slot when
@@ -521,9 +530,13 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
         unsafe {
           tk = pipeline_type_kind_ord_at(arena, rty);
         }
-        // dest SLICE=11 (fat) or dest TYPE_ARRAY=10 (E*). slice_ty holds dest.
-        if (tk == 11 || tk == 10) {
+        // 10.22: only dest TYPE_ARRAY=10 (E* for dyn_ret). dest SLICE=11 → egg _prev.
+        if (tk == 10) {
           slice_ty = rty;
+        } else if (tk == 11) {
+          unsafe {
+            return pipeline_asm_emit_return_elf_impl_prev(arena, elf_ctx, expr_ref, ctx, ta);
+          }
         }
       }
       n_arr = 0;
