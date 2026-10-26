@@ -1197,27 +1197,30 @@ case "$UNAME_S" in
       fi
       # 10.22: Class CB / BODIES trampoline into_slice is ~0x30e and calls
       # truncated tip method_sig. Archive has no separate method_sig; full
-      # dest-RET lives in cold into_slice (~0x51ca). Host-cc cold twin, keep
-      # ONLY into_slice global (ld -r --retain-symbols-file), prepend first —
-      # Linux --allow-multiple-definition is first-wins over trampoline.
-      # Do NOT mutate thin_glue (other cold T would override tip faces).
-      # PLATFORM: LINUX.
+      # dest-RET lives in cold into_slice (~0x51ca). Host-cc cold twin with
+      # -ffunction-sections; keep-global + ld -r --gc-sections -u into_slice
+      # so only that face is T (first-wins over trampoline). Also tip-compile
+      # pthin_body_tl.x — Class CB glue often leaves p014/p012/p011 as weak
+      # UNDEF; tip provides them. PLATFORM: LINUX.
       _fullc=build_asm/selfhost_pabi/pthin_skip_tl_into_slice_c.o
+      _bodytl=build_asm/selfhost_pabi/pthin_body_tl_tip.o
       mkdir -p build_asm/selfhost_pabi
       _fullc_ok=0
-      if ${CC:-cc} -Wall -O2 -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
+      if ${CC:-cc} -Wall -O2 -ffunction-sections -fdata-sections \
+           -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
            -c -o "$_fullc.raw.o" seeds/pthin_skip_tl.from_x.c 2>/tmp/g05_pthin_full_c.err; then
-        # GNU ld --retain-symbols-file left other T global; objcopy keep-global works.
         if objcopy --keep-global-symbol=parser_asm_skip_one_trait_into_slice_c \
-             "$_fullc.raw.o" "$_fullc" 2>/tmp/g05_pthin_full_c_ld.err \
+             "$_fullc.raw.o" "$_fullc.keep.o" 2>/tmp/g05_pthin_full_c_ld.err \
+          && ld -r --gc-sections -u parser_asm_skip_one_trait_into_slice_c \
+             -o "$_fullc" "$_fullc.keep.o" 2>>/tmp/g05_pthin_full_c_ld.err \
           && nm -S "$_fullc" 2>/dev/null | grep -qE "T _*parser_asm_skip_one_trait_into_slice_c" \
-          && ! nm "$_fullc" 2>/dev/null | grep -qE "T _*parser_asm_skip_one_struct_into_slice_c"; then
+          && ! nm "$_fullc" 2>/dev/null | grep -qE "[Tt] _*parser_asm_skip_one_struct_into_slice_c"; then
           _isz=$(nm -S "$_fullc" 2>/dev/null | awk "/parser_asm_skip_one_trait_into_slice_c/{print \$2; exit}")
           echo "g05_relink_env: 10.22 into_slice-only full C size=$_isz (first-wins)" >&2
           _PABI_TIP_PEEL="$_fullc $_PABI_TIP_PEEL"
           _fullc_ok=1
         else
-          echo "g05_relink_env: WARN into_slice-only ld -r failed" >&2
+          echo "g05_relink_env: WARN into_slice-only extract failed" >&2
           cat /tmp/g05_pthin_full_c_ld.err >&2 || true
         fi
       else
@@ -1228,7 +1231,21 @@ case "$UNAME_S" in
         echo "g05_relink_env: ERROR 10.22 into_slice-only full C overlay missing" >&2
         exit 1
       fi
-      unset _fullc _fullc_ok _isz
+      _bodytl_ok=0
+      for _bbin in ./xlang ./xlang_asm ./xlang-c; do
+        [ -x "$_bbin" ] || continue
+        if "$_bbin" -backend asm -c src/asm/pthin_body_tl.x -o "$_bodytl" >/dev/null 2>&1 \
+          && nm "$_bodytl" 2>/dev/null | grep -qE "T _*parser_report_keyword_binding_p014_c\$"; then
+          _PABI_TIP_PEEL="$_bodytl $_PABI_TIP_PEEL"
+          _bodytl_ok=1
+          echo "g05_relink_env: 10.22 tip-peel pthin_body_tl via $_bbin (p014+)" >&2
+          break
+        fi
+      done
+      if [ "$_bodytl_ok" != "1" ]; then
+        echo "g05_relink_env: WARN pthin_body_tl tip-peel missing (p014 may UNDEF)" >&2
+      fi
+      unset _fullc _fullc_ok _isz _bodytl _bodytl_ok _bbin
       _PABI_TIP_PEEL="$(echo $_PABI_TIP_PEEL | tr -s ' ')"
       if [ -n "$_PABI_TIP_PEEL" ]; then
         echo "g05_relink_env: Linux tip-peel overlays ($(echo $_PABI_TIP_PEEL | wc -w | tr -d ' ') objs)" >&2
