@@ -1197,42 +1197,33 @@ case "$UNAME_S" in
       fi
       # 10.22: Class CB / BODIES trampoline into_slice is ~0x30e and calls
       # truncated tip method_sig. Archive has no separate method_sig; full
-      # dest-RET lives in cold into_slice (~0x51ca). Host-cc full twin (no
-      # BODIES), kill trampoline (+ tip trait faces) on thin_glue, prepend
-      # full C so into_slice wins. PLATFORM: LINUX.
-      _fullc=build_asm/selfhost_pabi/pthin_skip_tl_full_c.o
+      # dest-RET lives in cold into_slice (~0x51ca). Host-cc cold twin, keep
+      # ONLY into_slice global (ld -r --retain-symbols-file), prepend first —
+      # Linux --allow-multiple-definition is first-wins over trampoline.
+      # Do NOT mutate thin_glue (other cold T would override tip faces).
+      # PLATFORM: LINUX.
+      _fullc=build_asm/selfhost_pabi/pthin_skip_tl_into_slice_c.o
       mkdir -p build_asm/selfhost_pabi
       _fullc_ok=0
       if ${CC:-cc} -Wall -O2 -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-           -c -o "$_fullc" seeds/pthin_skip_tl.from_x.c 2>/tmp/g05_pthin_full_c.err; then
-        if nm -S "$_fullc" 2>/dev/null | grep -qE "T _*parser_asm_skip_one_trait_into_slice_c"; then
+           -c -o "$_fullc.raw.o" seeds/pthin_skip_tl.from_x.c 2>/tmp/g05_pthin_full_c.err; then
+        printf "%s\n" parser_asm_skip_one_trait_into_slice_c > "$_fullc.keep"
+        if ld -r -o "$_fullc" --retain-symbols-file="$_fullc.keep" "$_fullc.raw.o" 2>/tmp/g05_pthin_full_c_ld.err \
+          && nm -S "$_fullc" 2>/dev/null | grep -qE "T _*parser_asm_skip_one_trait_into_slice_c"; then
           _isz=$(nm -S "$_fullc" 2>/dev/null | awk "/parser_asm_skip_one_trait_into_slice_c/{print \$2; exit}")
-          echo "g05_relink_env: 10.22 full C into_slice size=$_isz" >&2
-          if [ -f parser_asm_thin_glue.o ] && command -v objcopy >/dev/null 2>&1; then
-            for _ts in \
-              parser_asm_skip_one_trait_into_slice_c \
-              parser_asm_skip_one_trait_method_sig_into_c \
-              parser_asm_skip_one_trait_body_into_c \
-              parser_asm_skip_one_trait_header_into_c \
-              xlang_skip_trait_check_ret_shape_x_into_c \
-              xlang_skip_trait_check_param_shape_x_into_c
-            do
-              objcopy --redefine-sym "$_ts=__glue_dead_$_ts" parser_asm_thin_glue.o 2>/dev/null \
-                || objcopy --redefine-sym "_$_ts=__glue_dead_$_ts" parser_asm_thin_glue.o 2>/dev/null \
-                || true
-            done
-            unset _ts
-          fi
+          echo "g05_relink_env: 10.22 into_slice-only full C size=$_isz (first-wins)" >&2
           _PABI_TIP_PEEL="$_fullc $_PABI_TIP_PEEL"
           _fullc_ok=1
-          echo "g05_relink_env: 10.22 prepend full C skip_tl (into_slice over trampoline)" >&2
+        else
+          echo "g05_relink_env: WARN into_slice-only ld -r failed" >&2
+          cat /tmp/g05_pthin_full_c_ld.err >&2 || true
         fi
       else
         echo "g05_relink_env: WARN full C skip_tl host-cc failed" >&2
         tail -5 /tmp/g05_pthin_full_c.err >&2 || true
       fi
       if [ "$_fullc_ok" != "1" ]; then
-        echo "g05_relink_env: ERROR 10.22 full C into_slice overlay missing" >&2
+        echo "g05_relink_env: ERROR 10.22 into_slice-only full C overlay missing" >&2
         exit 1
       fi
       unset _fullc _fullc_ok _isz
