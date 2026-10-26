@@ -81,7 +81,14 @@ export extern function pipeline_asm_emit_module_ref_c(): *u8;
 #[no_mangle]
 export function glue_emit_one_call_arg_elf_c(arena: *u8, elf_ctx: *u8, call_expr_ref: i32, arg_ref: i32, arg_index: i32, ctx: *u8, ta: i32): i32 {
   // PLATFORM: SHARED — slice formal of a struct-literal array field.
+  // 10.22 tip-cold A/B: XLANG_CALL_ARG_SOFT_PASSTHRU=1 → only _prev (isolates soft entry).
   unsafe {
+    // PASSTHRU_BEGIN
+    let _passthru: i32 = 1;
+    if (_passthru != 0) {
+      return glue_emit_one_call_arg_elf_c_prev(arena, elf_ctx, call_expr_ref, arg_ref, arg_index, ctx, ta);
+    }
+    // PASSTHRU_END
     let ord_field: i32 = 44;
     let ord_struct: i32 = 45;
     let ord_array_lit: i32 = 46;
