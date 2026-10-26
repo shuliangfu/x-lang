@@ -304,23 +304,56 @@ function asm_expr_emit_simd_binop_pair(
   let rc: i32 = 0;
   let dst: i32 = 0;
   let fs: i32 = 0;
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
   if (ta != 0) {
     if (ta != 1) {
       return 0 - 99;
     }
   }
+  /* 10.22: Linux tip may leave binop resolved_type unset while VAR
+   * params (a/b in `return a+b`) are typed. Fall back to left then
+   * right before declining to scalar add (lane0-only).
+   * PLATFORM: SHARED — Darwin Cap tip already typed the binop. */
   unsafe {
     pipe_store_i32_le(&cell[0], 0, pipeline_expr_resolved_type_ref(arena, expr_ref));
   }
   ty = w495_cell_i32(&cell[0]);
-  if (ty <= 0) {
-    return 0 - 99;
-  }
   unsafe {
     pipe_store_i32_le(&cell[0], 0, asm_type_is_simd_vector_spelling(arena, ty));
   }
   simd = w495_cell_i32(&cell[0]);
-  if (simd == 0) {
+  if (ty <= 0 || simd == 0) {
+    unsafe {
+      left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+    }
+    if (left_ref > 0) {
+      unsafe {
+        pipe_store_i32_le(&cell[0], 0, pipeline_expr_resolved_type_ref(arena, left_ref));
+      }
+      ty = w495_cell_i32(&cell[0]);
+      unsafe {
+        pipe_store_i32_le(&cell[0], 0, asm_type_is_simd_vector_spelling(arena, ty));
+      }
+      simd = w495_cell_i32(&cell[0]);
+    }
+  }
+  if (ty <= 0 || simd == 0) {
+    unsafe {
+      right_ref = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+    }
+    if (right_ref > 0) {
+      unsafe {
+        pipe_store_i32_le(&cell[0], 0, pipeline_expr_resolved_type_ref(arena, right_ref));
+      }
+      ty = w495_cell_i32(&cell[0]);
+      unsafe {
+        pipe_store_i32_le(&cell[0], 0, asm_type_is_simd_vector_spelling(arena, ty));
+      }
+      simd = w495_cell_i32(&cell[0]);
+    }
+  }
+  if (ty <= 0 || simd == 0) {
     return 0 - 99;
   }
   unsafe {
