@@ -1258,6 +1258,39 @@ case "$UNAME_S" in
         echo "g05_relink_env: ERROR 10.22 into_slice-only full C overlay missing" >&2
         exit 1
       fi
+      # 10.22: tip x86 drops if(eend==0) in ret_shape (CFG merges with eend>0).
+      # Full C ret_shape lives under BODIES && !SHAPE; keep-global first-wins
+      # over thin_glue trampoline _c (tip _x_into_c becomes unreferenced).
+      # PLATFORM: LINUX.
+      _retov=build_asm/selfhost_pabi/pthin_ret_shape_c_overlay.o
+      _retov_ok=0
+      if ${CC:-cc} -Wall -O2 -ffunction-sections -fdata-sections \
+           -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 \
+           -DXLANG_SKIP_TRAIT_REG_EXTERN \
+           -DXLANG_PTHIN_SKIP_TL_BODIES_FROM_X \
+           -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
+           -c -o "$_retov.raw.o" seeds/pthin_skip_tl.from_x.c 2>/tmp/g05_ret_shape_c.err; then
+        if objcopy --keep-global-symbol=xlang_skip_trait_check_ret_shape_c \
+             "$_retov.raw.o" "$_retov.keep.o" 2>/tmp/g05_ret_shape_c_ld.err \
+          && ld -r --gc-sections -u xlang_skip_trait_check_ret_shape_c \
+             -o "$_retov" "$_retov.keep.o" 2>>/tmp/g05_ret_shape_c_ld.err \
+          && nm -S "$_retov" 2>/dev/null | grep -qE "T _*xlang_skip_trait_check_ret_shape_c"; then
+          _rsz=$(nm -S "$_retov" 2>/dev/null | awk "/xlang_skip_trait_check_ret_shape_c/{print \$2; exit}")
+          echo "g05_relink_env: 10.22 ret_shape full C overlay size=$_rsz (first-wins trampoline)" >&2
+          _PABI_TIP_PEEL="$_retov $_PABI_TIP_PEEL"
+          _retov_ok=1
+        else
+          echo "g05_relink_env: WARN ret_shape C overlay extract failed" >&2
+          cat /tmp/g05_ret_shape_c_ld.err >&2 || true
+        fi
+      else
+        echo "g05_relink_env: WARN ret_shape C overlay host-cc failed" >&2
+        tail -8 /tmp/g05_ret_shape_c.err >&2 || true
+      fi
+      if [ "$_retov_ok" != "1" ]; then
+        echo "g05_relink_env: ERROR 10.22 ret_shape full C overlay missing" >&2
+        exit 1
+      fi
       _bodytl_ok=0
       for _bbin in ./xlang ./xlang_asm ./xlang-c; do
         [ -x "$_bbin" ] || continue
