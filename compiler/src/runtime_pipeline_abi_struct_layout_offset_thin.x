@@ -1,5 +1,5 @@
 // 10.44: layout offset callers must use public glue_type_align_simple (named_align
-// thin / i8→1). Egg pabi redefine demotes align_simple in the same .o, so
+// thin / i8→1). Egg redefine demotes align_simple in the same .o, so
 // compute_field_offset / next_field_offset_ex bind the demoted i8→4 body.
 // This TU is first-wins T; call sites here resolve to the thin align.
 // PLATFORM: SHARED.
@@ -31,6 +31,7 @@ export function glue_struct_layout_compute_field_offset_c(m: *u8, a: *u8, li: i3
   let rem: i32 = 0;
   let gap: i32 = 0;
   let fsize: i32 = 0;
+  let empty: i32 = 0;
   if (m == (0 as *u8) || a == (0 as *u8) || li < 0 || fj < 0) {
     if (fj >= 0) {
       return fj * 8;
@@ -55,8 +56,8 @@ export function glue_struct_layout_compute_field_offset_c(m: *u8, a: *u8, li: i3
     unsafe {
       ftr = pipeline_module_struct_layout_field_type_ref(m, li, j);
       fa = pipeline_module_struct_layout_field_align_at(m, li, j);
+      A = glue_type_align_simple(m, a, ftr, 0);
     }
-    A = glue_type_align_simple(m, a, ftr, 0);
     if (A <= 0) {
       A = 1;
     }
@@ -70,8 +71,11 @@ export function glue_struct_layout_compute_field_offset_c(m: *u8, a: *u8, li: i3
       return current + gap;
     }
     current = current + gap;
-    fsize = glue_type_size_simple(m, a, ftr, 0);
-    if (fsize < 0 || (fsize == 0 && glue_type_is_empty_struct_c(m, a, ftr, 0) == 0)) {
+    unsafe {
+      fsize = glue_type_size_simple(m, a, ftr, 0);
+      empty = glue_type_is_empty_struct_c(m, a, ftr, 0);
+    }
+    if (fsize < 0 || (fsize == 0 && empty == 0)) {
       fsize = 4;
     }
     current = current + fsize;
@@ -102,6 +106,8 @@ export function pipeline_struct_layout_next_field_offset_ex(m: *u8, a: *u8, layo
   let A2: i32 = 0;
   let rem2: i32 = 0;
   let gap2: i32 = 0;
+  let pk: i32 = 0;
+  let empty: i32 = 0;
   if (m == (0 as *u8)) {
     return 0;
   }
@@ -110,47 +116,50 @@ export function pipeline_struct_layout_next_field_offset_ex(m: *u8, a: *u8, layo
   }
   unsafe {
     nf = pipeline_module_struct_layout_num_fields(m, layout_idx);
+    pk = pipeline_module_struct_layout_packed_at(m, layout_idx);
   }
-  unsafe {
-    if (pipeline_module_struct_layout_packed_at(m, layout_idx) != 0) {
-      j = 0;
-      while (j < nf) {
+  if (pk != 0) {
+    j = 0;
+    while (j < nf) {
+      unsafe {
         ftr = pipeline_module_struct_layout_field_type_ref(m, layout_idx, j);
         fsize = glue_type_size_simple(m, a, ftr, 0);
-        if (fsize < 0) {
-          fsize = 4;
-        } else {
-          if (fsize == 0) {
-            if (glue_type_is_empty_struct_c(m, a, ftr, 0) == 0) {
-              fsize = 4;
-            }
+        empty = glue_type_is_empty_struct_c(m, a, ftr, 0);
+      }
+      if (fsize < 0) {
+        fsize = 4;
+      } else {
+        if (fsize == 0) {
+          if (empty == 0) {
+            fsize = 4;
           }
         }
-        current = current + fsize;
-        j = j + 1;
       }
-      return current;
+      current = current + fsize;
+      j = j + 1;
     }
+    return current;
   }
   j2 = 0;
   while (j2 < nf) {
     unsafe {
       ftr2 = pipeline_module_struct_layout_field_type_ref(m, layout_idx, j2);
       fa = pipeline_module_struct_layout_field_align_at(m, layout_idx, j2);
+      A = glue_type_align_simple(m, a, ftr2, 0);
+      fsize2 = glue_type_size_simple(m, a, ftr2, 0);
+      empty = glue_type_is_empty_struct_c(m, a, ftr2, 0);
     }
-    A = glue_type_align_simple(m, a, ftr2, 0);
     if (A <= 0) {
       A = 1;
     }
     if (fa > A) {
       A = fa;
     }
-    fsize2 = glue_type_size_simple(m, a, ftr2, 0);
     if (fsize2 < 0) {
       fsize2 = 4;
     } else {
       if (fsize2 == 0) {
-        if (glue_type_is_empty_struct_c(m, a, ftr2, 0) == 0) {
+        if (empty == 0) {
           fsize2 = 4;
         }
       }
@@ -161,7 +170,9 @@ export function pipeline_struct_layout_next_field_offset_ex(m: *u8, a: *u8, layo
     current = current + gap + fsize2;
     j2 = j2 + 1;
   }
-  A2 = glue_type_align_simple(m, a, new_field_type_ref, 0);
+  unsafe {
+    A2 = glue_type_align_simple(m, a, new_field_type_ref, 0);
+  }
   if (A2 <= 0) {
     A2 = 1;
   }
