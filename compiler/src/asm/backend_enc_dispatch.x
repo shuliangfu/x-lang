@@ -1686,6 +1686,7 @@ export function backend_enc_call_arch(elf_ctx: *u8, name: *u8, name_len: i32, ta
 
 /* See implementation. */
 export extern "C" function arch_arm64_enc_enc_idiv_rbx(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_udiv_rbx(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_jne(elf_ctx: *u8, label: *u8, label_len: i32): i32;
 export extern "C" function arch_arm64_enc_enc_store_x_reg_to_rbp(elf_ctx: *u8, reg: i32, offset: i32): i32;
 export extern "C" function arch_riscv64_enc_enc_add_a2_a3(elf_ctx: *u8): i32;
@@ -1984,9 +1985,9 @@ export function backend_enc_idiv_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
  */
 #[no_mangle]
 export function backend_enc_div_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
-  // See implementation.
+  // 10.56: arm64 unsigned div is udiv (thin authority); signed stays idiv.
   unsafe {
-  if (ta == 1) { return arch_arm64_enc_enc_idiv_rbx(elf_ctx); }
+  if (ta == 1) { return arch_arm64_enc_enc_udiv_rbx(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_idiv_rbx(elf_ctx); }
   if (arch_x86_64_enc_enc_xor_edx_edx(elf_ctx) != 0) { return 0 - 1; }
   return arch_x86_64_enc_enc_div_rbx(elf_ctx);
