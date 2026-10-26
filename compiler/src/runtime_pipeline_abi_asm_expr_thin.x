@@ -104,6 +104,7 @@ export extern function backend_enc_arm64_add_sp_imm12_c(elf_ctx: *u8, imm: i32):
 export extern function backend_enc_lea_rbp_to_rbx_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
 export extern function backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_load_qword_rbx8_to_rdx_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_append_u8_c(elf_ctx: *u8, byte: i32): i32;
 
 export extern function pipe_load_i32_le(p: *u8, off: i32): i32;
 export extern function pipe_store_i32_le(p: *u8, off: i32, v: i32): void;
@@ -275,24 +276,20 @@ function w1738_named16_field_pair(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: 
 }
 
 /**
- * Materialize a 16-byte SIMD binop into the AAPCS64 return pair.
- * The scalar adder loads the low 8 bytes of each vector and emits
- * `add w0`. A return then keeps only lane 0; lane 1 of i32x4 is 0.
- * This calls the existing per-lane slot writer. The HW writer rejects
- * a negative destination, so the scalar lane loop runs. The 16 bytes
- * sit just below x29, allocated with sub sp. A lane push is
- * pre-indexed below that scratch, so it does not cover the result.
- * The pair load is the existing [x1] / [x1,#8] sequence. A vector
- * wider than 16 bytes stays declined: the fill is a GPR pair, not sret.
+ * Emit a 16-byte SIMD binop into x0:x1 (arm64) or rax:rdx (x86_64).
+ * Scalar add would only keep lane 0. This calls the existing per-lane
+ * slot writer into a 16-byte scratch, then pair-loads. A vector wider
+ * than 16 bytes stays declined (GPR pair, not sret).
  * @param arena *u8 — AST arena; null is not reached (caller checked the expr)
  * @param elf_ctx *u8 — object writer
  * @param expr_ref i32 — binop expr whose type is a SIMD vector
- * @param ctx *u8 — AsmFuncCtx
- * @param ta i32 — 1 arm64; any other arch returns -99 before emitting
- * @return i32 — 0 when x0:x1 hold the 16-byte result; -1 when the
- *   slot write or the pair load fails after sub sp; -99 when this
- *   arm does not apply (not arm64, not SIMD, or not 16 bytes)
- * PLATFORM: MACOS|ARM64. x86_64 stays on the scalar adder.
+ * @param ctx *u8 — AsmFuncCtx (frame_size@0 used on x86_64 for scratch)
+ * @param ta i32 — 0 x86_64 or 1 arm64; other arches return -99
+ * @return i32 — 0 when the GPR pair holds the 16-byte result; -1 on
+ *   encode failure; -99 when this arm does not apply
+ * PLATFORM: SHARED — arm64 sub sp + dst -16; x86_64 sub rsp + positive
+ *   magnitude below rbp (lea encodes 0-offset). Measured Linux tip
+ *   `return a+b` for i32x4 kept only lane 0 before this arm.
  */
 function asm_expr_emit_simd_binop_pair(
   arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
@@ -305,8 +302,12 @@ function asm_expr_emit_simd_binop_pair(
   let lanes: i32 = 0;
   let esz: i32 = 0;
   let rc: i32 = 0;
-  if (ta != 1) {
-    return 0 - 99;
+  let dst: i32 = 0;
+  let fs: i32 = 0;
+  if (ta != 0) {
+    if (ta != 1) {
+      return 0 - 99;
+    }
   }
   unsafe {
     pipe_store_i32_le(&cell[0], 0, pipeline_expr_resolved_type_ref(arena, expr_ref));
@@ -331,31 +332,76 @@ function asm_expr_emit_simd_binop_pair(
   }
   lanes = lanes_s[0];
   esz = esz_s[0];
-  // GPR pair is 16 bytes. Wider SIMD returns use a hidden sret pointer.
   if (lanes * esz != 16) {
     return 0 - 99;
   }
-  unsafe {
-    pipe_store_i32_le(&cell[0], 0, backend_enc_arm64_sub_sp_imm12_c(elf_ctx, 16));
+  if (ta == 1) {
+    unsafe {
+      pipe_store_i32_le(&cell[0], 0, backend_enc_arm64_sub_sp_imm12_c(elf_ctx, 16));
+    }
+    rc = w495_cell_i32(&cell[0]);
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    dst = 0 - 16;
   }
-  rc = w495_cell_i32(&cell[0]);
-  if (rc != 0) {
-    return 0 - 1;
+  if (ta == 0) {
+    if (ctx == 0 as *u8) {
+      return 0 - 1;
+    }
+    unsafe {
+      fs = pipe_load_i32_le(ctx, 0);
+    }
+    if (fs < 0) {
+      fs = 0;
+    }
+    dst = 8 + fs + 16;
+    unsafe {
+      if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_append_u8_c(elf_ctx, 131) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_append_u8_c(elf_ctx, 236) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_append_u8_c(elf_ctx, 16) != 0) {
+        return 0 - 1;
+      }
+    }
   }
-  // dst -16 is below x29 and inside the 16 bytes just allocated.
   unsafe {
     pipe_store_i32_le(&cell[0], 0, pipeline_asm_emit_vector_binop_let_init_elf_c(
-      arena, elf_ctx, expr_ref, ctx, ta, 0 - 16, ty));
+      arena, elf_ctx, expr_ref, ctx, ta, dst, ty));
   }
   rc = w495_cell_i32(&cell[0]);
   if (rc != 0) {
-    unsafe {
-      pipe_store_i32_le(&cell[0], 0, backend_enc_arm64_add_sp_imm12_c(elf_ctx, 16));
+    if (ta == 1) {
+      unsafe {
+        pipe_store_i32_le(&cell[0], 0, backend_enc_arm64_add_sp_imm12_c(elf_ctx, 16));
+      }
+    }
+    if (ta == 0) {
+      unsafe {
+        if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+          return 0 - 1;
+        }
+        if (backend_enc_append_u8_c(elf_ctx, 131) != 0) {
+          return 0 - 1;
+        }
+        if (backend_enc_append_u8_c(elf_ctx, 196) != 0) {
+          return 0 - 1;
+        }
+        if (backend_enc_append_u8_c(elf_ctx, 16) != 0) {
+          return 0 - 1;
+        }
+      }
     }
     return 0 - 1;
   }
   unsafe {
-    pipe_store_i32_le(&cell[0], 0, backend_enc_lea_rbp_to_rbx_arch(elf_ctx, 0 - 16, ta));
+    pipe_store_i32_le(&cell[0], 0, backend_enc_lea_rbp_to_rbx_arch(elf_ctx, dst, ta));
   }
   rc = w495_cell_i32(&cell[0]);
   if (rc == 0) {
@@ -365,20 +411,40 @@ function asm_expr_emit_simd_binop_pair(
     rc = w495_cell_i32(&cell[0]);
   }
   if (rc == 0) {
-    // ldr x1, [x1, #8] must follow the x0 load. It consumes the base.
     unsafe {
       pipe_store_i32_le(&cell[0], 0, backend_enc_load_qword_rbx8_to_rdx_arch(elf_ctx, ta));
     }
     rc = w495_cell_i32(&cell[0]);
   }
-  unsafe {
-    pipe_store_i32_le(&cell[0], 0, backend_enc_arm64_add_sp_imm12_c(elf_ctx, 16));
+  if (ta == 1) {
+    unsafe {
+      pipe_store_i32_le(&cell[0], 0, backend_enc_arm64_add_sp_imm12_c(elf_ctx, 16));
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    if (w495_cell_i32(&cell[0]) != 0) {
+      return 0 - 1;
+    }
   }
-  if (rc != 0) {
-    return 0 - 1;
-  }
-  if (w495_cell_i32(&cell[0]) != 0) {
-    return 0 - 1;
+  if (ta == 0) {
+    unsafe {
+      if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_append_u8_c(elf_ctx, 131) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_append_u8_c(elf_ctx, 196) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_append_u8_c(elf_ctx, 16) != 0) {
+        return 0 - 1;
+      }
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
   }
   return 0;
 }
@@ -612,10 +678,10 @@ export function pipeline_asm_emit_expr_elf_rec(arena: *u8, elf_ctx: *u8, expr_re
   /* Cap tip-thin 256/10.2: EXPR_ADD..BITXOR (4..13) before empty
    * backend_emit_expr_elf slow stub (mega_fallback return 0). Mirror
    * seeds/runtime_pipeline_abi.from_x.c emit_expr_elf_fast arms.
-   * A 16-byte SIMD binop on arm64 is not that scalar add. The pair
-   * helper writes every lane and loads x0:x1. -99 keeps the scalar
-   * arms below (i32 add, wider SIMD, non-arm64).
-   * PLATFORM: MACOS|ARM64 for the SIMD arm. Scalar arms stay SHARED. */
+   * A 16-byte SIMD binop is not that scalar add. The pair helper
+   * writes every lane and loads the GPR pair. -99 keeps the scalar
+   * arms below (i32 add, wider SIMD, other arches).
+   * PLATFORM: SHARED for the SIMD arm. Scalar arms stay SHARED. */
   if (ko >= 4 && ko <= 13) {
     unsafe {
       pipe_store_i32_le(&cell_r[0], 0, asm_expr_emit_simd_binop_pair(arena, elf_ctx, expr_ref, ctx, ta));
