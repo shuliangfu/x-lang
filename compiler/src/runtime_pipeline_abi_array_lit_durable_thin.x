@@ -31,6 +31,30 @@ export extern function pipeline_elf_ctx_current_text_off(elf_ctx: *u8): i32;
 export extern function backend_enc_emit_raw_bytes_arch(elf_ctx: *u8, bytes: *u8, n: i32, ta: i32): i32;
 
 
+
+export extern function pipeline_elf_ctx_append_bytes(ctx_bytes: *u8, ptr: *u8, n: i32): i32;
+export extern function pipeline_elf_ctx_add_common_sym(ctx_bytes: *u8, name: *u8, name_len: i32, sym_size: i32, sym_align: i32): i32;
+export extern function pipeline_asm_array_lit_elem_type_ref(arena: *u8, array_lit_expr_ref: i32): i32;
+export extern function pipeline_asm_emit_expr_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function glue_pipeline_asm_al_nc_seq_take_c(): i32;
+export extern function glue_slice_dual_gp_length_off_c(data_home: i32, ta: i32): i32;
+export extern function glue_array_lit_emit_scalar_elem_to_rax_elf_c(arena: *u8, elf_ctx: *u8, array_lit_ref: i32, elem_ref: i32, ctx: *u8, ta: i32, force_esz: i32): i32;
+export extern function glue_emit_bulk_mem_copy_spills_elf_c(elf_ctx: *u8, src_spill: i32, dst_spill: i32, esz: i32, ta: i32): i32;
+export extern function glue_emit_fixed_array_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, type_ref: i32, stack_slot_off: i32): i32;
+export extern function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *u8, block_ref: i32, let_idx: i32, init_ref: i32, let_type_ref: i32, ctx: *u8, ta: i32, slice_slot_off: i32): i32;
+export extern function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, let_ty_ref: i32, stack_slot_off: i32): i32;
+export extern function glue_asm_lea_rax_common_adrp_arm64(elf_ctx: *u8, name: *u8, name_len: i32): i32;
+export extern function glue_asm_lea_rax_common_rip_x86(elf_ctx: *u8, name: *u8, name_len: i32): i32;
+export extern function glue_asm_lea_rbx_common_adrp_arm64(elf_ctx: *u8, name: *u8, name_len: i32): i32;
+export extern function glue_asm_lea_rbx_common_rip_x86(elf_ctx: *u8, name: *u8, name_len: i32): i32;
+export extern function backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
+export extern function backend_enc_load_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
+export extern function backend_enc_store_rdx_to_rbp_arch(elf_ctx: *u8, slot_off: i32, ta: i32): i32;
+export extern function backend_enc_push_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_pop_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_store_rax_to_rbx_offset_arch(elf_ctx: *u8, off: i32, load_sz: i32, ta: i32): i32;
+
+#[no_mangle]
 export function glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, force_esz: i32, ta: i32, ctx: *u8, dest_elem_ty: i32): i32 {
   unsafe {
   let n_arr: i32 = 0;
@@ -589,77 +613,3 @@ export function glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena: *u8, elf_ct
   }
   }
 }
-
-
-// ---------------------------------------------------------------------------
-// wave144: pipeline_asm_emit_return pure-owned leave
-// (was pipeline_asm_emit_return.c).
-// G.7 product authority for:
-//   glue_match_slice_escape_lets_in_block_c
-//   pipeline_find_fixed_array_slice_escape
-//   glue_try_return_slice_escape_from_fixed_array_elf_c
-//   pipeline_asm_emit_return_elf_impl
-//   pipeline_asm_emit_return_elf_c
-//   glue_emit_sret_memcpy_rbx_to_home_elf_c
-//   glue_emit_sret_return_from_var_elf_c
-//   glue_maybe_promote_f32_to_f64_rax_elf_c
-//   glue_float_promote_src_ty_ref_c
-//   pipeline_backend_get_return_expr_ref / _at
-//   pipeline_arm64_get_return_lit_ref / _at
-//   pipeline_backend_type_kind_ord_at
-//   pipeline_asm_get_return_expr_ref_at / get_return_lit_ref_at
-//   arch_arm64_pipeline_asm_get_return_lit_ref_at
-// Cap residual: emit_expr_elf_c (not static _rec) + float_widen_ok + enc slot +
-//   dual-gp length pure wave145 + type_size_simple + spills cleanup +
-//   async_cps_phase_reset pure + array_lit pure faces + var_decl pure +
-//   lea_common pure + pool/enc + al_nc_seq_take + sret/scope getters.
-// GLUE_SLICE_ESC_WALK_DEPTH_MAX=256  GLUE_SLICE_ESC_WALK_VISIT_MAX=4096
-// GLUE_ARRAY_LIT_MAX_ELEMS=1024  GLUE_ARRAY_LIT_MAX_PAYLOAD=4096
-// Ordinals: TYPE ARRAY=10 SLICE=11 F32=14 F64=15
-//   EXPR LIT=0 BOOL=2 VAR=3 BLOCK=26 RETURN=41 FIELD=44 ARRAY_LIT=46
-// Func.body_ref@148  Arena.num_exprs@4 num_blocks@8  Module.num_funcs@0
-// AsmFuncCtxLayout: tail_join_label@1392 tail_join_label_len@1520 (LP64)
-// Cold twins under seed #ifndef FROM_X.
-// All Cap residual / pool / enc calls live in unsafe blocks (T001).
-// PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path
-// ---------------------------------------------------------------------------
-
-// wave144: DFS walk stack for pipeline_find_fixed_array_slice_escape (depth max 256).
-// Soft leave-off: reentrancy last-wins BSS (matches historical static/COMMON note).
-let g_pipe_slice_esc_walk_stack: i32[256] = [];
-
-/**
- * Match `let s: T[] = a` / FIELD where a is fixed TYPE_ARRAY in one block.
- * @param arena *u8 - ASTArena*
- * @param block_ref i32 - block ref
- * @param vname *u8 - slice let name bytes
- * @param vlen i32 - name length
- * @param out_arr_sz *i32 - capacity N
- * @param out_elem_tr *i32 - element type_ref
- * @param out_arr_init_ref *i32 - optional init expr_ref (may be null)
- * @return i32 - 1 found; 0 not in this block
- * wave144 pure: G.7 authority (was static glue_match_slice_escape_lets_in_block_c).
- * PLATFORM: SHARED (host+fs escape capacity).
- */
-/**
- * Match `let s: T[] = a` / FIELD where a is fixed TYPE_ARRAY in one block.
- * @param arena *u8 - ASTArena*
- * @param block_ref i32 - block ref
- * @param vname *u8 - slice let name bytes
- * @param vlen i32 - name length
- * @param out_arr_sz *i32 - capacity N
- * @param out_elem_tr *i32 - element type_ref
- * @param out_arr_init_ref *i32 - optional init expr_ref (may be null)
- * @return i32 - 1 found; 0 not in this block
- * wave144 pure: G.7 authority (was static glue_match_slice_escape_lets_in_block_c).
- * PLATFORM: SHARED (host+fs escape capacity).
- */
-/**
- * DFS from body_ref: match slice escape lets in body and nested blocks.
- * Nested: if/while/for/region + EXPR_BLOCK (26).
- * Soft leave-off: walk stack is BSS last-wins (g_pipe_slice_esc_walk_stack).
- * @return i32 - 1 found; 0 not found
- * wave144 pure: G.7 authority (was pipeline_find_fixed_array_slice_escape).
- * PLATFORM: SHARED.
- */
-#[no_mangle]

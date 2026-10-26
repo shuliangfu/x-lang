@@ -140,6 +140,12 @@ _du_o=build_asm/selfhost_pabi/array_lit_durable_thin.o
 _du_x=src/runtime_pipeline_abi_array_lit_durable_thin.x
 _du_cache=/tmp/xlang_soft_cache_linux/array_lit_durable_thin.o
 if _try_soft_emit "$_du_o" "$_du_x" "$_du_cache"; then
+  # tip may module-prefix without #[no_mangle]; normalize to ABI name
+  if command -v "$_oc" >/dev/null 2>&1; then
+    if nm "$_du_o" 2>/dev/null | grep -Eq " [TW] pipeline_glue_asm_emit_array_lit_durable_ptr_rax_elf_c$"; then
+      "$_oc" --redefine-sym=pipeline_glue_asm_emit_array_lit_durable_ptr_rax_elf_c=glue_asm_emit_array_lit_durable_ptr_rax_elf_c "$_du_o" 2>/dev/null || true
+    fi
+  fi
   case " ${_PABI_TIP_PEEL:-} " in
     *" array_lit_durable_thin.o "*) ;;
     *) _PABI_TIP_PEEL="$_du_o ${_PABI_TIP_PEEL:-}"; export _PABI_TIP_PEEL
