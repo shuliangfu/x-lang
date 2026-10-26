@@ -1469,6 +1469,16 @@ _cap_tip_fill_missing_objs() {
     fi
     if [ -x "$_ns_xl" ] && [ -f src/runtime_pipeline_abi_named_builtin_cap_thin.x ]; then
       XLANG_PREFER_ASM_O=1 "$_ns_xl" -backend asm -c         src/runtime_pipeline_abi_named_builtin_cap_thin.x         -o build_asm/selfhost_pabi/named_builtin_cap.o 2>/dev/null         && echo "g05_cap_tip_reapply: re-asserted named_builtin_cap after pabi stomp" >&2 || true
+
+    # 10.56: CACHE/pabi may restore pre-udiv arms_div (u64 /= → sdiv).
+    # Re-tip-compile after stomp so unsigned /= uses backend_enc_div_rbx_arch.
+    # PLATFORM: MACOS Cap tip.
+    if [ -f src/runtime_pipeline_abi_assign_rhsrax_arms_div_thin.x ]; then
+      XLANG_PREFER_ASM_O=1 "${_ns_xl:-$XLANG}" -backend asm -c \
+        src/runtime_pipeline_abi_assign_rhsrax_arms_div_thin.x \
+        -o build_asm/selfhost_pabi/av_assign_rhsrax_arms_div.o 2>/dev/null \
+        && echo "g05_cap_tip_reapply: re-asserted arms_div after pabi stomp (10.56)" >&2 || true
+    fi
     fi
   fi
   # out.o|src.x pairs for Cap tip overlays commonly wiped
@@ -2730,6 +2740,25 @@ if [ -n "$_g05_oc" ] && [ -s "$_ss_o" ] && [ -s build_asm/selfhost_pabi/pabi_wea
       && echo "g05_cap_tip_reapply: 10.52 globalized pabi_weak g_pipeline_asm_modlet" >&2 || true
   fi
 fi
+
+# 10.56: force tip arms_div (unsigned /= → udiv) after CACHE/pabi stomp.
+# PLATFORM: MACOS Cap tip. Must see U _backend_enc_div_rbx_arch.
+_ad_o=build_asm/selfhost_pabi/av_assign_rhsrax_arms_div.o
+_ad_src=src/runtime_pipeline_abi_assign_rhsrax_arms_div_thin.x
+_ad_xl=""
+for _b in ./xlang_asm ./xlang /tmp/cap_tip_l4_safe_406200eef/xlang_asm \
+  "${HOME:-}/.cache/xlang_cap_tip_l4/xlang_asm" seeds/bootstrap_xlangc.darwin.arm64; do
+  [ -x "$_b" ] && _ad_xl="$_b" && break
+done
+if [ -n "$_ad_xl" ] && [ -f "$_ad_src" ]; then
+  if XLANG_PREFER_ASM_O=1 "$_ad_xl" -backend asm -c "$_ad_src" -o "$_ad_o" >/dev/null 2>&1 \
+    && nm "$_ad_o" 2>/dev/null | grep -q 'U _backend_enc_div_rbx_arch'; then
+    echo "g05_cap_tip_reapply: 10.56 tip-compiled av_assign_rhsrax_arms_div.o" >&2
+  else
+    echo "g05_cap_tip_reapply: 10.56 arms_div tip-compile failed" >&2
+  fi
+fi
+
 
 bash scripts/g05_relink_xlang.sh
 
