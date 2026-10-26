@@ -551,9 +551,9 @@ if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
     # with resolve T present — fa thin also first-won call_arg_var_use_lea /
     # struct_lit_store / emit_array_lit_flat / emit_return and broke Option.
     if [ -s build_asm/selfhost_pabi/fa_array_lit_linux.o ]; then
-      # 10.22: after call_arg _ca_prev frame patch, tip-cold opt/si no longer
-      # needs egg emit_return; keep thin emit_return for dyn_ret E* when asked.
-      if [ "${XLANG_LINUX_FA_KEEP_EMIT_RETURN:-0}" = "1" ]; then
+      # 10.22: default KEEP=1 — thin emit_return + egg _prev (ARRAY_LIT/dest-SLICE);
+      # tip-cold opt/si OK after _ca_prev frame; dyn_ret E* without nested_slice regress.
+      if [ "${XLANG_LINUX_FA_KEEP_EMIT_RETURN:-1}" = "1" ]; then
         _fa_demote_list="glue_call_arg_var_use_lea_not_load_elf_c glue_struct_lit_store_fixed_array_field_elf_c pipeline_asm_emit_array_lit_flat_elf_c"
         echo "g05_relink_xlang: 10.22 Linux FA keep thin emit_return (dyn_ret E*)" >&2
       else
@@ -568,7 +568,7 @@ if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
         fi
       done
       unset _fa_demote
-      if [ "${XLANG_LINUX_FA_KEEP_EMIT_RETURN:-0}" = "1" ]; then
+      if [ "${XLANG_LINUX_FA_KEEP_EMIT_RETURN:-1}" = "1" ]; then
         # Extract egg emit_return as _prev BEFORE weaken (ARRAY_LIT / dest-SLICE defer).
         _er_prev=build_asm/selfhost_pabi/return_sret_er_prev.o
         _er_src=""
