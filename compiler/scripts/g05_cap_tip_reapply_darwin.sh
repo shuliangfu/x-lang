@@ -120,6 +120,21 @@ if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
       echo "g05_cap_tip_reapply: WARN named_align tip-compile failed" >&2
     fi
   fi
+  # 10.44: layout offset thin must exist for Cap tip G05_OBJS
+  if [ -f src/runtime_pipeline_abi_struct_layout_offset_thin.x ]; then
+    _lo_xl="${XLANG:-}"
+    [ -x ./xlang ] && _lo_xl="./xlang"
+    [ -x ./xlang.product_legacy_bak ] && _lo_xl="./xlang.product_legacy_bak"
+    if XLANG_PREFER_ASM_O=1 "$_lo_xl" -backend asm -c \
+        src/runtime_pipeline_abi_struct_layout_offset_thin.x \
+        -o build_asm/selfhost_pabi/struct_layout_offset.o 2>/dev/null \
+      && nm -gU build_asm/selfhost_pabi/struct_layout_offset.o 2>/dev/null \
+           | grep -qE " T _glue_struct_layout_compute_field_offset_c$"; then
+      echo "g05_cap_tip_reapply: tip-compiled struct_layout_offset.o (10.44)" >&2
+    else
+      echo "g05_cap_tip_reapply: WARN struct_layout_offset tip-compile failed" >&2
+    fi
+  fi
   if [ -s build_asm/selfhost_pabi/named_align.o ] \
     && nm -gU build_asm/selfhost_pabi/named_align.o 2>/dev/null \
          | grep -q 'T _glue_type_align_simple$'; then
@@ -1412,6 +1427,7 @@ build_asm/selfhost_pabi/fa_array_lit_a64.o|src/runtime_pipeline_abi_fixed_array_
 build_asm/selfhost_pabi/add_common_sym_soft.o|src/runtime_pipeline_abi_add_common_sym_soft.x
 build_asm/selfhost_pabi/named_size.o|src/runtime_pipeline_abi_named_size_thin.x
 build_asm/selfhost_pabi/named_align.o|src/runtime_pipeline_abi_named_align_thin.x
+build_asm/selfhost_pabi/struct_layout_offset.o|src/runtime_pipeline_abi_struct_layout_offset_thin.x
 build_asm/selfhost_pabi/bake_scalar_imm_soft.o|src/runtime_pipeline_abi_bake_scalar_imm_soft.x
 MAP
 
