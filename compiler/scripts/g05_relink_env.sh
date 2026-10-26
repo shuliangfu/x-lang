@@ -1207,9 +1207,11 @@ case "$UNAME_S" in
       _fullc_ok=0
       if ${CC:-cc} -Wall -O2 -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
            -c -o "$_fullc.raw.o" seeds/pthin_skip_tl.from_x.c 2>/tmp/g05_pthin_full_c.err; then
-        printf "%s\n" parser_asm_skip_one_trait_into_slice_c > "$_fullc.keep"
-        if ld -r -o "$_fullc" --retain-symbols-file="$_fullc.keep" "$_fullc.raw.o" 2>/tmp/g05_pthin_full_c_ld.err \
-          && nm -S "$_fullc" 2>/dev/null | grep -qE "T _*parser_asm_skip_one_trait_into_slice_c"; then
+        # GNU ld --retain-symbols-file left other T global; objcopy keep-global works.
+        if objcopy --keep-global-symbol=parser_asm_skip_one_trait_into_slice_c \
+             "$_fullc.raw.o" "$_fullc" 2>/tmp/g05_pthin_full_c_ld.err \
+          && nm -S "$_fullc" 2>/dev/null | grep -qE "T _*parser_asm_skip_one_trait_into_slice_c" \
+          && ! nm "$_fullc" 2>/dev/null | grep -qE "T _*parser_asm_skip_one_struct_into_slice_c"; then
           _isz=$(nm -S "$_fullc" 2>/dev/null | awk "/parser_asm_skip_one_trait_into_slice_c/{print \$2; exit}")
           echo "g05_relink_env: 10.22 into_slice-only full C size=$_isz (first-wins)" >&2
           _PABI_TIP_PEEL="$_fullc $_PABI_TIP_PEEL"
