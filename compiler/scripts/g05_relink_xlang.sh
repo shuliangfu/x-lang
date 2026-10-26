@@ -546,14 +546,23 @@ if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
   # can keep thin emit_return; Linux tip-cold needs egg emit_return for Option/stdlib.
   if [ -n "$_g05_oc" ] \
     && printf "%s" " $OBJS " | grep -Eq "(^|[[:space:]/])fa_array_lit_linux\.o([[:space:]]|$)"; then
-    # Demote thin emit_return so egg/return_sret stays T
+    # Demote thin extras so egg/return_sret stays authority; keep ONLY
+    # fa_array_lit_into_rbx T (E* helper). tip-cold@80e00 still CG002 opt/si
+    # with resolve T present — fa thin also first-won call_arg_var_use_lea /
+    # struct_lit_store / emit_array_lit_flat / emit_return and broke Option.
     if [ -s build_asm/selfhost_pabi/fa_array_lit_linux.o ]; then
-      if nm build_asm/selfhost_pabi/fa_array_lit_linux.o 2>/dev/null | grep -Eq " T pipeline_asm_emit_return_elf_impl$"; then
-        "$_g05_oc" --weaken-symbol=pipeline_asm_emit_return_elf_impl \
-          build_asm/selfhost_pabi/fa_array_lit_linux.o 2>/dev/null \
-          && echo "g05_relink_xlang: 10.22 Linux weaken fa_array thin emit_return (egg wins)" >&2 \
-          || true
-      fi
+      for _fa_demote in pipeline_asm_emit_return_elf_impl \
+                        glue_call_arg_var_use_lea_not_load_elf_c \
+                        glue_struct_lit_store_fixed_array_field_elf_c \
+                        pipeline_asm_emit_array_lit_flat_elf_c; do
+        if nm build_asm/selfhost_pabi/fa_array_lit_linux.o 2>/dev/null | grep -Eq " T ${_fa_demote}$"; then
+          "$_g05_oc" --weaken-symbol="$_fa_demote" \
+            build_asm/selfhost_pabi/fa_array_lit_linux.o 2>/dev/null \
+            && echo "g05_relink_xlang: 10.22 Linux weaken fa_array thin $_fa_demote (egg wins)" >&2 \
+            || true
+        fi
+      done
+      unset _fa_demote
     fi
     for _fa_pw in build_asm/selfhost_pabi/return_sret.o \
                   build_asm/selfhost_pabi/two.o \
@@ -565,14 +574,7 @@ if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
           && echo "g05_relink_xlang: 10.22 Linux weaken $_fa_pw fa_array_lit" >&2 \
           || true
       fi
-      if nm "$_fa_pw" 2>/dev/null | grep -Eq " [TW] glue_struct_lit_store_fixed_array_field_elf_c$"; then
-        case "$(basename "$_fa_pw")" in
-          fa_array_lit_linux.o) ;;
-          *) "$_g05_oc" --weaken-symbol=glue_struct_lit_store_fixed_array_field_elf_c "$_fa_pw" 2>/dev/null \
-               && echo "g05_relink_xlang: 10.22 Linux weaken $_fa_pw struct_lit_store_fa" >&2 \
-               || true ;;
-        esac
-      fi
+
     done
     # Scan OBJS: weaken rival fa_array_lit_into_rbx only (never emit_return on egg)
     for _fa_o in $OBJS; do
