@@ -1217,17 +1217,18 @@ case "$UNAME_S" in
             for _ts in \
               parser_asm_skip_one_trait_method_sig_into_c \
               parser_asm_skip_one_trait_body_into_c \
-              parser_asm_skip_one_trait_header_into_c
+              parser_asm_skip_one_trait_header_into_c \
+              xlang_skip_trait_check_ret_shape_x_into_c
             do
               objcopy --redefine-sym "$_ts=__tip_dead_$_ts" "$_pthin_o" 2>/dev/null \
                 || objcopy --redefine-sym "_$_ts=__tip_dead_$_ts" "$_pthin_o" 2>/dev/null \
                 || true
             done
             unset _ts
-            if nm "$_pthin_o" 2>/dev/null | grep -qE "T _*parser_asm_skip_one_trait_(method_sig|body|header)_into_c\$"; then
+            if nm "$_pthin_o" 2>/dev/null | grep -qE "T _*(parser_asm_skip_one_trait_(method_sig|body|header)_into_c|xlang_skip_trait_check_ret_shape_x_into_c)\$"; then
               echo "g05_relink_env: WARN tip trait skip_* still live after redefine" >&2
             else
-              echo "g05_relink_env: 10.22 tip trait body/header/method_sig→C twin" >&2
+              echo "g05_relink_env: 10.22 tip trait body/header/method_sig/ret_shape→C twin" >&2
             fi
           fi
           _pthin_ok=1
