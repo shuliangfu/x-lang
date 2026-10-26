@@ -127,6 +127,11 @@ if _try_soft_emit "$_ri_o" "$_ri_x" "$_ri_cache"; then
        echo "g05_linux_tip_ufcs_soft: prepended reverse_infer soft" >&2 ;;
   esac
 fi
+# tip-cold A/B: UFCS+reverse_infer only (fc5835-era soft). Skip call_arg/lvalue/durable/fa/w211/lane.
+if [ "${XLANG_LINUX_TIP_SOFT_MIN:-0}" = "1" ]; then
+  echo "g05_linux_tip_ufcs_soft: MIN mode — skip post-reverse_infer peels" >&2
+  return 0 2>/dev/null || exit 0
+fi
 if _try_soft_emit "$_ca_o" "$_ca_x" "$_ca_cache"; then
   case " ${_PABI_TIP_PEEL:-} " in
     *" call_arg_struct_lit_field.o "*) ;;
