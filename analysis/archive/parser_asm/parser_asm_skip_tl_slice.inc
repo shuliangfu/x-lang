@@ -4469,9 +4469,10 @@ int32_t xlang_skip_trait_check_ret_shape_c(void *module, void *arena,
                     if (pelem != 0) {
                       pgek = pipeline_type_kind_ord_at(arena, pelem);
                     }
+                    /* 10.22: match tip — dims[eend]=extra SLICE, dims[eend+1]=extra PTR */
                     extra_slice = 0;
                     if (eend < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
-                      extra_slice = g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][eend + 1];
+                      extra_slice = g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][eend];
                     if (extra_slice > 0) {
                       while (extra_slice > 0) {
                         if (pgek != XLANG_TRAIT_TY_SLICE || pelem == 0) {
@@ -4488,8 +4489,8 @@ int32_t xlang_skip_trait_check_ret_shape_c(void *module, void *arena,
                       }
                     }
                     extra_ptr = 0;
-                    if (eend < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
-                      extra_ptr = g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][eend];
+                    if (eend + 1 < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                      extra_ptr = g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][eend + 1];
                     if (extra_ptr > 0) {
                       while (extra_ptr > 0) {
                         if (pgek != XLANG_TRAIT_TY_PTR || pelem == 0) {
@@ -6357,9 +6358,10 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
                     if (pelem != 0) {
                       pgek = pipeline_type_kind_ord_at(arena, pelem);
                     }
+                    /* 10.22: match tip — dims[eend]=extra SLICE, dims[eend+1]=extra PTR */
                     extra_slice = 0;
                     if (eend < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
-                      extra_slice = g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][eend + 1];
+                      extra_slice = g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][eend];
                     if (extra_slice > 0) {
                       while (extra_slice > 0) {
                         if (pgek != XLANG_TRAIT_TY_SLICE || pelem == 0) {
@@ -6376,8 +6378,8 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
                       }
                     }
                     extra_ptr = 0;
-                    if (eend < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
-                      extra_ptr = g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][eend];
+                    if (eend + 1 < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                      extra_ptr = g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][eend + 1];
                     if (extra_ptr > 0) {
                       while (extra_ptr > 0) {
                         if (pgek != XLANG_TRAIT_TY_PTR || pelem == 0) {
