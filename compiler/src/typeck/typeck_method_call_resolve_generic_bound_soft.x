@@ -1,7 +1,7 @@
 /* knife256/10.2 Cap tip: demote typeck_method_call_resolve_generic_bound.
  * Tip generic_bound_scan_c SEGVs; trait_check noop leaves tables empty.
  * Lightweight: g_lex_src must contain `fn_name` + `tp: Trait` (or `<tp: Trait>`)
- * and `trait Trait { ... function method`. Ret kind defaults to i32 (quartet).
+ * and `trait Trait { ... function method`. Ret: i32 kind0 from impl, else base_ty (Self).
  * PLATFORM: SHARED Cap tip. */
 export extern function typeck_type_is_free_type_param(module: *u8, arena: *u8, ty_ref: i32): i32;
 export extern function pipeline_dep_ctx_current_func_index(ctx: *u8): i32;
@@ -18,6 +18,8 @@ export extern function pipeline_type_ensure_by_kind_ord(arena: *u8, kind: i32): 
 export extern function pipeline_module_num_funcs(module: *u8): i32;
 export extern function pipeline_module_func_name_equal_at(module: *u8, fi: i32, name: *u8, nlen: i32): i32;
 export extern function pipeline_module_func_num_params_at(module: *u8, fi: i32): i32;
+export extern function pipeline_module_func_return_type_at(module: *u8, fi: i32): i32;
+export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
 
 function cap_tip_src_find(src: *u8, src_len: i32, pat: *u8, pat_len: i32, from: i32): i32 {
   unsafe {
@@ -242,7 +244,17 @@ ctx: *u8, base_ty: i32, method_nm: *u8, method_nlen: i32, num_args: i32): i32 {
       }
       uj = uj + 1;
     }
-    ret_ty = pipeline_type_ensure_by_kind_ord(arena, 0);
+    /* i32 method → kind0; Self/struct method → stamp type-param base_ty (T). */
+    ret_ty = base_ty;
+    if (fi_hit >= 0) {
+      let fr: i32 = pipeline_module_func_return_type_at(module, fi_hit);
+      if (fr > 0 && pipeline_type_kind_ord_at(arena, fr) == 0) {
+        ret_ty = fr;
+      }
+    }
+    if (ret_ty <= 0) {
+      ret_ty = pipeline_type_ensure_by_kind_ord(arena, 0);
+    }
     pipeline_expr_apply_call_resolve(arena, expr_ref, 0 - 1, fi_hit);
     if (ret_ty > 0) {
       pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty);
