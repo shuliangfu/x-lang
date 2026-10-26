@@ -544,6 +544,19 @@ export function pipeline_asm_emit_expr_elf_rec(arena: *u8, elf_ctx: *u8, expr_re
       return 0 - 1;
     }
   }
+  /* 10.22: Linux tip mega fast emits scalar ADD for ko==4 before this
+   * rec arm runs. Try 16-byte SIMD binop pair first; -99 keeps fast.
+   * Darwin Cap tip fast declines ADD (-99) so the later arm also worked.
+   * PLATFORM: SHARED. */
+  if (ko >= 4 && ko <= 13) {
+    unsafe {
+      pipe_store_i32_le(&cell_r[0], 0, asm_expr_emit_simd_binop_pair(arena, elf_ctx, expr_ref, ctx, ta));
+    }
+    r = w495_cell_i32(&cell_r[0]);
+    if (r != (0 - 99)) {
+      return r;
+    }
+  }
   unsafe {
     /* PLATFORM: SHARED — tip drops mid `r=pipeline_asm_emit_expr_elf_fast()`; pipe cell. */
     pipe_store_i32_le(&cell_r[0], 0, pipeline_asm_emit_expr_elf_fast(arena, elf_ctx, expr_ref, ctx, ta));
@@ -708,22 +721,9 @@ export function pipeline_asm_emit_expr_elf_rec(arena: *u8, elf_ctx: *u8, expr_re
       return pipeline_asm_emit_continue_elf_c(arena, elf_ctx, ctx, ta);
     }
   }
-  /* Cap tip-thin 256/10.2: EXPR_ADD..BITXOR (4..13) before empty
-   * backend_emit_expr_elf slow stub (mega_fallback return 0). Mirror
-   * seeds/runtime_pipeline_abi.from_x.c emit_expr_elf_fast arms.
-   * A 16-byte SIMD binop is not that scalar add. The pair helper
-   * writes every lane and loads the GPR pair. -99 keeps the scalar
-   * arms below (i32 add, wider SIMD, other arches).
-   * PLATFORM: SHARED for the SIMD arm. Scalar arms stay SHARED. */
-  if (ko >= 4 && ko <= 13) {
-    unsafe {
-      pipe_store_i32_le(&cell_r[0], 0, asm_expr_emit_simd_binop_pair(arena, elf_ctx, expr_ref, ctx, ta));
-    }
-    r = w495_cell_i32(&cell_r[0]);
-    if (r != (0 - 99)) {
-      return r;
-    }
-  }
+  /* Cap tip-thin 256/10.2: EXPR_ADD..BITXOR scalar arms. SIMD pair
+   * already tried before emit_expr_elf_fast (10.22 Linux mega).
+   * PLATFORM: SHARED. */
   if (ko == 4) {
     unsafe {
       return pipeline_asm_emit_binop_add_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref), pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta);
