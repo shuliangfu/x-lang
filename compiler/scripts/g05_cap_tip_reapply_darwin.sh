@@ -105,7 +105,33 @@ if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
       build_asm/selfhost_pabi/pabi_weak.o \
       && echo "g05_cap_tip_reapply: demoted pabi size_simple (named_size wins)" >&2 || true
   fi
+  # 10.44: named_align_thin — i8 pack align=1 (egg TYPE_NAMED miss was 4).
+  if [ -f src/runtime_pipeline_abi_named_align_thin.x ]; then
+    _na_xl="${XLANG:-}"
+    [ -x ./xlang ] && _na_xl="./xlang"
+    [ -x ./xlang.product_legacy_bak ] && _na_xl="./xlang.product_legacy_bak"
+    if XLANG_PREFER_ASM_O=1 "$_na_xl" -backend asm -c \
+        src/runtime_pipeline_abi_named_align_thin.x \
+        -o build_asm/selfhost_pabi/named_align.o 2>/dev/null \
+      && nm -gU build_asm/selfhost_pabi/named_align.o 2>/dev/null \
+           | grep -q 'T _glue_type_align_simple$'; then
+      echo "g05_cap_tip_reapply: tip-compiled named_align.o (align_simple authority)" >&2
+    else
+      echo "g05_cap_tip_reapply: WARN named_align tip-compile failed" >&2
+    fi
+  fi
+  if [ -s build_asm/selfhost_pabi/named_align.o ] \
+    && nm -gU build_asm/selfhost_pabi/named_align.o 2>/dev/null \
+         | grep -q 'T _glue_type_align_simple$'; then
+    if nm -gU build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+         | grep -q 'T _glue_type_align_simple$\|weak.*_glue_type_align_simple'; then
+      "$OC" --redefine-sym=_glue_type_align_simple=_glue_type_align_simple__demoted \
+        build_asm/selfhost_pabi/pabi_weak.o \
+        && echo "g05_cap_tip_reapply: demoted pabi align_simple (named_align wins)" >&2 || true
+    fi
+  fi
 fi
+
 
 
 # knife256/10.2: pabi_weak typeck_x_type_size_from_layout_glue is a hollow
@@ -173,6 +199,28 @@ else
   exit 1
 fi
 bash scripts/g05_cap_tip_typeck_soft_prep.sh
+# 10.44: demote Cap tip typeck named_builtin so named_builtin_cap.o (i8→1) wins.
+# Soft prep recreates typeck Cap objs — must run AFTER soft prep.
+# PLATFORM: MACOS Cap tip.
+if [ -z "${OC:-}" ]; then
+  for c in /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
+    [ -x "$c" ] && OC=$c && break
+  done
+fi
+if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/named_builtin_cap.o ]; then
+  for _tb in build_asm/selfhost_pabi/typeck_x.cap_repr_weak.binop_cmp_peel.o \
+             build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o \
+             build_asm/selfhost_pabi/typeck_cap_residual.o; do
+    [ -s "$_tb" ] || continue
+    if nm -gU "$_tb" 2>/dev/null | grep -q 'T _typeck_x_named_builtin_align$'; then
+      "$OC" \
+        --redefine-sym=_typeck_x_named_builtin_align=_typeck_x_named_builtin_align__demoted \
+        --redefine-sym=_typeck_x_named_builtin_size=_typeck_x_named_builtin_size__demoted \
+        "$_tb" \
+        && echo "g05_cap_tip_reapply: demoted named_builtin in $_tb (cap wins)" >&2 || true
+    fi
+  done
+fi
 # note743y.6.23 prepend lexer_cfg aliases (after soft prep mutates G05_OBJS)
 if [ -s src/runtime/lexer_cfg_alias_a64.o ]; then
   case " $G05_OBJS " in
@@ -1363,6 +1411,7 @@ build_asm/selfhost_pabi/param_ptr_slot_a64.o|src/runtime_pipeline_abi_param_ptr_
 build_asm/selfhost_pabi/fa_array_lit_a64.o|src/runtime_pipeline_abi_fixed_array_copy_thin.x
 build_asm/selfhost_pabi/add_common_sym_soft.o|src/runtime_pipeline_abi_add_common_sym_soft.x
 build_asm/selfhost_pabi/named_size.o|src/runtime_pipeline_abi_named_size_thin.x
+build_asm/selfhost_pabi/named_align.o|src/runtime_pipeline_abi_named_align_thin.x
 build_asm/selfhost_pabi/bake_scalar_imm_soft.o|src/runtime_pipeline_abi_bake_scalar_imm_soft.x
 MAP
 
@@ -1814,6 +1863,7 @@ _typeck_x_type_align_from_layout_glue' > /tmp/cap_tip_orch_layout.exp
       cp -f build_asm/selfhost_pabi/pabi_weak.o.bak_cap build_asm/selfhost_pabi/pabi_weak.o
       "$OC" \
         --redefine-sym=_glue_type_size_simple=_glue_type_size_simple__demoted \
+        --redefine-sym=_glue_type_align_simple=_glue_type_align_simple__demoted \
         --redefine-sym=_glue_type_named_layout_size_any_module_elf_c=_glue_type_named_layout_size_any_module_elf_c__demoted \
         --redefine-sym=_typeck_x_type_size_from_layout_glue=_typeck_x_type_size_from_layout_glue__demoted \
         --redefine-sym=_typeck_x_type_align_from_layout_glue=_typeck_x_type_align_from_layout_glue__demoted \
@@ -1837,6 +1887,16 @@ _typeck_x_type_align_from_layout_glue' > /tmp/cap_tip_orch_layout.exp
         src/runtime_pipeline_abi_named_size_thin.x \
         -o build_asm/selfhost_pabi/named_size.o 2>/dev/null \
         && echo "g05_cap_tip_reapply: post-fill tip-compiled named_size.o" >&2 || true
+    fi
+  fi
+  # 10.44: ensure named_align keeps live align_simple.
+  if [ -f src/runtime_pipeline_abi_named_align_thin.x ] && [ -x "${XLANG:-}" ]; then
+    if ! nm -gU build_asm/selfhost_pabi/named_align.o 2>/dev/null \
+         | grep -q 'T _glue_type_align_simple$'; then
+      XLANG_PREFER_ASM_O=1 "$XLANG" -backend asm -c \
+        src/runtime_pipeline_abi_named_align_thin.x \
+        -o build_asm/selfhost_pabi/named_align.o 2>/dev/null \
+        && echo "g05_cap_tip_reapply: post-fill tip-compiled named_align.o" >&2 || true
     fi
   fi
   if [ -s build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o ]; then
@@ -2276,6 +2336,19 @@ if [ -f "$_1037_cmp_x" ] && [ -f "$_1037_disp_x" ]; then
         ;;
     esac
     echo "g05_cap_tip_reapply: 10.37 demote typeck_x.cap_repr_weak peel::binop+cmp" >&2
+    # 10.44: peel is a fresh cp of cap_repr_weak — demote named_builtin so cap overlay wins.
+    if [ -s build_asm/selfhost_pabi/named_builtin_cap.o ]; then
+      for _nb in "$_cap_peel" "$_cap_ty"; do
+        [ -s "$_nb" ] || continue
+        if nm -gU "$_nb" 2>/dev/null | grep -q 'T _typeck_x_named_builtin_align$'; then
+          "$_oc1037" \
+            --redefine-sym=_typeck_x_named_builtin_align=_typeck_x_named_builtin_align__demoted \
+            --redefine-sym=_typeck_x_named_builtin_size=_typeck_x_named_builtin_size__demoted \
+            "$_nb" \
+            && echo "g05_cap_tip_reapply: 10.44 demoted named_builtin in $_nb" >&2 || true
+        fi
+      done
+    fi
     # 10.22: unconditional mega rename on peel+cap (soft faces)
     for _mg_o in "$_cap_peel" "$_cap_ty"; do
       [ -s "$_mg_o" ] || continue

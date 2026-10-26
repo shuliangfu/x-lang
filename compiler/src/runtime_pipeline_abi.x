@@ -51347,8 +51347,8 @@ export function glue_field_access_load_bytes_for_type_ref(a: *u8, ty_ref: i32): 
   }
   if (kind_ord == 8) {
     /*
-     * Cap residual i8/i16/u16: named_builtin_size → 4. Free type-param
-     * names and product structs stay 8 (historical default).
+     * Cap residual: i8 named_builtin_size → 1 (10.44); i16/u16 → 4.
+     * Free type-param names and product structs stay 8 (historical default).
      * PLATFORM: SHARED — G.7 reuse typeck_x_named_builtin_size.
      */
     unsafe {

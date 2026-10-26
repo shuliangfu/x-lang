@@ -31,6 +31,7 @@ export extern function pipeline_dep_ctx_ndep(ctx: *u8): i32;
 export extern function pipeline_dep_ctx_module_at(ctx: *u8, idx: i32): *u8;
 export extern function pipeline_dep_ctx_arena_at(ctx: *u8, idx: i32): *u8;
 export extern function glue_vector_type_lanes_esz_c(arena: *u8, type_ref: i32, out_lanes: *i32, out_esz: *i32): i32;
+export extern function typeck_x_named_builtin_size(nm: *u8, nlen: i32): i32;
 
 /**
  * Local copy of glue_layout_name_matches_named_type_c.
@@ -260,6 +261,13 @@ export function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): 
     }
     if (vok == 0 && vl > 0 && ves > 0) {
       return vl * ves;
+    }
+    /* 10.44: Cap residual i8/i16/u16 — named_builtin_size (i8→1). */
+    unsafe {
+      sz = typeck_x_named_builtin_size(&name[0], nlen);
+    }
+    if (sz == 1 || sz == 2 || sz == 4 || sz == 8) {
+      return sz;
     }
     return 4;
   }
