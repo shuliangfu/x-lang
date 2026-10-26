@@ -1195,11 +1195,10 @@ case "$UNAME_S" in
         echo "g05_relink_env: ERROR rt_fmt_one tip-peel missing (note743y.6.10)" >&2
         exit 1
       fi
-      # 10.22: Linux tip product keeps C twin weak stubs for trait method_sig
-      # (dest-RET dims[1] extra STAR / dyn_ret_ptr_ptr* T001). Tip-compile
-      # pthin_skip_tl.x with CURRENT product (not pin-egg — egg is Sep-16 and
-      # mis-emits the dest-RET arms; product .o is ~200KB vs egg ~224KB) and
-      # prepend so first-wins upgrades W→T. PLATFORM: LINUX.
+      # 10.22: Tip-compile pthin_skip_tl.x with CURRENT product (not pin-egg).
+      # Other tip symbols prepend first-wins; method_sig is redefined away so
+      # thin_glue W C twin (~54KB archive dest-RET) wins — product tip emits
+      # only ~12KB and drops dest-RET arms (dyn_ret_ptr_ptr* T001). PLATFORM: LINUX.
       _pthin_o=build_asm/selfhost_pabi/pthin_skip_tl.o
       mkdir -p build_asm/selfhost_pabi
       _pthin_ok=0
@@ -1209,8 +1208,22 @@ case "$UNAME_S" in
         if "$_pthin_bin" -backend asm -c src/asm/pthin_skip_tl.x -o "$_pthin_o.tmp.o" >/dev/null 2>&1 \
           && nm "$_pthin_o.tmp.o" 2>/dev/null | grep -qE "T _*parser_asm_skip_one_trait_method_sig_into_c\$"; then
           mv -f "$_pthin_o.tmp.o" "$_pthin_o"
+          # 10.22: product tip emits method_sig ~12KB vs C twin ~54KB (archive
+          # dest-RET dims[1] extra STAR). Tip body is truncated on Linux tip
+          # codegen — drop tip method_sig so thin_glue W (full dest-RET) wins.
+          # Keep other tip pthin symbols. PLATFORM: LINUX.
+          if command -v objcopy >/dev/null 2>&1; then
+            objcopy --redefine-sym parser_asm_skip_one_trait_method_sig_into_c=__tip_dead_method_sig "$_pthin_o" 2>/dev/null \
+              || objcopy --redefine-sym _parser_asm_skip_one_trait_method_sig_into_c=__tip_dead_method_sig "$_pthin_o" 2>/dev/null \
+              || true
+            if nm "$_pthin_o" 2>/dev/null | grep -qE "T _*parser_asm_skip_one_trait_method_sig_into_c\$"; then
+              echo "g05_relink_env: WARN tip method_sig still live after redefine" >&2
+            else
+              echo "g05_relink_env: 10.22 tip method_sig→C twin (redefine dead)" >&2
+            fi
+          fi
           _pthin_ok=1
-          echo "g05_relink_env: 10.22 tip-peel pthin_skip_tl via $_pthin_bin (method_sig dest-RET)" >&2
+          echo "g05_relink_env: 10.22 tip-peel pthin_skip_tl via $_pthin_bin (method_sig→C twin)" >&2
           break
         fi
         rm -f "$_pthin_o.tmp.o"
