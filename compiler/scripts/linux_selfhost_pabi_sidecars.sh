@@ -318,6 +318,13 @@ if [ "$_modlet_ok" != "1" ]; then
   echo "linux_selfhost_pabi_sidecars: modlet tip failed" >&2
   exit 1
 fi
+# 10.38: rename Lxml COMMONs onto g_pipeline_asm_modlet /
+# g_pipe_modlet_strpool_seq so first-wins shares leftover's table name.
+# PLATFORM: LINUX. cwd is compiler/ when sidecars runs.
+if ! bash scripts/ensure_host_cc_seed_o.sh modlet-rename-bss "$OUT/modlet.o"; then
+  echo "linux_selfhost_pabi_sidecars: modlet Lxml→C rename failed" >&2
+  exit 1
+fi
 if objdump -r "$OUT/modlet.o" | grep -q 'xlang_panic_'; then
   echo "linux_selfhost_pabi_sidecars: modlet panic reloc survived" >&2
   exit 1

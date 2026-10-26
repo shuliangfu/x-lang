@@ -7434,6 +7434,21 @@ rt_emit_state_rename_bss() {
   rt_slice_rename_bss "$1" rt-emit-state 10 $(rt_emit_state_bss_names)
 }
 
+# 10.38: modlet_thin pure-asm emits two module lets as Lxml COMMONs
+# (g_pipeline_asm_modlet, g_pipe_modlet_strpool_seq). Leftover pabi and
+# C-rest still read the C names; without rename, PREFER_ASM creates two
+# tables and the next module-let compile SEGVs. Debt was LINUX
+# XLANG_PABI_THIN_PREFER_ASM=0 (-E+cc). PLATFORM: SHARED.
+pipeline_abi_modlet_bss_names() {
+  echo g_pipeline_asm_modlet g_pipe_modlet_strpool_seq
+}
+
+pipeline_abi_modlet_rename_bss() {
+  # shellcheck disable=SC2046
+  rt_slice_rename_bss "$1" w631-modlet 2 $(pipeline_abi_modlet_bss_names)
+}
+
+
 # Product install of src/runtime/rt_arena_buf.o:
 #   pure-asm src/runtime/rt_arena_buf.x (two buffers + slice marker)
 #   + seeds/rt_arena_buf.from_x.c (128MiB / 2MiB BSS only)
@@ -20932,6 +20947,17 @@ pipeline_abi_inject_thin_leaf() {
       used_asm=1
     fi
   fi
+  # 10.38: rename modlet Lxml COMMONs onto C table names before weaken/merge
+  # so leftover g_pipeline_asm_modlet is the same object (no dual-table SEGV).
+  # PLATFORM: SHARED — LINUX gold + MACOS Cap.
+  if [ "$used_asm" = "1" ] && [ "$thin_bn" = "runtime_pipeline_abi_modlet_thin.x" ]; then
+    if ! pipeline_abi_modlet_rename_bss "$thin_o"; then
+      log "pipeline_abi ${tag} inject: modlet Lxml→C rename failed; fall back -E+cc"
+      used_asm=0
+      rm -f "$thin_o"
+      thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_thin.XXXXXX.o")"
+    fi
+  fi
   if [ "$used_asm" != "1" ]; then
     if ! "$xlang_bin" -E "$thin_x" >"$gen_c" 2>/dev/null || [ ! -s "$gen_c" ]; then
       log "pipeline_abi ${tag} inject: -E failed"
@@ -22519,16 +22545,10 @@ pipeline_abi_inject_modlet_thin() {
   if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
   export XLANG_PABI_THIN_PREFER_ASM=1
-  # w1504 PLATFORM: LINUX — keep -E+cc for this TU. Pure asm bakes the
-  #   file-level table into its own Lxml_ BSS label while the leftover pabi
-  #   still reads the static g_pipeline_asm_modlet (two tables; the modlet
-  #   index runs past 512 and the next product SEGVs compiling any .x with
-  #   module-level lets). Before the w1504 typeck gen the pure-asm try always
-  #   failed on T001 (nested unsafe blocks), so -E+cc is what every Linux
-  #   product has shipped. Debt 10.38.
-  case "$(uname -s 2>/dev/null)" in
-    Linux) export XLANG_PABI_THIN_PREFER_ASM=0 ;;
-  esac
+  # 10.38: pure-asm both ends. inject_thin_leaf renames the two Lxml
+  # COMMONs onto g_pipeline_asm_modlet / g_pipe_modlet_strpool_seq before
+  # weaken+merge (same table as leftover). Do not force LINUX -E+cc.
+  # PLATFORM: SHARED — LINUX gold + MACOS Cap. Pin ecdb5cc1e unchanged.
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
   pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w631-modlet-prefer"
   rc=$?
@@ -33675,6 +33695,16 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  modlet-rename-bss|modlet_rename_bss)
+    # 10.38: rename Lxml COMMONs on a pure-asm modlet.o onto C table names.
+    # cwd is compiler/. PLATFORM: SHARED.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o modlet-rename-bss: need <modlet.o>" >&2
+      exit 2
+    fi
+    pipeline_abi_modlet_rename_bss "$1"
+    exit $?
+    ;;
   net-ipv6-os-retry|net_ipv6_os_retry_pure)
     # w1228: sixteen pure-asm symbols of runtime_net_ipv6_fast_darwin.x.
     # Does not link the thin half and does not write std/net/net_ipv6_fast.o.
