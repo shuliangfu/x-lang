@@ -551,10 +551,15 @@ if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
     # with resolve T present — fa thin also first-won call_arg_var_use_lea /
     # struct_lit_store / emit_array_lit_flat / emit_return and broke Option.
     if [ -s build_asm/selfhost_pabi/fa_array_lit_linux.o ]; then
-      for _fa_demote in pipeline_asm_emit_return_elf_impl \
-                        glue_call_arg_var_use_lea_not_load_elf_c \
-                        glue_struct_lit_store_fixed_array_field_elf_c \
-                        pipeline_asm_emit_array_lit_flat_elf_c; do
+      # 10.22: after call_arg _ca_prev frame patch, tip-cold opt/si no longer
+      # needs egg emit_return; keep thin emit_return for dyn_ret E* when asked.
+      if [ "${XLANG_LINUX_FA_KEEP_EMIT_RETURN:-0}" = "1" ]; then
+        _fa_demote_list="glue_call_arg_var_use_lea_not_load_elf_c glue_struct_lit_store_fixed_array_field_elf_c pipeline_asm_emit_array_lit_flat_elf_c"
+        echo "g05_relink_xlang: 10.22 Linux FA keep thin emit_return (dyn_ret E*)" >&2
+      else
+        _fa_demote_list="pipeline_asm_emit_return_elf_impl glue_call_arg_var_use_lea_not_load_elf_c glue_struct_lit_store_fixed_array_field_elf_c pipeline_asm_emit_array_lit_flat_elf_c"
+      fi
+      for _fa_demote in $_fa_demote_list; do
         if nm build_asm/selfhost_pabi/fa_array_lit_linux.o 2>/dev/null | grep -Eq " T ${_fa_demote}$"; then
           "$_g05_oc" --weaken-symbol="$_fa_demote" \
             build_asm/selfhost_pabi/fa_array_lit_linux.o 2>/dev/null \
