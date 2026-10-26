@@ -132,6 +132,8 @@ if [ "${XLANG_LINUX_TIP_SOFT_MIN:-0}" = "1" ]; then
   echo "g05_linux_tip_ufcs_soft: MIN mode — skip post-reverse_infer peels" >&2
   return 0 2>/dev/null || exit 0
 fi
+# Per-peel gates (default on). tip-cold bisect: set one to 1, others 0 (+ FA/LANE 0).
+if [ "${XLANG_LINUX_CALL_ARG_SOFT:-1}" = "1" ]; then
 if _try_soft_emit "$_ca_o" "$_ca_x" "$_ca_cache"; then
   case " ${_PABI_TIP_PEEL:-} " in
     *" call_arg_struct_lit_field.o "*) ;;
@@ -139,8 +141,10 @@ if _try_soft_emit "$_ca_o" "$_ca_x" "$_ca_cache"; then
        echo "g05_linux_tip_ufcs_soft: prepended call_arg soft" >&2 ;;
   esac
 fi
+fi  # XLANG_LINUX_CALL_ARG_SOFT
 
 # --- 10.22: lvalue CALL.field spill on Linux x86_64 (mk().xs → []T) ---
+if [ "${XLANG_LINUX_LVALUE_SOFT:-1}" = "1" ]; then
 _lv_o=build_asm/selfhost_pabi/lvalue_eff_addr_elf_thin.o
 _lv_x=src/runtime_pipeline_abi_lvalue_eff_addr_elf_thin.x
 _lv_cache=/tmp/xlang_soft_cache_linux/lvalue_eff_addr_elf_thin.o
@@ -151,8 +155,10 @@ if _try_soft_emit "$_lv_o" "$_lv_x" "$_lv_cache"; then
        echo "g05_linux_tip_ufcs_soft: prepended lvalue_eff_addr thin" >&2 ;;
   esac
 fi
+fi  # XLANG_LINUX_LVALUE_SOFT
 
 # --- 10.22: array_lit durable strong (STRUCT_LIT.field→[]T) ---
+if [ "${XLANG_LINUX_DURABLE_SOFT:-1}" = "1" ]; then
 _du_o=build_asm/selfhost_pabi/array_lit_durable_thin.o
 _du_x=src/runtime_pipeline_abi_array_lit_durable_thin.x
 _du_cache=/tmp/xlang_soft_cache_linux/array_lit_durable_thin.o
@@ -169,6 +175,7 @@ if _try_soft_emit "$_du_o" "$_du_x" "$_du_cache"; then
        echo "g05_linux_tip_ufcs_soft: prepended array_lit_durable thin" >&2 ;;
   esac
 fi
+fi  # XLANG_LINUX_DURABLE_SOFT
 
 # --- 10.22: fixed_array_copy thin (TYPE_ARRAY CALL/METHOD return always E*) ---
 # tip-cold A/B: set XLANG_LINUX_FA_ARRAY_SOFT=0 to skip (opt/si CG002 isolation).
@@ -197,6 +204,7 @@ fi  # XLANG_LINUX_FA_ARRAY_SOFT
 # tip-cold L4_END_RC=1 @6e5b: product only had W glue_call_arg_resolve /
 # glue_var_expr_stack_off → opt/si CG002. Hot prepare rebuilt overlays and
 # OPT/SI greened. Cache+prepend so wipe/bootstrap cannot drop them.
+if [ "${XLANG_LINUX_W211_SOFT:-1}" = "1" ]; then
 _w211_cao=build_asm/selfhost_pabi/call_arg_const_off.o
 _w211_cao_x=src/runtime_pipeline_abi_call_arg_const_off_thin.x
 _w211_cao_cache=/tmp/xlang_soft_cache_linux/call_arg_const_off.o
@@ -223,6 +231,7 @@ if _try_soft_emit "$_w211_cvo" "$_w211_cvo_x" "$_w211_cvo_cache"; then
        echo "g05_linux_tip_ufcs_soft: prepended const_var_off (w211)" >&2 ;;
   esac
 fi
+fi  # XLANG_LINUX_W211_SOFT
 
 # --- 10.22: lane_scalar_binop thin (i32x4/f32x4 + lane ADD; assign_index_on_method) ---
 if [ "${XLANG_LINUX_LANE_SCALAR_SOFT:-1}" = "1" ]; then
