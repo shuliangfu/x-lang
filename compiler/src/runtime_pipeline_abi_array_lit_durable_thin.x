@@ -112,7 +112,11 @@ export function glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena: *u8, elf_ct
   }
   if (n_arr == 0) {
     unsafe {
-      return backend_enc_mov_imm64_to_rax_arch(elf_ctx, 0, 0, ta);
+      rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, 0, 0, ta);
+      if (rc < 0) {
+        return 0 - 1;
+      }
+      return 0;
     }
   }
   esz = force_esz;
@@ -236,7 +240,11 @@ export function glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena: *u8, elf_ct
     lea7[5] = ((disp32 >> 16) & 255) as u8;
     lea7[6] = ((disp32 >> 24) & 255) as u8;
     unsafe {
-      return pipeline_elf_ctx_append_bytes(elf_ctx, &lea7[0], 7);
+      rc = pipeline_elf_ctx_append_bytes(elf_ctx, &lea7[0], 7);
+      if (rc < 0) {
+        return 0 - 1;
+      }
+      return 0;
     }
   }
   // COMMON path needs ctx for non-const / large-NAMED
@@ -436,11 +444,19 @@ export function glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena: *u8, elf_ct
       }
       if (ta == 1) {
         unsafe {
-          return glue_asm_lea_rax_common_adrp_arm64(elf_ctx, &label[0], llen);
+          rc = glue_asm_lea_rax_common_adrp_arm64(elf_ctx, &label[0], llen);
+          if (rc < 0) {
+            return 0 - 1;
+          }
+          return 0;
         }
       }
       unsafe {
-        return glue_asm_lea_rax_common_rip_x86(elf_ctx, &label[0], llen);
+        rc = glue_asm_lea_rax_common_rip_x86(elf_ctx, &label[0], llen);
+        if (rc < 0) {
+          return 0 - 1;
+        }
+        return 0;
       }
     }
     // large NAMED bulk
@@ -533,11 +549,19 @@ export function glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena: *u8, elf_ct
     }
     if (ta == 1) {
       unsafe {
-        return glue_asm_lea_rax_common_adrp_arm64(elf_ctx, &label[0], llen);
+        rc = glue_asm_lea_rax_common_adrp_arm64(elf_ctx, &label[0], llen);
+        if (rc < 0) {
+          return 0 - 1;
+        }
+        return 0;
       }
     }
     unsafe {
-      return glue_asm_lea_rax_common_rip_x86(elf_ctx, &label[0], llen);
+      rc = glue_asm_lea_rax_common_rip_x86(elf_ctx, &label[0], llen);
+      if (rc < 0) {
+        return 0 - 1;
+      }
+      return 0;
     }
   }
   // scalar COMMON fill
@@ -605,11 +629,19 @@ export function glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena: *u8, elf_ct
   }
   if (ta == 1) {
     unsafe {
-      return glue_asm_lea_rax_common_adrp_arm64(elf_ctx, &label[0], llen);
+      rc = glue_asm_lea_rax_common_adrp_arm64(elf_ctx, &label[0], llen);
+      if (rc < 0) {
+        return 0 - 1;
+      }
+      return 0;
     }
   }
   unsafe {
-    return glue_asm_lea_rax_common_rip_x86(elf_ctx, &label[0], llen);
+    rc = glue_asm_lea_rax_common_rip_x86(elf_ctx, &label[0], llen);
+    if (rc < 0) {
+      return 0 - 1;
+    }
+    return 0;
   }
   }
 }

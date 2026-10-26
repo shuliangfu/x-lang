@@ -191,7 +191,8 @@ export function glue_emit_one_call_arg_elf_c(arena: *u8, elf_ctx: *u8, call_expr
                     glue_align_next_offset(ctx);
                     elem_ty = pipeline_type_elem_ref_at(arena, pty);
                     esz = glue_array_lit_force_esz_from_elem_type_c(arena, elem_ty);
-                    if (glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, lit, esz, ta, ctx, elem_ty) != 0) {
+                    rc = glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, lit, esz, ta, ctx, elem_ty);
+                    if (rc < 0) {
                       return 0 - 1;
                     }
                     rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta);
