@@ -71,6 +71,8 @@ def patch_obj(path: str, dry: bool = False) -> int:
 DEFAULT_OBJS = [
     "build_asm/selfhost_pabi/one.o",
     "src/asm/backend_call_dispatch.o",
+    # 10.22: call_arg soft replaces OBJS with this redefine/_prev copy; patch must hit it.
+    "build_asm/selfhost_pabi/backend_call_dispatch_ca_prev.o",
     "build_asm/selfhost_pabi/emit_expr_elf_fast_mega.o",
     "build_asm/selfhost_pabi/return_sret.o",
     "build_asm/selfhost_pabi/body_sync_let_order.o",
