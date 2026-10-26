@@ -4235,6 +4235,15 @@ g05_darwin_pabi_thin_sidecar src/runtime_pipeline_abi_dual_gp_byte_size_thin.x \
         "$_oc" --weaken-symbol=_glue_type_size_simple \
           build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
       fi
+      # 10.44: Darwin redefine egg align → __demoted so named_align thin links.
+      if [ -n "$_PABI_NAMED_ALIGN" ]; then
+        if nm -gU build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+          | grep -qE " T _glue_type_align_simple$|weak.*_glue_type_align_simple"; then
+          "$_oc" --redefine-sym=_glue_type_align_simple=_glue_type_align_simple__demoted \
+            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+            && echo "g05_relink_env: 10.44 demoted pabi align_simple (named_align)" >&2 || true
+        fi
+      fi
     fi
   fi
   # w1584: Apple ld has no multidef. Weaken a strong slice-reent sum on
