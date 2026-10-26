@@ -1206,17 +1206,17 @@ case "$UNAME_S" in
       _bodytl=build_asm/selfhost_pabi/pthin_body_tl_tip.o
       mkdir -p build_asm/selfhost_pabi
       _fullc_ok=0
-      if ${CC:-cc} -Wall -O2 -ffunction-sections -fdata-sections \
+      # Keep-global into_slice only (siblings stay LOCAL for its calls).
+      # Do NOT --gc-sections: that drops local helpers and leaves UNDEF.
+      if ${CC:-cc} -Wall -O2 \
            -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
            -c -o "$_fullc.raw.o" seeds/pthin_skip_tl.from_x.c 2>/tmp/g05_pthin_full_c.err; then
         if objcopy --keep-global-symbol=parser_asm_skip_one_trait_into_slice_c \
-             "$_fullc.raw.o" "$_fullc.keep.o" 2>/tmp/g05_pthin_full_c_ld.err \
-          && ld -r --gc-sections -u parser_asm_skip_one_trait_into_slice_c \
-             -o "$_fullc" "$_fullc.keep.o" 2>>/tmp/g05_pthin_full_c_ld.err \
+             "$_fullc.raw.o" "$_fullc" 2>/tmp/g05_pthin_full_c_ld.err \
           && nm -S "$_fullc" 2>/dev/null | grep -qE "T _*parser_asm_skip_one_trait_into_slice_c" \
-          && ! nm "$_fullc" 2>/dev/null | grep -qE "[Tt] _*parser_asm_skip_one_struct_into_slice_c"; then
+          && ! nm "$_fullc" 2>/dev/null | grep -qE "T _*parser_asm_skip_one_struct_into_slice_c"; then
           _isz=$(nm -S "$_fullc" 2>/dev/null | awk "/parser_asm_skip_one_trait_into_slice_c/{print \$2; exit}")
-          echo "g05_relink_env: 10.22 into_slice-only full C size=$_isz (first-wins)" >&2
+          echo "g05_relink_env: 10.22 into_slice-only full C size=$_isz (first-wins, local helpers kept)" >&2
           _PABI_TIP_PEEL="$_fullc $_PABI_TIP_PEEL"
           _fullc_ok=1
         else
