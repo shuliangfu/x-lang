@@ -7919,6 +7919,91 @@ gnl = pipeline_type_named_name_into(arena, pelem, gnm);
               if (eeek >= 0 && pelem != 0) {
                 pgek = pipeline_type_kind_ord_at(arena, pelem);
                 eend = p12g_load_i32(ent, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4);
+                                if (eend == 0) {
+                  // 
+// * dest extras dest-RET extra STAR SLICE-elem
+// * ndims=0 `*[]*T`: leftover after leftover-SLICE
+// * peel is PTR vs eeek=leaf. Extra PTR wrap COUNT
+// * is unused slot dims[0] (1 = `*[]*T`; 2 =
+// * `*[]**T`; 0 = no extra PTR = `*[]i32`). Peel
+// * leftover PTR extra times or T001. Twin of param
+// * leftover eand==0 extra PTR peels. Do not invent
+// * -3. PLATFORM: SHARED. G.7: complete this walk.
+// 
+
+                  
+                  extra_ptr =
+                      p12g_load_i32(ent, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + (0) * 4);
+                  if (extra_ptr > 0) {
+                    while (extra_ptr > 0) {
+                      if (pgek != P12G_TY_PTR || pelem == 0) {
+                        mm = 1;
+                        break;
+                      }
+                      pelem = pipeline_type_elem_ref_at(arena, pelem);
+                      if (pelem == 0) {
+                        mm = 1;
+                        break;
+                      }
+                      pgek = pipeline_type_kind_ord_at(arena, pelem);
+                      extra_ptr = extra_ptr - 1;
+                    }
+                  }
+                }
+                if (eend == p12g_elem_ptr_to_slice_ndims()) {
+                  // 
+// * dest extras dest-RET extra STAR SLICE-elem
+// * ndims=-2 `*[][]*T`: leftover after leftover-
+// * SLICE peel is still SLICE vs eeek=leaf. Extra
+// * SLICE wrap COUNT is dims[0] (0 means 1 =
+// * `*[][]T`; 2 = `*[][][]T`). Extra PTR wrap
+// * COUNT is unused slot dims[1] (1 = `*[][]*T`;
+// * 2 = `*[][]**T`; 0 = no extra PTR = `*[][]T`).
+// * Peel leftover SLICE extra times then leftover
+// * PTR extra times or T001. Twin of param leftover
+// * eand==-2 extra SLICE then extra PTR peels
+// * (`*[][]*T` param already closed). Do not invent
+// * -3. PLATFORM: SHARED. G.7: complete this walk.
+// 
+
+                  
+                  
+                  extra =
+                      p12g_load_i32(ent, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + (0) * 4);
+                  if (extra <= 0) {
+                    extra = 1;
+                    }
+                  while (extra > 0) {
+                    if (pgek != P12G_TY_SLICE || pelem == 0) {
+                      mm = 1;
+                      break;
+                    }
+                    pelem = pipeline_type_elem_ref_at(arena, pelem);
+                    if (pelem == 0) {
+                      mm = 1;
+                      break;
+                    }
+                    pgek = pipeline_type_kind_ord_at(arena, pelem);
+                    extra = extra - 1;
+                  }
+                  extra_ptr =
+                      p12g_load_i32(ent, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + (1) * 4);
+                  if (extra_ptr > 0) {
+                    while (extra_ptr > 0) {
+                      if (pgek != P12G_TY_PTR || pelem == 0) {
+                        mm = 1;
+                        break;
+                      }
+                      pelem = pipeline_type_elem_ref_at(arena, pelem);
+                      if (pelem == 0) {
+                        mm = 1;
+                        break;
+                      }
+                      pgek = pipeline_type_kind_ord_at(arena, pelem);
+                      extra_ptr = extra_ptr - 1;
+                    }
+                  }
+                }
                 if (eend >= 1) {
                   
                   
@@ -7971,89 +8056,6 @@ gnl = pipeline_type_named_name_into(arena, pelem, gnm);
                   if (eend > 0 && eend < 8) {
                     extra_ptr = p12g_load_i32(ent, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + (eend) * 4);
                     }
-                  if (extra_ptr > 0) {
-                    while (extra_ptr > 0) {
-                      if (pgek != P12G_TY_PTR || pelem == 0) {
-                        mm = 1;
-                        break;
-                      }
-                      pelem = pipeline_type_elem_ref_at(arena, pelem);
-                      if (pelem == 0) {
-                        mm = 1;
-                        break;
-                      }
-                      pgek = pipeline_type_kind_ord_at(arena, pelem);
-                      extra_ptr = extra_ptr - 1;
-                    }
-                  }
-                } if (eend == 0) {
-                  // 
-// * dest extras dest-RET extra STAR SLICE-elem
-// * ndims=0 `*[]*T`: leftover after leftover-SLICE
-// * peel is PTR vs eeek=leaf. Extra PTR wrap COUNT
-// * is unused slot dims[0] (1 = `*[]*T`; 2 =
-// * `*[]**T`; 0 = no extra PTR = `*[]i32`). Peel
-// * leftover PTR extra times or T001. Twin of param
-// * leftover eand==0 extra PTR peels. Do not invent
-// * -3. PLATFORM: SHARED. G.7: complete this walk.
-// 
-
-                  
-                  extra_ptr =
-                      p12g_load_i32(ent, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + (0) * 4);
-                  if (extra_ptr > 0) {
-                    while (extra_ptr > 0) {
-                      if (pgek != P12G_TY_PTR || pelem == 0) {
-                        mm = 1;
-                        break;
-                      }
-                      pelem = pipeline_type_elem_ref_at(arena, pelem);
-                      if (pelem == 0) {
-                        mm = 1;
-                        break;
-                      }
-                      pgek = pipeline_type_kind_ord_at(arena, pelem);
-                      extra_ptr = extra_ptr - 1;
-                    }
-                  }
-                } else if (eend == p12g_elem_ptr_to_slice_ndims()) {
-                  // 
-// * dest extras dest-RET extra STAR SLICE-elem
-// * ndims=-2 `*[][]*T`: leftover after leftover-
-// * SLICE peel is still SLICE vs eeek=leaf. Extra
-// * SLICE wrap COUNT is dims[0] (0 means 1 =
-// * `*[][]T`; 2 = `*[][][]T`). Extra PTR wrap
-// * COUNT is unused slot dims[1] (1 = `*[][]*T`;
-// * 2 = `*[][]**T`; 0 = no extra PTR = `*[][]T`).
-// * Peel leftover SLICE extra times then leftover
-// * PTR extra times or T001. Twin of param leftover
-// * eand==-2 extra SLICE then extra PTR peels
-// * (`*[][]*T` param already closed). Do not invent
-// * -3. PLATFORM: SHARED. G.7: complete this walk.
-// 
-
-                  
-                  
-                  extra =
-                      p12g_load_i32(ent, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + (0) * 4);
-                  if (extra <= 0) {
-                    extra = 1;
-                    }
-                  while (extra > 0) {
-                    if (pgek != P12G_TY_SLICE || pelem == 0) {
-                      mm = 1;
-                      break;
-                    }
-                    pelem = pipeline_type_elem_ref_at(arena, pelem);
-                    if (pelem == 0) {
-                      mm = 1;
-                      break;
-                    }
-                    pgek = pipeline_type_kind_ord_at(arena, pelem);
-                    extra = extra - 1;
-                  }
-                  extra_ptr =
-                      p12g_load_i32(ent, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + (1) * 4);
                   if (extra_ptr > 0) {
                     while (extra_ptr > 0) {
                       if (pgek != P12G_TY_PTR || pelem == 0) {
@@ -8248,6 +8250,67 @@ gnl = pipeline_type_named_name_into(arena, leaf_tr, gnm);
               if (eeek >= 0 && pelem != 0) {
                 pgek = pipeline_type_kind_ord_at(arena, pelem);
                 eend = p12g_load_i32(ent, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4);
+                if (eend == 0) {
+                  // tip x86: hoist eend==0 BEFORE ARRAY&&eend>0 — trailing if is dropped.
+                  // 
+// * dest extras dest-RET extra STAR PTR-elem
+// * ndims=0 `***T` AND dest extras dest-RET extra
+// * empty `[]` PTR-elem ndims=0 `**[]T`: leftover
+// * after leftover-PTR peel is PTR / SLICE vs
+// * eeek=leaf. Extra SLICE wrap COUNT is unused
+// * slot dims[0] (1 = `**[]T`; 2 = `**[][]T`; 0 =
+// * no extra SLICE = `**T` / `***T`). Extra PTR
+// * wrap COUNT is unused slot dims[1] (1 = `***T`;
+// * 2 = `****T`; 0 = no extra PTR = `**T`; both
+// * slots = `**[]*T`). Peel leftover SLICE extra
+// * times then leftover PTR extra times or T001.
+// * leftover skip eek=-1 was false green of extra
+// * empty `[]` PTR-elem ndims=0 (impl `**i32` vs
+// * trait `**[]i32` compile=0; dest-stamp via the
+// * local of typed dest = false green even Ubuntu).
+// * Twin of leftover eek==SLICE eend==0 extra PTR
+// * peels and leftover eek==PTR ndims>=1 extra
+// * SLICE-then-PTR peels. Do not invent -3.
+// * PLATFORM: SHARED. G.7: complete this walk.
+// 
+
+                  
+                  
+                  extra_slice =
+                      p12g_load_i32(ent, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + (0) * 4);
+                  if (extra_slice > 0) {
+                    while (extra_slice > 0) {
+                      if (pgek != P12G_TY_SLICE || pelem == 0) {
+                        mm = 1;
+                        break;
+                      }
+                      pelem = pipeline_type_elem_ref_at(arena, pelem);
+                      if (pelem == 0) {
+                        mm = 1;
+                        break;
+                      }
+                      pgek = pipeline_type_kind_ord_at(arena, pelem);
+                      extra_slice = extra_slice - 1;
+                    }
+                  }
+                  extra_ptr =
+                      p12g_load_i32(ent, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + (1) * 4);
+                  if (extra_ptr > 0) {
+                    while (extra_ptr > 0) {
+                      if (pgek != P12G_TY_PTR || pelem == 0) {
+                        mm = 1;
+                        break;
+                      }
+                      pelem = pipeline_type_elem_ref_at(arena, pelem);
+                      if (pelem == 0) {
+                        mm = 1;
+                        break;
+                      }
+                      pgek = pipeline_type_kind_ord_at(arena, pelem);
+                      extra_ptr = extra_ptr - 1;
+                    }
+                  }
+                }
                 if (pgek == P12G_TY_ARRAY && eend > 0) {
                   
                   
@@ -8300,66 +8363,6 @@ gnl = pipeline_type_named_name_into(arena, leaf_tr, gnm);
                   if (eend > 0 && eend + 1 < 8) {
                     extra_ptr = p12g_load_i32(ent, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + (eend + 1) * 4);
                     }
-                  if (extra_ptr > 0) {
-                    while (extra_ptr > 0) {
-                      if (pgek != P12G_TY_PTR || pelem == 0) {
-                        mm = 1;
-                        break;
-                      }
-                      pelem = pipeline_type_elem_ref_at(arena, pelem);
-                      if (pelem == 0) {
-                        mm = 1;
-                        break;
-                      }
-                      pgek = pipeline_type_kind_ord_at(arena, pelem);
-                      extra_ptr = extra_ptr - 1;
-                    }
-                  }
-                } if (eend == 0) {
-                  // tip x86: keep as plain if (not else-if) so ndims=0 ***T dims[1] peel is emitted.
-                  // 
-// * dest extras dest-RET extra STAR PTR-elem
-// * ndims=0 `***T` AND dest extras dest-RET extra
-// * empty `[]` PTR-elem ndims=0 `**[]T`: leftover
-// * after leftover-PTR peel is PTR / SLICE vs
-// * eeek=leaf. Extra SLICE wrap COUNT is unused
-// * slot dims[0] (1 = `**[]T`; 2 = `**[][]T`; 0 =
-// * no extra SLICE = `**T` / `***T`). Extra PTR
-// * wrap COUNT is unused slot dims[1] (1 = `***T`;
-// * 2 = `****T`; 0 = no extra PTR = `**T`; both
-// * slots = `**[]*T`). Peel leftover SLICE extra
-// * times then leftover PTR extra times or T001.
-// * leftover skip eek=-1 was false green of extra
-// * empty `[]` PTR-elem ndims=0 (impl `**i32` vs
-// * trait `**[]i32` compile=0; dest-stamp via the
-// * local of typed dest = false green even Ubuntu).
-// * Twin of leftover eek==SLICE eend==0 extra PTR
-// * peels and leftover eek==PTR ndims>=1 extra
-// * SLICE-then-PTR peels. Do not invent -3.
-// * PLATFORM: SHARED. G.7: complete this walk.
-// 
-
-                  
-                  
-                  extra_slice =
-                      p12g_load_i32(ent, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + (0) * 4);
-                  if (extra_slice > 0) {
-                    while (extra_slice > 0) {
-                      if (pgek != P12G_TY_SLICE || pelem == 0) {
-                        mm = 1;
-                        break;
-                      }
-                      pelem = pipeline_type_elem_ref_at(arena, pelem);
-                      if (pelem == 0) {
-                        mm = 1;
-                        break;
-                      }
-                      pgek = pipeline_type_kind_ord_at(arena, pelem);
-                      extra_slice = extra_slice - 1;
-                    }
-                  }
-                  extra_ptr =
-                      p12g_load_i32(ent, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + (1) * 4);
                   if (extra_ptr > 0) {
                     while (extra_ptr > 0) {
                       if (pgek != P12G_TY_PTR || pelem == 0) {
