@@ -75,10 +75,10 @@ export extern function glue_emit_soa_index_field_addr_elf_c(
  * @param elf_ctx *u8 - codegen context; null returns -1
  * @param expr_ref i32 - lvalue expr; <=0 returns -1
  * @param ctx *u8 - function asm context; null returns -1
- * @param ta i32 - target arch; the call spill runs only for ta == 1
+ * @param ta i32 - 0 x86_64 SysV, 1 arm64; call spill runs for both
  * @return i32 - 0 when x0 holds the address; -1 on failure
- * PLATFORM: SHARED for VAR, FIELD, DEREF, and INDEX.
- * The call spill is MACOS|ARM64.
+ * PLATFORM: SHARED for VAR, FIELD, DEREF, INDEX, and CALL/METHOD spill.
+ * CALL/METHOD spill: MACOS|ARM64 · LINUX x86_64 SysV.
  */
 #[no_mangle]
 export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -218,7 +218,7 @@ export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8
     // f32 TYPE_VECTOR uses that same pair. A kind-13 vector wider
     // than 16 stays out.
     // f32 (14) is in s0, not x0. f64 (15) is in d0, not x0.
-    // PLATFORM: MACOS|ARM64. ta != 1 returns -1.
+    // PLATFORM: MACOS|ARM64 · LINUX x86_64 SysV.
     let call_op: i32 = 0;
     if (k == 48) {
       call_op = 1;
@@ -227,7 +227,7 @@ export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8
       call_op = 1;
     }
     if (call_op != 0) {
-      if (ta == 1) {
+      if (ta == 0 || ta == 1) {
         let tr: i32 = pipeline_expr_resolved_type_ref(arena, expr_ref);
         let trk: i32 = 0;
         let sz: i32 = 0;
