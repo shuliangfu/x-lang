@@ -2,7 +2,7 @@
 # g05_linux_tip_ufcs_soft.sh — tip-cold Linux: UFCS soft + lex stub + ELF retarget peel.
 # Source from g05_relink_env after typeck peel+10.37 demote (cwd=compiler/).
 # Sets: _G05_TYPECK_X_O=retarget peel; prepends soft+stub to _PABI_TIP_PEEL.
-# PLATFORM: LINUX|x86_64 tip. CGB soft omitted (bound_method SEGV).
+# PLATFORM: LINUX|x86_64 tip. generic_bound soft on (bound_method T001; was SEGV-omit).
 # Soft emit needs a tip-capable host (bootstrap often CG002); if emit fails and
 # no prior .o, SKIP UFCS (return 0) so tip-cold can finish; hot-apply after.
 set -e
@@ -119,6 +119,44 @@ _try_soft_emit() {
   done
   return 1
 }
+
+# --- 10.22: method_call_resolve_generic_bound soft (bound_method / Clone) ---
+# Cap tip already first-wins this soft; Linux tip previously omitted (SEGV fear).
+# Hot@2b680827c: bound_method{,_self} T001 no-impl clone — wire soft like UFCS.
+if [ "${XLANG_LINUX_GENERIC_BOUND_SOFT:-1}" = "1" ]; then
+_gb_o=build_asm/selfhost_pabi/typeck_method_call_resolve_generic_bound_soft.o
+_gb_x=src/typeck/typeck_method_call_resolve_generic_bound_soft.x
+_gb_cache=/tmp/xlang_soft_cache_linux/typeck_method_call_resolve_generic_bound_soft.o
+if [ -s "$_gb_cache" ] && [ -f "$_gb_x" ] && [ "$_gb_x" -nt "$_gb_cache" ]; then
+  rm -f "$_gb_cache" "$_gb_o"
+fi
+if _try_soft_emit "$_gb_o" "$_gb_x" "$_gb_cache"; then
+  _peel_gb="${_G05_TYPECK_X_O:-}"
+  if [ -s "$_peel_gb" ] && nm "$_peel_gb" 2>/dev/null | awk '/ [T] /{print $NF}' | grep -qxF typeck_method_call_resolve_generic_bound; then
+    _dem_gb=/tmp/g05_linux_gb_peel_demote_$$.o
+    _rt_gb=build_asm/selfhost_pabi/typeck_x_generic_bound_soft_retarget.o
+    cp -f "$_peel_gb" "$_dem_gb"
+    if "$_oc" --redefine-sym=typeck_method_call_resolve_generic_bound=typeck_method_call_resolve_generic_bound_mega "$_dem_gb" \
+      && python3 scripts/g05_elf_retarget_soft_syms.py "$_dem_gb" "$_rt_gb" \
+           typeck_method_call_resolve_generic_bound_mega=typeck_method_call_resolve_generic_bound; then
+      rm -f "$_dem_gb"
+      _G05_TYPECK_X_O="$_rt_gb"
+      export _G05_TYPECK_X_O
+      echo "g05_linux_tip_ufcs_soft: generic_bound peel retarget=$_rt_gb" >&2
+    else
+      echo "g05_linux_tip_ufcs_soft: WARN generic_bound demote/retarget failed; soft prepend only" >&2
+      rm -f "$_dem_gb"
+    fi
+  else
+    echo "g05_linux_tip_ufcs_soft: WARN peel missing T resolve_generic_bound; soft prepend only" >&2
+  fi
+  case " ${_PABI_TIP_PEEL:-} " in
+    *" typeck_method_call_resolve_generic_bound_soft.o "*) ;;
+    *) _PABI_TIP_PEEL="$_gb_o ${_PABI_TIP_PEEL:-}"; export _PABI_TIP_PEEL
+       echo "g05_linux_tip_ufcs_soft: prepended resolve_generic_bound soft" >&2 ;;
+  esac
+fi
+fi  # XLANG_LINUX_GENERIC_BOUND_SOFT
 
 if _try_soft_emit "$_ri_o" "$_ri_x" "$_ri_cache"; then
   case " ${_PABI_TIP_PEEL:-} " in

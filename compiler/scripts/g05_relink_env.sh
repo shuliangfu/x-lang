@@ -1121,7 +1121,7 @@ case "$UNAME_S" in
         _PABI_TIP_PEEL="$_1037_tramp $_PABI_TIP_PEEL"
         echo "g05_relink_env: 10.37 Linux tip peel+trampoline" >&2
         # 10.22: UFCS soft on tip (impl_bound*); ELF retarget peel call sites.
-        # PLATFORM: LINUX tip. CGB soft intentionally omitted (bound_method SEGV).
+        # PLATFORM: LINUX tip. UFCS + generic_bound soft (bound_method T001).
         _ufcs_soft=""
         for _ufcs_cand in scripts/g05_linux_tip_ufcs_soft.sh \
                           compiler/scripts/g05_linux_tip_ufcs_soft.sh \
