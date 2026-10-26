@@ -2997,7 +2997,17 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             && bash scripts/ensure_host_cc_seed_o.sh pthin-skip-tl-pure "$_pthin_p12b_thin_o"; then
             _pthin_p12b_pure=1
           fi
-          if { [ "$_pthin_p12b_pure" = "1" ] \
+          # 10.22: Linux tip method_sig is truncated; archive has no separate
+          # method_sig — BODIES trampoline calls tip. Keep Linux on full C
+          # into_slice (dest-RET). Darwin keeps w1154 pure. PLATFORM: LINUX.
+          _linux_skip_pthin_tip=0
+          if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Linux" ]; then
+            _linux_skip_pthin_tip=1
+            echo "g05_ensure: 10.22 Linux skip_tl tip deferred; full C twin (no BODIES)" >&2
+          fi
+          if [ "$_linux_skip_pthin_tip" = "1" ]; then
+            :
+          elif { [ "$_pthin_p12b_pure" = "1" ] \
             || G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p12b_x" "$_pthin_p12b_thin_o"; }; then
             _pthin_p12b_ok=1
             _pthin_p12_extra="-DXLANG_PTHIN_SKIP_TL_BODIES_FROM_X"

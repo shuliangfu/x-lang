@@ -1195,54 +1195,12 @@ case "$UNAME_S" in
         echo "g05_relink_env: ERROR rt_fmt_one tip-peel missing (note743y.6.10)" >&2
         exit 1
       fi
-      # 10.22: Tip-compile pthin_skip_tl.x with CURRENT product (not pin-egg).
-      # Other tip symbols prepend first-wins; tip trait body/header/method_sig
-      # redefined away so thin_glue C twins win (tip method_sig ~12KB truncated;
-      # tip body hard-calls it). PLATFORM: LINUX.
-      _pthin_o=build_asm/selfhost_pabi/pthin_skip_tl.o
-      mkdir -p build_asm/selfhost_pabi
-      _pthin_ok=0
-      for _pthin_bin in ./xlang_asm ./xlang ./xlang.restored_1952; do
-        [ -x "$_pthin_bin" ] || continue
-        rm -f "$_pthin_o.tmp.o"
-        if "$_pthin_bin" -backend asm -c src/asm/pthin_skip_tl.x -o "$_pthin_o.tmp.o" >/dev/null 2>&1 \
-          && nm "$_pthin_o.tmp.o" 2>/dev/null | grep -qE "T _*parser_asm_skip_one_trait_method_sig_into_c\$"; then
-          mv -f "$_pthin_o.tmp.o" "$_pthin_o"
-          # 10.22: product tip emits method_sig ~12KB vs C twin ~54KB (archive
-          # dest-RET). Tip trait_body hard-calls tip method_sig — renaming only
-          # method_sig leaves body calling the truncated dead stub. Drop tip
-          # trait_body (+ header/method_sig) so thin_glue C twins win and call
-          # full dest-RET method_sig. Keep other tip pthin symbols. PLATFORM: LINUX.
-          if command -v objcopy >/dev/null 2>&1; then
-            for _ts in \
-              parser_asm_skip_one_trait_method_sig_into_c \
-              parser_asm_skip_one_trait_body_into_c \
-              parser_asm_skip_one_trait_header_into_c \
-              xlang_skip_trait_check_ret_shape_x_into_c
-            do
-              objcopy --redefine-sym "$_ts=__tip_dead_$_ts" "$_pthin_o" 2>/dev/null \
-                || objcopy --redefine-sym "_$_ts=__tip_dead_$_ts" "$_pthin_o" 2>/dev/null \
-                || true
-            done
-            unset _ts
-            if nm "$_pthin_o" 2>/dev/null | grep -qE "T _*(parser_asm_skip_one_trait_(method_sig|body|header)_into_c|xlang_skip_trait_check_ret_shape_x_into_c)\$"; then
-              echo "g05_relink_env: WARN tip trait skip_* still live after redefine" >&2
-            else
-              echo "g05_relink_env: 10.22 tip trait body/header/method_sig/ret_shape→C twin" >&2
-            fi
-          fi
-          _pthin_ok=1
-          echo "g05_relink_env: 10.22 tip-peel pthin_skip_tl via $_pthin_bin (method_sig→C twin)" >&2
-          break
-        fi
-        rm -f "$_pthin_o.tmp.o"
-      done
-      if [ "$_pthin_ok" != "1" ] || [ ! -f "$_pthin_o" ]; then
-        echo "g05_relink_env: ERROR 10.22 pthin_skip_tl product tip-peel missing" >&2
-        exit 1
-      fi
-      _PABI_TIP_PEEL="$_pthin_o $_PABI_TIP_PEEL"
-      unset _pthin_o _pthin_ok _pthin_bin
+      # 10.22: Do NOT tip-peel pthin_skip_tl on Linux. Tip method_sig is
+      # truncated; glue "W method_sig" under BODIES is the same tip weak
+      # (G05_X_O_WEAK), not archive C (archive has no method_sig — full
+      # dest-RET lives in skip_one_trait_into_slice_c when BODIES is off).
+      # ensure skips Linux tip → full C twin. PLATFORM: LINUX.
+      echo "g05_relink_env: 10.22 skip pthin tip-peel; full C into_slice (no BODIES)" >&2
       _PABI_TIP_PEEL="$(echo $_PABI_TIP_PEEL | tr -s ' ')"
       if [ -n "$_PABI_TIP_PEEL" ]; then
         echo "g05_relink_env: Linux tip-peel overlays ($(echo $_PABI_TIP_PEEL | wc -w | tr -d ' ') objs)" >&2
