@@ -4251,6 +4251,22 @@ g05_darwin_pabi_thin_sidecar src/runtime_pipeline_abi_dual_gp_byte_size_thin.x \
             && echo "g05_relink_env: 10.44 demoted pabi align_simple (named_align)" >&2 || true
         fi
       fi
+      # 10.44: Darwin weaken layout offset faces so struct_layout_offset thin wins.
+      if [ -n "$_PABI_LAYOUT_OFF" ]; then
+        for _lo_sym in \
+          _glue_struct_layout_compute_field_offset_c \
+          _pipeline_struct_layout_next_field_offset_ex \
+          _pipeline_struct_layout_next_field_offset \
+          _glue_sync_struct_layout_field_offsets_c
+        do
+          if nm -gU build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+            | grep -qE " T ${_lo_sym}$"; then
+            "$_oc" --weaken-symbol="$_lo_sym" \
+              build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+          fi
+        done
+        echo "g05_relink_env: 10.44 weakened pabi_weak layout offset faces" >&2
+      fi
     fi
   fi
   # w1584: Apple ld has no multidef. Weaken a strong slice-reent sum on

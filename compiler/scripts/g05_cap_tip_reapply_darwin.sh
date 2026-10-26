@@ -147,6 +147,24 @@ if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
   fi
 fi
 
+# 10.44: weaken pabi_weak layout offset faces so struct_layout_offset thin wins (Apple ld).
+if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
+  && [ -s build_asm/selfhost_pabi/struct_layout_offset.o ]; then
+  for _lo_sym in \
+    _glue_struct_layout_compute_field_offset_c \
+    _pipeline_struct_layout_next_field_offset_ex \
+    _pipeline_struct_layout_next_field_offset \
+    _glue_sync_struct_layout_field_offsets_c
+  do
+    if nm -gU build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+      | grep -qE " T ${_lo_sym}$"; then
+      "$OC" --weaken-symbol="$_lo_sym" \
+        build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+    fi
+  done
+  echo "g05_cap_tip_reapply: 10.44 weakened pabi_weak layout offset faces" >&2
+fi
+
 
 
 # knife256/10.2: pabi_weak typeck_x_type_size_from_layout_glue is a hollow
