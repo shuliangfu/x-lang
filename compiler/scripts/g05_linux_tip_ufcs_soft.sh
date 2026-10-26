@@ -166,6 +166,8 @@ if _try_soft_emit "$_du_o" "$_du_x" "$_du_cache"; then
 fi
 
 # --- 10.22: fixed_array_copy thin (TYPE_ARRAY CALL/METHOD return always E*) ---
+# tip-cold A/B: set XLANG_LINUX_FA_ARRAY_SOFT=0 to skip (opt/si CG002 isolation).
+if [ "${XLANG_LINUX_FA_ARRAY_SOFT:-1}" = "1" ]; then
 # Darwin Cap tip first-wins fa_array_lit_a64.o; Linux tip product only had
 # weak archive fa_array_lit_into_rbx + old emit_return_elf_impl (8B load-rax).
 # Tip-compile this SHARED thin and prepend; g05_relink weakens return_sret/two.
@@ -183,6 +185,7 @@ if _try_soft_emit "$_fa_o" "$_fa_x" "$_fa_cache"; then
        echo "g05_linux_tip_ufcs_soft: prepended fa_array_lit thin (E*)" >&2 ;;
   esac
 fi
+fi  # XLANG_LINUX_FA_ARRAY_SOFT
 
 
 # --- 10.22: w211 const off thins (tip-cold must keep T resolve/var_off) ---
@@ -217,6 +220,7 @@ if _try_soft_emit "$_w211_cvo" "$_w211_cvo_x" "$_w211_cvo_cache"; then
 fi
 
 # --- 10.22: lane_scalar_binop thin (i32x4/f32x4 + lane ADD; assign_index_on_method) ---
+if [ "${XLANG_LINUX_LANE_SCALAR_SOFT:-1}" = "1" ]; then
 _ls_o=build_asm/selfhost_pabi/lane_scalar_binop_linux.o
 _ls_x=src/runtime_pipeline_abi_lane_scalar_binop_thin.x
 _ls_cache=/tmp/xlang_soft_cache_linux/lane_scalar_binop_linux.o
@@ -230,4 +234,5 @@ if _try_soft_emit "$_ls_o" "$_ls_x" "$_ls_cache"; then
        echo "g05_linux_tip_ufcs_soft: prepended lane_scalar_binop thin" >&2 ;;
   esac
 fi
+fi  # XLANG_LINUX_LANE_SCALAR_SOFT
 
