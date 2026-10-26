@@ -1195,12 +1195,47 @@ case "$UNAME_S" in
         echo "g05_relink_env: ERROR rt_fmt_one tip-peel missing (note743y.6.10)" >&2
         exit 1
       fi
-      # 10.22: Do NOT tip-peel pthin_skip_tl on Linux. Tip method_sig is
-      # truncated; glue "W method_sig" under BODIES is the same tip weak
-      # (G05_X_O_WEAK), not archive C (archive has no method_sig — full
-      # dest-RET lives in skip_one_trait_into_slice_c when BODIES is off).
-      # ensure skips Linux tip → full C twin. PLATFORM: LINUX.
-      echo "g05_relink_env: 10.22 skip pthin tip-peel; full C into_slice (no BODIES)" >&2
+      # 10.22: Class CB / BODIES trampoline into_slice is ~0x30e and calls
+      # truncated tip method_sig. Archive has no separate method_sig; full
+      # dest-RET lives in cold into_slice (~0x51ca). Host-cc full twin (no
+      # BODIES), kill trampoline (+ tip trait faces) on thin_glue, prepend
+      # full C so into_slice wins. PLATFORM: LINUX.
+      _fullc=build_asm/selfhost_pabi/pthin_skip_tl_full_c.o
+      mkdir -p build_asm/selfhost_pabi
+      _fullc_ok=0
+      if ${CC:-cc} -Wall -O2 -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
+           -c -o "$_fullc" seeds/pthin_skip_tl.from_x.c 2>/tmp/g05_pthin_full_c.err; then
+        if nm -S "$_fullc" 2>/dev/null | grep -qE "T _*parser_asm_skip_one_trait_into_slice_c"; then
+          _isz=$(nm -S "$_fullc" 2>/dev/null | awk "/parser_asm_skip_one_trait_into_slice_c/{print \$2; exit}")
+          echo "g05_relink_env: 10.22 full C into_slice size=$_isz" >&2
+          if [ -f parser_asm_thin_glue.o ] && command -v objcopy >/dev/null 2>&1; then
+            for _ts in \
+              parser_asm_skip_one_trait_into_slice_c \
+              parser_asm_skip_one_trait_method_sig_into_c \
+              parser_asm_skip_one_trait_body_into_c \
+              parser_asm_skip_one_trait_header_into_c \
+              xlang_skip_trait_check_ret_shape_x_into_c \
+              xlang_skip_trait_check_param_shape_x_into_c
+            do
+              objcopy --redefine-sym "$_ts=__glue_dead_$_ts" parser_asm_thin_glue.o 2>/dev/null \
+                || objcopy --redefine-sym "_$_ts=__glue_dead_$_ts" parser_asm_thin_glue.o 2>/dev/null \
+                || true
+            done
+            unset _ts
+          fi
+          _PABI_TIP_PEEL="$_fullc $_PABI_TIP_PEEL"
+          _fullc_ok=1
+          echo "g05_relink_env: 10.22 prepend full C skip_tl (into_slice over trampoline)" >&2
+        fi
+      else
+        echo "g05_relink_env: WARN full C skip_tl host-cc failed" >&2
+        tail -5 /tmp/g05_pthin_full_c.err >&2 || true
+      fi
+      if [ "$_fullc_ok" != "1" ]; then
+        echo "g05_relink_env: ERROR 10.22 full C into_slice overlay missing" >&2
+        exit 1
+      fi
+      unset _fullc _fullc_ok _isz
       _PABI_TIP_PEEL="$(echo $_PABI_TIP_PEEL | tr -s ' ')"
       if [ -n "$_PABI_TIP_PEEL" ]; then
         echo "g05_relink_env: Linux tip-peel overlays ($(echo $_PABI_TIP_PEEL | wc -w | tr -d ' ') objs)" >&2
