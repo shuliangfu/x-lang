@@ -540,19 +540,26 @@ if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
     export XLANG_G05_LINUX_FORCE_U_LANE_SCALAR=1
   fi
 
-  # 10.22: fa_array_lit thin — weaken competing emit_return_elf_impl + fa_array W
+  # 10.22: fa_array_lit thin — first-win ONLY fa_array_lit_into_rbx (+struct store).
+  # Do NOT let thin pipeline_asm_emit_return_elf_impl beat egg/return_sret: tip-cold
+  # Track-L typeck + thin emit_return → opt/si CG002 (L4_END_RC=1 @9fcbea). Cap tip
+  # can keep thin emit_return; Linux tip-cold needs egg emit_return for Option/stdlib.
   if [ -n "$_g05_oc" ] \
     && printf "%s" " $OBJS " | grep -Eq "(^|[[:space:]/])fa_array_lit_linux\.o([[:space:]]|$)"; then
+    # Demote thin emit_return so egg/return_sret stays T
+    if [ -s build_asm/selfhost_pabi/fa_array_lit_linux.o ]; then
+      if nm build_asm/selfhost_pabi/fa_array_lit_linux.o 2>/dev/null | grep -Eq " T pipeline_asm_emit_return_elf_impl$"; then
+        "$_g05_oc" --weaken-symbol=pipeline_asm_emit_return_elf_impl \
+          build_asm/selfhost_pabi/fa_array_lit_linux.o 2>/dev/null \
+          && echo "g05_relink_xlang: 10.22 Linux weaken fa_array thin emit_return (egg wins)" >&2 \
+          || true
+      fi
+    fi
     for _fa_pw in build_asm/selfhost_pabi/return_sret.o \
                   build_asm/selfhost_pabi/two.o \
                   build_asm/selfhost_pabi/pabi_weak.o \
                   src/runtime_pipeline_abi.o; do
       [ -s "$_fa_pw" ] || continue
-      if nm "$_fa_pw" 2>/dev/null | grep -Eq " T pipeline_asm_emit_return_elf_impl$"; then
-        "$_g05_oc" --weaken-symbol=pipeline_asm_emit_return_elf_impl "$_fa_pw" 2>/dev/null \
-          && echo "g05_relink_xlang: 10.22 Linux weaken $_fa_pw emit_return (fa_array wins)" >&2 \
-          || true
-      fi
       if nm "$_fa_pw" 2>/dev/null | grep -Eq " [TW] fa_array_lit_into_rbx$"; then
         "$_g05_oc" --weaken-symbol=fa_array_lit_into_rbx "$_fa_pw" 2>/dev/null \
           && echo "g05_relink_xlang: 10.22 Linux weaken $_fa_pw fa_array_lit" >&2 \
@@ -567,15 +574,15 @@ if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
         esac
       fi
     done
-    # Also scan OBJS for other strong emit_return (except fa_array thin)
+    # Scan OBJS: weaken rival fa_array_lit_into_rbx only (never emit_return on egg)
     for _fa_o in $OBJS; do
       case "$(basename "$_fa_o")" in
         fa_array_lit_linux.o) continue ;;
       esac
       [ -s "$_fa_o" ] || continue
-      if nm "$_fa_o" 2>/dev/null | grep -Eq " T pipeline_asm_emit_return_elf_impl$"; then
-        "$_g05_oc" --weaken-symbol=pipeline_asm_emit_return_elf_impl "$_fa_o" 2>/dev/null \
-          && echo "g05_relink_xlang: 10.22 Linux weaken $_fa_o emit_return T→W" >&2 \
+      if nm "$_fa_o" 2>/dev/null | grep -Eq " T fa_array_lit_into_rbx$"; then
+        "$_g05_oc" --weaken-symbol=fa_array_lit_into_rbx "$_fa_o" 2>/dev/null \
+          && echo "g05_relink_xlang: 10.22 Linux weaken $_fa_o fa_array_lit T→W" >&2 \
           || true
       fi
     done
@@ -747,8 +754,8 @@ run_g05_pure_ld_required() {
       echo "g05_relink_xlang: 10.22 Linux -u durable_ptr (keep thin)" >&2
     fi
     if [ "${XLANG_G05_LINUX_FORCE_U_FA_ARRAY:-0}" = "1" ]; then
-      extra="$extra -u pipeline_asm_emit_return_elf_impl -u fa_array_lit_into_rbx"
-      echo "g05_relink_xlang: 10.22 Linux -u emit_return+fa_array (keep E* thin)" >&2
+      extra="$extra -u fa_array_lit_into_rbx"
+      echo "g05_relink_xlang: 10.22 Linux -u fa_array_lit (egg emit_return; thin helper)" >&2
     fi
     if [ "${XLANG_G05_LINUX_FORCE_U_LANE_SCALAR:-0}" = "1" ]; then
       extra="$extra -u glue_emit_vector_lane_scalar_binop_elf_c"
