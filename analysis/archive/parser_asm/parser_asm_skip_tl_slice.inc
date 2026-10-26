@@ -957,6 +957,24 @@ typedef struct {
   int32_t method_param_elem_elem_kinds[XLANG_SKIP_TRAIT_METH_MAX][XLANG_SKIP_TRAIT_PARAM_MAX];
   int32_t num_methods;
 } xlang_skip_trait_reg_ent_t;
+/* Linux into_slice-only overlay: XLANG_SKIP_TRAIT_REG_EXTERN → use tip/thin_glue
+ * BSS (static here would be a second private table → unknown trait). */
+#if defined(XLANG_SKIP_TRAIT_REG_EXTERN)
+extern xlang_skip_trait_reg_ent_t g_xlang_skip_trait_reg[XLANG_SKIP_TRAIT_REG_MAX];
+extern int32_t g_xlang_skip_trait_reg_n;
+extern uint8_t g_xlang_skip_impl_trait[XLANG_SKIP_IMPL_SEEN_MAX][64];
+extern int32_t g_xlang_skip_impl_trait_len[XLANG_SKIP_IMPL_SEEN_MAX];
+extern int32_t g_xlang_skip_impl_seen_n;
+extern int32_t g_xlang_skip_impl_line[XLANG_SKIP_IMPL_SEEN_MAX];
+extern int32_t g_xlang_skip_impl_col[XLANG_SKIP_IMPL_SEEN_MAX];
+/* wave428: for-type of `impl Trait for T` (T may be *U). -1 kind = not captured. */
+extern int32_t g_xlang_skip_impl_for_kinds[XLANG_SKIP_IMPL_SEEN_MAX];
+extern int32_t g_xlang_skip_impl_for_is_ptr[XLANG_SKIP_IMPL_SEEN_MAX];
+extern uint8_t g_xlang_skip_impl_for_names[XLANG_SKIP_IMPL_SEEN_MAX][64];
+extern int32_t g_xlang_skip_impl_for_name_lens[XLANG_SKIP_IMPL_SEEN_MAX];
+/* wave425: arena stashed at reset so check can ord return_type_ref without API churn. */
+extern void *g_xlang_trait_check_arena;
+#else
 static xlang_skip_trait_reg_ent_t g_xlang_skip_trait_reg[XLANG_SKIP_TRAIT_REG_MAX];
 static int32_t g_xlang_skip_trait_reg_n;
 static uint8_t g_xlang_skip_impl_trait[XLANG_SKIP_IMPL_SEEN_MAX][64];
@@ -971,6 +989,7 @@ static uint8_t g_xlang_skip_impl_for_names[XLANG_SKIP_IMPL_SEEN_MAX][64];
 static int32_t g_xlang_skip_impl_for_name_lens[XLANG_SKIP_IMPL_SEEN_MAX];
 /* wave425: arena stashed at reset so check can ord return_type_ref without API churn. */
 static void *g_xlang_trait_check_arena;
+#endif
 
 /**
  * Map builtin type token → TypeKind ordinal (align PARSER_ASM_TYPE_* / ast TypeKind).
@@ -1085,8 +1104,13 @@ int32_t xlang_generic_bound_diag_not_impl_c(const uint8_t *ta, int32_t ta_len,
  * inside xlang_trait_check_impls_complete_c (which only gets *Module). Any file
  * exercising generic bounds has at least a trait+struct decl, so at least one
  * skip function runs before the trait checker. PLATFORM: SHARED parse. */
+#if defined(XLANG_SKIP_TRAIT_REG_EXTERN)
+extern uint8_t *g_w439_src_data;
+extern int32_t g_w439_src_len;
+#else
 static uint8_t *g_w439_src_data;
 static int32_t g_w439_src_len;
+#endif
 
 /**
  * TYPE_NAMED spelling "Self" (capital S) — not TOKEN_SELF lowercase binding.

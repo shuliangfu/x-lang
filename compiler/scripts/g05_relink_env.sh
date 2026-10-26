@@ -1211,6 +1211,7 @@ case "$UNAME_S" in
       # FORTIFY off for freestanding. Needs Linux PTHIN_FULL hybrid glue.
       if ${CC:-cc} -Wall -O2 -ffunction-sections -fdata-sections \
            -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 \
+           -DXLANG_SKIP_TRAIT_REG_EXTERN \
            -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
            -c -o "$_fullc.raw.o" seeds/pthin_skip_tl.from_x.c 2>/tmp/g05_pthin_full_c.err; then
         if objcopy --keep-global-symbol=parser_asm_skip_one_trait_into_slice_c \
@@ -1220,9 +1221,31 @@ case "$UNAME_S" in
           && nm -S "$_fullc" 2>/dev/null | grep -qE "T _*parser_asm_skip_one_trait_into_slice_c" \
           && ! nm "$_fullc" 2>/dev/null | grep -qE "T _*parser_asm_skip_one_struct_into_slice_c"; then
           _isz=$(nm -S "$_fullc" 2>/dev/null | awk "/parser_asm_skip_one_trait_into_slice_c/{print \$2; exit}")
-          echo "g05_relink_env: 10.22 into_slice-only full C size=$_isz (first-wins, gc locals→product)" >&2
+          echo "g05_relink_env: 10.22 into_slice-only full C size=$_isz (first-wins, EXTERN trait-reg→thin_glue)" >&2
           _PABI_TIP_PEEL="$_fullc $_PABI_TIP_PEEL"
           _fullc_ok=1
+          # Local BSS in thin_glue is invisible to into_slice U refs — globalize.
+          _glue_tr=parser_asm_thin_glue.o
+          if [ -f "$_glue_tr" ]; then
+            objcopy \
+              --globalize-symbol=g_xlang_skip_trait_reg \
+              --globalize-symbol=g_xlang_skip_trait_reg_n \
+              --globalize-symbol=g_xlang_skip_impl_trait \
+              --globalize-symbol=g_xlang_skip_impl_trait_len \
+              --globalize-symbol=g_xlang_skip_impl_seen_n \
+              --globalize-symbol=g_xlang_skip_impl_line \
+              --globalize-symbol=g_xlang_skip_impl_col \
+              --globalize-symbol=g_xlang_skip_impl_for_kinds \
+              --globalize-symbol=g_xlang_skip_impl_for_is_ptr \
+              --globalize-symbol=g_xlang_skip_impl_for_names \
+              --globalize-symbol=g_xlang_skip_impl_for_name_lens \
+              --globalize-symbol=g_xlang_trait_check_arena \
+              --globalize-symbol=g_w439_src_data \
+              --globalize-symbol=g_w439_src_len \
+              "$_glue_tr" "$_glue_tr.glob" \
+              && mv -f "$_glue_tr.glob" "$_glue_tr" \
+              && echo "g05_relink_env: 10.22 globalize thin_glue trait-reg BSS for into_slice" >&2
+          fi
         else
           echo "g05_relink_env: WARN into_slice-only extract failed" >&2
           cat /tmp/g05_pthin_full_c_ld.err >&2 || true
