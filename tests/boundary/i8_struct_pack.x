@@ -1,3 +1,4 @@
+// Expected: run = 0
 // Knife 10.44: i8 struct fields must pack with 1-byte stride (not 4).
 // Index through *u8 base — if align(i8)==4, store of `a` leaves padding at
 // base[1] so reading base[1] != written `b`. allow(padding) alone is false-green.
