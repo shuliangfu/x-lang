@@ -3554,8 +3554,14 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           && [ "$_pthin_p19_ok" = "1" ] && [ "$_pthin_p20_ok" = "1" ] && [ -n "$_pthin_link" ]; then
           _pthin_full=1
         fi
-        # Class BX: full P1–P20 omit-rest hybrid SEGV with pin parser on tip; opt-in only.
-        if [ "$_pthin_full" = "1" ] && [ "${XLANG_G05_PTHIN_FULL:-0}" = "1" ]; then
+        # Class BX: full P1–P20 omit-rest hybrid was tip-SEGV on pin parser; Linux product
+        # needs the merge (else Class CB partial peel drops glue faces). Default FULL on Linux.
+        # Darwin keeps opt-in (Cap tip / pin path). PLATFORM: LINUX default FULL.
+        _pthin_full_gate="${XLANG_G05_PTHIN_FULL:-0}"
+        if [ "$_pthin_full_gate" != "1" ] && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Linux" ]; then
+          _pthin_full_gate=1
+        fi
+        if [ "$_pthin_full" = "1" ] && [ "$_pthin_full_gate" = "1" ]; then
           # shellcheck disable=SC2086
           if pure_ld_partial_merge parser_asm_thin_glue.o $_pthin_link 2>/dev/null; then
             echo "g05_ensure: parser_asm_thin_glue.o ← P1–P7+P9–P20 only (G-02f-330 omit empty rest; P8 smoke-only)"
@@ -3571,7 +3577,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             # Class BX: slices-only (rest T=0) == full hybrid tip SEGV — leave done=0 for BX peel
             # unless XLANG_G05_PTHIN_FULL=1. Non-empty rest still merges (partial hybrid).
             if [ "${_pthin_rest_t:-1}" = "0" ]; then
-              if [ "${XLANG_G05_PTHIN_FULL:-0}" = "1" ]                 && pure_ld_partial_merge parser_asm_thin_glue.o $_pthin_link 2>/dev/null; then
+              if [ "$_pthin_full_gate" = "1" ] \
+                && pure_ld_partial_merge parser_asm_thin_glue.o $_pthin_link 2>/dev/null; then
                 echo "g05_ensure: parser_asm_thin_glue.o ← hybrid slices only (rest T=0 omit; G-02f-330)"
                 _pthin_done=1
               else

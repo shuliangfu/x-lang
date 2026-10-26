@@ -1208,7 +1208,7 @@ case "$UNAME_S" in
       _fullc_ok=0
       # Keep-global into_slice only (siblings stay LOCAL for its calls).
       # Do NOT --gc-sections: that drops local helpers and leaves UNDEF.
-      if ${CC:-cc} -Wall -O2 \
+      if ${CC:-cc} -Wall -O2 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 \
            -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
            -c -o "$_fullc.raw.o" seeds/pthin_skip_tl.from_x.c 2>/tmp/g05_pthin_full_c.err; then
         if objcopy --keep-global-symbol=parser_asm_skip_one_trait_into_slice_c \
@@ -1256,7 +1256,19 @@ case "$UNAME_S" in
         cat /tmp/g05_glue_faces.err >&2 || true
         exit 1
       fi
-      unset _fullc _fullc_ok _isz _bodytl _bodytl_ok _bbin _faces
+      # 10.22: Class BX omit-rest drops stretch product_keep faces.
+      _stfaces=build_asm/selfhost_pabi/stretch_product_keep_faces.o
+      if ${CC:-cc} -Wall -O2 -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
+           -c -o "$_stfaces" seeds/stretch_product_keep_faces.c 2>/tmp/g05_stretch_faces.err \
+        && nm "$_stfaces" 2>/dev/null | grep -qE "T _*parser_asm_stretch_is_type_start_kind_c\$"; then
+        _PABI_TIP_PEEL="$_stfaces $_PABI_TIP_PEEL"
+        echo "g05_relink_env: 10.22 stretch product_keep faces" >&2
+      else
+        echo "g05_relink_env: ERROR 10.22 stretch product_keep faces missing" >&2
+        cat /tmp/g05_stretch_faces.err >&2 || true
+        exit 1
+      fi
+      unset _fullc _fullc_ok _isz _bodytl _bodytl_ok _bbin _faces _stfaces
       _PABI_TIP_PEEL="$(echo $_PABI_TIP_PEEL | tr -s ' ')"
       if [ -n "$_PABI_TIP_PEEL" ]; then
         echo "g05_relink_env: Linux tip-peel overlays ($(echo $_PABI_TIP_PEEL | wc -w | tr -d ' ') objs)" >&2
