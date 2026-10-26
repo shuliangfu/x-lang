@@ -2664,6 +2664,73 @@ if [ -s "$_ca_o" ] && nm "$_ca_o" 2>/dev/null | grep -q "T _glue_emit_one_call_a
   fi
 fi
 
+# 10.52: sign-extend module-level negative i32 COMMON seed (终局待办).
+# pabi hi=0 → GP=-3 stored without high-half fill. Overlay + table_base.
+# PLATFORM: MACOS Cap tip. Pin ecdb5cc1e.
+_ss_o=build_asm/selfhost_pabi/modlet_seed_signed.o
+_ss_src=src/runtime_pipeline_abi_modlet_seed_signed_thin.x
+_tb_o=build_asm/selfhost_pabi/pipe_modlet_table_base.o
+_tb_src=src/asm/pipe_modlet_table_base_a64.s
+_ss_xl=""
+for _b in ./xlang_asm ./xlang /tmp/cap_tip_l4_safe_406200eef/xlang_asm \
+  "${HOME:-}/.cache/xlang_cap_tip_l4/xlang_asm" seeds/bootstrap_xlangc.darwin.arm64; do
+  [ -x "$_b" ] && _ss_xl="$_b" && break
+done
+if [ -n "$_ss_xl" ] && [ -f "$_ss_src" ]; then
+  if "$_ss_xl" -backend asm -c "$_ss_src" -o "$_ss_o" >/dev/null 2>&1 \
+    && nm "$_ss_o" 2>/dev/null | grep -q 'T _pipeline_asm_modlet_seed_nonzero_inits_elf_c$'; then
+    echo "g05_cap_tip_reapply: 10.52 tip-compiled modlet_seed_signed.o" >&2
+  else
+    rm -f "$_ss_o"
+    echo "g05_cap_tip_reapply: 10.52 modlet_seed_signed.o compile failed" >&2
+  fi
+fi
+if [ -f "$_tb_src" ]; then
+  if as -arch arm64 -o "$_tb_o" "$_tb_src" 2>/dev/null \
+    && nm "$_tb_o" 2>/dev/null | grep -q 'T _pipe_modlet_table_base$'; then
+    echo "g05_cap_tip_reapply: 10.52 assembled pipe_modlet_table_base.o" >&2
+  else
+    rm -f "$_tb_o"
+  fi
+fi
+if [ -s "$_ss_o" ]; then
+  if printf '%s' " $G05_OBJS " | grep -Eq '(^|[[:space:]/])modlet_seed_signed\.o([[:space:]]|$)'; then
+    :
+  else
+    G05_OBJS="$_ss_o $G05_OBJS"; export G05_OBJS
+    echo "g05_cap_tip_reapply: 10.52 prepended modlet_seed_signed.o" >&2
+  fi
+fi
+if [ -s "$_tb_o" ]; then
+  if printf '%s' " $G05_OBJS " | grep -Eq '(^|[[:space:]/])pipe_modlet_table_base\.o([[:space:]]|$)'; then
+    :
+  else
+    G05_OBJS="$_tb_o $G05_OBJS"; export G05_OBJS
+    echo "g05_cap_tip_reapply: 10.52 prepended pipe_modlet_table_base.o" >&2
+  fi
+fi
+# Globalize BSS + weaken seed on pabi_weak before pure-ld (Apple ld dup).
+_g05_oc="${OC:-}"
+if [ -z "$_g05_oc" ]; then
+  for _c in /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
+    [ -x "$_c" ] && _g05_oc="$_c" && break
+  done
+fi
+if [ -n "$_g05_oc" ] && [ -s "$_ss_o" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+  if nm build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+       | grep -q ' T _pipeline_asm_modlet_seed_nonzero_inits_elf_c$'; then
+    "$_g05_oc" --weaken-symbol=_pipeline_asm_modlet_seed_nonzero_inits_elf_c \
+      build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+      && echo "g05_cap_tip_reapply: 10.52 weakened pabi_weak seed_nonzero" >&2 || true
+  fi
+  if nm build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+       | grep -qE ' [bB] _g_pipeline_asm_modlet$'; then
+    "$_g05_oc" --globalize-symbol=_g_pipeline_asm_modlet \
+      build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+      && echo "g05_cap_tip_reapply: 10.52 globalized pabi_weak g_pipeline_asm_modlet" >&2 || true
+  fi
+fi
+
 bash scripts/g05_relink_xlang.sh
 
 if [ ! -x xlang.cap_g05_l2 ]; then

@@ -137,6 +137,26 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ] \
         && echo "g05_relink_xlang: pre-ld weaken pabi bake_string_lit (strpool wins)" >&2 \
         || true
     fi
+    # 10.52: signed COMMON seed overlay first-wins; globalize BSS for table_base.
+    # Cap tip links pabi_weak.o; tip-cold may keep src/runtime_pipeline_abi.o.
+    # PLATFORM: MACOS Cap tip / tip-cold.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])modlet_seed_signed\.o([[:space:]]|$)'; then
+      for _pabi_o in src/runtime_pipeline_abi.o build_asm/selfhost_pabi/pabi_weak.o; do
+        [ -s "$_pabi_o" ] || continue
+        if nm "$_pabi_o" 2>/dev/null | grep -q ' T _pipeline_asm_modlet_seed_nonzero_inits_elf_c$'; then
+          "$_g05_oc" --weaken-symbol=_pipeline_asm_modlet_seed_nonzero_inits_elf_c \
+            "$_pabi_o" 2>/dev/null \
+            && echo "g05_relink_xlang: 10.52 pre-ld weaken $_pabi_o seed_nonzero (signed wins)" >&2 \
+            || true
+        fi
+        if nm "$_pabi_o" 2>/dev/null | grep -qE ' [bB] _g_pipeline_asm_modlet$'; then
+          "$_g05_oc" --globalize-symbol=_g_pipeline_asm_modlet \
+            "$_pabi_o" 2>/dev/null \
+            && echo "g05_relink_xlang: 10.52 pre-ld globalize $_pabi_o g_pipeline_asm_modlet" >&2 \
+            || true
+        fi
+      done
+    fi
     # note743y.6.23: Cap tip G05 lists struct_lit_field.o + pabi_weak; both
     # define glue_struct_lit_field_store_sz as T. Windows weakens pabi_weak
     # in g05_relink_env; Darwin Cap tip must demote pabi_weak pre-ld (Apple

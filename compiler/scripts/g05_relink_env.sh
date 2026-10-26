@@ -892,6 +892,40 @@ if [ "${XLANG_MODLET_FLOAT_IMM_OVERLAY:-1}" = "1" ]; then
     build_asm/selfhost_pabi/modlet_float_imm.o pipe_modlet_scalar_init_common_imm
   _PABI_MODLET_FLOAT_IMM="$_G05_PO_OUT"
 fi
+# 10.52: sign-extend file-level negative i32/i64/isize COMMON seeds
+# (终局待办 10.52). pabi hardcodes hi=0 so `let GP: i32 = -3` loads as
+# 0x00000000fffffffd and `GP != -3` is true. Thin body is
+# runtime_pipeline_abi_modlet_seed_signed_thin.x (b8cfca4a4); wire it as
+# pure overlay + table_base stub (BSS stays local until globalized).
+# PLATFORM: SHARED — Darwin Cap tip + Ubuntu tip-cold. Pin ecdb5cc1e.
+_PABI_MODLET_SEED_SIGNED=""
+_PABI_MODLET_TABLE_BASE=""
+if [ "${XLANG_MODLET_SEED_SIGNED_OVERLAY:-1}" = "1" ]; then
+  _g05_pure_overlay src/runtime_pipeline_abi_modlet_seed_signed_thin.x \
+    build_asm/selfhost_pabi/modlet_seed_signed.o pipeline_asm_modlet_seed_nonzero_inits_elf_c
+  _PABI_MODLET_SEED_SIGNED="$_G05_PO_OUT"
+  if [ -n "$_PABI_MODLET_SEED_SIGNED" ]; then
+    mkdir -p build_asm/selfhost_pabi
+    case "$UNAME_S" in
+      Darwin)
+        if [ -f src/asm/pipe_modlet_table_base_a64.s ]; then
+          as -arch arm64 -o build_asm/selfhost_pabi/pipe_modlet_table_base.o \
+            src/asm/pipe_modlet_table_base_a64.s 2>/dev/null \
+            && _PABI_MODLET_TABLE_BASE=build_asm/selfhost_pabi/pipe_modlet_table_base.o \
+            || true
+        fi
+        ;;
+      Linux)
+        if [ -f src/asm/pipe_modlet_table_base_x64.s ]; then
+          as -o build_asm/selfhost_pabi/pipe_modlet_table_base.o \
+            src/asm/pipe_modlet_table_base_x64.s 2>/dev/null \
+            && _PABI_MODLET_TABLE_BASE=build_asm/selfhost_pabi/pipe_modlet_table_base.o \
+            || true
+        fi
+        ;;
+    esac
+  fi
+fi
 # w1502: VAR assign gate + leaves (终局待办 10.25). Darwin pabi is a libtool
 # archive, so ensure's w620 inject of the assign_var leaves never ran there,
 # and Windows linked a host-cc var override (removed w1506); both live gates handled
@@ -1705,6 +1739,19 @@ if [ -n "$_PABI_SELFHOST" ] \
   && [ -s build_asm/selfhost_pabi/pabi_alias.o ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/base.o build_asm/selfhost_pabi/spill.o $_PABI_SELFHOST"
   _PABI_LINK_O="build_asm/selfhost_pabi/pabi_alias.o"
+fi
+# 10.52: Linux pabi keeps strong seed_nonzero; weaken so signed overlay
+# first-wins. Also globalize the modlet BSS so table_base.o can resolve.
+# PLATFORM: LINUX.
+if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_MODLET_SEED_SIGNED" ] && [ -s "$_PABI_LINK_O" ] \
+  && command -v objcopy >/dev/null 2>&1; then
+  if nm "$_PABI_LINK_O" 2>/dev/null | grep -qE " T pipeline_asm_modlet_seed_nonzero_inits_elf_c$"; then
+    objcopy --weaken-symbol=pipeline_asm_modlet_seed_nonzero_inits_elf_c "$_PABI_LINK_O" \
+      || { echo "g05_relink_env: ERROR objcopy weaken seed_nonzero failed" >&2; exit 1; }
+  fi
+  if nm "$_PABI_LINK_O" 2>/dev/null | grep -qE " [bB] g_pipeline_asm_modlet$"; then
+    objcopy --globalize-symbol=g_pipeline_asm_modlet "$_PABI_LINK_O" 2>/dev/null || true
+  fi
 fi
 # w1521 (终局待办 10.57): Linux keeps a strong EXPR_RETURN impl in the pabi
 # link object; weaken it (idempotent) so return_sret.o first-wins.
@@ -5459,6 +5506,7 @@ PY
       || [ -n "$_PABI_MODLET_STRPOOL" ] \
       || [ -n "$_PABI_STRUCT_LIT_FIELD" ] \
       || [ -n "$_PABI_MODLET_FLOAT_IMM" ] \
+      || [ -n "$_PABI_MODLET_SEED_SIGNED" ] \
       || [ -n "$_PABI_INDEX_BASE_FIELD" ] \
       || [ -n "$_PABI_ASSIGN_VAR" ] \
       || [ -n "$_PABI_WIN_ENUM_NS" ] \
@@ -5821,6 +5869,12 @@ PY
         # PLATFORM: WINDOWS.
         if [ -n "$_PABI_MODLET_FLOAT_IMM" ]; then
           "$_oc" --weaken-symbol=pipe_modlet_scalar_init_common_imm \
+            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+        fi
+        # 10.52: weaken egg COMMON seed so signed overlay first-wins.
+        # PLATFORM: WINDOWS.
+        if [ -n "$_PABI_MODLET_SEED_SIGNED" ]; then
+          "$_oc" --weaken-symbol=pipeline_asm_modlet_seed_nonzero_inits_elf_c \
             build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
         fi
         # w1502: weaken egg VAR assign gate (pure .x gate first-wins).
@@ -6186,7 +6240,7 @@ case "$UNAME_S" in
     ;;
 esac
 _X_FRONTEND="parser_x.o ${_G05_LEXER_X_O:-lexer_x.o} ${_G05_TYPECK_X_O:-typeck_x.o} ${_TYPECK_CAP_RESIDUAL} ${_TYPECK_CTFE} codegen_x.o x_frontend_link_alias.o ${_WIN_V1_CALL_ALIAS}"
-_DRIVER_SEED_OBJS="$_PABI_ADDR_OF_CALL $_PABI_ELF_LAYOUT_64K $_PABI_INDEX_BASE_FIELD $_PABI_SLICE_MODLET $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_ELF_UNDEF_CAP $_PABI_LAYOUT_OFF $_PABI_NAMED_BUILTIN_CAP $_PABI_NAMED_ALIGN $_PABI_NAMED_SIZE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_REENT_SUM $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_WPO_ALIAS $_PABI_RELOC_TYPED $_PABI_ELF_CTX $_PABI_DATA_LEN $_G05_W211_CALL_ARG $_G05_W211_VAR_OFF $_G05_W211_REGISTER $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_SKIP_HEAVY $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_CODEGEN_CAP_RESIDUAL $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
+_DRIVER_SEED_OBJS="$_PABI_MODLET_TABLE_BASE $_PABI_MODLET_SEED_SIGNED $_PABI_ADDR_OF_CALL $_PABI_ELF_LAYOUT_64K $_PABI_INDEX_BASE_FIELD $_PABI_SLICE_MODLET $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_ELF_UNDEF_CAP $_PABI_LAYOUT_OFF $_PABI_NAMED_BUILTIN_CAP $_PABI_NAMED_ALIGN $_PABI_NAMED_SIZE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_REENT_SUM $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_WPO_ALIAS $_PABI_RELOC_TYPED $_PABI_ELF_CTX $_PABI_DATA_LEN $_G05_W211_CALL_ARG $_G05_W211_VAR_OFF $_G05_W211_REGISTER $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_SKIP_HEAVY $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_CODEGEN_CAP_RESIDUAL $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
 # ast_gen2.o: in LEGACY mode, append at link END (mirrors Makefile xlang-c LEGACY L2501
