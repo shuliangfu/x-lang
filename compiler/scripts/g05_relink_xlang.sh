@@ -479,6 +479,19 @@ if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
         "$_ca_prev" 2>/dev/null \
         && echo "g05_relink_xlang: 10.22 Linux call_arg _prev from $_ca_src_o" >&2 \
         || rm -f "$_ca_prev"
+      # Local call_args sites follow redefine to _prev; retarget them to soft U name.
+      if [ -s "$_ca_prev" ] && [ -f scripts/g05_elf_retarget_soft_syms.py ]; then
+        _ca_rt=build_asm/selfhost_pabi/backend_call_dispatch_ca_retarget.o
+        if python3 scripts/g05_elf_retarget_soft_syms.py "$_ca_prev" "$_ca_rt" \
+            glue_emit_one_call_arg_elf_c_prev=glue_emit_one_call_arg_elf_c \
+            2>/tmp/g05_call_arg_retarget.log; then
+          cp -f "$_ca_rt" "$_ca_prev"
+          echo "g05_relink_xlang: 10.22 Linux call_arg ELF retarget → soft" >&2
+        else
+          echo "g05_relink_xlang: WARN call_arg .o retarget failed (product patch later)" >&2
+        fi
+        unset _ca_rt
+      fi
       _ca_objs_new=""
       for _ca_o in $OBJS; do
         case "$(basename "$_ca_o")" in
@@ -682,6 +695,12 @@ run_g05_pure_ld_required() {
     echo "g05_relink_xlang: OK pure-ld $OUT" >&2
     if [ -n "$_map" ]; then
       g05_check_link_winners "$_map" || exit 1
+    fi
+    # 10.22: if call_args still PC-calls _prev (in-object redefine), retarget product.
+    if [ "${XLANG_G05_LINUX_FORCE_U_CALL_ARG:-0}" = "1" ] && [ -x "$OUT" ] \
+      && [ -f scripts/g05_elf_retarget_call_arg_prev_product.py ]; then
+      python3 scripts/g05_elf_retarget_call_arg_prev_product.py "$OUT" \
+        || echo "g05_relink_xlang: WARN call_arg product retarget failed" >&2
     fi
     return 0
   fi
