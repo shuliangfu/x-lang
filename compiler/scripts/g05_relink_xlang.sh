@@ -512,6 +512,49 @@ if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
     fi
     unset _ca_prev _ca_src_o _ca_pw
   fi
+  # 10.22: fa_array_lit thin — weaken competing emit_return_elf_impl + fa_array W
+  if [ -n "$_g05_oc" ] \
+    && printf "%s" " $OBJS " | grep -Eq "(^|[[:space:]/])fa_array_lit_linux\.o([[:space:]]|$)"; then
+    for _fa_pw in build_asm/selfhost_pabi/return_sret.o \
+                  build_asm/selfhost_pabi/two.o \
+                  build_asm/selfhost_pabi/pabi_weak.o \
+                  src/runtime_pipeline_abi.o; do
+      [ -s "$_fa_pw" ] || continue
+      if nm "$_fa_pw" 2>/dev/null | grep -Eq " T pipeline_asm_emit_return_elf_impl$"; then
+        "$_g05_oc" --weaken-symbol=pipeline_asm_emit_return_elf_impl "$_fa_pw" 2>/dev/null \
+          && echo "g05_relink_xlang: 10.22 Linux weaken $_fa_pw emit_return (fa_array wins)" >&2 \
+          || true
+      fi
+      if nm "$_fa_pw" 2>/dev/null | grep -Eq " [TW] fa_array_lit_into_rbx$"; then
+        "$_g05_oc" --weaken-symbol=fa_array_lit_into_rbx "$_fa_pw" 2>/dev/null \
+          && echo "g05_relink_xlang: 10.22 Linux weaken $_fa_pw fa_array_lit" >&2 \
+          || true
+      fi
+      if nm "$_fa_pw" 2>/dev/null | grep -Eq " [TW] glue_struct_lit_store_fixed_array_field_elf_c$"; then
+        case "$(basename "$_fa_pw")" in
+          fa_array_lit_linux.o) ;;
+          *) "$_g05_oc" --weaken-symbol=glue_struct_lit_store_fixed_array_field_elf_c "$_fa_pw" 2>/dev/null \
+               && echo "g05_relink_xlang: 10.22 Linux weaken $_fa_pw struct_lit_store_fa" >&2 \
+               || true ;;
+        esac
+      fi
+    done
+    # Also scan OBJS for other strong emit_return (except fa_array thin)
+    for _fa_o in $OBJS; do
+      case "$(basename "$_fa_o")" in
+        fa_array_lit_linux.o) continue ;;
+      esac
+      [ -s "$_fa_o" ] || continue
+      if nm "$_fa_o" 2>/dev/null | grep -Eq " T pipeline_asm_emit_return_elf_impl$"; then
+        "$_g05_oc" --weaken-symbol=pipeline_asm_emit_return_elf_impl "$_fa_o" 2>/dev/null \
+          && echo "g05_relink_xlang: 10.22 Linux weaken $_fa_o emit_return T→W" >&2 \
+          || true
+      fi
+    done
+    unset _fa_pw _fa_o
+    export XLANG_G05_LINUX_FORCE_U_FA_ARRAY=1
+  fi
+
   # 10.22: durable_ptr thin vs pabi_alias hollow W
   if [ -n "$_g05_oc" ] \
     && printf "%s" " $OBJS " | grep -Eq "(^|[[:space:]/])array_lit_durable_thin\.o([[:space:]]|$)"; then
@@ -674,6 +717,10 @@ run_g05_pure_ld_required() {
     if [ "${XLANG_G05_LINUX_FORCE_U_DURABLE:-0}" = "1" ]; then
       extra="$extra -u glue_asm_emit_array_lit_durable_ptr_rax_elf_c"
       echo "g05_relink_xlang: 10.22 Linux -u durable_ptr (keep thin)" >&2
+    fi
+    if [ "${XLANG_G05_LINUX_FORCE_U_FA_ARRAY:-0}" = "1" ]; then
+      extra="$extra -u pipeline_asm_emit_return_elf_impl -u fa_array_lit_into_rbx"
+      echo "g05_relink_xlang: 10.22 Linux -u emit_return+fa_array (keep E* thin)" >&2
     fi
     tail=""
   else

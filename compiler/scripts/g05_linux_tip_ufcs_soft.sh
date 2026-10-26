@@ -164,3 +164,23 @@ if _try_soft_emit "$_du_o" "$_du_x" "$_du_cache"; then
        echo "g05_linux_tip_ufcs_soft: prepended array_lit_durable thin" >&2 ;;
   esac
 fi
+
+# --- 10.22: fixed_array_copy thin (TYPE_ARRAY CALL/METHOD return always E*) ---
+# Darwin Cap tip first-wins fa_array_lit_a64.o; Linux tip product only had
+# weak archive fa_array_lit_into_rbx + old emit_return_elf_impl (8B load-rax).
+# Tip-compile this SHARED thin and prepend; g05_relink weakens return_sret/two.
+_fa_o=build_asm/selfhost_pabi/fa_array_lit_linux.o
+_fa_x=src/runtime_pipeline_abi_fixed_array_copy_thin.x
+_fa_cache=/tmp/xlang_soft_cache_linux/fa_array_lit_linux.o
+# Force refresh when source newer than cache (E* rule landed 5b5620208)
+if [ -s "$_fa_cache" ] && [ -f "$_fa_x" ] && [ "$_fa_x" -nt "$_fa_cache" ]; then
+  rm -f "$_fa_cache" "$_fa_o"
+fi
+if _try_soft_emit "$_fa_o" "$_fa_x" "$_fa_cache"; then
+  case " ${_PABI_TIP_PEEL:-} " in
+    *" fa_array_lit_linux.o "*) ;;
+    *) _PABI_TIP_PEEL="$_fa_o ${_PABI_TIP_PEEL:-}"; export _PABI_TIP_PEEL
+       echo "g05_linux_tip_ufcs_soft: prepended fa_array_lit thin (E*)" >&2 ;;
+  esac
+fi
+
