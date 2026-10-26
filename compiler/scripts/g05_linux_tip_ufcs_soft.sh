@@ -135,6 +135,18 @@ if _try_soft_emit "$_ca_o" "$_ca_x" "$_ca_cache"; then
   esac
 fi
 
+# --- 10.22: lvalue CALL.field spill on Linux x86_64 (mk().xs → []T) ---
+_lv_o=build_asm/selfhost_pabi/lvalue_eff_addr_elf_thin.o
+_lv_x=src/runtime_pipeline_abi_lvalue_eff_addr_elf_thin.x
+_lv_cache=/tmp/xlang_soft_cache_linux/lvalue_eff_addr_elf_thin.o
+if _try_soft_emit "$_lv_o" "$_lv_x" "$_lv_cache"; then
+  case " ${_PABI_TIP_PEEL:-} " in
+    *" lvalue_eff_addr_elf_thin.o "*) ;;
+    *) _PABI_TIP_PEEL="$_lv_o ${_PABI_TIP_PEEL:-}"; export _PABI_TIP_PEEL
+       echo "g05_linux_tip_ufcs_soft: prepended lvalue_eff_addr thin" >&2 ;;
+  esac
+fi
+
 # --- 10.22: array_lit durable strong (STRUCT_LIT.field→[]T) ---
 _du_o=build_asm/selfhost_pabi/array_lit_durable_thin.o
 _du_x=src/runtime_pipeline_abi_array_lit_durable_thin.x
