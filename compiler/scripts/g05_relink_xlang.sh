@@ -512,6 +512,34 @@ if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
     fi
     unset _ca_prev _ca_src_o _ca_pw
   fi
+  # 10.22: lane_scalar_binop thin — weaken pabi_weak / mega copy
+  if [ -n "$_g05_oc" ] \
+    && printf "%s" " $OBJS " | grep -Eq "(^|[[:space:]/])lane_scalar_binop_linux\.o([[:space:]]|$)"; then
+    for _ls_pw in build_asm/selfhost_pabi/pabi_weak.o \
+                  src/runtime_pipeline_abi.o \
+                  build_asm/selfhost_pabi/two.o; do
+      [ -s "$_ls_pw" ] || continue
+      if nm "$_ls_pw" 2>/dev/null | grep -Eq " [TW] glue_emit_vector_lane_scalar_binop_elf_c$"; then
+        "$_g05_oc" --weaken-symbol=glue_emit_vector_lane_scalar_binop_elf_c "$_ls_pw" 2>/dev/null \
+          && echo "g05_relink_xlang: 10.22 Linux weaken $_ls_pw lane_scalar (thin wins)" >&2 \
+          || true
+      fi
+    done
+    for _ls_o in $OBJS; do
+      case "$(basename "$_ls_o")" in
+        lane_scalar_binop_linux.o) continue ;;
+      esac
+      [ -s "$_ls_o" ] || continue
+      if nm "$_ls_o" 2>/dev/null | grep -Eq " T glue_emit_vector_lane_scalar_binop_elf_c$"; then
+        "$_g05_oc" --weaken-symbol=glue_emit_vector_lane_scalar_binop_elf_c "$_ls_o" 2>/dev/null \
+          && echo "g05_relink_xlang: 10.22 Linux weaken $_ls_o lane_scalar T→W" >&2 \
+          || true
+      fi
+    done
+    unset _ls_pw _ls_o
+    export XLANG_G05_LINUX_FORCE_U_LANE_SCALAR=1
+  fi
+
   # 10.22: fa_array_lit thin — weaken competing emit_return_elf_impl + fa_array W
   if [ -n "$_g05_oc" ] \
     && printf "%s" " $OBJS " | grep -Eq "(^|[[:space:]/])fa_array_lit_linux\.o([[:space:]]|$)"; then
@@ -721,6 +749,10 @@ run_g05_pure_ld_required() {
     if [ "${XLANG_G05_LINUX_FORCE_U_FA_ARRAY:-0}" = "1" ]; then
       extra="$extra -u pipeline_asm_emit_return_elf_impl -u fa_array_lit_into_rbx"
       echo "g05_relink_xlang: 10.22 Linux -u emit_return+fa_array (keep E* thin)" >&2
+    fi
+    if [ "${XLANG_G05_LINUX_FORCE_U_LANE_SCALAR:-0}" = "1" ]; then
+      extra="$extra -u glue_emit_vector_lane_scalar_binop_elf_c"
+      echo "g05_relink_xlang: 10.22 Linux -u lane_scalar (keep thin)" >&2
     fi
     tail=""
   else

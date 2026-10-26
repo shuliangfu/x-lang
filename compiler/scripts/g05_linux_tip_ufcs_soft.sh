@@ -184,3 +184,19 @@ if _try_soft_emit "$_fa_o" "$_fa_x" "$_fa_cache"; then
   esac
 fi
 
+
+# --- 10.22: lane_scalar_binop thin (i32x4/f32x4 + lane ADD; assign_index_on_method) ---
+_ls_o=build_asm/selfhost_pabi/lane_scalar_binop_linux.o
+_ls_x=src/runtime_pipeline_abi_lane_scalar_binop_thin.x
+_ls_cache=/tmp/xlang_soft_cache_linux/lane_scalar_binop_linux.o
+if [ -s "$_ls_cache" ] && [ -f "$_ls_x" ] && [ "$_ls_x" -nt "$_ls_cache" ]; then
+  rm -f "$_ls_cache" "$_ls_o"
+fi
+if _try_soft_emit "$_ls_o" "$_ls_x" "$_ls_cache"; then
+  case " ${_PABI_TIP_PEEL:-} " in
+    *" lane_scalar_binop_linux.o "*) ;;
+    *) _PABI_TIP_PEEL="$_ls_o ${_PABI_TIP_PEEL:-}"; export _PABI_TIP_PEEL
+       echo "g05_linux_tip_ufcs_soft: prepended lane_scalar_binop thin" >&2 ;;
+  esac
+fi
+
