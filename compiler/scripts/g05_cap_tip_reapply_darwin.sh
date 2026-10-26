@@ -68,19 +68,33 @@ done
 # Tip-compile from .x; demote pabi_weak size_simple so named_size first-wins.
 # PLATFORM: MACOS Cap tip.
 if [ -f src/runtime_pipeline_abi_named_size_thin.x ]; then
-  # set -u: XLANG may be unset until softs block; prefer LEGACY bak then ./xlang
+  # 10.44: prefer Cap tip / soft XLANG for named_size tip-compile.
+  # Legacy bak tip-asm omits typeck_x_named_builtin_size call (i8 stays 4).
   _ns_xl="${XLANG:-}"
   [ -x ./xlang ] && _ns_xl="./xlang"
-  [ -x ./xlang.product_legacy_bak ] && _ns_xl="./xlang.product_legacy_bak"
+  [ -x ./xlang.cap_g05_l2 ] && _ns_xl="./xlang.cap_g05_l2"
+  _ns_keep=""
+  [ -s build_asm/selfhost_pabi/named_size.o ] \
+    && nm build_asm/selfhost_pabi/named_size.o 2>/dev/null \
+         | grep -q 'U _typeck_x_named_builtin_size' \
+    && _ns_keep=build_asm/selfhost_pabi/named_size.o.keep_1044 \
+    && cp -f build_asm/selfhost_pabi/named_size.o "$_ns_keep"
   if XLANG_PREFER_ASM_O=1 "$_ns_xl" -backend asm -c \
       src/runtime_pipeline_abi_named_size_thin.x \
       -o build_asm/selfhost_pabi/named_size.o 2>/dev/null \
     && nm -gU build_asm/selfhost_pabi/named_size.o 2>/dev/null \
-         | grep -q 'T _glue_type_size_simple$'; then
-    echo "g05_cap_tip_reapply: tip-compiled named_size.o (size_simple authority)" >&2
+         | grep -q 'T _glue_type_size_simple$' \
+    && nm build_asm/selfhost_pabi/named_size.o 2>/dev/null \
+         | grep -q 'U _typeck_x_named_builtin_size'; then
+    echo "g05_cap_tip_reapply: tip-compiled named_size.o (size_simple authority + builtin)" >&2
   else
-    echo "g05_cap_tip_reapply: WARN named_size tip-compile failed" >&2
+    echo "g05_cap_tip_reapply: WARN named_size tip-compile failed or missing named_builtin" >&2
+    if [ -n "$_ns_keep" ] && [ -s "$_ns_keep" ]; then
+      cp -f "$_ns_keep" build_asm/selfhost_pabi/named_size.o
+      echo "g05_cap_tip_reapply: restored named_size.o with named_builtin U" >&2
+    fi
   fi
+  rm -f build_asm/selfhost_pabi/named_size.o.keep_1044
 fi
 if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
   && [ -s build_asm/selfhost_pabi/named_size.o ] \
@@ -107,9 +121,10 @@ if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
   fi
   # 10.44: named_align_thin — i8 pack align=1 (egg TYPE_NAMED miss was 4).
   if [ -f src/runtime_pipeline_abi_named_align_thin.x ]; then
+    # 10.44: prefer Cap tip host (legacy tip-asm drops named_builtin)
     _na_xl="${XLANG:-}"
     [ -x ./xlang ] && _na_xl="./xlang"
-    [ -x ./xlang.product_legacy_bak ] && _na_xl="./xlang.product_legacy_bak"
+    [ -x ./xlang.cap_g05_l2 ] && _na_xl="./xlang.cap_g05_l2"
     if XLANG_PREFER_ASM_O=1 "$_na_xl" -backend asm -c \
         src/runtime_pipeline_abi_named_align_thin.x \
         -o build_asm/selfhost_pabi/named_align.o 2>/dev/null \
@@ -122,9 +137,10 @@ if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
   fi
   # 10.44: layout offset thin must exist for Cap tip G05_OBJS
   if [ -f src/runtime_pipeline_abi_struct_layout_offset_thin.x ]; then
+    # 10.44: prefer Cap tip host
     _lo_xl="${XLANG:-}"
     [ -x ./xlang ] && _lo_xl="./xlang"
-    [ -x ./xlang.product_legacy_bak ] && _lo_xl="./xlang.product_legacy_bak"
+    [ -x ./xlang.cap_g05_l2 ] && _lo_xl="./xlang.cap_g05_l2"
     if XLANG_PREFER_ASM_O=1 "$_lo_xl" -backend asm -c \
         src/runtime_pipeline_abi_struct_layout_offset_thin.x \
         -o build_asm/selfhost_pabi/struct_layout_offset.o 2>/dev/null \
@@ -133,6 +149,33 @@ if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
       echo "g05_cap_tip_reapply: tip-compiled struct_layout_offset.o (10.44)" >&2
     else
       echo "g05_cap_tip_reapply: WARN struct_layout_offset tip-compile failed" >&2
+    fi
+  fi
+  # 10.44: struct_lit_field thin — store_sz must be T _glue_* (not pipeline_glue_*).
+  # Cap tip G05_OBJS already lists the .o; stale pin-egg emits pipeline_glue and
+  # Cap tip pure-ld then undefs _glue_struct_lit_field_store_sz. Force Cap host.
+  if [ -f src/runtime_pipeline_abi_struct_lit_field_thin.x ]; then
+    _slf_xl="${XLANG:-}"
+    [ -x /tmp/cap_tip_l4_safe_406200eef/xlang ] && _slf_xl="/tmp/cap_tip_l4_safe_406200eef/xlang"
+    [ -x ./xlang ] && _slf_xl="./xlang"
+    [ -x ./xlang.cap_g05_l2 ] && _slf_xl="./xlang.cap_g05_l2"
+    if XLANG_PREFER_ASM_O=1 "$_slf_xl" -backend asm -c \
+        src/runtime_pipeline_abi_struct_lit_field_thin.x \
+        -o build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null; then
+      if nm build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null \
+           | grep -q ' T _pipeline_glue_struct_lit_field_store_sz$'; then
+        "$OC" --redefine-sym=_pipeline_glue_struct_lit_field_store_sz=_glue_struct_lit_field_store_sz \
+          build_asm/selfhost_pabi/struct_lit_field.o \
+          && echo "g05_cap_tip_reapply: 10.44 renamed pipeline_glue store_sz" >&2 || true
+      fi
+      if nm build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null \
+           | grep -q ' T _glue_struct_lit_field_store_sz$'; then
+        echo "g05_cap_tip_reapply: tip-compiled struct_lit_field.o (10.44 store_sz)" >&2
+      else
+        echo "g05_cap_tip_reapply: WARN struct_lit_field missing T store_sz" >&2
+      fi
+    else
+      echo "g05_cap_tip_reapply: WARN struct_lit_field tip-compile failed" >&2
     fi
   fi
   if [ -s build_asm/selfhost_pabi/named_align.o ] \
@@ -1393,6 +1436,40 @@ _cap_tip_fill_missing_objs() {
       cp -f "$CACHE/dual_gp_new.o" build_asm/selfhost_pabi/dual_gp_byte_size_a64.o
       echo "g05_cap_tip_reapply: re-asserted dual_gp_new after pabi stomp" >&2
     fi
+    # 10.44: CACHE/pabi stomp may restore pre-builtin named_size (TYPE_NAMED→4).
+    # Re-tip-compile size/align/layout/builtin with Cap tip host after stomp.
+    _ns_xl="${XLANG:-}"
+    [ -x ./xlang ] && _ns_xl="./xlang"
+    [ -x ./xlang.cap_g05_l2 ] && _ns_xl="./xlang.cap_g05_l2"
+    if [ -x "$_ns_xl" ] && [ -f src/runtime_pipeline_abi_named_size_thin.x ]; then
+      if XLANG_PREFER_ASM_O=1 "$_ns_xl" -backend asm -c           src/runtime_pipeline_abi_named_size_thin.x           -o build_asm/selfhost_pabi/named_size.o 2>/dev/null         && nm build_asm/selfhost_pabi/named_size.o 2>/dev/null              | grep -q 'U _typeck_x_named_builtin_size'; then
+        echo "g05_cap_tip_reapply: re-asserted named_size after pabi stomp (builtin)" >&2
+      else
+        echo "g05_cap_tip_reapply: WARN named_size re-assert after stomp failed" >&2
+      fi
+    fi
+    if [ -x "$_ns_xl" ] && [ -f src/runtime_pipeline_abi_named_align_thin.x ]; then
+      XLANG_PREFER_ASM_O=1 "$_ns_xl" -backend asm -c         src/runtime_pipeline_abi_named_align_thin.x         -o build_asm/selfhost_pabi/named_align.o 2>/dev/null         && echo "g05_cap_tip_reapply: re-asserted named_align after pabi stomp" >&2 || true
+    fi
+    if [ -x "$_ns_xl" ] && [ -f src/runtime_pipeline_abi_struct_layout_offset_thin.x ]; then
+      XLANG_PREFER_ASM_O=1 "$_ns_xl" -backend asm -c         src/runtime_pipeline_abi_struct_layout_offset_thin.x         -o build_asm/selfhost_pabi/struct_layout_offset.o 2>/dev/null         && echo "g05_cap_tip_reapply: re-asserted struct_layout_offset after pabi stomp" >&2 || true
+    if [ -x "$_ns_xl" ] && [ -f src/runtime_pipeline_abi_struct_lit_field_thin.x ]; then
+      XLANG_PREFER_ASM_O=1 "$_ns_xl" -backend asm -c \
+        src/runtime_pipeline_abi_struct_lit_field_thin.x \
+        -o build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null || true
+      if nm build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null \
+           | grep -q ' T _pipeline_glue_struct_lit_field_store_sz$'; then
+        "$OC" --redefine-sym=_pipeline_glue_struct_lit_field_store_sz=_glue_struct_lit_field_store_sz \
+          build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null || true
+      fi
+      nm build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null \
+        | grep -q ' T _glue_struct_lit_field_store_sz$' \
+        && echo "g05_cap_tip_reapply: re-asserted struct_lit_field after pabi stomp" >&2 || true
+    fi
+    fi
+    if [ -x "$_ns_xl" ] && [ -f src/runtime_pipeline_abi_named_builtin_cap_thin.x ]; then
+      XLANG_PREFER_ASM_O=1 "$_ns_xl" -backend asm -c         src/runtime_pipeline_abi_named_builtin_cap_thin.x         -o build_asm/selfhost_pabi/named_builtin_cap.o 2>/dev/null         && echo "g05_cap_tip_reapply: re-asserted named_builtin_cap after pabi stomp" >&2 || true
+    fi
   fi
   # out.o|src.x pairs for Cap tip overlays commonly wiped
   while IFS='|' read -r o src; do
@@ -1447,6 +1524,7 @@ build_asm/selfhost_pabi/add_common_sym_soft.o|src/runtime_pipeline_abi_add_commo
 build_asm/selfhost_pabi/named_size.o|src/runtime_pipeline_abi_named_size_thin.x
 build_asm/selfhost_pabi/named_align.o|src/runtime_pipeline_abi_named_align_thin.x
 build_asm/selfhost_pabi/struct_layout_offset.o|src/runtime_pipeline_abi_struct_layout_offset_thin.x
+build_asm/selfhost_pabi/struct_lit_field.o|src/runtime_pipeline_abi_struct_lit_field_thin.x
 build_asm/selfhost_pabi/bake_scalar_imm_soft.o|src/runtime_pipeline_abi_bake_scalar_imm_soft.x
 MAP
 
@@ -1508,12 +1586,22 @@ if [ -f build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o ]; then
   if [ -n "$_oc_sf" ]; then
     "$_oc_sf" \
       --globalize-symbol=_glue_emit_vector_type_let_init_elf_c \
-      --globalize-symbol=_glue_struct_lit_field_store_sz \
       --globalize-symbol=_pipeline_module_func_owner_copy \
       --redefine-sym=_pipeline_asm_emit_array_lit_force_esz_elf_c=_pipeline_asm_emit_array_lit_force_esz_elf_c_symfill_localdead \
       --redefine-sym=_pipeline_asm_emit_array_lit_elf_c=_pipeline_asm_emit_array_lit_elf_c_symfill_localdead \
       build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o \
-      && echo "g05_cap_tip_reapply: globalized fill glue_emit_vector+struct_lit; demoted fill array_lit locals" >&2 || true
+      && echo "g05_cap_tip_reapply: globalized fill glue_emit_vector; demoted fill array_lit locals" >&2 || true
+    # 10.44: do NOT globalize fill store_sz — thin struct_lit_field.o is authority
+    # (i8 pack). Demote any fill T so local trampoline can reach thin.
+    if [ -s build_asm/selfhost_pabi/struct_lit_field.o ] \
+      && nm build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null \
+           | grep -q ' T _glue_struct_lit_field_store_sz$' \
+      && nm build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o 2>/dev/null \
+           | grep -q ' T _glue_struct_lit_field_store_sz$'; then
+      "$_oc_sf" --redefine-sym=_glue_struct_lit_field_store_sz=_glue_struct_lit_field_store_sz__demoted_fill \
+        build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o \
+        && echo "g05_cap_tip_reapply: 10.44 demoted fill store_sz (thin wins)" >&2 || true
+    fi
     # knife256/10.2: LEGACY-tip decline pulls lane/modlet; keep them global in fill.
     "$_oc_sf" \
       --globalize-symbol=_glue_lane_f32_lit_dest_set \

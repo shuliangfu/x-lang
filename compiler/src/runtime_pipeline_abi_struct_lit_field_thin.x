@@ -310,9 +310,13 @@ function w1510_sl_next_off(a: *u8, m: *u8, er: i32, fi: i32, foff: i32): i32 {
  * struct end) is at least 4 bytes, so inlined Option tags read as a word see
  * zero pad; packed neighbours (gap < 4) stay 1 byte. Same body as pabi's,
  * except the next field comes from the layout instead of literal order.
+ * 10.44: #[no_mangle] — tip-compile otherwise emits pipeline_glue_struct_lit_field_store_sz
+ * and Cap tip keeps local store_sz → size_simple__demoted (i8→4) while thin
+ * offsets are 0/1/2/3; str w then collapses unaligned offs to #0.
  * @return i32 — store width in bytes
  * PLATFORM: SHARED.
  */
+#[no_mangle]
 export function glue_struct_lit_field_store_sz(arena: *u8, expr_ref: i32, fi: i32): i32 {
   let ty: i32 = 0;
   let kind_ord: i32 = 0;

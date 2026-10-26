@@ -224,6 +224,29 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ] \
       done
       echo "g05_relink_xlang: 10.44 pre-ld demote pabi_weak layout offset (thin wins)" >&2
     fi
+    # 10.44: Cap tip may skip g05_relink_env overlay — rename pipeline_glue→glue
+    # on struct_lit_field.o and demote fill/pabi_weak store_sz so thin wins.
+    if [ -n "${_g05_oc:-}" ] && [ -s build_asm/selfhost_pabi/struct_lit_field.o ]; then
+      if nm build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null \
+           | grep -q ' T _pipeline_glue_struct_lit_field_store_sz$'; then
+        "$_g05_oc" --redefine-sym=_pipeline_glue_struct_lit_field_store_sz=_glue_struct_lit_field_store_sz \
+          build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null \
+          && echo "g05_relink_xlang: 10.44 pre-ld renamed pipeline_glue store_sz" >&2 || true
+      fi
+      if nm build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null \
+           | grep -q ' T _glue_struct_lit_field_store_sz$'; then
+        for _slf_pw in build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o \
+                       build_asm/selfhost_pabi/pabi_weak.o; do
+          [ -s "$_slf_pw" ] || continue
+          if nm "$_slf_pw" 2>/dev/null | grep -q ' T _glue_struct_lit_field_store_sz$'; then
+            "$_g05_oc" --redefine-sym=_glue_struct_lit_field_store_sz=_glue_struct_lit_field_store_sz__demoted \
+              "$_slf_pw" 2>/dev/null \
+              && echo "g05_relink_xlang: 10.44 pre-ld demote $_slf_pw store_sz (thin wins)" >&2 || true
+          fi
+        done
+        unset _slf_pw
+      fi
+    fi
     # 10.22: STRUCT_LIT.field→[]T — slice_modlet calls _prev; demote egg T/W.
     if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])slice_modlet(_a64)?\.o([[:space:]]|$)'; then
       for _sm_pw in build_asm/selfhost_pabi/pabi_weak.o \

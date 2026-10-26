@@ -61,9 +61,9 @@ export function glue_struct_layout_compute_field_offset_c(m: *u8, a: *u8, li: i3
     if (A <= 0) {
       A = 1;
     }
-    if (fa > A) {
-      A = fa;
-    }
+    /* 10.44: do not let stale layout field_align_at (egg i8→4) override
+     * live glue_type_align_simple (named_align / i8→1). fa kept for
+     * diagnostics only; packed path does not use this branch. */
     rem = current % A;
     gap = A - rem;
     gap = gap % A;
@@ -152,9 +152,9 @@ export function pipeline_struct_layout_next_field_offset_ex(m: *u8, a: *u8, layo
     if (A <= 0) {
       A = 1;
     }
-    if (fa > A) {
-      A = fa;
-    }
+    /* 10.44: do not let stale layout field_align_at (egg i8→4) override
+     * live glue_type_align_simple (named_align / i8→1). fa kept for
+     * diagnostics only; packed path does not use this branch. */
     if (fsize2 < 0) {
       fsize2 = 4;
     } else {

@@ -851,6 +851,32 @@ _PABI_STRUCT_LIT_FIELD=""
 if [ "${XLANG_STRUCT_LIT_FIELD_OVERLAY:-1}" = "1" ]; then
   _g05_pure_overlay src/runtime_pipeline_abi_struct_lit_field_thin.x \
     build_asm/selfhost_pabi/struct_lit_field.o pipeline_expr_struct_lit_field_offset_at
+  # 10.44: tip-compile (non-Cap host) mangles glue_struct_lit_field_store_sz →
+  # pipeline_glue_*; Cap tip host + #[no_mangle] keeps the real name. Without
+  # rename Cap tip keeps local store_sz → size_simple__demoted (i8→4) while
+  # thin offsets are 0/1/2/3. g05_relink_env does not set OC — resolve here.
+  _slf_oc="${OC:-${LLVM_OBJCOPY:-}}"
+  if [ -z "$_slf_oc" ]; then
+    for _c in /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
+      [ -x "$_c" ] && _slf_oc=$_c && break
+    done
+  fi
+  if [ -n "$_slf_oc" ] && [ -s build_asm/selfhost_pabi/struct_lit_field.o ] \
+    && nm build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null \
+         | grep -q ' T _pipeline_glue_struct_lit_field_store_sz$'; then
+    "$_slf_oc" --redefine-sym=_pipeline_glue_struct_lit_field_store_sz=_glue_struct_lit_field_store_sz \
+      build_asm/selfhost_pabi/struct_lit_field.o build_asm/selfhost_pabi/struct_lit_field.o \
+      && echo "g05_relink_env: 10.44 renamed pipeline_glue_struct_lit_field_store_sz" >&2 || true
+  fi
+  if [ -n "$_slf_oc" ] && [ -s build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o ] \
+    && nm build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null \
+         | grep -q ' T _glue_struct_lit_field_store_sz$' \
+    && nm build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o 2>/dev/null \
+         | grep -q ' T _glue_struct_lit_field_store_sz$'; then
+    "$_slf_oc" --redefine-sym=_glue_struct_lit_field_store_sz=_glue_struct_lit_field_store_sz__demoted_fill \
+      build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o \
+      && echo "g05_relink_env: 10.44 demoted fill store_sz" >&2 || true
+  fi
   _PABI_STRUCT_LIT_FIELD="$_G05_PO_OUT"
 fi
 # w1511: module-let f32 FLOAT_LIT gets a modlet cell (终局待办 10.40).
