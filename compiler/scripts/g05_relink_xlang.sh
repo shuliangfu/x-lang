@@ -568,6 +568,20 @@ if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
         fi
       done
       unset _fa_demote
+      if [ "${XLANG_LINUX_FA_KEEP_EMIT_RETURN:-0}" = "1" ]; then
+        for _fa_er in build_asm/selfhost_pabi/return_sret.o \
+                      build_asm/selfhost_pabi/two.o \
+                      build_asm/selfhost_pabi/pabi_weak.o \
+                      src/runtime_pipeline_abi.o; do
+          [ -s "$_fa_er" ] || continue
+          if nm "$_fa_er" 2>/dev/null | grep -Eq " [TW] pipeline_asm_emit_return_elf_impl$"; then
+            "$_g05_oc" --weaken-symbol=pipeline_asm_emit_return_elf_impl "$_fa_er" 2>/dev/null \
+              && echo "g05_relink_xlang: 10.22 Linux weaken $_fa_er emit_return (FA thin wins)" >&2 \
+              || true
+          fi
+        done
+        unset _fa_er
+      fi
     fi
     for _fa_pw in build_asm/selfhost_pabi/return_sret.o \
                   build_asm/selfhost_pabi/two.o \
