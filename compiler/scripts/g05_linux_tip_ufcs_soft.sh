@@ -56,7 +56,7 @@ _try_emit() {
 }
 
 if ! _try_emit "${_xl:-}"; then
-  for _c in ./xlang ./xlang_asm ./xlang-c ./bootstrap_xlangc /tmp/xlang_ufcs_only; do
+  for _c in ./xlang_dur1029 ./xlang_dur1028 ./xlang_asm ./xlang ./xlang-c ./bootstrap_xlangc /tmp/xlang_ufcs_only; do
     _try_emit "$_c" && break
   done
 fi
@@ -105,7 +105,7 @@ _try_soft_emit() {
   local out="$1" src="$2" cache="$3" xl
   if [ -s "$out" ]; then return 0; fi
   if [ -s "$cache" ]; then cp -f "$cache" "$out"; return 0; fi
-  for xl in "${XLANG:-}" ./xlang ./xlang_asm /tmp/xlang_ufcs_only; do
+  for xl in "${XLANG:-}" ./xlang_dur1029 ./xlang_dur1028 ./xlang_asm ./xlang /tmp/xlang_ufcs_only; do
     [ -x "$xl" ] || continue
     [ -f "$src" ] || continue
     if "$xl" -backend asm -c -o "${out}.partial" "$src" >/tmp/g05_linux_tfs_emit.log 2>&1 \
