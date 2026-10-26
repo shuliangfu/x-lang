@@ -32,5 +32,12 @@ extern void lexer_next_into(struct parser_asm_lexer_result *out, struct parser_a
                             struct parser_asm_slice_u8 *source);
 extern void parser_asm_lex_from_result_val_into(struct parser_asm_lexer *out,
                                                  struct parser_asm_lexer_result r);
+/* Forward: defined later in product_keep.inc / provided by stretch lite. */
+int32_t parser_asm_stretch_skip_type_suffix_c(void *lex_inout, void *source);
+static int32_t parser_asm_stretch_classify_toplevel_c(int32_t kind, int32_t next_kind,
+                                                       int32_t third_kind) {
+  (void)kind; (void)next_kind; (void)third_kind;
+  return 0;
+}
 
 #include "parser_asm_stretch_suite_product_keep.inc"
