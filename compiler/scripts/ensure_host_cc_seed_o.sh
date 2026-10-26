@@ -7444,8 +7444,30 @@ pipeline_abi_modlet_bss_names() {
 }
 
 pipeline_abi_modlet_rename_bss() {
+  # pipefail + objcopy --help|grep -q in pure_asm_find_objcopy can exit 141
+  # (SIGPIPE) on long GNU --help; rename must not flake. PLATFORM: SHARED.
+  local _pf=0
+  case $- in *e*) _pf=1; set +e ;; esac
+  set +o pipefail 2>/dev/null || true
   # shellcheck disable=SC2046
   rt_slice_rename_bss "$1" w631-modlet 2 $(pipeline_abi_modlet_bss_names)
+  local rc=$?
+  set -o pipefail 2>/dev/null || true
+  if [ "$_pf" = "1" ]; then set -e; fi
+  return "$rc"
+}
+
+# 10.38: leftover pabi keeps strong BSS g_pipeline_asm_modlet; objcopy
+# --weaken-symbol is a no-op on that BSS (stays b). Redefine away so thin
+# COMMON is the only live table after PREFER merge. PLATFORM: SHARED.
+pipeline_abi_modlet_retire_leftover_bss() {
+  local o="$1" oc
+  [ -s "$o" ] || return 1
+  oc="$(pure_asm_find_objcopy)" || return 1
+  set +o pipefail 2>/dev/null || true
+  "$oc"     --redefine-sym "g_pipeline_asm_modlet=g_pipeline_asm_modlet_pabi_superseded"     --redefine-sym "g_pipe_modlet_strpool_seq=g_pipe_modlet_strpool_seq_pabi_superseded"     --redefine-sym "_g_pipeline_asm_modlet=_g_pipeline_asm_modlet_pabi_superseded"     --redefine-sym "_g_pipe_modlet_strpool_seq=_g_pipe_modlet_strpool_seq_pabi_superseded"     "$o" 2>/dev/null || true
+  set -o pipefail 2>/dev/null || true
+  return 0
 }
 
 
@@ -21019,6 +21041,13 @@ pipeline_abi_inject_thin_leaf() {
   fi
   cp -f "$o" "$base_o"
   cp -f "$o" "$restore_o"
+  # 10.38: retire leftover modlet BSS names before weaken/merge so thin
+  # COMMON is the sole g_pipeline_asm_modlet. PLATFORM: SHARED.
+  if [ "$used_asm" = "1" ] && [ "$thin_bn" = "runtime_pipeline_abi_modlet_thin.x" ]; then
+    if ! pipeline_abi_modlet_retire_leftover_bss "$base_o"; then
+      log "pipeline_abi ${tag} inject: modlet leftover BSS retire failed"
+    fi
+  fi
   if pipeline_abi_thin_already_defined "$o" "$thin_o"; then
     if ! pipeline_abi_weaken_thin_syms_in_obj "$base_o" "$thin_o"; then
       log "pipeline_abi ${tag} inject skip: already T and cannot weaken leftover"
