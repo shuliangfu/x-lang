@@ -204,6 +204,26 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ] \
         && echo "g05_relink_xlang: 10.22 pre-ld demote pabi_weak slice_length (thin wins)" >&2 \
         || true
     fi
+    # 10.44: struct_layout_offset thin first-wins layout offset faces over pabi_weak.
+    # Cap tip bak_cap restore re-strongs these; weaken alone often still looks T to
+    # nm -gU — demote like note743y.6.23 so Apple ld has one strong.
+    # PLATFORM: MACOS Cap tip.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])struct_layout_offset\.o([[:space:]]|$)' \
+      && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+      for _lo_sym in \
+        _glue_struct_layout_compute_field_offset_c \
+        _pipeline_struct_layout_next_field_offset_ex \
+        _pipeline_struct_layout_next_field_offset \
+        _glue_sync_struct_layout_field_offsets_c
+      do
+        if nm build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+             | grep -Eq " [TW] ${_lo_sym}$"; then
+          "$_g05_oc" --redefine-sym=${_lo_sym}=${_lo_sym}__demoted \
+            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+        fi
+      done
+      echo "g05_relink_xlang: 10.44 pre-ld demote pabi_weak layout offset (thin wins)" >&2
+    fi
     # 10.22: STRUCT_LIT.field→[]T — slice_modlet calls _prev; demote egg T/W.
     if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])slice_modlet(_a64)?\.o([[:space:]]|$)'; then
       for _sm_pw in build_asm/selfhost_pabi/pabi_weak.o \
