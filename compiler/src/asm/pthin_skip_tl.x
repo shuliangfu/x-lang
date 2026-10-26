@@ -6654,7 +6654,7 @@ gnl = pipeline_type_named_name_into(arena, elem, gnm);
                             extra_ptr = extra_ptr - 1;
                           }
                         }
-                      } else if (eand == 0) {
+                      } if (eand == 0) {
                         extra_ptr =
                             p12g_load_i32(ent, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + pi * P12G_PARAM_DIMS_ROW_INNER + (0) * 4);
                         if (extra_ptr > 0) {
@@ -7077,7 +7077,7 @@ gnl = pipeline_type_named_name_into(arena, pelem, gnm);
                             }
                           }
                         }
-                      } else if (eand == 0) {
+                      } if (eand == 0) {
                         
                         
                         extra_slice =
@@ -7986,7 +7986,7 @@ gnl = pipeline_type_named_name_into(arena, pelem, gnm);
                       extra_ptr = extra_ptr - 1;
                     }
                   }
-                } else if (eend == 0) {
+                } if (eend == 0) {
                   // 
 // * dest extras dest-RET extra STAR SLICE-elem
 // * ndims=0 `*[]*T`: leftover after leftover-SLICE
@@ -8315,7 +8315,8 @@ gnl = pipeline_type_named_name_into(arena, leaf_tr, gnm);
                       extra_ptr = extra_ptr - 1;
                     }
                   }
-                } else if (eend == 0) {
+                } if (eend == 0) {
+                  // tip x86: keep as plain if (not else-if) so ndims=0 ***T dims[1] peel is emitted.
                   // 
 // * dest extras dest-RET extra STAR PTR-elem
 // * ndims=0 `***T` AND dest extras dest-RET extra
