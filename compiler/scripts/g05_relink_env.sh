@@ -1245,7 +1245,18 @@ case "$UNAME_S" in
       if [ "$_bodytl_ok" != "1" ]; then
         echo "g05_relink_env: WARN pthin_body_tl tip-peel missing (p014 may UNDEF)" >&2
       fi
-      unset _fullc _fullc_ok _isz _bodytl _bodytl_ok _bbin
+      # 10.22: Class CB glue leaves lex_from_next + onefunc pool_ptr UNDEF.
+      _faces=build_asm/selfhost_pabi/glue_faces_lex_pool.o
+      if ${CC:-cc} -Wall -O2 -c -o "$_faces" seeds/glue_faces_lex_pool.c 2>/tmp/g05_glue_faces.err \
+        && nm "$_faces" 2>/dev/null | grep -qE "T _*parser_lex_from_next_into_glue\$"; then
+        _PABI_TIP_PEEL="$_faces $_PABI_TIP_PEEL"
+        echo "g05_relink_env: 10.22 glue faces lex_from_next+pool_ptr" >&2
+      else
+        echo "g05_relink_env: ERROR 10.22 glue faces overlay missing" >&2
+        cat /tmp/g05_glue_faces.err >&2 || true
+        exit 1
+      fi
+      unset _fullc _fullc_ok _isz _bodytl _bodytl_ok _bbin _faces
       _PABI_TIP_PEEL="$(echo $_PABI_TIP_PEEL | tr -s ' ')"
       if [ -n "$_PABI_TIP_PEEL" ]; then
         echo "g05_relink_env: Linux tip-peel overlays ($(echo $_PABI_TIP_PEEL | wc -w | tr -d ' ') objs)" >&2
