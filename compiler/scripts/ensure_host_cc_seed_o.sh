@@ -20774,7 +20774,12 @@ pipeline_abi_weaken_thin_syms_in_obj() {
     esac
     any=1
   done <<EOF
-$(nm -gU "$thin" 2>/dev/null | awk '/ [Tt] / { print $NF }')
+$(nm -gU "$thin" 2>/dev/null | awk '
+  / [Tt] / { print $NF }
+  # 10.38: modlet_thin file-level tables (renamed Lxml→C) must weaken leftover
+  # BSS of the same name or PREFER leaves two tables (SEGV on module lets).
+  / [BbCc] / && ($NF == "g_pipeline_asm_modlet" || $NF == "g_pipe_modlet_strpool_seq" || $NF == "_g_pipeline_asm_modlet" || $NF == "_g_pipe_modlet_strpool_seq") { print $NF }
+')
 EOF
   [ "$any" = "1" ] || return 1
   # PLATFORM: MACOS — llvm-objcopy --weaken-symbol is often a no-op on
@@ -20822,7 +20827,12 @@ $sym
         ;;
     esac
   done <<EOF
-$(nm -gU "$thin" 2>/dev/null | awk '/ [Tt] / { print $NF }')
+$(nm -gU "$thin" 2>/dev/null | awk '
+  / [Tt] / { print $NF }
+  # 10.38: modlet_thin file-level tables (renamed Lxml→C) must weaken leftover
+  # BSS of the same name or PREFER leaves two tables (SEGV on module lets).
+  / [BbCc] / && ($NF == "g_pipeline_asm_modlet" || $NF == "g_pipe_modlet_strpool_seq" || $NF == "_g_pipeline_asm_modlet" || $NF == "_g_pipe_modlet_strpool_seq") { print $NF }
+')
 EOF
   if [ "$still_t" = "1" ]; then
     log "pipeline_abi weaken: Darwin/objcopy weaken no-op → redefine-sym unique *_pabi_supersededN"
@@ -20842,7 +20852,12 @@ $sym
         ;;
     esac
   done <<EOF
-$(nm -gU "$thin" 2>/dev/null | awk '/ [Tt] / { print $NF }')
+$(nm -gU "$thin" 2>/dev/null | awk '
+  / [Tt] / { print $NF }
+  # 10.38: modlet_thin file-level tables (renamed Lxml→C) must weaken leftover
+  # BSS of the same name or PREFER leaves two tables (SEGV on module lets).
+  / [BbCc] / && ($NF == "g_pipeline_asm_modlet" || $NF == "g_pipe_modlet_strpool_seq" || $NF == "_g_pipeline_asm_modlet" || $NF == "_g_pipe_modlet_strpool_seq") { print $NF }
+')
 EOF
   return 0
 }
