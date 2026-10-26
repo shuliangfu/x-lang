@@ -889,12 +889,14 @@ esac
 # (runtime_pipeline_abi_asm_expr_thin.x, no new file) now emits wide INT_LIT
 # as imm64 before the fast path; compile it with the current product every
 # relink and weaken the leftover rec/emit_expr_elf_c below.
-# Linux and Windows link asm_expr_helpers_thin.x for the 9..16 field pair.
-# Darwin keeps this full thin. All three already emit wide imm64.
-# PLATFORM: MACOS|DARWIN.
+# Windows links asm_expr_helpers_thin.x for the 9..16 field pair.
+# Darwin + Linux tip keep this full thin (10.22: Linux needs SIMD binop
+# pair in emit_expr_rec; without it `return a+b` keeps only lane 0).
+# All three already emit wide imm64.
+# PLATFORM: MACOS|DARWIN|LINUX.
 _PABI_ASM_EXPR=""
 case "$UNAME_S" in
-  Darwin)
+  Darwin|Linux)
     if [ "${XLANG_ASM_EXPR_REC_OVERLAY:-1}" = "1" ]; then
       _g05_pure_overlay src/runtime_pipeline_abi_asm_expr_thin.x \
         build_asm/selfhost_pabi/asm_expr_rec.o pipeline_asm_emit_expr_elf_rec
@@ -1527,6 +1529,16 @@ if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_RETURN_SRET" ] && [ -s "$_PABI_LINK_
   if nm "$_PABI_LINK_O" 2>/dev/null | grep -qE " T pipeline_asm_emit_return_elf_impl$"; then
     objcopy --weaken-symbol=pipeline_asm_emit_return_elf_impl "$_PABI_LINK_O" || { echo "g05_relink_env: ERROR objcopy failed at line 889" >&2; exit 1; }
   fi
+fi
+# 10.22: Linux pabi keeps strong emit_expr_elf_rec; weaken so asm_expr_rec.o
+# first-wins (SIMD binop pair). PLATFORM: LINUX.
+if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_ASM_EXPR" ] && [ -s "$_PABI_LINK_O" ] \
+  && command -v objcopy >/dev/null 2>&1; then
+  for _aesym in pipeline_asm_emit_expr_elf_rec pipeline_asm_emit_expr_elf_c w495_cell_i32; do
+    if nm "$_PABI_LINK_O" 2>/dev/null | grep -qE " T ${_aesym}$"; then
+      objcopy --weaken-symbol="$_aesym" "$_PABI_LINK_O" || { echo "g05_relink_env: ERROR objcopy weaken $_aesym failed" >&2; exit 1; }
+    fi
+  done
 fi
 # w1558: egg allow-list is already weak. If a rebuild leaves it strong,
 # weaken so the overlay first-wins. PLATFORM: LINUX.
