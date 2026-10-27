@@ -1079,6 +1079,40 @@ export function glue_emit_assign_field_elf_c(
   // x86 arm already uses. Trip and Quad are not 16-byte pairs.
   // PLATFORM: MACOS|ARM64.
   if (ek == 28 && ta == 1) {
+    // 10.46: always try struct let-init for aggregate RHS before size gates.
+    // Cap tip named sizes under-report Trip (wide stays 8) so the >16 arm
+    // never runs; FA keeps a one-GPR store. let-init no-ops / fails cleanly
+    // for scalar RHS. PLATFORM: MACOS|ARM64.
+    unsafe {
+      pipe_store_i32_le(&ekcell[0], 0, pipeline_expr_kind_ord_at(arena, right_ref));
+    }
+    handled = assign_field_cell_i32(&ekcell[0]);
+    if (handled == 3 || handled == 44 || handled == 45 || handled == 48) {
+      assign_field_one_flags(arena, ctx, left_ref, &ftycell[0], &widecell[0], &wlocell[0], &ptrcell[0]);
+      fty = assign_field_cell_i32(&ftycell[0]);
+      if (fty <= 0) {
+        unsafe {
+          pipe_store_i32_le(&rccell[0], 0, pipeline_expr_resolved_type_ref(arena, right_ref));
+        }
+        fty = assign_field_cell_i32(&rccell[0]);
+        if (fty <= 0 && handled == 3) {
+          unsafe {
+            pipe_store_i32_le(&rccell[0], 0, glue_var_decl_type_ref_elf_c(arena, ctx, right_ref));
+          }
+          fty = assign_field_cell_i32(&rccell[0]);
+        }
+      }
+      if (fty > 0) {
+        unsafe {
+          pipe_store_i32_le(&hcell[0], 0, 0);
+          pipe_store_i32_le(&rccell[0], 0, assign_field_one_wide(
+            arena, elf_ctx, left_ref, right_ref, ctx, ta, fty, 24, 1, 0, &hcell[0]));
+        }
+        if (assign_field_cell_i32(&hcell[0]) != 0) {
+          return assign_field_cell_i32(&rccell[0]);
+        }
+      }
+    }
     assign_field_one_flags(arena, ctx, left_ref, &ftycell[0], &widecell[0], &wlocell[0], &ptrcell[0]);
     fty = assign_field_cell_i32(&ftycell[0]);
     wide = assign_field_cell_i32(&widecell[0]);
