@@ -888,9 +888,10 @@ fi
 # PLATFORM: SHARED.
 _PABI_MODLET_FLOAT_IMM=""
 if [ "${XLANG_MODLET_FLOAT_IMM_OVERLAY:-1}" = "1" ]; then
-  # 10.26 merged into mega — _g05_pure_overlay src/runtime_pipeline_abi_modlet_float_imm_thin.x \
-  # 10.26 merged into mega — build_asm/selfhost_pabi/modlet_float_imm.o pipe_modlet_scalar_init_common_imm
-  _PABI_MODLET_FLOAT_IMM=""  # 10.26 merged into mega
+  # 10.53: f64+f32 module-let COMMON (mega tip-cold hybrid may keep stale common_imm).
+  _g05_pure_overlay src/runtime_pipeline_abi_modlet_f64_imm_thin.x \
+    build_asm/selfhost_pabi/modlet_f64_imm.o pipe_modlet_scalar_init_common_imm
+  _PABI_MODLET_FLOAT_IMM="$_G05_PO_OUT"
 fi
 # 10.52: sign-extend file-level negative i32/i64/isize COMMON seeds
 # (终局待办 10.52). pabi hardcodes hi=0 so `let GP: i32 = -3` loads as
@@ -1740,6 +1741,15 @@ if [ -n "$_PABI_SELFHOST" ] \
   && [ -s build_asm/selfhost_pabi/pabi_alias.o ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/base.o build_asm/selfhost_pabi/spill.o $_PABI_SELFHOST"
   _PABI_LINK_O="build_asm/selfhost_pabi/pabi_alias.o"
+fi
+# 10.53: Linux pabi keeps strong common_imm; weaken so f64_imm overlay wins.
+# PLATFORM: LINUX.
+if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_MODLET_FLOAT_IMM" ] && [ -s "$_PABI_LINK_O" ] \
+  && command -v objcopy >/dev/null 2>&1; then
+  if nm "$_PABI_LINK_O" 2>/dev/null | grep -qE " T pipe_modlet_scalar_init_common_imm$"; then
+    objcopy --weaken-symbol=pipe_modlet_scalar_init_common_imm "$_PABI_LINK_O" \
+      || { echo "g05_relink_env: ERROR objcopy weaken common_imm failed" >&2; exit 1; }
+  fi
 fi
 # 10.52: Linux pabi keeps strong seed_nonzero; weaken so signed overlay
 # first-wins. Also globalize the modlet BSS so table_base.o can resolve.

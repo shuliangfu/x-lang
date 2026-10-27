@@ -8724,6 +8724,9 @@ static int32_t pipe_modlet_array_lit_elem_const_val_cold(void *arena, int32_t er
   return 0;
 }
 
+/* 10.53: hi bits from last common_imm_cold f32/f64 fold (prepare packs int64). */
+int32_t g_pipe_modlet_common_imm_hi_stash = 0;
+
 /* wave338 cold twin of pipe_modlet_scalar_init_common_imm.
  * LIT/BOOL + NEG-over-LIT + null TYPE_PTR → COMMON imm. PLATFORM: SHARED. */
 static int32_t pipe_modlet_scalar_init_common_imm_cold(void *arena, int32_t init_ref,
@@ -8733,6 +8736,26 @@ static int32_t pipe_modlet_scalar_init_common_imm_cold(void *arena, int32_t init
   if (is_const != 0 || !arena || init_ref <= 0 || !out_imm)
     return 0;
   ik = pipeline_expr_kind_ord_at(arena, init_ref);
+  /* 10.53: module f32/f64 let → COMMON. out_imm gets lo; hi packed by caller via
+   * temporary — see prepare which stores into int64 init_imm. */
+  if (tk == 14 || tk == 15) {
+    int32_t flo = 0, fhi = 0;
+    if (!pipe_modlet_fold_f64_elem_bits_cold(arena, init_ref, &flo, &fhi))
+      return 0;
+    if (tk == 14) {
+      flo = glue_ieee_f64_bits_to_f32_bits(flo, fhi);
+      fhi = 0;
+    }
+    /* Pack lo|(hi<<32) into *out_imm when used as int32 — NOT enough.
+     * Caller must use cold2. Keep lo here; register site fixed below. */
+    *out_imm = flo;
+    /* Stash hi in thread-local? Use static for single-threaded prepare. */
+    {
+      extern int32_t g_pipe_modlet_common_imm_hi_stash;
+      g_pipe_modlet_common_imm_hi_stash = fhi;
+    }
+    return 1;
+  }
   if (ik == 2) {
     *out_imm = pipeline_expr_int_val_at(arena, init_ref);
     return 1;
@@ -9538,7 +9561,8 @@ XLANG_WEAK int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(void *m, void *a, 
     tk = (type_ref > 0) ? pipeline_type_kind_ord_at(a, type_ref) : 0;
     cell_sz = 8;
     imm = 0;
-    /* wave338: LIT/BOOL + NEG-over-LIT + null TYPE_PTR → COMMON.
+    g_pipe_modlet_common_imm_hi_stash = 0;
+    /* wave338/10.53: LIT/BOOL/null + f32/f64 → COMMON.
      * Twin of pipe_modlet_scalar_init_common_imm. PLATFORM: SHARED. */
     if (pipe_modlet_scalar_init_common_imm_cold(a, init_ref, tk, is_const, &imm) != 0) {
       cell_sz = 8;
@@ -9581,7 +9605,10 @@ XLANG_WEAK int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(void *m, void *a, 
     g_pipeline_asm_modlet_cold.name_len[idx] = name_len;
     for (k = 0; k < name_len; k++)
       g_pipeline_asm_modlet_cold.name[idx][k] = pipeline_module_top_level_let_name_byte_at(m, tl, k);
-    g_pipeline_asm_modlet_cold.init_imm[idx] = imm;
+    g_pipeline_asm_modlet_cold.init_imm[idx] =
+        (int64_t)(uint32_t)imm |
+        ((int64_t)(uint32_t)g_pipe_modlet_common_imm_hi_stash << 32);
+    g_pipe_modlet_common_imm_hi_stash = 0;
     g_pipeline_asm_modlet_cold.cell_size[idx] = cell_sz;
     g_pipeline_asm_modlet_cold.n = idx + 1;
   }
@@ -9704,7 +9731,9 @@ XLANG_WEAK int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(void *m, void *a, 
          * bake_ptr_addr returns 1 = not-an-address (must not trip -1).
          * PLATFORM: SHARED library-TU .data. */
         int32_t pa_b = 0;
-        int32_t imm_b = g_pipeline_asm_modlet_cold.init_imm[i];
+        int64_t imm64_b = g_pipeline_asm_modlet_cold.init_imm[i];
+        int32_t imm_b = (int32_t)(uint32_t)imm64_b;
+        int32_t imm_b_hi = (int32_t)(uint32_t)((uint64_t)imm64_b >> 32);
         if (init_ref2 > 0)
           pa_b = pipe_modlet_scalar_init_is_ptr_addr_cold(a, m, init_ref2);
         if (pa_b != 0) {
@@ -9715,6 +9744,10 @@ XLANG_WEAK int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(void *m, void *a, 
           }
         } else if (pipe_modlet_bake_scalar_imm_to_data_cold((uint8_t *)elf_ctx, data_off, imm_b,
                                                             csz) != 0) {
+          pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
+          return -1;
+        } else if (csz >= 8 && imm_b_hi != 0 &&
+                   pipe_modlet_data_poke_u32_le_cold((uint8_t *)elf_ctx, data_off + 4, imm_b_hi) != 0) {
           pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
           return -1;
         }
@@ -9746,13 +9779,16 @@ XLANG_WEAK int32_t pipeline_asm_modlet_seed_nonzero_inits_elf_c(void *elf_ctx, i
       return 0;
   }
   for (i = 0; i < g_pipeline_asm_modlet_cold.n; i++) {
-    int32_t imm = g_pipeline_asm_modlet_cold.init_imm[i];
+    int64_t imm64 = g_pipeline_asm_modlet_cold.init_imm[i];
+    int32_t lo, hi;
     /* .data-backed arrays must not be scalar-seeded (imm stays 0). */
     if (pipeline_asm_modlet_cell_is_data_cold(g_pipeline_asm_modlet_cold.cell_size[i]))
       continue;
-    if (imm == 0)
+    if (imm64 == 0)
       continue;
-    if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, imm, 0, ta) != 0)
+    lo = (int32_t)(uint32_t)imm64;
+    hi = (int32_t)(uint32_t)((uint64_t)imm64 >> 32);
+    if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, lo, hi, ta) != 0)
       return -1;
     if (pipeline_asm_modlet_store_from_rax_elf_c(elf_ctx, g_pipeline_asm_modlet_cold.name[i],
                                                  g_pipeline_asm_modlet_cold.name_len[i], ta) != 0)
