@@ -17038,6 +17038,8 @@ ensure_r3_prefer_one() {
 
   # Cold fallback — same ensure_one as try-r3-cold.
   # Force when prefer path may have left a partial/bad OUT (e.g. nm gate fail).
+  # 10.67: propagate ensure_one failure (old unconditional return 0 swallowed
+  # cold fails; g05 anchor checks were the only backstop). PLATFORM: SHARED.
   if [ ! -f "$seed" ]; then
     echo "ensure_host_cc_seed_o try-r3-prefer: missing seed $seed for $o" >&2
     return 1
@@ -17045,10 +17047,13 @@ ensure_r3_prefer_one() {
   if [ -f "$o" ] && [ "$prefer" = "1" ]; then
     # Prefer attempted: never keep a thin that failed nm / ld semantics.
     FORCE=1
-    ensure_one "$o" "$seed"
+    if ! ensure_one "$o" "$seed"; then
+      FORCE=0
+      return 1
+    fi
     FORCE=0
   else
-    ensure_one "$o" "$seed"
+    ensure_one "$o" "$seed" || return 1
   fi
   return 0
 }
@@ -17064,8 +17069,9 @@ try_ensure_r3_prefer_one() {
   if ! list_has_word "$o" "$list"; then
     return 3
   fi
-  # 记251／8.8: do not swallow ensure_r3_prefer_one failure (old return 0
-  # left a warm/missing .o in place). PLATFORM: SHARED.
+  # 记251／8.8 + 10.67: do not swallow ensure_r3_prefer_one failure (old
+  # entry return 0, and ensure_r3_prefer_one itself used to return 0 after a
+  # failed ensure_one cold fallback). PLATFORM: SHARED.
   ensure_r3_prefer_one "$o" || return 1
   return 0
 }
@@ -32745,6 +32751,21 @@ R3_COLD_SEED_OBJS DRIVER_SEED_PANIC_OBJS DRIVER_SEED_TYPECK_F64_OBJS DRIVER_SEED
     bad "try-r3-prefer / try_ensure_r3_prefer_one missing (wave763 R3 PREFER thin)"
   else
     note "try-r3-prefer R3 PREFER thin helper present (wave763)"
+  fi
+  # 10.67: cold fallback must not swallow ensure_one failure.
+  if ! awk '
+    /^ensure_r3_prefer_one\(\)/ { in_fn=1 }
+    in_fn && /^}/ { in_fn=0 }
+    in_fn && /ensure_one "\$o" "\$seed"/ {
+      line=$0
+      getline nxt
+      if (line ~ /\|\| return/ || nxt ~ /return 1/ || line ~ /if ! ensure_one/) ok=1
+    }
+    END { exit ok?0:1 }
+  ' "$0"; then
+    bad "ensure_r3_prefer_one must propagate ensure_one cold failure (10.67)"
+  else
+    note "ensure_r3_prefer_one propagates ensure_one cold failure (10.67)"
   fi
   if ! grep -q 'r3_prefer_leaf_spec\|ensure_r3_prefer_one' "$0"; then
     bad "r3 prefer body missing (wave763)"
