@@ -181,6 +181,9 @@ function pipe_modlet_seed_imm_hi(imm: i32, name: *u8, name_len: i32): i32 {
  * Library TUs (main_func_index < 0) do not seed here.
  * PLATFORM: SHARED freestanding · MACOS|ARM64 table base.
  */
+export extern function pipe_modlet_fold_f64_elem_bits(
+  arena: *u8, eref: i32, out_lo: *i32, out_hi: *i32
+): i32;
 #[no_mangle]
 export function pipeline_asm_modlet_seed_nonzero_inits_elf_c(elf_ctx: *u8, ta: i32): i32 {
   // Every extern call in this body is inside this unsafe.
@@ -205,18 +208,75 @@ export function pipeline_asm_modlet_seed_nonzero_inits_elf_c(elf_ctx: *u8, ta: i
   }
   let n: i32 = pipe_modlet_get_n();
   let i: i32 = 0;
+  // 10.53: arena early for f64 re-fold (table may only hold 32-bit lo).
+  let arena_seed: *u8 = (0 as *u8);
+  unsafe { arena_seed = pipeline_asm_emit_ctx_arena_get(); }
   while (i < n) {
     let imm: i32 = 0;
+    let hi: i32 = 0;
+    let nlen: i32 = 0;
+    let nbase: i32 = 0;
+    let used_f64: i32 = 0;
     unsafe { imm = pipe_load_i32_le(tab, pipe_modlet_off_init_imm(i)); }
-    if (imm != 0) {
-      let rc: i32 = 0;
-      let nlen: i32 = 0;
-      let nbase: i32 = 0;
-      let hi: i32 = 0;
-      unsafe { nlen = pipe_load_i32_le(tab, pipe_modlet_off_name_len(i)); }
-      nbase = pipe_modlet_off_name(i);
+    unsafe { nlen = pipe_load_i32_le(tab, pipe_modlet_off_name_len(i)); }
+    nbase = pipe_modlet_off_name(i);
+    // Re-fold module f64 lets from AST when present (lo may be 0, e.g. 1.0).
+    if (arena_seed != (0 as *u8) && mod0 != (0 as *u8) && nlen > 0 && nlen <= 255) {
+      let nlets: i32 = 0;
+      let tl: i32 = 0;
+      unsafe { nlets = pipe_mod_get_num_top_level_lets(mod0); }
+      while (tl < nlets) {
+        let tlen: i32 = 0;
+        unsafe { tlen = pipeline_module_top_level_let_name_len(mod0, tl); }
+        if (tlen == nlen) {
+          let same: i32 = 1;
+          let k: i32 = 0;
+          while (k < nlen) {
+            let b: i32 = 0;
+            let cb: i32 = 0;
+            unsafe {
+              b = pipeline_module_top_level_let_name_byte_at(mod0, tl, k);
+              cb = (tab[nbase + k] as i32);
+            }
+            if (b != cb) { same = 0; break; }
+            k = k + 1;
+          }
+          if (same != 0) {
+            let tr: i32 = 0;
+            let ir: i32 = 0;
+            let tk: i32 = 0;
+            let flo: i32 = 0;
+            let fhi: i32 = 0;
+            let fb: i32 = 0;
+            unsafe {
+              tr = pipeline_module_top_level_let_type_ref(mod0, tl);
+              ir = pipeline_module_top_level_let_init_ref(mod0, tl);
+            }
+            if (tr > 0) {
+              unsafe { tk = pipeline_type_kind_ord_at(arena_seed, tr); }
+            }
+            if (tk == 15 && ir > 0) {
+              unsafe { fb = pipe_modlet_fold_f64_elem_bits(arena_seed, ir, &flo, &fhi); }
+              if (fb != 0) {
+                imm = flo;
+                hi = fhi;
+                used_f64 = 1;
+              }
+            }
+            break;
+          }
+        }
+        tl = tl + 1;
+      }
+    }
+    if (used_f64 == 0) {
       // Signed negatives need hi=-1. Unsigned bit 31 stays hi=0.
-      hi = pipe_modlet_seed_imm_hi(imm, seed_tab_at(tab, nbase), nlen);
+      if (imm != 0) {
+        hi = pipe_modlet_seed_imm_hi(imm, seed_tab_at(tab, nbase), nlen);
+      }
+    }
+    if (imm != 0 || hi != 0) {
+      let rc: i32 = 0;
       unsafe {
         rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, imm, hi, ta);
       }

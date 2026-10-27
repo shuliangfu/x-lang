@@ -129,6 +129,18 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ] \
         && echo "g05_relink_xlang: pre-ld weaken pabi scalar_init_common_imm (float_imm wins)" >&2 \
         || true
     fi
+    # 10.53: f64 imm thin first-wins common_imm over Cap tip pabi_weak / mega.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])modlet_f64_imm\.o([[:space:]]|$)'; then
+      for _pabi_o in src/runtime_pipeline_abi.o build_asm/selfhost_pabi/pabi_weak.o; do
+        [ -s "$_pabi_o" ] || continue
+        if nm "$_pabi_o" 2>/dev/null | grep -q ' T _pipe_modlet_scalar_init_common_imm$'; then
+          "$_g05_oc" --weaken-symbol=_pipe_modlet_scalar_init_common_imm \
+            "$_pabi_o" 2>/dev/null \
+            && echo "g05_relink_xlang: 10.53 pre-ld weaken $_pabi_o common_imm (f64_imm wins)" >&2 \
+            || true
+        fi
+      done
+    fi
     if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])modlet_strpool\.o([[:space:]]|$)' \
       && nm -gU src/runtime_pipeline_abi.o 2>/dev/null \
            | grep -q ' T _pipe_modlet_bake_string_lit_elem_to_data$'; then

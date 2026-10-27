@@ -7719,7 +7719,8 @@ typedef struct {
   uint8_t name[XLANG_ASM_MODLET_MAX][128];
   int32_t label_len[XLANG_ASM_MODLET_MAX];
   uint8_t label[XLANG_ASM_MODLET_MAX][24];
-  int32_t init_imm[XLANG_ASM_MODLET_MAX];
+  /* 10.53: 8-byte init cell (lo in low 32, hi in high 32) — matches .x stride. */
+  int64_t init_imm[XLANG_ASM_MODLET_MAX];
   /* Stage 12.0.5: COMMON payload size (8 scalar; N for TYPE_ARRAY module lets).
    * Bit 30 (0x40000000) = TYPE_ARRAY address-decay so u8[8] does not collide
    * with scalar load-qword (labi g_labi_icc_oopt_buf / invoke_cc_list). */

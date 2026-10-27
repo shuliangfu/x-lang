@@ -232,6 +232,89 @@ if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
     unset _al_xl
   fi
 
+  # 10.53: tip-compile modlet f64 imm thin; demote pabi_weak common_imm so
+  # Cap tip first-wins f64+f32 module-let registration (replaces stale
+  # modlet_float_imm.o). PLATFORM: MACOS Cap tip.
+  if [ -f src/runtime_pipeline_abi_modlet_f64_imm_thin.x ]; then
+    mkdir -p build_asm/selfhost_pabi
+    if ./xlang_asm -c -DXLANG_USE_X_PIPELINE \
+        src/runtime_pipeline_abi_modlet_f64_imm_thin.x \
+        -o build_asm/selfhost_pabi/modlet_f64_imm.o 2>/dev/null \
+      && [ -s build_asm/selfhost_pabi/modlet_f64_imm.o ] \
+      && nm -gU build_asm/selfhost_pabi/modlet_f64_imm.o 2>/dev/null \
+        | grep -q 'T _pipe_modlet_scalar_init_common_imm'; then
+      echo "g05_cap_tip_reapply: tip-compiled modlet_f64_imm.o (10.53)" >&2
+      case " ${G05_OBJS:-} " in
+        *" modlet_f64_imm.o "*) ;;
+        *)
+          G05_OBJS="build_asm/selfhost_pabi/modlet_f64_imm.o ${G05_OBJS:-}"
+          export G05_OBJS
+          echo "g05_cap_tip_reapply: prepended modlet_f64_imm.o (10.53)" >&2
+          ;;
+      esac
+      if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+        if nm build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+          | grep -q ' T _pipe_modlet_scalar_init_common_imm'; then
+          if "$OC" --weaken-symbol=_pipe_modlet_scalar_init_common_imm \
+               build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null; then
+            echo "g05_cap_tip_reapply: 10.53 weakened pabi_weak common_imm" >&2
+          else
+            "$OC" --redefine-sym \
+              _pipe_modlet_scalar_init_common_imm=_pipe_modlet_scalar_init_common_imm__demoted \
+              build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+              && echo "g05_cap_tip_reapply: 10.53 demoted pabi_weak common_imm" >&2 \
+              || true
+          fi
+        fi
+      fi
+      if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/modlet_float_imm.o ]; then
+        if nm build_asm/selfhost_pabi/modlet_float_imm.o 2>/dev/null \
+          | grep -q ' T _pipe_modlet_scalar_init_common_imm'; then
+          "$OC" --redefine-sym \
+            _pipe_modlet_scalar_init_common_imm=_pipe_modlet_scalar_init_common_imm__float_imm_old \
+            build_asm/selfhost_pabi/modlet_float_imm.o 2>/dev/null \
+            && echo "g05_cap_tip_reapply: 10.53 demoted stale modlet_float_imm" >&2 \
+            || true
+        fi
+      fi
+    else
+      echo "g05_cap_tip_reapply: WARN modlet_f64_imm tip-compile failed" >&2
+    fi
+  fi
+  # 10.53: tip-compile f64 seed thin; demote pabi_weak seed_nonzero.
+  if [ -f src/runtime_pipeline_abi_modlet_f64_seed_thin.x.DISABLED ]; then
+    mkdir -p build_asm/selfhost_pabi
+    if ./xlang_asm -c -DXLANG_USE_X_PIPELINE \
+        src/runtime_pipeline_abi_modlet_f64_seed_thin.x \
+        -o build_asm/selfhost_pabi/modlet_f64_seed.o 2>/dev/null \
+      && [ -s build_asm/selfhost_pabi/modlet_f64_seed.o ] \
+      && nm -gU build_asm/selfhost_pabi/modlet_f64_seed.o 2>/dev/null \
+        | grep -q 'T _pipeline_asm_modlet_seed_nonzero_inits_elf_c'; then
+      echo "g05_cap_tip_reapply: tip-compiled modlet_f64_seed.o (10.53)" >&2
+      case " ${G05_OBJS:-} " in
+        *" modlet_f64_seed.o "*) ;;
+        *)
+          G05_OBJS="build_asm/selfhost_pabi/modlet_f64_seed.o ${G05_OBJS:-}"
+          export G05_OBJS
+          echo "g05_cap_tip_reapply: prepended modlet_f64_seed.o (10.53)" >&2
+          ;;
+      esac
+      if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+        if nm build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+          | grep -q 'pipeline_asm_modlet_seed_nonzero_inits_elf_c'; then
+          "$OC" --redefine-sym \
+            _pipeline_asm_modlet_seed_nonzero_inits_elf_c=_pipeline_asm_modlet_seed_nonzero_inits_elf_c__demoted \
+            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+            && echo "g05_cap_tip_reapply: 10.53 demoted pabi_weak seed_nonzero" >&2 \
+            || true
+        fi
+      fi
+    else
+      echo "g05_cap_tip_reapply: WARN modlet_f64_seed tip-compile failed" >&2
+    fi
+  fi
+
+
   # 10.26/10.94: Cap tip bak_cap pabi_weak still writes CodegenOutBuf.length
   # at CAP (0x900000) while runtime_driver_abi reads length@0 → ret_fixed_s24
   # CG002 (macho_write ok, out_len garbage). Tip-compile len/set_len thin and

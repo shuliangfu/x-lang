@@ -36748,7 +36748,7 @@ export function pipeline_asm_emit_as_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i
 //   name[256][256]@1028 (32768B)
 //   label_len[256]@33796 (1024B)
 //   label[256][24]@34820 (6144B)
-//   init_imm[256]@40964 (1024B)
+//   init_imm[N] 8B each (10.53: lo+hi; was 4B) · cell_size follows
 //   cell_size[256]@41988 (1024B) — Stage 12.0.5: COMMON payload bytes (8 scalar; N array)
 //   total 43012B = 4 + 256*168
 // Cap was 64 (wave139). 9.6.0 made COMMON the unique home for every mutable
@@ -36767,7 +36767,7 @@ export function pipeline_asm_emit_as_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i
 // PLATFORM: SHARED - layout matches host-cc pipeline_asm_modlet_table_t.
 // Stage 12.0.5: +cell_size[N] so TYPE_ARRAY module lets emit full COMMON (not stack).
 // MAX 64→256 (modlet 64-cap knife): 4 + 256*168 = 43012.
-let g_pipeline_asm_modlet: u8[86020] = [];
+let g_pipeline_asm_modlet: u8[88068] = [];
 // Per-TU sequence for .data string-pool labels (Lxmls_ + hex8(seq) + hex8(fp)).
 // Reset with the modlet table so interned names never leak across modules.
 let g_pipe_modlet_strpool_seq: i32 = 0;
@@ -36782,7 +36782,7 @@ function pipe_modlet_max(): i32 {
   /* wave624: 512 — the mega TU itself has 331 registrable top-level lets;
    * the old 256 cap hit the loud-fail gate at monofile codegen START
    * (CG002 code_len=0, mega FORCE blocker head). 512 covers the mega with
-   * headroom; buffer g_pipeline_asm_modlet grows 43012→86020 to match.
+   * headroom; buffer g_pipeline_asm_modlet grows 43012→86020→88068 (10.53 init_imm i64).
    * PLATFORM: SHARED — single authority (seed twin mirrors). */
   return 512;
 }
@@ -36843,7 +36843,8 @@ function pipe_modlet_off_label(i: i32): i32 {
  * PLATFORM: SHARED — LP64 table layout. Base = label_base + max*24.
  */
 function pipe_modlet_off_init_imm(i: i32): i32 {
-  return pipe_modlet_off_label(0) + (pipe_modlet_max() * 24) + (i * 4);
+  /* 10.53: 8-byte init (lo@0 hi@+4) so module f64 let keeps IEEE bits. */
+  return pipe_modlet_off_label(0) + (pipe_modlet_max() * 24) + (i * 8);
 }
 
 /**
@@ -36862,7 +36863,7 @@ function pipe_modlet_off_init_imm(i: i32): i32 {
  * Product max payload 8 MiB << bit29; mask shrink 30→29 is safe.
  */
 function pipe_modlet_off_cell_size(i: i32): i32 {
-  return pipe_modlet_off_init_imm(0) + (pipe_modlet_max() * 4) + (i * 4);
+  return pipe_modlet_off_init_imm(0) + (pipe_modlet_max() * 8) + (i * 4);
 }
 
 /**
@@ -37652,10 +37653,13 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
         tk = pipeline_type_kind_ord_at(a, type_ref);
       }
     }
-    let imm_buf: i32[1] = [];
+    let imm_buf: i32[2] = [];
     imm_buf[0] = 0;
+    imm_buf[1] = 0;
+    let imm_hi: i32 = 0;
     if (pipe_modlet_scalar_init_common_imm(a, init_ref, tk, is_const, &imm_buf[0]) == 1) {
       imm = imm_buf[0];
+      imm_hi = imm_buf[1];
       cell_sz = 8;
     } else {
       // TYPE_ARRAY (10) + ARRAY_LIT (46): durable BSS for mutable *and*
@@ -37739,6 +37743,7 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
       k = k + 1;
     }
     pipe_store_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_init_imm(idx), imm);
+    pipe_store_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_init_imm(idx) + 4, imm_hi);
     pipe_store_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_cell_size(idx), cell_sz);
     pipe_modlet_set_n(idx + 1);
     tl = tl + 1;
@@ -37878,8 +37883,10 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
           // PLATFORM: SHARED library-TU .data knife · LINUX gold · MACOS.
           if (use_data == 0 && pipe_modlet_cell_is_array(csz_raw) == 0) {
             let imm_d: i32 = 0;
+            let imm_dh: i32 = 0;
             imm_d = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_init_imm(i));
-            if (imm_d != 0) {
+            imm_dh = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_init_imm(i) + 4);
+            if (imm_d != 0 || imm_dh != 0) {
               unsafe {
                 data_len_now = pipeline_elf_ctx_emit_data_len(elf_ctx);
               }
@@ -37960,8 +37967,17 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
           }
         } else {
           imm_b = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_init_imm(i));
+          let imm_bh: i32 = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_init_imm(i) + 4);
           unsafe {
-            rc = pipe_modlet_bake_scalar_imm_to_data(elf_ctx, data_off, imm_b, csz2);
+            /* 10.53: 8-byte cells take table lo/hi verbatim (f64 IEEE). */
+            if (csz2 >= 8) {
+              rc = pipe_modlet_data_poke_u32_le(elf_ctx, data_off, imm_b);
+              if (rc == 0) {
+                rc = pipe_modlet_data_poke_u32_le(elf_ctx, data_off + 4, imm_bh);
+              }
+            } else {
+              rc = pipe_modlet_bake_scalar_imm_to_data(elf_ctx, data_off, imm_b, csz2);
+            }
             pipeline_elf_ctx_set_shndx_override(elf_ctx, 0);
           }
         }
@@ -39705,7 +39721,7 @@ function pipe_modlet_array_lit_elem_const_val(
  * @param init_ref i32 — top-level let init expr
  * @param tk i32 — type kind ord (9 = TYPE_PTR)
  * @param is_const i32 — 1 = const let (prepare skips; hoist keeps)
- * @param out_imm *i32 — folded two's-complement init (0 for null ptr)
+ * @param out_imm *i32 — out_imm[0]=lo, out_imm[1]=hi (f64 IEEE; else hi=0)
  * @return i32 — 1 register 8-byte COMMON; 0 keep other arms / hoist
  * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
  */
@@ -39713,8 +39729,9 @@ function pipe_modlet_array_lit_elem_const_val(
 export function pipe_modlet_scalar_init_common_imm(
   arena: *u8, init_ref: i32, tk: i32, is_const: i32, out_imm: *i32
 ): i32 {
+  /* out_imm[0]=lo, out_imm[1]=hi (10.53 f64). Callers pass i32[2]. */
   let ik: i32 = 0;
-  let fold_buf: i32[1] = [];
+  let fold_buf: i32[2] = [];
   let op: i32 = 0;
   let oek: i32 = 0;
   let v: i32 = 0;
@@ -39722,6 +39739,7 @@ export function pipe_modlet_scalar_init_common_imm(
     return 0;
   }
   fold_buf[0] = 0;
+  fold_buf[1] = 0;
   unsafe {
     ik = pipeline_expr_kind_ord_at(arena, init_ref);
   }
@@ -39733,15 +39751,30 @@ export function pipe_modlet_scalar_init_common_imm(
     if (fb == 1) {
       unsafe {
         out_imm[0] = fold_buf[0];
+        out_imm[1] = 0;
       }
       return 1;
     }
     return 0;
   }
+  /* TYPE_F64=15: keep full IEEE in lo/hi (table init_imm is 8B). */
+  if (tk == 15) {
+    let flo: i32 = 0;
+    let fhi: i32 = 0;
+    if (pipe_modlet_fold_f64_elem_bits(arena, init_ref, &flo, &fhi) == 0) {
+      return 0;
+    }
+    unsafe {
+      out_imm[0] = flo;
+      out_imm[1] = fhi;
+    }
+    return 1;
+  }
   if (ik == 2) {
     unsafe {
       v = pipeline_expr_int_val_at(arena, init_ref);
       out_imm[0] = v;
+      out_imm[1] = 0;
     }
     return 1;
   }
@@ -39752,6 +39785,7 @@ export function pipe_modlet_scalar_init_common_imm(
   if (cv == 1) {
     unsafe {
       out_imm[0] = fold_buf[0];
+      out_imm[1] = 0;
     }
     return 1;
   }
@@ -39763,6 +39797,7 @@ export function pipe_modlet_scalar_init_common_imm(
       if (v == 0) {
         unsafe {
           out_imm[0] = 0;
+          out_imm[1] = 0;
         }
         return 1;
       }
@@ -39782,6 +39817,7 @@ export function pipe_modlet_scalar_init_common_imm(
             if (v == 0) {
               unsafe {
                 out_imm[0] = 0;
+                out_imm[1] = 0;
               }
               return 1;
             }
@@ -40366,10 +40402,12 @@ export function pipeline_asm_modlet_seed_nonzero_inits_elf_c(elf_ctx: *u8, ta: i
   let i: i32 = 0;
   while (i < n) {
     let imm: i32 = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_init_imm(i));
-    if (imm != 0) {
+    let imm_hi: i32 = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_init_imm(i) + 4);
+    /* 10.53: f64 1.0 has lo=0 hi!=0 — must seed on either half. */
+    if (imm != 0 || imm_hi != 0) {
       let rc: i32 = 0;
       unsafe {
-        rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, imm, 0, ta);
+        rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, imm, imm_hi, ta);
       }
       if (rc != 0) {
         return 0 - 1;
@@ -84242,8 +84280,9 @@ export function pipeline_module_hoist_top_level_lets_into_main(module: *u8, aren
               // PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
               if (init_ref > 0 && init_ref <= nexprs) {
                 let is_c_sc: i32 = 0;
-                let imm_skip: i32[1] = [];
+                let imm_skip: i32[2] = [];
                 imm_skip[0] = 0;
+                imm_skip[1] = 0;
                 unsafe {
                   is_c_sc = pipeline_module_top_level_let_is_const(module, tl);
                 }
