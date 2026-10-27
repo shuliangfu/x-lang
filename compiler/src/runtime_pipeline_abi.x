@@ -2366,6 +2366,13 @@ export extern function asm_wpo_collect_walk(
 ): void;
 
 
+// ---- 10.26 merged thin file-level lets (call_spill / frame_size / modlet_strpool) ----
+let w1500_cs_st: i32[8] = [];
+let w1500_fs_blk: i32[512] = [];
+let w1500_fs_hid: i32[512] = [];
+let w1500_fs_es: i32[256] = [];
+let w1501_sp_st: i32[2] = [];
+
 // ---- 10.26 missing export-extern from merged thins (typeck before helpers) ----
 export extern function backend_enc_append_u32_le_c(elf_ctx: *u8, word: u32): i32;
 
