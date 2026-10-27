@@ -13862,6 +13862,19 @@ extern int32_t glue_call_return_byte_size_c(void *arena, int32_t call_expr_ref);
       return -1;
     return 0;
   }
+  /* w1046 (10.46): PE twin of mega glue_store_retval — >16B FIELD(44)/VAR(3)
+   * (and CALL/STRUCT_LIT/ARRAY_LIT) must memcpy from *rax into the let home.
+   * Without this, assign of >16 aggregates only parks rax. PLATFORM: WINDOWS. */
+  if (sz > 16 && arena && init_ref > 0) {
+    int32_t ko_big;
+    extern int32_t glue_copy_large_struct_from_rax_ptr_elf_c(void *elf_ctx, int32_t slot_off,
+                                                            int32_t sz, int32_t ta);
+    ko_big = pipeline_expr_kind_ord_at(arena, init_ref);
+    if (ko_big == 48 || ko_big == 49 || ko_big == 47 || ko_big == 45 || ko_big == 44 ||
+        ko_big == 3) {
+      return glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, slot_off, sz, ta);
+    }
+  }
   if (!m || !arena || ty_ref <= 0)
     return 0;
   return 0;
@@ -22249,29 +22262,66 @@ int32_t pipeline_asm_emit_return_elf_impl(void *arena, void *elf_ctx, int32_t ex
   int32_t ret_fi;
   void *ret_mod;
   int32_t ret_st;
+  int32_t win_forced;
+  int32_t sret_act;
+  int32_t sret_home;
+  int32_t sret_sz;
+  int32_t opk;
+  extern int32_t pipeline_asm_emit_ctx_sret_active_get(void);
+  extern int32_t pipeline_asm_emit_ctx_sret_home_off_get(void);
+  extern int32_t pipeline_asm_emit_ctx_sret_ret_sz_get(void);
+  extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+  extern int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref,
+                                                        void *ctx, int32_t ta);
+  extern int32_t glue_copy_large_struct_from_rax_ptr_elf_c(void *elf_ctx, int32_t slot_off, int32_t sz,
+                                                          int32_t ta);
 
   ly = (uint8_t *)pipeline_asm_ctx_layout(ctx);
   ret_op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+  win_forced = 0;
   if (ret_op != 0) {
-    ret_st = -2;
-    ret_rty = 0;
-    ret_rtk = 0;
-    ret_mod = pipeline_asm_emit_module_ref_c();
-    ret_fi = pipeline_asm_emit_func_index_c();
-    if (ret_mod && ret_fi >= 0)
-      ret_rty = pipeline_module_func_return_type_at(ret_mod, ret_fi);
-    if (ret_rty <= 0)
-      ret_rty = pipeline_expr_resolved_type_ref(arena, ret_op);
-    if (ret_rty > 0)
-      ret_rtk = pipeline_type_kind_ord_at(arena, ret_rty);
-    if (ret_rty > 0 && ret_rtk == 10)
-      ret_st = glue_emit_fixed_array_return_durable_ptr_rax_elf_c(arena, elf_ctx, ret_op, ctx, ta,
-                                                                 ret_rty);
-    if (ret_st == -1)
-      return -1;
-    if (ret_st != 0) {
-      if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, ret_op, ctx, ta) != 0)
+    /* w1046 (10.46): Win64 >16B return of VAR(3)/FIELD(44) must memcpy into
+     * the hidden *rcx home. emit_expr value-loads the first qword so a late
+     * copy would treat rax as a pointer. Force lvalue + copy_large, then skip
+     * emit_expr. This TU is already WIN_LEFTOVER_GROW_VEC. PLATFORM: WINDOWS. */
+    if (ta == 0) {
+      sret_act = pipeline_asm_emit_ctx_sret_active_get();
+      sret_home = pipeline_asm_emit_ctx_sret_home_off_get();
+      sret_sz = pipeline_asm_emit_ctx_sret_ret_sz_get();
+      if (sret_act != 0 && sret_home > 0 && sret_sz > 16) {
+        opk = pipeline_expr_kind_ord_at(arena, ret_op);
+        if (opk == 3 || opk == 44) {
+          if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, ret_op, ctx, ta) == 0) {
+            if (glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, sret_home, sret_sz, ta) < 0)
+              return -1;
+            win_forced = 1;
+          }
+        }
+      }
+    }
+    if (win_forced != 0) {
+      ret_st = 0;
+    } else {
+      ret_st = -2;
+      ret_rty = 0;
+      ret_rtk = 0;
+      ret_mod = pipeline_asm_emit_module_ref_c();
+      ret_fi = pipeline_asm_emit_func_index_c();
+      if (ret_mod && ret_fi >= 0)
+        ret_rty = pipeline_module_func_return_type_at(ret_mod, ret_fi);
+      if (ret_rty <= 0)
+        ret_rty = pipeline_expr_resolved_type_ref(arena, ret_op);
+      if (ret_rty > 0)
+        ret_rtk = pipeline_type_kind_ord_at(arena, ret_rty);
+      if (ret_rty > 0 && ret_rtk == 10)
+        ret_st = glue_emit_fixed_array_return_durable_ptr_rax_elf_c(arena, elf_ctx, ret_op, ctx, ta,
+                                                                   ret_rty);
+      if (ret_st == -1)
         return -1;
+      if (ret_st != 0) {
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, ret_op, ctx, ta) != 0)
+          return -1;
+      }
     }
   }
   if (glue_index_scratch_spills_cleanup_all_elf_c(elf_ctx, ta) != 0)

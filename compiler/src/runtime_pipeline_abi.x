@@ -5967,6 +5967,7 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
     let x86_off: i32 = 0 - 1;
     let x86_fwd: i32 = 0;
     let opk: i32 = 0;
+    let win_forced: i32 = 0;
     if (ta == 0) {
       unsafe {
         act = pipeline_asm_emit_ctx_sret_active_get();
@@ -5980,8 +5981,41 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
           }
         }
       }
+      // w1046 (10.46): Win64 >16B return of VAR(3)/FIELD(44) must memcpy
+      // into the hidden *rcx home. local_off can miss params; emit_expr
+      // value-loads the first qword so the late copy would treat rax as a
+      // pointer. Force lvalue + rs_copy before the mid/else cascade.
+      // Also avoids act/home/rsz locals being clobbered by the huge else
+      // frame before late re-reads them. PLATFORM: WINDOWS.
+      if (act != 0 && home > 0 && rsz > 16 && x86_fwd == 0) {
+        let on_win_a: i32 = 0;
+        unsafe {
+          on_win_a = link_abi_host_is_windows();
+        }
+        if (on_win_a != 0) {
+          if (opk == 0) {
+            unsafe {
+              opk = pipeline_expr_kind_ord_at(arena, ret_op);
+            }
+          }
+          if (opk == 3 || opk == 44) {
+            unsafe {
+              rc = pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, ret_op, ctx, ta);
+            }
+            if (rc == 0) {
+              if (w1521_rs_copy_x86(elf_ctx, home, rsz) < 0) {
+                return 0 - 1;
+              }
+              win_forced = 1;
+            }
+          }
+        }
+      }
     }
-    if (x86_fwd != 0) {
+    if (win_forced != 0) {
+      // Operand already copied to *sret; fall through to f64/tail join.
+      rc = 0;
+    } else if (x86_fwd != 0) {
       if (w1521_rs_fwd_call_x86(arena, elf_ctx, ret_op, ctx, ta, home) != 0) {
         return 0 - 1;
       }
@@ -7565,6 +7599,16 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
       // operand) in a frame temp and leaves its address in rax; copy it into
       // the hidden dest (Linux pabi writes the dest itself). A durable
       // TYPE_ARRAY pointer is the same source address. PLATFORM: WINDOWS.
+      // w1046 (10.46): re-fetch act/home/rsz like the ARM path — the else
+      // cascade allocates many locals that can reuse the same frame slots
+      // and clobber the Path A snapshot before this gate. PLATFORM: WINDOWS.
+      if (ta == 0) {
+        unsafe {
+          act = pipeline_asm_emit_ctx_sret_active_get();
+          home = pipeline_asm_emit_ctx_sret_home_off_get();
+          rsz = pipeline_asm_emit_ctx_sret_ret_sz_get();
+        }
+      }
       if (ta == 0 && act != 0 && home > 0 && rsz > 16) {
         let on_win: i32 = 0;
         unsafe {
