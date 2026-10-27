@@ -461,15 +461,15 @@ esac
 # Strong T first-wins; HARD BAN tip reinject of w157 thin (Darwin BRANCH26).
 # Must precede _PABI_SELFHOST: Linux spill.o also defines this T and would
 # otherwise first-win the egg *32 body (w1041 map). PLATFORM: SHARED.
-_g05_pure_overlay src/runtime_pipeline_abi_call_spill_thin.x \
-  build_asm/selfhost_pabi/call_spill.o glue_asm_sum_block_call_spill_bytes
-_PABI_CALL_SPILL="$_G05_PO_OUT"
+# 10.26 merged into mega — _g05_pure_overlay src/runtime_pipeline_abi_call_spill_thin.x \
+# 10.26 merged into mega — build_asm/selfhost_pabi/call_spill.o glue_asm_sum_block_call_spill_bytes
+_PABI_CALL_SPILL=""  # 10.26 merged into mega
 # w1032..w1497: compute_frame_size (leaf scratch floor skip, arm64 x2, w1490
 # expression-nested locals, Windows outgoing area). w1500: pure .x (was
 # host-cc seed). Strong T first-wins egg weak (Darwin/Ubuntu) or weakened
 # pabi_weak T (Windows). Also ahead of _PABI_SELFHOST. PLATFORM: SHARED.
-_g05_pure_overlay src/runtime_pipeline_abi_frame_size_thin.x \
-  build_asm/selfhost_pabi/compute_frame_size.o pipeline_asm_compute_frame_size_c
+# 10.26 merged into mega — _g05_pure_overlay src/runtime_pipeline_abi_frame_size_thin.x \
+# 10.26 merged into mega — build_asm/selfhost_pabi/compute_frame_size.o pipeline_asm_compute_frame_size_c
 # note743y.6.22: tip Soft Cap arm64 call-spill under-budget (8B vs 16B; w1484
 # class). fill_nested sub #0x8c0 but stores [x29,#0x8c0] → clobber caller fp.
 # Patch overlay .o prologue/epilogue 0x8c0→0x900. PLATFORM: MACOS|DARWIN.
@@ -478,7 +478,7 @@ if [ "$(uname -s)" = "Darwin" ] && [ -f build_asm/selfhost_pabi/compute_frame_si
 import sys as _s
 (d.count(a)==1 and d.count(c)==1) and (p.write_bytes(d.replace(a,b,1).replace(c,e,1)), _s.stderr.write('g05_relink_env: note743y.6.22 fill_nested frame 0x8c0->0x900\n'))"
 fi
-_PABI_FRAME_SIZE="$_G05_PO_OUT"
+_PABI_FRAME_SIZE=""  # 10.26 merged into mega
 # 10.44: i8 struct pack — named_size (size=1) + named_align (align=1 via demoted egg)
 # + named_builtin_cap (i8→1). Size overlay is full body (no demote). Align thin
 # calls glue_type_align_simple__demoted; Linux/Darwin redefine egg below.
@@ -664,9 +664,9 @@ _PABI_WIN_PARAM_HOME=""
 case "$UNAME_S" in
   MINGW*|MSYS*|CYGWIN*|Windows_NT*)
     # w1500: pure .x (was host-cc seed).
-    _g05_pure_overlay src/runtime_pipeline_abi_win_param_home_thin.x \
-      build_asm/selfhost_pabi/win_param_home.o pipeline_asm_emit_param_home_elf_c
-    _PABI_WIN_PARAM_HOME="$_G05_PO_OUT"
+    # 10.26 merged into mega — _g05_pure_overlay src/runtime_pipeline_abi_win_param_home_thin.x \
+    # 10.26 merged into mega — build_asm/selfhost_pabi/win_param_home.o pipeline_asm_emit_param_home_elf_c
+    _PABI_WIN_PARAM_HOME=""  # 10.26 merged into mega
     ;;
 esac
 # w1499: 64-bit MUL / MOD / divisor zero check (终局待办 10.20). The pabi
@@ -679,9 +679,9 @@ esac
 # PLATFORM: SHARED.
 _PABI_BINOP_WIDE=""
 if [ "${XLANG_BINOP_WIDE_OVERLAY:-1}" = "1" ]; then
-  _g05_pure_overlay src/runtime_pipeline_abi_binop_wide_thin.x \
-    build_asm/selfhost_pabi/binop_wide.o pipeline_asm_emit_binop_mod_elf_c
-  _PABI_BINOP_WIDE="$_G05_PO_OUT"
+  # 10.26 merged into mega — _g05_pure_overlay src/runtime_pipeline_abi_binop_wide_thin.x \
+  # 10.26 merged into mega — build_asm/selfhost_pabi/binop_wide.o pipeline_asm_emit_binop_mod_elf_c
+  _PABI_BINOP_WIDE=""  # 10.26 merged into mega
 fi
 # w1558: parser bootstrap mega allow list. Egg
 # asm_parser_bootstrap_mega_emit_allowed is the short list (parse_into* and
@@ -835,9 +835,9 @@ fi
 # PLATFORM: SHARED.
 _PABI_MODLET_STRPOOL=""
 if [ "${XLANG_MODLET_STRPOOL_OVERLAY:-1}" = "1" ]; then
-  _g05_pure_overlay src/runtime_pipeline_abi_modlet_strpool_thin.x \
-    build_asm/selfhost_pabi/modlet_strpool.o pipe_modlet_bake_string_lit_elem_to_data
-  _PABI_MODLET_STRPOOL="$_G05_PO_OUT"
+  # 10.26 merged into mega — _g05_pure_overlay src/runtime_pipeline_abi_modlet_strpool_thin.x \
+  # 10.26 merged into mega — build_asm/selfhost_pabi/modlet_strpool.o pipe_modlet_bake_string_lit_elem_to_data
+  _PABI_MODLET_STRPOOL=""  # 10.26 merged into mega
 fi
 # w1510: STRUCT_LIT fields matched to the layout by name (终局待办 10.29).
 # pabi's pipeline_expr_struct_lit_field_offset_at / _field_type_ref_at took
@@ -849,8 +849,8 @@ fi
 # PLATFORM: SHARED.
 _PABI_STRUCT_LIT_FIELD=""
 if [ "${XLANG_STRUCT_LIT_FIELD_OVERLAY:-1}" = "1" ]; then
-  _g05_pure_overlay src/runtime_pipeline_abi_struct_lit_field_thin.x \
-    build_asm/selfhost_pabi/struct_lit_field.o pipeline_expr_struct_lit_field_offset_at
+  # 10.26 merged into mega — _g05_pure_overlay src/runtime_pipeline_abi_struct_lit_field_thin.x \
+  # 10.26 merged into mega — build_asm/selfhost_pabi/struct_lit_field.o pipeline_expr_struct_lit_field_offset_at
   # 10.44: tip-compile (non-Cap host) mangles glue_struct_lit_field_store_sz →
   # pipeline_glue_*; Cap tip host + #[no_mangle] keeps the real name. Without
   # rename Cap tip keeps local store_sz → size_simple__demoted (i8→4) while
@@ -877,7 +877,7 @@ if [ "${XLANG_STRUCT_LIT_FIELD_OVERLAY:-1}" = "1" ]; then
       build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o \
       && echo "g05_relink_env: 10.44 demoted fill store_sz" >&2 || true
   fi
-  _PABI_STRUCT_LIT_FIELD="$_G05_PO_OUT"
+  _PABI_STRUCT_LIT_FIELD=""  # 10.26 merged into mega
 fi
 # w1511: module-let f32 FLOAT_LIT gets a modlet cell (终局待办 10.40).
 # pabi's pipe_modlet_scalar_init_common_imm only took BOOL/int/null-ptr, so
@@ -888,9 +888,9 @@ fi
 # PLATFORM: SHARED.
 _PABI_MODLET_FLOAT_IMM=""
 if [ "${XLANG_MODLET_FLOAT_IMM_OVERLAY:-1}" = "1" ]; then
-  _g05_pure_overlay src/runtime_pipeline_abi_modlet_float_imm_thin.x \
-    build_asm/selfhost_pabi/modlet_float_imm.o pipe_modlet_scalar_init_common_imm
-  _PABI_MODLET_FLOAT_IMM="$_G05_PO_OUT"
+  # 10.26 merged into mega — _g05_pure_overlay src/runtime_pipeline_abi_modlet_float_imm_thin.x \
+  # 10.26 merged into mega — build_asm/selfhost_pabi/modlet_float_imm.o pipe_modlet_scalar_init_common_imm
+  _PABI_MODLET_FLOAT_IMM=""  # 10.26 merged into mega
 fi
 # 10.52: sign-extend file-level negative i32/i64/isize COMMON seeds
 # (终局待办 10.52). pabi hardcodes hi=0 so `let GP: i32 = -3` loads as
@@ -942,10 +942,11 @@ _PABI_ASSIGN_VAR=""
 case "$UNAME_S" in
   Darwin|MINGW*|MSYS*|CYGWIN*|Windows_NT*)
     if [ "${XLANG_ASSIGN_VAR_OVERLAY:-1}" = "1" ]; then
-      _g05_pure_overlay src/runtime_pipeline_abi_assign_var_compound_thin.x \
-        build_asm/selfhost_pabi/assign_var_compound.o glue_emit_assign_var_elf_c
-      if [ -n "$_G05_PO_OUT" ]; then
-        _PABI_ASSIGN_VAR="$_G05_PO_OUT"
+      # 10.26 merged into mega — _g05_pure_overlay src/runtime_pipeline_abi_assign_var_compound_thin.x \
+      # 10.26 merged into mega — build_asm/selfhost_pabi/assign_var_compound.o glue_emit_assign_var_elf_c
+      # 10.26: assign_var_compound gate merged into mega; still inject leaves
+      _PABI_ASSIGN_VAR=""
+      if true; then
         for _avl in \
           "assign_var_try_let|glue_emit_assign_var_try_let_elf_c" \
           "assign_var_finish|glue_emit_assign_var_finish_elf_c" \
@@ -1000,9 +1001,9 @@ _PABI_RETURN_SRET=""
 case "$UNAME_S" in
   Darwin|Linux|MINGW*|MSYS*|CYGWIN*|Windows_NT*)
     if [ "${XLANG_RETURN_SRET_OVERLAY:-1}" = "1" ]; then
-      _g05_pure_overlay src/runtime_pipeline_abi_return_sret_thin.x \
-        build_asm/selfhost_pabi/return_sret.o pipeline_asm_emit_return_elf_impl
-      _PABI_RETURN_SRET="$_G05_PO_OUT"
+      # 10.26 merged into mega — _g05_pure_overlay src/runtime_pipeline_abi_return_sret_thin.x \
+      # 10.26 merged into mega — build_asm/selfhost_pabi/return_sret.o pipeline_asm_emit_return_elf_impl
+      _PABI_RETURN_SRET=""  # 10.26 merged into mega
     fi
     ;;
 esac
@@ -1028,9 +1029,9 @@ esac
 # Windows egg copy); Linux pabi already carries it weak. PLATFORM: SHARED.
 _PABI_INDEX_BASE_FIELD=""
 if [ "${XLANG_INDEX_BASE_FIELD_OVERLAY:-1}" = "1" ]; then
-  _g05_pure_overlay src/runtime_pipeline_abi_index_base_field_thin.x \
-    build_asm/selfhost_pabi/index_base_field.o glue_emit_index_eff_addr_base_elf_c
-  _PABI_INDEX_BASE_FIELD="$_G05_PO_OUT"
+  # 10.26 merged into mega — _g05_pure_overlay src/runtime_pipeline_abi_index_base_field_thin.x \
+  # 10.26 merged into mega — build_asm/selfhost_pabi/index_base_field.o glue_emit_index_eff_addr_base_elf_c
+  _PABI_INDEX_BASE_FIELD=""  # 10.26 merged into mega
 fi
 # note743y / 10.2: tip peel left egg U for these faces; Darwin Cap overlays
 # already rebuild them every tip-cold relink. Linux gold still relied on egg T
@@ -1449,9 +1450,9 @@ _PABI_F32_DEMOTE=""
 case "$UNAME_S" in
   Linux)
     if [ "${XLANG_F32_DEMOTE_OVERLAY:-1}" = "1" ]; then
-      _g05_pure_overlay src/runtime_pipeline_abi_f32_demote_thin.x \
-        build_asm/selfhost_pabi/f32_demote.o glue_maybe_demote_f64_to_f32_eax_elf_c
-      _PABI_F32_DEMOTE="$_G05_PO_OUT"
+      # 10.26 merged into mega — _g05_pure_overlay src/runtime_pipeline_abi_f32_demote_thin.x \
+      # 10.26 merged into mega — build_asm/selfhost_pabi/f32_demote.o glue_maybe_demote_f64_to_f32_eax_elf_c
+      _PABI_F32_DEMOTE=""  # 10.26 merged into mega
     fi
     ;;
 esac
