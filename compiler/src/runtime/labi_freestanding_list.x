@@ -2055,17 +2055,25 @@ export function xlang_ensure_freestanding_io_o(argv0: *u8, driver_freestanding: 
 // slots of `cap` bytes each (durable for the spawn; seed keeps it static).
 // PLATFORM: WINDOWS | MINGW consumer (seed use_coff_o branch); pure bytes
 // elsewhere (never called on Darwin/Linux).
+// 10.69: #[cfg(target_os = "windows")] on every labi_win_ld_* so prefer/.x
+// paths do not embed ~17KB dead code into Darwin/Ubuntu products (cold seed
+// already #if _WIN32).
 // ---------------------------------------------------------------------------
 
+#[cfg(target_os = "windows")]
 export extern "C" function xlang_fmt_opendir(name: *u8): *u8;
+#[cfg(target_os = "windows")]
 export extern "C" function xlang_fmt_closedir(dirp: *u8): i32;
+#[cfg(target_os = "windows")]
 export extern "C" function xlang_fmt_readdir_name(dirp: *u8): *u8;
+#[cfg(target_os = "windows")]
 export extern "C" function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
 
 /**
  * Number of path slots labi_win_ld_prepare fills (caller sizes bufs = count * cap).
  * @return i32 — slot count (12)
  */
+#[cfg(target_os = "windows")]
 #[no_mangle]
 export function labi_win_ld_slot_count(): i32 {
   return 12;
@@ -2078,6 +2086,7 @@ export function labi_win_ld_slot_count(): i32 {
  * @param i i32 — slot index
  * @return *u8 — slot start
  */
+#[cfg(target_os = "windows")]
 #[no_mangle]
 export function labi_win_ld_slot(bufs: *u8, cap: i32, i: i32): *u8 {
   let off: i32 = i * cap;
@@ -2092,6 +2101,7 @@ export function labi_win_ld_slot(bufs: *u8, cap: i32, i: i32): *u8 {
  * @param src *u8 — C string (null = empty)
  * @return i32 — new pos, or -1
  */
+#[cfg(target_os = "windows")]
 #[no_mangle]
 export function labi_win_ld_cat(dst: *u8, cap: i32, pos: i32, src: *u8): i32 {
   if (dst == 0 as *u8) {
@@ -2134,6 +2144,7 @@ export function labi_win_ld_cat(dst: *u8, cap: i32, pos: i32, src: *u8): i32 {
  * @param c *u8 — third piece
  * @return i32 — 1 ok, 0 overflow
  */
+#[cfg(target_os = "windows")]
 #[no_mangle]
 export function labi_win_ld_join3(dst: *u8, cap: i32, a: *u8, b: *u8, c: *u8): i32 {
   let p: i32 = 0;
@@ -2159,6 +2170,7 @@ export function labi_win_ld_join3(dst: *u8, cap: i32, a: *u8, b: *u8, c: *u8): i
  * @param b *u8 — version b
  * @return i32 — >0 when a newer, <0 when b newer, 0 equal
  */
+#[cfg(target_os = "windows")]
 #[no_mangle]
 export function labi_win_ld_ver_cmp(a: *u8, b: *u8): i32 {
   let ia: i32 = 0;
@@ -2206,6 +2218,7 @@ export function labi_win_ld_ver_cmp(a: *u8, b: *u8): i32 {
  * @param cap i32 — capacity of each out buffer
  * @return i32 — 1 found, 0 not found
  */
+#[cfg(target_os = "windows")]
 #[no_mangle]
 export function labi_win_ld_find_on_path(ld_out: *u8, root_out: *u8, cap: i32): i32 {
   let path: *u8 = 0 as *u8;
@@ -2274,6 +2287,7 @@ export function labi_win_ld_find_on_path(ld_out: *u8, root_out: *u8, cap: i32): 
  * @param scratch *u8 — scratch buffer (cap bytes)
  * @return i32 — 1 found, 0 none
  */
+#[cfg(target_os = "windows")]
 #[no_mangle]
 export function labi_win_ld_find_gcc_dir(root: *u8, gcc_dir_out: *u8, triple_out: *u8, cap: i32, scratch: *u8): i32 {
   let base: u8[1024] = [];
@@ -2383,6 +2397,7 @@ export function labi_win_ld_find_gcc_dir(root: *u8, gcc_dir_out: *u8, triple_out
  * @param where_s *u8 — searched location (nullable)
  * @return void
  */
+#[cfg(target_os = "windows")]
 #[no_mangle]
 export function labi_win_ld_report(what: *u8, where_s: *u8): void {
   let msg: u8[1400] = [];
@@ -2410,6 +2425,7 @@ export function labi_win_ld_report(what: *u8, where_s: *u8): void {
  * @param cap i32 — bytes per slot (>= 512)
  * @return i32 — 0 ok; -1 ld missing; -2 crtbegin/crtend missing; -3 crt2 missing; -4 overflow
  */
+#[cfg(target_os = "windows")]
 #[no_mangle]
 export function labi_win_ld_prepare(bufs: *u8, cap: i32): i32 {
   let s0: *u8 = labi_win_ld_slot(bufs, cap, 0);
@@ -2520,6 +2536,7 @@ export function labi_win_ld_prepare(bufs: *u8, cap: i32): i32 {
  * @param s *u8 — entry (null/empty skipped)
  * @return void
  */
+#[cfg(target_os = "windows")]
 #[no_mangle]
 export function labi_win_ld_push(argv: **u8, la: *i32, max_la: i32, s: *u8): void {
   if (s == 0 as *u8) {
@@ -2545,6 +2562,7 @@ export function labi_win_ld_push(argv: **u8, la: *i32, max_la: i32, s: *u8): voi
  * @param max_la i32 — capacity
  * @return void
  */
+#[cfg(target_os = "windows")]
 #[no_mangle]
 export function labi_win_ld_append_head(bufs: *u8, cap: i32, argv: **u8, la: *i32, max_la: i32): void {
   labi_win_ld_push(argv, la, max_la, "-m");
@@ -2568,6 +2586,7 @@ export function labi_win_ld_append_head(bufs: *u8, cap: i32, argv: **u8, la: *i3
  * @param max_la i32 — capacity
  * @return void
  */
+#[cfg(target_os = "windows")]
 #[no_mangle]
 export function labi_win_ld_append_tail(bufs: *u8, cap: i32, argv: **u8, la: *i32, max_la: i32): void {
   labi_win_ld_push(argv, la, max_la, "-lmingw32");
