@@ -1210,7 +1210,7 @@ ensure_dir_cap_linux_pure() {
 # __open and __getdirentries64. The .x names use three leading underscores
 # so the undefined symbols are ___open and ___getdirentries64.
 # O_RDONLY|O_DIRECTORY is 1048576. The stream is 1096 bytes.
-# Linux uses ensure_dir_cap_linux_pure. Windows keeps the C seed. No gcc -E.
+# Linux uses ensure_dir_cap_linux_pure. 10.93: no host-cc of the C seed on any host.
 # PLATFORM: MACOS|DARWIN arm64.
 # $1 = output object (default runtime_dir_cap.o, cwd is compiler/).
 ensure_dir_cap_darwin_pure() {
@@ -1306,10 +1306,12 @@ ensure_dir_cap_darwin_pure() {
     echo "ensure_host_cc_seed_o dir-cap: pure-asm try $try failed" >&2
     rm -f "$o"
   done
+  # 10.93: fail-closed. Do not host-cc seeds/runtime_dir_cap.from_x.c.
+  # Darwin body is src/asm/runtime_dir_cap_darwin.x only.
+  # PLATFORM: MACOS|DARWIN arm64.
   if [ ! -s "$o" ]; then
-    log "cc -c $seed → $o (pure-asm missing object)"
-    # shellcheck disable=SC2086
-    $CC ${CFLAGS:-} -I. -Iinclude -Isrc -c "$seed" -o "$o" || return 1
+    echo "ensure_host_cc_seed_o dir-cap: pure-asm failed; host-cc seed removed (10.93)" >&2
+    return 1
   fi
   return 0
 }

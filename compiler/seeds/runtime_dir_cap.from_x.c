@@ -1,67 +1,12 @@
 /*
- * seeds/runtime_dir_cap.from_x.c — Cap residual 9.1.10 global faces.
+ * seeds/runtime_dir_cap.from_x.c — archaeology stub (10.93).
  *
- * Emits non-static xlang_dir_* for std.fs KEEP_C / formal fs.o merges
- * (static inline Cap header alone leaves U when -E emits extern calls).
+ * Authority:
+ *   Darwin arm64  → src/asm/runtime_dir_cap_darwin.x (dir-cap-pure)
+ *   Linux x86_64  → src/asm/runtime_dir_cap_linux.x (-backend asm)
+ *   Windows       → std/fs/win32.x (FindFirstFileA); no dir Cap seed merge
  *
- * G.7: bodies call xlang_dir_cap.h (single authority). Do not reimplement
- * getdents64 here.
- *
- * PLATFORM: SHARED face; LINUX Cap / POSIX fallback inside the header.
- * Darwin arm64 product body is src/asm/runtime_dir_cap_darwin.x
- * (libSystem __open + __getdirentries64). Linux x86_64 product body
- * is src/asm/runtime_dir_cap_linux.x (raw_syscall open/getdents64/close).
- * This seed stays the Windows body, and the fallback when pure asm
- * leaves no object.
+ * Do not host-cc this file. Export face unchanged (xlang_dir_*).
+ * PLATFORM: SHARED archaeology.
  */
-
-#include <stdint.h>
-#include <stddef.h>
-
-#if !defined(_WIN32) && !defined(_WIN64)
-#include <xlang_dir_cap.h>
-
-/**
- * Cap residual 9.1.10: opendir face for std.fs / product KEEP_C.
- * @param name directory path (NUL-terminated)
- * @return opaque DIR* as uint8_t*, or NULL
- * PLATFORM: SHARED
- */
-uint8_t *xlang_dir_opendir(uint8_t *name) {
-  if (!name)
-    return (uint8_t *)0;
-  return (uint8_t *)xlang_dir_open((const char *)(void *)name);
-}
-
-/**
- * Cap residual 9.1.10: readdir face — glibc-layout dirent* as uint8_t*.
- * @param dirp opaque from xlang_dir_opendir
- * @return dirent pointer or NULL at EOF
- * PLATFORM: SHARED
- */
-uint8_t *xlang_dir_readdir(uint8_t *dirp) {
-  return (uint8_t *)xlang_dir_read((void *)dirp);
-}
-
-/**
- * Cap residual 9.1.10: closedir face.
- * @param dirp opaque from xlang_dir_opendir
- * @return 0 ok, -1 fail
- * PLATFORM: SHARED
- */
-int32_t xlang_dir_closedir(uint8_t *dirp) {
-  return (int32_t)xlang_dir_close((void *)dirp);
-}
-
-/**
- * Cap residual 9.1.10: readdir d_name only (fmt / pipeline).
- * @param dirp opaque from xlang_dir_opendir
- * @return name pointer valid until next read/close, or NULL
- * PLATFORM: SHARED
- */
-uint8_t *xlang_dir_readdir_name_c(uint8_t *dirp) {
-  char *n = xlang_dir_readdir_name((void *)dirp);
-  return (uint8_t *)(void *)n;
-}
-
-#endif /* !_WIN32 */
+#error "10.93: do not host-cc runtime_dir_cap.from_x.c; use runtime_dir_cap_*.x"

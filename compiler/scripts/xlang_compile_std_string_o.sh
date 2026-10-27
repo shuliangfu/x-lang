@@ -37,12 +37,11 @@ trap 'rm -rf "$tmp"' EXIT INT TERM
 # the xlang_string_* helpers stay undefined and are resolved by later link
 # (sx.o below, and std.heap at the user link). No host cc for this half.
 # A failure stops here. Do not fall back to -E + cc: that is the execve(cc)
-# this path exists to remove. Windows keeps the C emit until the same nm
-# check has been run there.
-# PLATFORM: MACOS|DARWIN|LINUX — asm. WINDOWS — C emit below.
+# this path exists to remove. 10.93: Windows same fail-closed pure-asm.
+# PLATFORM: MACOS|DARWIN|LINUX|WINDOWS — asm. 10.93: no C emit + host cc.
 mod_asm=0
 case "$(uname -s 2>/dev/null)" in
-  Darwin|Linux)
+  Darwin|Linux|MINGW*|MSYS*|CYGWIN*|Windows_NT*)
     if "$XLANG_RUN" -backend asm -c -L "$ROOT" -o "$tmp/mod.o" "$ROOT/std/string/mod.x" \
         >"$tmp/mod_asm.log" 2>&1 \
       && [ -s "$tmp/mod.o" ] \
@@ -58,6 +57,9 @@ case "$(uname -s 2>/dev/null)" in
 esac
 
 if [ "$mod_asm" != "1" ]; then
+echo "xlang_compile_std_string_o: mod.x pure-asm required; C+cc removed (10.93)" >&2
+exit 1
+# archaeology: former -x -E + cc path for Windows (removed 10.93)
 # mod.x → C via -x -E (entry-only). PLATFORM: WINDOWS.
 # PLATFORM: SHARED — do not rm global /tmp/xlang_xlang_x.*.c (races with concurrent -o).
 if ! "$XLANG_RUN" build -x -E -L "$ROOT" "$ROOT/std/string/mod.x" >"$tmp/mod.c" 2>"$tmp/mod.log"; then
@@ -248,27 +250,19 @@ fi
 # 【Why】产品 xlang 为 XLANG_NO_C_FRONTEND 时 -lib-name 未接线（仅 C 前端 RUN_CC 解析），
 #   路径前缀会把 xlang_string_copy_c 打成 std_string_string_xlang_string_copy_c。
 # 权威裸实现：R2 路径下编译 runtime_string_fast.x（DIRECT 模式，无 ld -r，因无 OS bridge）；
-#   冷路径下用 seeds/runtime_string_fast.from_x.c（与 string.x 同语义）。
+#   10.93: 冷路径也只走 runtime_string_fast.x；禁止 host-cc 种子。
 # -lib-name 接线后可改回 xlang -lib-name "" string.x。
 # PLATFORM: MACOS|DARWIN arm64 and LINUX — runtime_string_fast.x is one TU.
 # Compile it with the asm backend. Nine text symbols, strong.
 # Do not call ensure_host_cc_seed_o.sh here: loading that script runs the
 # seed catalog, and the catalog probes the host compiler.
 # Three tries cover a segfault on an early try. If all three fail, stop.
-# Do not compile seeds/runtime_string_fast.from_x.c with host cc on these
-# hosts. Windows still host-cc's that seed below.
+# 10.93: do not compile seeds/runtime_string_fast.from_x.c with host cc
+# on any host (including Windows).
 sx_pure=0
-_sx_host=0
-case "$(uname -s 2>/dev/null)" in
-  Darwin)
-    if [ "$(uname -m 2>/dev/null)" = "arm64" ]; then
-      _sx_host=1
-    fi
-    ;;
-  Linux)
-    _sx_host=1
-    ;;
-esac
+# 10.93: runtime_string_fast.x is PLATFORM SHARED — pure-asm on every host.
+# Do not host-cc seeds/runtime_string_fast.from_x.c.
+_sx_host=1
 if [ "$_sx_host" = "1" ] && [ -f "$COMP/src/asm/runtime_string_fast.x" ]; then
   _sx_try=0
   while [ "$_sx_try" -lt 3 ]; do
@@ -299,28 +293,10 @@ if [ "$_sx_host" = "1" ] && [ -f "$COMP/src/asm/runtime_string_fast.x" ]; then
     exit 1
   fi
 fi
-if [ "$sx_pure" != "1" ] && [ "$XLANG_G05_PREFER_X_O" = "1" ] && [ -x "$COMP/xlang-c" ] && [ -f "$COMP/src/asm/runtime_string_fast.x" ]; then
-  if XLANG_KEEP_C=1 "$COMP/xlang-c" -L "$ROOT" -L "$COMP/src" -L "$COMP/src/asm" -lib-name "" -o "$tmp/sx.o" "$COMP/src/asm/runtime_string_fast.x" >"$tmp/sx_xlangc.log" 2>&1; then
-    echo "xlang_compile_std_string_o: sx.o <- runtime_string_fast.x (PREFER_X_O R2 DIRECT)"
-    rm -f /tmp/xlang_xlang_x.*.c 2>/dev/null || true
-  else
-    echo "xlang_compile_std_string_o: R2 DIRECT failed, fallback to seed" >&2
-    rm -f /tmp/xlang_xlang_x.*.c 2>/dev/null || true
-    cc $CFLAGS -c "$COMP/seeds/runtime_string_fast.from_x.c" -o "$tmp/sx.o"
-  fi
-elif [ "$sx_pure" != "1" ] && [ -f "$COMP/seeds/runtime_string_fast.from_x.c" ]; then
-  cc $CFLAGS -c "$COMP/seeds/runtime_string_fast.from_x.c" -o "$tmp/sx.o"
-elif [ "$sx_pure" != "1" ]; then
-  XLANG_KEEP_C=1 "$XLANG" build -L "$ROOT" -lib-name "" -o "$tmp/sx.o" "$ROOT/std/string/string.x" >"$tmp/sx.log" 2>&1 || true
-  if [ ! -f "$tmp/sx.o" ]; then
-    if "$XLANG_RUN" build -x -E -lib-name "" -L "$ROOT" "$ROOT/std/string/string.x" >"$tmp/sx.c" 2>"$tmp/sx.err"; then
-      cc $CFLAGS -c "$tmp/sx.c" -o "$tmp/sx.o"
-    else
-      echo "xlang_compile_std_string_o: string.x bare failed (no seed, -lib-name unsupported)" >&2
-      cat "$tmp/sx.log" "$tmp/sx.err" 2>/dev/null >&2
-      exit 1
-    fi
-  fi
+# 10.93: no host-cc of seeds/runtime_string_fast.from_x.c; no C-backend sx.
+if [ "$sx_pure" != "1" ]; then
+  echo "xlang_compile_std_string_o: pure-asm string fast required (10.93)" >&2
+  exit 1
 fi
 
 ld -r -o "$OUT" "$tmp/mod.o" "$tmp/sx.o"

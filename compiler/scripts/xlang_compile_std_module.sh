@@ -2511,13 +2511,13 @@ for x_path in "$@"; do
       esac
       ;;
     ../std/fs/mod.x|std/fs/mod.x)
-      # PLATFORM: MACOS|DARWIN|LINUX — std.fs mod.x (记239).
+      # PLATFORM: MACOS|DARWIN|LINUX|WINDOWS — std.fs mod.x (记239 / 10.93).
       # Tip asm emits std_fs_*; -x -E fails typeck on std.io co-emit.
       # Product fs.o via fs_formal already pure-asm; this arm covers bare
-      # module.sh compiles. Fail-closed; Windows keeps C.
+      # module.sh compiles. Fail-closed; 10.93 Windows same (no C+cc).
       _fsm_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_fsm_os" in
-        Darwin|Linux)
+        Darwin|Linux|MINGW*|MSYS*|CYGWIN*|Windows_NT*)
           if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/fsm_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
@@ -2541,13 +2541,13 @@ for x_path in "$@"; do
       esac
       ;;
     ../std/string/mod.x|std/string/mod.x)
-      # PLATFORM: MACOS|DARWIN|LINUX — std.string mod.x (记238).
+      # PLATFORM: MACOS|DARWIN|LINUX|WINDOWS — std.string mod.x (记238 / 10.93).
       # Product string.o via xlang_compile_std_string_o already pure-asm;
       # bare module.sh -x -E→cc still hits this leaf. Fail-closed.
-      # Tip emits std_string_*. Windows keeps C path.
+      # Tip emits std_string_*. 10.93: Windows same (no C+cc).
       _strm_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_strm_os" in
-        Darwin|Linux)
+        Darwin|Linux|MINGW*|MSYS*|CYGWIN*|Windows_NT*)
           if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/strm_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \

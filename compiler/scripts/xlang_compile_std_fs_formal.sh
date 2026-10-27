@@ -82,12 +82,14 @@ trap 'rm -rf "$tmp_dir" 2>/dev/null || true' EXIT INT TERM
 # Darwin and Linux x86_64 compile mod.x and posix.x as two asm entries,
 # then ld -r. User imports skip co-emitting std.fs, so each file has to
 # be its own entry. Fail closed: do not fall back to KEEP_C + cc.
-# Windows stays on the C vehicle.
-# PLATFORM: MACOS|DARWIN and LINUX x86_64.
+# 10.93: Windows also fail-closed pure-asm (no KEEP_C + host cc).
+# PLATFORM: MACOS|DARWIN and LINUX x86_64 | WINDOWS.
 asm_ok=0
 _fs_os="$(uname -s 2>/dev/null || echo Unknown)"
 _fs_mach="$(uname -m 2>/dev/null || echo unknown)"
-if [ "$_fs_os" = "Darwin" ] || { [ "$_fs_os" = "Linux" ] && [ "$_fs_mach" = "x86_64" ]; }; then
+_fs_win=0
+case "$_fs_os" in MINGW*|MSYS*|CYGWIN*|Windows_NT*) _fs_win=1 ;; esac
+if [ "$_fs_os" = "Darwin" ] || { [ "$_fs_os" = "Linux" ] && [ "$_fs_mach" = "x86_64" ]; } || [ "$_fs_win" = "1" ]; then
     # tip-cold import root: with cwd=compiler and entry ../std/... tip
     # resolves std.* to ../std/debug/std/... (IMP001). Repo-root relative
     # entry + -L . works. Absolute XLANG_BIN so cd away from compiler/ is safe.
@@ -241,6 +243,10 @@ if [ "$_fs_os" = "Darwin" ] || { [ "$_fs_os" = "Linux" ] && [ "$_fs_mach" = "x86
 fi
 
 if [ "$asm_ok" != "1" ]; then
+echo "xlang_compile_std_fs_formal.sh: pure-asm std.fs required; KEEP_C+cc removed (10.93)" >&2
+echo "  os=$_fs_os mach=$_fs_mach" >&2
+exit 1
+# archaeology: former KEEP_C vehicle + cc path (removed 10.93)
 # Vehicle: entry main + import("std.fs") → same co-emit path as tests/fs/main.x.
 # Keep body minimal (match tests/fs/main.x) so typeck/pipeline stays green on mac+Ubuntu.
 vehicle="$tmp_dir/fs_vehicle.x"
@@ -325,7 +331,7 @@ if [ -f "$_dir_cap_c" ]; then
   _dir_cap_o="$tmp_dir/runtime_dir_cap.o"
   # PLATFORM: MACOS|DARWIN arm64 — runtime_dir_cap_darwin.x via dir-cap-pure.
   # PLATFORM: LINUX x86_64 — runtime_dir_cap_linux.x via -backend asm.
-  # Windows stays cc -c of the seed.
+  # 10.93: Windows skips dir Cap merge (win32.x); no host-cc of the seed.
   _dir_os="$(uname -s 2>/dev/null || echo Unknown)"
   _dir_mach="$(uname -m 2>/dev/null || echo unknown)"
   _dir_x="$_fs_compiler_dir/src/asm/runtime_dir_cap_darwin.x"
@@ -406,20 +412,30 @@ if [ -f "$_dir_cap_c" ]; then
       exit 1
     fi
   else
-    # shellcheck disable=SC2086
-    if ! cc -c $CFLAGS "$_dir_cap_c" -o "$_dir_cap_o" 2>"$tmp_dir/dir_cap.err"; then
-      echo "xlang_compile_std_fs_formal.sh: cc -c dir Cap failed" >&2
-      tail -40 "$tmp_dir/dir_cap.err" >&2 || true
+    case "$_dir_os" in
+      MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+        # 10.93: Windows product dir walk is std/fs/win32.x (FindFirstFileA).
+        # The C seed is empty under _WIN32; do not host-cc it. Skip merge.
+        # PLATFORM: WINDOWS | MSYS | MINGW.
+        echo "xlang_compile_std_fs_formal.sh: skip dir Cap merge on Windows (10.93; win32.x authority)" >&2
+        _dir_cap_o=""
+        ;;
+      *)
+        echo "xlang_compile_std_fs_formal.sh: dir Cap pure-asm required; host-cc seed removed (10.93)" >&2
+        echo "  os=$_dir_os mach=$_dir_mach" >&2
+        exit 1
+        ;;
+    esac
+  fi
+  if [ -n "$_dir_cap_o" ] && [ -s "$_dir_cap_o" ]; then
+    _merged="$tmp_dir/fs_formal_merged.o"
+    if ! ld -r -o "$_merged" "$raw_o" "$_dir_cap_o" 2>"$tmp_dir/dir_ld.err"; then
+      echo "xlang_compile_std_fs_formal.sh: ld -r dir Cap failed" >&2
+      tail -20 "$tmp_dir/dir_ld.err" >&2 || true
       exit 1
     fi
+    raw_o="$_merged"
   fi
-  _merged="$tmp_dir/fs_formal_merged.o"
-  if ! ld -r -o "$_merged" "$raw_o" "$_dir_cap_o" 2>"$tmp_dir/dir_ld.err"; then
-    echo "xlang_compile_std_fs_formal.sh: ld -r dir Cap failed" >&2
-    tail -20 "$tmp_dir/dir_ld.err" >&2 || true
-    exit 1
-  fi
-  raw_o="$_merged"
 fi
 
 # Drop vehicle main + foreign co-emits so fs.o is a pure library face.
