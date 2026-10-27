@@ -11,7 +11,17 @@ COMP="$ROOT/compiler"
 OUT="$ROOT/std/string/string.o"
 XLANG="${XLANG:-$COMP/xlang}"
 [ -x "$XLANG" ] || XLANG="$COMP/xlang"
+[ -x "$XLANG" ] || XLANG="$COMP/xlang_asm"
 [ -x "$XLANG" ] || { echo "no xlang" >&2; exit 1; }
+# 10.90: _xlang_at_root cds to ROOT; relative XLANG (./xlang_asm) breaks.
+case "$XLANG" in
+  /*) ;;
+  *)
+    _xl_dir=$(CDPATH= cd "$(dirname "$XLANG")" && pwd)
+    XLANG="$_xl_dir/$(basename "$XLANG")"
+    ;;
+esac
+[ -x "$XLANG" ] || { echo "no xlang at $XLANG" >&2; exit 1; }
 # knife256/10.2: Cap tip import resolve needs cwd=ROOT (else IMP001
 # .../std/debug/std/heap.x). Absolute -L alone is not enough.
 _xlang_at_root() {
@@ -321,24 +331,28 @@ _oc_sbr=""
 for _c in "${LLVM_OBJCOPY:-}" /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
   if [ -n "$_c" ] && [ -x "$_c" ]; then _oc_sbr="$_c"; break; fi
 done
+# 10.90: POSIX sh (Ubuntu dash) — no bash arrays; Darwin /bin/sh is bash.
 if [ -f "$_sbr_src" ] && [ -n "$_oc_sbr" ] && [ -s "$OUT" ]; then
   mkdir -p "$(dirname "$_sbr_o")"
   if clang -c -arch arm64 "$_sbr_src" -o "$_sbr_o" 2>/dev/null && [ -s "$_sbr_o" ]; then
-    _sbr_redefs=()
+    _sbr_redefs=""
+    _sbr_n=0
     for _s in length_String is_empty_String string_get string_eq string_compare \
       string_find_char string_rfind_char string_starts_with string_ends_with \
       string_find_slice string_contains string_copy_to string_eq_view \
       string_compare_view trim; do
       _sym="_std_string_${_s}"
       if nm -gU "$OUT" 2>/dev/null | grep -q "T ${_sym}$"; then
-        _sbr_redefs+=("--redefine-sym=${_sym}=${_sym}__hollow")
+        _sbr_redefs="$_sbr_redefs --redefine-sym=${_sym}=${_sym}__hollow"
+        _sbr_n=$((_sbr_n + 1))
       fi
     done
-    if [ "${#_sbr_redefs[@]}" -gt 0 ]; then
-      "$_oc_sbr" "${_sbr_redefs[@]}" "$OUT" \
+    if [ "$_sbr_n" -gt 0 ]; then
+      # shellcheck disable=SC2086
+      "$_oc_sbr" $_sbr_redefs "$OUT" \
         && ld -r -o "${OUT}.byref_tmp" "$_sbr_o" "$OUT" \
         && mv -f "${OUT}.byref_tmp" "$OUT" \
-        && echo "xlang_compile_std_string_o: string byref overlay (${#_sbr_redefs[@]})" >&2 \
+        && echo "xlang_compile_std_string_o: string byref overlay ($_sbr_n)" >&2 \
         || echo "xlang_compile_std_string_o: WARN string byref overlay failed" >&2
     fi
   fi

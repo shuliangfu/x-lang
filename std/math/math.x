@@ -50,9 +50,9 @@ export function math_e_c(out: *f64): i32 {
  * PLATFORM: SHARED
  */
 export function math_tau_c(out: *f64): i32 {
-  let p: f64 = 0.0;
-  math_pi_c(&p);
-  let t: f64 = p * 2.0;
-  out[0] = t;
+  // 10.90: Linux tip typeck XT001 on math_pi_c(&local) in this TU; write
+  // the tau literal the same way math_pi_c writes pi (out-slot, no call).
+  let x: f64 = 6.28318530717958647692 as f64;
+  out[0] = x;
   return 0;
 }

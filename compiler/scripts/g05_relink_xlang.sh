@@ -1182,8 +1182,28 @@ case "$(uname -s 2>/dev/null)" in
       _erc=0
       PATH="$_nocc_dir:$PATH" XLANG_FORCE_LINK_BACKEND=asm XLANG="$_refresh_x" bash scripts/xlang_compile_std_module.sh ensure "$_leaf" >/dev/null 2>&1 || _erc=$?
       if [ "$_erc" = 3 ]; then
-        # Not a catalog leaf (exit 3): the product never ensures it; leave it.
-        mv -f "$_leaf.w2055bak" "$_leaf"
+        # 10.90: not formal_mod — try std_x ensure, then try-heat; else drop
+        # the orphan so relink does not keep a silent stale leaf the product
+        # never catalogs (终局: 进目录或删掉). PLATFORM: SHARED.
+        _erc_sx=0
+        PATH="$_nocc_dir:$PATH" XLANG_FORCE_LINK_BACKEND=asm XLANG="$_refresh_x"           bash scripts/xlang_compile_std_x.sh ensure "$_leaf" >/dev/null 2>&1 || _erc_sx=$?
+        if [ "$_erc_sx" = 0 ] && [ -s "$_leaf" ]; then
+          rm -f "$_leaf.w2055bak"
+          _after=$(stat -c %Y "$_leaf" 2>/dev/null || stat -f %m "$_leaf" 2>/dev/null || echo 0)
+          if [ "$_after" != "$_before" ]; then
+            echo "g05_relink_xlang: refreshed stale $_leaf (std_x)"
+          fi
+          continue
+        fi
+        _erc_ht=0
+        PATH="$_nocc_dir:$PATH" XLANG="$_refresh_x"           bash scripts/ensure_host_cc_seed_o.sh try-heat "$_leaf" >/dev/null 2>&1 || _erc_ht=$?
+        if [ "$_erc_ht" = 0 ] && [ -s "$_leaf" ]; then
+          rm -f "$_leaf.w2055bak"
+          echo "g05_relink_xlang: refreshed stale $_leaf (try-heat)"
+          continue
+        fi
+        rm -f "$_leaf" "$_leaf.w2055bak"
+        echo "g05_relink_xlang: dropped unowned leaf $_leaf (not formal_mod/std_x/heat)" >&2
         continue
       fi
       if [ "$_erc" = 0 ] && [ -s "$_leaf" ]; then
