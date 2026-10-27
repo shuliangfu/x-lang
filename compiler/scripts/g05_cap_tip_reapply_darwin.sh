@@ -2862,10 +2862,18 @@ if [ -s "$_sl_o" ] && nm "$_sl_o" 2>/dev/null | grep -q 'T _glue_emit_slice_leng
   esac
 fi
 
-# 10.22: return_sret name buffers 256 (name_into clears 256; 64 smashed STRUCT_LIT).
-# Cap tip may have weakened return_sret for cap665 — recompile fresh T so STRUCT_LIT return stays live.
+# 10.59: return_sret_thin merged into mega (10.26); drop stale .o from Cap tip link.
 _rs_o=build_asm/selfhost_pabi/return_sret.o
 _rs_src=src/runtime_pipeline_abi_return_sret_thin.x
+if [ ! -f "$_rs_src" ]; then
+  if printf '%s' " $G05_OBJS " | grep -Eq '(^|[[:space:]/])return_sret\.o([[:space:]]|$)'; then
+    G05_OBJS=$(printf '%s' "$G05_OBJS" | sed -E 's|(^|[[:space:]])build_asm/selfhost_pabi/return_sret\.o([[:space:]]|$)|\1|g')
+    G05_OBJS=$(printf '%s' "$G05_OBJS" | sed -E 's|[[:space:]]+| |g;s|^ ||;s| $||')
+    export G05_OBJS
+    rm -f "$_rs_o"
+    echo "g05_cap_tip_reapply: 10.59 dropped stale return_sret.o (merged mega)" >&2
+  fi
+fi
 if [ -f "$_rs_src" ] && [ -x "${xl:-./xlang}" ]; then
   "${xl:-./xlang}" -backend asm -c -o "$_rs_o" "$_rs_src" 2>/dev/null \
     && echo "g05_cap_tip_reapply: 10.22 tip-compiled return_sret.o (256-byte name buffers)" >&2 \
