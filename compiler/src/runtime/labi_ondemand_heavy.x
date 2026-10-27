@@ -1765,9 +1765,9 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
           }
         }
       }
-      let rh2: *u8 = labi_od_rel_http();
+      let rh_http: *u8 = labi_od_rel_http();
       unsafe {
-        let _ph2: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rh2, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+        let _ph2: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rh_http, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
       }
       let erh: i32 = 0;
       let tph: *u8 = 0 as *u8;
@@ -1837,11 +1837,11 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
         }
       }
       let rs: *u8 = labi_od_rel_set();
-      let rh2: *u8 = labi_od_rel_heap();
+      let rh_set_heap: *u8 = labi_od_rel_heap();
       let rm2: *u8 = labi_od_rel_core_mem();
       unsafe {
         let _s: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rs, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
-        let _sh: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rh2, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+        let _sh: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rh_set_heap, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
         let _sm: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rm2, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
         let _hh: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, "std/hash/hash.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
       }
