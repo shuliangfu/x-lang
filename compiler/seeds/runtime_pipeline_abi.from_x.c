@@ -25678,10 +25678,8 @@ W277_LabeledStmt *pipeline_block_labeled_ptr(void *a, int32_t br, int32_t li) {
   return (W277_LabeledStmt *)grow_vec_at(&sc->labeled_stmts, abs);
 }
 
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t pipeline_block_labeled_return_expr_ref(void *a, int32_t br, int32_t li);
-#else
+/* w1683/w1046: Win leftover egg is C windows_e (parse_orch inject HARD BAN) —
+ * always define; Darwin/Linux never set WIN_LEFTOVER here. */
 int32_t pipeline_block_labeled_return_expr_ref(void *a, int32_t br, int32_t li) {
   W277_Sidecar *sc;
   W277_Block *b;
@@ -25695,20 +25693,16 @@ int32_t pipeline_block_labeled_return_expr_ref(void *a, int32_t br, int32_t li) 
   ls = (W277_LabeledStmt *)grow_vec_at(&sc->labeled_stmts, abs);
   return ls ? (int32_t)ls->return_expr_ref : 0;
 }
-#endif
 
 /** wave379: count of labeled stmts in block (stmt_order kind=7). PLATFORM: SHARED. */
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t pipeline_block_num_labeled_stmts(void *a, int32_t br);
-#else
+/* w1683/w1046: Win leftover egg is C windows_e (parse_orch inject HARD BAN) —
+ * always define; Darwin/Linux never set WIN_LEFTOVER here. */
 int32_t pipeline_block_num_labeled_stmts(void *a, int32_t br) {
   W277_Block *b;
   if (!a || !(b = w277_block_at(a, br)))
     return 0;
   return b->num_labeled_stmts;
 }
-#endif
 
 /* PLATFORM: SHARED, including WINDOWS leftover.
  * w1683 left these five row readers as externs on leftover, so the egg
@@ -26913,10 +26907,8 @@ void ast_ast_arena_patch_block_parent_links(void *arena, int32_t block_ref, int3
   pipeline_patch_block_parent_links(arena, block_ref, parent_ref);
 }
 
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t ast_ast_block_num_consts(void *a, int32_t br);
-#else
+/* w1683/w1046: Win leftover egg is C windows_e (parse_orch inject HARD BAN) —
+ * always define; Darwin/Linux never set WIN_LEFTOVER here. */
 int32_t ast_ast_block_num_consts(void *a, int32_t br) {
   W277_Block *b;
   if (!a || br <= 0) return 0;
@@ -26924,11 +26916,8 @@ int32_t ast_ast_block_num_consts(void *a, int32_t br) {
   if (!b) return 0;
   return b->num_consts;
 }
-#endif
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t ast_ast_block_num_lets(void *a, int32_t br);
-#else
+/* w1683/w1046: Win leftover egg is C windows_e (parse_orch inject HARD BAN) —
+ * always define; Darwin/Linux never set WIN_LEFTOVER here. */
 int32_t ast_ast_block_num_lets(void *a, int32_t br) {
   W277_Block *b;
   if (!a || br <= 0) return 0;
@@ -26936,11 +26925,8 @@ int32_t ast_ast_block_num_lets(void *a, int32_t br) {
   if (!b) return 0;
   return b->num_lets;
 }
-#endif
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t ast_ast_block_num_loops(void *a, int32_t br);
-#else
+/* w1683/w1046: Win leftover egg is C windows_e (parse_orch inject HARD BAN) —
+ * always define; Darwin/Linux never set WIN_LEFTOVER here. */
 int32_t ast_ast_block_num_loops(void *a, int32_t br) {
   W277_Block *b;
   if (!a || br <= 0) return 0;
@@ -26948,11 +26934,8 @@ int32_t ast_ast_block_num_loops(void *a, int32_t br) {
   if (!b) return 0;
   return b->num_loops;
 }
-#endif
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t ast_ast_block_num_for_loops(void *a, int32_t br);
-#else
+/* w1683/w1046: Win leftover egg is C windows_e (parse_orch inject HARD BAN) —
+ * always define; Darwin/Linux never set WIN_LEFTOVER here. */
 int32_t ast_ast_block_num_for_loops(void *a, int32_t br) {
   W277_Block *b;
   if (!a || br <= 0) return 0;
@@ -26960,11 +26943,8 @@ int32_t ast_ast_block_num_for_loops(void *a, int32_t br) {
   if (!b) return 0;
   return b->num_for_loops;
 }
-#endif
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t ast_ast_block_num_if_stmts(void *a, int32_t br);
-#else
+/* w1683/w1046: Win leftover egg is C windows_e (parse_orch inject HARD BAN) —
+ * always define; Darwin/Linux never set WIN_LEFTOVER here. */
 int32_t ast_ast_block_num_if_stmts(void *a, int32_t br) {
   W277_Block *b;
   if (!a || br <= 0) return 0;
@@ -26972,12 +26952,9 @@ int32_t ast_ast_block_num_if_stmts(void *a, int32_t br) {
   if (!b) return 0;
   return b->num_if_stmts;
 }
-#endif
 /** M-3: typeck/codegen.x reads Block.num_regions via ast_ prefix. */
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t ast_ast_block_num_regions(void *a, int32_t br);
-#else
+/* w1683/w1046: Win leftover egg is C windows_e (parse_orch inject HARD BAN) —
+ * always define; Darwin/Linux never set WIN_LEFTOVER here. */
 int32_t ast_ast_block_num_regions(void *a, int32_t br) {
   W277_Block *b;
   if (!a || br <= 0) return 0;
@@ -26985,14 +26962,11 @@ int32_t ast_ast_block_num_regions(void *a, int32_t br) {
   if (!b) return 0;
   return b->num_regions;
 }
-#endif
 int32_t ast_ast_block_region_body_ref(void *a, int32_t br, int32_t ri) {
   return pipeline_block_region_body_ref(a, br, ri);
 }
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t ast_ast_block_num_expr_stmts(void *a, int32_t br);
-#else
+/* w1683/w1046: Win leftover egg is C windows_e (parse_orch inject HARD BAN) —
+ * always define; Darwin/Linux never set WIN_LEFTOVER here. */
 int32_t ast_ast_block_num_expr_stmts(void *a, int32_t br) {
   W277_Block *b;
   if (!a || br <= 0) return 0;
@@ -27000,11 +26974,8 @@ int32_t ast_ast_block_num_expr_stmts(void *a, int32_t br) {
   if (!b) return 0;
   return b->num_expr_stmts;
 }
-#endif
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t ast_ast_block_num_stmt_order(void *a, int32_t br);
-#else
+/* w1683/w1046: Win leftover egg is C windows_e (parse_orch inject HARD BAN) —
+ * always define; Darwin/Linux never set WIN_LEFTOVER here. */
 int32_t ast_ast_block_num_stmt_order(void *a, int32_t br) {
   W277_Block *b;
   if (!a || br <= 0) return 0;
@@ -27012,15 +26983,10 @@ int32_t ast_ast_block_num_stmt_order(void *a, int32_t br) {
   if (!b) return 0;
   return b->num_stmt_order;
 }
-#endif
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern uint8_t ast_ast_block_stmt_order_kind(void *a, int32_t br, int32_t si);
-#else
+/* w1683/w1046: Win leftover egg is C windows_e — always define. */
 uint8_t ast_ast_block_stmt_order_kind(void *a, int32_t br, int32_t si) {
   return pipeline_block_stmt_order_kind(a, br, si);
 }
-#endif
 /* PLATFORM: SHARED, including WINDOWS leftover.
  * w1683 left this wrapper as an extern on leftover, so the egg thin owned
  * the symbol and called the egg's pipeline_block_stmt_order_idx. That
