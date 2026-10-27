@@ -434,6 +434,30 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ] \
       fi
       unset _sm_demote _sm_sy
     fi
+
+    # 10.91: asm_locals thin must win scoped find + loop_body over pabi_weak.
+    # Cap tip G05_OBJS often omits runtime_pipeline_abi.o — only demote when a
+    # thin provider is actually on the link line (runtime_pipeline_abi.o or
+    # asm_locals_thin.o). PLATFORM: MACOS Cap tip / tip-cold.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])(runtime_pipeline_abi|asm_locals_thin)\.o([[:space:]]|$)' \
+      && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+      for _sc_sym in \
+        _asm_ctx_local_find_offset_scoped \
+        _backend_emit_loop_body_content_elf_sync
+      do
+        for _sc_pw in build_asm/selfhost_pabi/pabi_weak.o \
+                      build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o; do
+          [ -s "$_sc_pw" ] || continue
+          if nm "$_sc_pw" 2>/dev/null | grep -Eq " [TW] ${_sc_sym}$"; then
+            "$_g05_oc" --redefine-sym=${_sc_sym}=${_sc_sym}__demoted \
+              "$_sc_pw" 2>/dev/null \
+              && echo "g05_relink_xlang: 10.91 pre-ld demote $_sc_pw ${_sc_sym#?} (asm_locals thin wins)" >&2 \
+              || true
+          fi
+        done
+      done
+      unset _sc_sym _sc_pw
+    fi
   fi
   unset _g05_oc
 fi
@@ -742,6 +766,28 @@ if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
     done
     unset _du_pw
     export XLANG_G05_LINUX_FORCE_U_DURABLE=1
+  fi
+  # 10.91: same as Darwin — demote only when thin provider is in OBJS.
+  # ELF names have no leading _. PLATFORM: LINUX tip-cold / Cap.
+  if [ -n "$_g05_oc" ] \
+    && printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])(runtime_pipeline_abi|asm_locals_thin|loc)\.o([[:space:]]|$)' \
+    && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+    for _sc_sym in \
+      asm_ctx_local_find_offset_scoped \
+      backend_emit_loop_body_content_elf_sync
+    do
+      for _sc_pw in build_asm/selfhost_pabi/pabi_weak.o \
+                    build_asm/selfhost_pabi/pabi.o; do
+        [ -s "$_sc_pw" ] || continue
+        if nm "$_sc_pw" 2>/dev/null | grep -Eq " [TW] ${_sc_sym}$"; then
+          "$_g05_oc" --redefine-sym=${_sc_sym}=${_sc_sym}__demoted \
+            "$_sc_pw" 2>/dev/null \
+            && echo "g05_relink_xlang: 10.91 Linux demote $_sc_pw ${_sc_sym} (asm_locals thin wins)" >&2 \
+            || true
+        fi
+      done
+    done
+    unset _sc_sym _sc_pw
   fi
   unset _g05_oc
 fi

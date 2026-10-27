@@ -178,6 +178,59 @@ if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
       echo "g05_cap_tip_reapply: WARN struct_lit_field tip-compile failed" >&2
     fi
   fi
+
+  # 10.91: Cap tip G05_OBJS omits runtime_pipeline_abi.o — tip-compile
+  # asm_locals_thin sidecar and demote pabi_weak so scoped find + loop_body
+  # product authority is the thin (parent walk + scope restore).
+  if [ -f src/runtime_pipeline_abi_asm_locals_thin.x ]; then
+    _al_xl="${XLANG:-}"
+    [ -x ./xlang ] && _al_xl="./xlang"
+    [ -x ./xlang.cap_g05_l2 ] && _al_xl="./xlang.cap_g05_l2"
+    mkdir -p build_asm/selfhost_pabi
+    if XLANG_PREFER_ASM_O=1 "$_al_xl" -backend asm -c \
+        src/runtime_pipeline_abi_asm_locals_thin.x \
+        -o build_asm/selfhost_pabi/asm_locals_thin.o 2>/dev/null \
+      && nm -gU build_asm/selfhost_pabi/asm_locals_thin.o 2>/dev/null \
+           | grep -q ' T _asm_ctx_local_find_offset_scoped$' \
+      && nm -gU build_asm/selfhost_pabi/asm_locals_thin.o 2>/dev/null \
+           | grep -q ' T _backend_emit_loop_body_content_elf_sync$'; then
+      # Thin also defines the rest of the asm_locals face set; Cap tip already
+      # gets those from pabi_weak — keep only the two 10.91 authorities global.
+      if [ -n "${OC:-}" ]; then
+        "$OC" --keep-global-symbol=_asm_ctx_local_find_offset_scoped \
+          --keep-global-symbol=_backend_emit_loop_body_content_elf_sync \
+          build_asm/selfhost_pabi/asm_locals_thin.o 2>/dev/null \
+          || true
+      fi
+      echo "g05_cap_tip_reapply: tip-compiled asm_locals_thin.o (10.91)" >&2
+      case " ${G05_OBJS:-} " in
+        *" asm_locals_thin.o "*) ;;
+        *)
+          G05_OBJS="build_asm/selfhost_pabi/asm_locals_thin.o ${G05_OBJS:-}"
+          export G05_OBJS
+          echo "g05_cap_tip_reapply: prepended asm_locals_thin.o (10.91)" >&2
+          ;;
+      esac
+      if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+        for _al_sym in \
+          _asm_ctx_local_find_offset_scoped \
+          _backend_emit_loop_body_content_elf_sync
+        do
+          if nm build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+               | grep -Eq " [TW] ${_al_sym}$"; then
+            "$OC" --redefine-sym=${_al_sym}=${_al_sym}__demoted \
+              build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+              && echo "g05_cap_tip_reapply: 10.91 demoted pabi_weak ${_al_sym#?}" >&2 \
+              || true
+          fi
+        done
+        unset _al_sym
+      fi
+    else
+      echo "g05_cap_tip_reapply: WARN asm_locals_thin tip-compile failed" >&2
+    fi
+    unset _al_xl
+  fi
   if [ -s build_asm/selfhost_pabi/named_align.o ] \
     && nm -gU build_asm/selfhost_pabi/named_align.o 2>/dev/null \
          | grep -q 'T _glue_type_align_simple$'; then
@@ -2042,6 +2095,21 @@ _typeck_x_type_align_from_layout_glue' > /tmp/cap_tip_orch_layout.exp
         fi
       done
       echo "g05_cap_tip_reapply: 10.44 post-fill re-demote pabi layout offset" >&2
+    fi
+    # 10.91: bak_cap restore re-strongs scoped faces; demote so asm_locals thin wins.
+    if [ -s build_asm/selfhost_pabi/asm_locals_thin.o ]; then
+      for _al_sym in \
+        _asm_ctx_local_find_offset_scoped \
+        _backend_emit_loop_body_content_elf_sync
+      do
+        if nm build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+             | grep -Eq " [TW] ${_al_sym}$"; then
+          "$OC" --redefine-sym=${_al_sym}=${_al_sym}__demoted \
+            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+        fi
+      done
+      echo "g05_cap_tip_reapply: 10.91 post-fill re-demote pabi scoped/loop_body" >&2
+      unset _al_sym
     fi
       echo "g05_cap_tip_reapply: post-fill re-demote pabi size+layout_glue" >&2
     fi

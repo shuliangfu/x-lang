@@ -15,7 +15,7 @@
 //   Product PREFER_ASM both ends when live get is leftover gcc Darwin weak /
 //   LINUX W (endbr64 sub $0x30). Do not gcc -E. Do not Darwin ld -r a
 //   two-segment thin. Isolated get peer stays BAN.
-// wave2057: asm_ctx_local_find_offset_scoped and
+// wave2057 / 10.91: asm_ctx_local_find_offset_scoped and
 //   backend_emit_loop_body_content_elf_sync live here so PREFER_ASM carries the
 //   w1546 fixes into the product. Before this the lookup sat in
 //   bootstrap_glue_thin (HARD BAN reinject) and the loop body only in the
