@@ -1588,11 +1588,10 @@ case "$UNAME_S" in
     done
     # w1018: true-pack tip stack opt-in (XLANG_WIN_BAKE_TIP=1). PLATFORM: WINDOWS.
     # 10.46: mega-merge dropped assign_var_compound / binop_wide from Win
-    # G05_OBJS; reinject existing T objs (no new host-cc .c). Also rebuild
-    # PE provider thins the live product can compile (fa_array / vlet /
-    # wide_i32 / lane_operand / addr_of simd / lexer park / rt_fs_open).
-    # Track L typeck_x.o may lack plain typeck_get_dep_* — prefer tip
-    # src/typeck_x.o when it has T. PLATFORM: WINDOWS · PE isolate.
+    # G05_OBJS; reinject existing T objs + av_assign helpers (no new host-cc
+    # .c). Skip fa/vlet/lane/addr_of (pull Linux-only U faces). Keep Track L
+    # typeck; peel tip dep_return only. driver_fs from runtime_driver.o.
+    # PLATFORM: WINDOWS · PE isolate.
     _PABI_WIN_1046_PROVIDERS=""
     if [ -s build_asm/selfhost_pabi/assign_var_compound.o ] \
       && nm build_asm/selfhost_pabi/assign_var_compound.o 2>/dev/null \
@@ -1607,32 +1606,24 @@ case "$UNAME_S" in
       echo "g05_relink_env: 10.46 reinject binop_wide.o" >&2
     fi
     mkdir -p build_asm/selfhost_pabi
-    # Provider thins (live xlang_asm can compile these on PE tip).
-    for _w1046_pair in \
-      "src/runtime_pipeline_abi_fixed_array_copy_thin.x|build_asm/selfhost_pabi/fixed_array_copy.o|fa_array_lit_into_rbx" \
-      "src/runtime_pipeline_abi_func_return_byte_size_soft.x|build_asm/selfhost_pabi/func_return_byte_size_soft.o|glue_wide_i32_vec_array_bytes" \
-      "src/asm/vector_let_init_array_lit_a64.x|build_asm/selfhost_pabi/vector_let_init_array_lit_a64.o|vector_let_init_array_lit_a64_vlet_f32_fill_lane" \
-      "src/runtime_pipeline_abi_lane_f32_lit_operand_thin.x|build_asm/selfhost_pabi/lane_f32_lit_operand.o|pipeline_lane_operand_emit_let_block_chain" \
-      "src/runtime_pipeline_abi_addr_of_call_thin.x|build_asm/selfhost_pabi/addr_of_call.o|glue_addr_simd_lane_type_c" \
-      "src/runtime/rt_fs_open_call.x|build_asm/selfhost_pabi/rt_fs_open_call.o|driver_fs_open_write"
+    # assign_var_compound U faces — existing PE objs from prior wave.
+    for _av in \
+      build_asm/selfhost_pabi/av_assign_rhsrax_to_rax.o \
+      build_asm/selfhost_pabi/av_assign_var_store.o \
+      build_asm/selfhost_pabi/av_assign_var_try_let.o \
+      build_asm/selfhost_pabi/av_assign_var_finish.o
     do
-      _wx="${_w1046_pair%%|*}"
-      _rest="${_w1046_pair#*|}"
-      _wo="${_rest%%|*}"
-      _wsym="${_rest##*|}"
-      if [ ! -f "$_wx" ]; then
-        continue
-      fi
-      if [ -s "$_wo" ] && nm "$_wo" 2>/dev/null | grep -qE " T ${_wsym}$"; then
-        _PABI_WIN_1046_PROVIDERS="$_PABI_WIN_1046_PROVIDERS $_wo"
-        continue
-      fi
-      _g05_pure_overlay "$_wx" "$_wo" "$_wsym"
-      if [ -n "$_G05_PO_OUT" ] && [ -s "$_G05_PO_OUT" ]; then
-        _PABI_WIN_1046_PROVIDERS="$_PABI_WIN_1046_PROVIDERS $_G05_PO_OUT"
-        echo "g05_relink_env: 10.46 provider $_wsym via $_G05_PO_OUT" >&2
+      if [ -s "$_av" ]; then
+        _PABI_WIN_1046_PROVIDERS="$_PABI_WIN_1046_PROVIDERS $_av"
       fi
     done
+    # driver_fs_open_write: tip Track L leaves it U without runtime_driver.o.
+    if [ -s src/runtime_driver.o ] \
+      && nm src/runtime_driver.o 2>/dev/null \
+           | grep -qE " T driver_fs_open_write$"; then
+      _PABI_WIN_1046_PROVIDERS="$_PABI_WIN_1046_PROVIDERS src/runtime_driver.o"
+      echo "g05_relink_env: 10.46 inject src/runtime_driver.o (fs_open_write)" >&2
+    fi
     # PE lexer park (rt_run_asm_backend U lexer_src_park).
     if [ -f src/asm/lexer_src_park_pe.s ]; then
       _park_o=build_asm/selfhost_pabi/lexer_src_park_pe.o
@@ -1642,15 +1633,34 @@ case "$UNAME_S" in
         echo "g05_relink_env: 10.46 lexer_src_park_pe.o" >&2
       fi
     fi
-    # Track L typeck may lack plain typeck_get_dep_return_type_in_caller_arena.
+    # Track L typeck has fold_* but may lack plain dep_return. Do NOT swap
+    # the whole tip src/typeck_x.o (that drops fold_* → link U). Peel only
+    # typeck_get_dep_return_type_in_caller_arena from tip when missing.
     if [ -s src/typeck_x.o ] \
       && nm src/typeck_x.o 2>/dev/null \
            | grep -qE " T typeck_get_dep_return_type_in_caller_arena$" \
       && { [ ! -s typeck_x.o ] \
            || ! nm typeck_x.o 2>/dev/null \
                 | grep -qE " T typeck_get_dep_return_type_in_caller_arena$"; }; then
-      _G05_TYPECK_X_O=src/typeck_x.o
-      echo "g05_relink_env: 10.46 typeck → src/typeck_x.o (plain dep_return)" >&2
+      _dep_o=build_asm/selfhost_pabi/typeck_dep_return_pe.o
+      _dep_oc=""
+      if command -v llvm-objcopy >/dev/null 2>&1; then _dep_oc=llvm-objcopy
+      elif command -v objcopy >/dev/null 2>&1; then _dep_oc=objcopy
+      fi
+      if [ -n "$_dep_oc" ] \
+        && cp -f src/typeck_x.o "$_dep_o" \
+        && "$_dep_oc" \
+             --keep-global-symbol=typeck_get_dep_return_type_in_caller_arena \
+             --strip-unneeded "$_dep_o" 2>/dev/null \
+        && nm "$_dep_o" 2>/dev/null \
+             | grep -qE " T typeck_get_dep_return_type_in_caller_arena$"; then
+        _PABI_WIN_1046_PROVIDERS="$_PABI_WIN_1046_PROVIDERS $_dep_o"
+        echo "g05_relink_env: 10.46 peel typeck_dep_return_pe.o" >&2
+      else
+        # Fallback: keep both objs; allow-multiple first-wins Track L folds.
+        _PABI_WIN_1046_PROVIDERS="$_PABI_WIN_1046_PROVIDERS src/typeck_x.o"
+        echo "g05_relink_env: 10.46 append src/typeck_x.o (dep_return; Track L first)" >&2
+      fi
     fi
     ;;
 esac
