@@ -384,6 +384,9 @@ _g05_pure_overlay() {
   fi
   [ -x ./xlang ] && _po_bins="$_po_bins ./xlang"
   [ -x ./xlang_asm ] && _po_bins="$_po_bins ./xlang_asm"
+  # 10.46: PE hosts only ship *.exe; bare names fail [ -x ]. PLATFORM: WINDOWS.
+  [ -x ./xlang.exe ] && _po_bins="$_po_bins ./xlang.exe"
+  [ -x ./xlang_asm.exe ] && _po_bins="$_po_bins ./xlang_asm.exe"
   # knife256/10.2: park-fixed tip may still hollow-emit Cap thins; restored
   # is a known-good Cap emitter until tip call-args path is gold.
   [ -x ./xlang.restored_1952 ] && _po_bins="$_po_bins ./xlang.restored_1952"
@@ -922,6 +925,16 @@ if [ "${XLANG_MODLET_SEED_SIGNED_OVERLAY:-1}" = "1" ]; then
             src/asm/pipe_modlet_table_base_x64.s 2>/dev/null \
             && _PABI_MODLET_TABLE_BASE=build_asm/selfhost_pabi/pipe_modlet_table_base.o \
             || true
+        fi
+        ;;
+      MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+        # 10.46: PE egg is C windows_e — assemble PE table_base twin.
+        # PLATFORM: WINDOWS.
+        if [ -f src/asm/pipe_modlet_table_base_pe.s ]; then
+          if $G05_CC -c -o build_asm/selfhost_pabi/pipe_modlet_table_base.o \
+               src/asm/pipe_modlet_table_base_pe.s 2>/dev/null; then
+            _PABI_MODLET_TABLE_BASE=build_asm/selfhost_pabi/pipe_modlet_table_base.o
+          fi
         fi
         ;;
     esac
@@ -1545,6 +1558,7 @@ esac
 # calls already enter the egg copies. Do not switch a thin on.
 # PLATFORM: WINDOWS | MSYS | MINGW only — Darwin/Linux ignore.
 _WIN_ASSIGN_OVERRIDES=""
+_PABI_WIN_1046_PROVIDERS=""
 case "$UNAME_S" in
   MINGW*|MSYS*|CYGWIN*|Windows_NT*)
     # w1020: when true-pack tip stack is ON (default; XLANG_WIN_BAKE_TIP=0
@@ -1573,6 +1587,71 @@ case "$UNAME_S" in
       fi
     done
     # w1018: true-pack tip stack opt-in (XLANG_WIN_BAKE_TIP=1). PLATFORM: WINDOWS.
+    # 10.46: mega-merge dropped assign_var_compound / binop_wide from Win
+    # G05_OBJS; reinject existing T objs (no new host-cc .c). Also rebuild
+    # PE provider thins the live product can compile (fa_array / vlet /
+    # wide_i32 / lane_operand / addr_of simd / lexer park / rt_fs_open).
+    # Track L typeck_x.o may lack plain typeck_get_dep_* — prefer tip
+    # src/typeck_x.o when it has T. PLATFORM: WINDOWS · PE isolate.
+    _PABI_WIN_1046_PROVIDERS=""
+    if [ -s build_asm/selfhost_pabi/assign_var_compound.o ] \
+      && nm build_asm/selfhost_pabi/assign_var_compound.o 2>/dev/null \
+           | grep -qE " T glue_emit_assign_var_elf_c$"; then
+      _PABI_ASSIGN_VAR="build_asm/selfhost_pabi/assign_var_compound.o"
+      echo "g05_relink_env: 10.46 reinject assign_var_compound.o" >&2
+    fi
+    if [ -s build_asm/selfhost_pabi/binop_wide.o ] \
+      && nm build_asm/selfhost_pabi/binop_wide.o 2>/dev/null \
+           | grep -qE " T pipeline_asm_emit_binop_mod_elf_c$"; then
+      _PABI_BINOP_WIDE="build_asm/selfhost_pabi/binop_wide.o"
+      echo "g05_relink_env: 10.46 reinject binop_wide.o" >&2
+    fi
+    mkdir -p build_asm/selfhost_pabi
+    # Provider thins (live xlang_asm can compile these on PE tip).
+    for _w1046_pair in \
+      "src/runtime_pipeline_abi_fixed_array_copy_thin.x|build_asm/selfhost_pabi/fixed_array_copy.o|fa_array_lit_into_rbx" \
+      "src/runtime_pipeline_abi_func_return_byte_size_soft.x|build_asm/selfhost_pabi/func_return_byte_size_soft.o|glue_wide_i32_vec_array_bytes" \
+      "src/asm/vector_let_init_array_lit_a64.x|build_asm/selfhost_pabi/vector_let_init_array_lit_a64.o|vector_let_init_array_lit_a64_vlet_f32_fill_lane" \
+      "src/runtime_pipeline_abi_lane_f32_lit_operand_thin.x|build_asm/selfhost_pabi/lane_f32_lit_operand.o|pipeline_lane_operand_emit_let_block_chain" \
+      "src/runtime_pipeline_abi_addr_of_call_thin.x|build_asm/selfhost_pabi/addr_of_call.o|glue_addr_simd_lane_type_c" \
+      "src/runtime/rt_fs_open_call.x|build_asm/selfhost_pabi/rt_fs_open_call.o|driver_fs_open_write"
+    do
+      _wx="${_w1046_pair%%|*}"
+      _rest="${_w1046_pair#*|}"
+      _wo="${_rest%%|*}"
+      _wsym="${_rest##*|}"
+      if [ ! -f "$_wx" ]; then
+        continue
+      fi
+      if [ -s "$_wo" ] && nm "$_wo" 2>/dev/null | grep -qE " T ${_wsym}$"; then
+        _PABI_WIN_1046_PROVIDERS="$_PABI_WIN_1046_PROVIDERS $_wo"
+        continue
+      fi
+      _g05_pure_overlay "$_wx" "$_wo" "$_wsym"
+      if [ -n "$_G05_PO_OUT" ] && [ -s "$_G05_PO_OUT" ]; then
+        _PABI_WIN_1046_PROVIDERS="$_PABI_WIN_1046_PROVIDERS $_G05_PO_OUT"
+        echo "g05_relink_env: 10.46 provider $_wsym via $_G05_PO_OUT" >&2
+      fi
+    done
+    # PE lexer park (rt_run_asm_backend U lexer_src_park).
+    if [ -f src/asm/lexer_src_park_pe.s ]; then
+      _park_o=build_asm/selfhost_pabi/lexer_src_park_pe.o
+      if $G05_CC -c -o "$_park_o" src/asm/lexer_src_park_pe.s 2>/dev/null \
+        && nm "$_park_o" 2>/dev/null | grep -qE " T lexer_src_park$"; then
+        _PABI_WIN_1046_PROVIDERS="$_PABI_WIN_1046_PROVIDERS $_park_o"
+        echo "g05_relink_env: 10.46 lexer_src_park_pe.o" >&2
+      fi
+    fi
+    # Track L typeck may lack plain typeck_get_dep_return_type_in_caller_arena.
+    if [ -s src/typeck_x.o ] \
+      && nm src/typeck_x.o 2>/dev/null \
+           | grep -qE " T typeck_get_dep_return_type_in_caller_arena$" \
+      && { [ ! -s typeck_x.o ] \
+           || ! nm typeck_x.o 2>/dev/null \
+                | grep -qE " T typeck_get_dep_return_type_in_caller_arena$"; }; then
+      _G05_TYPECK_X_O=src/typeck_x.o
+      echo "g05_relink_env: 10.46 typeck → src/typeck_x.o (plain dep_return)" >&2
+    fi
     ;;
 esac
 # w943: self-hosted pabi bodies ahead of src/runtime_pipeline_abi.o.
@@ -1837,6 +1916,28 @@ if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_NAMED_ALIGN" ] && [ -s "$_PABI_LINK_
       "$_PABI_LINK_O" || { echo "g05_relink_env: ERROR objcopy align demote failed" >&2; exit 1; }
   fi
 fi
+# 10.46: same align demote on PE prefer (named_align thin calls __demoted).
+# Also globalize g_pipeline_asm_modlet so PE table_base can see it.
+# PLATFORM: WINDOWS | MSYS | MINGW.
+case "$UNAME_S" in
+  MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+    if [ -n "$_PABI_NAMED_ALIGN" ] && [ -s "$_PABI_LINK_O" ] \
+      && command -v objcopy >/dev/null 2>&1; then
+      if nm "$_PABI_LINK_O" 2>/dev/null | grep -qE " [TtWw] glue_type_align_simple$"; then
+        objcopy --redefine-sym=glue_type_align_simple=glue_type_align_simple__demoted \
+          "$_PABI_LINK_O" \
+          && echo "g05_relink_env: 10.46 demoted PE prefer align_simple (named_align)" >&2 \
+          || { echo "g05_relink_env: ERROR Win objcopy align demote failed" >&2; exit 1; }
+      fi
+    fi
+    if [ -s "$_PABI_LINK_O" ] && command -v objcopy >/dev/null 2>&1; then
+      if nm "$_PABI_LINK_O" 2>/dev/null | grep -qE " [bB] g_pipeline_asm_modlet$"; then
+        objcopy --globalize-symbol=g_pipeline_asm_modlet "$_PABI_LINK_O" 2>/dev/null \
+          && echo "g05_relink_env: 10.46 globalize PE g_pipeline_asm_modlet" >&2 || true
+      fi
+    fi
+    ;;
+esac
 # w1584: egg slice-reent sum is a strong T that returns 0 after adding the
 # payload. Weaken the pabi link object (build_asm only; never the src egg)
 # so the overlay first-wins. spill.o already carries a weak copy.
@@ -6251,7 +6352,7 @@ case "$UNAME_S" in
     ;;
 esac
 _X_FRONTEND="parser_x.o ${_G05_LEXER_X_O:-lexer_x.o} ${_G05_TYPECK_X_O:-typeck_x.o} ${_TYPECK_CAP_RESIDUAL} ${_TYPECK_CTFE} codegen_x.o x_frontend_link_alias.o ${_WIN_V1_CALL_ALIAS}"
-_DRIVER_SEED_OBJS="$_PABI_MODLET_TABLE_BASE $_PABI_MODLET_SEED_SIGNED $_PABI_ADDR_OF_CALL $_PABI_ELF_LAYOUT_64K $_PABI_INDEX_BASE_FIELD $_PABI_SLICE_MODLET $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_ELF_UNDEF_CAP $_PABI_LAYOUT_OFF $_PABI_NAMED_BUILTIN_CAP $_PABI_NAMED_ALIGN $_PABI_NAMED_SIZE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_REENT_SUM $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_WPO_ALIAS $_PABI_RELOC_TYPED $_PABI_ELF_CTX $_PABI_DATA_LEN $_G05_W211_CALL_ARG $_G05_W211_VAR_OFF $_G05_W211_REGISTER $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_SKIP_HEAVY $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_CODEGEN_CAP_RESIDUAL $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
+_DRIVER_SEED_OBJS="$_PABI_WIN_1046_PROVIDERS $_PABI_MODLET_TABLE_BASE $_PABI_MODLET_SEED_SIGNED $_PABI_ADDR_OF_CALL $_PABI_ELF_LAYOUT_64K $_PABI_INDEX_BASE_FIELD $_PABI_SLICE_MODLET $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_ELF_UNDEF_CAP $_PABI_LAYOUT_OFF $_PABI_NAMED_BUILTIN_CAP $_PABI_NAMED_ALIGN $_PABI_NAMED_SIZE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_REENT_SUM $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_WPO_ALIAS $_PABI_RELOC_TYPED $_PABI_ELF_CTX $_PABI_DATA_LEN $_G05_W211_CALL_ARG $_G05_W211_VAR_OFF $_G05_W211_REGISTER $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_SKIP_HEAVY $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_CODEGEN_CAP_RESIDUAL $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
 # ast_gen2.o: in LEGACY mode, append at link END (mirrors Makefile xlang-c LEGACY L2501

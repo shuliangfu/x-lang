@@ -26704,17 +26704,11 @@ void pipeline_block_with_arena_fixup_stmt_order(void *a, int32_t br) {
  * Drop kind=2 only when if_in_order>0 (cond fragments); keep fallthrough returns.
  * PLATFORM: SHARED · G.7 single sparse-if rebuild authority.
  */
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1710 PLATFORM: WINDOWS leftover.
- * The egg thin owns pipeline_block_stmt_order_rebuild_sparse_ifs.
- * A same-TU body reads this TU's empty sidecar, counts zero kind-5
- * rows, and writes num_stmt_order = nso + num_if_stmts on the shared
- * block. The egg body reads the real sidecar and returns when those
- * ifs are already in order. The prototype above the counter stays.
- * Both calls in pipeline_module_fixup_with_arena_stmt_orders bind the
- * egg as well. This body stays when either macro is unset.
+/* w1710/w1046: Win leftover egg is C windows_e (no .x thin owns this face
+ * on PE). Always define the body so prefer egg+FROM_X merge has T — same
+ * root as kind_ord / block faces. Darwin/Linux never set WIN_LEFTOVER here.
+ * PLATFORM: SHARED · G.7 single sparse-if rebuild authority.
  */
-#else
 void pipeline_block_stmt_order_rebuild_sparse_ifs(void *a, int32_t br) {
   W277_Block *b;
   W277_Sidecar *sc;
@@ -26825,7 +26819,6 @@ void pipeline_block_stmt_order_rebuild_sparse_ifs(void *a, int32_t br) {
   }
   /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
 }
-#endif
 
 /** 对 module 全部函数体块执行 with_arena stmt_order 修补（parse 后/typeck 前调用）。 */
 void pipeline_module_fixup_with_arena_stmt_orders(void *m, void *a) {
