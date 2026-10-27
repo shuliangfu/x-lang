@@ -45,13 +45,12 @@ export function math_e_c(out: *f64): i32 {
 
 /**
  * Write tau (2 * pi) into the caller slot.
+ * 10.90: literal out-slot write (no math_pi_c call — Linux tip XT001).
  * @param out *f64 — caller storage; must not be null
  * @return i32 — 0 after the slot is written
  * PLATFORM: SHARED
  */
 export function math_tau_c(out: *f64): i32 {
-  // 10.90: Linux tip typeck XT001 on math_pi_c(&local) in this TU; write
-  // the tau literal the same way math_pi_c writes pi (out-slot, no call).
   let x: f64 = 6.28318530717958647692 as f64;
   out[0] = x;
   return 0;
