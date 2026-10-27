@@ -1781,8 +1781,8 @@ export function driver_pipeline_entry_source_len(): i64 {
 
 // ---- Wave14 Cap residual pure: rt_asm_stub GAS table + OutBuf append (PLATFORM: SHARED) ----
 // Host layout (seeds/runtime_driver_abi.from_x.c driver_codegen_outbuf_abi):
-//   unsigned char data[X_CODEGEN_OUTBUF_CAP_ABI];  // CAP = 9 * 1024 * 1024
-//   int32_t len;                                   // little-endian i32 at offset CAP
+//   int32_t length;                                // at offset 0 (10.94)
+//   unsigned char data[X_CODEGEN_OUTBUF_CAP_ABI];  // CAP = 9 * 1024 * 1024 at +4
 // Cold seed keeps C table/append under #ifndef XLANG_L2_RDABI_THIN_FROM_X.
 // G.7: single product authority for gas_line_* / out_append under PREFER hybrid thin.
 
@@ -3033,8 +3033,8 @@ let g_driver_host_needle_riscv64: u8[8] = [114, 105, 115, 99, 118, 54, 52, 0];
 // ASCII "windows\0"
 let g_driver_host_needle_windows: u8[8] = [119, 105, 110, 100, 111, 119, 115, 0];
 
-/** Fixed sizeof(driver_codegen_outbuf_abi) on product LP64: 9*1024*1024 + 4.
- * Must match seed X_CODEGEN_OUTBUF_CAP_ABI + int32_t len (wave14 OutBuf layout).
+/** Fixed sizeof(driver_codegen_outbuf_abi) on product LP64: 4 + 9*1024*1024.
+ * Must match seed int32_t length + X_CODEGEN_OUTBUF_CAP_ABI (10.94 length-first).
  */
 function driver_abi_sizeof_codegen_outbuf(): usize {
   return 9437188 as usize;
@@ -3050,7 +3050,7 @@ function driver_abi_sizeof_lp64_word(): usize {
   return 8 as usize;
 }
 
-/** Allocate zeroed CodegenOutBuf (9MiB data + i32 len).
+/** Allocate zeroed CodegenOutBuf (i32 length + 9MiB data).
  * Wave23 pure: calloc(1, fixed sizeof). PLATFORM: SHARED LP64.
  */
 #[no_mangle]
@@ -3304,23 +3304,23 @@ export function driver_codegen_outbuf_free(p: *u8): void {
 }
 
 /**
- * Read the live byte length of a CodegenOutBuf (i32 len after the 9MiB data[]).
+ * Read the live byte length of a CodegenOutBuf (i32 length at offset 0).
  * @param p *u8 — outbuf pointer; null → 0
- * @return i32 — current len field (LE at offset CAP), or 0 if p is null
- * Wave24 pure: wave14 LE load. PLATFORM: SHARED LP64.
+ * @return i32 — current length field (LE at offset 0), or 0 if p is null
+ * Wave24 pure: wave14 LE load. PLATFORM: SHARED LP64. 10.94 length-first.
  */
 #[no_mangle]
 export function driver_codegen_outbuf_len(p: *u8): i32 {
   if (p == 0 as *u8) {
     return 0;
   }
-  return driver_abi_load_i32_le(p, driver_abi_codegen_outbuf_cap());
+  return driver_abi_load_i32_le(p, 0);
 }
 
 /**
  * Return pointer to the data[] base of a CodegenOutBuf (first byte of the buffer).
  * @param p *u8 — outbuf pointer; null → null
- * @return *u8 — &data[0], same address as p on product layout (data is first field)
+ * @return *u8 — &data[0] at offset 4 (length is first field after 10.94)
  * Wave24 pure. PLATFORM: SHARED LP64.
  */
 #[no_mangle]
@@ -3328,8 +3328,8 @@ export function driver_codegen_outbuf_data(p: *u8): *u8 {
   if (p == 0 as *u8) {
     return 0 as *u8;
   }
-  // Host layout: unsigned char data[CAP] is the first field; p is already data base.
-  return p;
+  // Host layout: int32_t length @0; unsigned char data[CAP] @+4.
+  return p + 4;
 }
 
 /**

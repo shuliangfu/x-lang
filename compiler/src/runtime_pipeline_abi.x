@@ -13249,11 +13249,11 @@ export function pipeline_resolve_path_import_has_dot_c(import_path: *u8, path_le
 }
 
 /**
- * Read CodegenOutBuf.length (i32 LE immediately after data[9437184]).
+ * Read CodegenOutBuf.length (i32 LE at offset 0; data[] follows at +4).
  * @param out *u8 - opaque CodegenOutBuf*; null -> 0
  * @return i32 - length field
  * wave105 pure: G.7 single authority (historical codegen_out_buf_len in resolve_path.c).
- * Layout ≡ codegen.x CodegenOutBuf { data: u8[9437184]; length: i32 }.
+ * Layout ≡ codegen.x CodegenOutBuf { length: i32; data: u8[9437184]; } (10.94).
  * PLATFORM: SHARED - sole provider after resolve_path leave; used by elf/codegen host-cc.
  */
 #[no_mangle]
@@ -13262,7 +13262,7 @@ export function codegen_out_buf_len(out: *u8): i32 {
     return 0;
   }
   // PIPELINE_CODEGEN_OUTBUF_CAP
-  return pipe_load_i32_le(out, 9437184);
+  return pipe_load_i32_le(out, 0);
 }
 
 /**
@@ -13282,7 +13282,7 @@ export function codegen_out_buf_set_len(out: *u8, n: i32): void {
   if (v < 0) {
     v = 0;
   }
-  pipe_store_i32_le(out, 9437184, v);
+  pipe_store_i32_le(out, 0, v);
 }
 
 /**
@@ -16501,14 +16501,14 @@ export function pipeline_codegen_struct_tag_try_claim(prefix: *u8, prefix_len: i
 }
 
 /**
- * Append n bytes into CodegenOutBuf (data[9437184] + len i32 LE).
+ * Append n bytes into CodegenOutBuf (length@0 + data@+4; CAP 9437184).
  * @param out *u8 - opaque CodegenOutBuf*
  * @param p *u8 - source bytes
  * @param n i32 - byte count; n<0 -> -1
  * @return i32 - 0 ok, -1 overflow/null
  * wave110 pure: private helper (historical pipeline_codegen_out_append_bytes).
  * Cap gate matches historical struct_emit: len+n > 9437184.
- * PLATFORM: SHARED.
+ * PLATFORM: SHARED. 10.94 length-first layout.
  */
 function cg_se_out_append_bytes(out: *u8, p: *u8, n: i32): i32 {
   if (out == 0 as *u8) {
@@ -16527,7 +16527,7 @@ function cg_se_out_append_bytes(out: *u8, p: *u8, n: i32): i32 {
   let i: i32 = 0;
   while (i < n) {
     unsafe {
-      out[len + i] = p[i];
+      out[4 + len + i] = p[i];
     }
     i = i + 1;
   }
@@ -86579,7 +86579,7 @@ export function pipeline_elf_write_o_pgo_to_buf(ctx_bytes: *u8, out: *u8): i32 {
 
 
 /**
- * Append n bytes into CodegenOutBuf (data[9437184] + length i32 LE).
+ * Append n bytes into CodegenOutBuf (length@0 + data@+4).
  * @return i32 - 0 ok, -1 overflow
  * PLATFORM: SHARED freestanding ELF leave.
  */
@@ -86594,7 +86594,7 @@ function pipe_elf_out_append(out: *u8, p: *u8, n: i32): i32 {
   let i: i32 = 0;
   while (i < n) {
     unsafe {
-      out[len + i] = p[i];
+      out[4 + len + i] = p[i];
     }
     i = i + 1;
   }

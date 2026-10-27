@@ -62,8 +62,8 @@ extern char *link_abi_getenv(const char *name);
 
 #define X_CODEGEN_OUTBUF_CAP (9 * 1024 * 1024)
 struct codegen_CodegenOutBuf {
-  unsigned char data[X_CODEGEN_OUTBUF_CAP];
   int32_t length;
+  unsigned char data[X_CODEGEN_OUTBUF_CAP];
 };
 
 struct parser_ParseIntoResult {

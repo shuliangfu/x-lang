@@ -37,7 +37,7 @@ export function w521_codegen_out_append_bytes(out: *u8, p: *u8, n: i32): i32 {
     if (len >= W289_OUTBUF_CAP - 1) {
       return 0 - 1;
     }
-    out[len] = p[i];
+    out[4 + len] = p[i];
     len = len + 1;
     i = i + 1;
   }

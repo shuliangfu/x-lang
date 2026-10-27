@@ -956,7 +956,7 @@ export function lsp_codegen_emit_path_is_lsp_main_x(path: *u8): i32 {
 }
 
 /**
- * Append text to a CodegenOutBuf. The length field is at byte 9437184. Loops only, so this strong body has no call.
+ * Append text to a CodegenOutBuf. The length field is at byte 0 (10.94). Loops only, so this strong body has no call.
  * @param out_buf *u8 — CodegenOutBuf, or null
  * @param text *u8 — NUL-terminated text, or null
  * @return i32 — 0, or -1 when null or the 9MiB cap would overflow
@@ -974,9 +974,9 @@ export function append_text_to_codegen_buf(out_buf: *u8, text: *u8): i32 {
   if (text == 0 as *u8) {
     return 0 - 1;
   }
-  // CodegenOutBuf.length sits after unsigned char data[9 * 1024 * 1024].
+  // CodegenOutBuf.length sits at offset 0; data[] at +4 (10.94).
   // PLATFORM: SHARED.
-  lenp = (out_buf + 9437184) as *i32;
+  lenp = out_buf as *i32;
   length = lenp[0];
   if (length < 0) {
     return 0 - 1;
@@ -988,7 +988,7 @@ export function append_text_to_codegen_buf(out_buf: *u8, text: *u8): i32 {
     return 0 - 1;
   }
   while (i < n) {
-    out_buf[length + i] = text[i];
+    out_buf[4 + length + i] = text[i];
     i = i + 1;
   }
   lenp[0] = length + n;

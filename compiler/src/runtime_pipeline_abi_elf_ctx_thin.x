@@ -2247,7 +2247,7 @@ export function pipeline_elf_write_o_pgo_to_buf(ctx_bytes: *u8, out: *u8): i32 {
 
 
 /**
- * Append n bytes into CodegenOutBuf (data[9437184] + length i32 LE).
+ * Append n bytes into CodegenOutBuf (length@0 + data@+4).
  * @return i32 - 0 ok, -1 overflow
  * PLATFORM: SHARED freestanding ELF leave.
  */
@@ -2262,7 +2262,7 @@ function pipe_elf_out_append(out: *u8, p: *u8, n: i32): i32 {
   let i: i32 = 0;
   while (i < n) {
     unsafe {
-      out[len + i] = p[i];
+      out[4 + len + i] = p[i];
     }
     i = i + 1;
   }

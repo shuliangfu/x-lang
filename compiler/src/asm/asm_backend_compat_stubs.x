@@ -14,7 +14,7 @@
 // emit_ldr_sp_slot_to_xreg, peephole_peephole_run,
 // peephole_peephole_elf_run, typeck_lsp_build_semantic_tokens_response.
 // Pointers to C structs are passed as *u8; struct fields are read by byte
-// offset (CodegenOutBuf.length at 9437184; AsmFuncCtx next_offset at 4,
+// offset (CodegenOutBuf.length at 0 (10.94); AsmFuncCtx next_offset at 4,
 // num_locals at 8).
 // PLATFORM: MACOS arm64 · LINUX x86_64 · WINDOWS x86_64.
 
@@ -105,7 +105,7 @@ export function xlang_format_u32_to_buf(buf: *u8, off: i32, max: i32, u: u32): i
 }
 
 /**
- * Append bytes plus '\n' to a CodegenOutBuf (data[9437184] then length).
+ * Append bytes plus '\n' to a CodegenOutBuf (length@0 then data@+4).
  * Weak on Darwin/Linux: the real types.o symbol wins when linked.
  */
 #[no_mangle]
@@ -113,24 +113,24 @@ export function append_asm_line(out: *u8, ptr: *u8, len: i32): i32 {
   if (out == 0 as *u8) { return 0 - 1; }
   if (ptr == 0 as *u8) { return 0 - 1; }
   if (len < 0) { return 0 - 1; }
-  let n: i32 = abcs_rd32(out, 9437184);
+  let n: i32 = abcs_rd32(out, 0);
   let i: i32 = 0;
   while (i < len) {
     if (n >= 9437184) {
-      abcs_wr32(out, 9437184, n);
+      abcs_wr32(out, 0, n);
       return 0 - 1;
     }
-    out[n] = ptr[i];
+    out[4 + n] = ptr[i];
     n = n + 1;
     i = i + 1;
   }
   if (n >= 9437184) {
-    abcs_wr32(out, 9437184, n);
+    abcs_wr32(out, 0, n);
     return 0 - 1;
   }
-  out[n] = 10;
+  out[4 + n] = 10;
   n = n + 1;
-  abcs_wr32(out, 9437184, n);
+  abcs_wr32(out, 0, n);
   return 0;
 }
 

@@ -126,7 +126,7 @@ export function arm64_enc_addsub_sp_imm_chunks(elf_ctx: *u8, imm: i32, is_sub: i
  * Small |imm| (<=4080) stays one ADD/SUB #imm12 (chunk size matches SP
  * adjust so frame math stays aligned).
  * Larger |imm| uses movz/movk into x16 (or x17 when rd is 16) then a
- * register ADD/SUB. CodegenOutBuf.length sits at 9437184; chunking that
+ * register ADD/SUB. CodegenOutBuf.length sits at 0 after 10.94; chunking that
  * offset was ~2300 adds per access and blew Darwin text by ~6 MiB.
  * @param elf_ctx *u8 emit context
  * @param rd i32 destination register 0..30

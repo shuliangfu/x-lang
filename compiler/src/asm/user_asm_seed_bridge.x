@@ -96,8 +96,10 @@ const UASB_CODE_HOT_LEN: i32 = 41484328;
 const UASB_EMIT_HOT: i32 = 41484332;
 const UASB_CODE_DATA: i32 = 41484336;
 const UASB_SYM_NAME_DATA: i32 = 51249200;
-/* CodegenOutBuf: data[9437184] then i32 length. */
+/* CodegenOutBuf: i32 length @0 then data[9437184] @+4 (10.94). */
 const UASB_OUT_CAP: i32 = 9437184;
+const UASB_OUT_LEN_OFF: i32 = 0;
+const UASB_OUT_DATA_OFF: i32 = 4;
 
 /** Doc anchor (keeps TU non-empty for cold tooling). */
 #[no_mangle]
@@ -407,15 +409,15 @@ function uasb_out_append(out: *u8, ptr: *u8, n: i32): i32 {
   if (n > 0 && ptr == 0 as *u8) {
     return 0 - 1;
   }
-  let len: i32 = uasb_rd32(out, UASB_OUT_CAP);
+  let len: i32 = uasb_rd32(out, UASB_OUT_LEN_OFF);
   let i: i32 = 0;
   while (i < n && len < UASB_OUT_CAP) {
     let c: u8 = ptr[i];
-    out[len] = c;
+    out[UASB_OUT_DATA_OFF + len] = c;
     len = len + 1;
     i = i + 1;
   }
-  uasb_wr32(out, UASB_OUT_CAP, len);
+  uasb_wr32(out, UASB_OUT_LEN_OFF, len);
   if (i < n) {
     return 0 - 1;
   }
@@ -658,7 +660,7 @@ export function seed_platform_coff_write_coff_o_to_buf(elf_ctx: *u8, out_buf: *u
     let ptr_reloc_data: i32 = ptr_reloc + n_text_rel * 10;
     let ptr_sym: i32 = ptr_reloc + reloc_size;
 
-    uasb_wr32(out, UASB_OUT_CAP, 0);
+    uasb_wr32(out, UASB_OUT_LEN_OFF, 0);
 
     let hdr: u8[40] = [];
     let hp: *u8 = &hdr[0];
@@ -862,7 +864,7 @@ export function seed_platform_coff_write_coff_o_to_buf(elf_ctx: *u8, out_buf: *u
       s = s + 1;
     }
   }
-  return uasb_rd32(out, UASB_OUT_CAP);
+  return uasb_rd32(out, UASB_OUT_LEN_OFF);
 }
 
 /**
@@ -1131,17 +1133,17 @@ export function asm_asm_codegen_elf_o(module: *u8, arena: *u8, ctx: *u8, elf_ctx
     if (use_coff != 0) {
       w = seed_platform_coff_write_coff_o_to_buf(elf_ctx, out_buf);
       if (seed_asm_debug_enabled() != 0) {
-        uasb_note2("asm debug: asm_codegen_elf_o coff_write=", w, " out_len=", uasb_rd32(out_buf, UASB_OUT_CAP));
+        uasb_note2("asm debug: asm_codegen_elf_o coff_write=", w, " out_len=", uasb_rd32(out_buf, UASB_OUT_LEN_OFF));
       }
     } else if (use_macho != 0) {
       w = seed_platform_macho_write_macho_o_to_buf(elf_ctx, out_buf);
       if (seed_asm_debug_enabled() != 0) {
-        uasb_note2("asm debug: asm_codegen_elf_o macho_write=", w, " out_len=", uasb_rd32(out_buf, UASB_OUT_CAP));
+        uasb_note2("asm debug: asm_codegen_elf_o macho_write=", w, " out_len=", uasb_rd32(out_buf, UASB_OUT_LEN_OFF));
       }
     } else {
       w = pipeline_elf_write_o_standard_to_buf_c(elf_ctx, out_buf);
       if (seed_asm_debug_enabled() != 0) {
-        uasb_note2("asm debug: asm_codegen_elf_o elf_write=", w, " out_len=", uasb_rd32(out_buf, UASB_OUT_CAP));
+        uasb_note2("asm debug: asm_codegen_elf_o elf_write=", w, " out_len=", uasb_rd32(out_buf, UASB_OUT_LEN_OFF));
       }
     }
     pipeline_asm_wpo_reach_clear();

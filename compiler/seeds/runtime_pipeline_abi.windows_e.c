@@ -11682,7 +11682,7 @@ int32_t codegen_out_buf_len(uint8_t * out) {
   if ((out ==0)) {
     return 0;
   }
-  return pipe_load_i32_le(out, 9437184);
+  return pipe_load_i32_le(out, 0);
 }
 void codegen_out_buf_set_len(uint8_t * out, int32_t n) {
   if ((out ==0)) {
@@ -11692,7 +11692,7 @@ void codegen_out_buf_set_len(uint8_t * out, int32_t n) {
   if ((v < 0)) {
     (void)((v = 0));
   }
-  (void)(pipe_store_i32_le(out, 9437184, v));
+  (void)(pipe_store_i32_le(out, 0, v));
 }
 int32_t pipeline_resolve_path_last_off_get_c(void) {
   return g_pipe_resolve_off;
@@ -13584,7 +13584,7 @@ int32_t cg_se_out_append_bytes(uint8_t * out, uint8_t * p, int32_t n) {
   }
   int32_t i = 0;
   while ((i < n)) {
-    (void)(((out)[(len + i)] = (p)[i]));
+    (void)(((out)[((4 + len) + i)] = (p)[i]));
     (void)((i = (i + 1)));
   }
   (void)(codegen_out_buf_set_len(out, (len + n)));
@@ -55203,7 +55203,7 @@ int32_t pipe_elf_out_append(uint8_t * out, uint8_t * p, int32_t n) {
   }
   int32_t i = 0;
   while ((i < n)) {
-    (void)(((out)[(len + i)] = (p)[i]));
+    (void)(((out)[((4 + len) + i)] = (p)[i]));
     (void)((i = (i + 1)));
   }
   (void)(codegen_out_buf_set_len(out, (len + n)));
