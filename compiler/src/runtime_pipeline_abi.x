@@ -2373,6 +2373,235 @@ let w1500_fs_hid: i32[512] = [];
 let w1500_fs_es: i32[256] = [];
 let w1501_sp_st: i32[2] = [];
 
+// ---- 10.26 forward export-extern for helper callees (before helper bodies for -E) ----
+export extern function asm_ctx_ensure_block_locals(ctx: *u8, arena: *u8, block_ref: i32, next_off: *i32, num_loc: *i32): void;
+
+export extern function asm_ctx_fill_locals_block_tree(ctx: *u8, arena: *u8, block_ref: i32, next_off: *i32, num_loc: *i32): void;
+
+export extern function asm_ctx_local_append(ctx: *u8, name: *u8, name_len: i32, offset: i32): i32;
+
+export extern function asm_ctx_local_count(ctx: *u8): i32;
+
+export extern function asm_ctx_local_find_offset(ctx: *u8, name: *u8, name_len: i32): i32;
+
+export extern function asm_ctx_local_reset(ctx: *u8): void;
+
+export extern function asm_local_slot_bytes(arena: *u8, type_ref: i32): i32;
+
+export extern function asm_sum_block_array_temp_bytes(arena: *u8, block_ref: i32): i32;
+
+export extern function asm_sum_block_wa_temp_bytes(arena: *u8, block_ref: i32): i32;
+
+export extern "C" function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i32): i32;
+
+export extern "C" function backend_enc_addsd_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+
+export extern "C" function backend_enc_imul_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
+
+export extern "C" function backend_enc_mulsd_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+
+export extern "C" function backend_enc_mulss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+
+export extern "C" function backend_enc_subsd_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
+
+export extern function glue_array_lit_force_esz_from_elem_type_c(arena: *u8, et: i32): i32;
+
+export extern function glue_array_temp_bytes_for_let_init(arena: *u8, let_type_ref: i32, init_ref: i32): i32;
+
+export extern function glue_asm_call_reg_max(ta: i32): i32;
+
+export extern function glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, force_esz: i32, ta: i32, ctx: *u8, dest_elem_ty: i32): i32;
+
+export extern function glue_asm_sum_block_call_spill_bytes(arena: *u8, block_ref: i32): i32;
+
+export extern function glue_assign_lhs_f32_type_ref_elf_c(arena: *u8, ctx: *u8, left_ref: i32): i32;
+
+export extern function glue_async_cps_emit_phase_reset(elf_ctx: *u8, ta: i32): i32;
+
+export extern function glue_binop_operand_is_64bit_elf_c(arena: *u8, ctx: *u8, left_ref: i32, right_ref: i32): i32;
+
+export extern function glue_binop_operand_is_scalar_f32_elf_c(arena: *u8, ctx: *u8, expr_ref: i32): i32;
+
+export extern function glue_binop_operand_is_scalar_f64_elf_c(arena: *u8, ctx: *u8, expr_ref: i32): i32;
+
+export extern function glue_binop_operand_is_unsigned_elf_c(arena: *u8, ctx: *u8, left_ref: i32, right_ref: i32): i32;
+
+export extern function glue_binop_var_slot_cache_clear(): void;
+
+export extern function glue_binop_var_slot_cache_invalidate_rax(): void;
+
+export extern function glue_binop_var_slot_cache_invalidate_rbx(): void;
+
+export extern function glue_binop_var_slot_cache_invalidate_slot(off: i32): void;
+
+export extern function glue_call_return_byte_size_c(arena: *u8, call_expr_ref: i32): i32;
+
+export extern function glue_emit_float_lit_to_rax_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ta: i32, force_ty_ref: i32, call_abi_widen_f64: i32): i32;
+
+export extern function glue_emit_func_param_is_indirect_array_slot_c(arena: *u8, mod: *u8, var_ref: i32): i32;
+
+export extern function glue_emit_import_module_const_field_to_rax_elf_c(
+  arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, arr_sz_out: *i32
+): i32;
+
+export extern function glue_emit_vector_type_let_init_elf_c(
+  arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32, type_ref: i32
+): i32;
+
+export extern function glue_enc_canonicalize_param_in_rax_elf_c(elf_ctx: *u8, arena: *u8, mod: *u8, func_index: i32, param_index: i32, ta: i32): i32;
+
+export extern function glue_enc_local_slot_ptr_or_addr_elf_c(
+  arena: *u8, elf_ctx: *u8, var_ref: i32, var_off: i32, ctx: *u8, ta: i32
+): i32;
+
+export extern function glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx: *u8, ta: i32): i32;
+
+export extern function glue_enc_zxt_u32_result_to_rax_elf_c(elf_ctx: *u8, ta: i32): i32;
+
+export extern function glue_enc_zxt_u8_result_to_rax_elf_c(elf_ctx: *u8, ta: i32): i32;
+
+export extern function glue_field_access_effective_offset_c(arena: *u8, mod: *u8, fa_ref: i32): i32;
+
+export extern function glue_field_access_field_type_ref_c(arena: *u8, mod: *u8, fa_ref: i32): i32;
+
+export extern function glue_func_param_home_width_c(arena: *u8, mod: *u8, func_index: i32, param_index: i32): i32;
+
+export extern function glue_func_return_byte_size_c(mod: *u8, arena: *u8, func_index: i32): i32;
+
+export extern function glue_index_deref_ptr_field_slot_rax_elf_c(arena: *u8, elf_ctx: *u8, fa_ref: i32, ta: i32): i32;
+
+export extern function glue_index_scratch_spill_invalidate_var(arena: *u8, elf_ctx: *u8, ctx: *u8, var_ref: i32, ta: i32): void;
+
+export extern function glue_index_scratch_spills_cleanup_all_elf_c(elf_ctx: *u8, ta: i32): i32;
+
+export extern "C" function glue_is_vector_lane_scalar_binop_ko(ko: i32): i32;
+
+export extern function glue_peel_as_array_slice_ascription_c(arena: *u8, expr_ref: i32): i32;
+
+export extern function glue_simd_alloc_vector_temp_slot_c(arena: *u8, ctx: *u8, type_ref: i32): i32;
+
+export extern function glue_struct_layout_compute_field_offset_c(m: *u8, a: *u8, li: i32, fj: i32): i32;
+
+export extern function glue_struct_layout_index_by_type_name_c(m: *u8, struct_name: *u8, nlen: i32): i32;
+
+export extern function glue_sum_block_slice_reent_dc_bytes_c(arena: *u8, block_ref: i32): i32;
+
+export extern function glue_sysv_dual_gp_byte_size_c(arena: *u8, ty_ref: i32): i32;
+
+export extern function glue_try_binop_left_rax_right_rbx_elf_c(arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32;
+
+export extern function glue_type_is_empty_struct_c(module: *u8, arena: *u8, ty_ref: i32, depth: i32): i32;
+
+export extern function glue_type_named_layout_size_any_module_elf_c(arena: *u8, ty_ref: i32): i32;
+
+export extern function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): i32;
+
+export extern function glue_var_decl_type_ref_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
+
+export extern function glue_var_expr_stack_off_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
+
+export extern function glue_var_expr_type_ref_with_decl_fallback_c(arena: *u8, base_ref: i32): i32;
+
+export extern function glue_vector_elem_is_f32_c(arena: *u8, type_ref: i32): i32;
+
+export extern function glue_vector_type_lanes_esz_c(arena: *u8, type_ref: i32, out_lanes: *i32, out_esz: *i32): i32;
+
+export extern function pipe_asm_ctx_off_next_offset(): i32;
+
+export extern function pipe_asm_ctx_off_num_locals(): i32;
+
+export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
+
+export extern function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_v: *i32, out_hi: *i32): i32;
+
+export extern function pipe_modlet_module_fp(): i64;
+
+export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
+
+export extern function pipe_store_ptr_slot(base: *u8, i: i32, val: *u8): void;
+
+export extern function pipeline_asm_array_lit_elem_type_ref(arena: *u8, expr_ref: i32): i32;
+
+export extern function pipeline_asm_ctx_layout(ctx: *u8): *u8;
+
+export extern function pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx: *u8, ta: i32): i32;
+
+export extern function pipeline_asm_emit_ctx_arena_get(): *u8;
+
+export extern function pipeline_asm_emit_ctx_module_get(): *u8;
+
+export extern function pipeline_asm_emit_ctx_module_set(mod: *u8): void;
+
+export extern function pipeline_asm_emit_ctx_sret_active_get(): i32;
+
+export extern function pipeline_asm_emit_ctx_sret_home_off_get(): i32;
+
+export extern function pipeline_asm_emit_ctx_sret_ret_sz_get(): i32;
+
+export extern function pipeline_asm_emit_expr_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
+
+export extern function pipeline_asm_emit_func_index_c(): i32;
+
+export extern function pipeline_asm_emit_lvalue_eff_addr_elf_c(
+  arena: *u8, elf_ctx: *u8, lval_ref: i32, ctx: *u8, ta: i32
+): i32;
+
+export extern function pipeline_asm_emit_module_ref_c(): *u8;
+
+export extern function pipeline_asm_emit_panic_int_div_zero_elf_c(elf_ctx: *u8, ta: i32): i32;
+
+export extern function pipeline_asm_emit_set_call_sret_reg_shift_c(shift: i32): void;
+
+export extern function pipeline_asm_hoist_target_func_index(mod: *u8): i32;
+
+export extern function pipeline_asm_host_is_arm64_c(): i32;
+
+export extern function pipeline_asm_modlet_load_to_rax_elf_c(elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32;
+
+export extern function pipeline_asm_modlet_name_is_shared(name: *u8, name_len: i32): i32;
+
+export extern function pipeline_asm_modlet_store_from_rax_elf_c(elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32;
+
+export extern function pipeline_asm_set_call_expected_ret_ty_c(type_ref: i32): void;
+
+export extern function pipeline_asm_sum_module_top_level_lets_stack(arena: *u8, mod: *u8, next_off: i32): i32;
+
+export extern function pipeline_elf_ctx_append_bytes(ctx: *u8, ptr: *u8, n: i32): i32;
+
+export extern function pipeline_elf_ctx_append_reloc_absolute64(ctx_bytes: *u8, offset: i32, name: *u8, name_len: i32): i32;
+
+export extern function pipeline_expr_field_access_is_enum_variant(arena: *u8, expr_ref: i32): i32;
+
+export extern function pipeline_expr_struct_lit_num_fields(arena: *u8, expr_ref: i32): i32;
+
+export extern function pipeline_expr_struct_lit_type_name_into(a: *u8, expr_ref: i32, out64: *u8): void;
+
+export extern function pipeline_expr_struct_lit_type_name_len(a: *u8, expr_ref: i32): i32;
+
+export extern function pipeline_expr_struct_lit_value_bytes(a: *u8, m: *u8, expr_ref: i32): i32;
+
+export extern function pipeline_module_num_struct_layouts_at(m: *u8): i32;
+
+export extern function pipeline_module_struct_layout_field_name_into(m: *u8, li: i32, j: i32, out64: *u8): void;
+
+export extern function pipeline_module_struct_layout_field_name_len(m: *u8, li: i32, j: i32): i32;
+
+export extern function pipeline_module_struct_layout_field_type_ref(m: *u8, li: i32, j: i32): i32;
+
+export extern function pipeline_module_struct_layout_name_byte_at(m: *u8, k: i32, j: i32): i32;
+
+export extern function pipeline_module_struct_layout_name_len(m: *u8, k: i32): i32;
+
+export extern function pipeline_module_struct_layout_num_fields(m: *u8, idx: i32): i32;
+
+export extern function pipeline_type_array_size_at(arena: *u8, type_ref: i32): i32;
+
+export extern function pipeline_type_elem_ref_at(arena: *u8, type_ref: i32): i32;
+
+export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
+
+export extern function pipeline_type_named_name_into(arena: *u8, type_ref: i32, out: *u8): i32;
+
 // ---- 10.26 missing export-extern from merged thins (typeck before helpers) ----
 export extern function backend_enc_append_u32_le_c(elf_ctx: *u8, word: u32): i32;
 
