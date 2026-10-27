@@ -2366,6 +2366,59 @@ export extern function asm_wpo_collect_walk(
 ): void;
 
 
+// ---- 10.26 missing export-extern from merged thins (typeck before helpers) ----
+export extern function backend_enc_append_u32_le_c(elf_ctx: *u8, word: u32): i32;
+
+export extern function backend_enc_append_u8_c(elf_ctx: *u8, byte: i32): i32;
+
+export extern function glue_aapcs64_call_mem_temp_bytes_c(arena: *u8, call: i32, nargs: i32, is_method: i32): i32;
+
+export extern function glue_addr_simd_lane_type_c(arena: *u8, op: i32): i32;
+
+export extern function glue_call_param_type_ref_at(arena: *u8, call_expr_ref: i32, param_index: i32): i32;
+
+export extern function glue_emit_assign_var_finish_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32;
+
+export extern function glue_emit_assign_var_store_elf_c(arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32;
+
+export extern function glue_emit_assign_var_try_let_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32;
+
+export extern function glue_index_simd_elem_bytes_c(arena: *u8, ty: i32): i32;
+
+export extern function glue_sysv_arg_byte_size_c(arena: *u8, ctx: *u8, pty: i32, arg_ref: i32): i32;
+
+export extern function glue_sysv_arg_gp_units_from_size_c(sz: i32): i32;
+
+export extern function glue_sysv_x86_call_arg_slot_c(arena: *u8, call_expr_ref: i32, nargs: i32, arg_index: i32, out_kind: *i32, out_reg_k: *i32, out_stack_k: *i32): void;
+
+export extern function glue_wide_i32_vec_array_bytes(arena: *u8, rty: i32): i32;
+
+export extern function pipeline_block_const_init_ref(arena: *u8, block_ref: i32, i: i32): i32;
+
+export extern function pipeline_block_expr_stmt_ref(arena: *u8, block_ref: i32, index: i32): i32;
+
+export extern function pipeline_block_if_else_body_ref(arena: *u8, block_ref: i32, index: i32): i32;
+
+export extern function pipeline_block_if_then_body_ref(arena: *u8, block_ref: i32, index: i32): i32;
+
+export extern function pipeline_expr_struct_lit_field_name_into(arena: *u8, expr_ref: i32, j: i32, out: *u8): void;
+
+export extern function pipeline_expr_struct_lit_field_name_len(arena: *u8, expr_ref: i32, j: i32): i32;
+
+export extern function vlet_lane_cmp_ko(ko: i32): i32;
+
+export extern function w1521_win_call_mem_temp_bytes_c(arena: *u8, call: i32, nargs: i32, is_method: i32): i32;
+
+export extern function w1521_win_note_func_c(mod: *u8, func_index: i32): void;
+
+export extern function w1545_win_mid_named_sz(arena: *u8, ty: i32): i32;
+
+export extern function w1545_win_ret_slot_for_c(mod: *u8, func_index: i32): i32;
+
+export extern function w1545_win_ret_slot_latch_c(mod: *u8, func_index: i32, off: i32, sz: i32): void;
+
+export extern "C" function backend_enc_rem_mod_unsigned_arch(elf_ctx: *u8, ta: i32): i32;
+
 // ---- 10.26 merged overlay helpers (was pure-overlay thin) ----
 
 // from runtime_pipeline_abi_binop_wide_thin.x :: w1499_expr_is_wide_int_lit
@@ -53563,7 +53616,6 @@ export extern "C" function backend_enc_sub_rax_rbx_arch(elf_ctx: *u8, ta: i32): 
 export extern "C" function backend_enc_mulsd_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_mulss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_div_rbx_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function backend_enc_rem_mod_unsigned_arch(elf_ctx: *u8, ta: i32): i32;
 
 /**
  * Apply f32 lane ALU after operands are in rax/rbx (addss/subss/mulss/divss).
