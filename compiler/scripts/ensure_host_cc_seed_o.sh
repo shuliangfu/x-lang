@@ -20309,7 +20309,11 @@ ensure_pipeline_abi_prefer_one() {
     # overlays; gcc C99 treats missing decls as errors and aborted hybrid.
     # -Wno-implicit-function-declaration keeps FROM_X rest compilable without
     # editing the banned seed. PLATFORM: SHARED · LINUX from-zero gold.
+    # 10.26: same flag on mega -E thin — helpers call faces defined later in
+    # mega; early export-extern for those faces made pure-ld U (mangled Cap
+    # names). Prefer Wno-implicit over false dual extern+body.
     if XLANG_PREFER_ASM_O_RT=0 G05_X_O_WEAK=1 rt_prefer_try_x_to_o "$x_src" "$thin_o" \
+         -Wno-implicit-function-declaration \
       && $CC $BASE_CFLAGS -Wno-implicit-function-declaration -I. -Iinclude -Isrc \
            -DXLANG_USE_X_PIPELINE \
            -DXLANG_RUNTIME_PIPELINE_ABI_FROM_X \
