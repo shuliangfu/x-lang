@@ -150,6 +150,38 @@ if [ -s "$_HOLLOW_MANIFEST" ]; then
   fi
 fi
 
+# 10.26: mega merged call_spill → U glue_addr_simd_lane_type_c; Cap tip G05_OBJS
+# used to carry call_spill.o + prepend addr_of_call.o. After merge, mega holds the
+# U and phase1/final must still link addr_of_call.o (thin remains; not one of the
+# eleven). Mirror g05_cap_tip_reapply_darwin.sh simd_lane_type prepend.
+# PLATFORM: SHARED — Darwin arm64 + Linux x86_64 tip-cold phase1/final.
+_AOC=build_asm/selfhost_pabi/addr_of_call.o
+_AOC_X=src/runtime_pipeline_abi_addr_of_call_thin.x
+if [ ! -s "$_AOC" ] && [ -f "$_AOC_X" ]; then
+  mkdir -p build_asm/selfhost_pabi
+  _xc=
+  for _c in ./xlang ./bootstrap_xlangc ./xlang-c; do
+    if [ -x "$_c" ]; then _xc=$_c; break; fi
+  done
+  if [ -n "$_xc" ]; then
+    note "phase1 building addr_of_call.o from thin (mega call_spill U)"
+    if ! XLANG_PREFER_ASM_O=1 "$_xc" -backend asm -c "$_AOC_X" -o "$_AOC" >/tmp/phase1_aoc_build.log 2>&1; then
+      "$_xc" -backend asm -c "$_AOC_X" -o "$_AOC" >>/tmp/phase1_aoc_build.log 2>&1 || true
+    fi
+  fi
+fi
+if [ -s "$_AOC" ]; then
+  if nm -g "$_AOC" 2>/dev/null | grep -qE ' T [_]?glue_addr_simd_lane_type_c$'; then
+    case " $SEED_LINK_OBJS " in
+      *" $_AOC "*|*" build_asm/selfhost_pabi/addr_of_call.o "*) ;;
+      *)
+        SEED_LINK_OBJS="$_AOC $SEED_LINK_OBJS"
+        note "phase1 prepended addr_of_call.o (glue_addr_simd_lane_type_c)"
+        ;;
+    esac
+  fi
+fi
+
 # knife256 / 10.2: Darwin cold prefer may leave runtime_pipeline_abi.o as a
 # libtool archive (thin+rest). Apple ld -force_load then hits internal strong
 # dups. Flatten to one MH_OBJECT (rest weakened where thin already defines).
