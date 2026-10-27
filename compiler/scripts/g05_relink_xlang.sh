@@ -171,6 +171,59 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ] \
         && echo "g05_relink_xlang: note743y.6.23 pre-ld demote pabi_weak struct_lit_field_store_sz" >&2 \
         || true
     fi
+    # 10.94: Cap tip codegen_outbuf_len_thin first-wins length@0 over bak_cap
+    # writers (and over a refreshed pabi_weak from full runtime_pipeline_abi.o).
+    # PLATFORM: MACOS Cap tip.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])codegen_outbuf_len_thin\.o([[:space:]]|$)' \
+      && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+      for _col_sym in \
+        _codegen_out_buf_len \
+        _codegen_out_buf_set_len \
+        _codegen_codegen_out_buf_len \
+        _codegen_codegen_out_buf_set_len \
+        _pipeline_codegen_out_buf_len \
+        _pipeline_codegen_out_buf_set_len
+      do
+        if nm build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+             | grep -Eq " [TW] ${_col_sym}$"; then
+          "$_g05_oc" --redefine-sym=${_col_sym}=${_col_sym}__demoted \
+            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+            && echo "g05_relink_xlang: 10.94 pre-ld demote pabi_weak ${_col_sym#?}" >&2 \
+            || true
+        fi
+      done
+      unset _col_sym
+    fi
+    # 10.94b: Cap tip bak_cap pipe_elf_out_append writes data@0 (MH_MAGIC
+    # clobbers length@0). Thin first-wins after demote.
+    # PLATFORM: MACOS Cap tip.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])pipe_elf_out_append_thin\.o([[:space:]]|$)' \
+      && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+      if nm build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+           | grep -Eq ' [TW] _pipe_elf_out_append$'; then
+        "$_g05_oc" --redefine-sym=_pipe_elf_out_append=_pipe_elf_out_append__demoted \
+          build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+          && echo "g05_relink_xlang: 10.94 pre-ld demote pabi_weak pipe_elf_out_append" >&2 \
+          || true
+      fi
+    fi
+    # Also demote full runtime_pipeline_abi.o if Cap tip ever links both.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])codegen_outbuf_len_thin\.o([[:space:]]|$)' \
+      && [ -s src/runtime_pipeline_abi.o ]; then
+      for _col_sym in \
+        _codegen_out_buf_len \
+        _codegen_out_buf_set_len
+      do
+        if nm src/runtime_pipeline_abi.o 2>/dev/null \
+             | grep -Eq " [TW] ${_col_sym}$"; then
+          "$_g05_oc" --redefine-sym=${_col_sym}=${_col_sym}__demoted \
+            src/runtime_pipeline_abi.o 2>/dev/null \
+            && echo "g05_relink_xlang: 10.94 pre-ld demote runtime_pipeline_abi ${_col_sym#?}" >&2 \
+            || true
+        fi
+      done
+      unset _col_sym
+    fi
     if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])const_lit_fold\.o([[:space:]]|$)' \
       && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
       && nm build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \

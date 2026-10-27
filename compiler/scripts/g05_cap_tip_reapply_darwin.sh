@@ -231,6 +231,97 @@ if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
     fi
     unset _al_xl
   fi
+
+  # 10.26/10.94: Cap tip bak_cap pabi_weak still writes CodegenOutBuf.length
+  # at CAP (0x900000) while runtime_driver_abi reads length@0 → ret_fixed_s24
+  # CG002 (macho_write ok, out_len garbage). Tip-compile len/set_len thin and
+  # demote pabi_weak faces so length@0 wins. PLATFORM: MACOS Cap tip.
+  if [ -f src/runtime_pipeline_abi_codegen_outbuf_len_thin.x ]; then
+    # Prefer tip product ./xlang — Cap tip itself may CG002 on outbuf (this fix).
+    _col_xl="${XLANG:-}"
+    [ -x ./xlang.cap_g05_l2 ] && _col_xl="./xlang.cap_g05_l2"
+    [ -x ./xlang ] && _col_xl="./xlang"
+    mkdir -p build_asm/selfhost_pabi
+    if XLANG_PREFER_ASM_O=1 "$_col_xl" -backend asm -c \
+        src/runtime_pipeline_abi_codegen_outbuf_len_thin.x \
+        -o build_asm/selfhost_pabi/codegen_outbuf_len_thin.o 2>/dev/null \
+      && [ -s build_asm/selfhost_pabi/codegen_outbuf_len_thin.o ] \
+      && nm -gU build_asm/selfhost_pabi/codegen_outbuf_len_thin.o 2>/dev/null \
+           | grep -q ' T _codegen_out_buf_len$' \
+      && nm -gU build_asm/selfhost_pabi/codegen_outbuf_len_thin.o 2>/dev/null \
+           | grep -q ' T _codegen_out_buf_set_len$'; then
+      echo "g05_cap_tip_reapply: tip-compiled codegen_outbuf_len_thin.o (10.94 layout)" >&2
+      case " ${G05_OBJS:-} " in
+        *" codegen_outbuf_len_thin.o "*) ;;
+        *)
+          G05_OBJS="build_asm/selfhost_pabi/codegen_outbuf_len_thin.o ${G05_OBJS:-}"
+          export G05_OBJS
+          echo "g05_cap_tip_reapply: prepended codegen_outbuf_len_thin.o (10.94)" >&2
+          ;;
+      esac
+      if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+        for _col_sym in \
+          _codegen_out_buf_len \
+          _codegen_out_buf_set_len \
+          _codegen_codegen_out_buf_len \
+          _codegen_codegen_out_buf_set_len \
+          _pipeline_codegen_out_buf_len \
+          _pipeline_codegen_out_buf_set_len
+        do
+          if nm build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+               | grep -Eq " [TW] ${_col_sym}$"; then
+            "$OC" --redefine-sym=${_col_sym}=${_col_sym}__demoted \
+              build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+              && echo "g05_cap_tip_reapply: 10.94 demoted pabi_weak ${_col_sym#?}" >&2 \
+              || true
+          fi
+        done
+        unset _col_sym
+      fi
+    else
+      echo "g05_cap_tip_reapply: WARN codegen_outbuf_len_thin tip-compile failed" >&2
+    fi
+    unset _col_xl
+  fi
+
+  # 10.26/10.94b: Cap tip bak_cap pipe_elf_out_append still writes data@0
+  # (MH_MAGIC clobbers length@0 → macho_write=-17958193). Thin first-wins.
+  # PLATFORM: MACOS Cap tip.
+  if [ -f src/runtime_pipeline_abi_pipe_elf_out_append_thin.x ]; then
+    _pea_xl="${XLANG:-}"
+    [ -x ./xlang.cap_g05_l2 ] && _pea_xl="./xlang.cap_g05_l2"
+    [ -x ./xlang ] && _pea_xl="./xlang"
+    mkdir -p build_asm/selfhost_pabi
+    if XLANG_PREFER_ASM_O=1 "$_pea_xl" -backend asm -c \
+        src/runtime_pipeline_abi_pipe_elf_out_append_thin.x \
+        -o build_asm/selfhost_pabi/pipe_elf_out_append_thin.o 2>/dev/null \
+      && [ -s build_asm/selfhost_pabi/pipe_elf_out_append_thin.o ] \
+      && nm -gU build_asm/selfhost_pabi/pipe_elf_out_append_thin.o 2>/dev/null \
+           | grep -q ' T _pipe_elf_out_append$'; then
+      echo "g05_cap_tip_reapply: tip-compiled pipe_elf_out_append_thin.o (10.94 data@+4)" >&2
+      case " ${G05_OBJS:-} " in
+        *" pipe_elf_out_append_thin.o "*) ;;
+        *)
+          G05_OBJS="build_asm/selfhost_pabi/pipe_elf_out_append_thin.o ${G05_OBJS:-}"
+          export G05_OBJS
+          echo "g05_cap_tip_reapply: prepended pipe_elf_out_append_thin.o (10.94)" >&2
+          ;;
+      esac
+      if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+        if nm build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+             | grep -Eq ' [TW] _pipe_elf_out_append$'; then
+          "$OC" --redefine-sym=_pipe_elf_out_append=_pipe_elf_out_append__demoted \
+            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+            && echo "g05_cap_tip_reapply: 10.94 demoted pabi_weak pipe_elf_out_append" >&2 \
+            || true
+        fi
+      fi
+    else
+      echo "g05_cap_tip_reapply: WARN pipe_elf_out_append_thin tip-compile failed" >&2
+    fi
+    unset _pea_xl
+  fi
+
   if [ -s build_asm/selfhost_pabi/named_align.o ] \
     && nm -gU build_asm/selfhost_pabi/named_align.o 2>/dev/null \
          | grep -q 'T _glue_type_align_simple$'; then
@@ -2110,6 +2201,37 @@ _typeck_x_type_align_from_layout_glue' > /tmp/cap_tip_orch_layout.exp
       done
       echo "g05_cap_tip_reapply: 10.91 post-fill re-demote pabi scoped/loop_body" >&2
       unset _al_sym
+    fi
+    # 10.94: bak_cap restore re-strongs length@CAP writers; demote so thin @0 wins.
+    if [ -s build_asm/selfhost_pabi/codegen_outbuf_len_thin.o ]; then
+      for _col_sym in \
+        _codegen_out_buf_len \
+        _codegen_out_buf_set_len \
+        _codegen_codegen_out_buf_len \
+        _codegen_codegen_out_buf_set_len \
+        _pipeline_codegen_out_buf_len \
+        _pipeline_codegen_out_buf_set_len
+      do
+        if nm build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+             | grep -Eq " [TW] ${_col_sym}$"; then
+          "$OC" --redefine-sym=${_col_sym}=${_col_sym}__demoted \
+            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+        fi
+      done
+      echo "g05_cap_tip_reapply: 10.94 post-fill re-demote pabi outbuf len" >&2
+      unset _col_sym
+    fi
+    # 10.94b: bak restore re-strongs data@0 pipe_elf_out_append.
+    if [ -s build_asm/selfhost_pabi/pipe_elf_out_append_thin.o ] \
+      && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
+      && [ -n "${OC:-}" ]; then
+      if nm build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+           | grep -Eq ' [TW] _pipe_elf_out_append$'; then
+        "$OC" --redefine-sym=_pipe_elf_out_append=_pipe_elf_out_append__demoted \
+          build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+          && echo "g05_cap_tip_reapply: 10.94 post-fill re-demote pabi pipe_elf_out_append" >&2 \
+          || true
+      fi
     fi
       echo "g05_cap_tip_reapply: post-fill re-demote pabi size+layout_glue" >&2
     fi
