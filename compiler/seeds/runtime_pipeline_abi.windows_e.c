@@ -46281,7 +46281,7 @@ int32_t glue_store_retval_pair_to_rbp_elf_c(uint8_t * m, uint8_t * arena, uint8_
   }
   if ((((sz > 16) && (init_ref > 0)) && (arena !=0))) {
     (void)((ko = pipeline_expr_kind_ord_at(arena, init_ref)));
-    ((((ko ==48) || (ko ==49)) || (ko ==47)) ? ({   return glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, slot_off, sz, ta);
+    ((((((ko ==48) || (ko ==49)) || (ko ==47)) || (ko ==45)) || ((ko ==44) || (ko ==3))) ? ({   return glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, slot_off, sz, ta);
  }) : 0);
   }
   if (((((sz > 8) && (sz <=16)) && (init_ref > 0)) && (arena !=0))) {

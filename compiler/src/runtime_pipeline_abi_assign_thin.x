@@ -833,25 +833,10 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
                   if (rty > store_sz) {
                     store_sz = rty;
                   }
-                  /* 10.46: FIELD TYPE_NAMED >8B — prefer store_retval_pair
-                   * (kinds 48|49|47|45|44|3) before let_init. let_init CALL
-                   * sret can return 0 while FIELD slot stays wrong (Win FA=12).
-                   * PLATFORM: SHARED — Win PE live; Darwin ARM64; Ubuntu gold. */
-                  if (store_sz > 8) {
-                    rc = glue_emit_assign_rhs_to_rax_elf_c(
-                        arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta);
-                    if (rc != 0) {
-                      return 0 - 1;
-                    }
-                    unsafe {
-                      rc = glue_store_retval_pair_to_rbp_elf_c(
-                          mod, arena, elf_ctx, ltr, off, ta, right_ref, ctx);
-                    }
-                    if (rc != 0) {
-                      return 0 - 1;
-                    }
-                    return 0;
-                  }
+                  /* 10.46: FIELD TYPE_NAMED — let_init owns CALL>16 sret into
+                   * frame-mag off (rhs+store_retval is wrong for sret ABI).
+                   * store_retval 44|3|45 lives in thin/egg for non-sret copies.
+                   * PLATFORM: SHARED — Win PE; Darwin ARM64; Ubuntu gold. */
                   unsafe {
                     arr_st = glue_emit_struct_type_let_init_elf_c(
                         arena, elf_ctx, right_ref, ctx, ta, ltr, off);
