@@ -1082,6 +1082,37 @@ export function glue_emit_assign_field_elf_c(
     assign_field_one_flags(arena, ctx, left_ref, &ftycell[0], &widecell[0], &wlocell[0], &ptrcell[0]);
     fty = assign_field_cell_i32(&ftycell[0]);
     wide = assign_field_cell_i32(&widecell[0]);
+    // 10.46: Cap tip field-type named size can under-report (Trip FIELD
+    // dest saw wide=8 → one-GPR store → FA exit 6). When the RHS is a
+    // frame VAR or FIELD, take max(wide, RHS named layout size).
+    // PLATFORM: MACOS|ARM64.
+    unsafe {
+      pipe_store_i32_le(&ekcell[0], 0, pipeline_expr_kind_ord_at(arena, right_ref));
+    }
+    handled = assign_field_cell_i32(&ekcell[0]);
+    if (handled == 3 || handled == 44) {
+      unsafe {
+        pipe_store_i32_le(&rccell[0], 0, pipeline_expr_resolved_type_ref(arena, right_ref));
+      }
+      rc = assign_field_cell_i32(&rccell[0]);
+      if (rc <= 0 && handled == 3) {
+        unsafe {
+          pipe_store_i32_le(&rccell[0], 0, glue_var_decl_type_ref_elf_c(arena, ctx, right_ref));
+        }
+        rc = assign_field_cell_i32(&rccell[0]);
+      }
+      if (rc > 0) {
+        unsafe {
+          pipe_store_i32_le(&hcell[0], 0, glue_type_named_layout_size_any_module_elf_c(arena, rc));
+        }
+        if (assign_field_cell_i32(&hcell[0]) > wide) {
+          wide = assign_field_cell_i32(&hcell[0]);
+        }
+        if (fty <= 0) {
+          fty = rc;
+        }
+      }
+    }
     if (wide > 16) {
       unsafe {
         pipe_store_i32_le(&hcell[0], 0, 0);
