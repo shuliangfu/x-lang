@@ -1097,10 +1097,16 @@ export function std_io_ptr_view_valid(v: RaisReadPtrView): i32 {
   return std_io_ptr_valid(v.gen);
 }
 
-/** io.stdin_ptr_view. PLATFORM: SHARED */
+/** io.stdin_ptr_view. Inline pack (no nested sret call: Linux tip
+ * overwrites rdi/sret with the handle arg). PLATFORM: SHARED — 10.63
+ */
 #[no_mangle]
 export function std_io_stdin_ptr_view(): RaisReadPtrView {
-  return std_io_ptr_view(std_io_stdin(), 0);
+  let p: *u8 = io_read_ptr(0, 0);
+  let n: i32 = io_read_ptr_len();
+  let g: u64 = g_rais_read_ptr_gen[0];
+  let v: RaisReadPtrView = RaisReadPtrView { ptr: p, length: n, pad0: 0, gen: g };
+  return v;
 }
 
 /** register_provided stub: always 0. PLATFORM: SHARED */
