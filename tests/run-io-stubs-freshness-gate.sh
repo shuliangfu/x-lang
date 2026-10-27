@@ -8,6 +8,14 @@ X=src/asm/runtime_asm_io_stubs.x
 O=runtime_asm_io_stubs.o
 [ -f "$X" ] || { echo "xlang: [IO_STUBS_FRESH] status=fail missing $X"; exit 1; }
 
+mtime_of() {
+  if [ "$(uname -s)" = "Darwin" ]; then
+    stat -f '%m' "$1"
+  else
+    stat -c '%Y' "$1"
+  fi
+}
+
 # Ensure a baseline .o exists (may rebuild).
 bash ../tests/lib/compiler-make.sh runtime_asm_io_stubs.o || exit 1
 [ -s "$O" ] || { echo "xlang: [IO_STUBS_FRESH] status=fail no baseline .o"; exit 1; }
@@ -15,10 +23,10 @@ bash ../tests/lib/compiler-make.sh runtime_asm_io_stubs.o || exit 1
 # Make .o older than .x, then ensure again — .o mtime must advance.
 touch -t 202001010101.00 "$O" 2>/dev/null || touch -d '2020-01-01 01:01:00' "$O"
 touch "$X"
-before=$(stat -f '%m' "$O" 2>/dev/null || stat -c '%Y' "$O")
+before=$(mtime_of "$O")
 bash ../tests/lib/compiler-make.sh runtime_asm_io_stubs.o || exit 1
-after=$(stat -f '%m' "$O" 2>/dev/null || stat -c '%Y' "$O")
-if [ "$after" -le "$before" ]; then
+after=$(mtime_of "$O")
+if ! [ "$after" -gt "$before" ]; then
   echo "xlang: [IO_STUBS_FRESH] status=fail run=0 obs=0 skip=0 host=$(uname -s)/$(uname -m) reason=mtime_not_advanced before=$before after=$after"
   exit 1
 fi
