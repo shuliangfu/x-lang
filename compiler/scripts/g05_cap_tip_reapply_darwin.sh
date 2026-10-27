@@ -1585,6 +1585,20 @@ if [ -s build_asm/selfhost_pabi/cap665_fixed_array_copy.o ] && [ -n "${OC:-}" ];
       && echo "g05_cap_tip_reapply: weakened return_sret emit_return" >&2
   fi
 fi
+# 10.59: without return_sret.o, fa_array_lit first-wins emit_return — weaken rivals.
+if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/fa_array_lit_a64.o ]; then
+  for _er_riv in build_asm/selfhost_pabi/m8_reloc_stubs_g05.o \
+    build_asm/selfhost_pabi/m8_reloc_stubs.o \
+    build_asm/selfhost_pabi/pabi_weak.o \
+    src/runtime_pipeline_abi.o; do
+    if [ -s "$_er_riv" ] && nm "$_er_riv" 2>/dev/null | grep -qE ' T _pipeline_asm_emit_return_elf_impl$'; then
+      "$OC" --weaken-symbol=_pipeline_asm_emit_return_elf_impl "$_er_riv" \
+        && echo "g05_cap_tip_reapply: 10.59 weaken $_er_riv emit_return (fa_array wins)" >&2 \
+        || true
+    fi
+  done
+  unset _er_riv
+fi
 
 # knife256/10.2: five symbols the frozen env no longer defines.
 # Authority is the thin .x each one is written in. Objects are produced
@@ -2099,6 +2113,20 @@ ASM
     fi
     if [ -s build_asm/selfhost_pabi/return_sret.o ]       && [ -s build_asm/selfhost_pabi/fa_array_lit_a64.o ]; then
       "$OC" --weaken-symbol=_pipeline_asm_emit_return_elf_impl         build_asm/selfhost_pabi/return_sret.o         && echo "g05_cap_tip_reapply: post-fill re-weaken return_sret emit_return" >&2         || true
+    fi
+    # 10.59: rivals when return_sret gone — keep fa_array emit_return T.
+    if [ -s build_asm/selfhost_pabi/fa_array_lit_a64.o ]; then
+      for _er_riv in build_asm/selfhost_pabi/m8_reloc_stubs_g05.o \
+        build_asm/selfhost_pabi/m8_reloc_stubs.o \
+        build_asm/selfhost_pabi/pabi_weak.o \
+        src/runtime_pipeline_abi.o; do
+        if [ -s "$_er_riv" ] && nm "$_er_riv" 2>/dev/null | grep -qE ' T _pipeline_asm_emit_return_elf_impl$'; then
+          "$OC" --weaken-symbol=_pipeline_asm_emit_return_elf_impl "$_er_riv" \
+            && echo "g05_cap_tip_reapply: 10.59 post-fill weaken $_er_riv emit_return" >&2 \
+            || true
+        fi
+      done
+      unset _er_riv
     fi
     if [ -s runtime_panic.o ] && [ -s src/runtime_link_abi.o ]; then
       "$OC" --weaken-symbol=_link_abi_getenv         --weaken-symbol=_link_abi_getenv_impl         runtime_panic.o         && echo "g05_cap_tip_reapply: post-fill weaken panic getenv (link_abi wins)" >&2         || true
