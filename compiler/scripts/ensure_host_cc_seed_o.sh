@@ -6159,9 +6159,11 @@ ensure_runtime_asm_io_stubs_pure() {
     echo "ensure_host_cc_seed_o: missing $x" >&2
     return 1
   fi
-  if [ "${FORCE:-0}" != "1" ] && [ -s "$o" ] && [ ! "$x" -nt "$o" ] \
+  # 10.65: skip only when .o is strictly newer than .x (same-age after touch
+  # must rebuild; warm leftover from an older compiler must not stick).
+  if [ "${FORCE:-0}" != "1" ] && [ -s "$o" ] && [ "$o" -nt "$x" ] \
     && nm "$o" 2>/dev/null | grep -q "T _*runtime_asm_io_stubs_x_doc_anchor\$"; then
-    log "skip $o (up-to-date pure-asm w1516)"
+    log "skip $o (up-to-date pure-asm w1516/10.65)"
     return 0
   fi
   local try=0 done=0

@@ -41,8 +41,22 @@ _xlang_cm_ensure_one_o() {
   # each miss re-enters try-heat as a *new* bash → catalog re-parse without
   # XLANG_CATALOG_CACHE_FILE (~8s×N) looks like a hang. FORCE rebuilds when
   # XLANG_CM_FORCE=1 or leaf missing. PLATFORM: SHARED
+  # 10.65: runtime_asm_io_stubs.o is pure-asm from src/asm/runtime_asm_io_stubs.x;
+  # warm chains used to keep a stale .o forever because this existence-only
+  # fast path never consulted the .x. Rebuild unless .o is strictly newer.
   if [ -z "${XLANG_CM_FORCE:-}" ] && [ -s "$out" ]; then
-    return 0
+    case "$out" in
+      runtime_asm_io_stubs.o|./runtime_asm_io_stubs.o)
+        if [ -f src/asm/runtime_asm_io_stubs.x ] && [ ! "$out" -nt src/asm/runtime_asm_io_stubs.x ]; then
+          bash scripts/ensure_host_cc_seed_o.sh try-r1 runtime_asm_io_stubs.o
+          return $?
+        fi
+        return 0
+        ;;
+      *)
+        return 0
+        ;;
+    esac
   fi
   _log="${TMPDIR:-/tmp}/xlang_cm_ensure.$$.$RANDOM"
   # formal_mod catalog (exit 3 = not a formal leaf). Capture rc explicitly

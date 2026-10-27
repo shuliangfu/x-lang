@@ -1094,9 +1094,10 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     echo "g05_ensure: $_rais_x has no pure-asm host for $_rais_os $_rais_mach" >&2
     exit 1
   fi
-  # Rebuild when missing, older than the .x, not from the .x (no doc anchor),
-  # or a 5.7a merge object (still carries the dropped backtrace residual).
-  if [ ! -f "$_rais_o" ] || [ "$_rais_x" -nt "$_rais_o" ] \
+  # Rebuild when missing, not strictly newer than the .x (10.65), not from the
+  # .x (no doc anchor), or a 5.7a merge object (still carries the dropped
+  # backtrace residual).
+  if [ ! -f "$_rais_o" ] || [ ! "$_rais_o" -nt "$_rais_x" ] \
     || ! nm "$_rais_o" 2>/dev/null | grep -q "T _*runtime_asm_io_stubs_x_doc_anchor\$" \
     || nm "$_rais_o" 2>/dev/null | grep -Eq " [TWw] _*backtrace_capture_c\$"; then
     _rais_done=0

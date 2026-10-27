@@ -173,7 +173,9 @@ ensure_runtime_net_workers_o() {
 
 # F-ZC：asm -o 最小链 / net gcc 回退须 runtime_asm_io_stubs.o、runtime_panic.o、runtime_process_argv.o。
 ensure_runtime_asm_io_stubs_o() {
-  xlang_compiler_make -q runtime_asm_io_stubs.o 2>/dev/null || xlang_compiler_make runtime_asm_io_stubs.o
+  # 10.65: compiler-make rebuilds when src/asm/runtime_asm_io_stubs.x is not
+  # older than runtime_asm_io_stubs.o (existence-only fast path is not enough).
+  xlang_compiler_make runtime_asm_io_stubs.o
 }
 
 # Fast-path when leaf already on disk (L4 seed/g05 or prior ensure).
