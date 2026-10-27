@@ -154,14 +154,14 @@ if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
   # 10.44: struct_lit_field thin — store_sz must be T _glue_* (not pipeline_glue_*).
   # Cap tip G05_OBJS already lists the .o; stale pin-egg emits pipeline_glue and
   # Cap tip pure-ld then undefs _glue_struct_lit_field_store_sz. Force Cap host.
-  # 10.26 merged into mega — if [ -f src/runtime_pipeline_abi_struct_lit_field_thin.x ]; then
+  if [ -f src/runtime_pipeline_abi_struct_lit_field_thin.x ]; then
     _slf_xl="${XLANG:-}"
     [ -x /tmp/cap_tip_l4_safe_406200eef/xlang ] && _slf_xl="/tmp/cap_tip_l4_safe_406200eef/xlang"
     [ -x ./xlang ] && _slf_xl="./xlang"
     [ -x ./xlang.cap_g05_l2 ] && _slf_xl="./xlang.cap_g05_l2"
     if XLANG_PREFER_ASM_O=1 "$_slf_xl" -backend asm -c \
-        # 10.26 merged into mega — src/runtime_pipeline_abi_struct_lit_field_thin.x \
-        # 10.26 merged into mega — -o build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null; then
+        src/runtime_pipeline_abi_struct_lit_field_thin.x \
+        -o build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null; then
       if nm build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null \
            | grep -q ' T _pipeline_glue_struct_lit_field_store_sz$'; then
         "$OC" --redefine-sym=_pipeline_glue_struct_lit_field_store_sz=_glue_struct_lit_field_store_sz \
@@ -1506,10 +1506,10 @@ _cap_tip_fill_missing_objs() {
     fi
     if [ -x "$_ns_xl" ] && [ -f src/runtime_pipeline_abi_struct_layout_offset_thin.x ]; then
       XLANG_PREFER_ASM_O=1 "$_ns_xl" -backend asm -c         src/runtime_pipeline_abi_struct_layout_offset_thin.x         -o build_asm/selfhost_pabi/struct_layout_offset.o 2>/dev/null         && echo "g05_cap_tip_reapply: re-asserted struct_layout_offset after pabi stomp" >&2 || true
-    # 10.26 merged into mega — if [ -x "$_ns_xl" ] && [ -f src/runtime_pipeline_abi_struct_lit_field_thin.x ]; then
+    if [ -x "$_ns_xl" ] && [ -f src/runtime_pipeline_abi_struct_lit_field_thin.x ]; then
       XLANG_PREFER_ASM_O=1 "$_ns_xl" -backend asm -c \
-        # 10.26 merged into mega — src/runtime_pipeline_abi_struct_lit_field_thin.x \
-        # 10.26 merged into mega — -o build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null || true
+        src/runtime_pipeline_abi_struct_lit_field_thin.x \
+        -o build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null || true
       if nm build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null \
            | grep -q ' T _pipeline_glue_struct_lit_field_store_sz$'; then
         "$OC" --redefine-sym=_pipeline_glue_struct_lit_field_store_sz=_glue_struct_lit_field_store_sz \
@@ -1587,7 +1587,7 @@ build_asm/selfhost_pabi/add_common_sym_soft.o|src/runtime_pipeline_abi_add_commo
 build_asm/selfhost_pabi/named_size.o|src/runtime_pipeline_abi_named_size_thin.x
 build_asm/selfhost_pabi/named_align.o|src/runtime_pipeline_abi_named_align_thin.x
 build_asm/selfhost_pabi/struct_layout_offset.o|src/runtime_pipeline_abi_struct_layout_offset_thin.x
-# 10.26 merged into mega — build_asm/selfhost_pabi/struct_lit_field.o|src/runtime_pipeline_abi_struct_lit_field_thin.x
+build_asm/selfhost_pabi/struct_lit_field.o|src/runtime_pipeline_abi_struct_lit_field_thin.x
 build_asm/selfhost_pabi/bake_scalar_imm_soft.o|src/runtime_pipeline_abi_bake_scalar_imm_soft.x
 MAP
 
@@ -2660,7 +2660,7 @@ fi
 # 10.22: return_sret name buffers 256 (name_into clears 256; 64 smashed STRUCT_LIT).
 # Cap tip may have weakened return_sret for cap665 — recompile fresh T so STRUCT_LIT return stays live.
 _rs_o=build_asm/selfhost_pabi/return_sret.o
-# 10.26 merged into mega — _rs_src=src/runtime_pipeline_abi_return_sret_thin.x
+_rs_src=src/runtime_pipeline_abi_return_sret_thin.x
 if [ -f "$_rs_src" ] && [ -x "${xl:-./xlang}" ]; then
   "${xl:-./xlang}" -backend asm -c -o "$_rs_o" "$_rs_src" 2>/dev/null \
     && echo "g05_cap_tip_reapply: 10.22 tip-compiled return_sret.o (256-byte name buffers)" >&2 \
@@ -2834,7 +2834,7 @@ fi
 # 10.62: force tip compute_frame_size (struct-lit temp vs x19 separate) after CACHE/pabi stomp.
 # PLATFORM: MACOS Cap tip.
 _fs_o=build_asm/selfhost_pabi/compute_frame_size.o
-# 10.26 merged into mega — _fs_src=src/runtime_pipeline_abi_frame_size_thin.x
+_fs_src=src/runtime_pipeline_abi_frame_size_thin.x
 _fs_xl=""
 for _b in ./xlang.cap_g05_l2 ./xlang_asm ./xlang /tmp/cap_tip_l4_safe_406200eef/xlang_asm   "${HOME:-}/.cache/xlang_cap_tip_l4/xlang_asm" seeds/bootstrap_xlangc.darwin.arm64; do
   [ -x "$_b" ] && _fs_xl="$_b" && break
