@@ -20,38 +20,45 @@
 
 /**
  * Write pi into the caller slot.
- * A literal f64 return does not asm-emit on the installed product. f64 uses xmm0, not rax.
+ * 10.90: i64 bit-pattern out-slot (tip Linux as-f64 literal omit/P001).
  * @param out *f64 — caller storage; must not be null
  * @return i32 — 0 after the slot is written
  * PLATFORM: SHARED
  */
 export function math_pi_c(out: *f64): i32 {
-  let x: f64 = 3.14159265358979323846 as f64;
-  out[0] = x;
+  let b: i64 = 4614256656552045848;
+  let p: *i64 = &b;
+  let q: *f64 = p as *f64;
+  out[0] = q[0];
   return 0;
 }
 
 /**
  * Write e into the caller slot.
+ * 10.90: i64 bit-pattern out-slot (tip Linux as-f64 literal omit/P001).
  * @param out *f64 — caller storage; must not be null
  * @return i32 — 0 after the slot is written
- * PLATFORM: SHARED — the installed product cannot asm-emit this f64 literal return.
+ * PLATFORM: SHARED
  */
 export function math_e_c(out: *f64): i32 {
-  let x: f64 = 2.7182818284590452354 as f64;
-  out[0] = x;
+  let b: i64 = 4613303445314885481;
+  let p: *i64 = &b;
+  let q: *f64 = p as *f64;
+  out[0] = q[0];
   return 0;
 }
 
 /**
  * Write tau (2 * pi) into the caller slot.
- * 10.90: literal out-slot write (no math_pi_c call — Linux tip XT001).
+ * 10.90: i64 bit-pattern (no math_pi_c call — tip Linux XT001; no as-f64 lit).
  * @param out *f64 — caller storage; must not be null
  * @return i32 — 0 after the slot is written
  * PLATFORM: SHARED
  */
 export function math_tau_c(out: *f64): i32 {
-  let x: f64 = 6.28318530717958647692 as f64;
-  out[0] = x;
+  let b: i64 = 4618760256179416344;
+  let p: *i64 = &b;
+  let q: *f64 = p as *f64;
+  out[0] = q[0];
   return 0;
 }
