@@ -254,14 +254,13 @@ function assign_field_one_wide(
     pipe_store_i32_le(&rkcell[0], 0, pipeline_expr_kind_ord_at(arena, right_ref));
   }
   rk = assign_field_cell_i32(&rkcell[0]);
+  // 10.46: frame VAR → FIELD wider than 16 must take let-init even when
+  // glue_var_expr_stack_off_elf_c declines (Cap tip soft returned off < 0,
+  // fell through to the one-GPR store, and Trip FIELD dest kept only 8B —
+  // FA exit 6). let-init resolves the VAR by right_ref; off is unused.
+  // PLATFORM: SHARED — Darwin Cap soft + tip; Win PE twin.
   if (rk == 3) {
-    unsafe {
-      pipe_store_i32_le(&offcell[0], 0, glue_var_expr_stack_off_elf_c(arena, ctx, right_ref));
-    }
-    off = assign_field_cell_i32(&offcell[0]);
-    if (off >= 0) {
-      pre = 1;
-    }
+    pre = 1;
   } else {
     if (rk == 44) {
       pre = 1;
@@ -1119,6 +1118,12 @@ export function glue_emit_assign_field_elf_c(
     if (rc != (0 - 99)) {
       return rc;
     }
+  }
+  // 10.46: never one-GPR-store a FIELD wider than 16 on arm64 (silent
+  // 8B truncate → FA exit 6). Wide arms above must have handled it.
+  // PLATFORM: MACOS|ARM64.
+  if (ek == 28 && ta == 1 && wide > 16) {
+    return 0 - 1;
   }
   unsafe {
     return assign_field_one_scalar(
