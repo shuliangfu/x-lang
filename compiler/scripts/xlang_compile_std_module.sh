@@ -33,6 +33,10 @@
 # 环境：XLANG=编译器路径（默认 ./xlang → ./xlang_asm → ./xlang-c）
 # PLATFORM: SHARED — catalog + compile body; host-cc CFLAGS may add LINUX -D_GNU_SOURCE.
 set -e
+# 10.75: compiler/ABI freshness for cached core/std .o
+_SOC_INC="$(CDPATH= cd "$(dirname "$0")" && pwd)/std_o_compiler_freshness.inc.sh"
+# shellcheck source=std_o_compiler_freshness.inc.sh
+. "$_SOC_INC"
 
 # PLATFORM: MACOS — match macho.x LC_BUILD_VERSION minos 11.0.0.
 # c_face ensure compiles before the main CFLAGS bag; keep one Darwin extra.
@@ -855,6 +859,11 @@ case "${1:-}" in
             break
           fi
         done
+        # 10.75: compiler/ABI stamp
+        if [ "$_str_stale" = "0" ] && std_o_stale_vs_compiler "$out_o"; then
+          _str_stale=1
+          echo "xlang_compile_std_module: stale vs compiler $out_o (string_formal)" >&2
+        fi
         if [ "$_str_stale" = "0" ]; then
           echo "xlang_compile_std_module: skip up-to-date $out_o (string_formal)" >&2
           exit 0
@@ -1043,6 +1052,11 @@ case "${1:-}" in
         if [ "$_rt_darwin" = "1" ] && [ -f "$_rt_x" ] && [ "$_rt_x" -nt "$out_o" ]; then
           _pure_newer=1
         fi
+        # 10.75: compiler/ABI stamp
+        if [ "$_pure_newer" != "1" ] && std_o_stale_vs_compiler "$out_o"; then
+          _pure_newer=1
+          echo "xlang_compile_std_module: stale vs compiler $out_o (formal_mod/c_face/$_key)" >&2
+        fi
         if [ "$_pure_newer" != "1" ]; then
           echo "xlang_compile_std_module: skip up-to-date $out_o (formal_mod/c_face/$_key)" >&2
           exit 0
@@ -1058,7 +1072,8 @@ case "${1:-}" in
           echo "xlang_compile_std_module.sh: debug formal pure-asm failed" >&2
           exit 1
         fi
-        echo "xlang_compile_std_module.sh: OK (debug formal pure-asm -> $out_o)"
+        std_o_write_compiler_stamp "$out_o" || true
+echo "xlang_compile_std_module.sh: OK (debug formal pure-asm -> $out_o)"
         exit 0
       fi
       if [ "$_as_darwin" = "1" ]; then
@@ -1070,7 +1085,8 @@ case "${1:-}" in
           echo "xlang_compile_std_module.sh: async formal pure-asm failed" >&2
           exit 1
         fi
-        echo "xlang_compile_std_module.sh: OK (async formal pure-asm -> $out_o)"
+        std_o_write_compiler_stamp "$out_o" || true
+echo "xlang_compile_std_module.sh: OK (async formal pure-asm -> $out_o)"
         exit 0
       fi
       if [ "$_io_darwin" = "1" ]; then
@@ -1082,7 +1098,8 @@ case "${1:-}" in
           echo "xlang_compile_std_module.sh: io formal pure-asm failed" >&2
           exit 1
         fi
-        echo "xlang_compile_std_module.sh: OK (io formal pure-asm -> $out_o)"
+        std_o_write_compiler_stamp "$out_o" || true
+echo "xlang_compile_std_module.sh: OK (io formal pure-asm -> $out_o)"
         exit 0
       fi
       if [ "$_drv_darwin" = "1" ]; then
@@ -1094,7 +1111,8 @@ case "${1:-}" in
           echo "xlang_compile_std_module.sh: driver formal pure-asm failed" >&2
           exit 1
         fi
-        echo "xlang_compile_std_module.sh: OK (driver formal pure-asm -> $out_o)"
+        std_o_write_compiler_stamp "$out_o" || true
+echo "xlang_compile_std_module.sh: OK (driver formal pure-asm -> $out_o)"
         exit 0
       fi
       if [ "$_fm_darwin" = "1" ]; then
@@ -1106,7 +1124,8 @@ case "${1:-}" in
           echo "xlang_compile_std_module.sh: fmt formal pure-asm failed" >&2
           exit 1
         fi
-        echo "xlang_compile_std_module.sh: OK (fmt formal pure-asm -> $out_o)"
+        std_o_write_compiler_stamp "$out_o" || true
+echo "xlang_compile_std_module.sh: OK (fmt formal pure-asm -> $out_o)"
         exit 0
       fi
       if [ "$_sm_darwin" = "1" ]; then
@@ -1118,7 +1137,8 @@ case "${1:-}" in
           echo "xlang_compile_std_module.sh: simd formal pure-asm failed" >&2
           exit 1
         fi
-        echo "xlang_compile_std_module.sh: OK (simd formal pure-asm -> $out_o)"
+        std_o_write_compiler_stamp "$out_o" || true
+echo "xlang_compile_std_module.sh: OK (simd formal pure-asm -> $out_o)"
         exit 0
       fi
       if [ "$_cz_darwin" = "1" ]; then
@@ -1130,7 +1150,8 @@ case "${1:-}" in
           echo "xlang_compile_std_module.sh: compress formal pure-asm failed" >&2
           exit 1
         fi
-        echo "xlang_compile_std_module.sh: OK (compress formal pure-asm -> $out_o)"
+        std_o_write_compiler_stamp "$out_o" || true
+echo "xlang_compile_std_module.sh: OK (compress formal pure-asm -> $out_o)"
         exit 0
       fi
       if [ "$_rt_darwin" = "1" ]; then
@@ -1161,7 +1182,8 @@ case "${1:-}" in
         echo "xlang_compile_std_module.sh: c_face cc -c failed for $_csrc → $out_o" >&2
         exit 1
       fi
-      echo "xlang_compile_std_module.sh: OK (c_face $_csrc -> $out_o)"
+      std_o_write_compiler_stamp "$out_o" || true
+echo "xlang_compile_std_module.sh: OK (c_face $_csrc -> $out_o)"
       exit 0
     fi
     BARE_IMPL="$_bare"
@@ -1195,6 +1217,11 @@ case "${1:-}" in
           break
         fi
       done
+      # 10.75: compiler/ABI stamp (product ABI change with unchanged sources)
+      if [ "$_fm_stale" = "0" ] && std_o_stale_vs_compiler "$out_o"; then
+        _fm_stale=1
+        echo "xlang_compile_std_module: stale vs compiler $out_o (formal_mod/$_key)" >&2
+      fi
       if [ "$_fm_stale" = "0" ]; then
         echo "xlang_compile_std_module: skip up-to-date $out_o (formal_mod/$_key)" >&2
         exit 0
@@ -7804,4 +7831,5 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
   fi
 fi
 
+std_o_write_compiler_stamp "$out_o" || true
 echo "xlang_compile_std_module.sh: OK ($idx files -> $out_o)"

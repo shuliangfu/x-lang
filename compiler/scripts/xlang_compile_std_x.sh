@@ -35,6 +35,8 @@
 # auto: prefer xlang_asm → xlang → xlang-c (lib modules need asm .o; do not prefer xlang-c
 # unless XLANG_COMPILE_STD_USE_C=1).
 set -e
+_SOC_INC="$(CDPATH= cd "$(dirname "$0")" && pwd)/std_o_compiler_freshness.inc.sh"
+. "$_SOC_INC"
 
 # ---------------------------------------------------------------------------
 # wave825: std_x shell-primary catalog (G.7 有则补全; not physical delete)
@@ -1336,13 +1338,22 @@ case "${1:-}" in
       if [ -f "$_xsrc" ] && [ "$_xsrc" -nt "$out_o" ]; then
         _sx_stale=1
       fi
+      # 10.75: also rebuild when compiler product/ABI stamp changed.
+      if [ "$_sx_stale" = "0" ] && std_o_stale_vs_compiler "$out_o"; then
+        _sx_stale=1
+        echo "xlang_compile_std_x: stale vs compiler $out_o (std_x/$_key)" >&2
+      fi
       if [ "$_sx_stale" = "0" ]; then
         echo "xlang_compile_std_x: skip up-to-date $out_o (std_x/$_key)" >&2
         exit 0
       fi
     fi
     std_x_compile_one "$_mode" "$_xsrc" "$out_o"
-    exit $?
+    _sx_rc=$?
+    if [ "$_sx_rc" = "0" ] && [ -s "$out_o" ]; then
+      std_o_write_compiler_stamp "$out_o" || true
+    fi
+    exit $_sx_rc
     ;;
   auto-soft|auto-soft-merge|auto-merge)
     if [ -z "${2:-}" ] || [ -z "${3:-}" ]; then

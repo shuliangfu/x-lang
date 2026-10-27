@@ -15,6 +15,8 @@
 # Env: XLANG=compiler binary (default ./xlang_asm → ./xlang → ./xlang-c)
 # wave826: FORCE-thin mtime skip when formal_mod ensure dispatches here (not physical delete).
 set -e
+_SOC_INC="$(CDPATH= cd "$(dirname "$0")" && pwd)/std_o_compiler_freshness.inc.sh"
+. "$_SOC_INC"
 
 out_o="$1"
 if [ -z "$out_o" ]; then
@@ -40,6 +42,11 @@ if [ "${FORCE:-0}" != "1" ] && [ -f "$out_o" ]; then
       break
     fi
   done
+  # 10.75: compiler/ABI stamp
+  if [ "$_fs_stale" = "0" ] && std_o_stale_vs_compiler "$out_o"; then
+    _fs_stale=1
+    echo "xlang_compile_std_fs_formal: stale vs compiler $out_o (formal_mod/fs)" >&2
+  fi
   if [ "$_fs_stale" = "0" ]; then
     # Only skip if at least one real source path exists (avoid skip when tree missing).
     if [ -f ../std/fs/mod.x ] || [ -f std/fs/mod.x ]; then
@@ -470,4 +477,5 @@ if ! nm "$out_o" 2>/dev/null | grep -q 'std_fs_invalid'; then
   exit 1
 fi
 
+std_o_write_compiler_stamp "$out_o" || true
 echo "xlang_compile_std_fs_formal.sh: OK -> $out_o"
