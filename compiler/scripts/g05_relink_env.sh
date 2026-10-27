@@ -1612,6 +1612,8 @@ case "$UNAME_S" in
       _PABI_WIN_1046_PROVIDERS="$_PABI_WIN_1046_PROVIDERS $_av"
     done
     # Reinject existing fa/vlet/lane/wide_i32 objs other Win sidecars U-ref.
+    # Demote FA thin emit_return so prefer from_x win_forced first-wins;
+    # otherwise FA→_prev jmp→FA infinite recurse (SEGV). PLATFORM: WINDOWS.
     for _w1046_have in \
       "build_asm/selfhost_pabi/fixed_array_copy.o|fa_array_lit_into_rbx" \
       "build_asm/selfhost_pabi/func_return_byte_size_soft.o|glue_wide_i32_vec_array_bytes" \
@@ -1621,11 +1623,23 @@ case "$UNAME_S" in
       _wo="${_w1046_have%%|*}"
       _wsym="${_w1046_have##*|}"
       if [ -s "$_wo" ] && nm "$_wo" 2>/dev/null | grep -qE " T ${_wsym}$"; then
+        if [ "$_wsym" = "fa_array_lit_into_rbx" ]; then
+          _fa_oc=""
+          if command -v llvm-objcopy >/dev/null 2>&1; then _fa_oc=llvm-objcopy
+          elif command -v objcopy >/dev/null 2>&1; then _fa_oc=objcopy
+          fi
+          if [ -n "$_fa_oc" ] \
+            && nm "$_wo" 2>/dev/null | grep -qE " T pipeline_asm_emit_return_elf_impl$"; then
+            "$_fa_oc" --weaken-symbol=pipeline_asm_emit_return_elf_impl "$_wo" 2>/dev/null \
+              && echo "g05_relink_env: 10.46 weaken FA emit_return (from_x wins)" >&2 \
+              || true
+          fi
+        fi
         _PABI_WIN_1046_PROVIDERS="$_PABI_WIN_1046_PROVIDERS $_wo"
         echo "g05_relink_env: 10.46 reinject $_wo ($_wsym)" >&2
       fi
     done
-    # PE stubs for Linux-only U faces those providers pull.
+    # PE stubs: _prev must forward to from_x emit_return (FA weakened above).
     if [ -f src/asm/win_1046_link_stubs_pe.s ]; then
       _stub_o=build_asm/selfhost_pabi/win_1046_link_stubs_pe.o
       if $G05_CC -c -o "$_stub_o" src/asm/win_1046_link_stubs_pe.s 2>/dev/null \
