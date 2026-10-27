@@ -422,14 +422,17 @@ let g_rais_read_ptr_len: i32[1] = [0];
 let g_rais_read_ptr_gen: u64[1] = [0];
 let g_rais_read_ptr_backend: i32[1] = [0];
 
-/** Zero-copy read into the single buffer; EOF/error returns null. PLATFORM: SHARED */
+/** Zero-copy read into the single buffer.
+ * Error (r < 0) returns null. EOF (r == 0) returns the buffer with length 0
+ * so ReadPtrView stays valid for an empty read. PLATFORM: SHARED — 10.63
+ */
 #[no_mangle]
 export function io_read_ptr(handle: u32, timeout_ms: u32): *u8 {
   g_rais_read_ptr_gen[0] = g_rais_read_ptr_gen[0] + 1;
   g_rais_read_ptr_backend[0] = 0;
   g_rais_read_ptr_len[0] = 0;
   let r: i64 = io_read(handle as i32, &g_rais_read_ptr_buf[0], 4096, 0);
-  if (r <= 0) { return 0 as *u8; }
+  if (r < 0) { return 0 as *u8; }
   g_rais_read_ptr_len[0] = r as i32;
   return &g_rais_read_ptr_buf[0];
 }
@@ -1071,7 +1074,23 @@ export function std_io_ptr_view(handle: usize, timeout_ms: u32): RaisReadPtrView
   return v;
 }
 
-/** io.ptr_view_valid: non-null ptr and current gen. PLATFORM: SHARED */
+/** io.ptr_view_valid: non-null ptr and current gen.
+ * Darwin Cap tip callers pass &ReadPtrView in x0 (hidden byref); linux/windows
+ * tip pass the 24B by value on the stack. PLATFORM: per-OS — 10.63
+ */
+#[cfg(target_os = "macos")]
+#[no_mangle]
+export function std_io_ptr_view_valid(vp: *RaisReadPtrView): i32 {
+  if (vp.ptr == 0 as *u8) { return 0; }
+  return std_io_ptr_valid(vp.gen);
+}
+#[cfg(target_os = "linux")]
+#[no_mangle]
+export function std_io_ptr_view_valid(v: RaisReadPtrView): i32 {
+  if (v.ptr == 0 as *u8) { return 0; }
+  return std_io_ptr_valid(v.gen);
+}
+#[cfg(target_os = "windows")]
 #[no_mangle]
 export function std_io_ptr_view_valid(v: RaisReadPtrView): i32 {
   if (v.ptr == 0 as *u8) { return 0; }

@@ -1107,6 +1107,11 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         export XLANG_PREFER_ASM_O=1
         unset G05_X_O_WEAK G05_X_O_SYM_RENAME
         export G05_X_O_WEAK_FUNCS="$_rais_weak"
+        # 10.63: Darwin Cap tip drops 24B RaisReadPtrView sret (no x8 save);
+        # soft still emits sret. Prefer soft only for this whole-object rebuild.
+        if [ "$_rais_os" = "Darwin" ] && [ -x ./xlang_asm.g05_soft ]; then
+          export XLANG="$(pwd)/xlang_asm.g05_soft"
+        fi
         pure_asm_x_to_o "$_rais_o.x.tmp.o" "$_rais_x"
       ) && [ -s "$_rais_o.x.tmp.o" ]; then
         _rais_nm=$(nm "$_rais_o.x.tmp.o" 2>/dev/null)
