@@ -34445,10 +34445,9 @@ int32_t compound_assign_token_to_expr_kind_from_glue(int32_t kind) {
   return W284_EXPR_SHR_ASSIGN;
 }
 
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref);
-#else
+/* w1683/w1046: Win leftover egg is C windows_e (parse_orch inject HARD BAN /
+ * stamp-only) — no .x thin owns this face on PE. Always define the body so
+ * prefer egg+FROM_X merge has T. Darwin/Linux never set WIN_LEFTOVER here. */
 int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref) {
   void *ex;
   int32_t nexprs;
@@ -34463,7 +34462,6 @@ int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref) {
   /* Expr.kind @0 LE i32 (W278 / pure LE). */
   return w284_load_i32(ex, 0);
 }
-#endif
 
 /* XLANG_PABI_PARSE_ORCH_THIN_END */
 #endif /* WAVE284_PARSE_ORCH_ALWAYS */
