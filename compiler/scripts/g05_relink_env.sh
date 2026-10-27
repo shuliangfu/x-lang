@@ -1606,17 +1606,34 @@ case "$UNAME_S" in
       echo "g05_relink_env: 10.46 reinject binop_wide.o" >&2
     fi
     mkdir -p build_asm/selfhost_pabi
-    # assign_var_compound U faces — existing PE objs from prior wave.
-    for _av in \
-      build_asm/selfhost_pabi/av_assign_rhsrax_to_rax.o \
-      build_asm/selfhost_pabi/av_assign_var_store.o \
-      build_asm/selfhost_pabi/av_assign_var_try_let.o \
-      build_asm/selfhost_pabi/av_assign_var_finish.o
+    # assign_var_compound U faces — full av_assign satellite set.
+    for _av in build_asm/selfhost_pabi/av_assign_*.o; do
+      [ -s "$_av" ] || continue
+      _PABI_WIN_1046_PROVIDERS="$_PABI_WIN_1046_PROVIDERS $_av"
+    done
+    # Reinject existing fa/vlet/lane/wide_i32 objs other Win sidecars U-ref.
+    for _w1046_have in \
+      "build_asm/selfhost_pabi/fixed_array_copy.o|fa_array_lit_into_rbx" \
+      "build_asm/selfhost_pabi/func_return_byte_size_soft.o|glue_wide_i32_vec_array_bytes" \
+      "build_asm/selfhost_pabi/vector_let_init_array_lit_a64.o|vector_let_init_array_lit_a64_vlet_f32_fill_lane" \
+      "build_asm/selfhost_pabi/lane_f32_lit_operand.o|pipeline_lane_operand_emit_let_block_chain"
     do
-      if [ -s "$_av" ]; then
-        _PABI_WIN_1046_PROVIDERS="$_PABI_WIN_1046_PROVIDERS $_av"
+      _wo="${_w1046_have%%|*}"
+      _wsym="${_w1046_have##*|}"
+      if [ -s "$_wo" ] && nm "$_wo" 2>/dev/null | grep -qE " T ${_wsym}$"; then
+        _PABI_WIN_1046_PROVIDERS="$_PABI_WIN_1046_PROVIDERS $_wo"
+        echo "g05_relink_env: 10.46 reinject $_wo ($_wsym)" >&2
       fi
     done
+    # PE stubs for Linux-only U faces those providers pull.
+    if [ -f src/asm/win_1046_link_stubs_pe.s ]; then
+      _stub_o=build_asm/selfhost_pabi/win_1046_link_stubs_pe.o
+      if $G05_CC -c -o "$_stub_o" src/asm/win_1046_link_stubs_pe.s 2>/dev/null \
+        && nm "$_stub_o" 2>/dev/null | grep -qE " T pipeline_asm_emit_return_elf_impl_prev$"; then
+        _PABI_WIN_1046_PROVIDERS="$_PABI_WIN_1046_PROVIDERS $_stub_o"
+        echo "g05_relink_env: 10.46 win_1046_link_stubs_pe.o" >&2
+      fi
+    fi
     # driver_fs_open_write: tip Track L leaves it U without runtime_driver.o.
     if [ -s src/runtime_driver.o ] \
       && nm src/runtime_driver.o 2>/dev/null \
