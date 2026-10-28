@@ -360,6 +360,30 @@ _g05_win_asm_c() {
   return 1
 }
 
+
+# 10.46: Win Soft Cap of Cap thins is flaky (CG002/hollow). Keep a prior
+# strong-T .o instead of wiping it and exit 1 — same policy as mega_emit
+# keep-prior / _g05_pure_overlay. Soft Cap to .tmp.o first; only replace
+# the prior on success. Missing prior still exits 1. PLATFORM: WINDOWS.
+_g05_win_overlay_keep_prior() {
+  _kp_o=$1
+  _kp_syms=$2
+  _kp_lab=$3
+  rm -f "${_kp_o}.tmp.o" 2>/dev/null || true
+  if [ ! -s "$_kp_o" ]; then
+    echo "g05_relink_env: $_kp_lab Soft Cap miss and no prior $_kp_o" >&2
+    return 1
+  fi
+  for _kp_s in $_kp_syms; do
+    if ! nm "$_kp_o" 2>/dev/null | tr -d '\r' | grep -q " T ${_kp_s}\$"; then
+      echo "g05_relink_env: $_kp_lab Soft Cap miss; prior lacks strong $_kp_s" >&2
+      return 1
+    fi
+  done
+  echo "g05_relink_env: WARNING keep prior $(basename "$_kp_o") ($_kp_lab)" >&2
+  return 0
+}
+
 _g05_pure_overlay() {
   _po_x=$1
   _po_o=$2
@@ -5016,20 +5040,29 @@ case "$UNAME_S" in
     _wen_o=build_asm/selfhost_pabi/enum_ns_tag_win.o
     if [ -f "$_wen_x" ]; then
       mkdir -p build_asm/selfhost_pabi
-      rm -f "$_wen_o" "$_wen_o.tmp.o"
-      if ! _g05_win_asm_c "$_wen_x" "$_wen_o.tmp.o"; then
-        rm -f "$_wen_o.tmp.o"
+      # 10.46: Soft Cap to .tmp; keep prior on miss (do not wipe $_wen_o first).
+      rm -f "$_wen_o.tmp.o"
+      _wen_ok=0
+      if _g05_win_asm_c "$_wen_x" "$_wen_o.tmp.o"; then
+        _wen_ok=1
+        for _wen_s in pipeline_expr_enum_namespace_field_tag pipeline_asm_cmp_enum_rhs_tag_c; do
+          if ! nm "$_wen_o.tmp.o" 2>/dev/null | tr -d '\r' | grep -q " T ${_wen_s}\$"; then
+            echo "g05_relink_env: $_wen_x lacks strong $_wen_s (Windows enum ns tag)" >&2
+            _wen_ok=0
+            break
+          fi
+        done
+      else
         echo "g05_relink_env: $_wen_x failed (Windows enum ns tag)" >&2
-        exit 1
       fi
-      for _wen_s in pipeline_expr_enum_namespace_field_tag pipeline_asm_cmp_enum_rhs_tag_c; do
-        if ! nm "$_wen_o.tmp.o" 2>/dev/null | tr -d '\r' | grep -q " T ${_wen_s}\$"; then
-          rm -f "$_wen_o.tmp.o"
-          echo "g05_relink_env: $_wen_x lacks strong $_wen_s (Windows enum ns tag)" >&2
-          exit 1
-        fi
-      done
-      mv -f "$_wen_o.tmp.o" "$_wen_o"
+      if [ "$_wen_ok" = "1" ]; then
+        mv -f "$_wen_o.tmp.o" "$_wen_o"
+      else
+        rm -f "$_wen_o.tmp.o"
+        _g05_win_overlay_keep_prior "$_wen_o" \
+          "pipeline_expr_enum_namespace_field_tag pipeline_asm_cmp_enum_rhs_tag_c" \
+          "Windows enum ns tag" || exit 1
+      fi
       _PABI_WIN_ENUM_NS="$_wen_o"
       _PABI_SELFHOST="$_wen_o $_PABI_SELFHOST"
     fi
@@ -5052,23 +5085,25 @@ case "$UNAME_S" in
       exit 1
     fi
     mkdir -p build_asm/selfhost_pabi
-    rm -f "$_wci_o" "$_wci_o.tmp.o"
-    if ! _g05_win_asm_c "$_wci_x" "$_wci_o.tmp.o"; then
-      rm -f "$_wci_o.tmp.o"
+    # 10.46: Soft Cap to .tmp; keep prior on miss (do not wipe $_wci_o first).
+    rm -f "$_wci_o.tmp.o"
+    _wci_ok=0
+    if _g05_win_asm_c "$_wci_x" "$_wci_o.tmp.o"; then
+      if nm "$_wci_o.tmp.o" 2>/dev/null | tr -d '\r' | grep -q " T ${_wci_s}\$" \
+        && ! nm "$_wci_o.tmp.o" 2>/dev/null | tr -d '\r' | grep -q 'lexer_init$'; then
+        _wci_ok=1
+      else
+        echo "g05_relink_env: $_wci_x Soft Cap rejected (no T or lexer_init)" >&2
+      fi
+    else
       echo "g05_relink_env: $_wci_x failed (Windows collect-imports)" >&2
-      exit 1
     fi
-    if ! nm "$_wci_o.tmp.o" 2>/dev/null | tr -d '\r' | grep -q " T ${_wci_s}\$"; then
+    if [ "$_wci_ok" = "1" ]; then
+      mv -f "$_wci_o.tmp.o" "$_wci_o"
+    else
       rm -f "$_wci_o.tmp.o"
-      echo "g05_relink_env: $_wci_x lacks strong $_wci_s (Windows collect-imports)" >&2
-      exit 1
+      _g05_win_overlay_keep_prior "$_wci_o" "$_wci_s" "Windows collect-imports" || exit 1
     fi
-    if nm "$_wci_o.tmp.o" 2>/dev/null | tr -d '\r' | grep -q 'lexer_init$'; then
-      rm -f "$_wci_o.tmp.o"
-      echo "g05_relink_env: $_wci_x still references lexer_init (Windows collect-imports)" >&2
-      exit 1
-    fi
-    mv -f "$_wci_o.tmp.o" "$_wci_o"
     _PABI_WIN_CIMP="$_wci_o"
     _PABI_SELFHOST="$_wci_o $_PABI_SELFHOST"
     # w2060: mixed-width ADD/SUB and f32 promote. Linux and Darwin already
@@ -5596,18 +5631,21 @@ PY
     _was_o=build_asm/selfhost_pabi/assign_win.o
     if [ -f "$_was_x" ]; then
       mkdir -p build_asm/selfhost_pabi
-      rm -f "$_was_o" "$_was_o.tmp.o"
-      if ! _g05_win_asm_c "$_was_x" "$_was_o.tmp.o"; then
-        rm -f "$_was_o.tmp.o"
-        echo "g05_relink_env: $_was_x failed (Windows assign)" >&2
-        exit 1
+      rm -f "$_was_o.tmp.o"
+      _was_ok=0
+      if _g05_win_asm_c "$_was_x" "$_was_o.tmp.o" \
+        && nm "$_was_o.tmp.o" 2>/dev/null | tr -d '\r' | grep -q " T pipeline_asm_emit_assign_elf_c\$"; then
+        _was_ok=1
+      else
+        echo "g05_relink_env: $_was_x failed/lacks T (Windows assign)" >&2
       fi
-      if ! nm "$_was_o.tmp.o" 2>/dev/null | tr -d '\r' | grep -q " T pipeline_asm_emit_assign_elf_c\$"; then
+      if [ "$_was_ok" = "1" ]; then
+        mv -f "$_was_o.tmp.o" "$_was_o"
+      else
         rm -f "$_was_o.tmp.o"
-        echo "g05_relink_env: $_was_x lacks strong pipeline_asm_emit_assign_elf_c (Windows assign)" >&2
-        exit 1
+        _g05_win_overlay_keep_prior "$_was_o" "pipeline_asm_emit_assign_elf_c" \
+          "Windows assign" || exit 1
       fi
-      mv -f "$_was_o.tmp.o" "$_was_o"
       _PABI_WIN_ASSIGN="$_was_o"
       _PABI_SELFHOST="$_was_o $_PABI_SELFHOST"
     fi
@@ -5625,18 +5663,21 @@ PY
     _wgd_o=build_asm/selfhost_pabi/w156_guard_win.o
     if [ -f "$_wgd_x" ]; then
       mkdir -p build_asm/selfhost_pabi
-      rm -f "$_wgd_o" "$_wgd_o.tmp.o"
-      if ! _g05_win_asm_c "$_wgd_x" "$_wgd_o.tmp.o"; then
-        rm -f "$_wgd_o.tmp.o"
-        echo "g05_relink_env: $_wgd_x failed (Windows w156 guard)" >&2
-        exit 1
+      rm -f "$_wgd_o.tmp.o"
+      _wgd_ok=0
+      if _g05_win_asm_c "$_wgd_x" "$_wgd_o.tmp.o" \
+        && nm "$_wgd_o.tmp.o" 2>/dev/null | tr -d '\r' | grep -q " T glue_index_assign_addr_cache_hit\$"; then
+        _wgd_ok=1
+      else
+        echo "g05_relink_env: $_wgd_x failed/lacks T (Windows w156 guard)" >&2
       fi
-      if ! nm "$_wgd_o.tmp.o" 2>/dev/null | tr -d '\r' | grep -q " T glue_index_assign_addr_cache_hit\$"; then
+      if [ "$_wgd_ok" = "1" ]; then
+        mv -f "$_wgd_o.tmp.o" "$_wgd_o"
+      else
         rm -f "$_wgd_o.tmp.o"
-        echo "g05_relink_env: $_wgd_x lacks strong glue_index_assign_addr_cache_hit (Windows w156 guard)" >&2
-        exit 1
+        _g05_win_overlay_keep_prior "$_wgd_o" "glue_index_assign_addr_cache_hit" \
+          "Windows w156 guard" || exit 1
       fi
-      mv -f "$_wgd_o.tmp.o" "$_wgd_o"
       _PABI_WIN_W156="$_wgd_o"
       _PABI_SELFHOST="$_wgd_o $_PABI_SELFHOST"
     fi
@@ -5651,28 +5692,36 @@ PY
     _wsl_o=build_asm/selfhost_pabi/struct_let_init_win.o
     if [ -f "$_wsl_x" ]; then
       mkdir -p build_asm/selfhost_pabi
-      rm -f "$_wsl_o" "$_wsl_o.tmp.o"
-      if ! _g05_win_asm_c "$_wsl_x" "$_wsl_o.tmp.o"; then
-        rm -f "$_wsl_o.tmp.o"
+      rm -f "$_wsl_o.tmp.o"
+      _wsl_ok=0
+      if _g05_win_asm_c "$_wsl_x" "$_wsl_o.tmp.o"; then
+        _wsl_ok=1
+        for _wsl_s in glue_emit_struct_type_let_init_elf_c; do
+          if ! nm "$_wsl_o.tmp.o" 2>/dev/null | tr -d '\r' | grep -q " T ${_wsl_s}\$"; then
+            echo "g05_relink_env: $_wsl_x lacks strong $_wsl_s (Windows struct let init)" >&2
+            _wsl_ok=0
+            break
+          fi
+        done
+        if [ "$_wsl_ok" = "1" ]; then
+          for _wsl_bad in pipeline_asm_emit_struct_let_init_elf_c pipeline_asm_emit_struct_lit_fields_elf_c pipeline_asm_emit_struct_lit_elf_c; do
+            if nm "$_wsl_o.tmp.o" 2>/dev/null | tr -d '\r' | grep -q " T ${_wsl_bad}\$"; then
+              echo "g05_relink_env: $_wsl_x must not define $_wsl_bad (Windows A1 let_init-only)" >&2
+              _wsl_ok=0
+              break
+            fi
+          done
+        fi
+      else
         echo "g05_relink_env: $_wsl_x failed (Windows struct let init)" >&2
-        exit 1
       fi
-      for _wsl_s in glue_emit_struct_type_let_init_elf_c; do
-        if ! nm "$_wsl_o.tmp.o" 2>/dev/null | tr -d '\r' | grep -q " T ${_wsl_s}\$"; then
-          rm -f "$_wsl_o.tmp.o"
-          echo "g05_relink_env: $_wsl_x lacks strong $_wsl_s (Windows struct let init)" >&2
-          exit 1
-        fi
-      done
-      # A1: thin must not define/weaken the other three family symbols.
-      for _wsl_bad in pipeline_asm_emit_struct_let_init_elf_c pipeline_asm_emit_struct_lit_fields_elf_c pipeline_asm_emit_struct_lit_elf_c; do
-        if nm "$_wsl_o.tmp.o" 2>/dev/null | tr -d '\r' | grep -q " T ${_wsl_bad}\$"; then
-          rm -f "$_wsl_o.tmp.o"
-          echo "g05_relink_env: $_wsl_x must not define $_wsl_bad (Windows A1 let_init-only)" >&2
-          exit 1
-        fi
-      done
-      mv -f "$_wsl_o.tmp.o" "$_wsl_o"
+      if [ "$_wsl_ok" = "1" ]; then
+        mv -f "$_wsl_o.tmp.o" "$_wsl_o"
+      else
+        rm -f "$_wsl_o.tmp.o"
+        _g05_win_overlay_keep_prior "$_wsl_o" "glue_emit_struct_type_let_init_elf_c" \
+          "Windows struct let init" || exit 1
+      fi
       _PABI_WIN_SLI="$_wsl_o"
       _PABI_SELFHOST="$_wsl_o $_PABI_SELFHOST"
     fi
@@ -5695,37 +5744,42 @@ PY
       exit 1
     fi
     mkdir -p build_asm/selfhost_pabi
-    rm -f "$_wfc_o" "$_wfc_o.tmp.o"
-    if ! _g05_win_asm_c "$_wfc_x" "$_wfc_o.tmp.o"; then
-      rm -f "$_wfc_o.tmp.o"
-      echo "g05_relink_env: $_wfc_x failed (Windows call-arg packer)" >&2
-      exit 1
-    fi
-    _wfc_oc=""
-    if command -v llvm-objcopy >/dev/null 2>&1; then
-      _wfc_oc=llvm-objcopy
-    elif command -v objcopy >/dev/null 2>&1; then
-      _wfc_oc=objcopy
-    fi
-    if [ -z "$_wfc_oc" ]; then
-      rm -f "$_wfc_o.tmp.o"
-      echo "g05_relink_env: no objcopy for $_wfc_x (Windows call-arg packer)" >&2
-      exit 1
-    fi
-    for _wfc_g in $(nm "$_wfc_o.tmp.o" 2>/dev/null | tr -d '\r' | awk '$2=="T"{print $3}'); do
-      [ "$_wfc_g" = "$_wfc_s" ] && continue
-      if ! "$_wfc_oc" --weaken-symbol="$_wfc_g" "$_wfc_o.tmp.o"; then
-        rm -f "$_wfc_o.tmp.o"
-        echo "g05_relink_env: weaken $_wfc_g in $_wfc_x failed (Windows call-arg packer)" >&2
-        exit 1
+    rm -f "$_wfc_o.tmp.o"
+    _wfc_ok=0
+    if _g05_win_asm_c "$_wfc_x" "$_wfc_o.tmp.o"; then
+      _wfc_oc=""
+      if command -v llvm-objcopy >/dev/null 2>&1; then
+        _wfc_oc=llvm-objcopy
+      elif command -v objcopy >/dev/null 2>&1; then
+        _wfc_oc=objcopy
       fi
-    done
-    if ! nm "$_wfc_o.tmp.o" 2>/dev/null | tr -d '\r' | grep -q " T ${_wfc_s}\$"; then
-      rm -f "$_wfc_o.tmp.o"
-      echo "g05_relink_env: $_wfc_x lacks strong $_wfc_s (Windows call-arg packer)" >&2
-      exit 1
+      if [ -z "$_wfc_oc" ]; then
+        echo "g05_relink_env: no objcopy for $_wfc_x (Windows call-arg packer)" >&2
+      else
+        _wfc_ok=1
+        for _wfc_g in $(nm "$_wfc_o.tmp.o" 2>/dev/null | tr -d '\r' | awk '$2=="T"{print $3}'); do
+          [ "$_wfc_g" = "$_wfc_s" ] && continue
+          if ! "$_wfc_oc" --weaken-symbol="$_wfc_g" "$_wfc_o.tmp.o"; then
+            echo "g05_relink_env: weaken $_wfc_g in $_wfc_x failed (Windows call-arg packer)" >&2
+            _wfc_ok=0
+            break
+          fi
+        done
+        if [ "$_wfc_ok" = "1" ] \
+          && ! nm "$_wfc_o.tmp.o" 2>/dev/null | tr -d '\r' | grep -q " T ${_wfc_s}\$"; then
+          echo "g05_relink_env: $_wfc_x lacks strong $_wfc_s (Windows call-arg packer)" >&2
+          _wfc_ok=0
+        fi
+      fi
+    else
+      echo "g05_relink_env: $_wfc_x failed (Windows call-arg packer)" >&2
     fi
-    mv -f "$_wfc_o.tmp.o" "$_wfc_o"
+    if [ "$_wfc_ok" = "1" ]; then
+      mv -f "$_wfc_o.tmp.o" "$_wfc_o"
+    else
+      rm -f "$_wfc_o.tmp.o"
+      _g05_win_overlay_keep_prior "$_wfc_o" "$_wfc_s" "Windows call-arg packer" || exit 1
+    fi
     _PABI_WIN_FCA="$_wfc_o"
     _PABI_SELFHOST="$_wfc_o $_PABI_SELFHOST"
     # w1007 Cap residual field load_sz. PLATFORM: WINDOWS.
