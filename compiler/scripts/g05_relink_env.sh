@@ -1698,11 +1698,19 @@ case "$UNAME_S" in
         echo "g05_relink_env: 10.46 win_1046_link_stubs_pe.o" >&2
       fi
     fi
-    # 10.46: Soft Cap mega_emit_one/frame (>=16 sret latch) via _g05_win_asm_c
-    # (live-first). First-wins ahead of egg from_x `ret_sz > 16`. PLATFORM: WINDOWS.
+    # 10.46: Soft Cap mega family (>=16 sret latch) via _g05_win_asm_c
+    # (live-first). Tip mega_emit_one U-deps skip_heavy/body_*/ret_expr/
+    # epilogue/frame/tail_jmp — Soft Cap the whole family or the PE link
+    # fails. First-wins ahead of egg from_x `ret_sz > 16`. PLATFORM: WINDOWS.
     for _mega_pair in \
-      "src/runtime_pipeline_abi_asm_codegen_mega_emit_one_thin.x|build_asm/selfhost_pabi/mega_emit_one.o|w393_mega_emit_one" \
-      "src/runtime_pipeline_abi_asm_codegen_mega_emit_frame_thin.x|build_asm/selfhost_pabi/mega_emit_frame.o|w499_mega_emit_frame"
+      "src/runtime_pipeline_abi_asm_codegen_mega_emit_skip_heavy_thin.x|build_asm/selfhost_pabi/mega_emit_skip_heavy.o|w499_mega_emit_skip_heavy" \
+      "src/runtime_pipeline_abi_asm_codegen_mega_emit_body_sync_thin.x|build_asm/selfhost_pabi/mega_emit_body_sync.o|w499_mega_emit_body_sync" \
+      "src/runtime_pipeline_abi_asm_codegen_mega_emit_body_inits_thin.x|build_asm/selfhost_pabi/mega_emit_body_inits.o|w499_mega_emit_body_inits" \
+      "src/runtime_pipeline_abi_asm_codegen_mega_emit_ret_expr_thin.x|build_asm/selfhost_pabi/mega_emit_ret_expr.o|w499_mega_emit_ret_expr" \
+      "src/runtime_pipeline_abi_asm_codegen_mega_emit_epilogue_thin.x|build_asm/selfhost_pabi/emit_epilogue_f64.o|w499_mega_emit_epilogue" \
+      "src/runtime_pipeline_abi_asm_codegen_mega_emit_frame_thin.x|build_asm/selfhost_pabi/mega_emit_frame.o|w499_mega_emit_frame" \
+      "src/runtime_pipeline_abi_asm_codegen_mega_emit_tail_jmp_thin.x|build_asm/selfhost_pabi/tail_jmp_off.o|w499_mega_try_tail_jmp" \
+      "src/runtime_pipeline_abi_asm_codegen_mega_emit_one_thin.x|build_asm/selfhost_pabi/mega_emit_one.o|w393_mega_emit_one"
     do
       _mx="${_mega_pair%%|*}"
       _rest="${_mega_pair#*|}"
@@ -1724,6 +1732,28 @@ case "$UNAME_S" in
         fi
       fi
     done
+    # If mega_emit_one was injected but a required sibling is missing from
+    # providers, drop mega_emit_one so the PE link does not U-fail.
+    case " $_PABI_WIN_1046_PROVIDERS " in
+      *" mega_emit_one.o "*)
+        _mega_need_ok=1
+        for _mega_need in mega_emit_skip_heavy.o mega_emit_body_sync.o \
+          mega_emit_body_inits.o mega_emit_ret_expr.o emit_epilogue_f64.o \
+          mega_emit_frame.o; do
+          case " $_PABI_WIN_1046_PROVIDERS " in
+            *" $_mega_need "*) ;;
+            *)
+              _mega_need_ok=0
+              echo "g05_relink_env: WARNING 10.46 mega_emit_one needs $_mega_need" >&2
+              ;;
+          esac
+        done
+        if [ "$_mega_need_ok" != "1" ]; then
+          _PABI_WIN_1046_PROVIDERS=$(echo " $_PABI_WIN_1046_PROVIDERS " | sed "s| build_asm/selfhost_pabi/mega_emit_one.o | |g")
+          echo "g05_relink_env: WARNING 10.46 drop Soft Cap mega_emit_one (sibling miss)" >&2
+        fi
+        ;;
+    esac
     # driver_fs_open_write: thin PE stubs in win_1046_link_stubs_pe.s (above).
     # Do NOT inject full runtime_driver.o — pulls unrelated U debt. PLATFORM: WINDOWS.
     # 10.46 file_view / read_file_malloc SEGV root-fix: tip pure-asm hoisted
