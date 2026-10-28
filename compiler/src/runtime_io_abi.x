@@ -77,6 +77,15 @@ export struct XlangRuntimeFileView {
   needs_munmap: i32;
 }
 
+/** Store one byte at buf[idx] (10.46). Call-arg form stops pure-asm from
+ * CSE-hoisting `buf + idx` before a later `buf = malloc(...)`.
+ * PLATFORM: SHARED.
+ */
+export function write_u8_at(buf: *u8, idx: usize, v: u8): void {
+  buf[idx] = v;
+}
+
+
 /**
  * 64-bit seek on an open fd (w1525).
  * @param fd i32 — open descriptor
@@ -671,9 +680,8 @@ export function xlang_runtime_file_view_read_malloc_impl(fd: i32, size: i64, out
     }
     return -1;
   }
-  // buf[size] = '\0'
-  let zero_ptr: *u8 = buf + size_u;
-  zero_ptr[0] = 0;
+  // buf[size] = '\0' — via write_u8_at (10.46 hoist fix)
+  write_u8_at(buf, size_u, 0);
   // See implementation.
   let out_view: *XlangRuntimeFileView = out as *XlangRuntimeFileView;
   out_view.data = buf;
@@ -714,9 +722,8 @@ export function runtime_read_file_malloc_impl(path: *u8, out_len: *u8): *u8 {
       memcpy(buf, view.data, view.length);
     }
   }
-  // buf[view.length] = '\0'
-  let zero_ptr: *u8 = buf + view.length;
-  zero_ptr[0] = 0;
+  // buf[view.length] = '\0' — via write_u8_at (10.46 hoist fix)
+  write_u8_at(buf, view.length, 0);
   if (out_len != 0 as *u8) {
     let out_len_ptr: *usize = out_len as *usize;
     out_len_ptr[0] = view.length;

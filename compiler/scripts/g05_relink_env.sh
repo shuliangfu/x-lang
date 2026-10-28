@@ -339,6 +339,27 @@ fi
 # 10.17 / 10.18 regressions). Result path in _G05_PO_OUT ("" = not built).
 # Usage: _g05_pure_overlay SRC.x OUT.o T_SYMBOL
 # PLATFORM: SHARED.
+# 10.46: Win hard thin compiles — prefer product ./xlang.exe over a
+# SEGV-tainted ./xlang_asm (hoist bug). Try product then asm. PLATFORM: WINDOWS.
+_g05_win_asm_c() {
+  _wa_x=$1
+  _wa_o=$2
+  rm -f "$_wa_o"
+  # 10.46: product Soft Cap often hollow-emits non-tiny thins (EC=0, 0-byte);
+  # xlang_live.exe still Soft Caps mega_emit_* (Pair >=16 latch). Try live
+  # before product. PLATFORM: WINDOWS.
+  for _wa_bin in ./xlang_live.exe ./xlang_live ./xlang.exe ./xlang \
+      ./xlang_asm.exe ./xlang_asm ./xlang_asm_thinT.exe; do
+    [ -x "$_wa_bin" ] || continue
+    if XLANG_PREFER_ASM_O=1 "$_wa_bin" -backend asm -c "$_wa_x" -o "$_wa_o" >/dev/null 2>&1 \
+      && [ -s "$_wa_o" ]; then
+      return 0
+    fi
+    rm -f "$_wa_o"
+  done
+  return 1
+}
+
 _g05_pure_overlay() {
   _po_x=$1
   _po_o=$2
@@ -385,6 +406,9 @@ _g05_pure_overlay() {
   [ -x ./xlang ] && _po_bins="$_po_bins ./xlang"
   [ -x ./xlang_asm ] && _po_bins="$_po_bins ./xlang_asm"
   # 10.46: PE hosts only ship *.exe; bare names fail [ -x ]. PLATFORM: WINDOWS.
+  # Prefer live Soft Cap emitter ahead of hollow product for Cap thins.
+  [ -x ./xlang_live.exe ] && _po_bins="$_po_bins ./xlang_live.exe"
+  [ -x ./xlang_live ] && _po_bins="$_po_bins ./xlang_live"
   [ -x ./xlang.exe ] && _po_bins="$_po_bins ./xlang.exe"
   [ -x ./xlang_asm.exe ] && _po_bins="$_po_bins ./xlang_asm.exe"
   # knife256/10.2: park-fixed tip may still hollow-emit Cap thins; restored
@@ -1015,9 +1039,11 @@ _PABI_RETURN_SRET=""
 case "$UNAME_S" in
   Darwin|Linux|MINGW*|MSYS*|CYGWIN*|Windows_NT*)
     if [ "${XLANG_RETURN_SRET_OVERLAY:-1}" = "1" ]; then
-      # 10.26 merged into mega — _g05_pure_overlay src/runtime_pipeline_abi_return_sret_thin.x \
-      # 10.26 merged into mega — build_asm/selfhost_pabi/return_sret.o pipeline_asm_emit_return_elf_impl
-      _PABI_RETURN_SRET=""  # 10.26 merged into mega
+      # 10.46: re-enable — egg emit_return never copies to *sret; mega merge
+      # left Win without w1521 helpers. Thin restores copy + (>=16) Win Pair.
+      _g05_pure_overlay src/runtime_pipeline_abi_return_sret_thin.x \
+        build_asm/selfhost_pabi/return_sret.o pipeline_asm_emit_return_elf_impl
+      _PABI_RETURN_SRET="$_G05_PO_OUT"
     fi
     ;;
 esac
@@ -1590,7 +1616,7 @@ case "$UNAME_S" in
     # 10.46: mega-merge dropped assign_var_compound / binop_wide from Win
     # G05_OBJS; reinject existing T objs + av_assign helpers (no new host-cc
     # .c). Skip fa/vlet/lane/addr_of (pull Linux-only U faces). Keep Track L
-    # typeck; peel tip dep_return only. driver_fs from runtime_driver.o.
+    # typeck; peel tip dep_return only. driver_fs thin PE stub; file_view fix overlay.
     # PLATFORM: WINDOWS · PE isolate.
     _PABI_WIN_1046_PROVIDERS=""
     if [ -s build_asm/selfhost_pabi/assign_var_compound.o ] \
@@ -1648,12 +1674,70 @@ case "$UNAME_S" in
         echo "g05_relink_env: 10.46 win_1046_link_stubs_pe.o" >&2
       fi
     fi
-    # driver_fs_open_write: tip Track L leaves it U without runtime_driver.o.
-    if [ -s src/runtime_driver.o ] \
-      && nm src/runtime_driver.o 2>/dev/null \
-           | grep -qE " T driver_fs_open_write$"; then
-      _PABI_WIN_1046_PROVIDERS="$_PABI_WIN_1046_PROVIDERS src/runtime_driver.o"
-      echo "g05_relink_env: 10.46 inject src/runtime_driver.o (fs_open_write)" >&2
+    # 10.46: Soft Cap mega_emit_one/frame (>=16 sret latch) via _g05_win_asm_c
+    # (live-first). First-wins ahead of egg from_x `ret_sz > 16`. PLATFORM: WINDOWS.
+    for _mega_pair in \
+      "src/runtime_pipeline_abi_asm_codegen_mega_emit_one_thin.x|build_asm/selfhost_pabi/mega_emit_one.o|w393_mega_emit_one" \
+      "src/runtime_pipeline_abi_asm_codegen_mega_emit_frame_thin.x|build_asm/selfhost_pabi/mega_emit_frame.o|w499_mega_emit_frame"
+    do
+      _mx="${_mega_pair%%|*}"
+      _rest="${_mega_pair#*|}"
+      _mo="${_rest%%|*}"
+      _msym="${_rest##*|}"
+      if [ -f "$_mx" ]; then
+        if _g05_win_asm_c "$_mx" "$_mo" \
+          && nm "$_mo" 2>/dev/null | grep -qE " T ${_msym}$"; then
+          _PABI_WIN_1046_PROVIDERS="$_PABI_WIN_1046_PROVIDERS $_mo"
+          echo "g05_relink_env: 10.46 Soft Cap $_mo ($_msym)" >&2
+        else
+          # Keep prior .o when Soft Cap misses (same policy as _g05_pure_overlay).
+          if [ -s "$_mo" ] && nm "$_mo" 2>/dev/null | grep -qE " T ${_msym}$"; then
+            _PABI_WIN_1046_PROVIDERS="$_PABI_WIN_1046_PROVIDERS $_mo"
+            echo "g05_relink_env: 10.46 keep prior $_mo ($_msym)" >&2
+          else
+            echo "g05_relink_env: WARNING 10.46 mega Soft Cap miss $_mx" >&2
+          fi
+        fi
+      fi
+    done
+    # driver_fs_open_write: thin PE stubs in win_1046_link_stubs_pe.s (above).
+    # Do NOT inject full runtime_driver.o — pulls unrelated U debt. PLATFORM: WINDOWS.
+    # 10.46 file_view / read_file_malloc SEGV root-fix: tip pure-asm hoisted
+    # buf+size before malloc. Overlay (write_u8_at) first-wins; also overlay
+    # public runtime_read_file_malloc (same-object wrapper→impl ignores
+    # first-wins). Weaken bad T on a link copy of runtime_io_abi.o.
+    _G05_IO_ABI_O=src/runtime_io_abi.o
+    if [ -f src/runtime/file_view_read_malloc_impl_fix.x ]; then
+      _fv_o=build_asm/selfhost_pabi/file_view_read_malloc_impl_fix.o
+      _g05_pure_overlay src/runtime/file_view_read_malloc_impl_fix.x \
+        "$_fv_o" runtime_read_file_malloc
+      if [ -s "$_fv_o" ] \
+        && nm "$_fv_o" 2>/dev/null \
+             | grep -qE " T xlang_runtime_file_view_read_malloc_impl$" \
+        && nm "$_fv_o" 2>/dev/null \
+             | grep -qE " T runtime_read_file_malloc$" \
+        && nm "$_fv_o" 2>/dev/null \
+             | grep -qE " T runtime_read_file_malloc_impl$"; then
+        _PABI_WIN_1046_PROVIDERS="$_PABI_WIN_1046_PROVIDERS $_fv_o"
+        echo "g05_relink_env: 10.46 file_view_read_malloc_impl_fix.o" >&2
+        _fv_oc=""
+        if command -v llvm-objcopy >/dev/null 2>&1; then _fv_oc=llvm-objcopy
+        elif command -v objcopy >/dev/null 2>&1; then _fv_oc=objcopy
+        fi
+        if [ -n "$_fv_oc" ] && [ -s src/runtime_io_abi.o ]; then
+          _io_w=build_asm/selfhost_pabi/runtime_io_abi_w1046.o
+          cp -f src/runtime_io_abi.o "$_io_w"
+          "$_fv_oc" --weaken-symbol=xlang_runtime_file_view_read_malloc_impl "$_io_w" 2>/dev/null || true
+          "$_fv_oc" --weaken-symbol=runtime_read_file_malloc_impl "$_io_w" 2>/dev/null || true
+          "$_fv_oc" --weaken-symbol=runtime_read_file_malloc "$_io_w" 2>/dev/null || true
+          if nm "$_io_w" 2>/dev/null | grep -qE " [Ww] runtime_read_file_malloc$"; then
+            _G05_IO_ABI_O="$_io_w"
+            echo "g05_relink_env: 10.46 weaken runtime_io_abi_w1046.o (fix wins)" >&2
+          fi
+        fi
+      else
+        echo "g05_relink_env: WARNING 10.46 file_view fix overlay missing" >&2
+      fi
     fi
     # PE lexer park (rt_run_asm_backend U lexer_src_park).
     if [ -f src/asm/lexer_src_park_pe.s ]; then
@@ -1695,6 +1779,8 @@ case "$UNAME_S" in
     fi
     ;;
 esac
+# 10.46: optional weakened runtime_io_abi link copy (Win overlay).
+: "${_G05_IO_ABI_O:=src/runtime_io_abi.o}"
 # w943: self-hosted pabi bodies ahead of src/runtime_pipeline_abi.o.
 # Linux first-wins (--allow-multiple-definition) keeps these strong
 # definitions. The stale frames stay in that .o; do not PREFER into it
@@ -4931,7 +5017,7 @@ case "$UNAME_S" in
     if [ -f "$_wen_x" ]; then
       mkdir -p build_asm/selfhost_pabi
       rm -f "$_wen_o" "$_wen_o.tmp.o"
-      if ! XLANG_PREFER_ASM_O=1 ./xlang_asm -backend asm -c "$_wen_x" -o "$_wen_o.tmp.o" >/dev/null 2>&1; then
+      if ! _g05_win_asm_c "$_wen_x" "$_wen_o.tmp.o"; then
         rm -f "$_wen_o.tmp.o"
         echo "g05_relink_env: $_wen_x failed (Windows enum ns tag)" >&2
         exit 1
@@ -4967,7 +5053,7 @@ case "$UNAME_S" in
     fi
     mkdir -p build_asm/selfhost_pabi
     rm -f "$_wci_o" "$_wci_o.tmp.o"
-    if ! XLANG_PREFER_ASM_O=1 ./xlang_asm -backend asm -c "$_wci_x" -o "$_wci_o.tmp.o" >/dev/null 2>&1; then
+    if ! _g05_win_asm_c "$_wci_x" "$_wci_o.tmp.o"; then
       rm -f "$_wci_o.tmp.o"
       echo "g05_relink_env: $_wci_x failed (Windows collect-imports)" >&2
       exit 1
@@ -5511,7 +5597,7 @@ PY
     if [ -f "$_was_x" ]; then
       mkdir -p build_asm/selfhost_pabi
       rm -f "$_was_o" "$_was_o.tmp.o"
-      if ! XLANG_PREFER_ASM_O=1 ./xlang_asm -backend asm -c "$_was_x" -o "$_was_o.tmp.o" >/dev/null 2>&1; then
+      if ! _g05_win_asm_c "$_was_x" "$_was_o.tmp.o"; then
         rm -f "$_was_o.tmp.o"
         echo "g05_relink_env: $_was_x failed (Windows assign)" >&2
         exit 1
@@ -5540,7 +5626,7 @@ PY
     if [ -f "$_wgd_x" ]; then
       mkdir -p build_asm/selfhost_pabi
       rm -f "$_wgd_o" "$_wgd_o.tmp.o"
-      if ! XLANG_PREFER_ASM_O=1 ./xlang_asm -backend asm -c "$_wgd_x" -o "$_wgd_o.tmp.o" >/dev/null 2>&1; then
+      if ! _g05_win_asm_c "$_wgd_x" "$_wgd_o.tmp.o"; then
         rm -f "$_wgd_o.tmp.o"
         echo "g05_relink_env: $_wgd_x failed (Windows w156 guard)" >&2
         exit 1
@@ -5566,7 +5652,7 @@ PY
     if [ -f "$_wsl_x" ]; then
       mkdir -p build_asm/selfhost_pabi
       rm -f "$_wsl_o" "$_wsl_o.tmp.o"
-      if ! XLANG_PREFER_ASM_O=1 ./xlang_asm -backend asm -c "$_wsl_x" -o "$_wsl_o.tmp.o" >/dev/null 2>&1; then
+      if ! _g05_win_asm_c "$_wsl_x" "$_wsl_o.tmp.o"; then
         rm -f "$_wsl_o.tmp.o"
         echo "g05_relink_env: $_wsl_x failed (Windows struct let init)" >&2
         exit 1
@@ -5610,7 +5696,7 @@ PY
     fi
     mkdir -p build_asm/selfhost_pabi
     rm -f "$_wfc_o" "$_wfc_o.tmp.o"
-    if ! XLANG_PREFER_ASM_O=1 ./xlang_asm -backend asm -c "$_wfc_x" -o "$_wfc_o.tmp.o" >/dev/null 2>&1; then
+    if ! _g05_win_asm_c "$_wfc_x" "$_wfc_o.tmp.o"; then
       rm -f "$_wfc_o.tmp.o"
       echo "g05_relink_env: $_wfc_x failed (Windows call-arg packer)" >&2
       exit 1
@@ -6393,7 +6479,7 @@ case "$UNAME_S" in
     ;;
 esac
 _X_FRONTEND="parser_x.o ${_G05_LEXER_X_O:-lexer_x.o} ${_G05_TYPECK_X_O:-typeck_x.o} ${_TYPECK_CAP_RESIDUAL} ${_TYPECK_CTFE} codegen_x.o x_frontend_link_alias.o ${_WIN_V1_CALL_ALIAS}"
-_DRIVER_SEED_OBJS="$_PABI_WIN_1046_PROVIDERS $_PABI_MODLET_TABLE_BASE $_PABI_MODLET_SEED_SIGNED $_PABI_ADDR_OF_CALL $_PABI_ELF_LAYOUT_64K $_PABI_INDEX_BASE_FIELD $_PABI_SLICE_MODLET $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_ELF_UNDEF_CAP $_PABI_LAYOUT_OFF $_PABI_NAMED_BUILTIN_CAP $_PABI_NAMED_ALIGN $_PABI_NAMED_SIZE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_REENT_SUM $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_WPO_ALIAS $_PABI_RELOC_TYPED $_PABI_ELF_CTX $_PABI_DATA_LEN $_G05_W211_CALL_ARG $_G05_W211_VAR_OFF $_G05_W211_REGISTER $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_SKIP_HEAVY $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_CODEGEN_CAP_RESIDUAL $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
+_DRIVER_SEED_OBJS="$_PABI_WIN_1046_PROVIDERS $_PABI_MODLET_TABLE_BASE $_PABI_MODLET_SEED_SIGNED $_PABI_ADDR_OF_CALL $_PABI_ELF_LAYOUT_64K $_PABI_INDEX_BASE_FIELD $_PABI_SLICE_MODLET $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_ELF_UNDEF_CAP $_PABI_LAYOUT_OFF $_PABI_NAMED_BUILTIN_CAP $_PABI_NAMED_ALIGN $_PABI_NAMED_SIZE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_REENT_SUM $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_WPO_ALIAS $_PABI_RELOC_TYPED $_PABI_ELF_CTX $_PABI_DATA_LEN $_G05_W211_CALL_ARG $_G05_W211_VAR_OFF $_G05_W211_REGISTER $_PABI_CONST_LIT $_MAIN_LINK_O ${_G05_IO_ABI_O:-src/runtime_io_abi.o} src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_SKIP_HEAVY $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_CODEGEN_CAP_RESIDUAL $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
 # ast_gen2.o: in LEGACY mode, append at link END (mirrors Makefile xlang-c LEGACY L2501

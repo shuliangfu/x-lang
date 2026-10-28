@@ -5196,7 +5196,8 @@ function w1521_rs_local_off(arena: *u8, ctx: *u8, op: i32): i32 {
 // from runtime_pipeline_abi_return_sret_thin.x :: w1521_rs_copy_x86
 function w1521_rs_copy_x86(elf_ctx: *u8, home: i32, sz: i32): i32 {
   let k: i32 = 0;
-  if (home <= 0 || sz <= 16 || sz > 1000000) {
+  /* 10.46: allow Win 16B Pair sret copy. */
+  if (home <= 0 || sz < 16 || sz > 1000000) {
     return 1;
   }
   // mov rcx, [rbp - home]
@@ -5973,7 +5974,7 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
         act = pipeline_asm_emit_ctx_sret_active_get();
         home = pipeline_asm_emit_ctx_sret_home_off_get();
         rsz = pipeline_asm_emit_ctx_sret_ret_sz_get();
-        if (act != 0 && home > 0 && rsz > 16) {
+        if (act != 0 && home > 0 && rsz >= 16) {
           x86_off = w1521_rs_local_off(arena, ctx, ret_op);
           opk = pipeline_expr_kind_ord_at(arena, ret_op);
           if (opk == 48 || opk == 49) {
@@ -5987,7 +5988,7 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
       // pointer. Force lvalue + rs_copy before the mid/else cascade.
       // Also avoids act/home/rsz locals being clobbered by the huge else
       // frame before late re-reads them. PLATFORM: WINDOWS.
-      if (act != 0 && home > 0 && rsz > 16 && x86_fwd == 0) {
+      if (act != 0 && home > 0 && rsz >= 16 && x86_fwd == 0) {
         let on_win_a: i32 = 0;
         unsafe {
           on_win_a = link_abi_host_is_windows();
@@ -6264,7 +6265,7 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                   // n * esz is the width the durable helper just wrote.
                   // 8 → one GPR. 16 → the existing pair load, except
                   // Windows (hidden pointer). Do not load a wider page:
-                  // rsz > 16 still uses the sret copy below.
+                  // rsz >= 16 still uses the sret copy below.
                   // PLATFORM: SHARED — LINUX|x86_64 · MACOS|ARM64.
                   let nbytes_d: i32 = 0;
                   let an_d: i32 = 0;
@@ -7185,7 +7186,7 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                       unsafe {
                         rsz = pipeline_asm_emit_ctx_sret_ret_sz_get();
                       }
-                      if (rsz > 16) {
+                      if (rsz >= 16) {
                         v_take = 1;
                       }
                     }
@@ -7523,7 +7524,7 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
           unsafe {
             rsz = pipeline_asm_emit_ctx_sret_ret_sz_get();
           }
-          if (rsz > 16) {
+          if (rsz >= 16) {
             unsafe {
               mod_d = pipeline_asm_emit_module_ref_c();
             }
@@ -7609,7 +7610,7 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
           rsz = pipeline_asm_emit_ctx_sret_ret_sz_get();
         }
       }
-      if (ta == 0 && act != 0 && home > 0 && rsz > 16) {
+      if (ta == 0 && act != 0 && home > 0 && rsz >= 16) {
         let on_win: i32 = 0;
         unsafe {
           on_win = link_abi_host_is_windows();
@@ -7639,7 +7640,7 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
           rsz = pipeline_asm_emit_ctx_sret_ret_sz_get();
         }
       }
-      if (act != 0 && home >= 0 && rsz > 16) {
+      if (act != 0 && home >= 0 && rsz >= 16) {
         if (wide_copied != 0) {
           if (w1521_rs_load_dest_x0(elf_ctx, home) != 0) {
             return 0 - 1;
@@ -44948,7 +44949,8 @@ export function glue_emit_sret_memcpy_rbx_to_home_elf_c(elf_ctx: *u8, sz: i32, t
   // "memcpy"
   memcpy_sym[0] = 109 as u8; memcpy_sym[1] = 101 as u8; memcpy_sym[2] = 109 as u8;
   memcpy_sym[3] = 99 as u8; memcpy_sym[4] = 112 as u8; memcpy_sym[5] = 121 as u8; memcpy_sym[6] = 0 as u8;
-  if ((ta != 0 && ta != 1) || elf_ctx == (0 as *u8) || sz <= 16) {
+  /* 10.46: allow sz==16 (Win Pair hidden dest). */
+  if ((ta != 0 && ta != 1) || elf_ctx == (0 as *u8) || sz < 16) {
     return 0 - 1;
   }
   unsafe {
@@ -45089,7 +45091,8 @@ export function glue_emit_sret_return_from_var_elf_c(arena: *u8, elf_ctx: *u8, v
     mod = pipeline_asm_emit_module_ref_c();
     sz = glue_type_size_simple(mod, arena, tr, 0);
   }
-  if (sz <= 16) {
+  /* 10.46: allow sz==16. */
+  if (sz < 16) {
     return 0 - 1;
   }
   unsafe {

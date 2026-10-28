@@ -85,8 +85,9 @@ export function w499_mega_emit_frame(
      */
     if (ta == 0 || ta == 1) {
       pipe_store_i32_le(&cell[0], 0, pipeline_asm_emit_ctx_sret_ret_sz_get());
-      if (w499f_c32(&cell[0]) > 16) {
-        /* fill_local_slots currently homes a >16B let at next_offset and may
+      /* 10.46: >=16 matches emit_one latch (Win 16B Pair uses hidden dest). */
+      if (w499f_c32(&cell[0]) >= 16) {
+        /* fill_local_slots currently homes a >=16B let at next_offset and may
          * leave next_offset at that let's START (8-byte bump only). Adding
          * ret_sz skips the under-reserved blob so the 8B dest pointer does
          * not sit inside the 532B Type / 1224B Expr local (w693 probe: both
