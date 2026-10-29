@@ -1,7 +1,7 @@
 # dig_1054_CLOSE
 
 - CLOSED: 2026-10-29 15:20 CST(Asia/Shanghai)
-- tip/dev: pending pass-commit（见进度头）· 钉盘 ecdb5cc1e **不升**
+- tip/dev: · 钉盘 ecdb5cc1e **不升**
 - PROD: `compiler/xlang.exe` sha12 **`59560be0128f`**（升自 ISOL/WORK）；bak `cca095a70725` ＠`C:/xlang_tmp/p1054/bak/`；Restored／I=7945801 保留
 - 经理已批 ✅ 收刀；正式 **10.54✅**（非候选）
 
