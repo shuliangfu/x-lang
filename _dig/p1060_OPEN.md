@@ -36,3 +36,10 @@ arg_idx>5：SoftCap clamp=5，else 恒 `[rsp+0x28]`；扩表+解 clamp／动态 
 
 ## tip after 10.58 push
 `84ed5ecc1` · SoftCap PROD `7a2cf5da581a`
+
+
+## 本拍进展（15:40 CST）
+见 `_dig/dig_1060_PROGRESS.md`：DIG 已写清；sret 探针表（Win CG002／双端 tip exit=1）；isol-A=block_final kind41→emit_return。
+
+## tip mid-step push（~20:46 CST Asia/Shanghai）
+硬约定：DIG／isol／tip 步进即推。tip isol-A／C 已落＋双端 `p_ret_*`＋i32 绿；DIG 记 SoftCap mid-insn／epi／`p_ret` AV。SoftCap **未绿** → 勿升 PROD／钉盘 ecdb5cc1e **不升**／勿收刀。
