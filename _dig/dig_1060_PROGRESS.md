@@ -1,5 +1,7 @@
 # 10.60 PROGRESS — Win single-stmt `return` / RETURN / sret
 
+**2026-10-29 ~21:00 CST (Asia/Shanghai)** · SoftCap Isol-KK..PP **未运行绿** → **硬 blocker 收口**；勿请批／勿升 PROD／钉 ecdb5cc1e **不升**；停开新 cave
+
 **2026-10-29 ~20:46 CST (Asia/Shanghai)** · tip mid-step push per hard contract · SoftCap **未绿** → 勿升 PROD／钉 ecdb5cc1e **不升**／勿收刀；DIG＋tip isol-A/C 步进推 `dev`
 
 
@@ -556,3 +558,64 @@ call-site 相对 fn 起点 **offset 与 LIVE 完全一致**（16 处）。Isol �
 
 ### 禁令
 CloudAgent ✕ · 升钉 ecdb5cc1e ✕ · 10.74 ✕ · mega ✕ · HARD BAN／LEGACY ✕ · 假绿 push ✕ · **未绿勿请批** · V0 编译半绿不算
+
+
+---
+
+## 2026-10-29 ~21:00 CST Asia/Shanghai — Isol 原生／reloc helper 试刀 KK–PP；**硬 blocker 收口停 cave**
+
+**PROD** `7a2cf5da581a` 未动 · tip `1e480ff6a`（本拍 docs 前）· Isol-G `7701dac5b813` 基线未改 · 钉 ecdb5cc1e **不升** · SoftCap `p_ret_*` **运行时未绿** → **不可请批** · **停开新 cave**
+
+### 0) 本拍 DIG 钉点（相对 20:46 收口续挖）
+
+- SoftCap mega `@0x57effc`→epi `@0x58e99c`：**整段无嵌套 prologue**（仅入口 prol；下一 prol=`0x58e9a0`）。8 个 mid 目标全落 mega 体内。
+- Isol Cap FN `@0x5752bc` ≡ LIVE `@0x28764c`（同 prol `sub rsp,0x9e0`／`lea rbp,[rsp+0x80]`）；Δ=`0x2edc70`。
+- LIVE emit 绿帧：`sub rsp,0x868` @ emit+2712；`0x878` @+2816。EE／II／NN／PP 错帧：`0x68`／`0x1b8`（sha lit=`0ddf9b1751b1`）。
+- Isol **无** LIVE `0x281df8`（cmp10）exact body；prefix 假阳性多（h965@`0x2859ae` 52B 同头但 callee 图不同 → 禁作 EXIST）。
+- LIVE `0x281e48` 在 h965 sizing 链上；stub 后 emit 塌回 EE 同 sha。
+
+### 1) cave 运行表（本拍）
+
+| Isol | sha12 | 策略 | lit | fwd | local | 备注 |
+|------|-------|------|-----|-----|-------|------|
+| **KK** | `7428532169d0` | mid→指纹 Isol 克隆＋cave 手写 cmp10 leaf | **编译 AV** | AV | AV | 指纹 ABI 错 |
+| **LL** | `b4bb373afaeb` | `.cave` reloc 15 LIVE helpers；EXIST=prefix | compile／**run AV** sha `2405c664581d` | run AV | run AV | 首次非-EE emit；帧仍≠`0x868`；h965 EXIST 假阳 |
+| MM | — | force-plant 全树 | **abort** | — | — | 递归爆 LIVE 树（`no ret 0x109ba0`）；触禁 |
+| **NN** | `dff799ef6aed` | force 8 roots；depth≤2；stub 深 callee | compile／run AV | 同 | 同 | emit **=EE** `0ddf9b1751b1`；`281e48` stub→sizing 丢 |
+| OO | `8672793f675a` | depth≤6／sz≤800；106 plants | **编译 AV** | AV | AV | 深树＋残 stub 回 AV |
+| **PP** | `e89db10ee6e1` | force roots+`281e48`；depth≤2 | compile／run AV | 同 | 同 | emit 再塌 **=EE**；`1098a0`／`108e97` 等仍 stub |
+
+产物：`C:/xlang_tmp/p1060/cave/xlang_isol1060_{KK,LL,NN,OO,PP}.exe` + `build_isol_{kk,ll,nn,oo,pp}.py` + `isol_*_log.txt` + `dig_{native_map,clone_exact,find_isol_helpers,helper_calls,frame_and_cap,v0_and_sizing,callee_map,exact_isol_helpers,ll_emit,store688}.py`
+
+### 2) (A)／(B) 结论
+
+| 路径 | 结果 |
+|------|------|
+| **(A) Isol 原生 helper 克隆 retarget** | Isol **无** 8 helper 的 full-exact 体（cmp10=0 hit）。prefix／指纹 → 假阳或 ABI 错（KK AV）。 |
+| **(A′) LIVE 语义 reloc＋Isol callee**（LL/NN/PP） | 等价触「禁 LIVE 字节树」边界：浅树→emit 错帧／塌 EE；深树→编译 AV。非可请批绿。 |
+| **(B) 真帧 recover** | 本拍未新开 V0 变体；既有 V0 仍仅编译半绿＋运行 AV；且 **无** sizing/store 副作用保留方案落地。 |
+
+### 3) 探针／回归
+
+| 探针 | Isol-G | 本拍最佳（LL） | EE/NN/PP | LIVE pret |
+|------|--------|----------------|----------|-----------|
+| `p_ret_lit` | 编译 AV | compile／run AV `2405c664581d`；帧≠`0x868` | compile／run AV `0ddf9b1751b1` | **绿** `dbaab1c7ce70` |
+| `p_ret_fwd` | AV | run AV | run AV `b7f17d0f89d2` | 绿 |
+| `p_ret_local` | AV | run AV | run AV `83fb1ce8ab76` | 绿 |
+| Isol-G／10.54／10.58 | 基线未改 | **未宣称绿**；禁假绿全回归 | — | — |
+
+### 4) 硬 blocker 收口（**不可请批** · **停开新 cave**）
+
+1. SoftCap `p_ret_{lit,fwd,local}` **运行时未绿**（本拍 KK–PP 全红／半红）。
+2. **根因仍钉**：Cap FN `@0x5752bc` 16× E8 → SoftCap mega **mid-insn**（无 prol）；LIVE 同位点进独立 helpers → emit 帧 `0x868`。
+3. **(A) 堵死本层**：Isol 无原生 full-exact helper 克隆；LIVE reloc 树越深越 AV，越浅越 EE 错帧 — **非**「再多一个 cave 号」可清。
+4. **(B) 未清**：真帧＋保留 h965／store688 sizing 副作用仍缺可运行方案；V0 rax=0 unwind **不算**。
+5. **不可请批**／不升钉 ecdb5cc1e／不升 PROD `7a2cf5da581a`／不 push SoftCap 二进制／不 CloudAgent／不 mega／不 10.74／不假绿。
+6. **下一拍最小刀**（新会话；勿在本收口后再开 cave）：
+   - 从 **Isol Cap tip／egg 未吞区** 找回与 LIVE Cap `@0x28764c` 同构的 **已 reloc callee 图**（非 SoftCap+Δ）；或
+   - SoftCap mega **拆回** 8 helper 入口（在 mega 内插入 prol／跳板，禁 LIVE 整树）；或
+   - Cap decode 对齐 LIVE `@0x1d80` 绕开 SoftCap mega（路径 C）。
+7. tip isol-A/C 双端绿 **保持**；本拍仅 docs 收口。
+
+### 禁令
+CloudAgent ✕ · 升钉 ✕ · 10.74 ✕ · mega ✕ · HARD BAN／LEGACY ✕ · LIVE 字节树 ✕ · 假绿 ✕ · **未绿勿请批** · **停开新 cave**

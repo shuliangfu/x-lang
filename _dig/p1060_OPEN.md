@@ -43,3 +43,7 @@ arg_idx>5：SoftCap clamp=5，else 恒 `[rsp+0x28]`；扩表+解 clamp／动态 
 
 ## tip mid-step push（~20:46 CST Asia/Shanghai）
 硬约定：DIG／isol／tip 步进即推。tip isol-A／C 已落＋双端 `p_ret_*`＋i32 绿；DIG 记 SoftCap mid-insn／epi／`p_ret` AV。SoftCap **未绿** → 勿升 PROD／钉盘 ecdb5cc1e **不升**／勿收刀。
+
+## 2026-10-29 ~21:00 CST — SoftCap 硬 blocker 收口
+Isol-KK..PP（原生／reloc helper）**未**使 `p_ret_*` 运行绿；emit 帧卡 `0x68`≠LIVE `0x868`。硬 blocker 见 `_dig/dig_1060_PROGRESS.md` §21:00。**不可请批**；PROD／钉不升；停开新 cave。
+tip isol-A/C 双端绿保持；本拍 docs-only。
