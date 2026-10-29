@@ -1,3 +1,4 @@
+<!-- STATUS 2026-10-29 15:11 Asia/Shanghai: root=call_elf wrong E9 cave; isol restore float GREEN; PROD untouched; RC=NO -->
 # 10.54 OPEN — Win float param receive
 
 **Asia/Shanghai 2026-10-29 14:50** · after 10.46✅ closeout tip `52d2b088b`
