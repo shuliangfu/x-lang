@@ -33,3 +33,6 @@ i32 单句 run 看似绿，但 codegen **缺 RETURN 标号／jmp**（多句才�
 
 ### 债（自 10.58）
 arg_idx>5：SoftCap clamp=5，else 恒 `[rsp+0x28]`；扩表+解 clamp／动态 stub 非小代价，本刀非门禁。
+
+## tip after 10.58 push
+`84ed5ecc1` · SoftCap PROD `7a2cf5da581a`
