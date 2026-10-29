@@ -44,6 +44,7 @@ export extern function pipeline_asm_emit_array_lit_force_esz_elf_c(arena: *u8, e
 export extern function pipeline_asm_emit_ctx_sret_active_get(): i32;
 export extern function pipeline_asm_emit_ctx_sret_home_off_get(): i32;
 export extern function pipeline_asm_emit_ctx_sret_ret_sz_get(): i32;
+export extern function pipeline_w1521_rs_copy_to_dest(elf_ctx: *u8, home: i32, sz: i32): i32;
 export extern function pipeline_asm_emit_expr_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 export extern function pipeline_asm_emit_func_index_c(): i32;
 export extern function pipeline_asm_emit_module_ref_c(): *u8;
@@ -293,6 +294,8 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
   let tj_lbl: u8[128] = [];
   let ti: i32 = 0;
   let handled: i32 = 0;
+  let sret_copied: i32 = 0;
+  let sret_home: i32 = 0;
   let ret_off: i32 = 0;
   let ret_named_sz: i32 = 0;
   let rar_elem: i32 = 0;
@@ -385,6 +388,7 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
         return 0 - 1;
       }
       handled = 1;
+      sret_copied = 1;
     }
     // Path A2: sret return INDEX of large struct. emit_index esz>16 leaves
     // the element address in rax — same pointer as VAR slot lea. Reuse
@@ -411,6 +415,7 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
         return 0 - 1;
       }
       handled = 1;
+      sret_copied = 1;
     }
     // Path B0b: STRUCT_LIT.field to []T. FIELD of a literal often has no
     // stamped TYPE_ARRAY on sty (Path B0 measure skips); peel the
@@ -1045,6 +1050,25 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
       tj_lbl[ti] = ly[1392 + ti];
     }
     ti = ti + 1;
+  }
+  /* 10.60 isol-C: AAPCS64 sret copy. Path D (STRUCT_LIT etc.) leaves src
+   * addr in x0; Path A/A2 already copied (sret_copied). fa_array first-wins
+   * emit_return lacked return_sret's ta==1 rs_copy_to_dest — p_ret_* exit=1.
+   * PLATFORM: MACOS|ARM64 only; ta==0 SoftCap unchanged. */
+  if (ta == 1 && sret_copied == 0) {
+    unsafe {
+      sret_act = pipeline_asm_emit_ctx_sret_active_get();
+      sret_home = pipeline_asm_emit_ctx_sret_home_off_get();
+      sret_sz = pipeline_asm_emit_ctx_sret_ret_sz_get();
+    }
+    if (sret_act != 0 && sret_home >= 0 && sret_sz > 16) {
+      unsafe {
+        rc = pipeline_w1521_rs_copy_to_dest(elf_ctx, sret_home, sret_sz);
+      }
+      if (rc < 0) {
+        return 0 - 1;
+      }
+    }
   }
   unsafe {
     return backend_enc_jmp_arch(elf_ctx, &tj_lbl[0], tj_len, ta);

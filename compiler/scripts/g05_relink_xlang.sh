@@ -112,6 +112,53 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ] \
     _g05_oc=$(command -v llvm-objcopy)
   fi
   if [ -n "$_g05_oc" ]; then
+    # 10.60 isol-C: Cap tip fa_array emit_return defers ARRAY_LIT/dest-SLICE to
+    # _pipeline_asm_emit_return_elf_impl_prev. Extract egg body as _prev (Darwin).
+    # PLATFORM: MACOS Cap tip.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])fa_array_lit_a64\.o([[:space:]]|$)' \
+      && nm -u build_asm/selfhost_pabi/fa_array_lit_a64.o 2>/dev/null \
+           | grep -q '_pipeline_asm_emit_return_elf_impl_prev'; then
+      _er_has_prev=0
+      for _er_o in $OBJS; do
+        [ -s "$_er_o" ] || continue
+        if nm "$_er_o" 2>/dev/null | grep -Eq ' [TW] _pipeline_asm_emit_return_elf_impl_prev$'; then
+          _er_has_prev=1
+          break
+        fi
+      done
+      if [ "$_er_has_prev" != "1" ]; then
+        _er_prev=build_asm/selfhost_pabi/return_sret_er_prev.o
+        _er_src=""
+        for _er_c in build_asm/selfhost_pabi/return_sret.o \
+                     build_asm/selfhost_pabi/pabi_weak.o \
+                     src/runtime_pipeline_abi.o; do
+          [ -s "$_er_c" ] || continue
+          if nm "$_er_c" 2>/dev/null | grep -Eq ' [TW] _pipeline_asm_emit_return_elf_impl$'; then
+            _er_src="$_er_c"
+            break
+          fi
+        done
+        if [ -n "$_er_src" ]; then
+          _er_exp="/tmp/g05_er_prev_$$.exp"
+          printf '%s\n' '_pipeline_asm_emit_return_elf_impl' > "$_er_exp"
+          if ld -r -o "$_er_prev" -exported_symbols_list "$_er_exp" "$_er_src" 2>/dev/null \
+            && "$_g05_oc" --redefine-sym=_pipeline_asm_emit_return_elf_impl=_pipeline_asm_emit_return_elf_impl_prev \
+                 "$_er_prev" 2>/dev/null \
+            && nm "$_er_prev" 2>/dev/null | grep -Eq ' [TW] _pipeline_asm_emit_return_elf_impl_prev$'; then
+            OBJS="$_er_prev $OBJS"
+            echo "g05_relink_xlang: 10.60 Darwin emit_return _prev from $_er_src" >&2
+          else
+            echo "g05_relink_xlang: WARN 10.60 emit_return _prev extract failed" >&2
+            rm -f "$_er_prev"
+          fi
+          rm -f "$_er_exp"
+        else
+          echo "g05_relink_xlang: WARN 10.60 no egg emit_return for _prev" >&2
+        fi
+        unset _er_prev _er_src _er_exp _er_c
+      fi
+      unset _er_has_prev _er_o
+    fi
     if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])register_tl_const\.o([[:space:]]|$)' \
       && nm -gU src/runtime_pipeline_abi.o 2>/dev/null \
            | grep -q ' T _pipeline_asm_register_module_top_level_lets_c$'; then

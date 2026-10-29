@@ -8,7 +8,8 @@
 // Body matches mega wave153 leave except the unsafe fallback (now 0).
 // PRODUCT: w619 — PREFER both ends after the source-level unsafe fix
 // (standalone -c used to fail T001: six bare extern calls).
-// PLATFORM: SHARED · LINUX gold · MACOS.
+// PLATFORM: SHARED · LINUX gold · MACOS · WINDOWS.
+// 10.60 isol-A: kind41 final_expr → emit_return_elf_impl (return_sret).
 
 export extern function pipeline_asm_block_final_expr_ref_at(arena: *u8, block_ref: i32): i32;
 export extern function glue_block_stmt_order_has_return(arena: *u8, block_ref: i32): i32;
@@ -16,6 +17,7 @@ export extern function glue_block_body_bind_module_dep_from_ctx(ctx: *u8): void;
 export extern function glue_asm_ctx_set_scope_block(ctx: *u8, block_ref: i32): void;
 export extern function glue_index_scratch_spills_cleanup_all_elf_c(elf_ctx: *u8, ta: i32): i32;
 export extern function pipeline_asm_emit_expr_elf_rec(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern function glue_if_expr_arm_emit_depth_get(): i32;
 export extern function pipeline_asm_emit_module_ref_c(): *u8;
@@ -74,6 +76,19 @@ export function glue_emit_block_final_expr_elf(arena: *u8, elf_ctx: *u8, block_r
   if (rc != 0) {
     return 0 - 1;
   }
+  /* 10.60 isol-A: single-stmt `return` lives only as final_expr EXPR_RETURN
+   * (no stmt_order). Route kind 41 through emit_return so return_sret runs;
+   * mega/rec peel must not skip it. emit_return already jmps tail_join. */
+  unsafe { fref_ko = pipeline_expr_kind_ord_at(arena, fref); }
+  if (fref_ko == 41) {
+    unsafe {
+      rc = pipeline_asm_emit_return_elf_impl(arena, elf_ctx, fref, ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    return 0;
+  }
   unsafe {
     rc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, fref, ctx, ta);
   }
@@ -82,7 +97,6 @@ export function glue_emit_block_final_expr_elf(arena: *u8, elf_ctx: *u8, block_r
   }
   allow_tail_join = 0;
   unsafe {
-    fref_ko = pipeline_expr_kind_ord_at(arena, fref);
     depth = glue_if_expr_arm_emit_depth_get();
   }
   if (depth <= 0 && fref_ko != 41) {

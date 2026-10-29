@@ -1720,6 +1720,18 @@ _cap_tip_fill_missing_objs() {
         -o build_asm/selfhost_pabi/av_assign_rhsrax_arms_div.o 2>/dev/null \
         && echo "g05_cap_tip_reapply: re-asserted arms_div after pabi stomp (10.56)" >&2 || true
     fi
+    # 10.60 isol-C: fa_array emit_return gains Darwin rs_copy_to_dest; CACHE/pabi
+    # would restore pre-isol-C body. Always tip-compile after stomp.
+    # PLATFORM: MACOS Cap tip.
+    if [ -f src/runtime_pipeline_abi_fixed_array_copy_thin.x ]; then
+      XLANG_PREFER_ASM_O=1 "${_ns_xl:-./xlang}" -backend asm -c \
+        src/runtime_pipeline_abi_fixed_array_copy_thin.x \
+        -o build_asm/selfhost_pabi/fa_array_lit_a64.o 2>/dev/null \
+        && nm -u build_asm/selfhost_pabi/fa_array_lit_a64.o 2>/dev/null \
+             | grep -q '_pipeline_w1521_rs_copy_to_dest' \
+        && echo "g05_cap_tip_reapply: re-asserted fa_array (10.60 isol-C rs_copy)" >&2 \
+        || echo "g05_cap_tip_reapply: WARN fa_array isol-C re-assert failed" >&2
+    fi
     fi
   fi
   # out.o|src.x pairs for Cap tip overlays commonly wiped
