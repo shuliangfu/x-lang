@@ -1,5 +1,49 @@
 # DIG 10.60 SoftCap PROGRESS
 
+**2026-10-30 ~15:50 CST (Asia/Shanghai)** · SoftCap lit `@57619e` alt：`@5603b8`＝合法 prol／体内·坏帧 AV；`@56fa68`＝**mid-insn** clear（同 `@5862f8` 类）· Isol `alt_57619e` `e1c45031fb92` jmp→`@57629b` HIT；p_ret **AV／GS／AV** · SoftCap **未绿** → 勿升 PROD／钉 **不升**／勿收刀 · 下一拍：alt **坏帧／rbp** 根（禁再只 skip mid-call）；禁长挂／移植／arg-loop／twin／字母堆
+
+
+## 2026-10-30 ~15:50 CST Asia/Shanghai — DIG @57619e alt；@56fa68 mid-insn；@5603b8 bad frame；Isol alt_57619e 红
+
+### 0) 闸
+- tip HEAD `407d51bdc`＝origin/dev（本拍前；commit 后见 tip）
+- Base post_fa3 `453f3e66f96c`／h3_jesk `cfb0fae4f5d9`；短超时 INT3；已清 cave `_dig_host_*`
+- PROD SoftCap `7a2cf5da581a` **未动**／钉 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／未绿请批／LEGACY／字母堆／LIVE SoftCap 移植／arg-loop／twin：遵守
+
+### 1) DIG 钉死（本拍）
+1. `@57619e` alt 可达（`je @576134`；`call @5603b8`／`@56fa68` 位点 **HIT**）。
+2. **`@56fa68`＝mid-insn**（`mov [rbx+disp],al` clear；无 prol）——同 `@5862f8/@5863c9` 类。
+3. **`@5603b8`＝合法 prol**（entry INT3 HIT）；after-call／body 仍 AV ⇒ **坏帧／rbp**，非缺 call-mk 单因。
+4. Isol `alt_57619e` `e1c45031fb92`：`jmp @5761c2→@57629b` → inc **HIT**；loop／exit 仍 AV（inc store 触坏 rbp）；p_ret **AV／GS／AV**。
+
+### 2) Win SoftCap 门
+| Isol | sha12 | lit／fwd／local |
+|---|---|---|
+| post_fa3 | `453f3e66f96c` | AV／GS／AV |
+| alt_57619e | `e1c45031fb92` | AV／GS／AV |
+
+### 3) 三端门
+| 端 | 结果 |
+|---|---|
+| Win SoftCap p_ret_* | **未运行绿** |
+| Darwin／Ubuntu | **未扩**（Win 未绿） |
+| PROD／钉 | **未动** |
+
+### 4) 硬 blocker
+1. SoftCap lit AV 在 `@57619e` alt：mid-insn `@56fa68` + `@5603b8`/skip 后 **坏帧**。
+2. 无稳定 Isol-native SoftCap lit `0x868` 写出／p_ret 运行绿。
+3. Ban 移植／arg-loop／twin／字母堆／长挂。
+
+### 5) 下一拍最小刀
+1. 单点 DIG alt **坏帧／rbp** 根（post_fa3 skip 副作用／`@5603b8` body）；短超时；勿只再 skip mid-call。
+2. 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 6) open
+- 笔记 `_dig/dig_alt_57619e.md`；plant `_dig/build_isol_alt_57619e.py`；cave alt_57619e／post_57619e
+- PROD SoftCap `7a2cf5da581a`／钉 ecdb5cc1e **未动**
+
+
 **2026-10-30 ~15:40 CST (Asia/Shanghai)** · SoftCap lit post-`@575fa3`：clear+`@5762a2` loop **HIT** · AV根＝`@5760c2→@5862f8`／`@5760fb→@5863c9` **mid-insn**（非合法入口）· Isol `post_fa3` `453f3e66f96c` jmp-skip → `@57619e` HIT；p_ret **AV／GS／AV** · SoftCap **未绿** → 勿升 PROD／钉 **不升**／勿收刀 · 下一拍：`@57619e` alt（`@5603b8`／`@56fa68`）→`@57629b`；禁长挂／移植／arg-loop／twin／字母堆
 
 
