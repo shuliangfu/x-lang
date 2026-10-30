@@ -1,5 +1,44 @@
 # 10.60 SoftCap DIG PROGRESS
 
+**2026-10-30 ~16:05 CST (Asia/Shanghai)** · DIG `@523600` callers／edx size：on-path **`@20f08a` HIT**（edx=`[rbp+0x828]`←`@24b49d` sum+`0x40`）；无 imm `0x68/0x1b8`；plant `edx_868` **AV/GS 不可隔离** → 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：`@24b49d` summand feeders（为何薄 `0x28/0x178`≠`0x828`）（禁 tip@121278／join／epi／LIVE／mega）
+
+
+## 2026-10-30 ~16:05 CST Asia/Shanghai — DIG @523600 callers／edx frame_sz
+
+### 0) 闸
+- tip HEAD `5bc02e350`＝origin/dev
+- Isol alt_frame2 `9378df517f96`；baseline lit sha `332eed5f048b`（`0x68`+`0x1b8`，`0x868=False`）
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／LEGACY／字母堆／LIVE SoftCap 移植／arg-loop／tip@121278／join／epi：遵守
+
+### 1) DIG 钉死（本拍）
+1. On-path caller of `@523600`＝**`@20f08a` HIT**；`@20ee89`/`@238694` AV（edx=0）；`@5b0d49` OK off-path（rdx=0x10）。
+2. edx＝`[rbp+0x828]` ← store `@20efaf` HIT ← helper **`@24b49d` HIT**；final `eax=[rbp+0xfc]+0x40`（`@24b9c7` HIT）。
+3. 无 on-path imm `0x68/0x1b8/0x868` — thin＝computed base+`0x40`（`0x28+0x40`／`0x178+0x40`）。
+4. plant `edx_868`（`@20f077`→`mov edx,0x868`）lit **AV**／fwd **GS**／local **AV** — **不可隔离**。
+
+### 2) Win SoftCap 门（cave；probe 后清）
+| probe | result |
+|---|---|
+| INT3 callers／store828／load828／`@24b49d`／add40／cfn／prol | **HIT** on-path chain |
+| plant edx_868 p_ret_* | **AV／GS／AV**（已删 cave） |
+| baseline p_ret_lit | OK `332eed5f048b`；`868=False` |
+
+### 3) 硬 blocker（勿收刀／勿升 PROD／勿请批）
+1. SoftCap CallExpr：sret 后缺 imm→rdx＋call mk → exit 1；帧 thin≠`0x868`/`0x878`。
+2. `edx_868`／force size：**不可隔离**（AV/GS；size＝`@24b49d` compute）。
+3. bans：tip@121278／join／epi／LIVE／mega／arg-loop。
+
+### 4) 下一拍最小刀（单点）
+1. DIG `@24b49d` summand feeders（`@2a2ef3/@27fbc5/@2a3077/@27ef44/@2a3237`）为何 lit 得薄 base `0x28/0x178` 而非 SoftCap `0x828`；短超时。
+2. 通后再验帧＋Darwin Cap soft＋Ubuntu tip-cold。未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 5) open
+- 笔记 `_dig/dig_sz_callers.md`；脚本 `_dig/dig_sz_callers.py`＋log
+- PROD SoftCap `7a2cf5da581a`／钉盘 ecdb5cc1e **未动**
+- bans unchanged
+
+
 **2026-10-30 ~16:00 CST (Asia/Shanghai)** · DIG `emit_u32` feeder：frontier **falsified**（`emit_u32`≠frame_sz）；真 USER `enc_prologue=@50f3e0` HIT（edx→align→`emit_raw4` `48 81 EC`+sz）；dispatch `@523600` HIT（edx=sz arg）；无 on-path imm `0x68/0x1b8`；plant `feed_u32`/`fsz_868` **不可隔离** → 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：`@523600` callers／edx size compute（禁 tip@121278／join／epi／LIVE／mega）
 
 
