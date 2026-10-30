@@ -1,14 +1,53 @@
-# 10.60 PROGRESS — Win single-stmt `return` / RETURN / sret
+# DIG 10.60 SoftCap PROGRESS
 
-**2026-10-30 ~13:08 CST (Asia/Shanghai)** · Isol-full_chain `eb3576c8fe3c` **证伪**（SoftCap-full `@5890c8`→Capless-miss；Win SoftCap `p_ret_*` emit＝TT／frame thin `0x1b8`／exit 1）· tip `8d656135d` dig-only push · SoftCap **未绿** → 勿升 PROD／钉 ecdb5cc1e **不升**／勿收刀 · 下一拍：Isol-native SoftCap lit call-mk 真路径单点（禁 LIVE SoftCap 移植／字母堆）
-
-
-**2026-10-29 ~21:00 CST (Asia/Shanghai)** · SoftCap Isol-KK..PP **未运行绿** → **硬 blocker 收口**；勿请批／勿升 PROD／钉 ecdb5cc1e **不升**；停开新 cave
-
-**2026-10-29 ~20:46 CST (Asia/Shanghai)** · tip mid-step push per hard contract · SoftCap **未绿** → 勿升 PROD／钉 ecdb5cc1e **不升**／勿收刀；DIG＋tip isol-A/C 步进推 `dev`
+**2026-10-30 ~13:45 CST (Asia/Shanghai)** · Isol-calt_args `c65741a41b67`／calt_miss `6927bb640c22` **证伪**（Win SoftCap `p_ret_*` host AV／`0xC0000409`；无 emit）· tip dig-only push · SoftCap **未绿** → 勿升 PROD／钉 ecdb5cc1e **不升**／勿收刀 · DIG：SoftCap lit 唯 `@12377c`→Capless-alt；SoftCap-site Isol `eax=1` early-claim ≠ LIVE `eax=0`；`calt_twin` CG002 · 下一拍：Isol SoftCap-site claim→LIVE 形 ret0＋state（禁 LIVE SoftCap 移植／字母堆／arg-loop 强跳）
 
 
-**2026-10-29 15:40 CST (Asia/Shanghai)** · tip `a8bea2bd0` · SoftCap PROD `7a2cf5da581a` · I=`48139a4fa0b8` size 7945801 · 钉盘 ecdb5cc1e **不升** · 未绿勿 push
+## 2026-10-30 ~13:45 CST Asia/Shanghai — DIG Capless-alt SoftCap-site；calt_args／calt_miss 证伪（AV）
+
+### 0) 闸
+- tip HEAD `65710507d`＝origin/dev（本拍前；commit 后见 tip）
+- Isol-TT `1f836615e0fc`；LIVE lit emit `dbaab1c7ce70`；TT lit emit `5b173cef1205`
+- Isol-calt_args sha12 **`c65741a41b67`**；Isol-calt_miss sha12 **`6927bb640c22`**（语义短名；禁字母堆）
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／未绿请批／LEGACY／cave 字母堆／LIVE SoftCap 移植：遵守
+
+### 1) DIG 钉死（本拍）
+1. SoftCap CallExpr **是** Capless-alt `@57656c`（kind 0x30）。Capless-alt callers INT3：唯 **`cc_12377c` TIMEOUT**；其余 8× OK（非 SoftCap lit 路径）。
+2. Capless-alt `@576692`→SoftCap-site `@2be519`（＝LIVE `@28e9c0` 0x150）。Isol SoftCap-site 4× `mov eax,1; jmp exit` early-claim；LIVE 同位 `mov eax,0`（不 claim）。Capless-alt `@5766b9`：site>0 → `mov eax,0; jmp EXIT` — **无** lit call-mk。
+3. SoftCap-full／twin／SoftMega INT3 → SoftCap lit 仍 TT（off-path）。tip SoftCap `@121278`（`sub rsp,0x868`）未接 Capless 用户 emit。
+4. `calt_twin`（`@12377c`→SoftCap twin `@57ef78` `da6a097340ff`）→ **CG002**（Isol twin＝SoftMega stub ≠ LIVE SoftCap）。
+5. Prior falsified: full_chain／smega_le／callsz_le／scap0／AAA／DDD／YY155／YY164。
+
+### 2) Win SoftCap 门（cave `out_calt_args`／`out_calt_miss`）
+| Isol | sha12 | plant | lit／fwd／local |
+|---|---|---|---|
+| calt_args | `c65741a41b67` | `@5766b9` early→jmp arg-loop `@5770da` | **AV**／**AV**／**AV**（无 emit） |
+| calt_miss | `6927bb640c22` | Capless-alt 20× early-success→fallthrough | **AV**／`0xC0000409`／**AV**（无 emit） |
+
+- ⇒ 强跳 SoftCap-site early-claim 进 arg-loop／miss fallthrough **主机 AV**；Capless emit_args ≠ SoftCap `0x868` writer；未达帧／call-mk。
+
+### 3) 三端门
+| 端 | 结果 |
+|---|---|
+| Win SoftCap Isol-calt_args／calt_miss `p_ret_*` | **主机 AV／stack overrun**；无 emit；未运行绿 |
+| Win PROD SoftCap `7a2cf5da581a` | **未动** |
+| Darwin／Ubuntu | **未扩**（Win 未绿） |
+
+### 4) 硬 blocker（勿收刀／勿升 PROD／勿请批）
+1. SoftCap CallExpr：Capless-alt→SoftCap-site Isol `eax=1` early-claim → 无 imm→rdx＋call-mk；帧 thin≠`0x868`/`0x878`。
+2. calt_args／calt_miss／calt_twin／full_chain／smega_le／callsz_le／scap0 **均**未 SoftCap 运行绿。
+3. Isol SoftCap twin≠LIVE SoftCap `@289dcb`；LIVE SoftCap 整树／mega **禁**。
+
+### 5) 下一拍最小刀（单点；禁字母堆／禁移植）
+1. Isol SoftCap-site early-claim `mov eax,1`→LIVE 形 `mov eax,0`（保留 site body state）后验 Capless continue 是否非 AV 且写出 call-mk／`0x868`；或另寻 Isol-native SoftCap lit call-mk 真到达点（禁 arg-loop 强跳／禁 twin retarget／禁 LIVE SoftCap 移植）。
+2. 通后再验帧＋Darwin Cap soft＋Ubuntu tip-cold。未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 6) open
+- Isol-calt_args `c65741a41b67`＋`_dig/build_isol_calt_args.py`；Isol-calt_miss `6927bb640c22`＋`_dig/build_isol_calt_miss.py`；笔记 `dig_calt_args_miss.md`（续 `dig_full_chain.md`）
+- PROD SoftCap `7a2cf5da581a`／钉盘 ecdb5cc1e **未动**
+- bans unchanged
+
 
 ## 题面
 Windows 单句函数体 `return` 不走 RETURN 节点（w1521 在 call_dispatch 补转交）；单句 return 走正常 RETURN 路径才 ✅。
