@@ -1,3 +1,49 @@
+# 10.60 SoftCap DIG PROGRESS
+
+**2026-10-30 ~15:50 CST (Asia/Shanghai)** · DIG Capless post-success→USER `0x868`：**falsified** tip`@127212` diag-only；kind`0x31` SoftMega off-path／0×`0x868`；Capless-band imm 未 HIT；**plant 不可隔离** → 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：Capless-**internal** USER enc `frame_sz`→`enc_prologue`（禁 tip@121278／join／epi／LIVE／mega）
+
+## 2026-10-30 ~15:50 CST Asia/Shanghai — DIG Capless post-success → USER 0x868
+
+### 0) 闸
+- tip HEAD `fd9961038`＝origin/dev（本拍前；commit 后见 tip）
+- Base alt_frame2 `9378df517f96`；短超时 INT3；cave `_dig_host_ps*` 已清
+- PROD SoftCap `7a2cf5da581a` **未动**／钉 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／未绿请批／LEGACY／字母堆／LIVE SoftCap 移植／arg-loop／tip@121278 再跳／join／epi：遵守
+
+### 1) DIG 钉死（本拍）
+1. Capless epi `@578278`／tip post `@127212` **HIT**；tip post＝diag only → **无** SoftCap USER `frame_sz`／`enc_prologue(0x868)` 接线。
+2. Capless-miss `@521f10/@521d78/@524944` **HIT**＝≤16 size-dispatch ≠ USER `0x868`。
+3. kind`0x31` SoftMega `@57ef78` lit **OK**(off-path)；SoftMega band **0×** `sub rsp,0x868`；HOST `0x868` 仍 tip／`0xec` 带。
+4. Capless body `mov eax,0x68/0x1b8/0x868` n=0；Capless-band `0x68` 未 HIT；baseline lit 薄 `0x68+0x1b8`。
+5. Capless 内调 CapFN／post_args／clc68／last`@57b98c`；薄帧在 Capless **内部** enc 完成，post-success 不再抬帧。
+
+### 2) Win SoftCap 门
+| Isol | sha12 | lit／fwd／local |
+|---|---|---|
+| alt_frame2 | `9378df517f96` | compile OK／GS／OK；emit 薄；run rc=1 |
+| 本拍 plant | — | **不可隔离**（无 on-path imm HIT） |
+
+### 3) 三端门
+| 端 | 结果 |
+|---|---|
+| Win SoftCap p_ret_* | **未运行绿** |
+| Darwin／Ubuntu | **未扩** |
+| PROD／钉 | **未动** |
+
+### 4) 硬 blocker
+1. Capless post-success 无 SoftCap USER 帧选路；`0x868` 仍 HOST SoftCap 模板、未进 Capless-internal enc arg。
+2. Ban tip@121278／join／epi／LIVE／mega／arg-loop。
+
+### 5) 下一拍最小刀
+1. 单点 DIG／Isol：Capless-**internal** USER enc（`frame_sz`→`enc_prologue` for mk/main）；短超时。
+2. 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 6) open
+- 笔记 `_dig/dig_post_succ_868.md`；脚本 `_dig/dig_post_succ_868.py`（+b/c）
+- PROD SoftCap `7a2cf5da581a`／钉 ecdb5cc1e **未动**
+
+
+
 # DIG 10.60 SoftCap PROGRESS
 
 **2026-10-30 ~15:55 CST (Asia/Shanghai)** · DIG Capless→SoftCap lit wire：tip kind`0x30`→Capless thin `enc_prologue`；tip`@121278` off-path（tip_scfull crc=0x1）；`@21b5fa` 簇 HIT＝Cap-decode≠USER `0x868`；Isol `mov eax,0x868` n=0；**plant 本拍不可隔离** → 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：Capless post-success→SoftCap USER frame_sz／enc（禁 tip@121278 再跳／join／移植／arg-loop）
