@@ -1,6 +1,36 @@
 # 10.60 SoftCap DIG PROGRESS
 
-**2026-10-30 ~16:54 CST (Asia/Shanghai)** · DIG AST args＝W327 `+0x274`/`+0x270`+sidecar；Capless **无** push-into-`+0x478`（仅空 `@55d730(0x568)`）；`fill_args_ast*` 模型废；本拍无 plant（不可隔离）→ 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：Capless 缺失 push helper（禁 tip@121278／join／epi／LIVE／mega）
+**2026-10-30 ~16:57 CST (Asia/Shanghai)** · DIG push helper：**不在** LIVE Capless-iso（同空壳）／**不在** 另一 Isol Cap `+0x478`；LIVE 绿＝Cap`@0024e6`→Cap21c8 旁路；Capless 4×`@1ff2ef` 仅闸；**无** fill E8 → plant **不可隔离** → 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：emit-arg 元素形态／retarget 已填容器（禁 tip@121278／join／epi／LIVE／mega）
+
+
+## 2026-10-30 ~16:57 CST Asia/Shanghai — DIG push-into-+0x478 helper 缺口定位；无 plant
+
+### 0) 闸
+- tip HEAD `bbde58e57`＝origin/dev（本拍前；commit 后见 tip）
+- Isol alt_frame2 `9378df517f96`；LIVE `lab_LIVE_pret.exe`；`base_828` sha12 `0977d6fbb472` lit sha `61afec45d7ff`
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／tip@121278／join／epi／LIVE SoftCap 移植／arg-loop：遵守
+
+### 1) DIG 钉死（本拍）
+1. LIVE Capless-iso `@29686c` ≅ Isol Capless `@576624`：同空 `0x568`→`+0x478`，零 mutate，零 imm `0x274`。
+2. LIVE SoftCap 绿路径＝Cap`@0024e6` kind`0x30`→Cap21c8 `@0021c8`（buf emit；**无** `+0x478`）；Isol tip＝Capless-only。禁移植。
+3. Isol 其它 `+0x478` STORE（`@4d84b4` spill）≠ SoftCap lit args 容器。
+4. Capless 4×`@1ff2ef`（num_args_at）只做闸；全仓无 `fill(+0x478, CallExpr)` E8。缺口＝arg_ref→emit-arg→push glue。
+5. Plant **不可隔离**（无单点／无 hijack E8）。
+
+### 2) Win SoftCap 门
+| Isol plant | sha12 | lit | run | USER |
+|---|---|---|---|---|
+| （本拍无） | — | — | — | N/A；frontier 仍红 |
+
+### 3) 下一拍最小刀（单点）
+- Isol-native emit-arg 元素形态（`@2a5ca8` 消费）或 Capless 内 retarget `+0x478`→已填兼容容器；或单次 `emit_one_arg+push` E8（禁 tip@121278／LIVE／mega／arg-loop）。
+- 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 4) open
+- 笔记 `_dig/dig_push_helper_gap.md`；先验 `_dig/dig_ast_args_478.md`
+- PROD／钉 **未动**；bans unchanged
+
 
 
 ## 2026-10-30 ~16:54 CST Asia/Shanghai — DIG AST args 字段／push-into-+0x478；无 plant
