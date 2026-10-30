@@ -1,5 +1,38 @@
 # 10.60 SoftCap DIG PROGRESS
 
+**2026-10-30 ~17:20 CST (Asia/Shanghai)** · DIG Isol SoftCap lit **证伪无容器**：无 `@2a62c9`-兼容已填 vec；无单 E8 fill+push；`0x568` 唯 Capless 空壳；plant **不可隔离** → 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：Cap≠Capless／pre_last 另槽已填容器（禁 tip@121278／join／epi／LIVE／mega）
+
+
+## 2026-10-30 ~17:20 CST Asia/Shanghai — DIG Isol SoftCap lit filled vec／E8 fill+push；证伪无容器；无 plant
+
+### 0) 闸
+- tip HEAD `0cafb2f26`＝origin/dev（本拍前；commit 后见 tip）
+- Isol alt_frame2 `9378df517f96`
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／tip@121278／join／epi／LIVE SoftCap 移植／arg-loop：遵守
+
+### 1) DIG 钉死（本拍）
+1. Isol `mov edx,0x568` **仅** Capless `@576624`→空壳 `+0x478`；另 `@59c3bf`→`[rbp-0x50]`＠`@58e*` **≠** SoftCap lit args。
+2. Capless E8→push／unwrap 带＝**0**；push 全仓 10 点均在 `@2a5/@2b4`，∩ SoftCap／pre_last／`0x568`＝**0**。
+3. fill-fam∩push co-window＝**0**；`@2a4f6a` body∩fill＝**0** → **无**单 E8 fill+push。
+4. SoftCap-site `@2be519` SoftCap lit 入口＝Capless `@576692` only；args 容器路径＝Capless-only。
+5. **证伪**：Isol SoftCap lit **无** `@2a62c9`-兼容已填 vec／无 E8 fill+push。
+6. Plant **不可隔离**；无 `filled_vec`／`e8_fillpush`；无 `p_ret_*`。
+
+### 2) Win SoftCap 门
+| Isol plant | sha12 | lit | run | USER |
+|---|---|---|---|---|
+| （本拍无） | — | — | — | N/A；frontier 仍红（证伪无容器） |
+
+### 3) 下一拍最小刀（单点）
+- Isol SoftCap lit Cap≠Capless／pre_last 另槽是否已有异源已填 `@2a62c9` 容器可单点改消费；否则钉死无非空壳供给（造 glue＝mega 禁；另寻 Isol-native imm→rdx，禁 LIVE Cap21c8）。禁 tip@121278／join／epi／LIVE／mega／arg-loop。
+- 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 4) open
+- 笔记 `_dig/dig_filled_vec.md`；先验 `_dig/dig_slot_478.md`
+- PROD／钉 **未动**；bans unchanged
+
+
 **2026-10-30 ~17:15 CST (Asia/Shanghai)** · DIG Capless `@1ff2ef`／`@201eeb|@201f36`→`+0x478`：**不可单点**；`@1ff2ef` Capless CFG **无** ensure（sibling `@1ff36f/@1ff5c7`）；`@201*`＝字段 memcpy／size`0x100`≠slot；plant **不可隔离** → 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：Isol-native SoftCap lit 是否已有 `@2a62c9`-兼容已填 vec／单 E8 fill+push（禁 tip@121278／join／epi／LIVE／mega）
 
 
