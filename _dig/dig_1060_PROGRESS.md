@@ -844,3 +844,67 @@ Isol CapFN 体内 E8 入 SoftCap mega `[0x57effc,0x58e9a0)`：**5** 处；−Δ`
 - Isol-QQ/RR 二进制在 Win cave；PROD／nail untouched
 - Darwin／Ubuntu tip p_ret 仍绿；Win SoftCap 运行门红
 - bans unchanged
+
+## 2026-10-30 ~08:58 CST Asia/Shanghai — Isol-RR vs LIVE `p_ret_lit` emit DIG
+
+### 0) 闸
+- tip HEAD `c4049ed7e`＝origin/dev；DIG tip `397d0ef0a`
+- Isol-RR `1c3119231383`／LIVE SoftCap emit lit `dbaab1c7ce70`（58766）／RR lit `cf747d6b5129`（58254）
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega 主刀／假绿／LEGACY：遵守
+- 本拍 **无新 Isol 二进制**；仅 emit DIG＋移植证伪
+
+### 1) 结构差（PE）
+| | LIVE | Isol-PP（EE…PP 同形） | Isol-RR |
+|---|---|---|---|
+| size / sha12 | 58766 / `dbaab1c7ce70` | 58766 / `0ddf9b1751b1` | 58254 / `cf747d6b5129` |
+| .text vs | 0x2e30（raw 0x3000） | 同 LIVE | **−0xa0**（raw 0x2e00） |
+| CRT `call` @0x10d5 | → **0x14f8** | → 0x14f8 | → **0x14f8**（未随 shrink 改） |
+| `sub rsp,0x868/0x878` | mk／main 各 1 | **0** | **0** |
+| sret park `lea+mov rcx` | ✅ | ✅ | **❌** |
+| mk `mov [rbx],rax` stores | ✅ | ✅ | **❌**（mk 体消失） |
+
+### 2) LIVE SoftCap 绿形（对照）
+- **mk @0x1490**：`push rbp; mov rbp,rsp; push rbx; sub rsp,0x868`；`rax←rcx`（sret）／`rax←rdx`（值）；三字段 `mov [rbx(+0/+8/+10)],rax`；`mov rax,rbx`（`48 89 d8`）；epilogue。
+- **main @0x14f8**：`sub rsp,0x878`；`lea rax,[rbp-0x28]; mov rcx,rax`；imm10→`[rbp-0x38]`→**`mov rdx,rax`**；`call mk`；三字段 `lea`＋**`mov rax,[rax]`（`48 8b 00`）**＋cmp 10/11/12。
+- LIVE chk 运行 **r=0**。
+
+### 3) Isol-PP（编译能出、运行 AV）— 同尺寸非 SoftCap 形
+- mk 帧 **0x68**（非 0x868）；main 帧 **0x1b8**（非 0x878）。
+- main 调用：`sub rsp,0x20; mov eax,10; call mk; add rsp,0x20` — **无 `mov rdx`**（mk 仍读 rdx→值垃圾）。
+- **系统 3B 错码（源码 encoder 为正确立即数，Isol 产物却写错）：**
+  - `48 89 d8`（mov rax,rbx）→ **`e9 00 00`**（mk 返回前）
+  - `48 8b 00`（mov rax,[rax]）→ **`a8 fe ff`**（main 三字段 load）
+- 单改 `a8feff→488b00` **仍 AV**；根因不止 load。
+- PP lit 运行 **AV `0xC0000005`**（与 DIG EE 记一致）。
+
+### 4) Isol-RR（本拍主 DIG）— 编译绿／emit 坍缩
+- 用户区 **无** mk SoftCap／thin 体；`@0x1490` 起即为残缺 main 检查片段（无 prol／无 call mk／无 store）。
+- CRT 仍 `call 0x14f8` → 落在残缺 main **中部**（`a8feff…`）→ lit exit `0x6ea2f8a8`／local `0xC000001D`（illegal）／fwd AV。
+- .text −0xa0 与缺 mk＋缺 SoftCap 帧一致；**RR 的 7× Capless 内盲 Δ remap 在 QQ 清 AV 后进一步打坏 user emit**。
+
+### 5) 证伪／最小证明（移植）
+- 将 LIVE `0x1490..0x15d0`（mk+main，0x140B）**原样写入** PP lit 同偏移 → 运行 **exit=0**。
+- ⇒ emit≠LIVE／运行红的充要落点＝**用户 mk+main codegen**；CRT／其余 PE 在 SoftCap 形 mk/main 下可绿。
+- RR 仅改 load 3B → 行为变 AV（仍红）；无完整 mk/main 不可绿。
+
+### 6) 根因（最小路径）
+1. **Isol Capless／thin PE 用户 codegen ≠ LIVE SoftCap 形**（帧 0x868/0x878、rdx 封送、`48 8b 00`／`48 89 d8`）。自 EE/PP 起 emit≠LIVE；PP 已 AV。
+2. **Isol-RR 7× 弱同构 internal remap** 使 Capless 编译门绿，但 **坍缩 mk/main**，CRT 仍钉 0x14f8 → 运行 illegal／错 exit；sha `cf747d6b5129`≠`dbaab1c7ce70`。
+3. **PAIR-slot 9× 仍挂 SoftCap stub `@0x57ef78`**（LIVE PAIR `@0x289dcb` Isol 缺席）— SoftCap 双槽未复原，疑与未走 SoftCap 用户 emit 同源结构缺口（本拍未主刀，列为下一最小刀候选）。
+
+### 7) 硬 blocker（不可请批／勿收刀／勿升 PROD）
+1. Win SoftCap Isol-RR `p_ret_*` **运行未绿**；emit ≠ LIVE SoftCap。
+2. Capless 用户 emit 缺 SoftCap 形；RR remap 不可当作绿路径保留。
+3. PAIR-slot 仍 stub；PROD／钉未动。
+
+### 8) 下一拍最小刀
+1. **PAIR-slot** 9×：寻 LIVE `@0x289dcb` 替代同构或最小 retarget（禁 mega／禁整树 plant）— 优先验证是否拉回 SoftCap 用户 emit（0x868/0x878）。
+2. 或：撤销／替换 RR 7× 弱 remap → **高分同构校验 + 单点 plant** 真 helper（仅缺的 7）。
+3. 或：定点修 Capless thin emit（rdx 封送 + `enc_load_64_from_rax`／`enc_mov_rbx_to_rax` 产物须为 `48 8b 00`／`48 89 d8` + SoftCap 帧）— 需先 DIG 清 Isol 内 encoder 实际落点（疑 Capless 错挂／错 append，源码立即数本身正确）。
+4. 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 9) open
+- DIG 完成；移植证明在 Win cave `out_pp/p_ret_lit_live_mkmain.exe`（仅 DIG，非收刀）
+- PROD SoftCap `7a2cf5da581a`／钉盘 ecdb5cc1e **未动**
+- bans unchanged
