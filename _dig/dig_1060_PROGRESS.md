@@ -1,6 +1,6 @@
 # 10.60 SoftCap DIG PROGRESS
 
-**2026-10-30 ~17:20 CST (Asia/Shanghai)** · DIG Isol SoftCap lit **证伪无容器**：无 `@2a62c9`-兼容已填 vec；无单 E8 fill+push；`0x568` 唯 Capless 空壳；plant **不可隔离** → 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：Cap≠Capless／pre_last 另槽已填容器（禁 tip@121278／join／epi／LIVE／mega）
+**2026-10-30 ~17:25 CST (Asia/Shanghai)** · DIG Cap≠Capless／pre_last 另槽：**钉死无非空壳供给** — SoftCap lit 唯 Capless 空壳 arg5；非 Capless site／异源 pre_last 调用方皆不产已填 `@2a62c9`；plant 不可隔离（禁 mega glue）→ 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：Isol-native imm→rdx 旁路（不经 filled args）
 
 
 ## 2026-10-30 ~17:20 CST Asia/Shanghai — DIG Isol SoftCap lit filled vec／E8 fill+push；证伪无容器；无 plant
