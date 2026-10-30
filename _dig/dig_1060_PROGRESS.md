@@ -1,5 +1,51 @@
 # 10.60 SoftCap DIG PROGRESS
 
+**2026-10-30 ~15:54 CST (Asia/Shanghai)** · DIG Capless-internal USER enc：`emit_u8@511018`/`emit_u32@5110f8` **HIT**；prologue 模板 `@512f0c`=`48 81 EC`+zero（0 E8 callers／lit off-path）；Capless/enc-band `frame_sz` imm **未 HIT**；plant `int_enc868` AV/GS；**plant 不可隔离** → 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：on-path `emit_u32(frame_sz)` 喂入（禁 tip@121278／join／epi／LIVE／mega）
+
+## 2026-10-30 ~15:54 CST Asia/Shanghai — DIG Capless-internal USER enc frame_sz→enc_prologue
+
+### 0) 闸
+- tip HEAD `a0f6a26b9`＝origin/dev（本拍前；commit 后见 tip）
+- Base alt_frame2 `9378df517f96`；短超时 INT3；cave `_dig_host_ie*`／plant host 已清
+- PROD SoftCap `7a2cf5da581a` **未动**／钉 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／未绿请批／LEGACY／字母堆／LIVE SoftCap 移植／arg-loop／tip@121278／join／epi：遵守
+- 残留：本地＋windows-server dig/python／`_dig_host_ie*` 已杀
+
+### 1) DIG 钉死（本拍）
+1. CapFN HIT 经 `last@57b98c`；Capless 直调 CapFN E8 lit **OK**；CapFN→`@55d948`＝`0x40/8`≠USER frame。
+2. USER `enc_prologue` 模板 `@512f0c` 写 `48 81 EC`+**零** imm；E8 callers=0；lit 体 INT3 OK/AV。
+3. lit on-path 字节写者＝`emit_u8@511018`／`emit_u32@5110f8` **HIT**。
+4. Capless/enc-band `mov eax,0x68/0x1b8` **未 HIT**；`mov*,0x868` n=0。
+5. plant `int_enc868`（`@512d28`→`0x868`）off-path＋AV/GS — **不可隔离**。
+
+### 2) Win SoftCap 门
+| Isol | sha12 | lit／fwd／local |
+|---|---|---|
+| alt_frame2 | `9378df517f96` | compile OK／GS／OK；emit 薄；run rc=1 |
+| int_enc868 | `2f6418c52e5d` | **AV／GS／AV**（已删 cave） |
+
+### 3) 三端门
+| 端 | 结果 |
+|---|---|
+| Win SoftCap p_ret_* | **未运行绿** |
+| Darwin／Ubuntu | **未扩** |
+| PROD／钉 | **未动** |
+
+### 4) 硬 blocker
+1. lit `frame_sz` 无 on-path imm HIT；SoftCap `0x868` 未进 Capless enc arg。
+2. Ban tip@121278／join／epi／LIVE／mega／arg-loop。
+
+### 5) 下一拍最小刀
+1. 单点 DIG／Isol：on-path **`emit_u32(frame_sz)`** 喂入（谁把 `0x68`/`0x1b8` 送进 `@5110f8`）；短超时。
+2. 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 6) open
+- 笔记 `_dig/dig_int_enc868.md`；脚本 `_dig/dig_int_enc868.py`（+b/c/d/e）＋ logs
+- PROD SoftCap `7a2cf5da581a`／钉 ecdb5cc1e **未动**
+
+
+# 10.60 SoftCap DIG PROGRESS
+
 **2026-10-30 ~15:50 CST (Asia/Shanghai)** · DIG Capless post-success→USER `0x868`：**falsified** tip`@127212` diag-only；kind`0x31` SoftMega off-path／0×`0x868`；Capless-band imm 未 HIT；**plant 不可隔离** → 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：Capless-**internal** USER enc `frame_sz`→`enc_prologue`（禁 tip@121278／join／epi／LIVE／mega）
 
 ## 2026-10-30 ~15:50 CST Asia/Shanghai — DIG Capless post-success → USER 0x868
