@@ -56,3 +56,7 @@ Isol SoftCap twin kind==0x31 SoftMega trampoline ≠ LIVE SoftCap `@289dcb`. Opt
 3. SoftCap-full early success after glue sret — inject Isol Capless CALL finish that emits imm→rdx+E8 (only if a real Isol helper writes that pattern; ban LIVE SoftCap transplant).
 
 Ban: mega / whole-tree / cave letter pile / CloudAgent / ungreen approval / PROD lift.
+
+## Follow-up 2026-10-30 ~12:45 — callsz_le ≤16 helper chain falsified
+
+See `dig_callsz_le.md`. SoftCap twin size gate Isol@1d9b91/LIVE@50786 isomorphic. Plant `callsz_le` (jle→jmp ≤16 @1d9cc1) emit＝TT / exit 1 / ba0a=0. Post helpers do not write call-mk; SoftMega≠LIVE SoftCap@289dcb remains.
