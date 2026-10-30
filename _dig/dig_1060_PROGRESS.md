@@ -908,3 +908,80 @@ Isol CapFN 体内 E8 入 SoftCap mega `[0x57effc,0x58e9a0)`：**5** 处；−Δ`
 - DIG 完成；移植证明在 Win cave `out_pp/p_ret_lit_live_mkmain.exe`（仅 DIG，非收刀）
 - PROD SoftCap `7a2cf5da581a`／钉盘 ecdb5cc1e **未动**
 - bans unchanged
+
+## 2026-10-30 ~09:10 CST Asia/Shanghai — PAIR-slot falsify + Isol-SS high-score retarget + encoder sink start
+
+### 0) 闸
+- tip HEAD `0661ee6fb`＝origin/dev（本拍自 tip DIG `0661ee6fb` 续）
+- LIVE SoftCap host `lab_LIVE_pret.exe` sha12 `cbc0d8e8d96f`；LIVE lit emit `dbaab1c7ce70`
+- Isol-G `7701dac5b813`／Isol-RR `1c3119231383`／**Isol-SS `4e35dff4d102`**（Win `C:/xlang_tmp/p1060/cave/xlang_isol1060_SS.exe`）
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega 主刀／假绿／未绿请批／LEGACY：遵守
+- 本拍：PAIR DIG 证伪 → Isol-SS（Capless 9×＋7× 高分 exact-prol remap；PAIR 留 stub）→ encoder 落点初 DIG；未运行绿 → 勿收刀
+
+### 1) PAIR-slot 同构／retarget — **证伪**
+| | LIVE SoftCap | Isol-G／SS |
+|---|---|---|
+| PAIR 入口 | `@0x289dcb` SoftCap prol `55 b8 70 10 00 00 e8`（frame **0x1070**） | **0 hit** 同 prol |
+| PAIR 调用点 | SoftCap 形（含 `[rbp+0x1000..]` 大帧布局） | 9× 仍 E8→**`@0x57ef78`** thin SoftCap stub |
+| stub 体 | — | `@0x57ef78` head `55 48 89 e5 53 48 81 ec a8 00 00 00…`；内 E8→mega `@0x59b170`（禁 mega 主刀） |
+| SoftCap PAIR 整树 plant | — | **禁**（LIVE 家族窗／整树 plant ban） |
+
+- 结论：**无 Isol 内 SoftCap PAIR 同构可挂**；retarget 无目标；不可用 PAIR 拉回 SoftCap `0x868` 用户 emit。
+- 动作：Isol-SS **刻意保留** PAIR 9×→`@0x57ef78`（不改挂／不 plant）。
+
+### 2) Isol-SS：Capless-slot 9× + 7× **高分 exact-prol** internal remap
+- 相对 RR 弱 remap，本拍改挂为 exact-8B-prol＋最大 masked 同构（唯一；避开 Capless／PAIR／mega）：
+
+| Capless call | RR dest（弱） | SS dest（高分） | LIVE 对照 prol |
+|---|---|---|---|
+| `@0x576692` | `@0x231334` | **`@0x2be519`** | LIVE `@0x28e9c0` 0x150 |
+| `@0x5766ec` | `@0x2c614f` | `@0x2c614f` | LIVE `@0x28eeb6` 0x190 |
+| `@0x576746` | `@0x46a4db` | `@0x46a4db` | LIVE `@0x28fb43` 0x1f0 |
+| `@0x5767a0` | `@0x29aefb` | **`@0x493d31`** | LIVE `@0x291256` 0x260 |
+| `@0x5767fa` | `@0x49c90f` | `@0x49c90f` | LIVE `@0x293080` 0x220 |
+| `@0x576a47` | `@0x5e5d7d` sc32 | **`@0x2b55e7`** | LIVE `@0x2822e2` thin 0x30 |
+| `@0x577405` | `@0x495fa7` | **`@0x27a89b`** | LIVE `@0x29ac14` 0x240 |
+
+- 构建脚本：`_dig/build_isol_ss.py`（cave 同跑）；log `_dig/p1060_ss/isol_ss_log.txt`
+
+### 3) Isol-SS 门（Win SoftCap）— **编译绿／运行红／SoftCap 帧仍 0**
+| probe | compile | emit sha12 | SoftCap `0x868`/`0x878` | `a8feff` | run |
+|---|---|---|---|---|---|
+| p_ret_lit | 0 | `5c640540c9be`（≠LIVE `dbaab1c7ce70`） | **0／0** | 4 | AV `0xC0000005` |
+| p_ret_fwd | 0 | `e4d84ced387f` | 0／0 | 4 | AV `0xC0000005` |
+| p_ret_local | 0 | `2660750dcd7e` | 0／0 | 4 | AV `0xC0000005` |
+
+- emit 形 ≅ Isol-PP thin：帧 `sub rsp,0x1b8` 现；**无** SoftCap `0x868`/`0x878`；仍见 corrupt `e9 00 00`／`a8 fe ff`（同时 PE 内亦有 `48 89 d8`／`48 8b 00` 计数字面，非用户 mk/main SoftCap 落点）。
+- ⇒ **高分 Capless callee retarget 不能恢复 SoftCap `0x868` emit**；与 PAIR 证伪一并关闭「双槽 remap 即 SoftCap 用户形」假说。
+
+### 4) encoder／frame 落点初 DIG（未收刀）
+- Isol HOST **已有**正确 `48 89 d8` 模板写入器 `@0x5156ec`（`mov al,0x48/0x89/0xd8` → `[rbx+0/1/2]`）。
+- Isol／LIVE **未**见同风格 imm8 三连写入器构建真 `48 8b 00`（emit 风格不同；非本地缓冲填）。
+- Isol HOST 内 `sub rsp,0x868` **29×**（HOST SoftCap 路径存在），但 Capless 用户路径帧走 **0x68／0x1b8**（`arch_x86_64_enc_enc_prologue(frame_sz)`／compute_frame_size 分支 ≠ SoftCap）。
+- Capless 用户 emit 仍写出 `e9 00 00`（本应 `48 89 d8`）→ **调用链／append 路径错挂或缓冲损坏**，非源码立即数本身错。
+- tip 源：`backend_enc_dispatch_thin.x`／`x86_64_enc.x`（prologue／enc helpers）— 下一拍 DIG 清 Capless call 实际用的 mov_rbx／load_64／prologue vs SoftCap 路径分叉。
+
+### 5) 三端门
+| 端 | 结果 |
+|---|---|
+| Win SoftCap Isol-SS `p_ret_*` | **编译绿／运行 AV**；SoftCap 帧 0；emit≠LIVE |
+| Win PROD SoftCap `7a2cf5da581a` | **未动**（勿升） |
+| Darwin tip Cap soft | p_ret_lit/fwd/local **r=0** ✅ |
+| Ubuntu tip `compiler/xlang`（sha12 `ea9ddf4eb937`，旧 tip 二进制仍绿） | p_ret_* **r=0** ✅；`./xbuild build` tip-cold **FAIL** pure-ld（`pipeline_asm_emit_return_elf_impl_prev` undef）— 真 RC＝既有 tip 二进制，非纯-ld 冷链 |
+
+### 6) 硬 blocker（不可请批／勿收刀／勿升 PROD）
+1. PAIR-slot **证伪**：Isol 无 SoftCap PAIR 体；9× 仍 stub；禁 mega／整树。
+2. Isol-SS 高分 Capless remap **未**恢复 SoftCap `0x868` emit；运行仍 AV。
+3. Capless／thin 用户 codegen ≠ LIVE SoftCap 形（帧／rdx／`48 8b 00`／`48 89 d8` 产物）；encoder 落点未钉死调用链。
+4. Ubuntu tip-cold pure-ld 断链另记（与 SoftCap 运行绿无关）。
+
+### 7) 下一拍最小刀
+1. **encoder／frame_size 落点 DIG**：Isol Capless 用户路径实际调用的 prologue／mov_rbx／load_64／append vs SoftCap 路径分叉；验证 `@0x5156ec` 是否在用户 emit 链上、谁写出 `e9 00 00`／`a8 fe ff`。
+2. 或：定点 plant／retarget **缺的 SoftCap 用户 emit helper**（仅缺口，非整树；禁 mega）。
+3. 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 8) open
+- Isol-SS `4e35dff4d102`＋`_dig/build_isol_ss.py`／`_dig/p1060_ss/`；PAIR 证伪记录在案
+- PROD SoftCap `7a2cf5da581a`／钉盘 ecdb5cc1e **未动**
+- bans unchanged
