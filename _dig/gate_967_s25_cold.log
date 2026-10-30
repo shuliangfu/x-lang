@@ -1,0 +1,8 @@
+HOST host_967_s25.exe sha=e53841ce0e24 (expect e53841ce0e24)
+  p_ret_lit.x      host=OK       USER=5c6778769c3c (exp 5c6778769c3c) run=0        OK
+  p_ret_fwd.x      host=OK       USER=a99121ae7a80 (exp a99121ae7a80) run=0        OK
+  p_ret_local.x    host=OK       USER=36d26fcc9657 (exp 36d26fcc9657) run=0        OK
+  _var_let.x       host=OK       USER=d16c78ade1f2 (exp d16c78ade1f2) run=0        OK
+
+=== cold-only elapsed=0.3s GREEN ===
+PROD SoftCap / pin: untouched

@@ -3030,3 +3030,35 @@ Isol CapFN 体内 E8 入 SoftCap mega `[0x57effc,0x58e9a0)`：**5** 处；−Δ`
 - 笔记 `_dig/dig_fwd_46_967_sret.md`；赢家 `_dig/dig_fwd_46_967_sret_25.py`／`.log`
 - PROD／钉 **未动**；bans unchanged
 
+## 2026-10-30 ~19:50 CST Asia/Shanghai — DIG fwd_46_967_sret_persist Isol WORK
+
+### 0) 闸
+- tip base `8f1514246`＝origin/dev（本拍前；commit 后见 tip）
+- Winner Isol `host_967_s25.exe` sha12 `e53841ce0e24`（冷重建 byte-identical）
+- WORK alias `xlang_isol1060_967_s25.exe`（同字节）
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- **门绿≠PROD✅／≠收刀**；禁 CloudAgent／10.74／HARD BAN／mega／假绿／LIVE SoftCap 移植／arg-loop：遵守
+
+### 1) DIG 钉死（本拍）
+1. persist 落点：`_dig/build_isol_967_s25.py` 自 BASE `host_967_sret_tr460` sha `336f7fe218be` 重建 s25；断言 HOST sha `e53841ce0e24`。
+2. Capless USER16 `@57ba3b`＋cave@`559821` 三扫（c1→c2／let_sret／main_imm9）tramp@`57bbae`＝dig25 配方固化。
+3. 冷跑（rebuild 后＋cold-only）lit/fwd/local/let **仍全绿** USER sha 不变。
+
+### 2) Win SoftCap 门（冷跑）
+| src | USER sha12 | run |
+|---|---|---|
+| p_ret_lit.x | `5c6778769c3c` | 0 |
+| p_ret_fwd.x | `a99121ae7a80` | 0 |
+| p_ret_local.x | `36d26fcc9657` | 0 |
+| _var_let.x | `d16c78ade1f2` | 0 |
+
+- rebuild log `_dig/build_isol_967_s25.log`；cold-only `_dig/gate_967_s25_cold.log`
+
+### 3) 下一拍最小刀（单点）
+- **源级 SoftCap** 发出同形 USER（rcx=sret／x+1→rdx／main imm9／let caller-sret），或 Dig LIVE SoftCap 语义对拍 — **仍勿升 PROD／钉**。
+- Darwin Cap soft／Ubuntu tip-cold：persist 稳绿后另报可否开。
+- hollow／skip_1a0 仍对照勿收刀。
+
+### 4) open
+- 笔记 `_dig/dig_fwd_46_967_sret_persist.md`；重建 `_dig/build_isol_967_s25.py`；冷门 `_dig/gate_967_s25_cold.py`
+- PROD／钉 **未动**；bans unchanged；**门绿≠PROD✅**

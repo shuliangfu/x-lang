@@ -45,3 +45,13 @@ In-place fixup window `57bbae..57bd4e` = 416B; full 3-scan body ≈589B. dig25: 
 - Fold Isol s25 plant into a durable SoftCap source change (or keep as Isol recipe) before any PROD/pin bump.
 - Do **not** bump PROD / pin yet — Isol green ≠ LIVE SoftCap transplant.
 - hollow / skip_1a0 remain controls only.
+
+## Persist (fwd_46_967_sret_persist)
+
+- Rebuild+cold: `_dig/build_isol_967_s25.py` → host sha `e53841ce0e24` (byte-identical rebuild from BASE `336f7fe218be`)
+- WORK alias: `xlang_isol1060_967_s25.exe` (same bytes; cave)
+- Cold-only: `_dig/gate_967_s25_cold.py`
+- Persist dig: `_dig/dig_fwd_46_967_sret_persist.md`
+- Cold gate (rebuild + cold-only): lit/fwd/local/let **all run=0** USER shas match dig25
+- **PROD SoftCap / pin untouched** — gate green ≠ PROD bump / ≠ close knife
+- Darwin Cap soft / Ubuntu tip-cold: defer until persist stays green

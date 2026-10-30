@@ -1,0 +1,14 @@
+=== rebuild Isol-967_s25 (persist) ===
+BASE sha=336f7fe218be (expect 336f7fe218be)
+  body len=589 @cave 0x559821
+  trampoline jmp 0x559821 pad=411
+HOST sha=e53841ce0e24 (expect e53841ce0e24)
+wrote host_967_s25.exe + alias xlang_isol1060_967_s25.exe
+=== cold gate lit/fwd/local/let ===
+  p_ret_lit.x      host=OK       USER=5c6778769c3c (exp 5c6778769c3c) run=0        OK
+  p_ret_fwd.x      host=OK       USER=a99121ae7a80 (exp a99121ae7a80) run=0        OK
+  p_ret_local.x    host=OK       USER=36d26fcc9657 (exp 36d26fcc9657) run=0        OK
+  _var_let.x       host=OK       USER=d16c78ade1f2 (exp d16c78ade1f2) run=0        OK
+
+=== SUMMARY elapsed=0.4s host=e53841ce0e24 cold=GREEN ===
+PROD SoftCap / pin: untouched (gate green ¡Ù PROD bump)
