@@ -1,5 +1,52 @@
 # DIG 10.60 SoftCap PROGRESS
 
+**2026-10-30 ~14:50 CST (Asia/Shanghai)** · Capless h3 SoftCap lit **过 `@46a71c`／`@46a837` AV 窗**（h3_jesk）· h3 **ret**＋Capless h3_ok／call_h4；**AV 移 h4 `@493d31`** · SoftCap **未绿** → 勿升 PROD／钉 **不升**／勿收刀 · 下一拍：Capless h4 SoftCap lit 无 AV（禁移植／arg-loop／twin／字母堆）
+
+
+## 2026-10-30 ~14:50 CST Asia/Shanghai — DIG Capless h3 SoftCap lit past @46a71c；h3_jesk 证伪（AV→h4）
+
+### 0) 闸
+- tip HEAD `cb9d77daa`＝origin/dev（本拍前；commit 后见 tip）
+- Isol-TT `1f836615e0fc`；LIVE lit `dbaab1c7ce70`；TT lit `5b173cef1205`
+- Base site_abi_c36 `29a8ae206733`；plants：h3_je `a4461bae5d62`；h3_jesk `cfb0fae4f5d9`（语义短名）
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／未绿请批／LEGACY／字母堆／LIVE SoftCap 移植／arg-loop 强跳／twin retarget：遵守
+
+### 1) DIG 钉死（本拍）
+1. Capless h3 SoftCap lit（c36 SoftCap-site miss→h3）：**已走** `@46a71c` equal→`@46a756`；不等 AV 窗 `@46a71e..@46a741 @1fb0ec` **本拍 lit 未走**。
+2. Equal 后续：至 `@46a82b je @46a8a5`；fallthrough `@46a837..@46a8a0` **AV／TIMEOUT**（h3_eq_path DIG）。
+3. **h3_je**：`@46a82b je→jmp @46a8a5`。INT3：eq_land／je_force／exit_alt／kind3／after_kind／Capless jns／h3_ok／call_h4。lit／local **AV**；fwd **GS**。`@46a837` 未命中（跳过）。
+4. **h3_jesk**：h3_je＋`@46a90c jne→jmp`（跳 `@2a3d37`）。SoftCap lit INT3：**h3_ret**／after_h3／jns／**h3_ok**／**call_h4**／post_args／`@201d9f`／`@200ff7`；**h4 `@493d31` AV**；calt_exit AV。lit／local AV；fwd GS。
+5. ⇒ Capless h3 SoftCap lit **过 `@46a71c` 无 AV 且 h3 返回**；AV **前移至 Capless h4**（非 arg-loop）。tip_c21k Cap`@0024e6`-class 本拍前已证伪（见 dig_tip_c21k）。
+
+### 2) Win SoftCap 门
+| Isol | sha12 | lit／fwd／local |
+|---|---|---|
+| h3_je | `a4461bae5d62` | AV／GS／AV |
+| h3_jesk | `cfb0fae4f5d9` | AV／GS／AV |
+
+### 3) 三端门
+| 端 | 结果 |
+|---|---|
+| Win SoftCap p_ret_* | **未运行绿** |
+| Darwin／Ubuntu | **未扩** |
+| PROD／钉 | **未动** |
+
+### 4) 硬 blocker
+1. Capless SoftCap lit 过 h3 后 AV 于 h4 `@493d31`（或 calt_exit）。
+2. 无 Isol-native SoftCap lit call-mk／`0x868`。
+3. Ban 移植／arg-loop／twin／字母堆。
+
+### 5) 下一拍最小刀
+1. Capless h4 SoftCap lit 无 AV（单点 DIG AV root＠h4；禁 arg-loop／移植）→ 续 Capless emit／call-mk。
+2. 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 6) open
+- 笔记 `_dig/dig_h3_jesk.md`；cave h3_je／h3_jesk；logs h3_je.log／h3_jesk.log／h3_eq_path.log
+- PROD SoftCap `7a2cf5da581a`／钉 ecdb5cc1e **未动**
+
+
+
 **2026-10-30 ~14:45 CST (Asia/Shanghai)** · Isol Cap`@0024e6`-class tip_c21k／tip_c21b **证伪** （Cap21 入 body→CG002；c0=r8→TIMEOUT）· Capless h3 SoftCap lit 下一拍 · SoftCap **未绿** → 勿升 PROD／钉 ecdb5cc1e **不升**／勿收刀 · 下一拍：h3 SoftCap lit 过 `@46a71c` 无 AV（禁移植／arg-loop／twin／字母堆）
 
 
