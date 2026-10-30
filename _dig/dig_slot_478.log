@@ -1,0 +1,439 @@
+=== Isol sha12=9378df517f96 Capless [0x576000..0x578280) ===
+
+=== A) Capless call sites + arg setup ===
+
+--- @1ff2ef (1ff2ef_num_args) Capless E8 sites=['0x57698f', '0x577539', '0x577b0a', '0x577c47'] ---
+  window @57698f:
+    @57693f: add byte ptr [rax], al
+    @576941: add byte ptr [rsi + 0x2e], bh
+    @576944: mov edx, dword ptr [rbp + 0x43c]
+    @57694a: mov rax, qword ptr [rbp + 0x490]
+    @576951: mov rcx, rax
+    @576954: call 0x4dac80
+    @576959: mov dword ptr [rbp + 0x438], eax
+    @57695f: cmp dword ptr [rbp + 0x438], 2
+    @576966: jne 0x576972
+    @576968: mov dword ptr [rbp + 0x470], 1
+    @576972: cmp dword ptr [rbp + 0x470], 0
+    @576979: je 0x576b7b
+    @57697f: mov edx, dword ptr [rbp + 0x4a0]
+    @576985: mov rax, qword ptr [rbp + 0x490]
+    @57698c: mov rcx, rax
+    @57698f: call 0x1ff2ef <<<
+  window @577539:
+    @5774e9: and al, 0x28
+    @5774eb: mov ecx, dword ptr [rbp + 0x4b0]
+    @5774f1: mov dword ptr [rsp + 0x20], ecx
+    @5774f5: mov rcx, rax
+    @5774f8: call 0x572620
+    @5774fd: mov dword ptr [rbp + 0x408], eax
+    @577503: cmp dword ptr [rbp + 0x408], 0
+    @57750a: jns 0x577516
+    @57750c: mov eax, 0xffffffff
+    @577511: jmp 0x578278
+    @577516: cmp dword ptr [rbp + 0x408], 0
+    @57751d: jle 0x577529
+    @57751f: mov eax, 0
+    @577524: jmp 0x578278
+    @577529: mov edx, dword ptr [rbp + 0x4a0]
+    @57752f: mov rax, qword ptr [rbp + 0x490]
+    @577536: mov rcx, rax
+    @577539: call 0x1ff2ef <<<
+  window @577b0a:
+    @577aba: mov qword ptr [rbp + 0xd8], 0
+    @577ac5: mov edx, dword ptr [rbp + 0x36c]
+    @577acb: lea rcx, [rbp + 0x60]
+    @577acf: mov rax, qword ptr [rbp + 0x460]
+    @577ad6: mov r8, rcx
+    @577ad9: mov rcx, rax
+    @577adc: call 0x55cf88
+    @577ae1: mov dword ptr [rbp + 0x3f0], eax
+    @577ae7: cmp dword ptr [rbp + 0x3f0], 0
+    @577aee: jg 0x577afa
+    @577af0: mov eax, 0xffffffff
+    @577af5: jmp 0x578278
+    @577afa: mov edx, dword ptr [rbp + 0x4a0]
+    @577b00: mov rax, qword ptr [rbp + 0x490]
+    @577b07: mov rcx, rax
+    @577b0a: call 0x1ff2ef <<<
+  window @577c47:
+    @577bf7: add eax, dword ptr [rax]
+    @577bf9: add byte ptr [rax - 0x75], cl
+    @577bfc: test dword ptr [rax + 0x41000004], ebx
+    @577c02: mov eax, ecx
+    @577c04: mov rcx, rax
+    @577c07: call 0x525544
+    @577c0c: test eax, eax
+    @577c0e: je 0x577c1a
+    @577c10: mov eax, 0xffffffff
+    @577c15: jmp 0x578278
+    @577c1a: mov eax, 0
+    @577c1f: jmp 0x578278
+    @577c24: cmp dword ptr [rbp + 0x45c], 3
+    @577c2b: je 0x577c37
+    @577c2d: mov eax, 0xffffffff
+    @577c32: jmp 0x578278
+    @577c37: mov edx, dword ptr [rbp + 0x4a0]
+    @577c3d: mov rax, qword ptr [rbp + 0x490]
+    @577c44: mov rcx, rax
+    @577c47: call 0x1ff2ef <<<
+
+--- @201eeb (201eeb) Capless E8 sites=['0x576d85'] ---
+  window @576d85:
+    @576d35: mov ebp, 0x428
+    @576d3a: add byte ptr [rcx + 0xa], bh
+    @576d3d: mov eax, 0xffffffff
+    @576d42: jmp 0x578278
+    @576d47: cmp dword ptr [rbp + 0x428], 0
+    @576d4e: jle 0x576d5a
+    @576d50: mov eax, 0
+    @576d55: jmp 0x578278
+    @576d5a: cmp qword ptr [rbp + 0x460], 0
+    @576d62: je 0x57766c
+    @576d68: cmp dword ptr [rbp + 0x45c], 0x2c
+    @576d6f: jne 0x57766c
+    @576d75: mov edx, dword ptr [rbp + 0x468]
+    @576d7b: mov rax, qword ptr [rbp + 0x490]
+    @576d82: mov rcx, rax
+    @576d85: call 0x201eeb <<<
+
+--- @201f36 (201f36_emit_memcpy) Capless E8 sites=['0x576f5e'] ---
+  window @576f5e:
+    @576f0e: add byte ptr [rax], al
+    @576f10: mov qword ptr [rbp + 0x138], 0
+    @576f1b: mov qword ptr [rbp + 0x140], 0
+    @576f26: mov qword ptr [rbp + 0x148], 0
+    @576f31: mov qword ptr [rbp + 0x150], 0
+    @576f3c: mov qword ptr [rbp + 0x158], 0
+    @576f47: lea rcx, [rbp + 0x60]
+    @576f4b: mov edx, dword ptr [rbp + 0x424]
+    @576f51: mov rax, qword ptr [rbp + 0x490]
+    @576f58: mov r8, rcx
+    @576f5b: mov rcx, rax
+    @576f5e: call 0x201f36 <<<
+
+=== B) @1ff2ef body role (ensure side-effect / rcx / ret) ===
+  E8 dests=['0x1fe37d', '0x1fe37d', '0x1f70cf', '0x1f624c', '0x1f61f7', '0x1ef4fc', '0x1f61f7']
+  @1ff2ef: push rbp
+  @1ff2f0: mov rbp, rsp
+  @1ff2f3: sub rsp, 0x30
+  @1ff2f7: mov qword ptr [rbp + 0x10], rcx
+  @1ff2fb: mov dword ptr [rbp + 0x18], edx
+  @1ff2fe: mov edx, dword ptr [rbp + 0x18]
+  @1ff301: mov rax, qword ptr [rbp + 0x10]
+  @1ff305: mov rcx, rax
+  @1ff308: call 0x1fe37d
+  @1ff30d: mov qword ptr [rbp - 8], rax
+  @1ff311: cmp qword ptr [rbp - 8], 0
+  @1ff316: je 0x1ff324
+  @1ff318: mov rax, qword ptr [rbp - 8]
+  @1ff31c: mov eax, dword ptr [rax + 0x274]
+  @1ff322: jmp 0x1ff329
+  @1ff32e: ret 
+  @1ff337: mov qword ptr [rbp + 0x10], rcx
+  @1ff341: mov rax, qword ptr [rbp + 0x10]
+  @1ff345: mov rcx, rax
+  @1ff348: call 0x1fe37d
+  @1ff34d: mov qword ptr [rbp - 8], rax
+  @1ff356: jne 0x1ff35f
+  @1ff35d: jmp 0x1ff369
+  @1ff35f: mov rax, qword ptr [rbp - 8]
+  @1ff363: mov eax, dword ptr [rax + 0x278]
+  @1ff36e: ret 
+
+  ensure call sites inside @1ff2ef:
+  window ensure @1ff3aa:
+    @1ff37a: adc byte ptr [rcx - 0x76bbe7ab], cl
+    @1ff380: and byte ptr [r8 - 0x7d], r9b
+    @1ff384: jge 0x1ff396
+    @1ff386: add byte ptr [rsi + rax - 0x7d], dh
+    @1ff38a: jge 0x1ff3a4
+    @1ff38c: add byte ptr [rdi + 0xa], bh
+    @1ff38f: mov eax, 0
+    @1ff394: jmp 0x1ff460
+    @1ff399: cmp dword ptr [rbp + 0x20], 0
+    @1ff39d: setne al
+    @1ff3a0: movzx edx, al
+    @1ff3a3: mov rax, qword ptr [rbp + 0x10]
+    @1ff3a7: mov rcx, rax
+    @1ff3aa: call 0x1f70cf <<<
+
+=== C) @201eeb / @201f36 ABI + kinded touch? ===
+
+--- @201eeb (201eeb) ---
+  E8=['0x1fe37d', '0x1fe37d', '0x63b200', '0x63b200', '0x63b1f0']
+  chain∩=[]
+  @201eeb: push rbp
+  @201eec: mov rbp, rsp
+  @201eef: sub rsp, 0x30
+  @201ef3: mov qword ptr [rbp + 0x10], rcx
+  @201ef7: mov dword ptr [rbp + 0x18], edx
+  @201efa: mov edx, dword ptr [rbp + 0x18]
+  @201efd: mov rax, qword ptr [rbp + 0x10]
+  @201f01: mov rcx, rax
+  @201f04: call 0x1fe37d
+  @201f09: mov qword ptr [rbp - 8], rax
+  @201f0d: cmp qword ptr [rbp - 8], 0
+  @201f12: je 0x201f1f
+  @201f14: mov rax, qword ptr [rbp - 8]
+  @201f18: mov eax, dword ptr [rax]
+  @201f1a: cmp eax, 0x2c
+  @201f1d: je 0x201f26
+  @201f1f: mov eax, 0
+  @201f24: jmp 0x201f30
+  @201f26: mov rax, qword ptr [rbp - 8]
+  @201f2a: mov eax, dword ptr [rax + 0x14c]
+  imm hits=['@201f72: mov r8d, 0x100', '@201fb5: mov r8d, 0x100']
+
+--- @201f36 (201f36) ---
+  E8=['0x1fe37d', '0x63b200', '0x63b200', '0x63b1f0', '0x1fe37d']
+  chain∩=[]
+  @201f36: push rbp
+  @201f37: mov rbp, rsp
+  @201f3a: sub rsp, 0x30
+  @201f3e: mov qword ptr [rbp + 0x10], rcx
+  @201f42: mov dword ptr [rbp + 0x18], edx
+  @201f45: mov qword ptr [rbp + 0x20], r8
+  @201f49: cmp qword ptr [rbp + 0x20], 0
+  @201f4e: je 0x201fed
+  @201f54: mov edx, dword ptr [rbp + 0x18]
+  @201f57: mov rax, qword ptr [rbp + 0x10]
+  @201f5b: mov rcx, rax
+  @201f5e: call 0x1fe37d
+  @201f63: mov qword ptr [rbp - 0x10], rax
+  @201f67: cmp qword ptr [rbp - 0x10], 0
+  @201f6c: jne 0x201f87
+  @201f6e: mov rax, qword ptr [rbp + 0x20]
+  @201f72: mov r8d, 0x100
+  @201f78: mov edx, 0
+  @201f7d: mov rcx, rax
+  @201f80: call 0x63b200
+  imm hits=['@201f72: mov r8d, 0x100', '@201fb5: mov r8d, 0x100']
+
+=== D) Capless +0x478 STORE vs call order of targets ===
+  @576611: call @55d730
+  @57662c: call @55d730
+  @576631: 478:mov qword ptr [rbp + 0x478], rax
+  @576638: 478:cmp qword ptr [rbp + 0x478], 0
+  @576647: 478:mov qword ptr [rbp + 0x478], rax
+  @576692: call @2be519
+  @57698f: call @1ff2ef
+  @576d85: call @201eeb
+  @576f5e: call @201f36
+  @577539: call @1ff2ef
+  @577b0a: call @1ff2ef
+  @577c47: call @1ff2ef
+  @578200: 478:mov rcx, qword ptr [rbp + 0x478]
+  @578273: call @57b98c
+
+=== E) Post-@1ff2ef: does Capless use ensure result / kinded slot? ===
+
+  after @57698f+5:
+    @576994: mov dword ptr [rbp + 0x434], eax
+    @57699a: cmp dword ptr [rbp + 0x434], 0
+    @5769a1: jns 0x5769ad
+    @5769a3: mov eax, 0xffffffff
+    @5769a8: jmp 0x578278
+    @5769ad: mov r9, qword ptr [rbp + 0x4a8]
+    @5769b4: mov r8d, dword ptr [rbp + 0x474]
+    @5769bb: mov rdx, qword ptr [rbp + 0x498]
+    @5769c2: mov rax, qword ptr [rbp + 0x490]
+    @5769c9: mov ecx, dword ptr [rbp + 0x4b0]
+    @5769cf: mov dword ptr [rsp + 0x20], ecx
+
+  after @577539+5:
+    @57753e: mov dword ptr [rbp + 0x404], eax
+    @577544: mov r9d, dword ptr [rbp + 0x41c]
+    @57754b: lea r8, [rbp + 0x160]
+    @577552: mov edx, dword ptr [rbp + 0x414]
+    @577558: lea rax, [rbp - 0x20]
+    @57755c: mov ecx, dword ptr [rbp + 0x404]
+    @577562: mov dword ptr [rsp + 0x20], ecx
+    @577566: mov rcx, rax
+    @577569: call 0x22424f
+    @57756e: mov dword ptr [rbp + 0x400], eax
+    @577574: mov r9, qword ptr [rbp + 0x4a8]
+
+  after @577b0a+5:
+    @577b0f: mov dword ptr [rbp + 0x3ec], eax
+    @577b15: mov r9d, dword ptr [rbp + 0x3f4]
+    @577b1c: lea r8, [rbp + 0x260]
+    @577b23: mov edx, dword ptr [rbp + 0x3f0]
+    @577b29: lea rax, [rbp + 0x60]
+    @577b2d: mov ecx, dword ptr [rbp + 0x3ec]
+    @577b33: mov dword ptr [rsp + 0x20], ecx
+    @577b37: mov rcx, rax
+    @577b3a: call 0x22424f
+    @577b3f: mov dword ptr [rbp + 0x3e8], eax
+    @577b45: mov r9, qword ptr [rbp + 0x4a8]
+
+  after @577c47+5:
+    @577c4c: mov dword ptr [rbp + 0x3e0], eax
+    @577c52: cmp dword ptr [rbp + 0x3e0], 0
+    @577c59: jns 0x577c65
+    @577c5b: mov eax, 0xffffffff
+    @577c60: jmp 0x578278
+    @577c65: cmp dword ptr [rbp + 0x3e0], 0x60
+    @577c6c: jle 0x577c78
+    @577c6e: mov eax, 0xffffffff
+    @577c73: jmp 0x578278
+    @577c78: mov r9, qword ptr [rbp + 0x4a8]
+    @577c7f: mov r8d, dword ptr [rbp + 0x4a0]
+
+=== F) Single-point feasibility checks ===
+  Capless E8∩CHAIN=[('0x576611', '0x55d730'), ('0x57662c', '0x55d730')]
+  Capless E8∩(fill/ensure/push/unwrap band)=[('0x576611', '0x55d730'), ('0x57662c', '0x55d730')]
+
+  @201f36 (prior+this): memcpy into CallExpr node fields (+0x20/+0x120) — NOT kinded fill, NOT +0x478.
+  @201eeb: sibling helper (see E8/imm) — expect same class (field/size), not fill.
+  @1ff2ef: num_args_at(+0x274); side-effect ensure @1f70cf on parent=CallExpr node.
+           Returns count/status; Capless uses return as gate (cmp/jcc), NEVER feeds fill/push/+0x478.
+
+  ensure≠fill: @1f70cf creates/looks up kinded entry; [slot+0x100] written ONLY by fill-fam.
+  Capless post-ensure: no fill E8, no unwrap, no push, no +0x478 mutate.
+  Single-point plant needing fill+unwrap+push = mega/arg-loop (BAN).
+  Hijack existing Capless E8 to fill: Capless has ZERO fill E8 to hijack.
+  Retarget @201f36 output into +0x478: output is in-node field memcpy, wrong shape for @2a62c9 vec.
+
+=== G) SoftCap lit CallExpr as kinded parent — slot usable? ===
+  @1f70cf E8=['0x1f676b', '0x1f65d6', '0x1f6675', '0x1f66c3', '0x1f67d6']
+  @1f70cf: push rbp
+  @1f70d0: mov rbp, rsp
+  @1f70d3: sub rsp, 0x50
+  @1f70d7: mov qword ptr [rbp + 0x10], rcx
+  @1f70db: mov dword ptr [rbp + 0x18], edx
+  @1f70de: cmp qword ptr [rbp + 0x10], 0
+  @1f70e3: jne 0x1f70ef
+  @1f70e5: mov eax, 0
+  @1f70ea: jmp 0x1f77db
+  @1f70ef: mov r9, qword ptr [rip + 0x879f02]
+  @1f70f6: mov r8, qword ptr [rip + 0x879ef3]
+  @1f70fd: mov rdx, qword ptr [rip + 0x879ee4]
+  @1f7104: mov rax, qword ptr [rip + 0x879ed5]
+  @1f710b: mov rcx, qword ptr [rbp + 0x10]
+  @1f710f: mov qword ptr [rsp + 0x20], rcx
+  @1f7114: mov rcx, rax
+
+  Capless loads of kinded-slot APIs:
+  Capless→slot_apis count=0
+  Capless 0x100 refs (first 12)=['@576ec3: mov qword ptr [rbp + 0x100], 0', '@5781ec: mov dword ptr [rsp + 0x30], 0x100']
+
+=== VERDICT ===
+
+Q: Capless-already-called @1ff2ef gate / @201eeb|@201f36 parent/slot → single-point +0x478 fill?
+
+1. @1ff2ef: Capless calls it (num_args gate). Side-effect ensure @1f70cf on CallExpr parent.
+   - Parent IS SoftCap lit CallExpr (kinded-capable after ensure).
+   - BUT Capless NEVER reads kinded slot / NEVER fill / NEVER push into +0x478.
+   - ensure alone ≠ filled emit-arg; [slot+0x100] still empty without fill-fam.
+   - Return value used only as gate (count/status). Cannot single-point "connect ensure→+0x478".
+
+2. @201eeb / @201f36: Capless calls them; they memcpy SoftCap lit fields into CallExpr node
+   (+0x20/+0x120 class). NOT kinded-slot fill. NOT +0x478 vec push. Wrong object shape
+   for @2a5ca8/@2a62c9. Retargeting their dst into +0x478 = wrong ABI (BAN-adjacent / red).
+
+3. Capless E8∩fill/unwrap/push/@2a5410/@2a4f6a = 0. No hijackable E8.
+   Wiring ensure'd parent → fill → unwrap → push +0x478 = multi-call mega/arg-loop (BAN).
+
+⇒ plant slot_478 / f36_push: NOT isolatable.
+⇒ Capless parent MAY be kinded-capable after @1ff2ef ensure, but has NO filled slot and
+   NO single-point path from existing Capless calls into +0x478.
+⇒ Frontier still RED. Next: find Isol-native SoftCap path that already produces a
+   @2a62c9-compatible filled vec (or single Isol E8 that does fill+push for lit CallExpr),
+   without Capless mega glue. Or falsify that such Isol-native path exists at all for SoftCap lit.
+
+DONE 0.0s
+=== @1ff2ef entry → all rets (no ensure on Capless path) ===
+  calls on Capless-reachable @1ff2ef CFG: [(2093832, '0x1fe37d')]
+  rets: ['0x1ff32e']
+  ensure @1f70cf in path? False
+
+=== Where does @1f70cf live relative to @1ff2ef? ===
+  @1ff36f: push rbp
+  @1ff370: mov rbp, rsp
+  @1ff373: sub rsp, 0x40
+  @1ff377: mov qword ptr [rbp + 0x10], rcx
+  @1ff37b: mov dword ptr [rbp + 0x18], edx
+  @1ff37e: mov dword ptr [rbp + 0x20], r8d
+  @1ff382: cmp qword ptr [rbp + 0x10], 0
+  @1ff387: je 0x1ff38f
+  @1ff389: cmp dword ptr [rbp + 0x18], 0
+  @1ff38d: jg 0x1ff399
+  @1ff38f: mov eax, 0
+  @1ff394: jmp 0x1ff460
+---
+  @1ff5c7: push rbp
+  @1ff5c8: mov rbp, rsp
+  @1ff5cb: sub rsp, 0x50
+  @1ff5cf: mov qword ptr [rbp + 0x10], rcx
+  @1ff5d3: mov dword ptr [rbp + 0x18], edx
+  @1ff5d6: mov dword ptr [rbp + 0x20], r8d
+  @1ff5da: cmp qword ptr [rbp + 0x10], 0
+  @1ff5df: je 0x1ff5ed
+  @1ff5e1: cmp dword ptr [rbp + 0x18], 0
+  @1ff5e5: jle 0x1ff5ed
+
+=== @201eeb 0x100 uses (size vs slot) ===
+  @201f04: call 0x1fe37d
+  @201f1a: cmp eax, 0x2c
+  @201f2a: mov eax, dword ptr [rax + 0x14c]
+  @201f5e: call 0x1fe37d
+  @201f72: mov r8d, 0x100
+  @201f80: call 0x63b200
+  @201fb5: mov r8d, 0x100
+  @201fc3: call 0x63b200
+  @201fe6: call 0x63b1f0
+
+=== @201f36 memcpy dst/size ===
+  @201f3e: mov qword ptr [rbp + 0x10], rcx
+  @201f45: mov qword ptr [rbp + 0x20], r8
+  @201f49: cmp qword ptr [rbp + 0x20], 0
+  @201f4e: je 0x201fed
+  @201f5b: mov rcx, rax
+  @201f5e: call 0x1fe37d
+  @201f6c: jne 0x201f87
+  @201f6e: mov rax, qword ptr [rbp + 0x20]
+  @201f72: mov r8d, 0x100
+  @201f7d: mov rcx, rax
+  @201f80: call 0x63b200
+  @201f85: jmp 0x201fee
+  @201f8b: mov eax, dword ptr [rax + 0x120]
+  @201f98: jns 0x201fa1
+  @201fa8: jle 0x201fb1
+  @201fb1: mov rax, qword ptr [rbp + 0x20]
+  @201fb5: mov r8d, 0x100
+  @201fc0: mov rcx, rax
+  @201fc3: call 0x63b200
+  @201fcc: jle 0x201fee
+  @201fd1: movsxd rcx, eax
+  @201fd8: lea rdx, [rax + 0x20]
+  @201fdc: mov rax, qword ptr [rbp + 0x20]
+  @201fe0: mov r8, rcx
+  @201fe3: mov rcx, rax
+  @201fe6: call 0x63b1f0
+  @201feb: jmp 0x201fee
+  @201ffc: mov qword ptr [rbp + 0x10], rcx
+  @20200a: mov rcx, rax
+  @20200d: call 0x1fe37d
+  @20201b: je 0x202028
+  @202026: je 0x20202f
+  @20202d: jmp 0x202039
+
+=== Capless post-@201f36: next calls (no +0x478 mutate) ===
+  @576f63: mov edx, dword ptr [rbp + 0x468]
+  @576f69: mov rax, qword ptr [rbp + 0x490]
+  @576f70: mov rcx, rax
+  @576f73: call 0x201ea0
+  @576f78: mov dword ptr [rbp + 0x41c], eax
+  @576f7e: cmp dword ptr [rbp + 0x41c], 0
+  @576f85: jle 0x57766c
+  @576f8b: cmp dword ptr [rbp + 0x41c], 0xff
+  @576f95: jg 0x57766c
+  @576f9b: mov qword ptr [rbp + 0x160], 0
+  @576fa6: mov qword ptr [rbp + 0x168], 0
+  @576fb1: mov qword ptr [rbp + 0x170], 0
+  @576fbc: mov qword ptr [rbp + 0x178], 0
+  @576fc7: mov qword ptr [rbp + 0x180], 0
+  @576fd2: mov qword ptr [rbp + 0x188], 0
+
+DONE 0.0s

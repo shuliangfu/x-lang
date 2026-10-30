@@ -1,5 +1,37 @@
 # 10.60 SoftCap DIG PROGRESS
 
+**2026-10-30 ~17:15 CST (Asia/Shanghai)** · DIG Capless `@1ff2ef`／`@201eeb|@201f36`→`+0x478`：**不可单点**；`@1ff2ef` Capless CFG **无** ensure（sibling `@1ff36f/@1ff5c7`）；`@201*`＝字段 memcpy／size`0x100`≠slot；plant **不可隔离** → 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：Isol-native SoftCap lit 是否已有 `@2a62c9`-兼容已填 vec／单 E8 fill+push（禁 tip@121278／join／epi／LIVE／mega）
+
+
+## 2026-10-30 ~17:15 CST Asia/Shanghai — DIG `@1ff2ef`／`@201eeb|@201f36` parent／slot→`+0x478`；无 plant
+
+### 0) 闸
+- tip HEAD `da135b3e8`＝origin/dev（本拍前；commit 后见 tip）
+- Isol alt_frame2 `9378df517f96`
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／tip@121278／join／epi／LIVE SoftCap 移植／arg-loop：遵守
+
+### 1) DIG 钉死（本拍）
+1. Capless 父＝`[rbp+0x490]` SoftCap lit CallExpr；`+0x478` 空壳 STORE **早于** `@1ff2ef`／`@201eeb`／`@201f36`；其后至 call-mk **零** mutate。
+2. `@1ff2ef` Capless CFG：仅 `@1fe37d`→`[+0x274]` eax 闸；**ensure `@1f70cf` ∉ 路径**（ensure＝sibling `@1ff36f`／`@1ff5c7`）。纠「ensure 副作用」先验。
+3. `@201eeb`／`@201f36`：kind／字段 memcpy；`r8d=0x100`＝拷贝 **长度**≠`[slot+0x100]`；chain∩fill／push／unwrap＝**0**。
+4. Capless E8∩fill 带＝仅 `@55d730`；→slot_apis＝**0**；无劫持 E8。
+5. Plant **不可隔离**；无 `slot_478`／`f36_push`；无 `p_ret_*`。
+
+### 2) Win SoftCap 门
+| Isol plant | sha12 | lit | run | USER |
+|---|---|---|---|---|
+| （本拍无） | — | — | — | N/A；frontier 仍红 |
+
+### 3) 下一拍最小刀（单点）
+- Isol-native SoftCap lit 是否已产出 `@2a62c9`-兼容 **已填 vec**（或单 E8 fill+push），不经 Capless mega 胶；否则证伪「Isol SoftCap lit 无已填 args 容器」。禁 tip@121278／join／epi／LIVE／mega／arg-loop。
+- 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 4) open
+- 笔记 `_dig/dig_slot_478.md`；先验 `_dig/dig_elem_fill_callers.md`
+- PROD／钉 **未动**；bans unchanged
+
+
 **2026-10-30 ~17:12 CST (Asia/Shanghai)** · DIG parent kinded `elem`／fill callers：`@20a948` **死**（E8=0／data-ref=0）；`@5d276c` fill 属 `@5cf*` 编码器≠Capless；SoftCap 仅 `@58f/@594→@1ff5c7` ensure→**status** 非 emit-arg；Capless 零 fill；plant **不可隔离** → 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：Capless 已调 `@1ff2ef`／`@201eeb|@201f36` 父／slot 能否单点接 `+0x478`（禁 tip@121278／join／epi／LIVE／mega）
 
 
