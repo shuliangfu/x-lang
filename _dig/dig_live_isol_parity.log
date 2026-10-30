@@ -1,0 +1,1387 @@
+=== DIG live_isol_parity (READ LIVE; no transplant) ===
+ISOL host_967_s25 sha=e53841ce0e24 (expect e53841ce0e24)
+LIVE lab_LIVE_pret sha=cbc0d8e8d96f
+PROD SoftCap sha=7a2cf5da581a (expect 7a2cf5da581a; NOT TOUCHED)
+
+######## p_ret_lit.x ########
+  LIVE  compile=OK USER=b1265db940f1 run=0
+  Isol  compile=OK USER=5c6778769c3c (exp 5c6778769c3c) run=0 OK
+
+=== LIVE/p_ret_lit.x sha=b1265db940f1 n_prolog=18 n868=1 n68=0 n1b8=0 ===
+  -- func[0] @0x1490 --
+    001490: 55                       push rbp
+    001491: 4889e5                   mov rbp, rsp
+    001494: 53                       push rbx
+    001495: 4881ec68080000           sub rsp, 0x868
+    00149c: 4889c8                   mov rax, rcx
+    00149f: 488945d8                 mov qword ptr [rbp - 0x28], rax
+    0014a3: 488b45d8                 mov rax, qword ptr [rbp - 0x28]
+    0014a7: 4889c3                   mov rbx, rax
+    0014aa: 53                       push rbx
+    0014ab: b801000000               mov eax, 1
+    0014b0: 5b                       pop rbx
+    0014b1: 53                       push rbx
+    0014b2: 48898300000000           mov qword ptr [rbx], rax
+    0014b9: b802000000               mov eax, 2
+    0014be: 5b                       pop rbx
+    0014bf: 53                       push rbx
+    0014c0: 48898308000000           mov qword ptr [rbx + 8], rax
+    0014c7: b803000000               mov eax, 3
+    0014cc: 5b                       pop rbx
+    0014cd: 53                       push rbx
+    0014ce: 48898310000000           mov qword ptr [rbx + 0x10], rax
+    0014d5: 5b                       pop rbx
+    0014d6: 4889d8                   mov rax, rbx
+    0014d9: 488d65f8                 lea rsp, [rbp - 8]
+    0014dd: 5b                       pop rbx
+    0014de: 5d                       pop rbp
+    0014df: c3                       ret 
+    FEATS: frame=0x868 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=0 imm_eax=[1, 2, 3] nop=False
+  -- func[1] @0x14e0 --
+    0014e0: 55                       push rbp
+    0014e1: 4889e5                   mov rbp, rsp
+    0014e4: 53                       push rbx
+    0014e5: 4881ec78080000           sub rsp, 0x878
+    0014ec: 488d45d8                 lea rax, [rbp - 0x28]
+    0014f0: 4889c3                   mov rbx, rax
+    0014f3: b801000000               mov eax, 1
+    0014f8: 48898300000000           mov qword ptr [rbx], rax
+    0014ff: b802000000               mov eax, 2
+    001504: 48898308000000           mov qword ptr [rbx + 8], rax
+    00150b: b803000000               mov eax, 3
+    001510: 48898310000000           mov qword ptr [rbx + 0x10], rax
+    001517: 488d45d8                 lea rax, [rbp - 0x28]
+    00151b: 488b00                   mov rax, qword ptr [rax]
+    00151e: 4889c3                   mov rbx, rax
+    001521: b801000000               mov eax, 1
+    001526: 4839c3                   cmp rbx, rax
+    001529: 0f95c0                   setne al
+    00152c: 0fb6c0                   movzx eax, al
+    00152f: 85c0                     test eax, eax
+    001531: 0f840f000000             je 0x1546
+    001537: b801000000               mov eax, 1
+    00153c: e979000000               jmp 0x15ba
+    001541: e900000000               jmp 0x1546
+    001546: 488d45d8                 lea rax, [rbp - 0x28]
+    00154a: 480508000000             add rax, 8
+    001550: 488b00                   mov rax, qword ptr [rax]
+    001553: 4889c3                   mov rbx, rax
+    FEATS: frame=rsp, 0x878 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=0 imm_eax=[1, 2, 3, 1, 1, 2, 2, 3] nop=False
+  -- func[2] @0x15d0 --
+    0015d0: 55                       push rbp
+    0015d1: 4889e5                   mov rbp, rsp
+    0015d4: 4883ec10                 sub rsp, 0x10
+    0015d8: 48894d10                 mov qword ptr [rbp + 0x10], rcx
+    0015dc: 48c745f800000000         mov qword ptr [rbp - 8], 0
+    0015e4: 48837d1000               cmp qword ptr [rbp + 0x10], 0
+    0015e9: 750c                     jne 0x15f7
+    0015eb: b800000000               mov eax, 0
+    0015f0: eb1b                     jmp 0x160d
+    0015f2: 488345f801               add qword ptr [rbp - 8], 1
+    0015f7: 488b5510                 mov rdx, qword ptr [rbp + 0x10]
+    0015fb: 488b45f8                 mov rax, qword ptr [rbp - 8]
+    0015ff: 4801d0                   add rax, rdx
+    001602: 0fb600                   movzx eax, byte ptr [rax]
+    001605: 84c0                     test al, al
+    001607: 75e9                     jne 0x15f2
+    001609: 488b45f8                 mov rax, qword ptr [rbp - 8]
+    00160d: 4883c410                 add rsp, 0x10
+    001611: 5d                       pop rbp
+    001612: c3                       ret 
+    FEATS: frame=rsp, 0x10 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=0 imm_eax=[0] nop=False
+  -- func[3] @0x1613 --
+    001613: 55                       push rbp
+    001614: 4889e5                   mov rbp, rsp
+    001617: 4883ec40                 sub rsp, 0x40
+    00161b: f20f114510               movsd qword ptr [rbp + 0x10], xmm0
+    001620: 48895518                 mov qword ptr [rbp + 0x18], rdx
+    001624: 4c894520                 mov qword ptr [rbp + 0x20], r8
+    001628: 48c745f800000000         mov qword ptr [rbp - 8], 0
+    001630: 48837d2000               cmp qword ptr [rbp + 0x20], 0
+    001635: 7407                     je 0x163e
+    001637: 48837d1800               cmp qword ptr [rbp + 0x18], 0
+    00163c: 750a                     jne 0x1648
+    00163e: b800000000               mov eax, 0
+    001643: e915020000               jmp 0x185d
+    001648: 660fefc0                 pxor xmm0, xmm0
+    00164c: 660f2f4510               comisd xmm0, xmmword ptr [rbp + 0x10]
+    001651: 7636                     jbe 0x1689
+    001653: 488b45f8                 mov rax, qword ptr [rbp - 8]
+    001657: 483b4520                 cmp rax, qword ptr [rbp + 0x20]
+    00165b: 7316                     jae 0x1673
+    00165d: 488b45f8                 mov rax, qword ptr [rbp - 8]
+    001661: 488d5001                 lea rdx, [rax + 1]
+    001665: 488955f8                 mov qword ptr [rbp - 8], rdx
+    001669: 488b5518                 mov rdx, qword ptr [rbp + 0x18]
+    00166d: 4801d0                   add rax, rdx
+    001670: c6002d                   mov byte ptr [rax], 0x2d
+    001673: f20f104510               movsd xmm0, qword ptr [rbp + 0x10]
+    001678: f30f7e0d903a0000         movq xmm1, qword ptr [rip + 0x3a90]
+    001680: 660f57c1                 xorpd xmm0, xmm1
+    FEATS: frame=rsp, 0x40 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=0 imm_eax=[0] nop=False
+  -- func[4] @0x23f9 --
+    0023f9: 55                       push rbp
+    0023fa: 4889e5                   mov rbp, rsp
+    0023fd: 4883ec30                 sub rsp, 0x30
+    002401: 48894d10                 mov qword ptr [rbp + 0x10], rcx
+    002405: 48895518                 mov qword ptr [rbp + 0x18], rdx
+    002409: 4c894520                 mov qword ptr [rbp + 0x20], r8
+    00240d: 4c894d28                 mov qword ptr [rbp + 0x28], r9
+    002411: 488d4528                 lea rax, [rbp + 0x28]
+    002415: 488945f0                 mov qword ptr [rbp - 0x10], rax
+    002419: 4c8b45f0                 mov r8, qword ptr [rbp - 0x10]
+    00241d: 488b4d20                 mov rcx, qword ptr [rbp + 0x20]
+    002421: 488b5518                 mov rdx, qword ptr [rbp + 0x18]
+    002425: 488b4510                 mov rax, qword ptr [rbp + 0x10]
+    002429: 4d89c1                   mov r9, r8
+    00242c: 4989c8                   mov r8, rcx
+    00242f: 4889c1                   mov rcx, rax
+    002432: e82cf4ffff               call 0x1863
+    002437: 8945fc                   mov dword ptr [rbp - 4], eax
+    00243a: 8b45fc                   mov eax, dword ptr [rbp - 4]
+    00243d: 4883c430                 add rsp, 0x30
+    002441: 5d                       pop rbp
+    002442: c3                       ret 
+    FEATS: frame=rsp, 0x30 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=1 imm_eax=[] nop=False
+  -- func[5] @0x2443 --
+    002443: 55                       push rbp
+    002444: 4889e5                   mov rbp, rsp
+    002447: 4883ec30                 sub rsp, 0x30
+    00244b: 894d10                   mov dword ptr [rbp + 0x10], ecx
+    00244e: 48895518                 mov qword ptr [rbp + 0x18], rdx
+    002452: 4c894520                 mov qword ptr [rbp + 0x20], r8
+    002456: 48837d2000               cmp qword ptr [rbp + 0x20], 0
+    00245b: 7507                     jne 0x2464
+    00245d: b800000000               mov eax, 0
+    002462: eb2f                     jmp 0x2493
+    002464: 48837d1800               cmp qword ptr [rbp + 0x18], 0
+    002469: 7507                     jne 0x2472
+    00246b: b8ffffffff               mov eax, 0xffffffff
+    002470: eb21                     jmp 0x2493
+    002472: 488b4520                 mov rax, qword ptr [rbp + 0x20]
+    002476: 89c1                     mov ecx, eax
+    002478: 488b5518                 mov rdx, qword ptr [rbp + 0x18]
+    00247c: 8b4510                   mov eax, dword ptr [rbp + 0x10]
+    00247f: 4189c8                   mov r8d, ecx
+    002482: 89c1                     mov ecx, eax
+    002484: 488b05c56d0000           mov rax, qword ptr [rip + 0x6dc5]
+    00248b: ffd0                     call rax
+    00248d: 8945fc                   mov dword ptr [rbp - 4], eax
+    002490: 8b45fc                   mov eax, dword ptr [rbp - 4]
+    002493: 4883c430                 add rsp, 0x30
+    002497: 5d                       pop rbp
+    002498: c3                       ret 
+    FEATS: frame=rsp, 0x30 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=1 imm_eax=[0, 4294967295] nop=False
+
+=== ISOL/p_ret_lit.x sha=5c6778769c3c n_prolog=18 n868=2 n68=0 n1b8=0 ===
+  -- func[0] @0x1490 --
+    001490: 55                       push rbp
+    001491: 4889e5                   mov rbp, rsp
+    001494: 53                       push rbx
+    001495: 4881ec68080000           sub rsp, 0x868
+    00149c: 4889c8                   mov rax, rcx
+    00149f: 488945d8                 mov qword ptr [rbp - 0x28], rax
+    0014a3: 488b45d8                 mov rax, qword ptr [rbp - 0x28]
+    0014a7: 4889c3                   mov rbx, rax
+    0014aa: 53                       push rbx
+    0014ab: b801000000               mov eax, 1
+    0014b0: 5b                       pop rbx
+    0014b1: 53                       push rbx
+    0014b2: 48898300000000           mov qword ptr [rbx], rax
+    0014b9: b802000000               mov eax, 2
+    0014be: 5b                       pop rbx
+    0014bf: 53                       push rbx
+    0014c0: 48898308000000           mov qword ptr [rbx + 8], rax
+    0014c7: b803000000               mov eax, 3
+    0014cc: 5b                       pop rbx
+    0014cd: 53                       push rbx
+    0014ce: 48898310000000           mov qword ptr [rbx + 0x10], rax
+    0014d5: 5b                       pop rbx
+    0014d6: 4889d8                   mov rax, rbx
+    0014d9: 488d65f8                 lea rsp, [rbp - 8]
+    0014dd: 5b                       pop rbx
+    0014de: 5d                       pop rbp
+    0014df: c3                       ret 
+    FEATS: frame=0x868 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=0 imm_eax=[1, 2, 3] nop=False
+  -- func[1] @0x14e0 --
+    0014e0: 55                       push rbp
+    0014e1: 4889e5                   mov rbp, rsp
+    0014e4: 53                       push rbx
+    0014e5: 4881ec68080000           sub rsp, 0x868
+    0014ec: 488d45d8                 lea rax, [rbp - 0x28]
+    0014f0: 4889c3                   mov rbx, rax
+    0014f3: b801000000               mov eax, 1
+    0014f8: 48898300000000           mov qword ptr [rbx], rax
+    0014ff: b802000000               mov eax, 2
+    001504: 48898308000000           mov qword ptr [rbx + 8], rax
+    00150b: b803000000               mov eax, 3
+    001510: 48898310000000           mov qword ptr [rbx + 0x10], rax
+    001517: 488d45d8                 lea rax, [rbp - 0x28]
+    00151b: 488b00                   mov rax, qword ptr [rax]
+    00151e: 4889c3                   mov rbx, rax
+    001521: b801000000               mov eax, 1
+    001526: 4839c3                   cmp rbx, rax
+    001529: 0f95c0                   setne al
+    00152c: 0fb6c0                   movzx eax, al
+    00152f: 85c0                     test eax, eax
+    001531: 0f840f000000             je 0x1546
+    001537: b801000000               mov eax, 1
+    00153c: e979000000               jmp 0x15ba
+    001541: e900000000               jmp 0x1546
+    001546: 488d45d8                 lea rax, [rbp - 0x28]
+    00154a: 480508000000             add rax, 8
+    001550: 488b00                   mov rax, qword ptr [rax]
+    001553: 4889c3                   mov rbx, rax
+    FEATS: frame=0x868 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=0 imm_eax=[1, 2, 3, 1, 1, 2, 2, 3] nop=False
+  -- func[2] @0x15d0 --
+    0015d0: 55                       push rbp
+    0015d1: 4889e5                   mov rbp, rsp
+    0015d4: 4883ec10                 sub rsp, 0x10
+    0015d8: 48894d10                 mov qword ptr [rbp + 0x10], rcx
+    0015dc: 48c745f800000000         mov qword ptr [rbp - 8], 0
+    0015e4: 48837d1000               cmp qword ptr [rbp + 0x10], 0
+    0015e9: 750c                     jne 0x15f7
+    0015eb: b800000000               mov eax, 0
+    0015f0: eb1b                     jmp 0x160d
+    0015f2: 488345f801               add qword ptr [rbp - 8], 1
+    0015f7: 488b5510                 mov rdx, qword ptr [rbp + 0x10]
+    0015fb: 488b45f8                 mov rax, qword ptr [rbp - 8]
+    0015ff: 4801d0                   add rax, rdx
+    001602: 0fb600                   movzx eax, byte ptr [rax]
+    001605: 84c0                     test al, al
+    001607: 75e9                     jne 0x15f2
+    001609: 488b45f8                 mov rax, qword ptr [rbp - 8]
+    00160d: 4883c410                 add rsp, 0x10
+    001611: 5d                       pop rbp
+    001612: c3                       ret 
+    FEATS: frame=rsp, 0x10 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=0 imm_eax=[0] nop=False
+  -- func[3] @0x1613 --
+    001613: 55                       push rbp
+    001614: 4889e5                   mov rbp, rsp
+    001617: 4883ec40                 sub rsp, 0x40
+    00161b: f20f114510               movsd qword ptr [rbp + 0x10], xmm0
+    001620: 48895518                 mov qword ptr [rbp + 0x18], rdx
+    001624: 4c894520                 mov qword ptr [rbp + 0x20], r8
+    001628: 48c745f800000000         mov qword ptr [rbp - 8], 0
+    001630: 48837d2000               cmp qword ptr [rbp + 0x20], 0
+    001635: 7407                     je 0x163e
+    001637: 48837d1800               cmp qword ptr [rbp + 0x18], 0
+    00163c: 750a                     jne 0x1648
+    00163e: b800000000               mov eax, 0
+    001643: e915020000               jmp 0x185d
+    001648: 660fefc0                 pxor xmm0, xmm0
+    00164c: 660f2f4510               comisd xmm0, xmmword ptr [rbp + 0x10]
+    001651: 7636                     jbe 0x1689
+    001653: 488b45f8                 mov rax, qword ptr [rbp - 8]
+    001657: 483b4520                 cmp rax, qword ptr [rbp + 0x20]
+    00165b: 7316                     jae 0x1673
+    00165d: 488b45f8                 mov rax, qword ptr [rbp - 8]
+    001661: 488d5001                 lea rdx, [rax + 1]
+    001665: 488955f8                 mov qword ptr [rbp - 8], rdx
+    001669: 488b5518                 mov rdx, qword ptr [rbp + 0x18]
+    00166d: 4801d0                   add rax, rdx
+    001670: c6002d                   mov byte ptr [rax], 0x2d
+    001673: f20f104510               movsd xmm0, qword ptr [rbp + 0x10]
+    001678: f30f7e0d903a0000         movq xmm1, qword ptr [rip + 0x3a90]
+    001680: 660f57c1                 xorpd xmm0, xmm1
+    FEATS: frame=rsp, 0x40 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=0 imm_eax=[0] nop=False
+  -- func[4] @0x23f9 --
+    0023f9: 55                       push rbp
+    0023fa: 4889e5                   mov rbp, rsp
+    0023fd: 4883ec30                 sub rsp, 0x30
+    002401: 48894d10                 mov qword ptr [rbp + 0x10], rcx
+    002405: 48895518                 mov qword ptr [rbp + 0x18], rdx
+    002409: 4c894520                 mov qword ptr [rbp + 0x20], r8
+    00240d: 4c894d28                 mov qword ptr [rbp + 0x28], r9
+    002411: 488d4528                 lea rax, [rbp + 0x28]
+    002415: 488945f0                 mov qword ptr [rbp - 0x10], rax
+    002419: 4c8b45f0                 mov r8, qword ptr [rbp - 0x10]
+    00241d: 488b4d20                 mov rcx, qword ptr [rbp + 0x20]
+    002421: 488b5518                 mov rdx, qword ptr [rbp + 0x18]
+    002425: 488b4510                 mov rax, qword ptr [rbp + 0x10]
+    002429: 4d89c1                   mov r9, r8
+    00242c: 4989c8                   mov r8, rcx
+    00242f: 4889c1                   mov rcx, rax
+    002432: e82cf4ffff               call 0x1863
+    002437: 8945fc                   mov dword ptr [rbp - 4], eax
+    00243a: 8b45fc                   mov eax, dword ptr [rbp - 4]
+    00243d: 4883c430                 add rsp, 0x30
+    002441: 5d                       pop rbp
+    002442: c3                       ret 
+    FEATS: frame=rsp, 0x30 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=1 imm_eax=[] nop=False
+  -- func[5] @0x2443 --
+    002443: 55                       push rbp
+    002444: 4889e5                   mov rbp, rsp
+    002447: 4883ec30                 sub rsp, 0x30
+    00244b: 894d10                   mov dword ptr [rbp + 0x10], ecx
+    00244e: 48895518                 mov qword ptr [rbp + 0x18], rdx
+    002452: 4c894520                 mov qword ptr [rbp + 0x20], r8
+    002456: 48837d2000               cmp qword ptr [rbp + 0x20], 0
+    00245b: 7507                     jne 0x2464
+    00245d: b800000000               mov eax, 0
+    002462: eb2f                     jmp 0x2493
+    002464: 48837d1800               cmp qword ptr [rbp + 0x18], 0
+    002469: 7507                     jne 0x2472
+    00246b: b8ffffffff               mov eax, 0xffffffff
+    002470: eb21                     jmp 0x2493
+    002472: 488b4520                 mov rax, qword ptr [rbp + 0x20]
+    002476: 89c1                     mov ecx, eax
+    002478: 488b5518                 mov rdx, qword ptr [rbp + 0x18]
+    00247c: 8b4510                   mov eax, dword ptr [rbp + 0x10]
+    00247f: 4189c8                   mov r8d, ecx
+    002482: 89c1                     mov ecx, eax
+    002484: 488b05c56d0000           mov rax, qword ptr [rip + 0x6dc5]
+    00248b: ffd0                     call rax
+    00248d: 8945fc                   mov dword ptr [rbp - 4], eax
+    002490: 8b45fc                   mov eax, dword ptr [rbp - 4]
+    002493: 4883c430                 add rsp, 0x30
+    002497: 5d                       pop rbp
+    002498: c3                       ret 
+    FEATS: frame=rsp, 0x30 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=1 imm_eax=[0, 4294967295] nop=False
+
+### DIFF p_ret_lit.x
+  DIFF: func[1].frame: LIVE=rsp, 0x878 Isol=0x868
+
+######## p_ret_fwd.x ########
+  LIVE  compile=OK USER=a138cdb6862d run=AV
+  Isol  compile=OK USER=a99121ae7a80 (exp a99121ae7a80) run=0 OK
+
+=== LIVE/p_ret_fwd.x sha=a138cdb6862d n_prolog=19 n868=2 n68=0 n1b8=0 ===
+  -- func[0] @0x1490 --
+    001490: 55                       push rbp
+    001491: 4889e5                   mov rbp, rsp
+    001494: 53                       push rbx
+    001495: 4881ec68080000           sub rsp, 0x868
+    00149c: 4889c8                   mov rax, rcx
+    00149f: 488945d0                 mov qword ptr [rbp - 0x30], rax
+    0014a3: 4889d0                   mov rax, rdx
+    0014a6: 488945f0                 mov qword ptr [rbp - 0x10], rax
+    0014aa: 488b45d0                 mov rax, qword ptr [rbp - 0x30]
+    0014ae: 4889c3                   mov rbx, rax
+    0014b1: 53                       push rbx
+    0014b2: 488b45f0                 mov rax, qword ptr [rbp - 0x10]
+    0014b6: 5b                       pop rbx
+    0014b7: 53                       push rbx
+    0014b8: 48898300000000           mov qword ptr [rbx], rax
+    0014bf: 488b45f0                 mov rax, qword ptr [rbp - 0x10]
+    0014c3: bb01000000               mov ebx, 1
+    0014c8: 488d0418                 lea rax, [rax + rbx]
+    0014cc: 5b                       pop rbx
+    0014cd: 53                       push rbx
+    0014ce: 48898308000000           mov qword ptr [rbx + 8], rax
+    0014d5: 488b45f0                 mov rax, qword ptr [rbp - 0x10]
+    0014d9: bb02000000               mov ebx, 2
+    0014de: 488d0418                 lea rax, [rax + rbx]
+    0014e2: 5b                       pop rbx
+    0014e3: 53                       push rbx
+    0014e4: 48898310000000           mov qword ptr [rbx + 0x10], rax
+    0014eb: 5b                       pop rbx
+    FEATS: frame=0x868 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=0 imm_eax=[] nop=False
+  -- func[1] @0x14f8 --
+    0014f8: 55                       push rbp
+    0014f9: 4889e5                   mov rbp, rsp
+    0014fc: 53                       push rbx
+    0014fd: 4881ec68080000           sub rsp, 0x868
+    001504: 4889c8                   mov rax, rcx
+    001507: 488945d0                 mov qword ptr [rbp - 0x30], rax
+    00150b: 4889d0                   mov rax, rdx
+    00150e: 488945f0                 mov qword ptr [rbp - 0x10], rax
+    001512: 488b45f0                 mov rax, qword ptr [rbp - 0x10]
+    001516: bb01000000               mov ebx, 1
+    00151b: 488d0418                 lea rax, [rax + rbx]
+    00151f: 488945b8                 mov qword ptr [rbp - 0x48], rax
+    001523: 488b45b8                 mov rax, qword ptr [rbp - 0x48]
+    001527: 4889c1                   mov rcx, rax
+    00152a: e861ffffff               call 0x1490
+    00152f: 488d65f8                 lea rsp, [rbp - 8]
+    001533: 5b                       pop rbx
+    001534: 5d                       pop rbp
+    001535: c3                       ret 
+    FEATS: frame=0x868 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=1 imm_eax=[] nop=False
+  -- func[2] @0x1538 --
+    001538: 55                       push rbp
+    001539: 4889e5                   mov rbp, rsp
+    00153c: 53                       push rbx
+    00153d: 4881ec78080000           sub rsp, 0x878
+    001544: 488d45d8                 lea rax, [rbp - 0x28]
+    001548: 4889c1                   mov rcx, rax
+    00154b: b809000000               mov eax, 9
+    001550: 488945c8                 mov qword ptr [rbp - 0x38], rax
+    001554: 488b45c8                 mov rax, qword ptr [rbp - 0x38]
+    001558: 4889c2                   mov rdx, rax
+    00155b: e898ffffff               call 0x14f8
+    001560: 488d45d8                 lea rax, [rbp - 0x28]
+    001564: 488b00                   mov rax, qword ptr [rax]
+    001567: 4889c3                   mov rbx, rax
+    00156a: b80a000000               mov eax, 0xa
+    00156f: 4839c3                   cmp rbx, rax
+    001572: 0f95c0                   setne al
+    001575: 0fb6c0                   movzx eax, al
+    001578: 85c0                     test eax, eax
+    00157a: 0f840f000000             je 0x158f
+    001580: b801000000               mov eax, 1
+    001585: e979000000               jmp 0x1603
+    00158a: e900000000               jmp 0x158f
+    00158f: 488d45d8                 lea rax, [rbp - 0x28]
+    001593: 480508000000             add rax, 8
+    001599: 488b00                   mov rax, qword ptr [rax]
+    00159c: 4889c3                   mov rbx, rax
+    00159f: b80b000000               mov eax, 0xb
+    FEATS: frame=rsp, 0x878 sub20=False rcx_sret_lea=True rcx_stack=None imm→rdx=None spill38=True x+1→rdx=False calls=1 imm_eax=[9, 10, 1, 11, 2, 12] nop=False
+  -- func[3] @0x1610 --
+    001610: 55                       push rbp
+    001611: 4889e5                   mov rbp, rsp
+    001614: 4883ec10                 sub rsp, 0x10
+    001618: 48894d10                 mov qword ptr [rbp + 0x10], rcx
+    00161c: 48c745f800000000         mov qword ptr [rbp - 8], 0
+    001624: 48837d1000               cmp qword ptr [rbp + 0x10], 0
+    001629: 750c                     jne 0x1637
+    00162b: b800000000               mov eax, 0
+    001630: eb1b                     jmp 0x164d
+    001632: 488345f801               add qword ptr [rbp - 8], 1
+    001637: 488b5510                 mov rdx, qword ptr [rbp + 0x10]
+    00163b: 488b45f8                 mov rax, qword ptr [rbp - 8]
+    00163f: 4801d0                   add rax, rdx
+    001642: 0fb600                   movzx eax, byte ptr [rax]
+    001645: 84c0                     test al, al
+    001647: 75e9                     jne 0x1632
+    001649: 488b45f8                 mov rax, qword ptr [rbp - 8]
+    00164d: 4883c410                 add rsp, 0x10
+    001651: 5d                       pop rbp
+    001652: c3                       ret 
+    FEATS: frame=rsp, 0x10 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=0 imm_eax=[0] nop=False
+  -- func[4] @0x1653 --
+    001653: 55                       push rbp
+    001654: 4889e5                   mov rbp, rsp
+    001657: 4883ec40                 sub rsp, 0x40
+    00165b: f20f114510               movsd qword ptr [rbp + 0x10], xmm0
+    001660: 48895518                 mov qword ptr [rbp + 0x18], rdx
+    001664: 4c894520                 mov qword ptr [rbp + 0x20], r8
+    001668: 48c745f800000000         mov qword ptr [rbp - 8], 0
+    001670: 48837d2000               cmp qword ptr [rbp + 0x20], 0
+    001675: 7407                     je 0x167e
+    001677: 48837d1800               cmp qword ptr [rbp + 0x18], 0
+    00167c: 750a                     jne 0x1688
+    00167e: b800000000               mov eax, 0
+    001683: e915020000               jmp 0x189d
+    001688: 660fefc0                 pxor xmm0, xmm0
+    00168c: 660f2f4510               comisd xmm0, xmmword ptr [rbp + 0x10]
+    001691: 7636                     jbe 0x16c9
+    001693: 488b45f8                 mov rax, qword ptr [rbp - 8]
+    001697: 483b4520                 cmp rax, qword ptr [rbp + 0x20]
+    00169b: 7316                     jae 0x16b3
+    00169d: 488b45f8                 mov rax, qword ptr [rbp - 8]
+    0016a1: 488d5001                 lea rdx, [rax + 1]
+    0016a5: 488955f8                 mov qword ptr [rbp - 8], rdx
+    0016a9: 488b5518                 mov rdx, qword ptr [rbp + 0x18]
+    0016ad: 4801d0                   add rax, rdx
+    0016b0: c6002d                   mov byte ptr [rax], 0x2d
+    0016b3: f20f104510               movsd xmm0, qword ptr [rbp + 0x10]
+    0016b8: f30f7e0d503a0000         movq xmm1, qword ptr [rip + 0x3a50]
+    0016c0: 660f57c1                 xorpd xmm0, xmm1
+    FEATS: frame=rsp, 0x40 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=0 imm_eax=[0] nop=False
+  -- func[5] @0x2439 --
+    002439: 55                       push rbp
+    00243a: 4889e5                   mov rbp, rsp
+    00243d: 4883ec30                 sub rsp, 0x30
+    002441: 48894d10                 mov qword ptr [rbp + 0x10], rcx
+    002445: 48895518                 mov qword ptr [rbp + 0x18], rdx
+    002449: 4c894520                 mov qword ptr [rbp + 0x20], r8
+    00244d: 4c894d28                 mov qword ptr [rbp + 0x28], r9
+    002451: 488d4528                 lea rax, [rbp + 0x28]
+    002455: 488945f0                 mov qword ptr [rbp - 0x10], rax
+    002459: 4c8b45f0                 mov r8, qword ptr [rbp - 0x10]
+    00245d: 488b4d20                 mov rcx, qword ptr [rbp + 0x20]
+    002461: 488b5518                 mov rdx, qword ptr [rbp + 0x18]
+    002465: 488b4510                 mov rax, qword ptr [rbp + 0x10]
+    002469: 4d89c1                   mov r9, r8
+    00246c: 4989c8                   mov r8, rcx
+    00246f: 4889c1                   mov rcx, rax
+    002472: e82cf4ffff               call 0x18a3
+    002477: 8945fc                   mov dword ptr [rbp - 4], eax
+    00247a: 8b45fc                   mov eax, dword ptr [rbp - 4]
+    00247d: 4883c430                 add rsp, 0x30
+    002481: 5d                       pop rbp
+    002482: c3                       ret 
+    FEATS: frame=rsp, 0x30 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=1 imm_eax=[] nop=False
+
+=== ISOL/p_ret_fwd.x sha=a99121ae7a80 n_prolog=19 n868=3 n68=0 n1b8=0 ===
+  -- func[0] @0x1490 --
+    001490: 55                       push rbp
+    001491: 4889e5                   mov rbp, rsp
+    001494: 53                       push rbx
+    001495: 4881ec68080000           sub rsp, 0x868
+    00149c: 4889c8                   mov rax, rcx
+    00149f: 488945d0                 mov qword ptr [rbp - 0x30], rax
+    0014a3: 4889d0                   mov rax, rdx
+    0014a6: 488945f0                 mov qword ptr [rbp - 0x10], rax
+    0014aa: 488b45d0                 mov rax, qword ptr [rbp - 0x30]
+    0014ae: 4889c3                   mov rbx, rax
+    0014b1: 53                       push rbx
+    0014b2: 488b45f0                 mov rax, qword ptr [rbp - 0x10]
+    0014b6: 5b                       pop rbx
+    0014b7: 53                       push rbx
+    0014b8: 48898300000000           mov qword ptr [rbx], rax
+    0014bf: 488b45f0                 mov rax, qword ptr [rbp - 0x10]
+    0014c3: bb01000000               mov ebx, 1
+    0014c8: 488d0418                 lea rax, [rax + rbx]
+    0014cc: 5b                       pop rbx
+    0014cd: 53                       push rbx
+    0014ce: 48898308000000           mov qword ptr [rbx + 8], rax
+    0014d5: 488b45f0                 mov rax, qword ptr [rbp - 0x10]
+    0014d9: bb02000000               mov ebx, 2
+    0014de: 488d0418                 lea rax, [rax + rbx]
+    0014e2: 5b                       pop rbx
+    0014e3: 53                       push rbx
+    0014e4: 48898310000000           mov qword ptr [rbx + 0x10], rax
+    0014eb: 5b                       pop rbx
+    FEATS: frame=0x868 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=0 imm_eax=[] nop=False
+  -- func[1] @0x14f8 --
+    0014f8: 55                       push rbp
+    0014f9: 4889e5                   mov rbp, rsp
+    0014fc: 53                       push rbx
+    0014fd: 4881ec68080000           sub rsp, 0x868
+    001504: 4889c8                   mov rax, rcx
+    001507: 488945d0                 mov qword ptr [rbp - 0x30], rax
+    00150b: 4889d0                   mov rax, rdx
+    00150e: 488945f0                 mov qword ptr [rbp - 0x10], rax
+    001512: 4883ec20                 sub rsp, 0x20
+    001516: 488b45f0                 mov rax, qword ptr [rbp - 0x10]
+    00151a: 48ffc0                   inc rax
+    00151d: 4889c2                   mov rdx, rax
+    001520: 488b45f0                 mov rax, qword ptr [rbp - 0x10]
+    001524: bb01000000               mov ebx, 1
+    001529: 488d0418                 lea rax, [rax + rbx]
+    00152d: 488945c0                 mov qword ptr [rbp - 0x40], rax
+    001531: 488b45c0                 mov rax, qword ptr [rbp - 0x40]
+    001535: 4889c2                   mov rdx, rax
+    001538: e853ffffff               call 0x1490
+    00153d: 4883c420                 add rsp, 0x20
+    001541: 488d65f8                 lea rsp, [rbp - 8]
+    001545: 5b                       pop rbx
+    001546: 5d                       pop rbp
+    001547: c3                       ret 
+    FEATS: frame=0x868 sub20=True rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=True calls=1 imm_eax=[] nop=False
+  -- func[2] @0x1548 --
+    001548: 55                       push rbp
+    001549: 4889e5                   mov rbp, rsp
+    00154c: 53                       push rbx
+    00154d: 4881ec68080000           sub rsp, 0x868
+    001554: 488d45d8                 lea rax, [rbp - 0x28]
+    001558: 4889c1                   mov rcx, rax
+    00155b: 4883ec20                 sub rsp, 0x20
+    00155f: b809000000               mov eax, 9
+    001564: 4889c2                   mov rdx, rax
+    001567: 90                       nop 
+    001568: 90                       nop 
+    001569: e88affffff               call 0x14f8
+    00156e: 4883c420                 add rsp, 0x20
+    001572: 488d45d8                 lea rax, [rbp - 0x28]
+    001576: 488b00                   mov rax, qword ptr [rax]
+    001579: 4889c3                   mov rbx, rax
+    00157c: b80a000000               mov eax, 0xa
+    001581: 4839c3                   cmp rbx, rax
+    001584: 0f95c0                   setne al
+    001587: 0fb6c0                   movzx eax, al
+    00158a: 85c0                     test eax, eax
+    00158c: 0f840f000000             je 0x15a1
+    001592: b801000000               mov eax, 1
+    001597: e979000000               jmp 0x1615
+    00159c: e900000000               jmp 0x15a1
+    0015a1: 488d45d8                 lea rax, [rbp - 0x28]
+    0015a5: 480508000000             add rax, 8
+    0015ab: 488b00                   mov rax, qword ptr [rax]
+    FEATS: frame=0x868 sub20=True rcx_sret_lea=True rcx_stack=None imm→rdx=9 spill38=False x+1→rdx=False calls=1 imm_eax=[9, 10, 1, 11, 2, 12] nop=True
+  -- func[3] @0x1620 --
+    001620: 55                       push rbp
+    001621: 4889e5                   mov rbp, rsp
+    001624: 4883ec10                 sub rsp, 0x10
+    001628: 48894d10                 mov qword ptr [rbp + 0x10], rcx
+    00162c: 48c745f800000000         mov qword ptr [rbp - 8], 0
+    001634: 48837d1000               cmp qword ptr [rbp + 0x10], 0
+    001639: 750c                     jne 0x1647
+    00163b: b800000000               mov eax, 0
+    001640: eb1b                     jmp 0x165d
+    001642: 488345f801               add qword ptr [rbp - 8], 1
+    001647: 488b5510                 mov rdx, qword ptr [rbp + 0x10]
+    00164b: 488b45f8                 mov rax, qword ptr [rbp - 8]
+    00164f: 4801d0                   add rax, rdx
+    001652: 0fb600                   movzx eax, byte ptr [rax]
+    001655: 84c0                     test al, al
+    001657: 75e9                     jne 0x1642
+    001659: 488b45f8                 mov rax, qword ptr [rbp - 8]
+    00165d: 4883c410                 add rsp, 0x10
+    001661: 5d                       pop rbp
+    001662: c3                       ret 
+    FEATS: frame=rsp, 0x10 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=0 imm_eax=[0] nop=False
+  -- func[4] @0x1663 --
+    001663: 55                       push rbp
+    001664: 4889e5                   mov rbp, rsp
+    001667: 4883ec40                 sub rsp, 0x40
+    00166b: f20f114510               movsd qword ptr [rbp + 0x10], xmm0
+    001670: 48895518                 mov qword ptr [rbp + 0x18], rdx
+    001674: 4c894520                 mov qword ptr [rbp + 0x20], r8
+    001678: 48c745f800000000         mov qword ptr [rbp - 8], 0
+    001680: 48837d2000               cmp qword ptr [rbp + 0x20], 0
+    001685: 7407                     je 0x168e
+    001687: 48837d1800               cmp qword ptr [rbp + 0x18], 0
+    00168c: 750a                     jne 0x1698
+    00168e: b800000000               mov eax, 0
+    001693: e915020000               jmp 0x18ad
+    001698: 660fefc0                 pxor xmm0, xmm0
+    00169c: 660f2f4510               comisd xmm0, xmmword ptr [rbp + 0x10]
+    0016a1: 7636                     jbe 0x16d9
+    0016a3: 488b45f8                 mov rax, qword ptr [rbp - 8]
+    0016a7: 483b4520                 cmp rax, qword ptr [rbp + 0x20]
+    0016ab: 7316                     jae 0x16c3
+    0016ad: 488b45f8                 mov rax, qword ptr [rbp - 8]
+    0016b1: 488d5001                 lea rdx, [rax + 1]
+    0016b5: 488955f8                 mov qword ptr [rbp - 8], rdx
+    0016b9: 488b5518                 mov rdx, qword ptr [rbp + 0x18]
+    0016bd: 4801d0                   add rax, rdx
+    0016c0: c6002d                   mov byte ptr [rax], 0x2d
+    0016c3: f20f104510               movsd xmm0, qword ptr [rbp + 0x10]
+    0016c8: f30f7e0d403a0000         movq xmm1, qword ptr [rip + 0x3a40]
+    0016d0: 660f57c1                 xorpd xmm0, xmm1
+    FEATS: frame=rsp, 0x40 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=0 imm_eax=[0] nop=False
+  -- func[5] @0x2449 --
+    002449: 55                       push rbp
+    00244a: 4889e5                   mov rbp, rsp
+    00244d: 4883ec30                 sub rsp, 0x30
+    002451: 48894d10                 mov qword ptr [rbp + 0x10], rcx
+    002455: 48895518                 mov qword ptr [rbp + 0x18], rdx
+    002459: 4c894520                 mov qword ptr [rbp + 0x20], r8
+    00245d: 4c894d28                 mov qword ptr [rbp + 0x28], r9
+    002461: 488d4528                 lea rax, [rbp + 0x28]
+    002465: 488945f0                 mov qword ptr [rbp - 0x10], rax
+    002469: 4c8b45f0                 mov r8, qword ptr [rbp - 0x10]
+    00246d: 488b4d20                 mov rcx, qword ptr [rbp + 0x20]
+    002471: 488b5518                 mov rdx, qword ptr [rbp + 0x18]
+    002475: 488b4510                 mov rax, qword ptr [rbp + 0x10]
+    002479: 4d89c1                   mov r9, r8
+    00247c: 4989c8                   mov r8, rcx
+    00247f: 4889c1                   mov rcx, rax
+    002482: e82cf4ffff               call 0x18b3
+    002487: 8945fc                   mov dword ptr [rbp - 4], eax
+    00248a: 8b45fc                   mov eax, dword ptr [rbp - 4]
+    00248d: 4883c430                 add rsp, 0x30
+    002491: 5d                       pop rbp
+    002492: c3                       ret 
+    FEATS: frame=rsp, 0x30 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=1 imm_eax=[] nop=False
+
+### DIFF p_ret_fwd.x
+  DIFF: func[1].has_sub20: LIVE=False Isol=True
+  DIFF: func[1].x_plus1_rdx: LIVE=False Isol=True
+  DIFF: func[2].frame: LIVE=rsp, 0x878 Isol=0x868
+  DIFF: func[2].has_sub20: LIVE=False Isol=True
+  DIFF: func[2].imm_to_rdx: LIVE=None Isol=9
+  DIFF: func[2].spill_imm: LIVE=True Isol=False
+  DIFF: func[2].has_nop_pad: LIVE=False Isol=True
+
+######## p_ret_local.x ########
+  LIVE  compile=OK USER=a1f688e8e47a run=1
+  Isol  compile=OK USER=36d26fcc9657 (exp 36d26fcc9657) run=0 OK
+
+=== LIVE/p_ret_local.x sha=a1f688e8e47a n_prolog=17 n868=0 n68=0 n1b8=0 ===
+  -- func[0] @0x1490 --
+    001490: 55                       push rbp
+    001491: 4889e5                   mov rbp, rsp
+    001494: 53                       push rbx
+    001495: 4881ec88080000           sub rsp, 0x888
+    00149c: 488d45a8                 lea rax, [rbp - 0x58]
+    0014a0: 4889c3                   mov rbx, rax
+    0014a3: 53                       push rbx
+    0014a4: b801000000               mov eax, 1
+    0014a9: 5b                       pop rbx
+    0014aa: 53                       push rbx
+    0014ab: 48898300000000           mov qword ptr [rbx], rax
+    0014b2: b802000000               mov eax, 2
+    0014b7: 5b                       pop rbx
+    0014b8: 53                       push rbx
+    0014b9: 48898308000000           mov qword ptr [rbx + 8], rax
+    0014c0: b803000000               mov eax, 3
+    0014c5: 5b                       pop rbx
+    0014c6: 53                       push rbx
+    0014c7: 48898310000000           mov qword ptr [rbx + 0x10], rax
+    0014ce: 5b                       pop rbx
+    0014cf: 488d45a8                 lea rax, [rbp - 0x58]
+    0014d3: 488945d8                 mov qword ptr [rbp - 0x28], rax
+    0014d7: 488d45d8                 lea rax, [rbp - 0x28]
+    0014db: 488b00                   mov rax, qword ptr [rax]
+    0014de: 4889c3                   mov rbx, rax
+    0014e1: b801000000               mov eax, 1
+    0014e6: 4839c3                   cmp rbx, rax
+    0014e9: 0f95c0                   setne al
+    FEATS: frame=rsp, 0x888 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=0 imm_eax=[1, 2, 3, 1, 1, 2, 2] nop=False
+  -- func[1] @0x1590 --
+    001590: 55                       push rbp
+    001591: 4889e5                   mov rbp, rsp
+    001594: 4883ec10                 sub rsp, 0x10
+    001598: 48894d10                 mov qword ptr [rbp + 0x10], rcx
+    00159c: 48c745f800000000         mov qword ptr [rbp - 8], 0
+    0015a4: 48837d1000               cmp qword ptr [rbp + 0x10], 0
+    0015a9: 750c                     jne 0x15b7
+    0015ab: b800000000               mov eax, 0
+    0015b0: eb1b                     jmp 0x15cd
+    0015b2: 488345f801               add qword ptr [rbp - 8], 1
+    0015b7: 488b5510                 mov rdx, qword ptr [rbp + 0x10]
+    0015bb: 488b45f8                 mov rax, qword ptr [rbp - 8]
+    0015bf: 4801d0                   add rax, rdx
+    0015c2: 0fb600                   movzx eax, byte ptr [rax]
+    0015c5: 84c0                     test al, al
+    0015c7: 75e9                     jne 0x15b2
+    0015c9: 488b45f8                 mov rax, qword ptr [rbp - 8]
+    0015cd: 4883c410                 add rsp, 0x10
+    0015d1: 5d                       pop rbp
+    0015d2: c3                       ret 
+    FEATS: frame=rsp, 0x10 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=0 imm_eax=[0] nop=False
+  -- func[2] @0x15d3 --
+    0015d3: 55                       push rbp
+    0015d4: 4889e5                   mov rbp, rsp
+    0015d7: 4883ec40                 sub rsp, 0x40
+    0015db: f20f114510               movsd qword ptr [rbp + 0x10], xmm0
+    0015e0: 48895518                 mov qword ptr [rbp + 0x18], rdx
+    0015e4: 4c894520                 mov qword ptr [rbp + 0x20], r8
+    0015e8: 48c745f800000000         mov qword ptr [rbp - 8], 0
+    0015f0: 48837d2000               cmp qword ptr [rbp + 0x20], 0
+    0015f5: 7407                     je 0x15fe
+    0015f7: 48837d1800               cmp qword ptr [rbp + 0x18], 0
+    0015fc: 750a                     jne 0x1608
+    0015fe: b800000000               mov eax, 0
+    001603: e915020000               jmp 0x181d
+    001608: 660fefc0                 pxor xmm0, xmm0
+    00160c: 660f2f4510               comisd xmm0, xmmword ptr [rbp + 0x10]
+    001611: 7636                     jbe 0x1649
+    001613: 488b45f8                 mov rax, qword ptr [rbp - 8]
+    001617: 483b4520                 cmp rax, qword ptr [rbp + 0x20]
+    00161b: 7316                     jae 0x1633
+    00161d: 488b45f8                 mov rax, qword ptr [rbp - 8]
+    001621: 488d5001                 lea rdx, [rax + 1]
+    001625: 488955f8                 mov qword ptr [rbp - 8], rdx
+    001629: 488b5518                 mov rdx, qword ptr [rbp + 0x18]
+    00162d: 4801d0                   add rax, rdx
+    001630: c6002d                   mov byte ptr [rax], 0x2d
+    001633: f20f104510               movsd xmm0, qword ptr [rbp + 0x10]
+    001638: f30f7e0dd03a0000         movq xmm1, qword ptr [rip + 0x3ad0]
+    001640: 660f57c1                 xorpd xmm0, xmm1
+    FEATS: frame=rsp, 0x40 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=0 imm_eax=[0] nop=False
+  -- func[3] @0x23b9 --
+    0023b9: 55                       push rbp
+    0023ba: 4889e5                   mov rbp, rsp
+    0023bd: 4883ec30                 sub rsp, 0x30
+    0023c1: 48894d10                 mov qword ptr [rbp + 0x10], rcx
+    0023c5: 48895518                 mov qword ptr [rbp + 0x18], rdx
+    0023c9: 4c894520                 mov qword ptr [rbp + 0x20], r8
+    0023cd: 4c894d28                 mov qword ptr [rbp + 0x28], r9
+    0023d1: 488d4528                 lea rax, [rbp + 0x28]
+    0023d5: 488945f0                 mov qword ptr [rbp - 0x10], rax
+    0023d9: 4c8b45f0                 mov r8, qword ptr [rbp - 0x10]
+    0023dd: 488b4d20                 mov rcx, qword ptr [rbp + 0x20]
+    0023e1: 488b5518                 mov rdx, qword ptr [rbp + 0x18]
+    0023e5: 488b4510                 mov rax, qword ptr [rbp + 0x10]
+    0023e9: 4d89c1                   mov r9, r8
+    0023ec: 4989c8                   mov r8, rcx
+    0023ef: 4889c1                   mov rcx, rax
+    0023f2: e82cf4ffff               call 0x1823
+    0023f7: 8945fc                   mov dword ptr [rbp - 4], eax
+    0023fa: 8b45fc                   mov eax, dword ptr [rbp - 4]
+    0023fd: 4883c430                 add rsp, 0x30
+    002401: 5d                       pop rbp
+    002402: c3                       ret 
+    FEATS: frame=rsp, 0x30 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=1 imm_eax=[] nop=False
+  -- func[4] @0x2403 --
+    002403: 55                       push rbp
+    002404: 4889e5                   mov rbp, rsp
+    002407: 4883ec30                 sub rsp, 0x30
+    00240b: 894d10                   mov dword ptr [rbp + 0x10], ecx
+    00240e: 48895518                 mov qword ptr [rbp + 0x18], rdx
+    002412: 4c894520                 mov qword ptr [rbp + 0x20], r8
+    002416: 48837d2000               cmp qword ptr [rbp + 0x20], 0
+    00241b: 7507                     jne 0x2424
+    00241d: b800000000               mov eax, 0
+    002422: eb2f                     jmp 0x2453
+    002424: 48837d1800               cmp qword ptr [rbp + 0x18], 0
+    002429: 7507                     jne 0x2432
+    00242b: b8ffffffff               mov eax, 0xffffffff
+    002430: eb21                     jmp 0x2453
+    002432: 488b4520                 mov rax, qword ptr [rbp + 0x20]
+    002436: 89c1                     mov ecx, eax
+    002438: 488b5518                 mov rdx, qword ptr [rbp + 0x18]
+    00243c: 8b4510                   mov eax, dword ptr [rbp + 0x10]
+    00243f: 4189c8                   mov r8d, ecx
+    002442: 89c1                     mov ecx, eax
+    002444: 488b05056e0000           mov rax, qword ptr [rip + 0x6e05]
+    00244b: ffd0                     call rax
+    00244d: 8945fc                   mov dword ptr [rbp - 4], eax
+    002450: 8b45fc                   mov eax, dword ptr [rbp - 4]
+    002453: 4883c430                 add rsp, 0x30
+    002457: 5d                       pop rbp
+    002458: c3                       ret 
+    FEATS: frame=rsp, 0x30 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=1 imm_eax=[0, 4294967295] nop=False
+  -- func[5] @0x2459 --
+    002459: 55                       push rbp
+    00245a: 4889e5                   mov rbp, rsp
+    00245d: 4883ec20                 sub rsp, 0x20
+    002461: 48894d10                 mov qword ptr [rbp + 0x10], rcx
+    002465: 48837d1000               cmp qword ptr [rbp + 0x10], 0
+    00246a: 7507                     jne 0x2473
+    00246c: b8ffffffff               mov eax, 0xffffffff
+    002471: eb1b                     jmp 0x248e
+    002473: 488b4510                 mov rax, qword ptr [rbp + 0x10]
+    002477: 41b880010000             mov r8d, 0x180
+    00247d: ba01830000               mov edx, 0x8301
+    002482: 4889c1                   mov rcx, rax
+    002485: 488b05bc6d0000           mov rax, qword ptr [rip + 0x6dbc]
+    00248c: ffd0                     call rax
+    00248e: 4883c420                 add rsp, 0x20
+    002492: 5d                       pop rbp
+    002493: c3                       ret 
+    FEATS: frame=None sub20=True rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=1 imm_eax=[4294967295] nop=False
+
+=== ISOL/p_ret_local.x sha=36d26fcc9657 n_prolog=17 n868=1 n68=0 n1b8=0 ===
+  -- func[0] @0x1490 --
+    001490: 55                       push rbp
+    001491: 4889e5                   mov rbp, rsp
+    001494: 53                       push rbx
+    001495: 4881ec68080000           sub rsp, 0x868
+    00149c: 488d45d8                 lea rax, [rbp - 0x28]
+    0014a0: 4889c3                   mov rbx, rax
+    0014a3: 53                       push rbx
+    0014a4: b801000000               mov eax, 1
+    0014a9: 5b                       pop rbx
+    0014aa: 53                       push rbx
+    0014ab: 48898300000000           mov qword ptr [rbx], rax
+    0014b2: b802000000               mov eax, 2
+    0014b7: 5b                       pop rbx
+    0014b8: 53                       push rbx
+    0014b9: 48898308000000           mov qword ptr [rbx + 8], rax
+    0014c0: b803000000               mov eax, 3
+    0014c5: 5b                       pop rbx
+    0014c6: 53                       push rbx
+    0014c7: 48898310000000           mov qword ptr [rbx + 0x10], rax
+    0014ce: 5b                       pop rbx
+    0014cf: 488d45d8                 lea rax, [rbp - 0x28]
+    0014d3: 488d45d8                 lea rax, [rbp - 0x28]
+    0014d7: 488b00                   mov rax, qword ptr [rax]
+    0014da: 4889c3                   mov rbx, rax
+    0014dd: b801000000               mov eax, 1
+    0014e2: 4839c3                   cmp rbx, rax
+    0014e5: 0f95c0                   setne al
+    0014e8: 0fb6c0                   movzx eax, al
+    FEATS: frame=0x868 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=0 imm_eax=[1, 2, 3, 1, 1, 2, 2] nop=False
+  -- func[1] @0x1580 --
+    001580: 55                       push rbp
+    001581: 4889e5                   mov rbp, rsp
+    001584: 4883ec10                 sub rsp, 0x10
+    001588: 48894d10                 mov qword ptr [rbp + 0x10], rcx
+    00158c: 48c745f800000000         mov qword ptr [rbp - 8], 0
+    001594: 48837d1000               cmp qword ptr [rbp + 0x10], 0
+    001599: 750c                     jne 0x15a7
+    00159b: b800000000               mov eax, 0
+    0015a0: eb1b                     jmp 0x15bd
+    0015a2: 488345f801               add qword ptr [rbp - 8], 1
+    0015a7: 488b5510                 mov rdx, qword ptr [rbp + 0x10]
+    0015ab: 488b45f8                 mov rax, qword ptr [rbp - 8]
+    0015af: 4801d0                   add rax, rdx
+    0015b2: 0fb600                   movzx eax, byte ptr [rax]
+    0015b5: 84c0                     test al, al
+    0015b7: 75e9                     jne 0x15a2
+    0015b9: 488b45f8                 mov rax, qword ptr [rbp - 8]
+    0015bd: 4883c410                 add rsp, 0x10
+    0015c1: 5d                       pop rbp
+    0015c2: c3                       ret 
+    FEATS: frame=rsp, 0x10 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=0 imm_eax=[0] nop=False
+  -- func[2] @0x15c3 --
+    0015c3: 55                       push rbp
+    0015c4: 4889e5                   mov rbp, rsp
+    0015c7: 4883ec40                 sub rsp, 0x40
+    0015cb: f20f114510               movsd qword ptr [rbp + 0x10], xmm0
+    0015d0: 48895518                 mov qword ptr [rbp + 0x18], rdx
+    0015d4: 4c894520                 mov qword ptr [rbp + 0x20], r8
+    0015d8: 48c745f800000000         mov qword ptr [rbp - 8], 0
+    0015e0: 48837d2000               cmp qword ptr [rbp + 0x20], 0
+    0015e5: 7407                     je 0x15ee
+    0015e7: 48837d1800               cmp qword ptr [rbp + 0x18], 0
+    0015ec: 750a                     jne 0x15f8
+    0015ee: b800000000               mov eax, 0
+    0015f3: e915020000               jmp 0x180d
+    0015f8: 660fefc0                 pxor xmm0, xmm0
+    0015fc: 660f2f4510               comisd xmm0, xmmword ptr [rbp + 0x10]
+    001601: 7636                     jbe 0x1639
+    001603: 488b45f8                 mov rax, qword ptr [rbp - 8]
+    001607: 483b4520                 cmp rax, qword ptr [rbp + 0x20]
+    00160b: 7316                     jae 0x1623
+    00160d: 488b45f8                 mov rax, qword ptr [rbp - 8]
+    001611: 488d5001                 lea rdx, [rax + 1]
+    001615: 488955f8                 mov qword ptr [rbp - 8], rdx
+    001619: 488b5518                 mov rdx, qword ptr [rbp + 0x18]
+    00161d: 4801d0                   add rax, rdx
+    001620: c6002d                   mov byte ptr [rax], 0x2d
+    001623: f20f104510               movsd xmm0, qword ptr [rbp + 0x10]
+    001628: f30f7e0de03a0000         movq xmm1, qword ptr [rip + 0x3ae0]
+    001630: 660f57c1                 xorpd xmm0, xmm1
+    FEATS: frame=rsp, 0x40 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=0 imm_eax=[0] nop=False
+  -- func[3] @0x23a9 --
+    0023a9: 55                       push rbp
+    0023aa: 4889e5                   mov rbp, rsp
+    0023ad: 4883ec30                 sub rsp, 0x30
+    0023b1: 48894d10                 mov qword ptr [rbp + 0x10], rcx
+    0023b5: 48895518                 mov qword ptr [rbp + 0x18], rdx
+    0023b9: 4c894520                 mov qword ptr [rbp + 0x20], r8
+    0023bd: 4c894d28                 mov qword ptr [rbp + 0x28], r9
+    0023c1: 488d4528                 lea rax, [rbp + 0x28]
+    0023c5: 488945f0                 mov qword ptr [rbp - 0x10], rax
+    0023c9: 4c8b45f0                 mov r8, qword ptr [rbp - 0x10]
+    0023cd: 488b4d20                 mov rcx, qword ptr [rbp + 0x20]
+    0023d1: 488b5518                 mov rdx, qword ptr [rbp + 0x18]
+    0023d5: 488b4510                 mov rax, qword ptr [rbp + 0x10]
+    0023d9: 4d89c1                   mov r9, r8
+    0023dc: 4989c8                   mov r8, rcx
+    0023df: 4889c1                   mov rcx, rax
+    0023e2: e82cf4ffff               call 0x1813
+    0023e7: 8945fc                   mov dword ptr [rbp - 4], eax
+    0023ea: 8b45fc                   mov eax, dword ptr [rbp - 4]
+    0023ed: 4883c430                 add rsp, 0x30
+    0023f1: 5d                       pop rbp
+    0023f2: c3                       ret 
+    FEATS: frame=rsp, 0x30 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=1 imm_eax=[] nop=False
+  -- func[4] @0x23f3 --
+    0023f3: 55                       push rbp
+    0023f4: 4889e5                   mov rbp, rsp
+    0023f7: 4883ec30                 sub rsp, 0x30
+    0023fb: 894d10                   mov dword ptr [rbp + 0x10], ecx
+    0023fe: 48895518                 mov qword ptr [rbp + 0x18], rdx
+    002402: 4c894520                 mov qword ptr [rbp + 0x20], r8
+    002406: 48837d2000               cmp qword ptr [rbp + 0x20], 0
+    00240b: 7507                     jne 0x2414
+    00240d: b800000000               mov eax, 0
+    002412: eb2f                     jmp 0x2443
+    002414: 48837d1800               cmp qword ptr [rbp + 0x18], 0
+    002419: 7507                     jne 0x2422
+    00241b: b8ffffffff               mov eax, 0xffffffff
+    002420: eb21                     jmp 0x2443
+    002422: 488b4520                 mov rax, qword ptr [rbp + 0x20]
+    002426: 89c1                     mov ecx, eax
+    002428: 488b5518                 mov rdx, qword ptr [rbp + 0x18]
+    00242c: 8b4510                   mov eax, dword ptr [rbp + 0x10]
+    00242f: 4189c8                   mov r8d, ecx
+    002432: 89c1                     mov ecx, eax
+    002434: 488b05156e0000           mov rax, qword ptr [rip + 0x6e15]
+    00243b: ffd0                     call rax
+    00243d: 8945fc                   mov dword ptr [rbp - 4], eax
+    002440: 8b45fc                   mov eax, dword ptr [rbp - 4]
+    002443: 4883c430                 add rsp, 0x30
+    002447: 5d                       pop rbp
+    002448: c3                       ret 
+    FEATS: frame=rsp, 0x30 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=1 imm_eax=[0, 4294967295] nop=False
+  -- func[5] @0x2449 --
+    002449: 55                       push rbp
+    00244a: 4889e5                   mov rbp, rsp
+    00244d: 4883ec20                 sub rsp, 0x20
+    002451: 48894d10                 mov qword ptr [rbp + 0x10], rcx
+    002455: 48837d1000               cmp qword ptr [rbp + 0x10], 0
+    00245a: 7507                     jne 0x2463
+    00245c: b8ffffffff               mov eax, 0xffffffff
+    002461: eb1b                     jmp 0x247e
+    002463: 488b4510                 mov rax, qword ptr [rbp + 0x10]
+    002467: 41b880010000             mov r8d, 0x180
+    00246d: ba01830000               mov edx, 0x8301
+    002472: 4889c1                   mov rcx, rax
+    002475: 488b05cc6d0000           mov rax, qword ptr [rip + 0x6dcc]
+    00247c: ffd0                     call rax
+    00247e: 4883c420                 add rsp, 0x20
+    002482: 5d                       pop rbp
+    002483: c3                       ret 
+    FEATS: frame=None sub20=True rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=1 imm_eax=[4294967295] nop=False
+
+### DIFF p_ret_local.x
+  DIFF: func[0].frame: LIVE=rsp, 0x888 Isol=0x868
+
+######## _var_let.x ########
+  LIVE  compile=OK USER=8eddd86645a0 run=1
+  Isol  compile=OK USER=d16c78ade1f2 (exp d16c78ade1f2) run=0 OK
+
+=== LIVE/_var_let.x sha=8eddd86645a0 n_prolog=19 n868=1 n68=0 n1b8=0 ===
+  -- func[0] @0x1490 --
+    001490: 55                       push rbp
+    001491: 4889e5                   mov rbp, rsp
+    001494: 53                       push rbx
+    001495: 4881ec68080000           sub rsp, 0x868
+    00149c: 4889c8                   mov rax, rcx
+    00149f: 488945d0                 mov qword ptr [rbp - 0x30], rax
+    0014a3: 4889d0                   mov rax, rdx
+    0014a6: 488945f0                 mov qword ptr [rbp - 0x10], rax
+    0014aa: 488b45d0                 mov rax, qword ptr [rbp - 0x30]
+    0014ae: 4889c3                   mov rbx, rax
+    0014b1: 53                       push rbx
+    0014b2: 488b45f0                 mov rax, qword ptr [rbp - 0x10]
+    0014b6: 5b                       pop rbx
+    0014b7: 53                       push rbx
+    0014b8: 48898300000000           mov qword ptr [rbx], rax
+    0014bf: 488b45f0                 mov rax, qword ptr [rbp - 0x10]
+    0014c3: bb01000000               mov ebx, 1
+    0014c8: 488d0418                 lea rax, [rax + rbx]
+    0014cc: 5b                       pop rbx
+    0014cd: 53                       push rbx
+    0014ce: 48898308000000           mov qword ptr [rbx + 8], rax
+    0014d5: 488b45f0                 mov rax, qword ptr [rbp - 0x10]
+    0014d9: bb02000000               mov ebx, 2
+    0014de: 488d0418                 lea rax, [rax + rbx]
+    0014e2: 5b                       pop rbx
+    0014e3: 53                       push rbx
+    0014e4: 48898310000000           mov qword ptr [rbx + 0x10], rax
+    0014eb: 5b                       pop rbx
+    FEATS: frame=0x868 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=0 imm_eax=[] nop=False
+  -- func[1] @0x14f8 --
+    0014f8: 55                       push rbp
+    0014f9: 4889e5                   mov rbp, rsp
+    0014fc: 53                       push rbx
+    0014fd: 4881ec88080000           sub rsp, 0x888
+    001504: 4889c8                   mov rax, rcx
+    001507: 488945b0                 mov qword ptr [rbp - 0x50], rax
+    00150b: 4889d0                   mov rax, rdx
+    00150e: 488945f0                 mov qword ptr [rbp - 0x10], rax
+    001512: 488d45c8                 lea rax, [rbp - 0x38]
+    001516: 4889c1                   mov rcx, rax
+    001519: 488b45f0                 mov rax, qword ptr [rbp - 0x10]
+    00151d: bb01000000               mov ebx, 1
+    001522: 488d0418                 lea rax, [rax + rbx]
+    001526: 48894598                 mov qword ptr [rbp - 0x68], rax
+    00152a: 488b4598                 mov rax, qword ptr [rbp - 0x68]
+    00152e: 4889c2                   mov rdx, rax
+    001531: e85affffff               call 0x1490
+    001536: 488b45c8                 mov rax, qword ptr [rbp - 0x38]
+    00153a: e900000000               jmp 0x153f
+    00153f: 488d65f8                 lea rsp, [rbp - 8]
+    001543: 5b                       pop rbx
+    001544: 5d                       pop rbp
+    001545: c3                       ret 
+    FEATS: frame=rsp, 0x888 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=True x+1→rdx=False calls=1 imm_eax=[] nop=False
+  -- func[2] @0x1548 --
+    001548: 55                       push rbp
+    001549: 4889e5                   mov rbp, rsp
+    00154c: 53                       push rbx
+    00154d: 4881ec78080000           sub rsp, 0x878
+    001554: 488d45d8                 lea rax, [rbp - 0x28]
+    001558: 4889c1                   mov rcx, rax
+    00155b: b809000000               mov eax, 9
+    001560: 488945c8                 mov qword ptr [rbp - 0x38], rax
+    001564: 488b45c8                 mov rax, qword ptr [rbp - 0x38]
+    001568: 4889c2                   mov rdx, rax
+    00156b: e888ffffff               call 0x14f8
+    001570: 488d45d8                 lea rax, [rbp - 0x28]
+    001574: 488b00                   mov rax, qword ptr [rax]
+    001577: 4889c3                   mov rbx, rax
+    00157a: b80a000000               mov eax, 0xa
+    00157f: 4839c3                   cmp rbx, rax
+    001582: 0f95c0                   setne al
+    001585: 0fb6c0                   movzx eax, al
+    001588: 85c0                     test eax, eax
+    00158a: 0f840f000000             je 0x159f
+    001590: b801000000               mov eax, 1
+    001595: e979000000               jmp 0x1613
+    00159a: e900000000               jmp 0x159f
+    00159f: 488d45d8                 lea rax, [rbp - 0x28]
+    0015a3: 480508000000             add rax, 8
+    0015a9: 488b00                   mov rax, qword ptr [rax]
+    0015ac: 4889c3                   mov rbx, rax
+    0015af: b80b000000               mov eax, 0xb
+    FEATS: frame=rsp, 0x878 sub20=False rcx_sret_lea=True rcx_stack=None imm→rdx=None spill38=True x+1→rdx=False calls=1 imm_eax=[9, 10, 1, 11, 2, 12] nop=False
+  -- func[3] @0x1620 --
+    001620: 55                       push rbp
+    001621: 4889e5                   mov rbp, rsp
+    001624: 4883ec10                 sub rsp, 0x10
+    001628: 48894d10                 mov qword ptr [rbp + 0x10], rcx
+    00162c: 48c745f800000000         mov qword ptr [rbp - 8], 0
+    001634: 48837d1000               cmp qword ptr [rbp + 0x10], 0
+    001639: 750c                     jne 0x1647
+    00163b: b800000000               mov eax, 0
+    001640: eb1b                     jmp 0x165d
+    001642: 488345f801               add qword ptr [rbp - 8], 1
+    001647: 488b5510                 mov rdx, qword ptr [rbp + 0x10]
+    00164b: 488b45f8                 mov rax, qword ptr [rbp - 8]
+    00164f: 4801d0                   add rax, rdx
+    001652: 0fb600                   movzx eax, byte ptr [rax]
+    001655: 84c0                     test al, al
+    001657: 75e9                     jne 0x1642
+    001659: 488b45f8                 mov rax, qword ptr [rbp - 8]
+    00165d: 4883c410                 add rsp, 0x10
+    001661: 5d                       pop rbp
+    001662: c3                       ret 
+    FEATS: frame=rsp, 0x10 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=0 imm_eax=[0] nop=False
+  -- func[4] @0x1663 --
+    001663: 55                       push rbp
+    001664: 4889e5                   mov rbp, rsp
+    001667: 4883ec40                 sub rsp, 0x40
+    00166b: f20f114510               movsd qword ptr [rbp + 0x10], xmm0
+    001670: 48895518                 mov qword ptr [rbp + 0x18], rdx
+    001674: 4c894520                 mov qword ptr [rbp + 0x20], r8
+    001678: 48c745f800000000         mov qword ptr [rbp - 8], 0
+    001680: 48837d2000               cmp qword ptr [rbp + 0x20], 0
+    001685: 7407                     je 0x168e
+    001687: 48837d1800               cmp qword ptr [rbp + 0x18], 0
+    00168c: 750a                     jne 0x1698
+    00168e: b800000000               mov eax, 0
+    001693: e915020000               jmp 0x18ad
+    001698: 660fefc0                 pxor xmm0, xmm0
+    00169c: 660f2f4510               comisd xmm0, xmmword ptr [rbp + 0x10]
+    0016a1: 7636                     jbe 0x16d9
+    0016a3: 488b45f8                 mov rax, qword ptr [rbp - 8]
+    0016a7: 483b4520                 cmp rax, qword ptr [rbp + 0x20]
+    0016ab: 7316                     jae 0x16c3
+    0016ad: 488b45f8                 mov rax, qword ptr [rbp - 8]
+    0016b1: 488d5001                 lea rdx, [rax + 1]
+    0016b5: 488955f8                 mov qword ptr [rbp - 8], rdx
+    0016b9: 488b5518                 mov rdx, qword ptr [rbp + 0x18]
+    0016bd: 4801d0                   add rax, rdx
+    0016c0: c6002d                   mov byte ptr [rax], 0x2d
+    0016c3: f20f104510               movsd xmm0, qword ptr [rbp + 0x10]
+    0016c8: f30f7e0d403a0000         movq xmm1, qword ptr [rip + 0x3a40]
+    0016d0: 660f57c1                 xorpd xmm0, xmm1
+    FEATS: frame=rsp, 0x40 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=0 imm_eax=[0] nop=False
+  -- func[5] @0x2449 --
+    002449: 55                       push rbp
+    00244a: 4889e5                   mov rbp, rsp
+    00244d: 4883ec30                 sub rsp, 0x30
+    002451: 48894d10                 mov qword ptr [rbp + 0x10], rcx
+    002455: 48895518                 mov qword ptr [rbp + 0x18], rdx
+    002459: 4c894520                 mov qword ptr [rbp + 0x20], r8
+    00245d: 4c894d28                 mov qword ptr [rbp + 0x28], r9
+    002461: 488d4528                 lea rax, [rbp + 0x28]
+    002465: 488945f0                 mov qword ptr [rbp - 0x10], rax
+    002469: 4c8b45f0                 mov r8, qword ptr [rbp - 0x10]
+    00246d: 488b4d20                 mov rcx, qword ptr [rbp + 0x20]
+    002471: 488b5518                 mov rdx, qword ptr [rbp + 0x18]
+    002475: 488b4510                 mov rax, qword ptr [rbp + 0x10]
+    002479: 4d89c1                   mov r9, r8
+    00247c: 4989c8                   mov r8, rcx
+    00247f: 4889c1                   mov rcx, rax
+    002482: e82cf4ffff               call 0x18b3
+    002487: 8945fc                   mov dword ptr [rbp - 4], eax
+    00248a: 8b45fc                   mov eax, dword ptr [rbp - 4]
+    00248d: 4883c430                 add rsp, 0x30
+    002491: 5d                       pop rbp
+    002492: c3                       ret 
+    FEATS: frame=rsp, 0x30 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=1 imm_eax=[] nop=False
+
+=== ISOL/_var_let.x sha=d16c78ade1f2 n_prolog=19 n868=3 n68=0 n1b8=0 ===
+  -- func[0] @0x1490 --
+    001490: 55                       push rbp
+    001491: 4889e5                   mov rbp, rsp
+    001494: 53                       push rbx
+    001495: 4881ec68080000           sub rsp, 0x868
+    00149c: 4889c8                   mov rax, rcx
+    00149f: 488945d0                 mov qword ptr [rbp - 0x30], rax
+    0014a3: 4889d0                   mov rax, rdx
+    0014a6: 488945f0                 mov qword ptr [rbp - 0x10], rax
+    0014aa: 488b45d0                 mov rax, qword ptr [rbp - 0x30]
+    0014ae: 4889c3                   mov rbx, rax
+    0014b1: 53                       push rbx
+    0014b2: 488b45f0                 mov rax, qword ptr [rbp - 0x10]
+    0014b6: 5b                       pop rbx
+    0014b7: 53                       push rbx
+    0014b8: 48898300000000           mov qword ptr [rbx], rax
+    0014bf: 488b45f0                 mov rax, qword ptr [rbp - 0x10]
+    0014c3: bb01000000               mov ebx, 1
+    0014c8: 488d0418                 lea rax, [rax + rbx]
+    0014cc: 5b                       pop rbx
+    0014cd: 53                       push rbx
+    0014ce: 48898308000000           mov qword ptr [rbx + 8], rax
+    0014d5: 488b45f0                 mov rax, qword ptr [rbp - 0x10]
+    0014d9: bb02000000               mov ebx, 2
+    0014de: 488d0418                 lea rax, [rax + rbx]
+    0014e2: 5b                       pop rbx
+    0014e3: 53                       push rbx
+    0014e4: 48898310000000           mov qword ptr [rbx + 0x10], rax
+    0014eb: 5b                       pop rbx
+    FEATS: frame=0x868 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=0 imm_eax=[] nop=False
+  -- func[1] @0x14f8 --
+    0014f8: 55                       push rbp
+    0014f9: 4889e5                   mov rbp, rsp
+    0014fc: 53                       push rbx
+    0014fd: 4881ec68080000           sub rsp, 0x868
+    001504: 4889c8                   mov rax, rcx
+    001507: 488945b0                 mov qword ptr [rbp - 0x50], rax
+    00150b: 4889d0                   mov rax, rdx
+    00150e: 488945f0                 mov qword ptr [rbp - 0x10], rax
+    001512: 488b45b0                 mov rax, qword ptr [rbp - 0x50]
+    001516: 4889c1                   mov rcx, rax
+    001519: 4883ec20                 sub rsp, 0x20
+    00151d: 488b45f0                 mov rax, qword ptr [rbp - 0x10]
+    001521: 48ffc0                   inc rax
+    001524: 4889c2                   mov rdx, rax
+    001527: e864ffffff               call 0x1490
+    00152c: 4883c420                 add rsp, 0x20
+    001530: 488b45c8                 mov rax, qword ptr [rbp - 0x38]
+    001534: e900000000               jmp 0x1539
+    001539: 488d65f8                 lea rsp, [rbp - 8]
+    00153d: 5b                       pop rbx
+    00153e: 5d                       pop rbp
+    00153f: c3                       ret 
+    FEATS: frame=0x868 sub20=True rcx_sret_lea=False rcx_stack=rbp-0x50 imm→rdx=None spill38=True x+1→rdx=True calls=1 imm_eax=[] nop=False
+  -- func[2] @0x1540 --
+    001540: 55                       push rbp
+    001541: 4889e5                   mov rbp, rsp
+    001544: 53                       push rbx
+    001545: 4881ec68080000           sub rsp, 0x868
+    00154c: 488d45d8                 lea rax, [rbp - 0x28]
+    001550: 4889c1                   mov rcx, rax
+    001553: 4883ec20                 sub rsp, 0x20
+    001557: b809000000               mov eax, 9
+    00155c: 4889c2                   mov rdx, rax
+    00155f: 90                       nop 
+    001560: 90                       nop 
+    001561: e892ffffff               call 0x14f8
+    001566: 4883c420                 add rsp, 0x20
+    00156a: 488d45d8                 lea rax, [rbp - 0x28]
+    00156e: 488b00                   mov rax, qword ptr [rax]
+    001571: 4889c3                   mov rbx, rax
+    001574: b80a000000               mov eax, 0xa
+    001579: 4839c3                   cmp rbx, rax
+    00157c: 0f95c0                   setne al
+    00157f: 0fb6c0                   movzx eax, al
+    001582: 85c0                     test eax, eax
+    001584: 0f840f000000             je 0x1599
+    00158a: b801000000               mov eax, 1
+    00158f: e979000000               jmp 0x160d
+    001594: e900000000               jmp 0x1599
+    001599: 488d45d8                 lea rax, [rbp - 0x28]
+    00159d: 480508000000             add rax, 8
+    0015a3: 488b00                   mov rax, qword ptr [rax]
+    FEATS: frame=0x868 sub20=True rcx_sret_lea=True rcx_stack=None imm→rdx=9 spill38=False x+1→rdx=False calls=1 imm_eax=[9, 10, 1, 11, 2, 12] nop=True
+  -- func[3] @0x1620 --
+    001620: 55                       push rbp
+    001621: 4889e5                   mov rbp, rsp
+    001624: 4883ec10                 sub rsp, 0x10
+    001628: 48894d10                 mov qword ptr [rbp + 0x10], rcx
+    00162c: 48c745f800000000         mov qword ptr [rbp - 8], 0
+    001634: 48837d1000               cmp qword ptr [rbp + 0x10], 0
+    001639: 750c                     jne 0x1647
+    00163b: b800000000               mov eax, 0
+    001640: eb1b                     jmp 0x165d
+    001642: 488345f801               add qword ptr [rbp - 8], 1
+    001647: 488b5510                 mov rdx, qword ptr [rbp + 0x10]
+    00164b: 488b45f8                 mov rax, qword ptr [rbp - 8]
+    00164f: 4801d0                   add rax, rdx
+    001652: 0fb600                   movzx eax, byte ptr [rax]
+    001655: 84c0                     test al, al
+    001657: 75e9                     jne 0x1642
+    001659: 488b45f8                 mov rax, qword ptr [rbp - 8]
+    00165d: 4883c410                 add rsp, 0x10
+    001661: 5d                       pop rbp
+    001662: c3                       ret 
+    FEATS: frame=rsp, 0x10 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=0 imm_eax=[0] nop=False
+  -- func[4] @0x1663 --
+    001663: 55                       push rbp
+    001664: 4889e5                   mov rbp, rsp
+    001667: 4883ec40                 sub rsp, 0x40
+    00166b: f20f114510               movsd qword ptr [rbp + 0x10], xmm0
+    001670: 48895518                 mov qword ptr [rbp + 0x18], rdx
+    001674: 4c894520                 mov qword ptr [rbp + 0x20], r8
+    001678: 48c745f800000000         mov qword ptr [rbp - 8], 0
+    001680: 48837d2000               cmp qword ptr [rbp + 0x20], 0
+    001685: 7407                     je 0x168e
+    001687: 48837d1800               cmp qword ptr [rbp + 0x18], 0
+    00168c: 750a                     jne 0x1698
+    00168e: b800000000               mov eax, 0
+    001693: e915020000               jmp 0x18ad
+    001698: 660fefc0                 pxor xmm0, xmm0
+    00169c: 660f2f4510               comisd xmm0, xmmword ptr [rbp + 0x10]
+    0016a1: 7636                     jbe 0x16d9
+    0016a3: 488b45f8                 mov rax, qword ptr [rbp - 8]
+    0016a7: 483b4520                 cmp rax, qword ptr [rbp + 0x20]
+    0016ab: 7316                     jae 0x16c3
+    0016ad: 488b45f8                 mov rax, qword ptr [rbp - 8]
+    0016b1: 488d5001                 lea rdx, [rax + 1]
+    0016b5: 488955f8                 mov qword ptr [rbp - 8], rdx
+    0016b9: 488b5518                 mov rdx, qword ptr [rbp + 0x18]
+    0016bd: 4801d0                   add rax, rdx
+    0016c0: c6002d                   mov byte ptr [rax], 0x2d
+    0016c3: f20f104510               movsd xmm0, qword ptr [rbp + 0x10]
+    0016c8: f30f7e0d403a0000         movq xmm1, qword ptr [rip + 0x3a40]
+    0016d0: 660f57c1                 xorpd xmm0, xmm1
+    FEATS: frame=rsp, 0x40 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=0 imm_eax=[0] nop=False
+  -- func[5] @0x2449 --
+    002449: 55                       push rbp
+    00244a: 4889e5                   mov rbp, rsp
+    00244d: 4883ec30                 sub rsp, 0x30
+    002451: 48894d10                 mov qword ptr [rbp + 0x10], rcx
+    002455: 48895518                 mov qword ptr [rbp + 0x18], rdx
+    002459: 4c894520                 mov qword ptr [rbp + 0x20], r8
+    00245d: 4c894d28                 mov qword ptr [rbp + 0x28], r9
+    002461: 488d4528                 lea rax, [rbp + 0x28]
+    002465: 488945f0                 mov qword ptr [rbp - 0x10], rax
+    002469: 4c8b45f0                 mov r8, qword ptr [rbp - 0x10]
+    00246d: 488b4d20                 mov rcx, qword ptr [rbp + 0x20]
+    002471: 488b5518                 mov rdx, qword ptr [rbp + 0x18]
+    002475: 488b4510                 mov rax, qword ptr [rbp + 0x10]
+    002479: 4d89c1                   mov r9, r8
+    00247c: 4989c8                   mov r8, rcx
+    00247f: 4889c1                   mov rcx, rax
+    002482: e82cf4ffff               call 0x18b3
+    002487: 8945fc                   mov dword ptr [rbp - 4], eax
+    00248a: 8b45fc                   mov eax, dword ptr [rbp - 4]
+    00248d: 4883c430                 add rsp, 0x30
+    002491: 5d                       pop rbp
+    002492: c3                       ret 
+    FEATS: frame=rsp, 0x30 sub20=False rcx_sret_lea=False rcx_stack=None imm→rdx=None spill38=False x+1→rdx=False calls=1 imm_eax=[] nop=False
+
+### DIFF _var_let.x
+  DIFF: func[1].frame: LIVE=rsp, 0x888 Isol=0x868
+  DIFF: func[1].has_sub20: LIVE=False Isol=True
+  DIFF: func[1].rcx_from_stack: LIVE=None Isol=rbp-0x50
+  DIFF: func[1].x_plus1_rdx: LIVE=False Isol=True
+  DIFF: func[2].frame: LIVE=rsp, 0x878 Isol=0x868
+  DIFF: func[2].has_sub20: LIVE=False Isol=True
+  DIFF: func[2].imm_to_rdx: LIVE=None Isol=9
+  DIFF: func[2].spill_imm: LIVE=True Isol=False
+  DIFF: func[2].has_nop_pad: LIVE=False Isol=True
+
+======== SEMANTIC CHECKLIST (Isol vs LIVE) ========
+Axes: frame / rcx=sret / imm→rdx / spill / sub20 / x+1→rdx
+
+[p_ret_lit.x]
+  func[1].frame: LIVE=rsp, 0x878 Isol=0x868
+
+[p_ret_fwd.x]
+  func[1].has_sub20: LIVE=False Isol=True
+  func[1].x_plus1_rdx: LIVE=False Isol=True
+  func[2].frame: LIVE=rsp, 0x878 Isol=0x868
+  func[2].has_sub20: LIVE=False Isol=True
+  func[2].imm_to_rdx: LIVE=None Isol=9
+  func[2].spill_imm: LIVE=True Isol=False
+  func[2].has_nop_pad: LIVE=False Isol=True
+
+[p_ret_local.x]
+  func[0].frame: LIVE=rsp, 0x888 Isol=0x868
+
+[_var_let.x]
+  func[1].frame: LIVE=rsp, 0x888 Isol=0x868
+  func[1].has_sub20: LIVE=False Isol=True
+  func[1].rcx_from_stack: LIVE=None Isol=rbp-0x50
+  func[1].x_plus1_rdx: LIVE=False Isol=True
+  func[2].frame: LIVE=rsp, 0x878 Isol=0x868
+  func[2].has_sub20: LIVE=False Isol=True
+  func[2].imm_to_rdx: LIVE=None Isol=9
+  func[2].spill_imm: LIVE=True Isol=False
+  func[2].has_nop_pad: LIVE=False Isol=True
+
+======== GATE (Isol cold reconfirm) ========
+  p_ret_lit.x      Isol USER=5c6778769c3c run=0 OK | LIVE USER=b1265db940f1 run=0
+  p_ret_fwd.x      Isol USER=a99121ae7a80 run=0 OK | LIVE USER=a138cdb6862d run=AV
+  p_ret_local.x    Isol USER=36d26fcc9657 run=0 OK | LIVE USER=a1f688e8e47a run=1
+  _var_let.x       Isol USER=d16c78ade1f2 run=0 OK | LIVE USER=8eddd86645a0 run=1
+
+======== PLANT DECISION ========
+Isol s25 four-gate already GREEN (run=0). Remaining LIVE↔Isol diffs are EMIT SHAPE:
+  1) LIVE: mov eax,0xa; mov [rbp-0x38],rax; reload; mov rdx  (spill)
+     Isol: mov eax,9; mov rdx,rax; nop;nop  (main→fw) OR x+1→rdx (fw→mk)
+  2) LIVE: no sub rsp,0x20 before call-mk; Isol: has sub20 (Win ABI shadow)
+  3) rcx=sret: BOTH set rcx from lea [rbp-0x28] (main) / Isol let uses [rbp-0x50]
+  4) frame: Isol n868 SoftCap-shaped; LIVE may differ size but same sret ABI
+⇒ No Isol-able single-point plant that closes SHAPE gap without LIVE transplant.
+⇒ DIG-only this beat. Next: source-level SoftCap emit same Isol USER shape
+  (Capless USER16 + 3-scan) — still NO PROD/pin bump.
+
+=== SUMMARY elapsed=0.7s IsolGate=GREEN ===
+PROD SoftCap / pin: untouched (no LIVE transplant)

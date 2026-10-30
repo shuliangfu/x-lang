@@ -1,5 +1,8 @@
 # 10.60 SoftCap DIG PROGRESS
 
+**2026-10-30 ~19:55 CST (Asia/Shanghai)** · DIG `live_isol_parity`：**DIG-only** — Isol s25 USER vs LIVE SoftCap 语义对拍钉清（rcx=sret／imm→rdx／frame／sub20）；LIVE fwd **AV**（rcx=值非 sret）；Isol 四门仍绿；**无 plant**（形差≠LIVE 移植）；勿升 PROD／钉 **不升** · 下一单点：`src_softcap_s25_emit`
+
+
 **2026-10-30 ~19:07 CST (Asia/Shanghai)** · DIG `fwd_46_capless_1a0`：**红** — Capless/Isol 6th/7th 供给 → USER `f483` run GS（fw call-mk rcx=值非 sret）；skip_1a0／hollow 仅对照；勿升 PROD／钉 **不升** · 下一单点：`fwd_46_967_sret`
 
 
@@ -3062,3 +3065,39 @@ Isol CapFN 体内 E8 入 SoftCap mega `[0x57effc,0x58e9a0)`：**5** 处；−Δ`
 ### 4) open
 - 笔记 `_dig/dig_fwd_46_967_sret_persist.md`；重建 `_dig/build_isol_967_s25.py`；冷门 `_dig/gate_967_s25_cold.py`
 - PROD／钉 **未动**；bans unchanged；**门绿≠PROD✅**
+
+## 2026-10-30 ~19:55 CST Asia/Shanghai — DIG `live_isol_parity` DIG-only；下一 `src_softcap_s25_emit`
+
+### 0) 闸
+- tip HEAD `6b9fc503f`＝origin/dev（本拍前；commit 后见 tip）
+- Isol `host_967_s25` sha12 `e53841ce0e24`；LIVE ref `lab_LIVE_pret` sha12 `cbc0d8e8d96f`（对照 only）
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／LIVE SoftCap 移植／arg-loop／tip@121278／join／epi／hollow·skip 当收刀：遵守
+
+### 1) DIG 钉死（本拍）
+1. **Isol 四门仍绿** lit/fwd/local/let run=0 USER sha 不变（cold reconfirm）。
+2. **LIVE SoftCap fwd AV**：fw`@0x14f8` 把 `x+1` 写入 **rcx** 再 `call mk`（rcx=值非 sret）——与 Isol 已修的 f483 GS 同根；LIVE lit run=0；local/let exit1。
+3. **PROD SoftCap** `p_ret_lit/fwd` compile exit1／无 USER（未动）。
+4. 形差清单（禁移植对齐 LIVE）：
+   - **frame**：Isol 统一 `0x868`；LIVE main=`0x878`／let-fw=`0x888`
+   - **rcx=sret**：Isol main lea`[rbp-0x28]`＋let `[rbp-0x50]`；LIVE fwd **错**；LIVE let 用本地 `[rbp-0x38]`
+   - **imm→rdx**：Isol `mov eax,9; mov rdx`／`inc→rdx`；LIVE spill `[rbp-0x38]`／`lea [rax+1]`+spill
+   - **sub20**：Isol 有；LIVE 无（勿为对齐而拆）
+5. **无 Isol 单点 plant**：形差闭合＝LIVE 移植（禁）；Isol 已绿勿回归 LIVE fwd 错形。
+
+### 2) Win SoftCap 门
+| src | Isol USER | run | LIVE USER | run |
+|---|---|---|---|---|
+| p_ret_lit.x | `5c6778769c3c` | 0 | `b1265db940f1` | 0 |
+| p_ret_fwd.x | `a99121ae7a80` | 0 | `a138cdb6862d` | **AV** |
+| p_ret_local.x | `36d26fcc9657` | 0 | `a1f688e8e47a` | 1 |
+| _var_let.x | `d16c78ade1f2` | 0 | `8eddd86645a0` | 1 |
+
+### 3) 下一拍最小刀（单点）
+- **`src_softcap_s25_emit`**：把 Isol s25 语义（Capless USER16 x+1→rdx＋c1→c2＋let_sret＋main_imm9）收成**源级 SoftCap** 发出同形 USER（无 PE Isol／无 LIVE 移植）。仍 **勿升 PROD／钉**。
+- Darwin Cap soft／Ubuntu tip-cold：源级稳绿后再开。
+- hollow／skip_1a0 仍对照勿收刀。
+
+### 4) open
+- 笔记 `_dig/dig_live_isol_parity.md`；脚本／log `_dig/dig_live_isol_parity.py`／`.log`
+- PROD／钉 **未动**；bans unchanged；**门绿≠PROD✅／≠收刀**
