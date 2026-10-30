@@ -1,5 +1,37 @@
 # 10.60 SoftCap DIG PROGRESS
 
+**2026-10-30 ~17:40 CST (Asia/Shanghai)** · plant `cmk0_irdx`：**lit 绿** Isol-native imm→rdx（USER `776e855a8cae` run=0；无 LIVE spill）；fwd **GS**／local OK run=1；INT3 `@57ba3b` HIT；`[rbp-0x80]` 24B 够 8B；勿升 PROD／钉 **不升**／勿收刀 · 下一单点：`cmk0_irdx_sub20`（保 sub20 影空治 fwd GS）或 DIG fwd GS
+
+
+## 2026-10-30 ~17:40 CST Asia/Shanghai — plant `cmk0_irdx`；lit 绿；fwd GS
+
+### 0) 闸
+- tip HEAD `b169312cf`＝origin/dev（本拍前；commit 后见 tip）
+- Isol alt_frame2 `9378df517f96`／host plant `bbe7d9819dfd`
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／tip@121278／join／epi／LIVE SoftCap 移植／arg-loop／LIVE spill：遵守
+
+### 1) DIG 钉死（本拍）
+1. `@57ba34` rbx←`[rbp-0x80]`；窗 74B；Isol `88 83`×4 写 len=4；`[rbp-0x80]..[rbp-0x68)`＝24B。
+2. hex `b80a0000004889c2`＝8B（非 10）；`88 83` 全形超窗 → `c643`×8＋`@57ba94` 4→8。
+3. Plant `cmk0_irdx`：无 LIVE spill；`@578266` 不动。
+4. lit OK imm→rdx run=0；fwd GS；local OK run=1；INT3 `@57ba3b` HIT。
+
+### 2) Win SoftCap 门
+| Isol plant | sha12 | lit | fwd | local | USER |
+|---|---|---|---|---|---|
+| cmk0_irdx | bbe7d9819dfd | OK 776e855a8cae run0 | GS | OK 0728e2d1689c run1 | imm→rdx 无 spill；lit 绿 |
+| base_828 (对照) | 0977d6fbb472 | 本拍偶发 AV | — | — | 环境 settle 后 irdx lit 稳 |
+
+### 3) 下一拍最小刀（单点）
+- **`cmk0_irdx_sub20`**：USER 拼 imm→rdx＋`sub rsp,0x20`（治 fwd GS）；或 DIG fwd GS。禁 tip@121278／join／epi／LIVE／mega／arg-loop。
+- 未双门绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 4) open
+- 笔记 `_dig/dig_cmk0_irdx.md`；脚本／log `_dig/dig_cmk0_irdx.py`／`.log`
+- PROD／钉 **未动**；bans unchanged
+
+
 **2026-10-30 ~17:26 CST (Asia/Shanghai)** · plant `immrdx_bypass`：**红 AV** — Capless `@578266` 强制 `[4b0]=1`→call-mk `[990]=1` 空壳 AV（INT3 `@575799/@575fa3` 均非 HIT）；base_828 保 call-mk／缺 imm→rdx；勿升 PROD／钉 **不升**／勿收刀 · 下一单点：`cmk0_rdx`（call-mk `[4b0]==0` Isol-native imm→rdx；禁 mega glue／+0x478 fill）
 
 

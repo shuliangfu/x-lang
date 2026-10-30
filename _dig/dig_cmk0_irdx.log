@@ -1,0 +1,51 @@
+host_b828=0977d6fbb472
+b828 lit try0 AV sha=- n868=0
+  stderr=b'' stdout=b''
+b828 lit try1 AV sha=- n868=0
+  stderr=b'' stdout=b''
+b828 lit try2 AV sha=- n868=0
+  stderr=b'' stdout=b''
+b828 lit try3 AV sha=- n868=0
+  stderr=b'' stdout=b''
+b828 lit try4 AV sha=- n868=0
+  stderr=b'' stdout=b''
+b828_ok=False
+
+cmk0_irdx sha12=bbe7d9819dfd USER8=b80a0000004889c2 append=8
+  p_ret_lit.x      OK       sha=776e855a8cae n868=2 run=OK/0 (0.1s)
+  cmk0_irdx sret @0xb04:
+    @0b04: lea rax, [rbp - 0x28]
+    @0b08: mov rcx, rax
+    @0b0b: mov eax, 0xa
+    @0b10: mov rdx, rax
+    @0b13: call 0xa90
+    @0b18: add rsp, 0x20
+    @0b1c: lea rax, [rbp - 0x28]
+    @0b20: mov rax, qword ptr [rax]
+    @0b23: mov rbx, rax
+    @0b26: mov eax, 0xa
+    @0b2b: cmp rbx, rax
+    @0b2e: setne al
+    @0b31: movzx eax, al
+    @0b34: test eax, eax
+    @0b36: je 0xb4b
+    @0b3c: mov eax, 1
+    @0b41: jmp 0xbbf
+    @0b46: jmp 0xb4b
+  cmk0_irdx imm=True rdx=True spill=False sub20=False call=True true_irdx=True
+  p_ret_fwd.x      GS       sha=- n868=0 run=-/-1 (0.3s)
+    stderr=b''
+  p_ret_local.x    OK       sha=0728e2d1689c n868=2 run=crc=0x1/1 (0.1s)
+INT3 @57ba3b -> AV
+
+=== VERDICT ===
+cmk0_irdx lit compile=OK run=OK/0 n868=2 immrdx=True call=True GREEN=True
+elapsed=5.5s
+cleaned
+--- settle gate 2026-10-30 17:40 CST Asia/Shanghai ---
+cmk0_irdx sha12=bbe7d9819dfd USER8=b80a0000004889c2 append=8
+p_ret_lit.x   OK 776e855a8cae n868=2 has_u8=True run=0
+p_ret_fwd.x   GS
+p_ret_local.x OK 0728e2d1689c n868=2 has_u8=True run=1
+INT3 @57ba3b HIT (separate probe)
+GREEN lit=True fwd=False
