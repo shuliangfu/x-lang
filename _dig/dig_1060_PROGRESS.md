@@ -1,5 +1,36 @@
 # 10.60 SoftCap DIG PROGRESS
 
+**2026-10-30 ~17:00 CST (Asia/Shanghai)** · DIG emit-arg：**对象指针**（`@2a5ca8`→`@21b5fa`＋`@23030e`；`@205068` 要 kinded`+0x100` size）≠AST i32／sidecar；retarget 已填容器 **否**（唯 0x568＝空 `+0x478`）；单次 emit+push E8 **无** → plant **不可隔离** → 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：Isol-native `@205068`-兼容 emit-arg 构造＋写入 `+0x478` inner（禁 tip@121278／join／epi／LIVE／mega）
+
+
+## 2026-10-30 ~17:00 CST Asia/Shanghai — DIG emit-arg 元素形态／retarget／单次 E8；无 plant
+
+### 0) 闸
+- tip HEAD `fb8ecf0e1`＝origin/dev（本拍前；commit 后见 tip）
+- Isol alt_frame2 `9378df517f96`；LIVE `lab_LIVE_pret.exe`（对照）；`base_828` sha12 `0977d6fbb472`
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／tip@121278／join／epi／LIVE SoftCap 移植／arg-loop：遵守
+
+### 1) DIG 钉死（本拍）
+1. emit-arg 元素＝`@2a5ca8` 解出的 **运行时对象**（`@21b5fa` decode＋`@23030e` kind>0）；`@205068` 消费 kinded-slot 且 `[slot+0x100]==size`。**≠** AST expr_ref／sidecar grow_vec。
+2. retarget 已填 `@2a62c9`-兼容容器：**否** — Isol 唯 `edx=0x568`＝Capless 空壳 `@576624`→`+0x478`；Capless 零 len／get／push／init E8；`+0x460` 等异尺寸。
+3. 单次 Isol-native emit+push E8：**无** — `@2a4f6a` 仅 inner grow 空槽；与 `@1ff2ef` 无共窗；无 `fill(+0x478, CallExpr)`。
+4. Plant **不可隔离**；无 `p_ret_*`。
+
+### 2) Win SoftCap 门
+| Isol plant | sha12 | lit | run | USER |
+|---|---|---|---|---|
+| （本拍无） | — | — | — | N/A；frontier 仍红 |
+
+### 3) 下一拍最小刀（单点）
+- Isol-native **谁构造 `@205068`-兼容 emit-arg**（SoftCap lit imm／expr→对象），再单点写入 `+0x478` inner 使 len≥1→`@2a5ca8`＋保 call-mk（禁 tip@121278／join／epi／LIVE／mega／arg-loop）。
+- 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 4) open
+- 笔记 `_dig/dig_emit_arg_shape.md`；先验 `_dig/dig_push_helper_gap.md`
+- PROD／钉 **未动**；bans unchanged
+
+
 **2026-10-30 ~16:57 CST (Asia/Shanghai)** · DIG push helper：**不在** LIVE Capless-iso（同空壳）／**不在** 另一 Isol Cap `+0x478`；LIVE 绿＝Cap`@0024e6`→Cap21c8 旁路；Capless 4×`@1ff2ef` 仅闸；**无** fill E8 → plant **不可隔离** → 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：emit-arg 元素形态／retarget 已填容器（禁 tip@121278／join／epi／LIVE／mega）
 
 
