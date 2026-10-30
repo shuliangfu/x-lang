@@ -1,0 +1,141 @@
+=== DIG2 fwd_gs_root Capless_alt walk ===
+host_sub20=3f43f1609d70
+
+=== extra constructs ===
+  _var_fwd.x               -> GS       sha=-
+  _var_fwd_let.x           -> OK       sha=98c9714985ed
+  _var_fwd_lit_inner.x     -> GS       sha=-
+  _var_lit.x               -> OK       sha=e4a14037fb84
+
+=== disasm Capless_alt @57656c +0x200 ===
+  57656c: push     rbp
+  57656d: sub      rsp, 0x500
+  576574: lea      rbp, [rsp + 0x80]
+  57657c: mov      qword ptr [rbp + 0x490], rcx
+  576583: mov      qword ptr [rbp + 0x498], rdx
+  57658a: mov      dword ptr [rbp + 0x4a0], r8d
+  576591: mov      qword ptr [rbp + 0x4a8], r9
+  576598: cmp      qword ptr [rbp + 0x490], 0
+  5765a0: jne      0x5765ac JCC
+  5765a2: mov      eax, 0xffffffff
+  5765a7: jmp      0x578278 JCC
+  5765ac: cmp      qword ptr [rbp + 0x498], 0
+  5765b4: jne      0x5765c0 JCC
+  5765b6: mov      eax, 0xffffffff
+  5765bb: jmp      0x578278 JCC
+  5765c0: cmp      qword ptr [rbp + 0x4a8], 0
+  5765c8: jne      0x5765d4 JCC
+  5765ca: mov      eax, 0xffffffff
+  5765cf: jmp      0x578278 JCC
+  5765d4: mov      edx, dword ptr [rbp + 0x4a0]
+  5765da: mov      rax, qword ptr [rbp + 0x490]
+  5765e1: mov      rcx, rax
+  5765e4: call     0x1ffefe CALL
+  5765e9: mov      dword ptr [rbp + 0x468], eax
+  5765ef: cmp      dword ptr [rbp + 0x468], 0
+  5765f6: jg       0x576602 JCC
+  5765f8: mov      eax, 0xffffffff
+  5765fd: jmp      0x578278 JCC
+  576602: mov      rax, qword ptr [rbp + 0x4a8]
+  576609: mov      edx, 0x10
+  57660e: mov      rcx, rax
+  576611: call     0x55d730 CALL
+  576616: mov      qword ptr [rbp + 0x460], rax
+  57661d: mov      rax, qword ptr [rbp + 0x4a8]
+  576624: mov      edx, 0x568
+  576629: mov      rcx, rax
+  57662c: call     0x55d730 CALL
+  576631: mov      qword ptr [rbp + 0x478], rax
+  576638: cmp      qword ptr [rbp + 0x478], 0
+  576640: jne      0x57664e JCC
+  576642: call     0x24afe0 CALL
+  576647: mov      qword ptr [rbp + 0x478], rax
+  57664e: mov      edx, dword ptr [rbp + 0x468]
+  576654: mov      rax, qword ptr [rbp + 0x490]
+  57665b: mov      rcx, rax
+  57665e: call     0x20cd98 CALL
+  576663: mov      dword ptr [rbp + 0x45c], eax
+  576669: mov      r9, qword ptr [rbp + 0x460]
+  576670: mov      r8d, dword ptr [rbp + 0x4a0]
+  576677: mov      rdx, qword ptr [rbp + 0x498]
+  57667e: mov      rax, qword ptr [rbp + 0x490]
+  576685: mov      ecx, dword ptr [rbp + 0x4b0]
+  57668b: mov      dword ptr [rsp + 0x20], ecx
+  57668f: mov      rcx, rax
+  576692: call     0x2be519 CALL
+  576697: mov      dword ptr [rbp + 0x458], eax
+  57669d: cmp      dword ptr [rbp + 0x458], 0
+  5766a4: jns      0x5766b0 JCC
+  5766a6: mov      eax, 0xffffffff
+  5766ab: jmp      0x578278 JCC
+
+=== INT3 walk @57656c body under fwd ===
+  @57656c push     rbp                                        -> INT3 HIT
+  @57656d sub      rsp, 0x500                                 -> INT3 HIT
+  @576574 lea      rbp, [rsp + 0x80]                          -> INT3 HIT
+  @57657c mov      qword ptr [rbp + 0x490], rcx               -> INT3 HIT
+  @576583 mov      qword ptr [rbp + 0x498], rdx               -> INT3 HIT
+  @57658a mov      dword ptr [rbp + 0x4a0], r8d               -> INT3 HIT
+  @576591 mov      qword ptr [rbp + 0x4a8], r9                -> INT3 HIT
+  @576598 cmp      qword ptr [rbp + 0x490], 0                 -> INT3 HIT
+  @5765a0 jne      0x5765ac                                   -> INT3 HIT
+  @5765a2 mov      eax, 0xffffffff                            -> GS **GS**
+  >> first post-HIT GS/unreached @0x5765a2 after lastHIT @0x5765a0
+
+=== INT3 walk SoftCap_site @2be519 +0x120 under fwd ===
+  @2be519 push     rbp                                        -> INT3 HIT
+  @2be51a sub      rsp, 0x150                                 -> INT3 HIT
+  @2be521 lea      rbp, [rsp + 0x80]                          -> INT3 HIT
+  @2be529 mov      qword ptr [rbp + 0xe0], rcx                -> INT3 HIT
+  @2be530 mov      qword ptr [rbp + 0xe8], rdx                -> INT3 HIT
+  @2be537 mov      dword ptr [rbp + 0xf0], r8d                -> INT3 HIT
+  @2be53e mov      qword ptr [rbp + 0xf8], r9                 -> INT3 HIT
+  @2be545 mov      dword ptr [rbp + 0xc4], 0                  -> INT3 HIT
+  @2be54f mov      dword ptr [rbp + 0xcc], 0                  -> INT3 HIT
+  @2be559 mov      dword ptr [rbp + 0xc8], 0                  -> INT3 HIT
+  @2be563 mov      dword ptr [rbp + 0xc0], 0                  -> INT3 HIT
+  @2be56d mov      qword ptr [rbp - 0x50], 0                  -> INT3 HIT
+  @2be575 mov      qword ptr [rbp - 0x48], 0                  -> INT3 HIT
+  @2be57d mov      qword ptr [rbp - 0x40], 0                  -> INT3 HIT
+  @2be585 mov      qword ptr [rbp - 0x38], 0                  -> INT3 HIT
+  @2be58d mov      qword ptr [rbp - 0x30], 0                  -> INT3 HIT
+  @2be595 mov      qword ptr [rbp - 0x28], 0                  -> INT3 HIT
+  @2be59d mov      qword ptr [rbp - 0x20], 0                  -> INT3 HIT
+  @2be5a5 mov      qword ptr [rbp - 0x18], 0                  -> INT3 HIT
+  @2be5ad mov      qword ptr [rbp - 0x10], 0                  -> INT3 HIT
+  @2be5b5 mov      qword ptr [rbp - 8], 0                     -> INT3 HIT
+  @2be5bd mov      qword ptr [rbp], 0                         -> INT3 HIT
+  @2be5c5 mov      qword ptr [rbp + 8], 0                     -> INT3 HIT
+  @2be5cd mov      qword ptr [rbp + 0x10], 0                  -> INT3 HIT
+  @2be5d5 mov      qword ptr [rbp + 0x18], 0                  -> INT3 HIT
+  @2be5dd mov      qword ptr [rbp + 0x20], 0                  -> INT3 HIT
+  @2be5e5 mov      qword ptr [rbp + 0x28], 0                  -> INT3 HIT
+  @2be5ed mov      qword ptr [rbp + 0x30], 0                  -> INT3 HIT
+  @2be5f5 mov      qword ptr [rbp + 0x38], 0                  -> INT3 HIT
+  @2be5fd mov      qword ptr [rbp + 0x40], 0                  -> INT3 HIT
+  @2be605 mov      qword ptr [rbp + 0x48], 0                  -> INT3 HIT
+  @2be60d mov      qword ptr [rbp + 0x50], 0                  -> INT3 HIT
+  @2be615 mov      qword ptr [rbp + 0x58], 0                  -> INT3 HIT
+  @2be61d mov      qword ptr [rbp + 0x60], 0                  -> INT3 HIT
+  @2be625 mov      qword ptr [rbp + 0x68], 0                  -> INT3 HIT
+
+=== INT3 sparse Capless @576692..@576700 under fwd/lit ===
+  @576692 lit=INT3     fwd=INT3    
+  @5766a4 lit=INT3     fwd=GS      
+  @5766b0 lit=INT3     fwd=GS      
+  @5766c3 lit=INT3     fwd=GS      
+  @5766d1 lit=INT3     fwd=GS      
+  @5766e5 lit=INT3     fwd=GS      
+  @5766f1 lit=INT3     fwd=GS      
+  @576700 lit=OK       fwd=GS      
+  @576711 lit=INT3     fwd=GS      
+  @576724 lit=INT3     fwd=GS      
+  @576732 lit=INT3     fwd=GS      
+  @576743 lit=INT3     fwd=GS      
+  @576751 lit=INT3     fwd=GS      
+  @576764 lit=INT3     fwd=GS      
+
+last_hit Capless_alt=5727648 first_bad=(5727650, 'GS') SoftCap last=2876965
+elapsed=10.2s walked=10
+cleaned
+

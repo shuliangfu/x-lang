@@ -1,0 +1,136 @@
+=== DIG6 Capless/SoftCap_site call context ===
+baseline fwd=GS let=OK lit=OK
+
+=== E8 callers of SoftCap_site @2be519 ===
+n_callers=2
+  E8 @0x2be40f
+  E8 @0x576692
+
+=== Capless_alt prol/epi cookie? ===
+  57656c: push rbp
+  57656d: sub rsp, 0x500
+  576574: lea rbp, [rsp + 0x80]
+  57657c: mov qword ptr [rbp + 0x490], rcx
+  576583: mov qword ptr [rbp + 0x498], rdx
+  57658a: mov dword ptr [rbp + 0x4a0], r8d
+  576591: mov qword ptr [rbp + 0x4a8], r9
+  576598: cmp qword ptr [rbp + 0x490], 0
+  5765a0: jne 0x5765ac
+  5765a2: mov eax, 0xffffffff
+  5765a7: jmp 0x578278
+--- scan Capless_alt for security_check / gs ---
+  57820f: call 0x567a30
+  578273: call 0x57b98c
+  578278: add rsp, 0x500
+  57827f: pop rbp
+  578280: ret 
+  578281: int3 
+  578282: int3 
+  578283: int3 
+  578284: int3 
+  578285: int3 
+  578286: int3 
+  578287: int3 
+  578288: int3 
+  578289: int3 
+  57828a: int3 
+  57828b: int3 
+  57828c: int3 
+  57828d: int3 
+  57828e: int3 
+  57828f: int3 
+  578290: int3 
+  578291: int3 
+  578292: int3 
+  578293: int3 
+  578294: int3 
+  578295: int3 
+  578296: int3 
+  578297: int3 
+  578298: int3 
+  578299: int3 
+  57829a: int3 
+  57829b: int3 
+  57829c: int3 
+  57829d: int3 
+  57829e: int3 
+  57829f: int3 
+  5782a0: int3 
+  5782f6: call 0x55c1b0
+  578370: call 0x29390b
+  5783d6: call 0x55c284
+  578430: call 0x55c1b0
+  578483: call 0x567560
+  5784fc: call 0x5309e8
+  57856e: call 0x55c284
+  578695: call 0x523ba4
+  578704: call 0x52f204
+  5788b2: call 0x5638a0
+  578924: call 0x24b022
+
+=== Capless exit @578278 ===
+  578270: mov rcx, rax
+  578273: call 0x57b98c
+  578278: add rsp, 0x500
+  57827f: pop rbp
+  578280: ret 
+  578281: int3 
+  578282: int3 
+  578283: int3 
+  578284: int3 
+  578285: int3 
+  578286: int3 
+  578287: int3 
+  578288: int3 
+  578289: int3 
+  57828a: int3 
+  57828b: int3 
+  57828c: int3 
+  57828d: int3 
+  57828e: int3 
+  57828f: int3 
+  578290: int3 
+  578291: int3 
+  578292: int3 
+  578293: int3 
+  578294: int3 
+  578295: int3 
+  578296: int3 
+  578297: int3 
+  578298: int3 
+  578299: int3 
+  57829a: int3 
+  57829b: int3 
+  57829c: int3 
+  57829d: int3 
+  57829e: int3 
+  57829f: int3 
+  5782a0: int3 
+  5782a1: add byte ptr [rax], al
+  5782a3: cmp ebx, eax
+  5782a5: setne al
+  5782a8: movzx eax, al
+  5782ab: test eax, eax
+
+=== plant SoftCap_site entry ret0 (no frame) ===
+SoftCap_site entry orig=554881ec50010000
+scs_ret0 sha12=549d43afe841
+  scs_ret0/p_ret_lit.x    -> AV
+  scs_ret0/p_ret_fwd.x    -> GS
+  scs_ret0/p_ret_local.x  -> AV
+  scs_ret0/_var_let.x     -> AV
+
+=== plant SoftCap_site epi xor;ret (skip add/pop) ===
+epi orig=4881c4500100005dc3
+
+=== plant SoftCap_site sub rsp 0x150 -> 0x1d0 (cover +0x110 home) ===
+sub orig=4881ec50010000
+scs_frame1a0 sha12=c5d49bd617d6
+  frame1a0/p_ret_lit.x    -> OK
+  frame1a0/p_ret_fwd.x    -> GS
+  frame1a0/p_ret_local.x  -> OK
+  frame1a0/_var_let.x     -> OK
+
+elapsed=1.5s
+cleaned
+

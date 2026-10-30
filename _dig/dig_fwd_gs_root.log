@@ -1,0 +1,51 @@
+=== DIG fwd_gs_root ===
+alt_frame2=9378df517f96 host_b828=0977d6fbb472 host_sub20=3f43f1609d70
+GS=0xC0000409 STATUS_STACK_BUFFER_OVERRUN (cookie/__fastfail)
+
+=== variant matrix (compile tag) ===
+  b828  /lit            -> AV       sha=- n868=0
+  b828  /fwd            -> GS       sha=- n868=0
+  b828  /fwd_lit_inner  -> GS       sha=- n868=0
+  b828  /fwd_pass       -> GS       sha=- n868=0
+  b828  /main_bin       -> AV       sha=- n868=0
+  b828  /two_lit        -> AV       sha=- n868=0
+  b828  /fwd_nocal      -> AV       sha=- n868=0
+  sub20 /lit            -> OK       sha=78015bac7508 n868=2
+  sub20 /fwd            -> GS       sha=- n868=0
+  sub20 /fwd_lit_inner  -> GS       sha=- n868=0
+  sub20 /fwd_pass       -> GS       sha=- n868=0
+  sub20 /main_bin       -> OK       sha=78015bac7508 n868=2
+  sub20 /two_lit        -> OK       sha=c08c8e3aaca0 n868=2
+  sub20 /fwd_nocal      -> OK       sha=a01956e07bba n868=2
+
+=== classify ===
+  lit: ['AV', 'OK'] [('b828', 'AV'), ('sub20', 'OK')]
+  fwd: ['GS'] [('b828', 'GS'), ('sub20', 'GS')]
+  fwd_lit_inner: ['GS'] [('b828', 'GS'), ('sub20', 'GS')]
+  fwd_pass: ['GS'] [('b828', 'GS'), ('sub20', 'GS')]
+  main_bin: ['AV', 'OK'] [('b828', 'AV'), ('sub20', 'OK')]
+  two_lit: ['AV', 'OK'] [('b828', 'AV'), ('sub20', 'OK')]
+  fwd_nocal: ['AV', 'OK'] [('b828', 'AV'), ('sub20', 'OK')]
+
+=== INT3 sites under lit vs fwd ===
+  @57ba3b callmk_user_plant      lit=INT3     fwd=GS      
+  @578266 load_4b0               lit=AV       fwd=GS      
+  @5752bc CapFN_entry            lit=AV       fwd=GS      
+  @57656c Capless_alt            lit=TIMEOUT  fwd=INT3    
+  @576692 Capless_SoftCapSite    lit=INT3     fwd=INT3    
+  @2be519 SoftCap_site           lit=INT3     fwd=INT3    
+  @59b170 SoftMega_body          lit=OK       fwd=GS      
+  @24b49d sum_frame              lit=INT3     fwd=INT3    
+  @567a30 get_elem_skipish       lit=AV       fwd=GS      
+
+=== stock p_ret_* ===
+  b828/p_ret_lit.x    AV       sha=- n868=0
+  b828/p_ret_fwd.x    GS       sha=- n868=0
+  b828/p_ret_local.x  AV       sha=- n868=0
+  sub20/p_ret_lit.x    OK       sha=78015bac7508 n868=2
+  sub20/p_ret_fwd.x    GS       sha=- n868=0
+  sub20/p_ret_local.x  OK       sha=021c621d2143 n868=2
+
+elapsed=9.9s
+cleaned
+

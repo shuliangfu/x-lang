@@ -1,5 +1,38 @@
 # 10.60 SoftCap DIG PROGRESS
 
+**2026-10-30 ~17:57 CST (Asia/Shanghai)** · DIG `fwd_gs_root`：**钉死** p_ret_fwd compile GS＝`return SoftCapCallExpr`（fwd_let OK）；real SoftCap_site 未返；stub 后 Capless `@5766ec→@2c614f` lastHIT `@2c61c1`；无 plant；勿升 PROD／钉 **不升**／勿收刀 · 下一单点：`fwd_2c614f`
+
+
+## 2026-10-30 ~17:57 CST Asia/Shanghai — DIG `fwd_gs_root`；钉 return-CallExpr；下一 `fwd_2c614f`
+
+### 0) 闸
+- tip HEAD `52e87ea52`＝origin/dev（本拍前；commit 后见 tip）
+- Isol alt_frame2 `9378df517f96`／host plant `3f43f1609d70`
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／tip@121278／join／epi／LIVE SoftCap 移植／arg-loop／LIVE spill／`[4b0]=1`：遵守
+
+### 1) DIG 钉死（本拍）
+1. 构造：`return SoftCapCallExpr`→GS；`let v=Call; return v`→OK；lit／nocal／two_lit OK。证伪 sub20／imm→rdx／BinaryExpr／SoftMega。
+2. 阶段＝compile；call-mk `@57ba3b` fwd 未 HIT；Capless→SoftCap_site `@2be519` 入；real host SoftCap 未返（`@576697` fwd=GS）。
+3. SoftCap_site stub ret0：lit/let OK；fwd 仍 GS 于 Capless `@5766ec call @2c614f`（last_fwd_HIT）。
+4. `@2c614f`：fwd/let HIT 至 `@2c61c1` post-kind`@20cd98`；其后 fwd GS。**无 Isol plant**。
+
+### 2) Win SoftCap 门
+| Isol plant | sha12 | lit | fwd | local | 注 |
+|---|---|---|---|---|---|
+| cmk0_irdx_sub20（未改） | 3f43f1609d70 | OK | **GS** | OK run1 | 对照 |
+| scs_ret0 stub（诊） | — | OK | GS | — | 非 plant |
+| fwd_let 构造 | — | — | OK | — | 构造证伪 |
+
+### 3) 下一拍最小刀（单点）
+- **`fwd_2c614f`**：DIG `@2c614f` return-Call vs let（kind／args／cookie）→可 Isol 单点。禁 tip@121278／join／epi／LIVE／mega／字母堆。
+- 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 4) open
+- 笔记 `_dig/dig_fwd_gs_root.md`；脚本／log `_dig/dig_fwd_gs_root{,2..8}.py`／`.log`
+- PROD／钉 **未动**；bans unchanged
+
+
 **2026-10-30 ~17:45 CST (Asia/Shanghai)** · plant `cmk0_irdx_sub20`：**lit 绿** sub20-first＋imm→rdx（USER `78015bac7508` run=0；序反则 AV）；fwd **仍 GS**（证伪仅缺 sub20）／local OK run=1；INT3 `@57ba3b` HIT；勿升 PROD／钉 **不升**／勿收刀 · 下一单点：`fwd_gs_root`（DIG p_ret_fwd compile GS）
 
 

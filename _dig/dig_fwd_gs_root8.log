@@ -1,0 +1,83 @@
+=== DIG8 @2c614f under scs_ret0 ===
+--- prol ---
+  2c614f: push     rbp
+  2c6150: sub      rsp, 0x190
+  2c6157: lea      rbp, [rsp + 0x80]
+  2c615f: mov      qword ptr [rbp + 0x120], rcx
+  2c6166: mov      qword ptr [rbp + 0x128], rdx
+  2c616d: mov      dword ptr [rbp + 0x130], r8d
+  2c6174: mov      qword ptr [rbp + 0x138], r9
+  2c617b: cmp      qword ptr [rbp + 0x120], 0
+  2c6183: je       0x2c61a2 J
+  2c6185: cmp      qword ptr [rbp + 0x128], 0
+  2c618d: je       0x2c61a2 J
+  2c618f: cmp      qword ptr [rbp + 0x138], 0
+  2c6197: je       0x2c61a2 J
+  2c6199: cmp      dword ptr [rbp + 0x130], 0
+  2c61a0: jg       0x2c61ac J
+  2c61a2: mov      eax, 0
+  2c61a7: jmp      0x2c66a0 J
+  2c61ac: mov      edx, dword ptr [rbp + 0x130]
+  2c61b2: mov      rax, qword ptr [rbp + 0x120]
+  2c61b9: mov      rcx, rax
+  2c61bc: call     0x20cd98 CALL
+  2c61c1: mov      dword ptr [rbp + 0xf4], eax
+  2c61c7: cmp      dword ptr [rbp + 0xf4], 0x30
+  2c61ce: je       0x2c61e3 J
+  2c61d0: cmp      dword ptr [rbp + 0xf4], 0x31
+  2c61d7: je       0x2c61e3 J
+  2c61d9: mov      eax, 0
+  2c61de: jmp      0x2c66a0 J
+  2c61e3: cmp      dword ptr [rbp + 0xf4], 0x31
+  2c61ea: sete     al
+  2c61ed: movzx    eax, al
+  2c61f0: mov      dword ptr [rbp + 0xf0], eax
+  2c61f6: cmp      dword ptr [rbp + 0xf0], 0
+  2c61fd: je       0x2c621c J
+  2c61ff: mov      edx, dword ptr [rbp + 0x130]
+  2c6205: mov      rax, qword ptr [rbp + 0x120]
+  2c620c: mov      rcx, rax
+  2c620f: call     0x1fff7e CALL
+  2c6214: mov      dword ptr [rbp + 0xf8], eax
+  2c621a: jmp      0x2c6237 J
+
+=== INT3 walk @2c614f first 35 insn fwd/let ===
+  @2c614f push     rbp                                      fwd=INT3     let=INT3    
+  @2c6150 sub      rsp, 0x190                               fwd=INT3     let=INT3    
+  @2c6157 lea      rbp, [rsp + 0x80]                        fwd=INT3     let=INT3    
+  @2c615f mov      qword ptr [rbp + 0x120], rcx             fwd=INT3     let=INT3    
+  @2c6166 mov      qword ptr [rbp + 0x128], rdx             fwd=INT3     let=INT3    
+  @2c616d mov      dword ptr [rbp + 0x130], r8d             fwd=INT3     let=INT3    
+  @2c6174 mov      qword ptr [rbp + 0x138], r9              fwd=INT3     let=INT3    
+  @2c617b cmp      qword ptr [rbp + 0x120], 0               fwd=INT3     let=INT3    
+  @2c6183 je       0x2c61a2                                 fwd=INT3     let=INT3    
+  @2c6185 cmp      qword ptr [rbp + 0x128], 0               fwd=INT3     let=INT3    
+  @2c618d je       0x2c61a2                                 fwd=INT3     let=INT3    
+  @2c618f cmp      qword ptr [rbp + 0x138], 0               fwd=INT3     let=INT3    
+  @2c6197 je       0x2c61a2                                 fwd=INT3     let=INT3    
+  @2c6199 cmp      dword ptr [rbp + 0x130], 0               fwd=INT3     let=INT3    
+  @2c61a0 jg       0x2c61ac                                 fwd=INT3     let=INT3    
+  @2c61a2 mov      eax, 0                                   fwd=GS       let=AV       DIFF
+  @2c61a7 jmp      0x2c66a0                                 fwd=GS       let=AV       DIFF
+  @2c61ac mov      edx, dword ptr [rbp + 0x130]             fwd=INT3     let=INT3    
+  @2c61b2 mov      rax, qword ptr [rbp + 0x120]             fwd=INT3     let=INT3    
+  @2c61b9 mov      rcx, rax                                 fwd=INT3     let=INT3    
+  @2c61bc call     0x20cd98                                 fwd=INT3     let=INT3    
+  @2c61c1 mov      dword ptr [rbp + 0xf4], eax              fwd=INT3     let=INT3    
+  @2c61c7 cmp      dword ptr [rbp + 0xf4], 0x30             fwd=GS       let=TIMEOUT  DIFF
+  @2c61ce je       0x2c61e3                                 fwd=GS       let=TIMEOUT  DIFF
+  @2c61d0 cmp      dword ptr [rbp + 0xf4], 0x31             fwd=GS       let=AV       DIFF
+  @2c61d7 je       0x2c61e3                                 fwd=GS       let=AV       DIFF
+  @2c61d9 mov      eax, 0                                   fwd=GS       let=AV       DIFF
+  @2c61de jmp      0x2c66a0                                 fwd=GS       let=OK       DIFF
+  @2c61e3 cmp      dword ptr [rbp + 0xf4], 0x31             fwd=GS       let=TIMEOUT  DIFF
+  @2c61ea sete     al                                       fwd=GS       let=TIMEOUT  DIFF
+  @2c61ed movzx    eax, al                                  fwd=GS       let=TIMEOUT  DIFF
+  @2c61f0 mov      dword ptr [rbp + 0xf0], eax              fwd=GS       let=TIMEOUT  DIFF
+  @2c61f6 cmp      dword ptr [rbp + 0xf0], 0                fwd=GS       let=TIMEOUT  DIFF
+  @2c61fd je       0x2c621c                                 fwd=GS       let=TIMEOUT  DIFF
+  @2c61ff mov      edx, dword ptr [rbp + 0x130]             fwd=GS       let=AV       DIFF
+last_HIT=0x2c61c1
+elapsed=48.9s
+cleaned+restored p_ret_fwd
+

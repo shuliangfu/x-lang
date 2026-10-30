@@ -1,0 +1,33 @@
+=== DIG5 skip SoftCap_site @576692 ===
+bytes @576692=e8827ed4ff
+call target=0x2be519 (expect SoftCap_site 0x2be519)
+plant skip SoftCap_site sha12=d0481afc4891
+
+=== gates ===
+  sub20   /p_ret_lit.x    compile=OK       sha=78015bac7508 n868=2 run=OK/0
+  sub20   /p_ret_fwd.x    compile=crc=0x1  sha=- n868=0 run=-/-1
+  sub20   /p_ret_local.x  compile=OK       sha=021c621d2143 n868=2 run=crc=0x1/1
+  sub20   /_var_fwd.x     compile=GS       sha=- n868=0 run=-/-1
+  sub20   /_var_let.x     compile=OK       sha=8506caa7a731 n868=3 run=crc=0x1/1
+  skip_scs/p_ret_lit.x    compile=AV       sha=- n868=0 run=-/-1
+  skip_scs/p_ret_fwd.x    compile=crc=0x1  sha=- n868=0 run=-/-1
+  skip_scs/p_ret_local.x  compile=AV       sha=- n868=0 run=-/-1
+  skip_scs/_var_fwd.x     compile=GS       sha=- n868=0 run=-/-1
+  skip_scs/_var_let.x     compile=AV       sha=- n868=0 run=-/-1
+
+=== USER peek skip_scs fwd/lit ===
+  p_ret_lit.x: no bin tag=AV
+  p_ret_fwd.x: no bin tag=crc=0x1
+  _var_let.x: no bin tag=AV
+
+=== SoftCap_site epi raw ===
+ffffffeb05b8000000004881c4500100005dc3554889e54883ec20894d10e86e
+
+=== Capless pre-call @576685.. ===
+  576660: leave 
+  576662: dec dword ptr [rcx + 0x45c85]
+  576668: add byte ptr [rbx + rcx*4 - 0x73], cl
+
+elapsed=1.1s
+cleaned
+

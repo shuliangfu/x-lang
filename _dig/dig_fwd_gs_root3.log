@@ -1,0 +1,116 @@
+=== DIG3 SoftCap_site deep under return-CallExpr ===
+SoftCap_site insns=177 in +0x400
+--- calls/jcc in SoftCap_site ---
+  2be69b: je       0x2be6b0
+  2be6a5: je       0x2be6b0
+  2be6ae: jg       0x2be6ba
+  2be6b5: jmp      0x2be90a
+  2be6ca: call     0x20cd98
+  2be6dc: jne      0x2be6fb
+  2be6ee: call     0x200b0e
+  2be6f9: jmp      0x2be74a
+  2be702: jne      0x2be72b
+  2be71e: call     0x201d9f
+  2be729: jmp      0x2be74a
+  2be732: je       0x2be73e
+  2be739: jmp      0x2be90a
+  2be751: jg       0x2be75d
+  2be758: jmp      0x2be90a
+  2be76d: call     0x20cd98
+  2be77f: je       0x2be78b
+  2be786: jmp      0x2be90a
+  2be79b: call     0x20203f
+  2be7ad: jle      0x2be7bb
+  2be7b9: jle      0x2be7c5
+  2be7c0: jmp      0x2be90a
+  2be7dc: call     0x201f36
+  2be7e8: je       0x2be832
+  2be810: call     0x2bd6ed
+  2be822: je       0x2be8b7
+  2be82d: jmp      0x2be90a
+  2be83a: jne      0x2be846
+  2be841: jmp      0x2be90a
+  2be85d: call     0x25d09b
+  2be86f: jns      0x2be87b
+  2be876: jmp      0x2be90a
+  2be89c: call     0x2bd5a0
+  2be8ae: je       0x2be8b7
+  2be8b5: jmp      0x2be90a
+  2be8be: je       0x2be8c7
+  2be8c5: jmp      0x2be90a
+  2be8ea: call     0x524944
+  2be8fc: je       0x2be905
+  2be903: jmp      0x2be90a
+  2be912: ret      
+
+=== INT3 walk SoftCap_site from +0x100 (fwd) ===
+  @2be61d mov      qword ptr [rbp + 0x60], 0                    -> INT3 HIT
+  @2be625 mov      qword ptr [rbp + 0x68], 0                    -> INT3 HIT
+  @2be62d mov      qword ptr [rbp + 0x70], 0                    -> INT3 HIT
+  @2be635 mov      qword ptr [rbp + 0x78], 0                    -> INT3 HIT
+  @2be63d mov      qword ptr [rbp + 0x80], 0                    -> INT3 HIT
+  @2be648 mov      qword ptr [rbp + 0x88], 0                    -> INT3 HIT
+  @2be653 mov      qword ptr [rbp + 0x90], 0                    -> INT3 HIT
+  @2be65e mov      qword ptr [rbp + 0x98], 0                    -> INT3 HIT
+  @2be669 mov      qword ptr [rbp + 0xa0], 0                    -> INT3 HIT
+  @2be674 mov      qword ptr [rbp + 0xa8], 0                    -> INT3 HIT
+  @2be67f mov      dword ptr [rbp + 0xbc], 0                    -> INT3 HIT
+  @2be689 mov      dword ptr [rbp + 0xb8], 0                    -> INT3 HIT
+  @2be693 cmp      qword ptr [rbp + 0xe0], 0                    -> INT3 HIT
+  @2be69b je       0x2be6b0                                     -> INT3 HIT
+  @2be69d cmp      qword ptr [rbp + 0xe8], 0                    -> INT3 HIT
+  @2be6a5 je       0x2be6b0                                     -> INT3 HIT
+  @2be6a7 cmp      dword ptr [rbp + 0xf0], 0                    -> INT3 HIT
+  @2be6ae jg       0x2be6ba                                     -> INT3 HIT
+  @2be6b0 mov      eax, 0                                       -> GS GS
+  >> lastHIT @0x2be6ae; GS-probe @0x2be6b0 (mov)
+  @2be6b5 jmp      0x2be90a                                     -> GS GS
+  >> lastHIT @0x2be6ae; GS-probe @0x2be6b5 (jmp)
+  @2be6ba mov      edx, dword ptr [rbp + 0xf0]                  -> INT3 HIT
+  @2be6c0 mov      rax, qword ptr [rbp + 0xe0]                  -> INT3 HIT
+  @2be6c7 mov      rcx, rax                                     -> INT3 HIT
+  @2be6ca call     0x20cd98                                     -> INT3 HIT
+  @2be6cf mov      dword ptr [rbp + 0xc4], eax                  -> INT3 HIT
+  @2be6d5 cmp      dword ptr [rbp + 0xc4], 0x36                 -> INT3 HIT
+  @2be6dc jne      0x2be6fb                                     -> INT3 HIT
+  @2be6de mov      edx, dword ptr [rbp + 0xf0]                  -> GS GS
+  >> lastHIT @0x2be6dc; GS-probe @0x2be6de (mov)
+
+=== SoftCap_site CALL sites: lit/let/fwd ===
+n_calls=10
+  @2be6ca call 0x20cd98             lit=INT3     let=INT3     fwd=INT3    
+  @2be6ee call 0x200b0e             lit=AV       let=AV       fwd=GS       DIFF_let DIFF_lit
+  @2be71e call 0x201d9f             lit=AV       let=AV       fwd=GS       DIFF_let DIFF_lit
+  @2be76d call 0x20cd98             lit=OK       let=AV       fwd=GS       DIFF_let DIFF_lit
+  @2be79b call 0x20203f             lit=AV       let=OK       fwd=GS       DIFF_let DIFF_lit
+  @2be7dc call 0x201f36             lit=OK       let=OK       fwd=GS       DIFF_let DIFF_lit
+  @2be810 call 0x2bd6ed             lit=AV       let=OK       fwd=GS       DIFF_let DIFF_lit
+  @2be85d call 0x25d09b             lit=OK       let=AV       fwd=GS       DIFF_let DIFF_lit
+  @2be89c call 0x2bd5a0             lit=OK       let=AV       fwd=GS       DIFF_let DIFF_lit
+  @2be8ea call 0x524944             lit=OK       let=OK       fwd=GS       DIFF_let DIFF_lit
+
+=== Capless post SoftCap_site call: let vs fwd ===
+  @576690 mov      ecx, eax                                 let=INT3     fwd=INT3    
+  @576692 call     0x2be519                                 let=INT3     fwd=INT3    
+  @576697 mov      dword ptr [rbp + 0x458], eax             let=INT3     fwd=GS       DIFF
+  @57669d cmp      dword ptr [rbp + 0x458], 0               let=INT3     fwd=GS       DIFF
+  @5766a4 jns      0x5766b0                                 let=INT3     fwd=GS       DIFF
+  @5766a6 mov      eax, 0xffffffff                          let=OK       fwd=GS       DIFF
+  @5766ab jmp      0x578278                                 let=OK       fwd=GS       DIFF
+  @5766b0 cmp      dword ptr [rbp + 0x458], 0               let=INT3     fwd=GS       DIFF
+  @5766b7 jle      0x5766c3                                 let=INT3     fwd=GS       DIFF
+  @5766b9 mov      eax, 0                                   let=OK       fwd=GS       DIFF
+  @5766be jmp      0x578278                                 let=AV       fwd=GS       DIFF
+  @5766c3 mov      r9, qword ptr [rbp + 0x4a8]              let=INT3     fwd=GS       DIFF
+  @5766ca mov      r8d, dword ptr [rbp + 0x4a0]             let=INT3     fwd=GS       DIFF
+  @5766d1 mov      rdx, qword ptr [rbp + 0x498]             let=INT3     fwd=GS       DIFF
+  @5766d8 mov      rax, qword ptr [rbp + 0x490]             let=INT3     fwd=GS       DIFF
+  @5766df mov      ecx, dword ptr [rbp + 0x4b0]             let=INT3     fwd=GS       DIFF
+  @5766e5 mov      dword ptr [rsp + 0x20], ecx              let=INT3     fwd=GS       DIFF
+  @5766e9 mov      rcx, rax                                 let=INT3     fwd=GS       DIFF
+  @5766ec call     0x2c614f                                 let=INT3     fwd=GS       DIFF
+  @5766f1 mov      dword ptr [rbp + 0x454], eax             let=INT3     fwd=GS       DIFF
+
+last_hit=2877148 elapsed=12.5s
+cleaned
+

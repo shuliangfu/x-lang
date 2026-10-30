@@ -1,0 +1,84 @@
+=== DIG7 Capless post SoftCap under scs_ret0 stub ===
+stub fwd=GS let=OK lit=OK
+
+=== Capless @576692..@576750 stub: fwd vs let ===
+  @576692 call     0x2be519                                 fwd=INT3     let=INT3    
+  @576697 mov      dword ptr [rbp + 0x458], eax             fwd=INT3     let=INT3    
+  @57669d cmp      dword ptr [rbp + 0x458], 0               fwd=INT3     let=INT3    
+  @5766a4 jns      0x5766b0                                 fwd=INT3     let=INT3    
+  @5766a6 mov      eax, 0xffffffff                          fwd=GS       let=OK       DIFF
+  @5766ab jmp      0x578278                                 fwd=GS       let=OK       DIFF
+  @5766b0 cmp      dword ptr [rbp + 0x458], 0               fwd=INT3     let=INT3    
+  @5766b7 jle      0x5766c3                                 fwd=INT3     let=INT3    
+  @5766b9 mov      eax, 0                                   fwd=GS       let=OK       DIFF
+  @5766be jmp      0x578278                                 fwd=GS       let=OK       DIFF
+  @5766c3 mov      r9, qword ptr [rbp + 0x4a8]              fwd=INT3     let=INT3    
+  @5766ca mov      r8d, dword ptr [rbp + 0x4a0]             fwd=INT3     let=INT3    
+  @5766d1 mov      rdx, qword ptr [rbp + 0x498]             fwd=INT3     let=INT3    
+  @5766d8 mov      rax, qword ptr [rbp + 0x490]             fwd=INT3     let=INT3    
+  @5766df mov      ecx, dword ptr [rbp + 0x4b0]             fwd=INT3     let=INT3    
+  @5766e5 mov      dword ptr [rsp + 0x20], ecx              fwd=INT3     let=INT3    
+  @5766e9 mov      rcx, rax                                 fwd=INT3     let=INT3    
+  @5766ec call     0x2c614f                                 fwd=INT3     let=INT3    
+  @5766f1 mov      dword ptr [rbp + 0x454], eax             fwd=GS       let=INT3     DIFF
+  @5766f7 cmp      dword ptr [rbp + 0x454], 0               fwd=GS       let=INT3     DIFF
+  @5766fe jns      0x57670a                                 fwd=GS       let=INT3     DIFF
+  @576700 mov      eax, 0xffffffff                          fwd=GS       let=AV       DIFF
+  @576705 jmp      0x578278                                 fwd=GS       let=OK       DIFF
+  @57670a cmp      dword ptr [rbp + 0x454], 0               fwd=GS       let=INT3     DIFF
+  @576711 jle      0x57671d                                 fwd=GS       let=INT3     DIFF
+  @576713 mov      eax, 0                                   fwd=GS       let=AV       DIFF
+  @576718 jmp      0x578278                                 fwd=GS       let=AV       DIFF
+  @57671d mov      r9, qword ptr [rbp + 0x4a8]              fwd=GS       let=INT3     DIFF
+  @576724 mov      r8d, dword ptr [rbp + 0x4a0]             fwd=GS       let=INT3     DIFF
+  @57672b mov      rdx, qword ptr [rbp + 0x498]             fwd=GS       let=INT3     DIFF
+  @576732 mov      rax, qword ptr [rbp + 0x490]             fwd=GS       let=INT3     DIFF
+  @576739 mov      ecx, dword ptr [rbp + 0x4b0]             fwd=GS       let=INT3     DIFF
+  @57673f mov      dword ptr [rsp + 0x20], ecx              fwd=GS       let=INT3     DIFF
+  @576743 mov      rcx, rax                                 fwd=GS       let=INT3     DIFF
+  @576746 call     0x46a4db                                 fwd=GS       let=INT3     DIFF
+  @57674b mov      dword ptr [rbp + 0x450], eax             fwd=GS       let=INT3     DIFF
+  @576751 cmp      dword ptr [rbp + 0x450], 0               fwd=GS       let=INT3     DIFF
+  @576758 jns      0x576764                                 fwd=GS       let=INT3     DIFF
+  @57675a mov      eax, 0xffffffff                          fwd=GS       let=AV       DIFF
+last_fwd_HIT=0x5766ec
+
+=== wrapper @2be40f ===
+  2be3ef: mov edx, dword ptr [rbp + 0x18]
+  2be3f2: mov rax, qword ptr [rbp + 0x10]
+  2be3f6: mov ecx, dword ptr [rbp + 0x30]
+  2be3f9: mov dword ptr [rsp + 0x30], ecx
+  2be3fd: mov dword ptr [rsp + 0x28], r8d
+  2be402: mov ecx, dword ptr [rbp - 8]
+  2be405: mov dword ptr [rsp + 0x20], ecx
+  2be409: mov r8, r10
+  2be40c: mov rcx, rax
+  2be40f: call 0x2be519
+  2be414: mov dword ptr [rbp - 0x2c], eax
+  2be417: cmp dword ptr [rbp - 0x2c], 0
+  2be41b: jns 0x2be427
+  2be41d: mov eax, 0xffffffff
+  2be422: jmp 0x2be513
+  2be427: cmp dword ptr [rbp - 0x2c], 0
+  2be42b: jne 0x2be436
+  2be42d: add dword ptr [rbp - 4], 1
+  2be431: jmp 0x2be502
+  2be436: lea r8, [rbp - 0x38]
+  2be43a: lea rcx, [rbp - 0x34]
+  2be43e: mov edx, dword ptr [rbp - 0x1c]
+  2be441: mov rax, qword ptr [rbp + 0x10]
+  2be445: mov r9, r8
+  2be448: mov r8, rcx
+  2be44b: mov rcx, rax
+  INT3 @2be40f fwd=GS let=AV lit=AV
+
+=== REAL host Capless post SoftCap calls ===
+  @576692 call_scs     fwd=INT3     let=INT3    
+  @576697 store_eax    fwd=GS       let=INT3    
+  @5766b0 cmp0         fwd=GS       let=INT3    
+  @5766c3 prep         fwd=GS       let=INT3    
+  @5766ec call_2c614f  fwd=GS       let=INT3    
+  @576700 after        fwd=GS       let=AV      
+elapsed=12.2s
+cleaned
+
