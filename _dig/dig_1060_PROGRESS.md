@@ -1,6 +1,35 @@
 # 10.60 SoftCap DIG PROGRESS
 
-**2026-10-30 ~17:00 CST (Asia/Shanghai)** · DIG emit-arg：**对象指针**（`@2a5ca8`→`@21b5fa`＋`@23030e`；`@205068` 要 kinded`+0x100` size）≠AST i32／sidecar；retarget 已填容器 **否**（唯 0x568＝空 `+0x478`）；单次 emit+push E8 **无** → plant **不可隔离** → 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：Isol-native `@205068`-兼容 emit-arg 构造＋写入 `+0x478` inner（禁 tip@121278／join／epi／LIVE／mega）
+**2026-10-30 ~17:05 CST (Asia/Shanghai)** · DIG emit-arg 构造：Isol **有** fill-builders `@1f9619` 族／consume `@205068`，**Capless 零触及**；写 `+0x478` inner＝`@2a5410`＋`@2a4f6a` 理论链、**无** Capless 调用点；plant **不可隔离** → 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：parent kinded `elem` 构造／fill 调用方能否单点喂 `+0x478`（禁 tip@121278／join／epi／LIVE／mega）
+
+
+## 2026-10-30 ~17:05 CST Asia/Shanghai — DIG Isol-native `@205068` emit-arg 构造／`+0x478` 写入；无 plant
+
+### 0) 闸
+- tip HEAD `b70d21231`＝origin/dev（本拍前；commit 后见 tip）
+- Isol alt_frame2 `9378df517f96`；LIVE `lab_LIVE_pret.exe`（对照）
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／tip@121278／join／epi／LIVE SoftCap 移植／arg-loop：遵守
+
+### 1) DIG 钉死（本拍）
+1. `@205068` 消费 kinded slot（`@20374e`→`[slot+0x100]==size`）；**fill** 对偶＝`@1f9619`／`@1f9768`／`@1f99b2`／`@1fa9d9`／`@207462`／`@20760b`／`@207aef`（经 `@1f70cf`／`@1f93e3`）。
+2. Capless **零** E8→fill／consume／push／get-elem／unwrap；`[+0x100]`＠`576ec3` 伪阳性。
+3. 真 `0x568→@55d730` 仅 Capless 空壳＋`@59c3a2`（`@58e9a0` 帧，≠ args 容器）。
+4. 写 `+0x478` inner 理论＝构造 elem→fill→`@2a5410`→`@2a4f6a`；Capless **无**串点；单 plant 不可隔离。
+5. Plant **不可隔离**；无 `p_ret_*`。
+
+### 2) Win SoftCap 门
+| Isol plant | sha12 | lit | run | USER |
+|---|---|---|---|---|
+| （本拍无） | — | — | — | N/A；frontier 仍红 |
+
+### 3) 下一拍最小刀（单点）
+- Isol-native **parent kinded `elem` 构造**（SoftCap lit→`@1f70cf`／`@205068` rcx），或 fill 调用方（`@5d276c`／`@20a948`）已填对象／vec 能否 **单点** 喂 Capless `+0x478`（禁 tip@121278／join／epi／LIVE／mega／arg-loop）。
+- 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 4) open
+- 笔记 `_dig/dig_mk_emitarg.md`；先验 `_dig/dig_emit_arg_shape.md`
+- PROD／钉 **未动**；bans unchanged
 
 
 ## 2026-10-30 ~17:00 CST Asia/Shanghai — DIG emit-arg 元素形态／retarget／单次 E8；无 plant
