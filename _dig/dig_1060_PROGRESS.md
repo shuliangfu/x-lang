@@ -1,6 +1,51 @@
 # DIG 10.60 SoftCap PROGRESS
 
-**2026-10-30 ~14:03 CST (Asia/Shanghai)** · Isol-site_abi_r8 `de066e24b417` **证伪**（Win SoftCap `p_ret_*` OK compile＝TT thin `5b173cef1205`／rc=1；非 LIVE `dbaab1c7ce70`）· tip dig-only push · SoftCap **未绿** → 勿升 PROD／钉 ecdb5cc1e **不升**／勿收刀 · DIG：ABI LIVE-shaped 后 SoftCap lit 入 body；`@2be734`／`@2be781` kind-gate `eax=1` false-claim；中和→Capless AV；Isol 无 Cap`@0024e6` SoftCap dispatch · 下一拍：Isol-native SoftCap lit call-mk（LIVE 形 miss 后无 Capless AV）或 Isol 自建 Cap`@0024e6` 类 SoftCap dispatch（禁移植／字母堆／arg-loop／twin）
+**2026-10-30 ~14:20 CST (Asia/Shanghai)** · Isol SoftCap lit call-mk／Cap`@0024e6`-class **未绿** · site_emit_pass `a102ef425fc1` 证伪（sz_bad→crc=0x1）· calt_h3miss `415edc74fca0` 证伪（TIMEOUT arg_loop）· tip_scfull／sc50f 证伪（crc=0x1／TT thin）· Isol **0** Cap`@0024e6` prologue；12×`sub rsp,0x180` none kind0x30 · tip kind0x30→Capless only · SoftCap **未绿** → 勿升 PROD／钉 ecdb5cc1e **不升**／勿收刀 · 下一拍：h3 SoftCap lit 无 AV call-mk 或 Isol 自建 Cap`@0024e6` 类（禁移植／arg-loop／twin／字母堆）
+
+
+## 2026-10-30 ~14:20 CST Asia/Shanghai — DIG SoftCap lit call-mk／Cap@0024e6-class；证伪
+
+### 0) 闸
+- tip HEAD `c708f0bbf`＝origin/dev（本拍前；commit 后见 tip）
+- Isol-TT `1f836615e0fc`；LIVE lit `dbaab1c7ce70`；TT lit `5b173cef1205`
+- Plants：site_emit_pass `a102ef425fc1`；calt_h3miss `415edc74fca0`；tip_scfull `ca90e6fd3276`；tip_sc50f `038f55a434ca`（语义短名）
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／未绿请批／LEGACY／字母堆／LIVE SoftCap 移植／arg-loop 强跳／twin retarget：遵守
+
+### 1) DIG 钉死（本拍）
+1. site_emit_pass force SoftCap-site kind-gates → SoftCap lit 入 body 至 `@2be7bb sz_bad`（size∉1..255）→`eax=-1`；emit `@2bd6ed`／`@524944` **未达**。SoftCap-site ≠ SoftCap CallExpr lit emitter。
+2. Capless SoftCap-site LIVE-shaped miss（c36）→h2→h3；h3 SoftCap lit 至 `@46a71c`；calt_h3miss force h3-miss → Capless 续 h4/h5 后 **arg_loop TIMEOUT**（禁强跳）。
+3. Isol Cap`@0024e6` 类：**0** `push;sub rsp,0x180;lea rbp` 匹配；12×`sub rsp,0x180` 无 kind`0x30`。tip SoftCap kind`0x30`→Capless only（≠ LIVE Cap→Cap21c8）。
+4. tip→SoftCap-full `@121278` stub→crc=0x1；`@50f8a0`→TT thin。非 Cap`@0024e6` SoftCap dispatch。
+5. Prior：site_abi_r8／c36／calt_args／calt_miss／full_chain 证伪。
+
+### 2) Win SoftCap 门
+| Isol | sha12 | lit／fwd／local |
+|---|---|---|
+| site_emit_pass | `a102ef425fc1` | crc=0x1／crc=0x1／crc=0x1 |
+| calt_h3miss | `415edc74fca0` | TIMEOUT／TIMEOUT／AV |
+| tip_scfull | `ca90e6fd3276` | crc=0x1 |
+| tip_sc50f | `038f55a434ca` | OK＝TT thin／OK／OK；**非** LIVE |
+
+### 3) 三端门
+| 端 | 结果 |
+|---|---|
+| Win SoftCap p_ret_* | **未运行绿** |
+| Darwin／Ubuntu | **未扩** |
+| PROD／钉 | **未动** |
+
+### 4) 硬 blocker
+1. Isol 无 Cap`@0024e6` SoftCap lit 调度；SoftCap-site 拒 SoftCap lit（sz_bad）。
+2. Capless miss→h3 AV／arg_loop hang；无 Isol-native SoftCap lit call-mk。
+3. Ban 移植／arg-loop／twin／字母堆。
+
+### 5) 下一拍最小刀
+1. Capless h3 SoftCap lit 过 `@46a71c` **无 AV** 达 call-mk／`0x868`；或 Isol 自建 Cap`@0024e6` 类 SoftCap dispatch。
+2. 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 6) open
+- 笔记 `_dig/dig_site_emit_callmk.md`；cave plants site_emit_pass／calt_h3miss／tip_scfull／tip_sc50f
+- PROD SoftCap `7a2cf5da581a`／钉 ecdb5cc1e **未动**
 
 
 ## 2026-10-30 ~14:03 CST Asia/Shanghai — DIG Isol SoftCap-site site_abi_r8；证伪（TT thin）
