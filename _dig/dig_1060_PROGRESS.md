@@ -1,5 +1,8 @@
 # 10.60 PROGRESS — Win single-stmt `return` / RETURN / sret
 
+**2026-10-30 ~13:08 CST (Asia/Shanghai)** · Isol-full_chain `eb3576c8fe3c` **证伪**（SoftCap-full `@5890c8`→Capless-miss；Win SoftCap `p_ret_*` emit＝TT／frame thin `0x1b8`／exit 1）· tip `8d656135d` dig-only push · SoftCap **未绿** → 勿升 PROD／钉 ecdb5cc1e **不升**／勿收刀 · 下一拍：Isol-native SoftCap lit call-mk 真路径单点（禁 LIVE SoftCap 移植／字母堆）
+
+
 **2026-10-29 ~21:00 CST (Asia/Shanghai)** · SoftCap Isol-KK..PP **未运行绿** → **硬 blocker 收口**；勿请批／勿升 PROD／钉 ecdb5cc1e **不升**；停开新 cave
 
 **2026-10-29 ~20:46 CST (Asia/Shanghai)** · tip mid-step push per hard contract · SoftCap **未绿** → 勿升 PROD／钉 ecdb5cc1e **不升**／勿收刀；DIG＋tip isol-A/C 步进推 `dev`
