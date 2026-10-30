@@ -1,0 +1,109 @@
+base sha=3f43f1609d70
+
+=== A Isol @46a82b ===
+  46a820: 004889                   add byte ptr [rax - 0x77], cl
+  46a823: c1e893                   shr eax, 0x93
+  46a826: 20d9                     and cl, bl
+  46a828: ff85c0eb78c7             inc dword ptr [rbp - 0x38871440]
+  46a82e: 856001                   test dword ptr [rax + 1], esp
+  46a831: 0000                     add byte ptr [rax], al
+  46a833: 0000                     add byte ptr [rax], al
+  46a835: 0000                     add byte ptr [rax], al
+
+=== A twin @46a82b ===
+  46a820: 004889                   add byte ptr [rax - 0x77], cl
+  46a823: c1e893                   shr eax, 0x93
+  46a826: 20d9                     and cl, bl
+  46a828: ff85c07478c7             inc dword ptr [rbp - 0x38878b40]
+  46a82e: 856001                   test dword ptr [rax + 1], esp
+  46a831: 0000                     add byte ptr [rax], al
+  46a833: 0000                     add byte ptr [rax], al
+  46a835: 0000                     add byte ptr [rax], al
+
+=== A Isol @46a90c ===
+  46a8f0: 85c0                     test eax, eax
+  46a8f2: 7548                     jne 0x46a93c
+  46a8f4: 8b9550010000             mov edx, dword ptr [rbp + 0x150]
+  46a8fa: 488b8588010000           mov rax, qword ptr [rbp + 0x188]
+  46a901: 4889c1                   mov rcx, rax
+  46a904: e88f24daff               call 0x20cd98
+  46a909: 83f803                   cmp eax, 3
+  46a90c: eb2e                     jmp 0x46a93c
+  46a90e: 8b956c010000             mov edx, dword ptr [rbp + 0x16c]
+  46a914: 488b8588010000           mov rax, qword ptr [rbp + 0x188]
+  46a91b: 4889c1                   mov rcx, rax
+
+=== A twin @46a90c ===
+  46a8f0: 85c0                     test eax, eax
+  46a8f2: 7548                     jne 0x46a93c
+  46a8f4: 8b9550010000             mov edx, dword ptr [rbp + 0x150]
+  46a8fa: 488b8588010000           mov rax, qword ptr [rbp + 0x188]
+  46a901: 4889c1                   mov rcx, rax
+  46a904: e88f24daff               call 0x20cd98
+  46a909: 83f803                   cmp eax, 3
+  46a90c: 752e                     jne 0x46a93c
+  46a90e: 8b956c010000             mov edx, dword ptr [rbp + 0x16c]
+  46a914: 488b8588010000           mov rax, qword ptr [rbp + 0x188]
+  46a91b: 4889c1                   mov rcx, rax
+
+=== A2 all body diffs Isol vs twin ===
+  DIFF @46a82b: isol=eb twin=74
+  DIFF @46a90c: isol=eb twin=75
+  total=2
+  PROD DIFF @46a82b: isol=eb prod=74
+  PROD DIFF @46a90c: isol=eb prod=75
+  PROD total body diffs=2
+
+=== B restore je@82b + jne@90c ===
+  [rest_jejne] sha=9db408f0db8a
+  rest_jejne/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  rest_jejne/p_ret_fwd.x    GS       USER=- run=-
+  rest_jejne/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  rest_jejne/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  [rest_82b] sha=f144a8748af0
+  rest_82b/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  rest_82b/p_ret_fwd.x    GS       USER=- run=-
+  rest_82b/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  rest_82b/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  [rest_90c] sha=0dd912ceb881
+  rest_90c/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  rest_90c/p_ret_fwd.x    GS       USER=- run=-
+  rest_90c/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  rest_90c/_var_let.x     AV       USER=- run=-
+
+=== E rest + Capless 6th variants ===
+  [rest_4b0_idx0] sha=174301291a70
+  rest_4b0_idx0/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  rest_4b0_idx0/p_ret_fwd.x    GS       USER=- run=-
+  rest_4b0_idx0/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  rest_4b0_idx0/_var_let.x     AV       USER=- run=-
+  [rest_4b0_4b0] sha=3f1d624997fa
+  rest_4b0_4b0/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  rest_4b0_4b0/p_ret_fwd.x    GS       USER=- run=-
+  rest_4b0_4b0/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  rest_4b0_4b0/_var_let.x     AV       USER=- run=-
+  [rest_460_4b0] sha=a36b9a0db17b
+  rest_460_4b0/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  rest_460_4b0/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS F483
+  rest_460_4b0/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  rest_460_4b0/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  [rest_490_idx0] sha=b80ea38e9ca8
+  rest_490_idx0/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  rest_490_idx0/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS F483
+  rest_490_idx0/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  rest_490_idx0/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+
+=== F rest + body 1a0=[180] ===
+  [rest_b180] sha=b4c388a2be00
+  rest_b180/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  rest_b180/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS F483
+  rest_b180/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  rest_b180/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+
+=== G pre-sub20 host branch bytes ===
+  host_cmk0_irdx.exe: 82b=eb 90c=eb
+  host_46_base.exe: 82b=eb 90c=eb
+  host_skip_1a0_calls.exe: 82b=eb 90c=eb
+
+elapsed=2.7s
+cleaned

@@ -1,0 +1,284 @@
+base sha=3f43f1609d70
+
+=== A call@46a967 full arg setup ===
+  46a900: 004889                   add byte ptr [rax - 0x77], cl
+  46a903: c1e88f                   shr eax, 0x8f
+  46a906: 24da                     and al, 0xda
+  46a908: ff83f803eb2e             inc dword ptr [rbx + 0x2eeb03f8]
+  46a90e: 8b956c010000             mov edx, dword ptr [rbp + 0x16c]
+  46a914: 488b8588010000           mov rax, qword ptr [rbp + 0x188]
+  46a91b: 4889c1                   mov rcx, rax
+  46a91e: e81494e3ff               call 0x2a3d37
+  46a923: 898528010000             mov dword ptr [rbp + 0x128], eax
+  46a929: 83bd280100000f           cmp dword ptr [rbp + 0x128], 0xf
+  46a930: 750a                     jne 0x46a93c
+  46a932: c7856401000000000000     mov dword ptr [rbp + 0x164], 0
+  46a93c: 448b8d64010000           mov r9d, dword ptr [rbp + 0x164]
+  46a943: 448b8550010000           mov r8d, dword ptr [rbp + 0x150]
+  46a94a: 488b9588010000           mov rdx, qword ptr [rbp + 0x188]
+  46a951: 488b8580010000           mov rax, qword ptr [rbp + 0x180]
+  46a958: 488b8da0010000           mov rcx, qword ptr [rbp + 0x1a0]
+  46a95f: 48894c2420               mov qword ptr [rsp + 0x20], rcx
+  46a964: 4889c1                   mov rcx, rax
+  46a967: e838f1ffff               call 0x469aa4
+  46a96c: 85c0                     test eax, eax
+  46a96e: 740a                     je 0x46a97a
+  46a970: b8ffffffff               mov eax, 0xffffffff
+
+=== B call@46a99d full ===
+  46a970: b8ffffffff               mov eax, 0xffffffff
+  46a975: e9e3050000               jmp 0x46af5d
+  46a97a: 4c8b85a0010000           mov r8, qword ptr [rbp + 0x1a0]
+  46a981: 8b8da8010000             mov ecx, dword ptr [rbp + 0x1a8]
+  46a987: 8b9590010000             mov edx, dword ptr [rbp + 0x190]
+  46a98d: 488b8588010000           mov rax, qword ptr [rbp + 0x188]
+  46a994: 4d89c1                   mov r9, r8
+  46a997: 4189c8                   mov r8d, ecx
+  46a99a: 4889c1                   mov rcx, rax
+  46a99d: e8f0fa0000               call 0x47a492
+  46a9a2: 8b8da8010000             mov ecx, dword ptr [rbp + 0x1a8]
+  46a9a8: 8b9590010000             mov edx, dword ptr [rbp + 0x190]
+  46a9ae: 488b8588010000           mov rax, qword ptr [rbp + 0x188]
+  46a9b5: 4189c8                   mov r8d, ecx
+  46a9b8: 4889c1                   mov rcx, rax
+  46a9bb: e8bb36d9ff               call 0x1fe07b
+
+=== C 469aa4 rest — 5th use? ===
+  469af8: 448b4d28                 mov r9d, dword ptr [rbp + 0x28]
+  469afc: 448b4520                 mov r8d, dword ptr [rbp + 0x20]
+  469b00: 488b5518                 mov rdx, qword ptr [rbp + 0x18]
+  469b04: 488b4510                 mov rax, qword ptr [rbp + 0x10]
+  469b08: 488b4d30                 mov rcx, qword ptr [rbp + 0x30]
+  469b0c: 48894c2420               mov qword ptr [rsp + 0x20], rcx
+  469b11: 4889c1                   mov rcx, rax
+  469b14: e8a7fdffff               call 0x4698c0
+  469b19: 8945fc                   mov dword ptr [rbp - 4], eax
+  469b1c: 837dfc00                 cmp dword ptr [rbp - 4], 0
+  469b20: 750f                     jne 0x469b31
+  469b22: 8b5520                   mov edx, dword ptr [rbp + 0x20]
+  469b25: 488b4518                 mov rax, qword ptr [rbp + 0x18]
+  469b29: 4889c1                   mov rcx, rax
+  469b2c: e86e010100               call 0x479c9f
+  469b31: 8b45fc                   mov eax, dword ptr [rbp - 4]
+  469b34: 4883c440                 add rsp, 0x40
+  469b38: 5d                       pop rbp
+  469b39: c3                       ret 
+  469b3a: 55                       push rbp
+  469b3b: 4889e5                   mov rbp, rsp
+  469b3e: 4883ec70                 sub rsp, 0x70
+  469b42: 48894d10                 mov qword ptr [rbp + 0x10], rcx
+  469b46: 895518                   mov dword ptr [rbp + 0x18], edx
+  469b49: c645ff02                 mov byte ptr [rbp - 1], 2
+  469b4d: c645fe05                 mov byte ptr [rbp - 2], 5
+  469b51: c645fd06                 mov byte ptr [rbp - 3], 6
+  469b55: c745f827000000           mov dword ptr [rbp - 8], 0x27
+  hit 5th-read @469aa4+0x64: 488b4d3048894c24
+  hit 5th-read @469aa4+0x65: 8b4d3048894c2420
+
+=== D USER emit context around .text+0x568 ===
+  hollow USER=e411d7260d78 f483 USER=f4839df16ab1
+  byte@568: hollow=24 f483=8c
+  -- HOLLOW @rva 0x1540 --
+    001540: 8d65f8               lea esp, [rbp - 8]
+    001543: 5b                   pop rbx
+    001544: 5d                   pop rbp
+    001545: c3                   ret 
+    001546: 0000                 add byte ptr [rax], al
+    001548: 55                   push rbp
+    001549: 4889e5               mov rbp, rsp
+    00154c: 53                   push rbx
+    00154d: 4881ec68080000       sub rsp, 0x868
+    001554: 488d45d8             lea rax, [rbp - 0x28]
+    001558: 4889c1               mov rcx, rax
+    00155b: 4883ec20             sub rsp, 0x20
+    00155f: b80a000000           mov eax, 0xa
+    001564: 4889c2               mov rdx, rax
+    001567: e824ffffff           call 0x1490
+    00156c: 4883c420             add rsp, 0x20
+    001570: 488d45d8             lea rax, [rbp - 0x28]
+    001574: 488b00               mov rax, qword ptr [rax]
+    001577: 4889c3               mov rbx, rax
+    00157a: b80a000000           mov eax, 0xa
+    00157f: 4839c3               cmp rbx, rax
+    001582: 0f95c0               setne al
+    001585: 0fb6c0               movzx eax, al
+    001588: 85c0                 test eax, eax
+    00158a: 0f840f000000         je 0x159f
+    001590: b801000000           mov eax, 1
+    001595: e979000000           jmp 0x1613
+    00159a: e900000000           jmp 0x159f
+  -- F483 @rva 0x1540 --
+    001540: 8d65f8               lea esp, [rbp - 8]
+    001543: 5b                   pop rbx
+    001544: 5d                   pop rbp
+    001545: c3                   ret 
+    001546: 0000                 add byte ptr [rax], al
+    001548: 55                   push rbp
+    001549: 4889e5               mov rbp, rsp
+    00154c: 53                   push rbx
+    00154d: 4881ec68080000       sub rsp, 0x868
+    001554: 488d45d8             lea rax, [rbp - 0x28]
+    001558: 4889c1               mov rcx, rax
+    00155b: 4883ec20             sub rsp, 0x20
+    00155f: b80a000000           mov eax, 0xa
+    001564: 4889c2               mov rdx, rax
+    001567: e88cffffff           call 0x14f8
+    00156c: 4883c420             add rsp, 0x20
+    001570: 488d45d8             lea rax, [rbp - 0x28]
+    001574: 488b00               mov rax, qword ptr [rax]
+    001577: 4889c3               mov rbx, rax
+    00157a: b80a000000           mov eax, 0xa
+    00157f: 4839c3               cmp rbx, rax
+    001582: 0f95c0               setne al
+    001585: 0fb6c0               movzx eax, al
+    001588: 85c0                 test eax, eax
+    00158a: 0f840f000000         je 0x159f
+    001590: b801000000           mov eax, 1
+    001595: e979000000           jmp 0x1613
+    00159a: e900000000           jmp 0x159f
+
+=== E LIVE SoftCap hosts in cave ===
+  candidates: ['int3_LIVE_24e6_002519.exe', 'int3_LIVE_24e6_002526.exe', 'int3_LIVE_24e6_002533.exe', 'int3_LIVE_24e6_002540.exe', 'int3_LIVE_24e6_002556.exe', 'int3_LIVE_24e6_00256a.exe', 'int3_LIVE_24e6_00257c.exe', 'int3_LIVE_24e6_0025a6.exe', 'int3_LIVE_24e6_0025b8.exe', 'int3_LIVE_24e6_0025c8.exe', 'int3_LIVE_24e6_0025d7.exe', 'int3_LIVE_24e6_0025f2.exe', 'int3_LIVE_24e6_002604.exe', 'int3_LIVE_24e6_00263d.exe', 'int3_LIVE_24e6_00265c.exe', 'int3_LIVE_24e6_002671.exe', 'int3_LIVE_24e6_0026b5.exe', 'int3_LIVE_24e6_0026ba.exe', 'int3_LIVE_24e6_0026cb.exe', 'int3_LIVE_24e6_0026dd.exe']
+  *Twin*: ['out_calt_twin', 'run_twin_batch.ps1', 'xlang_isol1060_calt_twin.exe', 'xlang_isol1060_twin_probe.exe']
+  *twin*: ['out_calt_twin', 'run_twin_batch.ps1', 'xlang_isol1060_calt_twin.exe', 'xlang_isol1060_twin_probe.exe']
+  *LIVE*: ['dig_livecmp.py', 'dig_s_live.py', 'find_live_cap21_isol.log', 'int3_LIVE_24e6_002519.exe', 'int3_LIVE_24e6_002526.exe', 'int3_LIVE_24e6_002533.exe', 'int3_LIVE_24e6_002540.exe', 'int3_LIVE_24e6_002556.exe']
+  *live*: ['dig_livecmp.py', 'dig_s_live.py', 'find_live_cap21_isol.log', 'int3_LIVE_24e6_002519.exe', 'int3_LIVE_24e6_002526.exe', 'int3_LIVE_24e6_002533.exe', 'int3_LIVE_24e6_002540.exe', 'int3_LIVE_24e6_002556.exe']
+  *softcap*: ['lab_SoftCap_76795.exe', 'SoftCap.x', 'SoftCap_76795.o', 'xlang_softcap_1060_isol.exe']
+  *SoftCap*: ['lab_SoftCap_76795.exe', 'SoftCap.x', 'SoftCap_76795.o', 'xlang_softcap_1060_isol.exe']
+  host_cmk*: ['host_cmk0_irdx.exe', 'host_cmk0_irdx_sub20.exe']
+  host_46*: ['host_46_1a8to1a0.exe', 'host_46_b0h2c_hollow.exe', 'host_46_b0h2c_s110.exe', 'host_46_b0h2c_s168.exe', 'host_46_b0h2c_s168_nop500.exe', 'host_46_b0_h2c.exe', 'host_46_base.exe', 'host_46_base_home160.exe']
+
+=== F Capless call_46 full setup @576700..746 ===
+  5766e0: 8db004000089             lea esi, [rax - 0x76fffffc]
+  5766e6: 4c2420                   and al, 0x20
+  5766e9: 4889c1                   mov rcx, rax
+  5766ec: e85efad4ff               call 0x2c614f
+  5766f1: 898554040000             mov dword ptr [rbp + 0x454], eax
+  5766f7: 83bd5404000000           cmp dword ptr [rbp + 0x454], 0
+  5766fe: 790a                     jns 0x57670a
+  576700: b8ffffffff               mov eax, 0xffffffff
+  576705: e96e1b0000               jmp 0x578278
+  57670a: 83bd5404000000           cmp dword ptr [rbp + 0x454], 0
+  576711: 7e0a                     jle 0x57671d
+  576713: b800000000               mov eax, 0
+  576718: e95b1b0000               jmp 0x578278
+  57671d: 4c8b8da8040000           mov r9, qword ptr [rbp + 0x4a8]
+  576724: 448b85a0040000           mov r8d, dword ptr [rbp + 0x4a0]
+  57672b: 488b9598040000           mov rdx, qword ptr [rbp + 0x498]
+  576732: 488b8590040000           mov rax, qword ptr [rbp + 0x490]
+  576739: 8b8db0040000             mov ecx, dword ptr [rbp + 0x4b0]
+  57673f: 894c2420                 mov dword ptr [rsp + 0x20], ecx
+  576743: 4889c1                   mov rcx, rax
+  576746: e8903defff               call 0x46a4db
+  57674b: 898550040000             mov dword ptr [rbp + 0x450], eax
+  576751: 83bd5004000000           cmp dword ptr [rbp + 0x450], 0
+
+=== G real caller @46bac7 full ===
+  46ba90: f4                       hlt 
+  46ba91: 3b4550                   cmp eax, dword ptr [rbp + 0x50]
+  46ba94: 0f8d10020000             jge 0x46bcaa
+  46ba9a: 837df47f                 cmp dword ptr [rbp - 0xc], 0x7f
+  46ba9e: 0f8f06020000             jg 0x46bcaa
+  46baa4: 448b4d28                 mov r9d, dword ptr [rbp + 0x28]
+  46baa8: 448b4520                 mov r8d, dword ptr [rbp + 0x20]
+  46baac: 488b5518                 mov rdx, qword ptr [rbp + 0x18]
+  46bab0: 488b4510                 mov rax, qword ptr [rbp + 0x10]
+  46bab4: 8b4df4                   mov ecx, dword ptr [rbp - 0xc]
+  46bab7: 894c2428                 mov dword ptr [rsp + 0x28], ecx
+  46babb: 488b4d30                 mov rcx, qword ptr [rbp + 0x30]
+  46babf: 48894c2420               mov qword ptr [rsp + 0x20], rcx
+  46bac4: 4889c1                   mov rcx, rax
+  46bac7: e80feaffff               call 0x46a4db
+  46bacc: 85c0                     test eax, eax
+  46bace: 0f84d6010000             je 0x46bcaa
+  46bad4: b8ffffffff               mov eax, 0xffffffff
+  46bad9: e9e1010000               jmp 0x46bcbf
+
+=== G2 real caller @46bda6 full ===
+  46bd70: 44894d28                 mov dword ptr [rbp + 0x28], r9d
+  46bd74: 8b4538                   mov eax, dword ptr [rbp + 0x38]
+  46bd77: 3b4540                   cmp eax, dword ptr [rbp + 0x40]
+  46bd7a: 7c07                     jl 0x46bd83
+  46bd7c: b800000000               mov eax, 0
+  46bd81: eb6a                     jmp 0x46bded
+  46bd83: 448b4d28                 mov r9d, dword ptr [rbp + 0x28]
+  46bd87: 448b4520                 mov r8d, dword ptr [rbp + 0x20]
+  46bd8b: 488b5518                 mov rdx, qword ptr [rbp + 0x18]
+  46bd8f: 488b4510                 mov rax, qword ptr [rbp + 0x10]
+  46bd93: 8b4d38                   mov ecx, dword ptr [rbp + 0x38]
+  46bd96: 894c2428                 mov dword ptr [rsp + 0x28], ecx
+  46bd9a: 488b4d30                 mov rcx, qword ptr [rbp + 0x30]
+  46bd9e: 48894c2420               mov qword ptr [rsp + 0x20], rcx
+  46bda3: 4889c1                   mov rcx, rax
+  46bda6: e830e7ffff               call 0x46a4db
+  46bdab: 85c0                     test eax, eax
+  46bdad: 7407                     je 0x46bdb6
+  46bdaf: b8ffffffff               mov eax, 0xffffffff
+  46bdb4: eb37                     jmp 0x46bded
+  46bdb6: 8b4538                   mov eax, dword ptr [rbp + 0x38]
+  46bdb9: 448d4001                 lea r8d, [rax + 1]
+
+=== H 469aa4 frame: 5th should be [rbp+0x30] ===
+  @469b09+0x65: 8b4d3048894c2420
+
+=== I bisect: skip mid 2a6b93 call; skip both mid+967 ===
+  [skip_2a6] sha=99dc9d0d2bbe
+  skip_2a6/p_ret_lit.x    OK       USER=5c6778769c3c run=OK LIT
+  skip_2a6/p_ret_fwd.x    GS       USER=- run=-
+  skip_2a6/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  skip_2a6/_var_let.x     AV       USER=- run=-
+  [skip_2a6_967] sha=8c688d919587
+  skip_2a6_967/p_ret_lit.x    OK       USER=863f340950ce run=OK
+  skip_2a6_967/p_ret_fwd.x    GS       USER=- run=-
+  skip_2a6_967/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  skip_2a6_967/_var_let.x     OK       USER=f6d6443bef9e run=OK
+  [skip_mid_both] sha=e80a00758c04
+  skip_mid_both/p_ret_lit.x    OK       USER=863f340950ce run=OK
+  skip_mid_both/p_ret_fwd.x    OK       USER=e411d7260d78 run=OK HOLLOW
+  skip_mid_both/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  skip_mid_both/_var_let.x     OK       USER=f6d6443bef9e run=OK
+
+=== J re-disasm USER from earlier aligned insn ===
+  -- HOLLOW wider window --
+    001550: 6808000048               push 0x48000008
+    001555: 8d45d8                   lea eax, [rbp - 0x28]
+    001558: 4889c1                   mov rcx, rax
+    00155b: 4883ec20                 sub rsp, 0x20
+    00155f: b80a000000               mov eax, 0xa
+    001564: 4889c2                   mov rdx, rax <<<
+    001567: e824ffffff               call 0x1490 <<<
+    00156c: 4883c420                 add rsp, 0x20 <<<
+    001570: 488d45d8                 lea rax, [rbp - 0x28] <<<
+    001574: 488b00                   mov rax, qword ptr [rax]
+    001577: 4889c3                   mov rbx, rax
+    00157a: b80a000000               mov eax, 0xa
+  -- F483 wider window --
+    001550: 6808000048               push 0x48000008
+    001555: 8d45d8                   lea eax, [rbp - 0x28]
+    001558: 4889c1                   mov rcx, rax
+    00155b: 4883ec20                 sub rsp, 0x20
+    00155f: b80a000000               mov eax, 0xa
+    001564: 4889c2                   mov rdx, rax <<<
+    001567: e88cffffff               call 0x14f8 <<<
+    00156c: 4883c420                 add rsp, 0x20 <<<
+    001570: 488d45d8                 lea rax, [rbp - 0x28] <<<
+    001574: 488b00                   mov rax, qword ptr [rax]
+    001577: 4889c3                   mov rbx, rax
+    00157a: b80a000000               mov eax, 0xa
+
+=== L Isol 1a0=0 early + skip99d only ===
+  [z1a0_s99] sha=8c576a2d044c
+  z1a0_s99/p_ret_lit.x    OK       USER=5c6778769c3c run=OK LIT
+  z1a0_s99/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS F483
+  z1a0_s99/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  z1a0_s99/_var_let.x     crc=0x1  USER=- run=-
+  [z1a0_keep] sha=167b26b790fb
+  z1a0_keep/p_ret_lit.x    OK       USER=5c6778769c3c run=OK LIT
+  z1a0_keep/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS F483
+  z1a0_keep/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  z1a0_keep/_var_let.x     crc=0x1  USER=- run=-
+  host: host_cmk0_irdx.exe sha=bbe7d9819dfd
+  host: host_cmk0_irdx_sub20.exe sha=3f43f1609d70
+
+elapsed=1.6s
+cleaned

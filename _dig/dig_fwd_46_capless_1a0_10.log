@@ -1,0 +1,299 @@
+base sha=3f43f1609d70
+
+=== A Isol 1a0=[150] / [164] / [134] ===
+  [b150] sha=e685e0130c15
+  b150/p_ret_lit.x    AV       USER=- run=-
+  b150/p_ret_fwd.x    AV       USER=- run=-
+  b150/p_ret_local.x  AV       USER=- run=-
+  b150/_var_let.x     AV       USER=- run=-
+  [b164] sha=f16b9f02affc
+  b164/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  b164/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS F483
+  b164/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  b164/_var_let.x     crc=0x1  USER=- run=-
+  [b134] sha=5c0f301b7ee6
+  b134/p_ret_lit.x    AV       USER=- run=-
+  b134/p_ret_fwd.x    AV       USER=- run=-
+  b134/p_ret_local.x  AV       USER=- run=-
+  b134/_var_let.x     AV       USER=- run=-
+  [b190d] sha=547db81a3e40
+  b190d/p_ret_lit.x    AV       USER=- run=-
+  b190d/p_ret_fwd.x    AV       USER=- run=-
+  b190d/p_ret_local.x  AV       USER=- run=-
+  b190d/_var_let.x     AV       USER=- run=-
+
+=== B Capless 6th=idx 7th variants + body 1a0=[150] ===
+  [cap0_b150] sha=1d87ea667551
+  cap0_b150/p_ret_lit.x    AV       USER=- run=-
+  cap0_b150/p_ret_fwd.x    AV       USER=- run=-
+  cap0_b150/p_ret_local.x  AV       USER=- run=-
+  cap0_b150/_var_let.x     AV       USER=- run=-
+
+=== C f483 USER full main+mk disasm ===
+  compile=OK USER=f4839df16ab1
+  run=GS rc=3221226505
+  001490: 55                   push rbp
+  001491: 4889e5               mov rbp, rsp
+  001494: 53                   push rbx
+  001495: 4881ec68080000       sub rsp, 0x868
+  00149c: 4889c8               mov rax, rcx
+  00149f: 488945d0             mov qword ptr [rbp - 0x30], rax
+  0014a3: 4889d0               mov rax, rdx
+  0014a6: 488945f0             mov qword ptr [rbp - 0x10], rax
+  0014aa: 488b45d0             mov rax, qword ptr [rbp - 0x30]
+  0014ae: 4889c3               mov rbx, rax
+  0014b1: 53                   push rbx
+  0014b2: 488b45f0             mov rax, qword ptr [rbp - 0x10]
+  0014b6: 5b                   pop rbx
+  0014b7: 53                   push rbx
+  0014b8: 48898300000000       mov qword ptr [rbx], rax
+  0014bf: 488b45f0             mov rax, qword ptr [rbp - 0x10]
+  0014c3: bb01000000           mov ebx, 1
+  0014c8: 488d0418             lea rax, [rax + rbx]
+  0014cc: 5b                   pop rbx
+  0014cd: 53                   push rbx
+  0014ce: 48898308000000       mov qword ptr [rbx + 8], rax
+  0014d5: 488b45f0             mov rax, qword ptr [rbp - 0x10]
+  0014d9: bb02000000           mov ebx, 2
+  0014de: 488d0418             lea rax, [rax + rbx]
+  0014e2: 5b                   pop rbx
+  0014e3: 53                   push rbx
+  0014e4: 48898310000000       mov qword ptr [rbx + 0x10], rax
+  0014eb: 5b                   pop rbx
+  0014ec: 4889d8               mov rax, rbx
+  0014ef: 488d65f8             lea rsp, [rbp - 8]
+  0014f3: 5b                   pop rbx
+  0014f4: 5d                   pop rbp
+  0014f5: c3                   ret 
+  0014f6: 0000                 add byte ptr [rax], al
+  0014f8: 55                   push rbp
+  0014f9: 4889e5               mov rbp, rsp
+  0014fc: 53                   push rbx
+  0014fd: 4881ec68080000       sub rsp, 0x868
+  001504: 4889c8               mov rax, rcx
+  001507: 488945d0             mov qword ptr [rbp - 0x30], rax
+  00150b: 4889d0               mov rax, rdx
+  00150e: 488945f0             mov qword ptr [rbp - 0x10], rax
+  001512: 4883ec20             sub rsp, 0x20
+  001516: b80a000000           mov eax, 0xa
+  00151b: 4889c2               mov rdx, rax
+  00151e: 488b45f0             mov rax, qword ptr [rbp - 0x10]
+  001522: bb01000000           mov ebx, 1
+  001527: 488d0418             lea rax, [rax + rbx]
+  00152b: 488945c0             mov qword ptr [rbp - 0x40], rax
+  00152f: 488b45c0             mov rax, qword ptr [rbp - 0x40]
+  001533: 4889c1               mov rcx, rax
+  001536: e855ffffff           call 0x1490
+  00153b: 4883c420             add rsp, 0x20
+  00153f: 488d65f8             lea rsp, [rbp - 8]
+  001543: 5b                   pop rbx
+  001544: 5d                   pop rbp
+  001545: c3                   ret 
+  001546: 0000                 add byte ptr [rax], al
+  001548: 55                   push rbp
+  001549: 4889e5               mov rbp, rsp
+  00154c: 53                   push rbx
+  00154d: 4881ec68080000       sub rsp, 0x868
+  001554: 488d45d8             lea rax, [rbp - 0x28]
+  001558: 4889c1               mov rcx, rax
+  00155b: 4883ec20             sub rsp, 0x20
+  00155f: b80a000000           mov eax, 0xa
+  001564: 4889c2               mov rdx, rax
+  001567: e88cffffff           call 0x14f8
+  00156c: 4883c420             add rsp, 0x20
+  001570: 488d45d8             lea rax, [rbp - 0x28]
+  001574: 488b00               mov rax, qword ptr [rax]
+  001577: 4889c3               mov rbx, rax
+  00157a: b80a000000           mov eax, 0xa
+  00157f: 4839c3               cmp rbx, rax
+  001582: 0f95c0               setne al
+  001585: 0fb6c0               movzx eax, al
+  001588: 85c0                 test eax, eax
+  00158a: 0f840f000000         je 0x159f
+  001590: b801000000           mov eax, 1
+  001595: e979000000           jmp 0x1613
+  00159a: e900000000           jmp 0x159f
+  00159f: 488d45d8             lea rax, [rbp - 0x28]
+  0015a3: 480508000000         add rax, 8
+  0015a9: 488b00               mov rax, qword ptr [rax]
+  0015ac: 4889c3               mov rbx, rax
+  0015af: b80b000000           mov eax, 0xb
+  0015b4: 4839c3               cmp rbx, rax
+  0015b7: 0f95c0               setne al
+  0015ba: 0fb6c0               movzx eax, al
+  0015bd: 85c0                 test eax, eax
+  0015bf: 0f840f000000         je 0x15d4
+  0015c5: b802000000           mov eax, 2
+  0015ca: e944000000           jmp 0x1613
+  0015cf: e900000000           jmp 0x15d4
+  0015d4: 488d45d8             lea rax, [rbp - 0x28]
+  0015d8: 480510000000         add rax, 0x10
+  0015de: 488b00               mov rax, qword ptr [rax]
+  0015e1: 4889c3               mov rbx, rax
+  0015e4: b80c000000           mov eax, 0xc
+  0015e9: 4839c3               cmp rbx, rax
+  0015ec: 0f95c0               setne al
+  0015ef: 0fb6c0               movzx eax, al
+  0015f2: 85c0                 test eax, eax
+  0015f4: 0f840f000000         je 0x1609
+  0015fa: b803000000           mov eax, 3
+  0015ff: e90f000000           jmp 0x1613
+  001604: e900000000           jmp 0x1609
+  001609: b800000000           mov eax, 0
+  00160e: e900000000           jmp 0x1613
+  001613: 488d65f8             lea rsp, [rbp - 8]
+  001617: 5b                   pop rbx
+  001618: 5d                   pop rbp
+  001619: c3                   ret 
+  00161a: 0000                 add byte ptr [rax], al
+  00161c: 0f1f4000             nop dword ptr [rax]
+
+=== D hollow USER 1490..1600 ===
+  001490: 55                   push rbp
+  001491: 4889e5               mov rbp, rsp
+  001494: 53                   push rbx
+  001495: 4881ec68080000       sub rsp, 0x868
+  00149c: 4889c8               mov rax, rcx
+  00149f: 488945d0             mov qword ptr [rbp - 0x30], rax
+  0014a3: 4889d0               mov rax, rdx
+  0014a6: 488945f0             mov qword ptr [rbp - 0x10], rax
+  0014aa: 488b45d0             mov rax, qword ptr [rbp - 0x30]
+  0014ae: 4889c3               mov rbx, rax
+  0014b1: 53                   push rbx
+  0014b2: 488b45f0             mov rax, qword ptr [rbp - 0x10]
+  0014b6: 5b                   pop rbx
+  0014b7: 53                   push rbx
+  0014b8: 48898300000000       mov qword ptr [rbx], rax
+  0014bf: 488b45f0             mov rax, qword ptr [rbp - 0x10]
+  0014c3: bb01000000           mov ebx, 1
+  0014c8: 488d0418             lea rax, [rax + rbx]
+  0014cc: 5b                   pop rbx
+  0014cd: 53                   push rbx
+  0014ce: 48898308000000       mov qword ptr [rbx + 8], rax
+  0014d5: 488b45f0             mov rax, qword ptr [rbp - 0x10]
+  0014d9: bb02000000           mov ebx, 2
+  0014de: 488d0418             lea rax, [rax + rbx]
+  0014e2: 5b                   pop rbx
+  0014e3: 53                   push rbx
+  0014e4: 48898310000000       mov qword ptr [rbx + 0x10], rax
+  0014eb: 5b                   pop rbx
+  0014ec: 4889d8               mov rax, rbx
+  0014ef: 488d65f8             lea rsp, [rbp - 8]
+  0014f3: 5b                   pop rbx
+  0014f4: 5d                   pop rbp
+  0014f5: c3                   ret 
+  0014f6: 0000                 add byte ptr [rax], al
+  0014f8: 55                   push rbp
+  0014f9: 4889e5               mov rbp, rsp
+  0014fc: 53                   push rbx
+  0014fd: 4881ec68080000       sub rsp, 0x868
+  001504: 4889c8               mov rax, rcx
+  001507: 488945d0             mov qword ptr [rbp - 0x30], rax
+  00150b: 4889d0               mov rax, rdx
+  00150e: 488945f0             mov qword ptr [rbp - 0x10], rax
+  001512: 4883ec20             sub rsp, 0x20
+  001516: b80a000000           mov eax, 0xa
+  00151b: 4889c2               mov rdx, rax
+  00151e: 488b45f0             mov rax, qword ptr [rbp - 0x10]
+  001522: bb01000000           mov ebx, 1
+  001527: 488d0418             lea rax, [rax + rbx]
+  00152b: 488945c0             mov qword ptr [rbp - 0x40], rax
+  00152f: 488b45c0             mov rax, qword ptr [rbp - 0x40]
+  001533: 4889c1               mov rcx, rax
+  001536: e855ffffff           call 0x1490
+  00153b: 4883c420             add rsp, 0x20
+  00153f: 488d65f8             lea rsp, [rbp - 8]
+  001543: 5b                   pop rbx
+  001544: 5d                   pop rbp
+  001545: c3                   ret 
+  001546: 0000                 add byte ptr [rax], al
+  001548: 55                   push rbp
+  001549: 4889e5               mov rbp, rsp
+  00154c: 53                   push rbx
+  00154d: 4881ec68080000       sub rsp, 0x868
+  001554: 488d45d8             lea rax, [rbp - 0x28]
+  001558: 4889c1               mov rcx, rax
+  00155b: 4883ec20             sub rsp, 0x20
+  00155f: b80a000000           mov eax, 0xa
+  001564: 4889c2               mov rdx, rax
+  001567: e824ffffff           call 0x1490
+  00156c: 4883c420             add rsp, 0x20
+  001570: 488d45d8             lea rax, [rbp - 0x28]
+  001574: 488b00               mov rax, qword ptr [rax]
+  001577: 4889c3               mov rbx, rax
+  00157a: b80a000000           mov eax, 0xa
+  00157f: 4839c3               cmp rbx, rax
+  001582: 0f95c0               setne al
+  001585: 0fb6c0               movzx eax, al
+  001588: 85c0                 test eax, eax
+  00158a: 0f840f000000         je 0x159f
+  001590: b801000000           mov eax, 1
+  001595: e979000000           jmp 0x1613
+  00159a: e900000000           jmp 0x159f
+  00159f: 488d45d8             lea rax, [rbp - 0x28]
+  0015a3: 480508000000         add rax, 8
+  0015a9: 488b00               mov rax, qword ptr [rax]
+  0015ac: 4889c3               mov rbx, rax
+  0015af: b80b000000           mov eax, 0xb
+  0015b4: 4839c3               cmp rbx, rax
+  0015b7: 0f95c0               setne al
+  0015ba: 0fb6c0               movzx eax, al
+  0015bd: 85c0                 test eax, eax
+  0015bf: 0f840f000000         je 0x15d4
+  0015c5: b802000000           mov eax, 2
+  0015ca: e944000000           jmp 0x1613
+  0015cf: e900000000           jmp 0x15d4
+  0015d4: 488d45d8             lea rax, [rbp - 0x28]
+  0015d8: 480510000000         add rax, 0x10
+  0015de: 488b00               mov rax, qword ptr [rax]
+  0015e1: 4889c3               mov rbx, rax
+  0015e4: b80c000000           mov eax, 0xc
+  0015e9: 4839c3               cmp rbx, rax
+  0015ec: 0f95c0               setne al
+  0015ef: 0fb6c0               movzx eax, al
+  0015f2: 85c0                 test eax, eax
+  0015f4: 0f840f000000         je 0x1609
+  0015fa: b803000000           mov eax, 3
+  0015ff: e90f000000           jmp 0x1613
+  001604: e900000000           jmp 0x1609
+  001609: b800000000           mov eax, 0
+  00160e: e900000000           jmp 0x1613
+  001613: 488d65f8             lea rsp, [rbp - 8]
+  001617: 5b                   pop rbx
+  001618: 5d                   pop rbp
+  001619: c3                   ret 
+  00161a: 0000                 add byte ptr [rax], al
+  00161c: 0f1f4000             nop dword ptr [rax]
+
+=== E twin vs Isol wider .text diffs (sample) ===
+  body46: ndiff=2 first=['46a82b:eb/74', '46a90c:eb/75']
+  capless: ndiff=0 first=[]
+  cmk: ndiff=73 first=['57ba3b:c6/b8', '57ba3c:43/48', '57ba3e:48/00', '57ba3f:c6/00', '57ba40:43/88', '57ba41:01/83', '57ba42:83/00', '57ba43:c6/00']
+  near574: ndiff=0 first=[]
+
+=== F Capless 6th=small indices ===
+  [idx0b] sha=50a0eef25656
+  idx0b/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  idx0b/p_ret_fwd.x    GS       USER=- run=-
+  idx0b/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  idx0b/_var_let.x     AV       USER=- run=-
+  [idx2] sha=5aa755732492
+  idx2/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  idx2/p_ret_fwd.x    GS       USER=- run=-
+  idx2/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  idx2/_var_let.x     AV       USER=- run=-
+  [idx3] sha=8772467a36b1
+  idx3/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  idx3/p_ret_fwd.x    GS       USER=- run=-
+  idx3/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  idx3/_var_let.x     AV       USER=- run=-
+  [idx10] sha=4bd61e480913
+  idx10/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  idx10/p_ret_fwd.x    GS       USER=- run=-
+  idx10/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  idx10/_var_let.x     AV       USER=- run=-
+  [idx27] sha=8cf43476bf9d
+  idx27/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  idx27/p_ret_fwd.x    GS       USER=- run=-
+  idx27/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  idx27/_var_let.x     AV       USER=- run=-

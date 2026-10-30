@@ -1,0 +1,173 @@
+base sha=3f43f1609d70
+
+=== A [1a8] writers in body ===
+  @46a505: 00008b8da8010000
+  @46a529: 00008b8da8010000
+  @46a723: 00008b8da8010000
+  @46a754: 00008b8da8010000
+  @46a795: 89e88b8da8010000
+  @46a80d: 24308b8da8010000
+  @46a97f: 00008b8da8010000
+  @46a9a0: 00008b8da8010000
+
+=== B 4698c0 5th ([rbp+0x30]) reads ===
+  hitq @4699f0: 488b4d3048894c24
+  hit @4699f1: 8b4d3048894c2420
+  hitq @469a3f: 488b4d3048894c24
+  hit @469a40: 8b4d3048894c2420
+  hitq @469a6a: 488b4d3048894c24
+  hit @469a6b: 8b4d3048894c2420
+  hitq @469a8d: 488b4d3048894c24
+  hit @469a8e: 8b4d3048894c2420
+  disp30 @4699f2: 488b4d304889
+  disp30 @469a41: 488b4d304889
+  disp30 @469a6c: 488b4d304889
+  disp30 @469a8f: 488b4d304889
+
+=== C 4698c0 continued toward end ===
+  4699b4: 8b45d4                   mov eax, dword ptr [rbp - 0x2c]
+  4699b7: 3b45f0                   cmp eax, dword ptr [rbp - 0x10]
+  4699ba: 7514                     jne 0x4699d0
+  4699bc: 8b5520                   mov edx, dword ptr [rbp + 0x20]
+  4699bf: 488b4518                 mov rax, qword ptr [rbp + 0x18]
+  4699c3: 4889c1                   mov rcx, rax
+  4699c6: e8af9efeff               call 0x45387a
+  4699cb: e9ce000000               jmp 0x469a9e
+  4699d0: 8b45d4                   mov eax, dword ptr [rbp - 0x2c]
+  4699d3: 3b45e0                   cmp eax, dword ptr [rbp - 0x20]
+  4699d6: 7408                     je 0x4699e0
+  4699d8: 8b45d4                   mov eax, dword ptr [rbp - 0x2c]
+  4699db: 3b45dc                   cmp eax, dword ptr [rbp - 0x24]
+  4699de: 7526                     jne 0x469a06
+  4699e0: 448b4d28                 mov r9d, dword ptr [rbp + 0x28]
+  4699e4: 448b4520                 mov r8d, dword ptr [rbp + 0x20]
+  4699e8: 488b5518                 mov rdx, qword ptr [rbp + 0x18]
+  4699ec: 488b4510                 mov rax, qword ptr [rbp + 0x10]
+  4699f0: 488b4d30                 mov rcx, qword ptr [rbp + 0x30]
+  4699f4: 48894c2420               mov qword ptr [rsp + 0x20], rcx
+  4699f9: 4889c1                   mov rcx, rax
+  4699fc: e8f39efeff               call 0x4538f4
+  469a01: e998000000               jmp 0x469a9e
+  469a06: 8b45d4                   mov eax, dword ptr [rbp - 0x2c]
+  469a09: 3b45d8                   cmp eax, dword ptr [rbp - 0x28]
+  469a0c: 7511                     jne 0x469a1f
+  469a0e: 8b5520                   mov edx, dword ptr [rbp + 0x20]
+  469a11: 488b4518                 mov rax, qword ptr [rbp + 0x18]
+  469a15: 4889c1                   mov rcx, rax
+  469a18: e8939ffeff               call 0x4539b0
+  469a1d: eb7f                     jmp 0x469a9e
+  469a1f: 8b45d4                   mov eax, dword ptr [rbp - 0x2c]
+  469a22: 3b45ec                   cmp eax, dword ptr [rbp - 0x14]
+  469a25: 7408                     je 0x469a2f
+  469a27: 8b45d4                   mov eax, dword ptr [rbp - 0x2c]
+  469a50: eb4c                     jmp 0x469a9e
+  469a52: 8b45d4                   mov eax, dword ptr [rbp - 0x2c]
+  469a55: 3b45e8                   cmp eax, dword ptr [rbp - 0x18]
+  469a58: 7523                     jne 0x469a7d
+  469a5a: 448b4d28                 mov r9d, dword ptr [rbp + 0x28]
+  469a5e: 448b4520                 mov r8d, dword ptr [rbp + 0x20]
+  469a62: 488b5518                 mov rdx, qword ptr [rbp + 0x18]
+  469a66: 488b4510                 mov rax, qword ptr [rbp + 0x10]
+  469a6a: 488b4d30                 mov rcx, qword ptr [rbp + 0x30]
+  469a6e: 48894c2420               mov qword ptr [rsp + 0x20], rcx
+  469a73: 4889c1                   mov rcx, rax
+  469a76: e8a3a6feff               call 0x45411e
+  469a7b: eb21                     jmp 0x469a9e
+  469a7d: 448b4d28                 mov r9d, dword ptr [rbp + 0x28]
+  469a81: 448b4520                 mov r8d, dword ptr [rbp + 0x20]
+  469a85: 488b5518                 mov rdx, qword ptr [rbp + 0x18]
+  469a89: 488b4510                 mov rax, qword ptr [rbp + 0x10]
+  469a8d: 488b4d30                 mov rcx, qword ptr [rbp + 0x30]
+  469a91: 48894c2420               mov qword ptr [rsp + 0x20], rcx
+  469a96: 4889c1                   mov rcx, rax
+  469a99: e823faffff               call 0x4694c1
+
+=== D Capless 460 mirror + Isol 1a8=0 ===
+  [460_z1a8] sha=a52418b1ad1a
+  460_z1a8/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  460_z1a8/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS F483
+  460_z1a8/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  460_z1a8/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  [460_z1a8_s99] sha=1a15bd88f4bc
+  460_z1a8_s99/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  460_z1a8_s99/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS F483
+  460_z1a8_s99/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  460_z1a8_s99/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+
+=== F force fallthrough @90c (nop jmp) + Capless 460 ===
+  [ft90_460] sha=777288e08b51
+  ft90_460/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  ft90_460/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS F483
+  ft90_460/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  ft90_460/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  [ft90] sha=8b01bc6e6d0f
+  ft90/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  ft90/p_ret_fwd.x    GS       USER=- run=-
+  ft90/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  ft90/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+
+=== H twin_probe USER vs hollow/f483 ===
+  twin_probe compile=OK USER=546a4c6d02df
+  twin_probe run=crc=0x1
+  hollow vs twin_probe: len 12288/12288 ndiff=9658
+  first@0x13
+    001003: 40006666             add byte ptr [rsi + 0x66], spl
+    001007: 2e0f1f840000000000   nop dword ptr cs:[rax + rax]
+    001010: 31c9                 xor ecx, ecx
+    001012: e9512d0000           jmp 0x3d68
+    001017: 660f1f840000000000   nop word ptr [rax + rax]
+    001020: 4157                 push r15
+    001022: 4156                 push r14
+    001024: 4155                 push r13
+    001026: 4154                 push r12
+    001028: 55                   push rbp
+    001029: 57                   push rdi
+    00102a: 56                   push rsi
+    00102b: 53                   push rbx
+    00102c: 4883ec58             sub rsp, 0x58
+
+=== I p_ret_fwd.x ===
+struct W { a: i64, b: i64, c: i64 }
+function mk(x: i64): W { return W { a: x, b: x + 1, c: x + 2 }; }
+function fw(x: i64): W { return mk(x + 1); }
+function main(): i32 {
+  let w: W = fw(9);
+  if (w.a != 10) { return 1; }
+  if (w.b != 11) { return 2; }
+  if (w.c != 12) { return 3; }
+  return 0;
+}
+
+
+=== J Isol entry homes + 1a8 first use ===
+  46a4db: 55                       push rbp
+  46a4dc: 4881ecf0010000           sub rsp, 0x1f0
+  46a4e3: 488dac2480000000         lea rbp, [rsp + 0x80]
+  46a4eb: 48898d80010000           mov qword ptr [rbp + 0x180], rcx
+  46a4f2: 48899588010000           mov qword ptr [rbp + 0x188], rdx
+  46a4f9: 44898590010000           mov dword ptr [rbp + 0x190], r8d
+  46a500: 44898d98010000           mov dword ptr [rbp + 0x198], r9d
+  46a507: 8b8da8010000             mov ecx, dword ptr [rbp + 0x1a8]
+  46a50d: 8b9590010000             mov edx, dword ptr [rbp + 0x190]
+  46a513: 488b8588010000           mov rax, qword ptr [rbp + 0x188]
+  46a51a: 4189c8                   mov r8d, ecx
+  46a51d: 4889c1                   mov rcx, rax
+  46a520: e8283bd9ff               call 0x1fe04d
+  46a525: 898550010000             mov dword ptr [rbp + 0x150], eax
+
+=== K Capless [4b0] reads context ===
+  -- @576739 --
+  576729: 0000                     add byte ptr [rax], al
+  57672b: 488b9598040000           mov rdx, qword ptr [rbp + 0x498]
+  576732: 488b8590040000           mov rax, qword ptr [rbp + 0x490]
+  576739: 8b8db0040000             mov ecx, dword ptr [rbp + 0x4b0]
+  57673f: 894c2420                 mov dword ptr [rsp + 0x20], ecx
+  576743: 4889c1                   mov rcx, rax
+  576746: e8903defff               call 0x46a4db
+  57674b: 898550040000             mov dword ptr [rbp + 0x450], eax
+  576751: 83bd5004000000           cmp dword ptr [rbp + 0x450], 0
+  -- @5775ba --
+  -- @577b8b --
+
+elapsed=1.8s
+cleaned

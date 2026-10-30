@@ -1,0 +1,195 @@
+base sha=3f43f1609d70
+
+=== A Capless prol + 4b0 frame math ===
+  57656c: 55                       push rbp
+  57656d: 4881ec00050000           sub rsp, 0x500
+  576574: 488dac2480000000         lea rbp, [rsp + 0x80]
+  57657c: 48898d90040000           mov qword ptr [rbp + 0x490], rcx
+  576583: 48899598040000           mov qword ptr [rbp + 0x498], rdx
+  57658a: 448985a0040000           mov dword ptr [rbp + 0x4a0], r8d
+  576591: 4c898da8040000           mov qword ptr [rbp + 0x4a8], r9
+  576560: cmp eax, 0
+  576563: add byte ptr [rax], al
+  576565: mov dword ptr [rbx + 0xfc], eax
+  57656b: mov dword ptr [rbp + 0x48], edx
+  57656e: sub esp, 0x500
+  576574: lea rbp, [rsp + 0x80]
+  57657c: mov qword ptr [rbp + 0x490], rcx
+  576583: mov qword ptr [rbp + 0x498], rdx
+  57658a: mov dword ptr [rbp + 0x4a0], r8d
+  576591: mov qword ptr [rbp + 0x4a8], r9
+  576598: cmp qword ptr [rbp + 0x490], 0
+
+=== A2 global writers of [rbp+0x4b0] ===
+  writers count≈63
+    @18898c mov qword ptr [rbp + 0x4b0], rax
+    @1fb8ef mov dword ptr [rbp + 0x4b0], eax
+    @353c60 mov dword ptr [rbx + 0x4b0], eax
+    @35469f mov qword ptr [rcx + 0x4b0], rdx
+    @48d91a mov dword ptr [rbp + 0x4b0], r8d
+    @48ec11 mov qword ptr [rbp + 0x4b0], rax
+    @491154 mov qword ptr [rbp + 0x4b0], 0
+    @4a37c8 mov dword ptr [rbp + 0x4b0], r8d
+    @4a4244 mov dword ptr [rbp + 0x4b0], 0
+    @4d5576 mov qword ptr [rbp + 0x4b0], rax
+    @4d78fe mov dword ptr [rbp + 0x4b0], eax
+    @4f4334 mov dword ptr [rbp + 0x4b0], 0
+    @5c89ca mov qword ptr [rbp + 0x4b0], rax
+    @5c8c04 mov qword ptr [rbp + 0x4b0], rax
+    @5c9211 mov qword ptr [rbp + 0x4b0], rax
+    @5c94d5 mov qword ptr [rbp + 0x4b0], rax
+    @5c97e2 mov qword ptr [rbp + 0x4b0], rax
+    @5c9949 mov qword ptr [rbp + 0x4b0], rax
+    @5c9a05 mov qword ptr [rbp + 0x4b0], rax
+    @5c9c1e mov qword ptr [rbp + 0x4b0], rax
+    @5c9f73 mov qword ptr [rbp + 0x4b0], rax
+    @5ca10d mov qword ptr [rbp + 0x4b0], rax
+    @5ca29f mov qword ptr [rbp + 0x4b0], rax
+    @5ca556 mov qword ptr [rbp + 0x4b0], rax
+    @5ca7c9 mov qword ptr [rbp + 0x4b0], rax
+    @5ca937 mov qword ptr [rbp + 0x4b0], rax
+    @5cab9d mov qword ptr [rbp + 0x4b0], rax
+    @5cad0b mov qword ptr [rbp + 0x4b0], rax
+    @5caf71 mov qword ptr [rbp + 0x4b0], rax
+    @5cb10b mov qword ptr [rbp + 0x4b0], rax
+
+=== B callers of Capless entry (E8→0x57656c or near) ===
+  direct callers of 57656c: ['0x12377c', '0x126cda', '0x128402', '0x1d9a89', '0x1d9c8b', '0x1d9d0e', '0x1da455', '0x1dd9b3', '0x270317'] count=9
+  -- Capless caller @12377c --
+  123754: 8b8d28020000             mov ecx, dword ptr [rbp + 0x228]
+  12375a: 448b8520020000           mov r8d, dword ptr [rbp + 0x220]
+  123761: 488b9518020000           mov rdx, qword ptr [rbp + 0x218]
+  123768: 488b8510020000           mov rax, qword ptr [rbp + 0x210]
+  12376f: 8b8d30020000             mov ecx, dword ptr [rbp + 0x230]
+  123775: 894c2420                 mov dword ptr [rsp + 0x20], ecx
+  123779: 4889c1                   mov rcx, rax
+  12377c: e8eb2d4500               call 0x57656c
+  -- Capless caller @126cda --
+  126cb2: 8b8d28020000             mov ecx, dword ptr [rbp + 0x228]
+  126cb8: 448b8540010000           mov r8d, dword ptr [rbp + 0x140]
+  126cbf: 488b9518020000           mov rdx, qword ptr [rbp + 0x218]
+  126cc6: 488b8510020000           mov rax, qword ptr [rbp + 0x210]
+  126ccd: 8b8d30020000             mov ecx, dword ptr [rbp + 0x230]
+  126cd3: 894c2420                 mov dword ptr [rsp + 0x20], ecx
+  126cd7: 4889c1                   mov rcx, rax
+  126cda: e88df84400               call 0x57656c
+  126cdf: 85c0                     test eax, eax
+  -- Capless caller @128402 --
+  1283da: 488b85c0f6ffff           mov rax, qword ptr [rbp - 0x940]
+  1283e1: 4889c2                   mov rdx, rax
+  1283e4: 488b85a0f6ffff           mov rax, qword ptr [rbp - 0x960]
+  1283eb: 4989c0                   mov r8, rax
+  1283ee: 488b8580f6ffff           mov rax, qword ptr [rbp - 0x980]
+  1283f5: 4989c1                   mov r9, rax
+  1283f8: 488b8560f6ffff           mov rax, qword ptr [rbp - 0x9a0]
+  1283ff: 4989c0                   mov r8, rax
+  128402: e865e14400               call 0x57656c
+  128407: 4898                     cdqe 
+  -- Capless caller @1d9a89 --
+  1d9a61: 204889                   and byte ptr [rax - 0x77], cl
+  1d9a64: c1e80e                   shr eax, 0xe
+  1d9a67: 55                       push rbp
+  1d9a68: 3a00                     cmp al, byte ptr [rax]
+  1d9a6a: 8945f4                   mov dword ptr [rbp - 0xc], eax
+  1d9a6d: eb22                     jmp 0x1d9a91
+  1d9a6f: 4c8b4d28                 mov r9, qword ptr [rbp + 0x28]
+  1d9a73: 448b4520                 mov r8d, dword ptr [rbp + 0x20]
+  1d9a77: 488b5518                 mov rdx, qword ptr [rbp + 0x18]
+  1d9a7b: 488b4510                 mov rax, qword ptr [rbp + 0x10]
+  1d9a7f: 8b4d30                   mov ecx, dword ptr [rbp + 0x30]
+  1d9a82: 894c2420                 mov dword ptr [rsp + 0x20], ecx
+  1d9a86: 4889c1                   mov rcx, rax
+  1d9a89: e8deca3900               call 0x57656c
+  1d9a8e: 8945f4                   mov dword ptr [rbp - 0xc], eax
+
+=== C mid use @46a7cd of 1a0 ===
+  46a7b0: 4889c1                   mov rcx, rax
+  46a7b3: e82a0ad9ff               call 0x1fb1e2
+  46a7b8: 83bd3401000001           cmp dword ptr [rbp + 0x134], 1
+  46a7bf: 750c                     jne 0x46a7cd
+  46a7c1: 0fb64500                 movzx eax, byte ptr [rbp]
+  46a7c5: 3c5f                     cmp al, 0x5f
+  46a7c7: 0f84d8000000             je 0x46a8a5
+  46a7cd: 488b85a0010000           mov rax, qword ptr [rbp + 0x1a0]
+  46a7d4: 4889c1                   mov rcx, rax
+  46a7d7: e8b7c3e3ff               call 0x2a6b93
+
+=== D plants cave@5597ef ===
+  tr_r9_4b0_no7 len=22
+  [tr_r9_4b0_no7] sha=ec59bc4a53f5
+  tr_r9_4b0_no7/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  tr_r9_4b0_no7/p_ret_fwd.x    AV       USER=- run=-
+  tr_r9_4b0_no7/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  tr_r9_4b0_no7/_var_let.x     AV       USER=- run=-
+  tr_460_4b0_no7 len=42
+  [tr_460_4b0_no7] sha=0694bdf10826
+  tr_460_4b0_no7/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  tr_460_4b0_no7/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS F483
+  tr_460_4b0_no7/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  tr_460_4b0_no7/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  tr_478_4b0_no7 len=42
+  [tr_478_4b0_no7] sha=46bae18113d8
+  tr_478_4b0_no7/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  tr_478_4b0_no7/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS F483
+  tr_478_4b0_no7/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  tr_478_4b0_no7/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  tr_4b0_0_no7 len=25
+  [tr_4b0_0_no7] sha=50a0eef25656
+  tr_4b0_0_no7/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  tr_4b0_0_no7/p_ret_fwd.x    GS       USER=- run=-
+  tr_4b0_0_no7/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  tr_4b0_0_no7/_var_let.x     AV       USER=- run=-
+  tr_4b0_r9d_no7 len=22
+  [tr_4b0_r9d_no7] sha=b264aa80dcd9
+  tr_4b0_r9d_no7/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  tr_4b0_r9d_no7/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS F483
+  tr_4b0_r9d_no7/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  tr_4b0_r9d_no7/_var_let.x     AV       USER=- run=-
+
+=== E Isol body fill 1a0 from rcx-home ===
+  [b180] sha=e7e208bdeb2c
+  b180/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  b180/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS F483
+  b180/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  b180/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+
+=== E3 slot @46a54f ===
+  46a540: c84889c1                 enter -0x76b8, -0x3f
+  46a544: e8323bd9ff               call 0x1fe07b
+  46a549: 89856c010000             mov dword ptr [rbp + 0x16c], eax
+  46a54f: c7856801000000000000     mov dword ptr [rbp + 0x168], 0
+  46a559: c7856401000000000000     mov dword ptr [rbp + 0x164], 0
+
+=== F Capless mirror+skip99d / skip967 ===
+  [460_s99] sha=ef97ea824231
+  460_s99/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  460_s99/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS F483
+  460_s99/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  460_s99/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  [460_s967] sha=7a889f50d93f
+  460_s967/p_ret_lit.x    OK       USER=863f340950ce run=OK
+  460_s967/p_ret_fwd.x    OK       USER=e411d7260d78 run=OK HOLLOW
+  460_s967/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  460_s967/_var_let.x     OK       USER=f6d6443bef9e run=OK
+
+=== G force 1a8-read → xor ecx (entry) under Capless 460 mirror ===
+  [460_z7rd] sha=775964a75fa6
+  460_z7rd/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  460_z7rd/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS F483
+  460_z7rd/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  460_z7rd/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  tr_460_0_4b0 len=50
+  [tr_460_0_4b0] sha=af057a5655aa
+  tr_460_0_4b0/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  tr_460_0_4b0/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS F483
+  tr_460_0_4b0/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  tr_460_0_4b0/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  tr_460_4b0_4b0 len=46
+  [tr_460_4b0_4b0] sha=a59b6ff6ecf7
+  tr_460_4b0_4b0/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  tr_460_4b0_4b0/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS F483
+  tr_460_4b0_4b0/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  tr_460_4b0_4b0/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+
+elapsed=4.2s
+cleaned

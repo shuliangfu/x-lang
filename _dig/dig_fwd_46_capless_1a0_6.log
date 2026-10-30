@@ -1,0 +1,231 @@
+base sha=3f43f1609d70
+
+=== A 4698c0 ===
+  4698c0: 55                       push rbp
+  4698c1: 4889e5                   mov rbp, rsp
+  4698c4: 4883ec60                 sub rsp, 0x60
+  4698c8: 48894d10                 mov qword ptr [rbp + 0x10], rcx
+  4698cc: 48895518                 mov qword ptr [rbp + 0x18], rdx
+  4698d0: 44894520                 mov dword ptr [rbp + 0x20], r8d
+  4698d4: 44894d28                 mov dword ptr [rbp + 0x28], r9d
+  4698d8: c745fc00000000           mov dword ptr [rbp - 4], 0
+  4698df: c745f801000000           mov dword ptr [rbp - 8], 1
+  4698e6: c745f402000000           mov dword ptr [rbp - 0xc], 2
+  4698ed: c745f03b000000           mov dword ptr [rbp - 0x10], 0x3b
+  4698f4: c745ec19000000           mov dword ptr [rbp - 0x14], 0x19
+  4698fb: c745e81a000000           mov dword ptr [rbp - 0x18], 0x1a
+  469902: c745e41b000000           mov dword ptr [rbp - 0x1c], 0x1b
+  469909: c745e027000000           mov dword ptr [rbp - 0x20], 0x27
+  469910: c745dc28000000           mov dword ptr [rbp - 0x24], 0x28
+  469917: c745d832000000           mov dword ptr [rbp - 0x28], 0x32
+  46991e: c745d400000000           mov dword ptr [rbp - 0x2c], 0
+  469925: 48837d1800               cmp qword ptr [rbp + 0x18], 0
+  46992a: 7412                     je 0x46993e
+  46992c: 837d2000                 cmp dword ptr [rbp + 0x20], 0
+  469930: 7e0c                     jle 0x46993e
+  469932: 488b4518                 mov rax, qword ptr [rbp + 0x18]
+
+=== B writers of [rbp+0x188] / [0x150] in Isol body ===
+  write [150] @46a525: 8985500100008b8da801
+  write [164] @46a559: c7856401000000000000
+  write [164] @46a8c0: 8985640100008b856c01
+  write [164] @46a8dd: 8985640100008b856c01
+  write [164] @46a932: c7856401000000000000
+
+=== C twin/softcap Capless→46 ===
+  xlang_isol1060_calt_twin.exe sha=da6a097340ff
+    calls to 46a4db: ['0x46bac7', '0x46bda6', '0x576746'] n=3
+    -- Capless-ish call @576746 --
+  576706: 6e                       outsb dx, byte ptr [rsi]
+  576707: 1b00                     sbb eax, dword ptr [rax]
+  576709: 0083bd540400             add byte ptr [rbx + 0x454bd], al
+  57670f: 0000                     add byte ptr [rax], al
+  576711: 7e0a                     jle 0x57671d
+  576713: b800000000               mov eax, 0
+  576718: e95b1b0000               jmp 0x578278
+  57671d: 4c8b8da8040000           mov r9, qword ptr [rbp + 0x4a8]
+  576724: 448b85a0040000           mov r8d, dword ptr [rbp + 0x4a0]
+  57672b: 488b9598040000           mov rdx, qword ptr [rbp + 0x498]
+  576732: 488b8590040000           mov rax, qword ptr [rbp + 0x490]
+  576739: 8b8db0040000             mov ecx, dword ptr [rbp + 0x4b0]
+  57673f: 894c2420                 mov dword ptr [rsp + 0x20], ecx
+  576743: 4889c1                   mov rcx, rax
+  576746: e8903defff               call 0x46a4db
+  57674b: 898550040000             mov dword ptr [rbp + 0x450], eax
+  xlang_softcap_1060_isol.exe sha=3beb746c152a
+    calls to 46a4db: ['0x46bac7', '0x46bda6'] n=2
+  lab_SoftCap_76795.exe sha=7a2cf5da581a
+    calls to 46a4db: ['0x46bac7', '0x46bda6'] n=2
+  xlang_isol1060_twin_probe.exe sha=b1fc7c2cd5ea
+    calls to 46a4db: ['0x46bac7', '0x46bda6', '0x576746'] n=3
+    -- Capless-ish call @576746 --
+  576706: 6e                       outsb dx, byte ptr [rsi]
+  576707: 1b00                     sbb eax, dword ptr [rax]
+  576709: 0083bd540400             add byte ptr [rbx + 0x454bd], al
+  57670f: 0000                     add byte ptr [rax], al
+  576711: 7e0a                     jle 0x57671d
+  576713: b800000000               mov eax, 0
+  576718: e95b1b0000               jmp 0x578278
+  57671d: 4c8b8da8040000           mov r9, qword ptr [rbp + 0x4a8]
+  576724: 448b85a0040000           mov r8d, dword ptr [rbp + 0x4a0]
+  57672b: 488b9598040000           mov rdx, qword ptr [rbp + 0x498]
+  576732: 488b8590040000           mov rax, qword ptr [rbp + 0x490]
+  576739: 8b8db0040000             mov ecx, dword ptr [rbp + 0x4b0]
+  57673f: 894c2420                 mov dword ptr [rsp + 0x20], ecx
+  576743: 4889c1                   mov rcx, rax
+  576746: e8903defff               call 0x46a4db
+  57674b: 898550040000             mov dword ptr [rbp + 0x450], eax
+
+=== D Isol 1a0 from body locals ===
+  [b188] sha=1389627a00e2
+  b188/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  b188/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS F483
+  b188/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  b188/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  [b180b] sha=e7e208bdeb2c
+  b180b/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  b180b/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS F483
+  b180b/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  b180b/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  [b190] sha=e5097b80612d
+  b190/p_ret_lit.x    AV       USER=- run=-
+  b190/p_ret_fwd.x    AV       USER=- run=-
+  b190/p_ret_local.x  AV       USER=- run=-
+  b190/_var_let.x     AV       USER=- run=-
+  [b198] sha=06b8da5b1d5b
+  b198/p_ret_lit.x    AV       USER=- run=-
+  b198/p_ret_fwd.x    AV       USER=- run=-
+  b198/p_ret_local.x  AV       USER=- run=-
+  b198/_var_let.x     AV       USER=- run=-
+  [lea1a0] sha=3b8cb1f6397f
+  lea1a0/p_ret_lit.x    AV       USER=- run=-
+  lea1a0/p_ret_fwd.x    AV       USER=- run=-
+  lea1a0/p_ret_local.x  AV       USER=- run=-
+  lea1a0/_var_let.x     AV       USER=- run=-
+  [lea168] sha=996483d997b3
+  lea168/p_ret_lit.x    AV       USER=- run=-
+  lea168/p_ret_fwd.x    AV       USER=- run=-
+  lea168/p_ret_local.x  AV       USER=- run=-
+  lea168/_var_let.x     AV       USER=- run=-
+  [lea150] sha=b10e37ba3fa0
+  lea150/p_ret_lit.x    AV       USER=- run=-
+  lea150/p_ret_fwd.x    AV       USER=- run=-
+  lea150/p_ret_local.x  AV       USER=- run=-
+  lea150/_var_let.x     AV       USER=- run=-
+  [lea128] sha=7342e205628c
+  lea128/p_ret_lit.x    AV       USER=- run=-
+  lea128/p_ret_fwd.x    AV       USER=- run=-
+  lea128/p_ret_local.x  AV       USER=- run=-
+  lea128/_var_let.x     AV       USER=- run=-
+
+=== E Capless 5th=ptr 6th=index0 ===
+  tr_460_idx0 len=40
+  [tr_460_idx0] sha=4f47b6a45414
+  tr_460_idx0/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  tr_460_idx0/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS F483
+  tr_460_idx0/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  tr_460_idx0/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  tr_490_idx0 len=26
+  [tr_490_idx0] sha=6d82df78a03f
+  tr_490_idx0/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  tr_490_idx0/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS F483
+  tr_490_idx0/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  tr_490_idx0/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  tr_498_idx0 len=26
+  [tr_498_idx0] sha=b554f4af9e58
+  tr_498_idx0/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  tr_498_idx0/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS F483
+  tr_498_idx0/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  tr_498_idx0/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  tr_4a8_idx0 len=26
+  [tr_4a8_idx0] sha=6d032693d3d0
+  tr_4a8_idx0/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  tr_4a8_idx0/p_ret_fwd.x    AV       USER=- run=-
+  tr_4a8_idx0/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  tr_4a8_idx0/_var_let.x     AV       USER=- run=-
+  tr_460_idx1 len=40
+  [tr_460_idx1] sha=ff090aa5f8cc
+  tr_460_idx1/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  tr_460_idx1/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS F483
+  tr_460_idx1/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  tr_460_idx1/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+
+=== F Capless body writes to [4b0]? ===
+  near [4b0] @5775ba: 448b85b00400008b8d100400
+  near [4b0] @577b8b: 448b85b00400008b8df80300
+
+=== G USER helpers @1490 vs @14f8 ===
+  -- H@1490 --
+    001490: 55                   push rbp
+    001491: 4889e5               mov rbp, rsp
+    001494: 53                   push rbx
+    001495: 4881ec68080000       sub rsp, 0x868
+    00149c: 4889c8               mov rax, rcx
+    00149f: 488945d0             mov qword ptr [rbp - 0x30], rax
+    0014a3: 4889d0               mov rax, rdx
+    0014a6: 488945f0             mov qword ptr [rbp - 0x10], rax
+    0014aa: 488b45d0             mov rax, qword ptr [rbp - 0x30]
+    0014ae: 4889c3               mov rbx, rax
+    0014b1: 53                   push rbx
+  -- F@14f8 --
+    0014f8: 55                   push rbp
+    0014f9: 4889e5               mov rbp, rsp
+    0014fc: 53                   push rbx
+    0014fd: 4881ec68080000       sub rsp, 0x868
+    001504: 4889c8               mov rax, rcx
+    001507: 488945d0             mov qword ptr [rbp - 0x30], rax
+    00150b: 4889d0               mov rax, rdx
+    00150e: 488945f0             mov qword ptr [rbp - 0x10], rax
+    001512: 4883ec20             sub rsp, 0x20
+    001516: b80a000000           mov eax, 0xa
+    00151b: 4889c2               mov rdx, rax
+  -- F@1490 --
+    001490: 55                   push rbp
+    001491: 4889e5               mov rbp, rsp
+    001494: 53                   push rbx
+    001495: 4881ec68080000       sub rsp, 0x868
+    00149c: 4889c8               mov rax, rcx
+    00149f: 488945d0             mov qword ptr [rbp - 0x30], rax
+    0014a3: 4889d0               mov rax, rdx
+    0014a6: 488945f0             mov qword ptr [rbp - 0x10], rax
+    0014aa: 488b45d0             mov rax, qword ptr [rbp - 0x30]
+    0014ae: 4889c3               mov rbx, rax
+    0014b1: 53                   push rbx
+  -- F inserted [1490..14f8) --
+    001490: 55                   push rbp
+    001491: 4889e5               mov rbp, rsp
+    001494: 53                   push rbx
+    001495: 4881ec68080000       sub rsp, 0x868
+    00149c: 4889c8               mov rax, rcx
+    00149f: 488945d0             mov qword ptr [rbp - 0x30], rax
+    0014a3: 4889d0               mov rax, rdx
+    0014a6: 488945f0             mov qword ptr [rbp - 0x10], rax
+    0014aa: 488b45d0             mov rax, qword ptr [rbp - 0x30]
+    0014ae: 4889c3               mov rbx, rax
+    0014b1: 53                   push rbx
+    0014b2: 488b45f0             mov rax, qword ptr [rbp - 0x10]
+    0014b6: 5b                   pop rbx
+    0014b7: 53                   push rbx
+    0014b8: 48898300000000       mov qword ptr [rbx], rax
+    0014bf: 488b45f0             mov rax, qword ptr [rbp - 0x10]
+    0014c3: bb01000000           mov ebx, 1
+    0014c8: 488d0418             lea rax, [rax + rbx]
+    0014cc: 5b                   pop rbx
+    0014cd: 53                   push rbx
+    0014ce: 48898308000000       mov qword ptr [rbx + 8], rax
+    0014d5: 488b45f0             mov rax, qword ptr [rbp - 0x10]
+    0014d9: bb02000000           mov ebx, 2
+    0014de: 488d0418             lea rax, [rax + rbx]
+    0014e2: 5b                   pop rbx
+    0014e3: 53                   push rbx
+    0014e4: 48898310000000       mov qword ptr [rbx + 0x10], rax
+    0014eb: 5b                   pop rbx
+    0014ec: 4889d8               mov rax, rbx
+    0014ef: 488d65f8             lea rsp, [rbp - 8]
+    0014f3: 5b                   pop rbx
+    0014f4: 5d                   pop rbp
+    0014f5: c3                   ret 
+    0014f6: 0000                 add byte ptr [rax], al
+
+elapsed=5.5s
+cleaned

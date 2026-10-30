@@ -1,0 +1,184 @@
+base sha=3f43f1609d70
+
+=== A 469aa4 prol / 5th use ===
+  469aa4: 55                       push rbp
+  469aa5: 4889e5                   mov rbp, rsp
+  469aa8: 4883ec40                 sub rsp, 0x40
+  469aac: 48894d10                 mov qword ptr [rbp + 0x10], rcx
+  469ab0: 48895518                 mov qword ptr [rbp + 0x18], rdx
+  469ab4: 44894520                 mov dword ptr [rbp + 0x20], r8d
+  469ab8: 44894d28                 mov dword ptr [rbp + 0x28], r9d
+  469abc: c745fc00000000           mov dword ptr [rbp - 4], 0
+  469ac3: 8b4520                   mov eax, dword ptr [rbp + 0x20]
+  469ac6: 89c1                     mov ecx, eax
+  469ac8: e826afe4ff               call 0x2b49f3
+  469acd: 85c0                     test eax, eax
+  469acf: 7407                     je 0x469ad8
+  469ad1: b800000000               mov eax, 0
+  469ad6: eb5c                     jmp 0x469b34
+  469ad8: 48837d1800               cmp qword ptr [rbp + 0x18], 0
+  469add: 7412                     je 0x469af1
+  469adf: 837d2000                 cmp dword ptr [rbp + 0x20], 0
+  469ae3: 7e0c                     jle 0x469af1
+  469ae5: 488b4518                 mov rax, qword ptr [rbp + 0x18]
+  469ae9: 8b4004                   mov eax, dword ptr [rax + 4]
+  469aec: 394520                   cmp dword ptr [rbp + 0x20], eax
+  469aef: 7e07                     jle 0x469af8
+  469af1: b800000000               mov eax, 0
+  469af6: eb3c                     jmp 0x469b34
+  469af8: 448b4d28                 mov r9d, dword ptr [rbp + 0x28]
+  469afc: 448b4520                 mov r8d, dword ptr [rbp + 0x20]
+  469b00: 488b5518                 mov rdx, qword ptr [rbp + 0x18]
+
+=== A2 47a492 prol ===
+  47a492: 55                       push rbp
+  47a493: 4889e5                   mov rbp, rsp
+  47a496: 4883ec20                 sub rsp, 0x20
+  47a49a: 48894d10                 mov qword ptr [rbp + 0x10], rcx
+  47a49e: 895518                   mov dword ptr [rbp + 0x18], edx
+  47a4a1: 44894520                 mov dword ptr [rbp + 0x20], r8d
+  47a4a5: 4c894d28                 mov qword ptr [rbp + 0x28], r9
+  47a4a9: 4c8b4528                 mov r8, qword ptr [rbp + 0x28]
+  47a4ad: 8b4d20                   mov ecx, dword ptr [rbp + 0x20]
+  47a4b0: 8b5518                   mov edx, dword ptr [rbp + 0x18]
+  47a4b3: 488b4510                 mov rax, qword ptr [rbp + 0x10]
+  47a4b7: 4d89c1                   mov r9, r8
+  47a4ba: 4189c8                   mov r8d, ecx
+  47a4bd: 4889c1                   mov rcx, rax
+  47a4c0: e88644ffff               call 0x46e94b
+  47a4c5: 4883c420                 add rsp, 0x20
+  47a4c9: 5d                       pop rbp
+  47a4ca: c3                       ret 
+  47a4cb: 55                       push rbp
+  47a4cc: 4889e5                   mov rbp, rsp
+
+=== A3 2a6b93 prol (1a0 as rcx) ===
+  2a6b93: 55                       push rbp
+  2a6b94: 4889e5                   mov rbp, rsp
+  2a6b97: 4883ec20                 sub rsp, 0x20
+  2a6b9b: 48894d10                 mov qword ptr [rbp + 0x10], rcx
+  2a6b9f: 48837d1000               cmp qword ptr [rbp + 0x10], 0
+  2a6ba4: 7507                     jne 0x2a6bad
+  2a6ba6: b8ffffffff               mov eax, 0xffffffff
+  2a6bab: eb13                     jmp 0x2a6bc0
+  2a6bad: e851e6ffff               call 0x2a5203
+  2a6bb2: 89c2                     mov edx, eax
+  2a6bb4: 488b4510                 mov rax, qword ptr [rbp + 0x10]
+  2a6bb8: 4889c1                   mov rcx, rax
+  2a6bbb: e8a8f0f6ff               call 0x215c68
+
+=== A4 1fe04d prol (1a8 as r8d) ===
+  1fe04d: 55                       push rbp
+  1fe04e: 4889e5                   mov rbp, rsp
+  1fe051: 4883ec20                 sub rsp, 0x20
+  1fe055: 48894d10                 mov qword ptr [rbp + 0x10], rcx
+  1fe059: 895518                   mov dword ptr [rbp + 0x18], edx
+  1fe05c: 44894520                 mov dword ptr [rbp + 0x20], r8d
+  1fe060: 8b4d20                   mov ecx, dword ptr [rbp + 0x20]
+  1fe063: 8b5518                   mov edx, dword ptr [rbp + 0x18]
+  1fe066: 488b4510                 mov rax, qword ptr [rbp + 0x10]
+  1fe06a: 4189c8                   mov r8d, ecx
+  1fe06d: 4889c1                   mov rcx, rax
+  1fe070: e8e3cfffff               call 0x1fb058
+
+cave@5597ef sz=5017
+
+=== B Capless 6th=qword[490] variants ===
+  bad len=22 hex=894c24204889842428000000e8db0cf1ffe946cf0100
+  [bad] sha=216247f2ebc3
+  bad/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  bad/p_ret_fwd.x    GS       USER=- run=-
+  bad/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  bad/_var_let.x     AV       USER=- run=-
+  tr_4b0_490_0 len=30 hex=894c24204889442428c7442430000000004889c1e8d30cf1ffe93ecf0100
+  [tr_4b0_490_0] sha=fba57057bbec
+  tr_4b0_490_0/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  tr_4b0_490_0/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS F483
+  tr_4b0_490_0/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  tr_4b0_490_0/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  tr_4b0_490_r8 len=27 hex=894c2420488944242844894424304889c1e8d60cf1ffe941cf0100
+  [tr_4b0_490_r8] sha=252df00e92fe
+  tr_4b0_490_r8/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  tr_4b0_490_r8/p_ret_fwd.x    GS       USER=- run=-
+  tr_4b0_490_r8/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  tr_4b0_490_r8/_var_let.x     AV       USER=- run=-
+  tr_490q_4b0_no7 len=22 hex=4889442420894c24284889c1e8db0cf1ffe946cf0100
+  [tr_490q_4b0_no7] sha=b33f3dd43ea1
+  tr_490q_4b0_no7/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  tr_490q_4b0_no7/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS F483
+  tr_490q_4b0_no7/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  tr_490q_4b0_no7/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  tr_490q_4b0_0 len=30 hex=4889442420894c2428c7442430000000004889c1e8d30cf1ffe93ecf0100
+  [tr_490q_4b0_0] sha=7eb653745f6e
+  tr_490q_4b0_0/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  tr_490q_4b0_0/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS F483
+  tr_490q_4b0_0/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  tr_490q_4b0_0/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  tr_490q_4b0_r8 len=27 hex=4889442420894c242844894424304889c1e8d60cf1ffe941cf0100
+  [tr_490q_4b0_r8] sha=aa5214012573
+  tr_490q_4b0_r8/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  tr_490q_4b0_r8/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS F483
+  tr_490q_4b0_r8/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  tr_490q_4b0_r8/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  tr_498q_4b0_no7 len=22 hex=4889542420894c24284889c1e8db0cf1ffe946cf0100
+  [tr_498q_4b0_no7] sha=b1a4d0d0f515
+  tr_498q_4b0_no7/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  tr_498q_4b0_no7/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS F483
+  tr_498q_4b0_no7/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  tr_498q_4b0_no7/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  tr_460_4b0_r8 len=47 hex=488b8d6004000048894c24208b8db0040000894c24284489442430488b85900400004889c1e8c20cf1ffe92dcf0100
+  [tr_460_4b0_r8] sha=413fa5305b67
+  tr_460_4b0_r8/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  tr_460_4b0_r8/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS F483
+  tr_460_4b0_r8/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  tr_460_4b0_r8/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+
+=== C clear region size ===
+  46a58d: 48c7450000000000         mov qword ptr [rbp], 0
+  46a595: 48c7450800000000         mov qword ptr [rbp + 8], 0
+  46a59d: 48c7451000000000         mov qword ptr [rbp + 0x10], 0
+  46a5a5: 48c7451800000000         mov qword ptr [rbp + 0x18], 0
+  46a5ad: 48c7452000000000         mov qword ptr [rbp + 0x20], 0
+  46a5b5: 48c7452800000000         mov qword ptr [rbp + 0x28], 0
+
+=== D tr_490q_4b0_0 + skip99d / hollow-after-967 ===
+  [490q_s99] sha=55ff8059bd2f
+  490q_s99/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  490q_s99/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS F483
+  490q_s99/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  490q_s99/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  [490q_h96c] sha=6611da8528bd
+  490q_h96c/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  490q_h96c/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS F483
+  490q_h96c/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  490q_h96c/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  tr_4b0_490_no7 len=22 hex=894c242048894424284889c1e8db0cf1ffe946cf0100
+  [tr_4b0_490_no7] sha=9000832fa7d5
+  tr_4b0_490_no7/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  tr_4b0_490_no7/p_ret_fwd.x    GS       USER=- run=-
+  tr_4b0_490_no7/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  tr_4b0_490_no7/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+
+=== F body 1a0=[180] + 1a8=0 ===
+  [b180_z1a8] sha=e643ba15d449
+  b180_z1a8/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  b180_z1a8/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS F483
+  b180_z1a8/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  b180_z1a8/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+
+=== H USER hollow vs f483 diff (if files exist) ===
+  skip compile=OK USER=e411d7260d78
+  skip size=58787
+  f483cand compile=OK USER=f4839df16ab1
+  f483cand size=58787
+  skip USER=e411d7260d78 host_1a0_tr_460_4b0_0.exe USER=f4839df16ab1
+  .text len 12288 vs 12288; ndiff=1
+  first diff off=0x568 rva≈0x1568
+  hollow=24ffffff4883c420488d45d8488b004889c3b80a0000004839c30f95c00fb6c0
+  f483  =8cffffff4883c420488d45d8488b004889c3b80a0000004839c30f95c00fb6c0
+  -- H --
+    001568: and al, 0xff
+  -- F --
+
+elapsed=4.3s
+cleaned

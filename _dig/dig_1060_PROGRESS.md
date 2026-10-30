@@ -1,5 +1,38 @@
 # 10.60 SoftCap DIG PROGRESS
 
+**2026-10-30 ~19:07 CST (Asia/Shanghai)** · DIG `fwd_46_capless_1a0`：**红** — Capless/Isol 6th/7th 供给 → USER `f483` run GS（fw call-mk rcx=值非 sret）；skip_1a0／hollow 仅对照；勿升 PROD／钉 **不升** · 下一单点：`fwd_46_967_sret`
+
+
+## 2026-10-30 ~19:07 CST Asia/Shanghai — DIG `fwd_46_capless_1a0` 红；下一 `fwd_46_967_sret`
+
+### 0) 闸
+- tip HEAD `c68868154`＝origin/dev（本拍前；commit 后见 tip）
+- Isol host baseline `3f43f1609d70`；skip_1a0_calls `79f39a84ead4`（对照）；hollow USER `e411d7260d78`；f483 USER `f4839df16ab1`
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／tip@121278／join／epi／LIVE SoftCap 移植／arg-loop／LIVE spill／`[4b0]=1`／字母堆／再改 call-mk sub20／imm→rdx／force-kind／hollow_only或skip_1a0当收刀：遵守
+
+### 1) DIG 钉死（本拍）
+1. Capless 只写 5th；6th/7th 缺 → `call@46a967`/`@46a99d` 砸（与 post76f 一致）。
+2. 多组 Capless tramp／Isol `[1a0]` 填（copy5／b150／b164／zeros／4b0／r8／r9／7th=0…）→ compile AV **或** USER **`f4839df16ab1` run GS**；1a0 常不改 USER sha。
+3. **f483 fw@14f8 坏**：`imm→rdx`（cmk0）＋`rcx=x+1`（值）**非** sret dest → mk 指针坏 → GS。
+4. hollow／skip_1a0：main→mk 直调（fw 折掉）run OK，**hollow 形 ≠ 语义收刀**。
+5. `4538f4` 用 5th 作 rcx→`0x2a7545`；1a0 是对象／cookie，但 Capless 侧补齐 alone **不能**修 fw emit。
+
+### 2) Win SoftCap 门（本拍代表）
+| Isol plant | sha12 | lit | fwd | local | let | 注 |
+|---|---|---|---|---|---|---|
+| cmk0_irdx_sub20（对照） | 3f43f1609d70 | OK run | **GS** | OK run | ∽ | |
+| skip_1a0_calls（对照） | 79f39a84ead4 | OK | OK hollow | OK | OK | **非收刀** |
+| Capless/Isol 1a0 多植物 | * | OK/AV | **GS f483** / AV | OK/AV | AV | 无非 hollow run-OK |
+
+### 3) 下一拍最小刀（单点）
+- **`fwd_46_967_sret`**：修 SoftCap fw→mk emit，使 rcx=sret dest（保 lit cmk0），967 路径 USER 非 hollow 且 run OK。禁 tip@121278／join／epi／LIVE／mega／字母堆／假绿／skip_1a0／hollow 当收刀。
+- USER 仍 hollow／f483 GS → **勿升 PROD／勿请批**。
+
+### 4) open
+- 笔记 `_dig/dig_fwd_46_capless_1a0.md`；脚本／log `_dig/dig_fwd_46_capless_1a0{,_2.._11}.py`／`.log`
+- PROD／钉 **未动**；bans unchanged
+
 **2026-10-30 ~18:55 CST (Asia/Shanghai)** · DIG `fwd_46_post76f`：钉 body 砸＝miss 6th/7th→`call@46a967`/`@46a99d`；**Isol `skip_1a0_calls` sha `79f39a84ead4`** lit/local/fwd/let **OK run**（保 body，跳两 call；USER＝hollow 形，非语义收刀）；勿升 PROD／钉 **不升** · 下一单点：`fwd_46_capless_1a0`
 
 

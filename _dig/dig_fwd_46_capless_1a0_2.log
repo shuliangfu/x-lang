@@ -1,0 +1,147 @@
+base sha=3f43f1609d70
+
+=== A writers of [rbp+0x4b0] (disp 0x4b0) near Capless ===
+  Capless writes 4b0: 0
+  SoftCapTwin writes 4b0: 0
+  SoftMega writes 4b0: 0
+  fn2c writes 4b0: 0
+
+=== B Capless mid calls stack setup @576670 / @5766c3 ===
+  576670: 448b85a0040000           mov r8d, dword ptr [rbp + 0x4a0]
+  576677: 488b9598040000           mov rdx, qword ptr [rbp + 0x498]
+  57667e: 488b8590040000           mov rax, qword ptr [rbp + 0x490]
+  576685: 8b8db0040000             mov ecx, dword ptr [rbp + 0x4b0]
+  57668b: 894c2420                 mov dword ptr [rsp + 0x20], ecx
+  57668f: 4889c1                   mov rcx, rax
+  576692: e8827ed4ff               call 0x2be519
+  576697: 898558040000             mov dword ptr [rbp + 0x458], eax
+  --
+  5766c0: 1b00                     sbb eax, dword ptr [rax]
+  5766c2: 004c8b8d                 add byte ptr [rbx + rcx*4 - 0x73], cl
+  5766c6: a804                     test al, 4
+  5766c8: 0000                     add byte ptr [rax], al
+  5766ca: 448b85a0040000           mov r8d, dword ptr [rbp + 0x4a0]
+  5766d1: 488b9598040000           mov rdx, qword ptr [rbp + 0x498]
+  5766d8: 488b8590040000           mov rax, qword ptr [rbp + 0x490]
+  5766df: 8b8db0040000             mov ecx, dword ptr [rbp + 0x4b0]
+  5766e5: 894c2420                 mov dword ptr [rsp + 0x20], ecx
+  5766e9: 4889c1                   mov rcx, rax
+
+=== C caller @46bda6 full arg setup ===
+  46bd83: 448b4d28                 mov r9d, dword ptr [rbp + 0x28]
+  46bd87: 448b4520                 mov r8d, dword ptr [rbp + 0x20]
+  46bd8b: 488b5518                 mov rdx, qword ptr [rbp + 0x18]
+  46bd8f: 488b4510                 mov rax, qword ptr [rbp + 0x10]
+  46bd93: 8b4d38                   mov ecx, dword ptr [rbp + 0x38]
+  46bd96: 894c2428                 mov dword ptr [rsp + 0x28], ecx
+  46bd9a: 488b4d30                 mov rcx, qword ptr [rbp + 0x30]
+  46bd9e: 48894c2420               mov qword ptr [rsp + 0x20], rcx
+  46bda3: 4889c1                   mov rcx, rax
+  46bda6: e830e7ffff               call 0x46a4db
+  46bdab: 85c0                     test eax, eax
+  46bdad: 7407                     je 0x46bdb6
+
+=== C2 caller @46bac7 ===
+  46ba80: fb                       sti 
+  46ba81: 01755a                   add dword ptr [rbp + 0x5a], esi
+  46ba84: 837df400                 cmp dword ptr [rbp - 0xc], 0
+  46ba88: 0f881c020000             js 0x46bcaa
+  46ba8e: 8b45f4                   mov eax, dword ptr [rbp - 0xc]
+  46ba91: 3b4550                   cmp eax, dword ptr [rbp + 0x50]
+  46ba94: 0f8d10020000             jge 0x46bcaa
+  46ba9a: 837df47f                 cmp dword ptr [rbp - 0xc], 0x7f
+  46ba9e: 0f8f06020000             jg 0x46bcaa
+  46baa4: 448b4d28                 mov r9d, dword ptr [rbp + 0x28]
+  46baa8: 448b4520                 mov r8d, dword ptr [rbp + 0x20]
+  46baac: 488b5518                 mov rdx, qword ptr [rbp + 0x18]
+  46bab0: 488b4510                 mov rax, qword ptr [rbp + 0x10]
+  46bab4: 8b4df4                   mov ecx, dword ptr [rbp - 0xc]
+  46bab7: 894c2428                 mov dword ptr [rsp + 0x28], ecx
+  46babb: 488b4d30                 mov rcx, qword ptr [rbp + 0x30]
+  46babf: 48894c2420               mov qword ptr [rsp + 0x20], rcx
+  46bac4: 4889c1                   mov rcx, rax
+  46bac7: e80feaffff               call 0x46a4db
+  46bacc: 85c0                     test eax, eax
+  46bace: 0f84d6010000             je 0x46bcaa
+
+=== D body entry after homes through first call ===
+  46a4eb: 48898d80010000           mov qword ptr [rbp + 0x180], rcx
+  46a4f2: 48899588010000           mov qword ptr [rbp + 0x188], rdx
+  46a4f9: 44898590010000           mov dword ptr [rbp + 0x190], r8d
+  46a500: 44898d98010000           mov dword ptr [rbp + 0x198], r9d
+  46a507: 8b8da8010000             mov ecx, dword ptr [rbp + 0x1a8]
+  46a50d: 8b9590010000             mov edx, dword ptr [rbp + 0x190]
+  46a513: 488b8588010000           mov rax, qword ptr [rbp + 0x188]
+  46a51a: 4189c8                   mov r8d, ecx
+  46a51d: 4889c1                   mov rcx, rax
+  46a520: e8283bd9ff               call 0x1fe04d
+  46a525: 898550010000             mov dword ptr [rbp + 0x150], eax
+  46a52b: 8b8da8010000             mov ecx, dword ptr [rbp + 0x1a8]
+  46a531: 8b9590010000             mov edx, dword ptr [rbp + 0x190]
+
+=== E Capless locals 0x4b0-0x4d0 any presence ===
+  disp 0x4b0: 16 sites; first=[(5727877, 'mov', 'ecx, dword ptr [rbp + 0x4b0]'), (5727967, 'mov', 'ecx, dword ptr [rbp + 0x4b0]'), (5728057, 'mov', 'ecx, dword ptr [rbp + 0x4b0]')]
+  disp 0x4b4: 0 sites; first=[]
+  disp 0x4b8: 0 sites; first=[]
+  disp 0x4bc: 0 sites; first=[]
+  disp 0x4c0: 0 sites; first=[]
+  disp 0x4c8: 0 sites; first=[]
+  disp 0x4d0: 0 sites; first=[]
+  disp 0x480: 0 sites; first=[]
+  disp 0x488: 0 sites; first=[]
+
+=== F plant variants via Capless trampoline ===
+  cave@5597ef sz=5017
+  tramp tr_r9_4b0_0 len=30 hex=4c894c2420894c2428c7442430000000004889c1e8d30cf1ffe93ecf0100
+  [tr_r9_4b0_0] sha=4a4d24e6b8f6
+  tr_r9_4b0_0/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  tr_r9_4b0_0/p_ret_fwd.x    AV       USER=- run=-
+  tr_r9_4b0_0/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  tr_r9_4b0_0/_var_let.x     AV       USER=- run=-
+  tramp tr_r9_r8_4b0 len=27 hex=4c894c24204489442428894c24304889c1e8d60cf1ffe941cf0100
+  [tr_r9_r8_4b0] sha=7b8a4e6da86c
+  tr_r9_r8_4b0/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  tr_r9_r8_4b0/p_ret_fwd.x    AV       USER=- run=-
+  tr_r9_r8_4b0/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  tr_r9_r8_4b0/_var_let.x     AV       USER=- run=-
+  tramp tr_dummy len=15 hex=48894c2420e8e20cf1ffe94dcf0100
+  [tr_dummy] sha=06809200f098
+  tr_dummy/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  tr_dummy/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS
+  tr_dummy/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  tr_dummy/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  tramp tr_sx_r9_r8 len=31 hex=4863c948894c24204c894c242844894424304889c1e8d20cf1ffe93dcf0100
+  [tr_sx_r9_r8] sha=12eae2f6ebb6
+  tr_sx_r9_r8/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  tr_sx_r9_r8/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS
+  tr_sx_r9_r8/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  tr_sx_r9_r8/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  tramp tr_460_4b0_0 len=50 hex=488b8d6004000048894c24208b8db0040000894c2428c744243000000000488b85900400004889c1e8bf0cf1ffe92acf0100
+  [tr_460_4b0_0] sha=195e4ff20523
+  tr_460_4b0_0/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  tr_460_4b0_0/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS
+  tr_460_4b0_0/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  tr_460_4b0_0/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  tramp tr_478_4b0_0 len=50 hex=488b8d7804000048894c24208b8db0040000894c2428c744243000000000488b85900400004889c1e8bf0cf1ffe92acf0100
+  [tr_478_4b0_0] sha=2ec11724c76d
+  tr_478_4b0_0/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  tr_478_4b0_0/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS
+  tr_478_4b0_0/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  tr_478_4b0_0/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  tramp tr_r9_0_4b0 len=31 hex=4c894c242048c744242800000000894c24304889c1e8d20cf1ffe93dcf0100
+  [tr_r9_0_4b0] sha=447bfcef640f
+  tr_r9_0_4b0/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  tr_r9_0_4b0/p_ret_fwd.x    AV       USER=- run=-
+  tr_r9_0_4b0/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  tr_r9_0_4b0/_var_let.x     AV       USER=- run=-
+
+=== G INT3 path under tr_r9_r8_4b0 if compile-ok ===
+  INT3@46a507 rd1a8_entry    fwd=INT3     let=INT3    
+  INT3@46a967 call967        fwd=INT3     let=INT3    
+  INT3@46a99d call99d        fwd=INT3     let=INT3    
+  INT3@46af65 ret1           fwd=INT3     let=INT3    
+  INT3@57674b after46        fwd=AV       let=AV      
+  INT3@46a7cd rd1a0_mid      fwd=INT3     let=INT3    
+
+elapsed=3.4s
+cleaned
