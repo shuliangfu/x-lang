@@ -1,0 +1,50 @@
+Pseudo-terminal will not be allocated because stdin is not a terminal.
+=== Capless to SoftCap ===
+  576640: jne 0x57664e
+  576642: call 0x24afe0
+  576647: mov qword ptr [rbp + 0x478], rax
+  57664e: mov edx, dword ptr [rbp + 0x468]
+  576654: mov rax, qword ptr [rbp + 0x490]
+  57665b: mov rcx, rax
+  57665e: call 0x20cd98
+  576663: mov dword ptr [rbp + 0x45c], eax
+  576669: mov r9, qword ptr [rbp + 0x460]
+  576670: mov r8d, dword ptr [rbp + 0x4a0]
+  576677: mov rdx, qword ptr [rbp + 0x498]
+  57667e: mov rax, qword ptr [rbp + 0x490]
+  576685: mov ecx, dword ptr [rbp + 0x4b0]
+  57668b: mov dword ptr [rsp + 0x20], ecx
+  57668f: mov rcx, rax
+  576692: call 0x2be519
+  576697: mov dword ptr [rbp + 0x458], eax
+  57669d: cmp dword ptr [rbp + 0x458], 0
+  5766a4: jns 0x5766b0
+  5766a6: mov eax, 0xffffffff
+  5766ab: jmp 0x578278
+  5766b0: cmp dword ptr [rbp + 0x458], 0
+=== SoftCap epi ===
+=== Capless epi ===
+  578270: mov rcx, rax
+  578273: call 0x57b98c
+  578278: add rsp, 0x500
+  57827f: pop rbp
+  578280: ret 
+  578281: int3 
+  578282: int3 
+  578283: int3 
+  578284: int3 
+  578285: int3 
+  578286: int3 
+  578287: int3 
+  578288: int3 
+  578289: int3 
+  57828a: int3 
+  57828b: int3 
+  57828c: int3 
+  57828d: int3 
+  57828e: int3 
+  57828f: int3 
+=== Capless rsp-changing insns 57656c..576692 ===
+  57656c: push rbp
+  57656d: sub rsp, 0x500
+  576574: lea rbp, [rsp + 0x80]

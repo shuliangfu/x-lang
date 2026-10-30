@@ -1,0 +1,216 @@
+Pseudo-terminal will not be allocated because stdin is not a terminal.
+=== DIG fwd_scs_epi ===
+base lit=OK fwd=GS let=OK
+
+=== A SoftCap_site prol @2be519 ===
+  2be519: push     rbp
+  2be51a: sub      rsp, 0x150
+  2be521: lea      rbp, [rsp + 0x80]
+  2be529: mov      qword ptr [rbp + 0xe0], rcx
+  2be530: mov      qword ptr [rbp + 0xe8], rdx
+  2be537: mov      dword ptr [rbp + 0xf0], r8d
+  2be53e: mov      qword ptr [rbp + 0xf8], r9
+  2be545: mov      dword ptr [rbp + 0xc4], 0
+  2be54f: mov      dword ptr [rbp + 0xcc], 0
+  2be559: mov      dword ptr [rbp + 0xc8], 0
+  2be563: mov      dword ptr [rbp + 0xc0], 0
+  2be56d: mov      qword ptr [rbp - 0x50], 0
+  2be575: mov      qword ptr [rbp - 0x48], 0
+  2be57d: mov      qword ptr [rbp - 0x40], 0
+  2be585: mov      qword ptr [rbp - 0x38], 0
+  2be58d: mov      qword ptr [rbp - 0x30], 0
+  2be595: mov      qword ptr [rbp - 0x28], 0
+  2be59d: mov      qword ptr [rbp - 0x20], 0
+  2be5a5: mov      qword ptr [rbp - 0x18], 0
+  2be5ad: mov      qword ptr [rbp - 0x10], 0
+  2be5b5: mov      qword ptr [rbp - 8], 0
+  2be5bd: mov      qword ptr [rbp], 0
+  2be5c5: mov      qword ptr [rbp + 8], 0
+  2be5cd: mov      qword ptr [rbp + 0x10], 0
+  2be5d5: mov      qword ptr [rbp + 0x18], 0
+  2be5dd: mov      qword ptr [rbp + 0x20], 0
+  2be5e5: mov      qword ptr [rbp + 0x28], 0
+  2be5ed: mov      qword ptr [rbp + 0x30], 0
+  2be5f5: mov      qword ptr [rbp + 0x38], 0
+  2be5fd: mov      qword ptr [rbp + 0x40], 0
+  2be605: mov      qword ptr [rbp + 0x48], 0
+  2be60d: mov      qword ptr [rbp + 0x50], 0
+
+=== B Capless pre-call SoftCap @576660..@5766a0 ===
+  576640: jne      0x57664e
+  576642: call     0x24afe0
+  576647: mov      qword ptr [rbp + 0x478], rax
+  57664e: mov      edx, dword ptr [rbp + 0x468]
+  576654: mov      rax, qword ptr [rbp + 0x490]
+  57665b: mov      rcx, rax
+  57665e: call     0x20cd98
+  576663: mov      dword ptr [rbp + 0x45c], eax
+  576669: mov      r9, qword ptr [rbp + 0x460]
+  576670: mov      r8d, dword ptr [rbp + 0x4a0]
+  576677: mov      rdx, qword ptr [rbp + 0x498]
+  57667e: mov      rax, qword ptr [rbp + 0x490]
+  576685: mov      ecx, dword ptr [rbp + 0x4b0]
+  57668b: mov      dword ptr [rsp + 0x20], ecx
+  57668f: mov      rcx, rax
+  576692: call     0x2be519
+  576697: mov      dword ptr [rbp + 0x458], eax
+  57669d: cmp      dword ptr [rbp + 0x458], 0
+  5766a4: jns      0x5766b0
+  5766a6: mov      eax, 0xffffffff
+  5766ab: jmp      0x578278
+  5766b0: cmp      dword ptr [rbp + 0x458], 0
+
+=== C SoftCap scan for gs/cookie/security ===
+
+=== D SoftCap home write map → Capless_rbp offset ===
+  SoftCap@2be529 [rbp+0xe0] → Capless[rbp+0x58]  qword ptr [rbp + 0xe0], rcx
+  SoftCap@2be530 [rbp+0xe8] → Capless[rbp+0x60]  qword ptr [rbp + 0xe8], rdx
+  SoftCap@2be537 [rbp+0xf0] → Capless[rbp+0x68]  dword ptr [rbp + 0xf0], r8d
+  SoftCap@2be53e [rbp+0xf8] → Capless[rbp+0x70]  qword ptr [rbp + 0xf8], r9
+  SoftCap@2be545 [rbp+0xc4] → Capless[rbp+0x3c]  dword ptr [rbp + 0xc4], 0
+  SoftCap@2be54f [rbp+0xcc] → Capless[rbp+0x44]  dword ptr [rbp + 0xcc], 0
+  SoftCap@2be559 [rbp+0xc8] → Capless[rbp+0x40]  dword ptr [rbp + 0xc8], 0
+  SoftCap@2be563 [rbp+0xc0] → Capless[rbp+0x38]  dword ptr [rbp + 0xc0], 0
+  SoftCap@2be5c5 [rbp+0x8] → Capless[rbp-0x80]  qword ptr [rbp + 8], 0
+  SoftCap@2be5cd [rbp+0x10] → Capless[rbp-0x78]  qword ptr [rbp + 0x10], 0
+  SoftCap@2be5d5 [rbp+0x18] → Capless[rbp-0x70]  qword ptr [rbp + 0x18], 0
+  SoftCap@2be5dd [rbp+0x20] → Capless[rbp-0x68]  qword ptr [rbp + 0x20], 0
+  SoftCap@2be5e5 [rbp+0x28] → Capless[rbp-0x60]  qword ptr [rbp + 0x28], 0
+  SoftCap@2be5ed [rbp+0x30] → Capless[rbp-0x58]  qword ptr [rbp + 0x30], 0
+  SoftCap@2be5f5 [rbp+0x38] → Capless[rbp-0x50]  qword ptr [rbp + 0x38], 0
+  SoftCap@2be5fd [rbp+0x40] → Capless[rbp-0x48]  qword ptr [rbp + 0x40], 0
+  SoftCap@2be605 [rbp+0x48] → Capless[rbp-0x40]  qword ptr [rbp + 0x48], 0
+  SoftCap@2be60d [rbp+0x50] → Capless[rbp-0x38]  qword ptr [rbp + 0x50], 0
+  SoftCap@2be615 [rbp+0x58] → Capless[rbp-0x30]  qword ptr [rbp + 0x58], 0
+  SoftCap@2be61d [rbp+0x60] → Capless[rbp-0x28]  qword ptr [rbp + 0x60], 0
+  SoftCap@2be625 [rbp+0x68] → Capless[rbp-0x20]  qword ptr [rbp + 0x68], 0
+  SoftCap@2be62d [rbp+0x70] → Capless[rbp-0x18]  qword ptr [rbp + 0x70], 0
+  SoftCap@2be635 [rbp+0x78] → Capless[rbp-0x10]  qword ptr [rbp + 0x78], 0
+  SoftCap@2be63d [rbp+0x80] → Capless[rbp-0x8]  qword ptr [rbp + 0x80], 0
+  SoftCap@2be648 [rbp+0x88] → Capless[rbp+0x0]  qword ptr [rbp + 0x88], 0
+  SoftCap@2be653 [rbp+0x90] → Capless[rbp+0x8]  qword ptr [rbp + 0x90], 0
+  SoftCap@2be65e [rbp+0x98] → Capless[rbp+0x10]  qword ptr [rbp + 0x98], 0
+  SoftCap@2be669 [rbp+0xa0] → Capless[rbp+0x18]  qword ptr [rbp + 0xa0], 0
+  SoftCap@2be674 [rbp+0xa8] → Capless[rbp+0x20]  qword ptr [rbp + 0xa8], 0
+  SoftCap@2be67f [rbp+0xbc] → Capless[rbp+0x34]  dword ptr [rbp + 0xbc], 0
+  SoftCap@2be689 [rbp+0xb8] → Capless[rbp+0x30]  dword ptr [rbp + 0xb8], 0
+  SoftCap@2be6a7 [rbp+0xf0] → Capless[rbp+0x68]  dword ptr [rbp + 0xf0], 0
+  SoftCap@2be6ba [rbp+0xf0] → Capless[rbp+0x68]  edx, dword ptr [rbp + 0xf0]
+  SoftCap@2be6c0 [rbp+0xe0] → Capless[rbp+0x58]  rax, qword ptr [rbp + 0xe0]
+  SoftCap@2be6cf [rbp+0xc4] → Capless[rbp+0x3c]  dword ptr [rbp + 0xc4], eax
+  SoftCap@2be6d5 [rbp+0xc4] → Capless[rbp+0x3c]  dword ptr [rbp + 0xc4], 0x36
+  SoftCap@2be6de [rbp+0xf0] → Capless[rbp+0x68]  edx, dword ptr [rbp + 0xf0]
+  SoftCap@2be6e4 [rbp+0xe0] → Capless[rbp+0x58]  rax, qword ptr [rbp + 0xe0]
+  SoftCap@2be6f3 [rbp+0xc8] → Capless[rbp+0x40]  dword ptr [rbp + 0xc8], eax
+  SoftCap@2be6fb [rbp+0xc4] → Capless[rbp+0x3c]  dword ptr [rbp + 0xc4], 0x33
+  SoftCap@2be704 [rbp+0xcc] → Capless[rbp+0x44]  dword ptr [rbp + 0xcc], 1
+  SoftCap@2be70e [rbp+0xf0] → Capless[rbp+0x68]  edx, dword ptr [rbp + 0xf0]
+  SoftCap@2be714 [rbp+0xe0] → Capless[rbp+0x58]  rax, qword ptr [rbp + 0xe0]
+  SoftCap@2be723 [rbp+0xc8] → Capless[rbp+0x40]  dword ptr [rbp + 0xc8], eax
+  SoftCap@2be72b [rbp+0xc4] → Capless[rbp+0x3c]  dword ptr [rbp + 0xc4], 3
+
+=== E Capless slots touched near SoftCap @57656c..@5766f0 ===
+  57657c: mov      qword ptr [rbp + 0x490], rcx
+  576583: mov      qword ptr [rbp + 0x498], rdx
+  57658a: mov      dword ptr [rbp + 0x4a0], r8d
+  576591: mov      qword ptr [rbp + 0x4a8], r9
+  576598: cmp      qword ptr [rbp + 0x490], 0
+  5765ac: cmp      qword ptr [rbp + 0x498], 0
+  5765c0: cmp      qword ptr [rbp + 0x4a8], 0
+  5765d4: mov      edx, dword ptr [rbp + 0x4a0]
+  5765da: mov      rax, qword ptr [rbp + 0x490]
+  5765e9: mov      dword ptr [rbp + 0x468], eax
+  5765ef: cmp      dword ptr [rbp + 0x468], 0
+  576602: mov      rax, qword ptr [rbp + 0x4a8]
+  576616: mov      qword ptr [rbp + 0x460], rax
+  57661d: mov      rax, qword ptr [rbp + 0x4a8]
+  576631: mov      qword ptr [rbp + 0x478], rax
+  576638: cmp      qword ptr [rbp + 0x478], 0
+  576647: mov      qword ptr [rbp + 0x478], rax
+  57664e: mov      edx, dword ptr [rbp + 0x468]
+  576654: mov      rax, qword ptr [rbp + 0x490]
+  576663: mov      dword ptr [rbp + 0x45c], eax
+  576669: mov      r9, qword ptr [rbp + 0x460]
+  576670: mov      r8d, dword ptr [rbp + 0x4a0]
+  576677: mov      rdx, qword ptr [rbp + 0x498]
+  57667e: mov      rax, qword ptr [rbp + 0x490]
+  576685: mov      ecx, dword ptr [rbp + 0x4b0]
+  576697: mov      dword ptr [rbp + 0x458], eax
+  57669d: cmp      dword ptr [rbp + 0x458], 0
+  5766b0: cmp      dword ptr [rbp + 0x458], 0
+  5766c3: mov      r9, qword ptr [rbp + 0x4a8]
+  5766ca: mov      r8d, dword ptr [rbp + 0x4a0]
+  5766d1: mov      rdx, qword ptr [rbp + 0x498]
+  5766d8: mov      rax, qword ptr [rbp + 0x490]
+  5766df: mov      ecx, dword ptr [rbp + 0x4b0]
+  5766f1: mov      dword ptr [rbp + 0x454], eax
+
+=== F Why let survives same SoftCap writes? Capless rsp at call may differ ===
+
+=== F1 SoftCap entry count (INT3 @2be519) ===
+  entry INT3 fwd=INT3 let=INT3 lit=INT3
+
+=== F2 SoftCap first arg homes (rcx/rdx/r8/r9 store) ===
+  2be519: push     rbp
+  2be51a: sub      rsp, 0x150
+  2be521: lea      rbp, [rsp + 0x80]
+  2be529: mov      qword ptr [rbp + 0xe0], rcx
+  2be530: mov      qword ptr [rbp + 0xe8], rdx
+  2be537: mov      dword ptr [rbp + 0xf0], r8d
+  2be53e: mov      qword ptr [rbp + 0xf8], r9
+  2be545: mov      dword ptr [rbp + 0xc4], 0
+  2be54f: mov      dword ptr [rbp + 0xcc], 0
+  2be559: mov      dword ptr [rbp + 0xc8], 0
+  2be563: mov      dword ptr [rbp + 0xc0], 0
+  2be56d: mov      qword ptr [rbp - 0x50], 0
+  2be575: mov      qword ptr [rbp - 0x48], 0
+  2be57d: mov      qword ptr [rbp - 0x40], 0
+  2be585: mov      qword ptr [rbp - 0x38], 0
+  2be58d: mov      qword ptr [rbp - 0x30], 0
+
+=== G find __fastfail / report_gsfailure patterns near SoftCap/Capless ===
+  int29 near SoftCap/Capless/2c614f: []
+
+=== H kind-call target @2be6ca ===
+bytes=e8c9e6f4ff
+kind call target=0x20cd98
+  20cd98: push     rbp
+  20cd99: mov      rbp, rsp
+  20cd9c: sub      rsp, 0x30
+  20cda0: mov      qword ptr [rbp + 0x10], rcx
+  20cda4: mov      dword ptr [rbp + 0x18], edx
+  20cda7: cmp      qword ptr [rbp + 0x10], 0
+  20cdac: je       0x20cdb4
+  20cdae: cmp      dword ptr [rbp + 0x18], 0
+  20cdb2: jg       0x20cdbb
+  20cdb4: mov      eax, 0xffffffff
+  20cdb9: jmp      0x20ce0b
+  20cdbb: mov      rax, qword ptr [rbp + 0x10]
+  20cdbf: mov      rcx, rax
+  20cdc2: call     0x20bcb5
+  20cdc7: mov      dword ptr [rbp - 4], eax
+  20cdca: mov      eax, dword ptr [rbp + 0x18]
+  20cdcd: cmp      eax, dword ptr [rbp - 4]
+  20cdd0: jle      0x20cdd9
+  20cdd2: mov      eax, 0xffffffff
+  20cdd7: jmp      0x20ce0b
+
+=== J reconfirm jmp_miss (skip body, keep prol/epi) ===
+  prol 2be519: push rbp
+  prol 2be51a: sub rsp, 0x150
+  prol 2be521: lea rbp, [rsp + 0x80]
+  prol 2be529: mov qword ptr [rbp + 0xe0], rcx
+  prol 2be530: mov qword ptr [rbp + 0xe8], rdx
+  prol 2be537: mov dword ptr [rbp + 0xf0], r8d
+  prol 2be53e: mov qword ptr [rbp + 0xf8], r9
+  prol 2be545: mov dword ptr [rbp + 0xc4], 0
+  prol 2be54f: mov dword ptr [rbp + 0xcc], 0
+
+=== K CRITICAL: does SoftCap set rbp? ===
+entry16=554881ec50010000488dac2480000000
+  2be519: push rbp
+  2be51a: sub rsp, 0x150
+  2be521: lea rbp, [rsp + 0x80]
+
+elapsed=0.4s
+cleaned

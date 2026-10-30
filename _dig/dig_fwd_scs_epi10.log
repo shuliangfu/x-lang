@@ -1,0 +1,37 @@
+Pseudo-terminal will not be allocated because stdin is not a terminal.
+lit head='struct W { a: i64, b: i64, c: i64 }\nfunction mk(x: i64): W { return W { a: x, b:'
+=== CTRL base ===
+  base/p_ret_lit.x    OK       USER=78015bac7508 run=OK
+  base/p_ret_fwd.x    GS       USER=- run=-
+  base/p_ret_local.x  OK       USER=021c621d2143 run=crc=0x1
+  base/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+
+=== nopr9 ===
+  sha12=f52f77a7ffb1
+  nopr9/p_ret_lit.x    AV       USER=- run=-
+  nopr9/p_ret_fwd.x    GS       USER=- run=-
+  nopr9/p_ret_local.x  AV       USER=- run=-
+  nopr9/_var_let.x     AV       USER=- run=-
+  nopr9/_var_fwd.x     GS       USER=- run=-
+
+=== nopr9 locus ===
+  INT3@2be911 scs_pop        fwd=INT3     let=INT3    
+  INT3@2c66a0 h2c_epi        fwd=INT3     let=INT3    
+  INT3@5766f1 cap_store2c    fwd=GS       let=INT3    
+  INT3@576697 cap_store_scs  fwd=INT3     let=INT3    
+
+=== @2c614f epi ===
+  2c6690 size=2 test     eax, eax
+  2c6692 size=2 je       0x2c669b
+  2c6694 size=5 mov      eax, 0
+  2c6699 size=2 jmp      0x2c66a0
+  2c669b size=5 mov      eax, 1
+  2c66a0 size=7 add      rsp, 0x190
+  2c66a7 size=1 pop      rbp
+  2c66a8 size=1 ret      
+  2c66a9 size=1 push     rbp
+  2c66aa size=7 sub      rsp, 0x1b0
+  2c66b1 size=8 lea      rbp, [rsp + 0x80]
+
+elapsed=1.1s
+cleaned

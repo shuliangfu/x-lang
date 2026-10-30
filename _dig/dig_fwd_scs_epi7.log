@@ -1,0 +1,101 @@
+Pseudo-terminal will not be allocated because stdin is not a terminal.
+=== SoftCap callers n=2 ['0x2be40f', '0x576692'] ===
+
+=== A SoftCap caller INT3 ===
+  INT3@2be40f fwd=GS       let=AV       lit=AV      
+  INT3@576692 fwd=INT3     let=INT3     lit=INT3    
+
+=== B Capless entry / SoftCap call INT3 ===
+  INT3@57656c cap_entry        fwd=INT3     let=TIMEOUT  lit=TIMEOUT 
+  INT3@576692 cap_call_scs     fwd=INT3     let=INT3     lit=INT3    
+  INT3@12377c caller_12377c    fwd=INT3     let=TIMEOUT  lit=TIMEOUT 
+  INT3@123781 after_12377c     fwd=GS       let=AV       lit=AV      
+  INT3@270317 caller_270317    fwd=GS       let=AV       lit=AV      
+
+=== C caller @12377c context ===
+  123740: test     eax, esi
+  123742: add      dword ptr [rax], eax
+  123744: add      cl, ch
+  123746: enter    0x3a, 0
+  12374a: cmp      dword ptr [rbp + 0x1f4], 0x30
+  123751: jne      0x12378c
+  123753: mov      r9, qword ptr [rbp + 0x228]
+  12375a: mov      r8d, dword ptr [rbp + 0x220]
+  123761: mov      rdx, qword ptr [rbp + 0x218]
+  123768: mov      rax, qword ptr [rbp + 0x210]
+  12376f: mov      ecx, dword ptr [rbp + 0x230]
+  123775: mov      dword ptr [rsp + 0x20], ecx
+  123779: mov      rcx, rax
+  12377c: call     0x57656c <<<
+  123781: mov      dword ptr [rbp + 0x1f0], eax <<<
+  123787: jmp      0x127212
+  12378c: cmp      dword ptr [rbp + 0x1f4], 0x31
+  123793: jne      0x1237ce
+  123795: mov      r9, qword ptr [rbp + 0x228]
+  12379c: mov      r8d, dword ptr [rbp + 0x220]
+  1237a3: mov      rdx, qword ptr [rbp + 0x218]
+
+=== C2 scan back for prol before 12377c ===
+
+=== D clean plants gate ===
+  nopr9 nop mov qword ptr [rbp + 0xf8], r9 size=7
+  nopr9 sha12=f52f77a7ffb1
+  nopr9/p_ret_lit.x    OK       USER=78015bac7508 run=OK
+  nopr9/p_ret_fwd.x    GS       USER=- run=-
+  nopr9/p_ret_local.x  OK       USER=021c621d2143 run=crc=0x1
+  nopr9/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  nopr9/_var_fwd.x     GS       USER=- run=-
+
+  noprdx nop mov qword ptr [rbp + 0xe8], rdx size=7
+  noprdx sha12=60267a0abb7e
+  noprdx/p_ret_lit.x    OK       USER=78015bac7508 run=OK
+  noprdx/p_ret_fwd.x    GS       USER=- run=-
+  noprdx/p_ret_local.x  OK       USER=021c621d2143 run=crc=0x1
+  noprdx/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  noprdx INT3@pop fwd=GS let=INT3
+
+  nopr8 nop mov dword ptr [rbp + 0xf0], r8d size=7
+  nopr8 sha12=64fd5336e919
+  nopr8/p_ret_lit.x    OK       USER=78015bac7508 run=OK
+  nopr8/p_ret_fwd.x    GS       USER=- run=-
+  nopr8/p_ret_local.x  OK       USER=021c621d2143 run=crc=0x1
+  nopr8/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  nopr8 INT3@pop fwd=GS let=INT3
+
+  nopr9 INT3@pop fwd=INT3 let=INT3
+  nopr9 INT3@2c61c1 fwd=INT3 let=INT3
+
+=== E @2c614f body after postkind under nopr9 ===
+  2c61c0: dec      dword ptr [rcx + 0xf485]
+  2c61c6: add      byte ptr [rbx + 0xf4bd], al
+  2c61cc: add      byte ptr [rax], dh
+  2c61ce: je       0x2c61e3
+  2c61d0: cmp      dword ptr [rbp + 0xf4], 0x31
+  2c61d7: je       0x2c61e3
+  2c61d9: mov      eax, 0
+  2c61de: jmp      0x2c66a0
+  2c61e3: cmp      dword ptr [rbp + 0xf4], 0x31
+  2c61ea: sete     al
+  2c61ed: movzx    eax, al
+  2c61f0: mov      dword ptr [rbp + 0xf0], eax
+  2c61f6: cmp      dword ptr [rbp + 0xf0], 0
+  2c61fd: je       0x2c621c
+  2c61ff: mov      edx, dword ptr [rbp + 0x130]
+  2c6205: mov      rax, qword ptr [rbp + 0x120]
+  2c620c: mov      rcx, rax
+  2c620f: call     0x1fff7e
+  2c6214: mov      dword ptr [rbp + 0xf8], eax
+  2c621a: jmp      0x2c6237
+  2c621c: mov      edx, dword ptr [rbp + 0x130]
+  2c6222: mov      rax, qword ptr [rbp + 0x120]
+  nopr9 INT3@2c61c0 fwd=AV       let=AV      
+  nopr9 INT3@2c61c6 fwd=AV       let=AV      
+  nopr9 INT3@2c61cc fwd=AV       let=TIMEOUT  DIFF
+  nopr9 INT3@2c61ce fwd=INT3     let=TIMEOUT  DIFF
+  nopr9 INT3@2c61d0 fwd=GS       let=AV       DIFF
+  nopr9 INT3@2c61d7 fwd=GS       let=OK       DIFF
+  nopr9 INT3@2c61d9 fwd=GS       let=OK       DIFF
+  nopr9 INT3@2c61de fwd=GS       let=AV       DIFF
+  nopr9 INT3@2c61e3 fwd=INT3     let=TIMEOUT  DIFF
+  nopr9 INT3@2c61ea fwd=INT3     let=TIMEOUT  DIFF
+  nopr9 INT3@2c61ed fwd=INT3     let=TIMEOUT  DIFF

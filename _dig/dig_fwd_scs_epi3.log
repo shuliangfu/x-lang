@@ -1,0 +1,148 @@
+Pseudo-terminal will not be allocated because stdin is not a terminal.
+=== A postlea_miss GS locus ===
+  bare postlea fwd=GS let=OK lit=OK
+  INT3@2be90a scs_epi_add    fwd=INT3     let=TIMEOUT  DIFF
+  INT3@2be911 scs_epi_pop    fwd=INT3     let=INT3    
+  INT3@2be912 scs_epi_ret    fwd=INT3     let=INT3    
+  INT3@576697 cap_store      fwd=INT3     let=INT3    
+  INT3@5766b0 cap_cmp0       fwd=INT3     let=INT3    
+  INT3@5766c3 cap_prep2c     fwd=INT3     let=INT3    
+  INT3@5766ec cap_call_2c    fwd=INT3     let=INT3    
+  INT3@2c614f helper_2c      fwd=INT3     let=INT3    
+  INT3@57656c cap_entry      fwd=INT3     let=TIMEOUT  DIFF
+
+=== B BASE host INT3 locus ===
+  INT3@2be90a scs_epi_add    fwd=INT3     let=INT3    
+  INT3@2be911 scs_epi_pop    fwd=GS       let=INT3     DIFF
+  INT3@576697 cap_store      fwd=GS       let=INT3     DIFF
+  INT3@5766ec cap_call_2c    fwd=GS       let=INT3     DIFF
+  INT3@2c614f helper_2c      fwd=GS       let=INT3     DIFF
+
+=== C scs_ret0 + Capless INT3 ===
+  bare ret0 fwd=GS let=AV lit=AV
+  INT3@576697 cap_store        fwd=INT3     let=INT3    
+  INT3@5766ec cap_call_2c      fwd=INT3     let=INT3    
+  INT3@2c614f helper_2c        fwd=INT3     let=INT3    
+  INT3@2c61c1 helper_postkind  fwd=INT3     let=INT3    
+  INT3@20cd98 kind20cd         fwd=INT3     let=INT3    
+
+=== D Capless_alt callers context ===
+--- caller 0x12377c ---
+  12375c: test     dword ptr [rax], esp
+  12375e: add      al, byte ptr [rax]
+  123760: add      byte ptr [rax - 0x75], cl
+  123763: xchg     ebp, eax
+  123764: sbb      byte ptr [rdx], al
+  123766: add      byte ptr [rax], al
+  123768: mov      rax, qword ptr [rbp + 0x210]
+  12376f: mov      ecx, dword ptr [rbp + 0x230]
+  123775: mov      dword ptr [rsp + 0x20], ecx
+  123779: mov      rcx, rax
+  12377c: call     0x57656c <<
+  123781: mov      dword ptr [rbp + 0x1f0], eax
+--- caller 0x126cda ---
+  126cba: test     dword ptr [rax + 1], eax
+  126cbd: add      byte ptr [rax], al
+  126cbf: mov      rdx, qword ptr [rbp + 0x218]
+  126cc6: mov      rax, qword ptr [rbp + 0x210]
+  126ccd: mov      ecx, dword ptr [rbp + 0x230]
+  126cd3: mov      dword ptr [rsp + 0x20], ecx
+  126cd7: mov      rcx, rax
+  126cda: call     0x57656c <<
+  126cdf: test     eax, eax
+  126ce1: je       0x126cf2
+  126ce3: mov      dword ptr [rbp + 0x1f0], 0xffffffff
+  126ced: jmp      0x12706f
+--- caller 0x128402 ---
+  1283e2: mov      edx, eax
+  1283e4: mov      rax, qword ptr [rbp - 0x960]
+  1283eb: mov      r8, rax
+  1283ee: mov      rax, qword ptr [rbp - 0x980]
+  1283f5: mov      r9, rax
+  1283f8: mov      rax, qword ptr [rbp - 0x9a0]
+  1283ff: mov      r8, rax
+  128402: call     0x57656c <<
+  128407: cdqe     
+  128409: jmp      0x129b26
+  12840e: jmp      0x128413
+  128413: mov      rax, qword ptr [rbp - 0x48]
+--- caller 0x1d9a89 ---
+  1d9a69: add      byte ptr [rcx + 0x22ebf445], cl
+  1d9a6f: mov      r9, qword ptr [rbp + 0x28]
+  1d9a73: mov      r8d, dword ptr [rbp + 0x20]
+  1d9a77: mov      rdx, qword ptr [rbp + 0x18]
+  1d9a7b: mov      rax, qword ptr [rbp + 0x10]
+  1d9a7f: mov      ecx, dword ptr [rbp + 0x30]
+  1d9a82: mov      dword ptr [rsp + 0x20], ecx
+  1d9a86: mov      rcx, rax
+  1d9a89: call     0x57656c <<
+  1d9a8e: mov      dword ptr [rbp - 0xc], eax
+  1d9a91: cmp      dword ptr [rbp - 0xc], 0
+  1d9a95: je       0x1d9aa1
+--- caller 0x1d9c8b ---
+  1d9c6b: add      byte ptr [rcx + 0x22ebf445], cl
+  1d9c71: mov      r9, qword ptr [rbp + 0x28]
+  1d9c75: mov      r8d, dword ptr [rbp + 0x20]
+  1d9c79: mov      rdx, qword ptr [rbp + 0x18]
+  1d9c7d: mov      rax, qword ptr [rbp + 0x10]
+  1d9c81: mov      ecx, dword ptr [rbp + 0x30]
+  1d9c84: mov      dword ptr [rsp + 0x20], ecx
+  1d9c88: mov      rcx, rax
+  1d9c8b: call     0x57656c <<
+  1d9c90: mov      dword ptr [rbp - 0xc], eax
+  1d9c93: mov      ecx, 0
+  1d9c98: call     0x2398e4
+--- caller 0x1d9d0e ---
+--- caller 0x1da455 ---
+  1da435: test     dword ptr [rax], esp
+  1da437: add      al, byte ptr [rax]
+  1da439: add      byte ptr [rax - 0x75], cl
+  1da43c: xchg     ebp, eax
+  1da43d: sbb      byte ptr [rdx], al
+  1da43f: add      byte ptr [rax], al
+  1da441: mov      rax, qword ptr [rbp + 0x210]
+  1da448: mov      ecx, dword ptr [rbp + 0x230]
+  1da44e: mov      dword ptr [rsp + 0x20], ecx
+  1da452: mov      rcx, rax
+  1da455: call     0x57656c <<
+  1da45a: mov      dword ptr [rbp + 0x1f8], eax
+--- caller 0x1dd9b3 ---
+  1dd993: test     dword ptr [rax + 1], eax
+  1dd996: add      byte ptr [rax], al
+  1dd998: mov      rdx, qword ptr [rbp + 0x218]
+  1dd99f: mov      rax, qword ptr [rbp + 0x210]
+  1dd9a6: mov      ecx, dword ptr [rbp + 0x230]
+  1dd9ac: mov      dword ptr [rsp + 0x20], ecx
+  1dd9b0: mov      rcx, rax
+  1dd9b3: call     0x57656c <<
+  1dd9b8: test     eax, eax
+  1dd9ba: je       0x1dd9cb
+  1dd9bc: mov      dword ptr [rbp + 0x1f8], 0xffffffff
+  1dd9c6: jmp      0x1ddd48
+--- caller 0x270317 ---
+  2702f7: cmp      dword ptr [rbp - 8], 0x30
+  2702fb: jne      0x270324
+  2702fd: mov      r9, qword ptr [rbp + 0x28]
+  270301: mov      r8d, dword ptr [rbp + 0x20]
+  270305: mov      rdx, qword ptr [rbp + 0x18]
+  270309: mov      rax, qword ptr [rbp + 0x10]
+  27030d: mov      ecx, dword ptr [rbp + 0x30]
+  270310: mov      dword ptr [rsp + 0x20], ecx
+  270314: mov      rcx, rax
+  270317: call     0x57656c <<
+  27031c: mov      dword ptr [rbp - 0xc], eax
+  27031f: jmp      0x270682
+
+=== E plant Capless align SoftCap call (sub rsp,8 before / add after) ===
+  Capless sub bytes=4881ec00050000
+  Capless add bytes=4881c400050000
+  Capless lea bytes=488dac2480000000
+  cap_align508 sha12=1dd1d378a4b9
+  align508/p_ret_lit.x    OK       USER=78015bac7508 run=OK/0
+  align508/p_ret_fwd.x    GS       USER=- run=-/-
+  align508/p_ret_local.x  OK       USER=021c621d2143 run=crc=0x1/1
+  align508/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1/1
+  align508/_var_fwd.x     GS       USER=- run=-/-
+
+elapsed=15.7s
+cleaned

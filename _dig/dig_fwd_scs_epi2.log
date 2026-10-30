@@ -1,0 +1,129 @@
+Pseudo-terminal will not be allocated because stdin is not a terminal.
+=== A @20cd98 full prol/epi ===
+  20cd98: push     rbp
+  20cd99: mov      rbp, rsp
+  20cd9c: sub      rsp, 0x30
+  20cda0: mov      qword ptr [rbp + 0x10], rcx
+  20cda4: mov      dword ptr [rbp + 0x18], edx
+  20cda7: cmp      qword ptr [rbp + 0x10], 0
+  20cdac: je       0x20cdb4
+  20cdae: cmp      dword ptr [rbp + 0x18], 0
+  20cdb2: jg       0x20cdbb
+  20cdb4: mov      eax, 0xffffffff
+  20cdb9: jmp      0x20ce0b
+  20cdbb: mov      rax, qword ptr [rbp + 0x10]
+  20cdbf: mov      rcx, rax
+  20cdc2: call     0x20bcb5
+  20cdc7: mov      dword ptr [rbp - 4], eax
+  20cdca: mov      eax, dword ptr [rbp + 0x18]
+  20cdcd: cmp      eax, dword ptr [rbp - 4]
+  20cdd0: jle      0x20cdd9
+  20cdd2: mov      eax, 0xffffffff
+  20cdd7: jmp      0x20ce0b
+  20cdd9: mov      edx, dword ptr [rbp + 0x18]
+  20cddc: mov      rax, qword ptr [rbp + 0x10]
+  20cde0: mov      rcx, rax
+  20cde3: call     0x2b4203
+  20cde8: mov      qword ptr [rbp - 0x10], rax
+  20cdec: cmp      qword ptr [rbp - 0x10], 0
+  20cdf1: jne      0x20cdfa
+  20cdf3: mov      eax, 0xffffffff
+  20cdf8: jmp      0x20ce0b
+  20cdfa: mov      rax, qword ptr [rbp - 0x10]
+  20cdfe: mov      edx, 0
+  20ce03: mov      rcx, rax
+  20ce06: call     0x20bc38
+  20ce0b: add      rsp, 0x30
+  20ce0f: pop      rbp
+  20ce10: ret      
+  20ce11: push     rbp
+  20ce12: mov      rbp, rsp
+  20ce15: sub      rsp, 0x20
+  20ce19: mov      qword ptr [rbp + 0x10], rcx
+  20ce1d: mov      qword ptr [rbp + 0x18], rdx
+  20ce21: mov      qword ptr [rbp + 0x20], r8
+
+=== B @20bcb5 (kind helper callee) ===
+  20bcb5: push     rbp
+  20bcb6: mov      rbp, rsp
+  20bcb9: sub      rsp, 0x20
+  20bcbd: mov      qword ptr [rbp + 0x10], rcx
+  20bcc1: mov      rax, qword ptr [rbp + 0x10]
+  20bcc5: mov      edx, 4
+  20bcca: mov      rcx, rax
+  20bccd: call     0x20bc38
+  20bcd2: add      rsp, 0x20
+  20bcd6: pop      rbp
+  20bcd7: ret      
+  20bcd8: push     rbp
+  20bcd9: mov      rbp, rsp
+  20bcdc: sub      rsp, 0x20
+  20bce0: mov      qword ptr [rbp + 0x10], rcx
+  20bce4: mov      rax, qword ptr [rbp + 0x10]
+  20bce8: mov      edx, 8
+  20bced: mov      rcx, rax
+  20bcf0: call     0x20bc38
+  20bcf5: add      rsp, 0x20
+  20bcf9: pop      rbp
+  20bcfa: ret      
+  20bcfb: push     rbp
+  20bcfc: mov      rbp, rsp
+  20bcff: sub      rsp, 0x30
+  20bd03: mov      qword ptr [rbp + 0x10], rcx
+  20bd07: mov      qword ptr [rbp + 0x18], rdx
+  20bd0b: mov      qword ptr [rbp + 0x20], r8
+  20bd0f: mov      dword ptr [rbp + 0x28], r9d
+  20bd13: cmp      qword ptr [rbp + 0x10], 0
+
+=== C Capless @5766b0.. post SoftCap eax=0 ===
+  5766b0: cmp      dword ptr [rbp + 0x458], 0
+  5766b7: jle      0x5766c3
+  5766b9: mov      eax, 0
+  5766be: jmp      0x578278
+  5766c3: mov      r9, qword ptr [rbp + 0x4a8]
+  5766ca: mov      r8d, dword ptr [rbp + 0x4a0]
+  5766d1: mov      rdx, qword ptr [rbp + 0x498]
+  5766d8: mov      rax, qword ptr [rbp + 0x490]
+  5766df: mov      ecx, dword ptr [rbp + 0x4b0]
+  5766e5: mov      dword ptr [rsp + 0x20], ecx
+  5766e9: mov      rcx, rax
+  5766ec: call     0x2c614f
+  5766f1: mov      dword ptr [rbp + 0x454], eax
+  5766f7: cmp      dword ptr [rbp + 0x454], 0
+  5766fe: jns      0x57670a
+  576700: mov      eax, 0xffffffff
+  576705: jmp      0x578278
+  57670a: cmp      dword ptr [rbp + 0x454], 0
+  576711: jle      0x57671d
+  576713: mov      eax, 0
+  576718: jmp      0x578278
+  57671d: mov      r9, qword ptr [rbp + 0x4a8]
+  576724: mov      r8d, dword ptr [rbp + 0x4a0]
+
+=== D skip SoftCap kind-call → miss (no @20cd98) ===
+  skipkind_miss fwd=GS let=OK lit=OK
+  raw@2be545=c785c400000000000000c785cc000000
+  insn=mov dword ptr [rbp + 0xc4], 0 size=10
+  earlymiss@545 fwd=GS let=AV lit=AV
+  postlea_miss fwd=GS let=OK lit=OK
+
+=== E Capless [4b0] natural eq at SoftCap call site ===
+
+=== F plant SoftCap epi lea-rsp form (same 9B) ===
+  old=4881c4500100005dc3 new=488da5d00000005dc3
+  sha12=81fabce16724
+  lea_epi/p_ret_lit.x    AV       USER=- n868=0 run=-/-
+  lea_epi/p_ret_fwd.x    GS       USER=- n868=0 run=-/-
+  lea_epi/p_ret_local.x  AV       USER=- n868=0 run=-/-
+  lea_epi/_var_let.x     AV       USER=- n868=0 run=-/-
+  lea_epi/_var_fwd.x     GS       USER=- n868=0 run=-/-
+
+=== H reconfirm real epi INT3 under base ===
+  INT3@2be90a fwd=INT3 let=INT3
+  INT3@2be911 fwd=GS let=INT3
+
+=== J Capless_alt callers (who calls @57656c) ===
+  n=9 ['0x12377c', '0x126cda', '0x128402', '0x1d9a89', '0x1d9c8b', '0x1d9d0e', '0x1da455', '0x1dd9b3', '0x270317']
+
+elapsed=1.6s
+cleaned

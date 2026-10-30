@@ -1,0 +1,31 @@
+Pseudo-terminal will not be allocated because stdin is not a terminal.
+=== A nopr9 @2c614f kind-0x30 path ===
+  INT3@2c61c1 store_kind     fwd=INT3     let=INT3    
+  INT3@2c61c7 cmp_30         fwd=INT3     let=TIMEOUT  DIFF
+  INT3@2c61ce je_30          fwd=INT3     let=TIMEOUT  DIFF
+  INT3@2c61d0 cmp_31         fwd=GS       let=AV       DIFF
+  INT3@2c61e3 join_0x30      fwd=INT3     let=TIMEOUT  DIFF
+  INT3@2c61ea sete_31        fwd=INT3     let=TIMEOUT  DIFF
+  INT3@2c61f6 cmp_f0         fwd=INT3     let=TIMEOUT  DIFF
+  INT3@2c61fd je_not31       fwd=INT3     let=TIMEOUT  DIFF
+  INT3@2c621c path_30_body   fwd=INT3     let=TIMEOUT  DIFF
+  INT3@2c622c call_1ff2ef    fwd=INT3     let=TIMEOUT  DIFF
+  INT3@2c6231 store_f8       fwd=INT3     let=TIMEOUT  DIFF
+  INT3@2c66a0 epi_2c         fwd=INT3     let=INT3    
+
+=== B Capless [rbp+0x460] stores/loads ===
+  576616: mov      qword ptr [rbp + 0x460], rax
+  576669: mov      r9, qword ptr [rbp + 0x460]
+
+=== C final nopr9 gate ===
+  sha12=f52f77a7ffb1
+  p_ret_lit.x    compile=AV       USER=- run=-/-
+  p_ret_fwd.x    compile=GS       USER=- run=-/-
+  p_ret_local.x  compile=AV       USER=- run=-/-
+  INT3@scs_pop fwd=INT3 let=INT3
+
+=== D base SoftCap epi (control) ===
+  base INT3@scs_pop fwd=GS let=INT3
+
+elapsed=46.8s
+cleaned; kept host_scs_nopr9.exe

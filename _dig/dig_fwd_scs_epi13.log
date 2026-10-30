@@ -1,0 +1,20 @@
+Pseudo-terminal will not be allocated because stdin is not a terminal.
+=== base ctrl ===
+  base/p_ret_lit.x    OK       USER=78015bac7508 run=OK
+  base/p_ret_fwd.x    GS       USER=- run=-
+  base/p_ret_local.x  OK       USER=021c621d2143 run=crc=0x1
+
+=== nopr9 sha=f52f77a7ffb1 x3 ===
+  t0: p_ret_lit:OK/OK | p_ret_fwd:GS/- | p_ret_local:OK/crc=0x1 | _var_let:OK/crc=0x1
+  t1: p_ret_lit:OK/OK | p_ret_fwd:GS/- | p_ret_local:OK/crc=0x1 | _var_let:OK/crc=0x1
+  t2: p_ret_lit:AV/- | p_ret_fwd:GS/- | p_ret_local:AV/- | _var_let:AV/-
+
+=== r9b0 sha=e8e372731782 x2 ===
+  t0: p_ret_lit:AV/- | p_ret_fwd:GS/- | p_ret_local:AV/- | _var_let:AV/-
+  t1: p_ret_lit:OK/OK | p_ret_fwd:GS/- | p_ret_local:OK/crc=0x1 | _var_let:OK/crc=0x1
+
+nopr9 INT3@scs_pop fwd=INT3 let=INT3
+base  INT3@scs_pop fwd=GS let=INT3
+
+elapsed=2.0s
+cleaned

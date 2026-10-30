@@ -1,0 +1,59 @@
+Pseudo-terminal will not be allocated because stdin is not a terminal.
+=== Capless callers raw n=9 ['0x12377c', '0x126cda', '0x128402', '0x1d9a89', '0x1d9c8b', '0x1d9d0e', '0x1da455', '0x1dd9b3', '0x270317'] ===
+
+=== A Capless caller INT3 (base) ===
+  HIT INT3@12377c fwd=INT3     let=TIMEOUT  lit=TIMEOUT  DIFF
+  miss INT3@126cda fwd=GS       let=OK       lit=OK      
+  miss INT3@128402 fwd=GS       let=AV       lit=AV      
+  miss INT3@1d9a89 fwd=GS       let=AV       lit=AV      
+  miss INT3@1d9c8b fwd=GS       let=AV       lit=AV      
+  miss INT3@1d9d0e fwd=GS       let=OK       lit=OK      
+  miss INT3@1da455 fwd=GS       let=OK       lit=OK      
+  miss INT3@1dd9b3 fwd=GS       let=AV       lit=AV      
+  miss INT3@270317 fwd=GS       let=OK       lit=OK      
+
+=== B nopr9 GS locus ===
+  nopr9 sha12=f52f77a7ffb1
+  nopr9 INT3@2be90a scs_epi_add      fwd=INT3     let=INT3    
+  nopr9 INT3@2be911 scs_epi_pop      fwd=INT3     let=INT3    
+  nopr9 INT3@576697 cap_store        fwd=INT3     let=INT3    
+  nopr9 INT3@5766b0 cap_cmp0         fwd=INT3     let=INT3    
+  nopr9 INT3@5766c3 cap_prep2c       fwd=INT3     let=INT3    
+  nopr9 INT3@5766ec cap_call_2c      fwd=INT3     let=INT3    
+  nopr9 INT3@2c614f helper_2c        fwd=INT3     let=INT3    
+  nopr9 INT3@2c61c1 helper_postkind  fwd=INT3     let=INT3    
+  nopr9 INT3@20cd98 kind20cd         fwd=INT3     let=INT3    
+
+=== C nop239 GS locus ===
+  nop239 sha12=15d2e56647b5
+  nop239 INT3@2be90a scs_epi_add      fwd=INT3     let=INT3    
+  nop239 INT3@2be911 scs_epi_pop      fwd=INT3     let=INT3    
+  nop239 INT3@576697 cap_store        fwd=INT3     let=INT3    
+  nop239 INT3@5766b0 cap_cmp0         fwd=INT3     let=INT3    
+  nop239 INT3@5766c3 cap_prep2c       fwd=INT3     let=INT3    
+  nop239 INT3@5766ec cap_call_2c      fwd=INT3     let=INT3    
+  nop239 INT3@2c614f helper_2c        fwd=INT3     let=INT3    
+  nop239 INT3@2c61c1 helper_postkind  fwd=INT3     let=INT3    
+  nop239 INT3@20cd98 kind20cd         fwd=INT3     let=INT3    
+
+=== D SoftCap 5th-arg / [rbp+0x100] stores before miss ===
+
+=== E Capless writes to [rbp+0x460] ===
+  576616: mov qword ptr [rbp + 0x460], rax
+  576669: mov r9, qword ptr [rbp + 0x460]
+  576692: call 0x2be519
+
+=== F nopr9 full gate ===
+  host_scs_nopr9 sha12=f52f77a7ffb1
+  nopr9/p_ret_lit.x    AV       USER=- run=-/-
+  nopr9/p_ret_fwd.x    GS       USER=- run=-/-
+  nopr9/p_ret_local.x  AV       USER=- run=-/-
+  nopr9/_var_let.x     AV       USER=- run=-/-
+  nopr9/_var_fwd.x     GS       USER=- run=-/-
+
+=== G SoftCap cookie xref ===
+  raw r9home=4c898df8000000
+  unexpected encoding, skip r9tob0
+
+elapsed=16.9s
+cleaned temps; kept host_scs_nopr9/nop239/r9tob0

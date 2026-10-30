@@ -1,0 +1,75 @@
+Pseudo-terminal will not be allocated because stdin is not a terminal.
+=== SoftCap body insns @2be529..@2be693 n=42 ===
+checkpoints=['0x2be529', '0x2be545', '0x2be54f', '0x2be559', '0x2be563', '0x2be56d', '0x2be575', '0x2be57d', '0x2be585', '0x2be58d', '0x2be595', '0x2be59d', '0x2be5a5', '0x2be5ad', '0x2be5b5', '0x2be5bd', '0x2be5c5', '0x2be5cd', '0x2be5d5', '0x2be5dd', '0x2be5e5', '0x2be5ed', '0x2be5f5', '0x2be5fd', '0x2be605', '0x2be60d', '0x2be615', '0x2be61d', '0x2be625', '0x2be62d', '0x2be635', '0x2be63d', '0x2be648', '0x2be653', '0x2be65e', '0x2be669', '0x2be674', '0x2be67f', '0x2be689', '0x2be693']
+
+=== A bisect jmp-miss: SoftCap epi pop INT3 + bare ===
+  miss@2be529 bare fwd=GS       let=AV       lit=AV       | epi_pop fwd=INT3     let=INT3    
+  miss@2be545 bare fwd=GS       let=OK       lit=OK       | epi_pop fwd=GS       let=INT3    
+  miss@2be54f bare fwd=GS       let=OK       lit=OK       | epi_pop fwd=GS       let=INT3    
+  miss@2be559 bare fwd=GS       let=AV       lit=AV       | epi_pop fwd=GS       let=INT3    
+  miss@2be563 bare fwd=GS       let=OK       lit=OK       | epi_pop fwd=GS       let=INT3    
+  miss@2be56d bare fwd=GS       let=OK       lit=OK       | epi_pop fwd=GS       let=INT3    
+  miss@2be575 bare fwd=GS       let=AV       lit=AV       | epi_pop fwd=GS       let=INT3    
+  miss@2be57d bare fwd=GS       let=OK       lit=OK       | epi_pop fwd=GS       let=INT3    
+  miss@2be585 bare fwd=GS       let=AV       lit=AV       | epi_pop fwd=GS       let=INT3    
+  miss@2be58d bare fwd=GS       let=OK       lit=OK       | epi_pop fwd=GS       let=INT3    
+  miss@2be595 bare fwd=GS       let=OK       lit=OK       | epi_pop fwd=GS       let=INT3    
+  miss@2be59d bare fwd=GS       let=AV       lit=AV       | epi_pop fwd=GS       let=INT3    
+  miss@2be5a5 bare fwd=GS       let=AV       lit=AV       | epi_pop fwd=GS       let=INT3    
+  miss@2be5ad bare fwd=GS       let=AV       lit=AV       | epi_pop fwd=GS       let=INT3    
+  miss@2be5b5 bare fwd=GS       let=AV       lit=AV       | epi_pop fwd=GS       let=INT3    
+  miss@2be5bd bare fwd=GS       let=AV       lit=AV       | epi_pop fwd=GS       let=INT3    
+  miss@2be5c5 bare fwd=GS       let=OK       lit=OK       | epi_pop fwd=GS       let=INT3    
+  miss@2be5cd bare fwd=GS       let=AV       lit=AV       | epi_pop fwd=GS       let=INT3    
+  miss@2be5d5 bare fwd=GS       let=AV       lit=AV       | epi_pop fwd=GS       let=INT3    
+  miss@2be5dd bare fwd=GS       let=AV       lit=AV       | epi_pop fwd=GS       let=INT3    
+  miss@2be5e5 bare fwd=GS       let=OK       lit=OK       | epi_pop fwd=GS       let=INT3    
+  miss@2be5ed bare fwd=GS       let=OK       lit=OK       | epi_pop fwd=GS       let=INT3    
+  miss@2be5f5 bare fwd=GS       let=AV       lit=AV       | epi_pop fwd=GS       let=INT3    
+  miss@2be5fd bare fwd=GS       let=AV       lit=AV       | epi_pop fwd=GS       let=INT3    
+  miss@2be605 bare fwd=GS       let=AV       lit=AV       | epi_pop fwd=GS       let=INT3    
+  miss@2be60d bare fwd=GS       let=OK       lit=OK       | epi_pop fwd=GS       let=INT3    
+  miss@2be615 bare fwd=GS       let=OK       lit=OK       | epi_pop fwd=GS       let=INT3    
+  miss@2be61d bare fwd=GS       let=AV       lit=AV       | epi_pop fwd=GS       let=INT3    
+  miss@2be625 bare fwd=GS       let=AV       lit=AV       | epi_pop fwd=GS       let=INT3    
+  miss@2be62d bare fwd=GS       let=AV       lit=AV       | epi_pop fwd=GS       let=INT3    
+  miss@2be635 bare fwd=GS       let=OK       lit=OK       | epi_pop fwd=GS       let=INT3    
+  miss@2be63d bare fwd=GS       let=AV       lit=AV       | epi_pop fwd=GS       let=INT3    
+  miss@2be648 bare fwd=GS       let=AV       lit=AV       | epi_pop fwd=GS       let=INT3    
+  miss@2be653 bare fwd=GS       let=OK       lit=OK       | epi_pop fwd=GS       let=INT3    
+  miss@2be65e bare fwd=GS       let=AV       lit=AV       | epi_pop fwd=GS       let=INT3    
+  miss@2be669 bare fwd=GS       let=OK       lit=OK       | epi_pop fwd=GS       let=INT3    
+  miss@2be674 bare fwd=GS       let=AV       lit=AV       | epi_pop fwd=GS       let=INT3    
+  miss@2be67f bare fwd=GS       let=AV       lit=AV       | epi_pop fwd=GS       let=INT3    
+  miss@2be689 bare fwd=GS       let=AV       lit=AV       | epi_pop fwd=GS       let=INT3    
+  miss@2be693 bare fwd=GS       let=OK       lit=OK       | epi_pop fwd=GS       let=INT3    
+
+=== B plant skip SoftCap zero-init @2be545→@2be693 ===
+  skipz sha12=0b1df62e0f63
+  skipz/p_ret_lit.x    AV       USER=- n868=0 run=-/-
+  skipz/p_ret_fwd.x    GS       USER=- n868=0 run=-/-
+  skipz/p_ret_local.x  AV       USER=- n868=0 run=-/-
+  skipz/_var_let.x     AV       USER=- n868=0 run=-/-
+  skipz/_var_fwd.x     GS       USER=- n868=0 run=-/-
+  skipz INT3@pop fwd=GS let=INT3
+  skipz INT3@cap_store fwd=GS let=INT3
+  skipz INT3@2c614f fwd=GS let=INT3
+
+=== C plant skip SoftCap [rbp+] zeros @2be5bd→@2be693 ===
+  skipz_hi sha12=405a7c126b2c
+  skipz_hi/p_ret_lit.x    OK       USER=78015bac7508 run=OK/0
+  skipz_hi/p_ret_fwd.x    GS       USER=- run=-/-
+  skipz_hi/p_ret_local.x  OK       USER=021c621d2143 run=crc=0x1/1
+  skipz_hi/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1/1
+  skipz_hi INT3@pop fwd=GS let=INT3
+
+=== D plant skip SoftCap [rbp+0x80..] @2be63d→@2be693 ===
+  skipz_top sha12=2f538d67f568
+  skipz_top/p_ret_lit.x    AV       USER=- run=-/-
+  skipz_top/p_ret_fwd.x    GS       USER=- run=-/-
+  skipz_top/p_ret_local.x  AV       USER=- run=-/-
+  skipz_top/_var_let.x     AV       USER=- run=-/-
+  skipz_top INT3@pop fwd=GS let=INT3
+
+elapsed=12.9s
+cleaned

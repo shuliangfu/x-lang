@@ -1,0 +1,67 @@
+Pseudo-terminal will not be allocated because stdin is not a terminal.
+=== CTRL base host ===
+  base/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  base/p_ret_fwd.x    GS       USER=- run=-
+  base/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+
+=== nopr9 gate x3 ===
+  sha12=f52f77a7ffb1
+  -- trial 0 --
+  p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  p_ret_fwd.x    GS       USER=- run=-
+  p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  _var_let.x     AV       USER=- run=-
+  -- trial 1 --
+  p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  p_ret_fwd.x    GS       USER=- run=-
+  p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  _var_let.x     AV       USER=- run=-
+  -- trial 2 --
+  p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  p_ret_fwd.x    GS       USER=- run=-
+  p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  _var_let.x     AV       USER=- run=-
+
+=== Capless after @2c614f under nopr9 ===
+  INT3@5766f1 store_2c_eax   fwd=GS       let=INT3    
+  INT3@5766f7 cmp_2c         fwd=GS       let=INT3    
+  INT3@578278 cap_epi        fwd=GS       let=AV      
+  INT3@123781 caller_after   fwd=GS       let=TIMEOUT 
+  INT3@2be519 scs_entry      fwd=INT3     let=INT3    
+  INT3@2be911 scs_pop        fwd=INT3     let=INT3    
+  INT3@2c66a0 h2c_epi        fwd=INT3     let=INT3    
+
+=== Capless @576616 context ===
+  5765e0: add      byte ptr [rax - 0x77], cl
+  5765e3: shr      eax, 0x15
+  5765e6: cdq      
+  5765e7: enter    -0x7601, -0x7b
+  5765eb: push     -0x7cfffffc
+  5765f0: mov      ebp, 0x468
+  5765f5: add      byte ptr [rdi + 0xa], bh
+  5765f8: mov      eax, 0xffffffff
+  5765fd: jmp      0x578278
+  576602: mov      rax, qword ptr [rbp + 0x4a8]
+  576609: mov      edx, 0x10
+  57660e: mov      rcx, rax
+  576611: call     0x55d730
+  576616: mov      qword ptr [rbp + 0x460], rax
+  57661d: mov      rax, qword ptr [rbp + 0x4a8]
+  576624: mov      edx, 0x568
+  576629: mov      rcx, rax
+  57662c: call     0x55d730
+  576631: mov      qword ptr [rbp + 0x478], rax
+  576638: cmp      qword ptr [rbp + 0x478], 0
+  576640: jne      0x57664e
+  576642: call     0x24afe0
+  576647: mov      qword ptr [rbp + 0x478], rax
+  57664e: mov      edx, dword ptr [rbp + 0x468]
+  576654: mov      rax, qword ptr [rbp + 0x490]
+  57665b: mov      rcx, rax
+  57665e: call     0x20cd98
+  576663: mov      dword ptr [rbp + 0x45c], eax
+  576669: mov      r9, qword ptr [rbp + 0x460]
+  576670: mov      r8d, dword ptr [rbp + 0x4a0]
+
+elapsed=9.9s
+cleaned

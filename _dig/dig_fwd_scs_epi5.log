@@ -1,0 +1,44 @@
+Pseudo-terminal will not be allocated because stdin is not a terminal.
+=== Capless_alt callers n=0 [] ===
+
+=== A Capless caller INT3 HIT ===
+
+=== B SoftCap after-homes INT3 ===
+  INT3@2be545 fwd=INT3 let=TIMEOUT
+
+=== C Isol nop SoftCap arg-home stores ===
+  nop@2be529 size=7 was mov qword ptr [rbp + 0xe0], rcx
+  nop@2be530 size=7 was mov qword ptr [rbp + 0xe8], rdx
+  nop@2be537 size=7 was mov dword ptr [rbp + 0xf0], r8d
+  nop@2be53e size=7 was mov qword ptr [rbp + 0xf8], r9
+  nophome sha12=67b6ea44d7ee
+  nophome/p_ret_lit.x    AV       USER=- run=-/-
+  nophome/p_ret_fwd.x    GS       USER=- run=-/-
+  nophome/p_ret_local.x  AV       USER=- run=-/-
+  nophome/_var_let.x     AV       USER=- run=-/-
+  nophome/_var_fwd.x     GS       USER=- run=-/-
+  nophome INT3@pop fwd=INT3 let=INT3
+
+=== E SoftCap rcx null? after entry ===
+  reconf postlea bare fwd=GS let=OK lit=OK
+  reconf postlea INT3@pop fwd=INT3 let=INT3
+  reconf postlea INT3@2c614f fwd=INT3 let=INT3
+
+=== G nop SoftCap rdx/r8/r9 homes; keep rcx ===
+  nop239 sha12=15d2e56647b5
+  nop239/p_ret_lit.x    OK       USER=78015bac7508 run=OK
+  nop239/p_ret_fwd.x    GS       USER=- run=-
+  nop239/p_ret_local.x  OK       USER=021c621d2143 run=crc=0x1
+  nop239/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  nop239 INT3@pop fwd=INT3 let=INT3
+
+=== H nop SoftCap r9 home only ===
+  nopr9 sha12=f52f77a7ffb1
+  nopr9/p_ret_lit.x    OK       USER=78015bac7508 run=OK
+  nopr9/p_ret_fwd.x    GS       USER=- run=-
+  nopr9/p_ret_local.x  OK       USER=021c621d2143 run=crc=0x1
+  nopr9/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  nopr9 INT3@pop fwd=INT3 let=INT3
+
+elapsed=8.0s
+cleaned

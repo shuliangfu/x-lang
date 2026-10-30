@@ -1,5 +1,38 @@
 # 10.60 SoftCap DIG PROGRESS
 
+**2026-10-30 ~18:22 CST (Asia/Shanghai)** · DIG `fwd_scs_epi`：钉 SoftCap `@2be53e` r9-home→Capless`[rsp+0x20]`＝miss-epi GS 根；nopr9 诊对齐 epi（lit 偶抖 AV）fwd 仍 GS＠`@2c614f` 同构；无稳定 Isol；勿升 PROD／钉 **不升**／勿收刀 · 下一单点：`fwd_2c6174`
+
+
+## 2026-10-30 ~18:22 CST Asia/Shanghai — DIG `fwd_scs_epi`；钉 SoftCap r9-home smash；下一 `fwd_2c6174`
+
+### 0) 闸
+- tip HEAD `c9250629a`＝origin/dev（本拍前；commit 后见 tip）
+- Isol alt_frame2 `9378df517f96`／host plant `3f43f1609d70`
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／tip@121278／join／epi／LIVE SoftCap 移植／arg-loop／LIVE spill／`[4b0]=1`：遵守
+
+### 1) DIG 钉死（本拍）
+1. SoftCap lea 帧：`[rbp+0xf8]` r9 home＝call_rsp+0x20＝Capless `[rsp+0x20]`；fwd miss-epi `@2be911` GS／let INT3。
+2. nop `@2be53e`（诊 nopr9 `f52f77a7ffb1`）：epi 对齐；lit／local／let 常绿但 cave **偶发 AV** → **非稳定 Isol**；fwd 仍 GS。
+3. `@2c614f` `[rbp+0x138]` 同构；dual 诊可使 Capless 收到 2c 返回，caller_after 仍 GS。
+4. Capless fwd 入口 `@12377c`（kind `0x30` 门）。证伪：frame／force-kind／epi-raise／rdx|r8-only nop。
+
+### 2) Win SoftCap 门
+| Isol plant | sha12 | lit | fwd | local | 注 |
+|---|---|---|---|---|---|
+| cmk0_irdx_sub20（未改） | 3f43f1609d70 | OK run0 | **GS** | OK run1 | 对照 |
+| scs_nopr9（诊） | f52f77a7ffb1 | OK∽AV | GS（epi 齐） | OK∽AV | 非 Isol |
+| scs_r9b0（诊） | e8e372731782 | OK∽AV | GS（epi 齐） | OK∽AV | 非 Isol |
+
+### 3) 下一拍最小刀（单点）
+- **`fwd_2c6174`**：DIG `@2c614f` r9 home／Capless post-2c→`@123781` GS（SoftCap epi 诊齐后）→可 Isol。禁 tip@121278／join／epi-raise／LIVE／mega／字母堆／假绿 force-kind。
+- 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 4) open
+- 笔记 `_dig/dig_fwd_scs_epi.md`；脚本／log `_dig/dig_fwd_scs_epi{,2..13}.py`／`.log`
+- PROD／钉 **未动**；bans unchanged
+
+
 **2026-10-30 ~18:07 CST (Asia/Shanghai)** · DIG `fwd_2c614f`：real GS＝SoftCap kind=`0x30` **miss-epi**（`@2be90a`/`pop`；let/lit 同 kind 过）；`@2c614f` 仅 stub 后继（`@20cd98`）；force-kind／force30+epi＝假绿；frame 扩 lit 绿 fwd 仍 GS；无 plant；勿升 PROD／钉 **不升**／勿收刀 · 下一单点：`fwd_scs_epi`
 
 
