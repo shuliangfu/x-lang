@@ -2997,3 +2997,36 @@ Isol CapFN 体内 E8 入 SoftCap mega `[0x57effc,0x58e9a0)`：**5** 处；−Δ`
 - 笔记 `_dig/dig_cmk0_rdx.md`；脚本＋log `_dig/dig_cmk0_rdx.py`／`.log`
 - PROD／钉 **未动**；bans unchanged
 
+
+## 2026-10-30 ~19:42 CST Asia/Shanghai — DIG fwd_46_967_sret Isol GREEN
+
+### 0) 闸
+- tip base `e6bbe369d`＝origin/dev（本拍前；commit 后见 tip）
+- Winner Isol `host_967_s25.exe` sha12 `e53841ce0e24`
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- hollow_only／skip_1a0 **仅对照**；禁 CloudAgent／10.74／HARD BAN／mega／假绿／LIVE SoftCap 移植／arg-loop：遵守
+
+### 1) DIG 钉死（本拍）
+1. call-mk@14f8 rcx 须为 **sret 指针**（非 value）；Capless USER16 植 `sub20+x+1→rdx`。
+2. fixup 三扫（cave `@0x559821`，tramp `@57bbae→cave→57bd4e`）：
+   - c1→c2：`4889c1e8`→`4889c2e8`（BinaryExpr→rdx）
+   - let_sret：`lea [rbp-0x38]`→`mov [rbp-0x50]`（caller sret）
+   - main_imm9：`lea[rbp-0x28]+mov rcx+sub20+x+1` → imm9（main→fw 字面 9）
+3. 门：lit/fwd/local/let **全部 run=0**（非 hollow）。
+
+### 2) Win SoftCap 门
+| src | USER sha12 | run |
+|---|---|---|
+| p_ret_lit.x | `5c6778769c3c` | 0 |
+| p_ret_fwd.x | `a99121ae7a80` | 0 |
+| p_ret_local.x | `36d26fcc9657` | 0 |
+| _var_let.x | `d16c78ade1f2` | 0 |
+
+### 3) 下一拍最小刀（单点）
+- **`fwd_46_967_sret_persist`**：把 s25 Isol 配方收成可复现 SoftCap 源改／持久 host 构建；**勿**升 PROD／钉，直至 LIVE SoftCap 语义绿。
+- hollow／skip_1a0 仍对照勿收刀。
+
+### 4) open
+- 笔记 `_dig/dig_fwd_46_967_sret.md`；赢家 `_dig/dig_fwd_46_967_sret_25.py`／`.log`
+- PROD／钉 **未动**；bans unchanged
+
