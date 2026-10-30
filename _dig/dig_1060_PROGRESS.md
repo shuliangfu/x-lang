@@ -1,5 +1,39 @@
 # 10.60 SoftCap DIG PROGRESS
 
+**2026-10-30 ~17:26 CST (Asia/Shanghai)** · plant `immrdx_bypass`：**红 AV** — Capless `@578266` 强制 `[4b0]=1`→call-mk `[990]=1` 空壳 AV（INT3 `@575799/@575fa3` 均非 HIT）；base_828 保 call-mk／缺 imm→rdx；勿升 PROD／钉 **不升**／勿收刀 · 下一单点：`cmk0_rdx`（call-mk `[4b0]==0` Isol-native imm→rdx；禁 mega glue／+0x478 fill）
+
+
+## 2026-10-30 ~17:26 CST Asia/Shanghai — plant `immrdx_bypass`；红 AV；钉 `cmk0_rdx`
+
+### 0) 闸
+- tip HEAD `baadfa029`＝origin/dev（本拍前；commit 后见 tip）
+- Isol alt_frame2 `9378df517f96`／host_b828 `0977d6fbb472`
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／tip@121278／join／epi／LIVE SoftCap 移植／arg-loop／mega glue：遵守
+
+### 1) DIG 钉死（本拍）
+1. Capless `@578266`→`[4b0]`→call-mk `[rbp-0x30]`→`@5752bc` `[990]`；`[4b0]==0` 拼 USER `sub rsp,0x20`（SoftCap lit 路径）。
+2. base_828 lit USER：`lea→rcx; sub20; call`＋**call 后** `mov eax,0xa`（比较）；**无** call 前 imm→rdx。
+3. `@567a30` 零 B8/BA builder；rdx/B8 已知 builder∩Capless/call-mk caller＝**0**。
+4. Plant `immrdx_bypass`：`@578266`→`mov ecx,1`（sha `c2356eb95682`）→ lit/fwd/local **AV/GS/AV**；INT3 `@575799/@575fa3`＝AV（体前崩）。
+5. **钉死**：单点抬 `[4b0]/[990]` 在空壳 SoftCap lit **不可**激活 Isol-native arg emit。
+
+### 2) Win SoftCap 门
+| Isol plant | sha12 | lit | run | USER |
+|---|---|---|---|---|
+| immrdx_bypass | c2356eb95682 | AV | — | 无 USER；红 |
+| base_828 (对照) | 0977d6fbb472 | OK sha=61afec45d7ff | crc=1 | sub20+call；无 mov_rdx |
+
+### 3) 下一拍最小刀（单点）
+- **`cmk0_rdx`**：call-mk `[4b0]==0` 路径下 Isol-native imm→rdx（保 call-mk；不抬 argcount；不填 +0x478；禁 mega glue）。备选 `@567a30` post-get-elem-skip literal gate。
+- 禁 tip@121278／join／epi／LIVE／mega／arg-loop。
+- 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 4) open
+- 笔记 `_dig/dig_immrdx_bypass.md`；脚本／log `_dig/dig_immrdx_bypass.py`／`.log`
+- PROD／钉 **未动**；bans unchanged
+
+
 **2026-10-30 ~17:25 CST (Asia/Shanghai)** · DIG Cap≠Capless／pre_last 另槽：**钉死无非空壳供给** — SoftCap lit 唯 Capless 空壳 arg5；非 Capless site／异源 pre_last 调用方皆不产已填 `@2a62c9`；plant 不可隔离（禁 mega glue）→ 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：Isol-native imm→rdx 旁路（不经 filled args）
 
 
