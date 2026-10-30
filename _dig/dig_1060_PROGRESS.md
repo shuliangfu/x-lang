@@ -1,6 +1,48 @@
 # DIG 10.60 SoftCap PROGRESS
 
-**2026-10-30 ~15:50 CST (Asia/Shanghai)** · SoftCap lit `@57619e` alt：`@5603b8`＝合法 prol／体内·坏帧 AV；`@56fa68`＝**mid-insn** clear（同 `@5862f8` 类）· Isol `alt_57619e` `e1c45031fb92` jmp→`@57629b` HIT；p_ret **AV／GS／AV** · SoftCap **未绿** → 勿升 PROD／钉 **不升**／勿收刀 · 下一拍：alt **坏帧／rbp** 根（禁再只 skip mid-call）；禁长挂／移植／arg-loop／twin／字母堆
+**2026-10-30 ~15:55 CST (Asia/Shanghai)** · SoftCap alt **坏帧／rbp** DIG：`@5603b8`＝合法 prol＋epi `@560dc7`（非缺 rbp 恢复）；Cap FN `0x9e0` lea 槽与 SoftCap lit `0x868`／Capless `0x1b8` **正交**；假 AV＝mid-insn／loop state；Isol `alt_frame2` `9378df517f96` 强退环 compile OK／GS／OK 但 emit 薄 `0x68/0x1b8` 运行 rc=1 **未绿** → 勿升 PROD／钉 **不升**／勿收刀 · 下一拍：join `@576523`→epi／谁写 `0x868`；禁长挂／移植／arg-loop／twin／字母堆
+
+
+## 2026-10-30 ~15:55 CST Asia/Shanghai — DIG alt bad-frame／rbp；Isol alt_frame2 编译假过
+
+### 0) 闸
+- tip HEAD `e9a1367bd`＝origin/dev（本拍前；commit 后见 tip）
+- Base post_fa3 `453f3e66f96c`／alt `e1c45031fb92`；短超时 INT3；已清 cave `_dig_host_*`
+- PROD SoftCap `7a2cf5da581a` **未动**／钉 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／未绿请批／LEGACY／字母堆／LIVE SoftCap 移植／arg-loop／twin：遵守
+
+### 1) DIG 钉死（本拍）
+1. Cap FN `@5752bc`：`sub rsp,0x9e0; lea rbp,[rsp+0x80]`；alt 槽 `+0x8fc/+0x904/+0x934` 在帧内；`+0x970..998`＝arg home／count。
+2. **`@5603b8`＝合法 prol＋epi `@560dc7`**（`lea rsp,[rbp-8]; pop rbx; pop rbp; ret`）——**证伪**「缺 rbp 保存／恢复」。
+3. 先前 `add [rbp+0x934]` AV＝**mid-insn／loop 误读**；skip 后 inc／post_loop 可达；`934=0<[rbp+0x998]` → `jl` 再入环。
+4. SoftCap lit `0x868`／Capless `0x1b8`＝**用户 emit** 差距，≠ host Cap FN 帧。
+5. Isol `alt_frame2` `9378df517f96`：jmp `@57629b→@5763d6` → join HIT；lit／local **compile OK** 但 emit **薄 `0x68/0x1b8`**、运行 **rc=1**；fwd **GS**；**非运行绿**。
+
+### 2) Win SoftCap 门
+| Isol | sha12 | lit／fwd／local |
+|---|---|---|
+| alt_57619e | `e1c45031fb92` | AV／GS／AV |
+| alt_frame | `313533ca3651` | TIMEOUT／GS／TIMEOUT |
+| alt_frame2 | `9378df517f96` | compile OK／GS／OK；**run rc=1／—／rc=1** |
+
+### 3) 三端门
+| 端 | 结果 |
+|---|---|
+| Win SoftCap p_ret_* | **未运行绿**（emit≠LIVE `0x868`） |
+| Darwin／Ubuntu | **未扩**（Win 未绿） |
+| PROD／钉 | **未动** |
+
+### 4) 硬 blocker
+1. SoftCap lit 仍无 LIVE 形 `0x868/0x878` 写出；alt skip 后 join／epi 路径未稳。
+2. Ban 移植／arg-loop／twin／字母堆／长挂。
+
+### 5) 下一拍最小刀
+1. 单点 DIG join `@576523`→`@576555`／谁在 SoftCap lit 写帧 `0x868`（相对 Capless 薄包装）；短超时。
+2. 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 6) open
+- 笔记 `_dig/dig_alt_badframe.md`；plant `_dig/build_isol_alt_frame2.py`；cave alt_frame2／fix_rbp
+- PROD SoftCap `7a2cf5da581a`／钉 ecdb5cc1e **未动**
 
 
 ## 2026-10-30 ~15:50 CST Asia/Shanghai — DIG @57619e alt；@56fa68 mid-insn；@5603b8 bad frame；Isol alt_57619e 红
