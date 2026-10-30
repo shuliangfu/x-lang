@@ -1,5 +1,37 @@
 # 10.60 SoftCap DIG PROGRESS
 
+**2026-10-30 ~16:54 CST (Asia/Shanghai)** · DIG AST args＝W327 `+0x274`/`+0x270`+sidecar；Capless **无** push-into-`+0x478`（仅空 `@55d730(0x568)`）；`fill_args_ast*` 模型废；本拍无 plant（不可隔离）→ 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：Capless 缺失 push helper（禁 tip@121278／join／epi／LIVE／mega）
+
+
+## 2026-10-30 ~16:54 CST Asia/Shanghai — DIG AST args 字段／push-into-+0x478；无 plant
+
+### 0) 闸
+- tip HEAD `d1711fc86`＝origin/dev（本拍前；commit 后见 tip）
+- Isol alt_frame2 `9378df517f96`；`base_828` sha12 `0977d6fbb472` lit sha `61afec45d7ff`
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／tip@121278／join／epi／LIVE SoftCap 移植／arg-loop：遵守
+- Win ssh 卡顿残留已杀（local＋remote host_b828／base_828／p_ret 类）；ConnectTimeout=8／探针≤90s
+
+### 1) DIG 钉死（本拍）
+1. SoftCap lit CallExpr args＝`W327_E_CALL_NUM_ARGS` **+628 (0x274)**／`W327_E_CALL_ARG_BASE` **+624 (0x270)**＋sidecar `W327_SC_EXPR_CALL_ARG_REFS` grow_vec；访问器 `pipeline_expr_call_num_args_at`／`arg_ref`。
+2. Capless `+0x478`：STORE→LOAD 间 **零** mutate；**无** `[node+0x274]` 读；`@2be519` 收 `+0x460` 不收 `+0x478`；**无** push 环。
+3. pre_last：`[rbp-0x30]` 仅初拷 arg5；无 imm 0x274/0x270；依赖 Capless 已填容器。
+4. 盲 `node+0x18/20/28` **错** → 先验 `fill_args_ast*` 红／AV 解释完毕。本拍 **无** 可隔离单点 plant。
+
+### 2) Win SoftCap 门
+| Isol plant | sha12 | lit | run | USER |
+|---|---|---|---|---|
+| （本拍无） | — | — | — | N/A；frontier 仍红 |
+
+### 3) 下一拍最小刀（单点）
+- Capless `@576631`..`@578200`（或应接 `+0x478` 的 helper）：缺失的 **push-into-`+0x478`**（num_args_at／arg_ref → emit-arg 元素）；单点 plant 使 `@2a62c9` len≥1→`@2a5ca8`＋保 call-mk（禁 tip@121278／LIVE／arg-loop）。
+- 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 4) open
+- 笔记 `_dig/dig_ast_args_478.md`；先验 `_dig/dig_arglen_2a62.md`
+- PROD／钉 **未动**；bans unchanged
+
+
 **2026-10-30 ~17:05 CST (Asia/Shanghai)** · DIG `@2a62c9` len=0：Capless `+0x478`＝`@55d730(0x568)` **空 alloc**（HIT `@576631`），**无** push args；pre_last arg5→local→len=0 跳过 get-elem；plants `arglen_force1`／`fill_args_ast*` **红** → 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：AST args 字段／push-into-`+0x478`（禁 tip@121278／join／epi／LIVE／mega）
 
 
