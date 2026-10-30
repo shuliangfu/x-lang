@@ -1,5 +1,47 @@
 # 10.60 SoftCap DIG PROGRESS
 
+**2026-10-30 ~16:30 CST (Asia/Shanghai)** · base_828 下 CallExpr：**call mk 已写出**／缺 **imm→rdx**；plant `b828_cmk`／`callmk_b828`（force try／eax==2／Capless continue）**红**（exit1／AV／GS）→ 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：base_828 下 Isol-native **arg0 imm→rdx**（禁 tip@121278／join／epi／LIVE／mega）
+
+
+## 2026-10-30 ~16:30 CST Asia/Shanghai — DIG base_828 + call-mk；plant b828_cmk 红
+
+### 0) 闸
+- tip HEAD `59c0badd5`＝origin/dev
+- Isol alt_frame2 `9378df517f96`；`base_828` sha12 `0977d6fbb472`
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／LEGACY／字母堆／LIVE SoftCap 移植／arg-loop／tip@121278／join／epi：遵守
+
+### 1) DIG 钉死（本拍）
+1. `base_828` SoftCap lit／local：n868=2；USER `lea→rcx; sub rsp,0x20; call mk` — **call mk 在**；**无** `mov eax,0xa`／`mov rdx,rax`（LIVE 有）→ run exit 1。
+2. SoftCap-site kind-gate `@2be734` 已 `eax=0` miss；Capless continue→join→kind3→call-mk HIT；skip `@575786`／`@57578c` HIT（`[990]!=1`→`@575fa3`）。
+3. Capless try je_try1/2/3 HIT（ret 0 continue）；ok_exit 非 on-path。
+4. Plants force try-continue／eax==2／Capless always-continue：**红**（同 sha exit1 或 AV／GS）；不可隔离绿。
+
+### 2) Win SoftCap 门（cave；probe 后清）
+| probe | result |
+|---|---|
+| base_828 p_ret_lit/local | OK n868=2 run exit1；fwd GS |
+| USER vs LIVE | call mk 在；缺 imm→rdx |
+| plant b828_cmk（try1 je→jmp） | lit/local OK exit1（sha 同 base_828）；fwd GS |
+| plant callmk_b828／eax==2／t2／t12／calt jmp | AV／GS |
+| INT3 Capless／call-mk／enc | HIT 链见 `_dig/dig_b828_cmk.md` |
+
+### 3) 硬 blocker（勿收刀／勿升 PROD／勿请批）
+1. SoftCap CallExpr：sret 后 **call mk 在、缺 imm→rdx** → exit 1。
+2. `b828_cmk`／`callmk_b828` 族：**红**（不可隔离）。
+3. bans：tip@121278／join／epi／LIVE／mega／arg-loop。
+
+### 4) 下一拍最小刀（单点）
+1. 在 `base_828` 帧下，单点 DIG／plant Isol-native CallExpr **arg0 imm→rdx**（在已有 call mk 前；追 `@575fa3`／Capless arg emit；禁 tip@121278／LIVE 移植／arg-loop）；短超时。
+2. 通后再验帧＋Darwin Cap soft＋Ubuntu tip-cold。未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 5) open
+- 笔记 `_dig/dig_b828_cmk.md`；脚本 `_dig/dig_b828_cmk.py`–`cmk5.py`
+- PROD SoftCap `7a2cf5da581a`／钉盘 ecdb5cc1e **未动**
+- bans unchanged
+
+
+
 **2026-10-30 ~16:15 CST (Asia/Shanghai)** · DIG lit `@27fbc5` ec：ret＝global spill `RVA 0xb756ac`（`@27ea1e` accum）；Capless lit ec≤`0x3ff`→clamp off；plant `ec_400` **AV/GS 不可隔离** → 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：`base_828` 帧下 Isol-native CallExpr call-mk（imm→rdx＋E8）（禁 tip@121278／join／epi／LIVE／mega）
 
 
