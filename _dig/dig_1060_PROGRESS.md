@@ -1,5 +1,57 @@
 # DIG 10.60 SoftCap PROGRESS
 
+**2026-10-30 ~14:45 CST (Asia/Shanghai)** · Isol Cap`@0024e6`-class tip_c21k／tip_c21b **证伪** （Cap21 入 body→CG002；c0=r8→TIMEOUT）· Capless h3 SoftCap lit 下一拍 · SoftCap **未绿** → 勿升 PROD／钉 ecdb5cc1e **不升**／勿收刀 · 下一拍：h3 SoftCap lit 过 `@46a71c` 无 AV（禁移植／arg-loop／twin／字母堆）
+
+
+## 2026-10-30 ~14:45 CST Asia/Shanghai — DIG Isol Cap@0024e6-class tip_c21k／tip_c21b；证伪（CG002／TIMEOUT）
+
+### 0) 闸
+- tip HEAD `cc89f7de1`＝origin/dev（本拍前；commit 后见 tip）
+- Isol-TT `1f836615e0fc`；LIVE lit `dbaab1c7ce70`；TT lit `5b173cef1205`
+- Plants：tip_c21k `81295b0d64f9`；tip_c21r `9dda65be01c5`；tip_c21b `7c8ca171e2bc`；tip_c21z（eax=0）（语义短名；禁字母堆）
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／未绿请批／LEGACY／字母堆／LIVE SoftCap 移植／arg-loop 强跳／twin retarget：遵守
+
+### 1) DIG 钉死（本拍）
+1. LIVE Cap`@0024e6` SoftCap：kind`0x30`→Cap21c8 `@0021c8`；args `rcx=node`／`edx=idx`／`r8`／`r9=buf`（4 参；prologue 存 `f8=r9`）。
+2. Isol 死 Cap21-ABI `@28f496`：prologue **3 参**（`e0=rcx`／`e8=edx`／`f0=r8`；**无** r9）；gate `kind==3` `@28f6c5`／size `@20203f` 1..255；`[rbp+0xc0]`←`@24af8b` alloc；成功路径可 `eax=1`。**无 callers**（除本拍 tip 强接）。
+3. **tip_c21k**：tip SoftCap kind`0x30` Cap21 ABI→`@28f496`＋`@28f6cc je→jmp`（force kind）＋`@28f70d→@28f712`（force size）。SoftCap lit **入 Cap21 body**（INT3：kind_ok／sz_ok／`@201f36`／`@24b171`／`@23030e`／`@204732`／path_alt／tip_after）。Compile **CG002** asm_codegen（code_len=123）；**非** LIVE；无 `0x868`。
+4. **tip_c21r**（tip_after force `eax=1`）仍 CG002 ⇒ Cap21 未写出 SoftCap 帧；假成功只跳 Capless miss，emit 仍坏。
+5. **tip_c21z**（force `eax=0` miss→Capless）仍 crc=0x1（不同 CG／patch note）。
+6. **tip_c21b**：`@28f661` 后强制 `c0=r8`（`@24af8b` 常 null）→ SoftCap lit／fwd／local **TIMEOUT**（arg-loop 形；**禁**）。INT3：set_c0 命中；其后 mid-path TIMEOUT。
+7. ⇒ Isol `@28f496` Cap`@0024e6`-class **入门可证**、**SoftCap lit emit 不可用**（死 ABI／缺 r9／alloc null／无 LIVE emit_1d8cf4 链）。禁继续 c0／arg-loop 强跳。
+8. Prior：site_claim（OK≠LIVE／run AV）／site_callmk／site_emok／site_abi_r8／calt_h3miss 证伪。Capless h3 SoftCap lit 仍至 `@46a71c`；不等路径 `@46a71e..@46a741 call @1fb0ec` AV 窗。
+
+### 2) Win SoftCap 门
+| Isol | sha12 | lit／fwd／local |
+|---|---|---|
+| tip_c21k | `81295b0d64f9` | CG002／CG002／crc=0x1 |
+| tip_c21r | `9dda65be01c5` | CG002／CG002／crc=0x1 |
+| tip_c21b | `7c8ca171e2bc` | TIMEOUT／TIMEOUT／TIMEOUT |
+| tip_c21z | — | crc=0x1（miss Capless） |
+
+### 3) 三端门
+| 端 | 结果 |
+|---|---|
+| Win SoftCap p_ret_* | **未运行绿** |
+| Darwin／Ubuntu | **未扩** |
+| PROD／钉 | **未动** |
+
+### 4) 硬 blocker
+1. Isol Cap21 `@28f496` ≠ LIVE Cap21c8 SoftCap emit（3 参／死／alloc null→path_alt）。
+2. Capless h3 SoftCap lit AV 窗 `@46a71c` 不等→`@1fb0ec`；force h3-miss→arg_loop（禁）。
+3. Ban 移植／arg-loop／twin／字母堆。
+
+### 5) 下一拍最小刀
+1. Capless h3 SoftCap lit：过 `@46a71c` **无 AV**（Isol-native 单点 equal／skip-AV；禁 arg-loop／移植）达 call-mk／`0x868`。
+2. 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 6) open
+- 笔记 `_dig/dig_tip_c21k.md`；cave tip_c21k／tip_c21r／tip_c21b／tip_c21z；logs tip_c21k.log／c21_ret.log／c21_24af.log
+- PROD SoftCap `7a2cf5da581a`／钉 ecdb5cc1e **未动**
+
+
+
 **2026-10-30 ~14:20 CST (Asia/Shanghai)** · Isol SoftCap lit call-mk／Cap`@0024e6`-class **未绿** · site_emit_pass `a102ef425fc1` 证伪（sz_bad→crc=0x1）· calt_h3miss `415edc74fca0` 证伪（TIMEOUT arg_loop）· tip_scfull／sc50f 证伪（crc=0x1／TT thin）· Isol **0** Cap`@0024e6` prologue；12×`sub rsp,0x180` none kind0x30 · tip kind0x30→Capless only · SoftCap **未绿** → 勿升 PROD／钉 ecdb5cc1e **不升**／勿收刀 · 下一拍：h3 SoftCap lit 无 AV call-mk 或 Isol 自建 Cap`@0024e6` 类（禁移植／arg-loop／twin／字母堆）
 
 
