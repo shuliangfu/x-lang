@@ -1,5 +1,57 @@
 # DIG 10.60 SoftCap PROGRESS
 
+**2026-10-30 ~15:00 CST (Asia/Shanghai)** · Capless SoftCap lit **原生入** Cap`@0024e6`-class `@576d5a`（post_alt jne；kind`@+0x45c==0x2c`）· helpers `@201eeb`/`@20cd98`/`@20203f` HIT · emit call `@201f36` **AV** · SoftCap **未绿** → 勿升 PROD／钉 **不升**／勿收刀 · 下一拍：`@201f36` SoftCap lit 无 AV（禁移植／arg-loop／twin／字母堆）
+
+
+## 2026-10-30 ~15:00 CST Asia/Shanghai — DIG Capless SoftCap lit native Cap@0024e6-class @576d5a；emit @201f36 AV
+
+### 0) 闸
+- tip HEAD `fe3bef32d`＝origin/dev（本拍前；commit 后见 tip）
+- Isol-TT `1f836615e0fc`；LIVE lit `dbaab1c7ce70`；TT lit `5b173cef1205`
+- Base h3_jesk `cfb0fae4f5d9`；plants：h4_gate `7e97f37cb781`；exit_ret `299d81d804e7`（语义短名；禁字母堆）
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／未绿请批／LEGACY／字母堆／LIVE SoftCap 移植／arg-loop 强跳／twin retarget：遵守
+
+### 1) DIG 钉死（本拍）
+1. Capless SoftCap lit（h3_jesk）：h5 early-fail→after_h5→`@200ff7`→jle `@576b7b` post_alt。
+2. post_alt：`[rbp+0x444]≠0x2c` → **jne `@576b82` HIT** → `@576d5a`（**非** std_fmt `@56d014`／`println` 路径；该路径 SoftCap lit 未走；dense INT3 多 TIMEOUT／AV，已杀）。
+3. **`@576d5a` Cap`@0024e6`-class（Isol-native SoftCap lit）**：
+   - `[rbp+0x460]≠0`；`[rbp+0x45c]==0x2c`（异于 `+0x444`）
+   - `@201eeb`（0x2c→`+0x14c`）INT3 HIT through ret
+   - `@20cd98`（kind==3）HIT ok3 `@20cdfa`
+   - `@20203f`（kind3→size `+0x120`）HIT through ret
+4. Buffer clear `@576df3..@576f47`；`call @201f36` `@576f5e` SoftCap lit **AV**；后续 `@201ea0`/`@201ddf`/`@6354f0` 未稳达。
+5. **h4_gate**（跳 `@2b49f3`）→ SoftCap lit **TIMEOUT**（禁形）。**exit_ret**（`@578273` force eax=1）仍 AV（epilogue／`@57b98c`）。post_sz 未建成（ssh 卡；已杀）。
+6. ⇒ tip_c21k 死 ABI `@28f496` 证伪后，**Capless SoftCap lit 原生抵达** 同族 Cap helpers；blocker＝emit `@201f36` AV（非 arg-loop）。
+
+### 2) Win SoftCap 门
+| Isol | sha12 | lit／fwd／local |
+|---|---|---|
+| h3_jesk | `cfb0fae4f5d9` | AV／GS／AV（基） |
+| h4_gate | `7e97f37cb781` | TIMEOUT（禁） |
+| exit_ret | `299d81d804e7` | AV |
+
+### 3) 三端门
+| 端 | 结果 |
+|---|---|
+| Win SoftCap p_ret_* | **未运行绿** |
+| Darwin／Ubuntu | **未扩** |
+| PROD／钉 | **未动** |
+
+### 4) 硬 blocker
+1. SoftCap lit Cap`@0024e6`-class emit `call @201f36` AV。
+2. 无 Isol-native SoftCap lit call-mk／`0x868` 写出。
+3. Ban 移植／arg-loop／twin／字母堆。
+
+### 5) 下一拍最小刀
+1. 单点 DIG `@201f36` SoftCap lit AV root（args／buf `@rbp+0x60`／idx）；禁 arg-loop／移植。
+2. 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 6) open
+- 笔记 `_dig/dig_post_d5a.md`；logs d5a.log／d5a2.log／d5a3.log／post_alt.log
+- PROD SoftCap `7a2cf5da581a`／钉 ecdb5cc1e **未动**
+
+
 **2026-10-30 ~14:50 CST (Asia/Shanghai)** · Capless h3 SoftCap lit **过 `@46a71c`／`@46a837` AV 窗**（h3_jesk）· h3 **ret**＋Capless h3_ok／call_h4；**AV 移 h4 `@493d31`** · SoftCap **未绿** → 勿升 PROD／钉 **不升**／勿收刀 · 下一拍：Capless h4 SoftCap lit 无 AV（禁移植／arg-loop／twin／字母堆）
 
 
