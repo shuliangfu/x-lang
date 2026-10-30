@@ -1209,3 +1209,48 @@ Isol CapFN 体内 E8 入 SoftCap mega `[0x57effc,0x58e9a0)`：**5** 处；−Δ`
 - Isol-XX `4687a4112204`＋`_dig/build_isol_xx.py`；TT／UU／VV／WW 对照保留
 - PROD SoftCap `7a2cf5da581a`／钉盘 ecdb5cc1e **未动**
 - bans unchanged
+
+## 2026-10-30 ~12:25 CST Asia/Shanghai — YY155／YY164＋Isol-AAA／DDD Win plant；Capless CapFN 证伪
+
+### 0) 闸
+- tip HEAD `38f5d2045`＝origin/dev（本拍前；commit 后见 tip）
+- Isol-TT `1f836615e0fc`；LIVE lit emit `dbaab1c7ce70`；TT lit emit `5b173cef1205`
+- Isol-AAA sha12 **`9326cde5b6af`**；Isol-DDD sha12 **`a9e70ef1595b`**
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／未绿请批／LEGACY／cave 字母堆：遵守；本拍 **只跑既有 AAA＋DDD**，未新开 isol 字母
+
+### 1) 已钉 DIG 续用
+- Isol-XX `@56d014` **证伪**（上拍）
+- **YY155**：SoftCap twin→SoftMega→bridge `@59ab11`→SoftCap-full `@57effc`：**无** CALL kind=3／CE／h_emit（真缺口非 XX）
+- **YY164**：Capless CapFN SoftCap SoftCap `@576b71` `mov eax,0; jmp exit`——kind∈{0x33,0x34} 非 kind=3；Isol-ZZ kind==3 fallthrough **证伪**；YY SoftCap-full→Capless 撞 CapFN SoftCap early-out
+- USER：Isol `lea→rcx` 后直字段读；LIVE `lea→rcx; mov edx,0xa; call mk@0x1490`；帧 thin≠`0x868`/`0x878`
+
+### 2) Win SoftCap 门（cave；本拍实跑）
+| Isol | sha12 | plant | lit emit | n868／n878 | run |
+|---|---|---|---|---|---|
+| AAA | `9326cde5b6af` | YY `@59ab11`→Capless ＋ `@576b71`→CALL body `@577c37` | `5b173cef1205`＝TT | **0／0** | **exit 1** |
+| DDD | `a9e70ef1595b` | `@576b71`＋`@576b7b`→h_emit `@578184` | `5b173cef1205`＝TT | **0／0** | **exit 1** |
+
+- fwd／local 同形 emit＝TT；`n1b8=1` thin；`ba0a=0`
+- ⇒ Capless CapFN SoftCap→CALL/VAR body／→h_emit **不改** SoftCap `p_ret_*` 用户 emit
+
+### 3) 角色钉死（续）
+1. LIVE Capless `@2967b4` 与 Isol Capless **同** kind 集（0x33／0x34／0x2c／0x3）——**无 kind=0x30**；CapFN SoftCap early-out LIVE≡Isol。Capless **不是** lit SoftCap CallExpr call-mk 权威。
+2. Tip CallExpr kind=48 → CALL handler → Capless（kind≠0x31 SoftCap twin）。AAA 的 `@577c37`＝kind==3 后 **VAR** body，非 CallExpr。
+3. Windows leftover `glue_emit_struct_type_let_init` CALL＞16（`windows_link_stubs.c`）：lea＋mov_arg＋sret_shift＋`emit_expr` —— Isol 停在 sret `lea→rcx`；LIVE 续 imm→rdx＋call mk。
+4. Capless early-out **单独**解释不了 LIVE 绿（LIVE Capless 同构）。
+
+### 4) 硬 blocker（勿收刀／勿升 PROD／勿请批）
+1. SoftCap CallExpr：**sret `lea→rcx` 后跳过 imm→rdx＋`call mk`** → exit 1；帧 thin。
+2. XX／YY／ZZ／AAA／DDD Capless／SoftMega／CapFN plants **均** emit＝TT。
+3. LIVE SoftCap 整树／mega／新 cave 字母堆 **禁**。
+
+### 5) 下一拍最小刀（单点；禁字母堆）
+1. Dig **一处**：emit_expr SoftCap flag／fast-path（Isol `@1cf074`／LIVE `@464cb`），或 CALL handler post-Capless encode（Isol `@1e20b1`／LIVE `@59ad9`）＋`cmp …,0x10`／`0xa` 选路 —— 谁在 LIVE 于 Capless 返回 0 之后写出 imm→rdx＋E8，Isol 为何不写。见 `_dig/p1060_uu/dig_earlyout_aaa_ddd_gap.md`。
+2. 仅该单点 plant Isol-TT；通后再验帧 `0x868`/`0x878`＋Darwin Cap soft＋Ubuntu tip-cold。
+3. 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 6) open
+- Isol-AAA `9326cde5b6af`／DDD `a9e70ef1595b`＋`_dig/build_isol_{aaa,ddd}.py`；笔记 `dig_earlyout_{yy155_gap,yy164_capfn,aaa_ddd_gap}.md`
+- PROD SoftCap `7a2cf5da581a`／钉盘 ecdb5cc1e **未动**
+- bans unchanged
