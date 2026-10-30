@@ -1,0 +1,76 @@
+=== A Capless entry raw @57656c ===
+  raw16=554881ec00050000488dac248000000048898d90040000488995980400004489
+  57656c: push     rbp
+  57656d: sub      rsp, 0x500
+  576574: lea      rbp, [rsp + 0x80]
+  57657c: mov      qword ptr [rbp + 0x490], rcx
+  576583: mov      qword ptr [rbp + 0x498], rdx
+  57658a: mov      dword ptr [rbp + 0x4a0], r8d
+  576591: mov      qword ptr [rbp + 0x4a8], r9
+  576598: cmp      qword ptr [rbp + 0x490], 0
+  5765a0: jne      0x5765ac
+  5765a2: mov      eax, 0xffffffff
+  5765a7: jmp      0x578278
+  5765ac: cmp      qword ptr [rbp + 0x498], 0
+  5765b4: jne      0x5765c0
+
+=== B 46a4db deep under chain_rt ===
+  calls(22)=['0x46a520', '0x46a544', '0x46a6e3', '0x46a6fc', '0x46a741', '0x46a76f', '0x46a7b3', '0x46a7d7', '0x46a824', '0x46a849', '0x46a862', '0x46a87d'] ...
+  rets=[] jmps_sample=['0x46a82b', '0x46a8a0', '0x46a90c', '0x46a975']
+  chain INT3@46a520 fwd=INT3     let=INT3    
+  chain INT3@46a544 fwd=INT3     let=INT3    
+  chain INT3@46a6e3 fwd=INT3     let=INT3    
+  chain INT3@46a6fc fwd=INT3     let=INT3    
+  chain INT3@46a741 fwd=AV       let=OK      
+  chain INT3@46a76f fwd=INT3     let=INT3    
+  chain INT3@46a7b3 fwd=INT3     let=INT3    
+  chain INT3@46a7d7 fwd=INT3     let=INT3    
+  chain INT3@46a82b fwd=INT3     let=INT3    
+  chain INT3@46a8a0 fwd=AV       let=AV      
+  chain INT3@46a90c fwd=INT3     let=INT3    
+  chain INT3@46a975 fwd=AV       let=AV      
+
+=== C plant scs_home_b0 + h2c_rt100 ===
+  [b0_h2c] sha=3af14cdc276f
+  b0_h2c/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  b0_h2c/p_ret_fwd.x    GS       USER=- run=-
+  b0_h2c/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  b0_h2c/_var_let.x     AV       USER=- run=-
+  b0_h2c INT3@2be911 scs_pop    fwd=INT3     let=INT3    
+  b0_h2c INT3@2c66a7 h2c_pop    fwd=INT3     let=INT3    
+  b0_h2c INT3@5766f1 store_2c   fwd=INT3     let=INT3    
+  b0_h2c INT3@576746 call_46    fwd=INT3     let=INT3    
+  b0_h2c INT3@57674b after_46   fwd=GS       let=INT3    
+  b0_h2c INT3@123781 caller     fwd=GS       let=TIMEOUT 
+
+=== D chain_rt stability x3 ===
+  [chain_t0] sha=91b514e1ed3b
+  chain_t0/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  chain_t0/p_ret_fwd.x    AV       USER=- run=-
+  chain_t0/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  chain_t0/_var_let.x     AV       USER=- run=-
+  [chain_t1] sha=91b514e1ed3b
+  chain_t1/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  chain_t1/p_ret_fwd.x    AV       USER=- run=-
+  chain_t1/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  chain_t1/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  [chain_t2] sha=91b514e1ed3b
+  chain_t2/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  chain_t2/p_ret_fwd.x    AV       USER=- run=-
+  chain_t2/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  chain_t2/_var_let.x     AV       USER=- run=-
+
+=== E quad homes-only SoftCap→0x68 ===
+  [quad_homes] sha=6260ca08a0ef
+  quad_homes/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  quad_homes/p_ret_fwd.x    AV       USER=- run=-
+  quad_homes/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  quad_homes/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  qhomes INT3@2be911 scs_pop    fwd=INT3     let=INT3    
+  qhomes INT3@57674b after_46   fwd=AV       let=INT3    
+  qhomes INT3@5767a5 after_493  fwd=AV       let=INT3    
+  qhomes INT3@578278 cap_epi    fwd=AV       let=INT3    
+  qhomes INT3@123781 caller     fwd=AV       let=AV      
+
+elapsed=12.6s
+cleaned

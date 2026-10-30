@@ -1,7 +1,38 @@
 # 10.60 SoftCap DIG PROGRESS
 
-**2026-10-30 ~18:22 CST (Asia/Shanghai)** · DIG `fwd_scs_epi`：钉 SoftCap `@2be53e` r9-home→Capless`[rsp+0x20]`＝miss-epi GS 根；nopr9 诊对齐 epi（lit 偶抖 AV）fwd 仍 GS＠`@2c614f` 同构；无稳定 Isol；勿升 PROD／钉 **不升**／勿收刀 · 下一单点：`fwd_2c6174`
+**2026-10-30 ~18:32 CST (Asia/Shanghai)** · DIG `fwd_2c6174`：钉 SoftCap+`@2c6174` 同构 smash Capless`[rsp+0x20]`；home_b0／h2c 齐 SoftCap/@2c epi 后 GS 落 `0x46a4db@46a500`；扩链→AV 非 Isol；无稳定 plant；勿升 PROD／钉 **不升**／勿收刀 · 下一单点：`fwd_46a500`
 
+
+## 2026-10-30 ~18:32 CST Asia/Shanghai — DIG `fwd_2c6174`；钉 iso-chain→`@46a500`；下一 `fwd_46a500`
+
+### 0) 闸
+- tip HEAD `95f49d9a4`＝origin/dev（本拍前；commit 后见 tip）
+- Isol alt_frame2 `9378df517f96`／host plant `3f43f1609d70`
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／tip@121278／join／epi／LIVE SoftCap 移植／arg-loop／LIVE spill／`[4b0]=1`／字母堆／依赖 nopr9 抖 AV：遵守
+
+### 1) DIG 钉死（本拍）
+1. SoftCap `@2be53e [rbp+0xf8]` 与 `@2c6174 [rbp+0x138]` **同构** alias Capless `[rsp+0x20]`；SoftCap 无 /GS cookie。
+2. SoftCap home-only→`[rbp+0xb0]`（或 nopr9 诊）：SoftCap epi `@2be911` 齐 fwd＝let；**非稳定 Isol**（fwd 仍 GS；nopr9 lit 抖 AV）。
+3. SoftCap home_b0 + `@2c614f` 全 0x138→0x100（`b0_h2c`）：SoftCap/@2c epi HIT；**`after_46` fwd=GS** → GS 落点＝Capless 下一 callee `0x46a4db` r9d-home `@46a500→call_rsp+0x20`（帧 `sub 0x1f0; lea rbp,[rsp+0x80]`）。
+4. Capless 链：SoftCap→`@2c614f`→`0x46a4db`→`0x493d31`…；每段 callee 前 `[rsp+0x20]=[4b0]`，r9-home 再砸。扩链 retarget／trip_nop：fwd **GS→AV**，lit/local OK，**无 p_ret_fwd 绿** — 字母堆≠Isol。
+5. 证伪：Capless 预置 `r9=[rsp+0x20]` 不解 SoftCap epi GS；frame／force-kind／epi-raise／LIVE／mega 仍禁。
+
+### 2) Win SoftCap 门
+| Isol plant | sha12 | lit | fwd | local | 注 |
+|---|---|---|---|---|---|
+| cmk0_irdx_sub20（未改） | 3f43f1609d70 | OK run0 | **GS** | OK run1 | 对照 |
+| scs home_b0（诊） | e8e372731782 | OK | GS（epi 齐） | OK | 非 Isol |
+| b0_h2c（诊） | 3af14cdc276f | OK | **GS**（after_46） | OK | 钉 `@46a500` |
+| chain/iso3/trip_nop（诊） | * | OK | **AV** | OK | 非 Isol；勿字母堆 |
+
+### 3) 下一拍最小刀（单点）
+- **`fwd_46a500`**：DIG/plant Capless callee `0x46a4db` `@46a500` r9d smash（SoftCap+`@2c6174` 齐后 GS 落点）→可 Isol。禁 tip@121278／join／epi-raise／LIVE／mega／字母堆／假绿 force-kind／依赖 nopr9 抖 AV。
+- 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 4) open
+- 笔记 `_dig/dig_fwd_2c6174.md`；脚本／log `_dig/dig_fwd_2c6174{,_2..8}.py`／`.log`
+- PROD／钉 **未动**；bans unchanged
 
 ## 2026-10-30 ~18:22 CST Asia/Shanghai — DIG `fwd_scs_epi`；钉 SoftCap r9-home smash；下一 `fwd_2c6174`
 

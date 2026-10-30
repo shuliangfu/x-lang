@@ -1,0 +1,103 @@
+=== A Capless function prol (scan back from SoftCap call) ===
+  -- @ 576500 --
+  576500: test     dword ptr [rax + 9], edi
+  576503: add      byte ptr [rax], al
+  576505: mov      dword ptr [rsp + 0x20], ecx
+  576509: mov      rcx, rax
+  57650c: call     0x570069
+  576511: test     eax, eax
+  576513: je       0x57651c
+  576515: mov      eax, 0xffffffff
+  57651a: jmp      0x576555
+  57651c: add      dword ptr [rbp + 0x934], 1
+  576523: mov      eax, dword ptr [rbp + 0x934]
+  576529: cmp      eax, dword ptr [rbp + 0x998]
+  57652f: jl       0x5763e5
+  576535: mov      ecx, 0
+  -- @ 576560 --
+  576560: cmp      eax, 0
+  576563: add      byte ptr [rax], al
+  576565: mov      dword ptr [rbx + 0xfc], eax
+  57656b: mov      dword ptr [rbp + 0x48], edx
+  57656e: sub      esp, 0x500
+  576574: lea      rbp, [rsp + 0x80]
+  57657c: mov      qword ptr [rbp + 0x490], rcx
+  576583: mov      qword ptr [rbp + 0x498], rdx
+  57658a: mov      dword ptr [rbp + 0x4a0], r8d
+  576591: mov      qword ptr [rbp + 0x4a8], r9
+  -- @ 5765a0 --
+  5765a0: jne      0x5765ac
+  5765a2: mov      eax, 0xffffffff
+  5765a7: jmp      0x578278
+  5765ac: cmp      qword ptr [rbp + 0x498], 0
+  5765b4: jne      0x5765c0
+  5765b6: mov      eax, 0xffffffff
+  5765bb: jmp      0x578278
+  5765c0: cmp      qword ptr [rbp + 0x4a8], 0
+  5765c8: jne      0x5765d4
+  5765ca: mov      eax, 0xffffffff
+  5765cf: jmp      0x578278
+  5765d4: mov      edx, dword ptr [rbp + 0x4a0]
+  -- @ 123700 --
+  123700: add      dword ptr [rax], eax
+  123702: add      cl, ch
+  123704: or       bh, byte ptr [rbx]
+  123706: add      byte ptr [rax], al
+  123708: cmp      dword ptr [rbp + 0x1f4], 0x34
+  12370f: jne      0x12374a
+  123711: mov      r9, qword ptr [rbp + 0x228]
+  123718: mov      r8d, dword ptr [rbp + 0x220]
+  12371f: mov      rdx, qword ptr [rbp + 0x218]
+  123726: mov      rax, qword ptr [rbp + 0x210]
+  12372d: mov      ecx, dword ptr [rbp + 0x230]
+  123733: mov      dword ptr [rsp + 0x20], ecx
+
+=== B 46a4db locus under chain_rt ===
+  probes=['0x46a4db', '0x46a500', '0x46a507', '0x46a520', '0x46a525', '0x46a544']
+  chain INT3@46a4db fwd=INT3     let=INT3    
+  chain INT3@46a500 fwd=INT3     let=INT3    
+  chain INT3@46a507 fwd=INT3     let=INT3    
+  chain INT3@46a520 fwd=INT3     let=INT3    
+  chain INT3@46a525 fwd=INT3     let=INT3    
+  chain INT3@46a544 fwd=INT3     let=INT3    
+
+=== C SoftCap HOME-ONLY →[rbp+0xb0] (reads stay 0xf8=[4b0]) ===
+  [home_b0] sha=e8e372731782
+  home_b0/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  home_b0/p_ret_fwd.x    GS       USER=- run=-
+  home_b0/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  home_b0/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  home_b0 INT3@scs_pop fwd=INT3 let=INT3
+
+=== D homes-only chain (no read retarget) ===
+  [homes_only] sha=594a72448209
+  homes_only/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  homes_only/p_ret_fwd.x    AV       USER=- run=-
+  homes_only/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  homes_only/_var_let.x     AV       USER=- run=-
+  homes INT3@2be911 scs_pop    fwd=INT3     let=INT3    
+  homes INT3@46a520 c46_call   fwd=INT3     let=INT3    
+  homes INT3@57674b after_46   fwd=AV       let=AV      
+  homes INT3@578278 cap_epi    fwd=AV       let=INT3    
+  homes INT3@123781 caller     fwd=AV       let=AV      
+
+=== E Capless kind gate @12377c ===
+  123760: add      byte ptr [rax - 0x75], cl
+  123763: xchg     ebp, eax
+  123764: sbb      byte ptr [rdx], al
+  123766: add      byte ptr [rax], al
+  123768: mov      rax, qword ptr [rbp + 0x210]
+  12376f: mov      ecx, dword ptr [rbp + 0x230]
+  123775: mov      dword ptr [rsp + 0x20], ecx
+  123779: mov      rcx, rax
+  12377c: call     0x57656c
+  123781: mov      dword ptr [rbp + 0x1f0], eax
+  123787: jmp      0x127212
+  12378c: cmp      dword ptr [rbp + 0x1f4], 0x31
+  123793: jne      0x1237ce
+  123795: mov      r9, qword ptr [rbp + 0x228]
+  12379c: mov      r8d, dword ptr [rbp + 0x220]
+  1237a3: mov      rdx, qword ptr [rbp + 0x218]
+
+elapsed=2.2s
+cleaned

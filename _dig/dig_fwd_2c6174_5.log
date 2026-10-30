@@ -1,0 +1,59 @@
+scs 0xf8 sites=['0x2be53e', '0x2be7f5', '0x2be832', '0x2be850']
+h2c 0x138 sites=['0x2c6174', '0x2c618f', '0x2c6514', '0x2c654c', '0x2c6668']
+c46 0x198 sites=['0x46a500', '0x46a8ba']
+
+=== A chain_rt scs→0xb0 h2c→0x100 c46→0x160 ===
+  [chain_rt] sha=d920ae1c4538
+  chain_rt/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  chain_rt/p_ret_fwd.x    AV       USER=- run=-
+  chain_rt/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  chain_rt/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  chain INT3@2be911 scs_pop    fwd=INT3     let=INT3    
+  chain INT3@57674b after_46   fwd=AV       let=INT3    
+  chain INT3@5767a0 call_493   fwd=AV       let=AV      
+  chain INT3@578278 cap_epi    fwd=AV       let=AV      
+  chain INT3@123781 caller     fwd=AV       let=TIMEOUT 
+
+=== B triple nop ===
+  nop 2be53e mov qword ptr [rbp + 0xf8], r9
+  nop 2c6174 mov qword ptr [rbp + 0x138], r9
+  nop 46a500 mov dword ptr [rbp + 0x198], r9d
+  [triple] sha=c3af3c34410d
+  triple/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  triple/p_ret_fwd.x    AV       USER=- run=-
+  triple/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  triple/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  triple INT3@2be911 scs_pop    fwd=INT3     let=INT3    
+  triple INT3@57674b after_46   fwd=AV       let=AV      
+  triple INT3@578278 cap_epi    fwd=AV       let=AV      
+  triple INT3@123781 caller     fwd=AV       let=TIMEOUT 
+
+=== C 0x493d31 prol ===
+  493d31: push     rbp
+  493d32: sub      rsp, 0x260
+  493d39: lea      rbp, [rsp + 0x80]
+  493d41: mov      qword ptr [rbp + 0x1f0], rcx
+  493d48: mov      qword ptr [rbp + 0x1f8], rdx
+  493d4f: mov      dword ptr [rbp + 0x200], r8d
+  493d56: mov      qword ptr [rbp + 0x208], r9
+  493d5d: mov      dword ptr [rbp + 0x1c0], 0
+  493d67: mov      qword ptr [rbp - 0x60], 0
+
+=== D quad chain if 493 isomorphic ===
+  sub=rsp, 0x260 lea=rbp, [rsp + 0x80] r9=qword ptr [rbp + 0x208], r9
+  r9 home disp=0x208 raw=4c898d08020000
+  alias_off_from_call_rsp=0x20 (want 0x20)
+  493 sites=['0x493d56', '0x493e91', '0x49420c', '0x49424f']
+  493 retarget 0x208→0x1d0
+  [quad_rt] sha=93585a0c43e3
+  quad_rt/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  quad_rt/p_ret_fwd.x    AV       USER=- run=-
+  quad_rt/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  quad_rt/_var_let.x     AV       USER=- run=-
+  quad INT3@2be911 scs_pop    fwd=INT3     let=INT3    
+  quad INT3@5767a5 after_493  fwd=AV       let=INT3    
+  quad INT3@578278 cap_epi    fwd=AV       let=INT3    
+  quad INT3@123781 caller     fwd=AV       let=TIMEOUT 
+
+elapsed=26.6s
+cleaned

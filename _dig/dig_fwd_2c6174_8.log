@@ -1,0 +1,73 @@
+=== A 46a4db 0x198 sites widen ===
+  disasm500=['0x46a500', '0x46a8ba']
+  raw2000=['0x46a501', '0x46a8ba']
+
+=== B @46a730 context ===
+  46a720: test     dword ptr [rcx + rax], ebp
+  46a723: add      byte ptr [rax], al
+  46a725: mov      ecx, dword ptr [rbp + 0x1a8]
+  46a72b: mov      edx, dword ptr [rbp + 0x190]
+  46a731: mov      rax, qword ptr [rbp + 0x188]
+  46a738: mov      r9d, r8d
+  46a73b: mov      r8d, ecx
+  46a73e: mov      rcx, rax
+  46a741: call     0x1fb0ec
+  46a746: test     eax, eax
+  46a748: jne      0x46a756
+  46a74a: mov      eax, dword ptr [rbp + 0x12c]
+  46a750: mov      dword ptr [rbp + 0x16c], eax
+  46a756: mov      ecx, dword ptr [rbp + 0x1a8]
+  46a75c: mov      edx, dword ptr [rbp + 0x190]
+  46a762: mov      rax, qword ptr [rbp + 0x188]
+  46a769: mov      r8d, ecx
+  46a76c: mov      rcx, rax
+  46a76f: call     0x1fb198
+  46a774: mov      dword ptr [rbp + 0x134], eax
+
+=== C plant iso3: scs_home_b0 + h2c_rt + c46wide_rt ===
+  [iso3] sha=9c4781748832
+  iso3/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  iso3/p_ret_fwd.x    AV       USER=- run=-
+  iso3/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  iso3/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  iso3 INT3@2be911 scs_pop    fwd=INT3     let=INT3    
+  iso3 INT3@57674b after_46   fwd=AV       let=INT3    
+  iso3 INT3@46a741 c46_741    fwd=AV       let=OK      
+  iso3 INT3@5767a0 call_493   fwd=AV       let=INT3    
+  iso3 INT3@5767a5 after_493  fwd=AV       let=INT3    
+  iso3 INT3@578278 cap_epi    fwd=AV       let=INT3    
+  iso3 INT3@123781 caller     fwd=AV       let=AV      
+
+=== D plant iso4: iso3 + 493 rt ===
+  493 sites=['0x493d57', '0x493e92', '0x49420d', '0x494250', '0x494a62', '0x494f1d', '0x4951a3']
+  [iso4] sha=4f3057696285
+  iso4/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  iso4/p_ret_fwd.x    AV       USER=- run=-
+  iso4/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  iso4/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  iso4 INT3@2be911 scs_pop    fwd=INT3     let=INT3    
+  iso4 INT3@57674b after_46   fwd=AV       let=AV      
+  iso4 INT3@5767a5 after_493  fwd=AV       let=AV      
+  iso4 INT3@578278 cap_epi    fwd=AV       let=AV      
+  iso4 INT3@123781 caller     fwd=AV       let=TIMEOUT 
+
+=== E triple home-nop (DIG) ===
+  nop 2be53e sz=7 mov qword ptr [rbp + 0xf8], r9
+  nop 2c6174 sz=7 mov qword ptr [rbp + 0x138], r9
+  nop 46a500 sz=7 mov dword ptr [rbp + 0x198], r9d
+  [trip_nop] sha=c3af3c34410d
+  trip_nop/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  trip_nop/p_ret_fwd.x    AV       USER=- run=-
+  trip_nop/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  trip_nop/_var_let.x     AV       USER=- run=-
+  trip INT3@2be911 scs_pop    fwd=INT3     let=INT3    
+  trip INT3@57674b after_46   fwd=AV       let=INT3    
+  trip INT3@5767a5 after_493  fwd=AV       let=INT3    
+  trip INT3@123781 caller     fwd=AV       let=AV      
+
+=== F Capless after SoftCap success path summary ===
+  SoftCap@576692 → @2c614f@5766ec → 0x46a4db@576746 → 0x493d31@5767a0 → ... → epi@578278
+  each lea-frame r9 home aliases Capless[rsp+0x20] ISOMORPHIC smash chain
+
+elapsed=11.1s
+cleaned

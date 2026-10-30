@@ -1,0 +1,56 @@
+=== A SoftCap kind/miss path ===
+  2be700: add      byte ptr [rbx], dh
+  2be702: jne      0x2be72b
+  2be704: mov      dword ptr [rbp + 0xcc], 1
+  2be70e: mov      edx, dword ptr [rbp + 0xf0]
+  2be714: mov      rax, qword ptr [rbp + 0xe0]
+  2be71b: mov      rcx, rax
+  2be71e: call     0x201d9f
+  2be723: mov      dword ptr [rbp + 0xc8], eax
+  2be729: jmp      0x2be74a
+  2be72b: cmp      dword ptr [rbp + 0xc4], 3
+  2be732: je       0x2be73e
+  2be734: mov      eax, 0
+  2be739: jmp      0x2be90a
+  2be73e: mov      eax, dword ptr [rbp + 0xf0]
+  2be744: mov      dword ptr [rbp + 0xc8], eax
+  2be74a: cmp      dword ptr [rbp + 0xc8], 0
+  2be751: jg       0x2be75d
+  2be753: mov      eax, 1
+  2be758: jmp      0x2be90a
+  2be75d: mov      edx, dword ptr [rbp + 0xc8]
+  2be763: mov      rax, qword ptr [rbp + 0xe0]
+  2be76a: mov      rcx, rax
+  2be76d: call     0x20cd98
+  2be772: mov      dword ptr [rbp + 0xc4], eax
+  2be778: cmp      dword ptr [rbp + 0xc4], 3
+--- miss target region ---
+  2be720: hlt      
+  2be722: dec      dword ptr [rcx + 0xc885]
+  2be728: add      bl, ch
+
+=== B callee 0x46a4db prol ===
+  46a4db: push     rbp
+  46a4dc: sub      rsp, 0x1f0
+  46a4e3: lea      rbp, [rsp + 0x80]
+  46a4eb: mov      qword ptr [rbp + 0x180], rcx
+  46a4f2: mov      qword ptr [rbp + 0x188], rdx
+  46a4f9: mov      dword ptr [rbp + 0x190], r8d
+  46a500: mov      dword ptr [rbp + 0x198], r9d
+  46a507: mov      ecx, dword ptr [rbp + 0x1a8]
+  46a50d: mov      edx, dword ptr [rbp + 0x190]
+  46a513: mov      rax, qword ptr [rbp + 0x188]
+  46a51a: mov      r8d, ecx
+  46a51d: mov      rcx, rax
+  46a520: call     0x1fe04d
+  46a525: mov      dword ptr [rbp + 0x150], eax
+
+=== C plant rt_all: SoftCap 0xf8→0xb0 (all sites) + @2c 0x138→0x100 (all) ===
+  scs@2be53e raw=4c898df8000000
+  scs@2be7f5 raw=488b95f8000000
+  scs@2be832 raw=4883bdf800000000
+Traceback (most recent call last):
+  File "C:\xlang_tmp\p1060\cave\dig_fwd_2c6174_3.py", line 104, in <module>
+    assert old==0xf8, (hex(rva),old)
+           ^^^^^^^^^
+AssertionError: ('0x2be832', 0)

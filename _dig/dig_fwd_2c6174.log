@@ -1,0 +1,158 @@
+=== A @2c614f prol / homes / cookie hunt ===
+  2c614f: push     rbp
+  2c6150: sub      rsp, 0x190
+  2c6157: lea      rbp, [rsp + 0x80]
+  2c615f: mov      qword ptr [rbp + 0x120], rcx
+  2c6166: mov      qword ptr [rbp + 0x128], rdx
+  2c616d: mov      dword ptr [rbp + 0x130], r8d
+  2c6174: mov      qword ptr [rbp + 0x138], r9
+  2c617b: cmp      qword ptr [rbp + 0x120], 0
+  2c6183: je       0x2c61a2
+  2c6185: cmp      qword ptr [rbp + 0x128], 0
+  2c618d: je       0x2c61a2
+  2c618f: cmp      qword ptr [rbp + 0x138], 0
+  2c6197: je       0x2c61a2
+  2c6199: cmp      dword ptr [rbp + 0x130], 0
+  2c61a0: jg       0x2c61ac
+  2c61a2: mov      eax, 0
+  2c61a7: jmp      0x2c66a0
+  2c61ac: mov      edx, dword ptr [rbp + 0x130]
+  2c61b2: mov      rax, qword ptr [rbp + 0x120]
+  2c61b9: mov      rcx, rax
+  2c61bc: call     0x20cd98
+  2c61c1: mov      dword ptr [rbp + 0xf4], eax
+  2c61c7: cmp      dword ptr [rbp + 0xf4], 0x30
+
+=== B frame math ===
+  SoftCap [rbp+0xf8] = call_rsp+0x20 = Capless [rsp+0x20]
+  @2c614f [rbp+0x138] = call_rsp+0x20 = Capless [rsp+0x20]  (isomorphic)
+
+=== C cookie-call near SoftCap/@2c epis ===
+  scs_epi 2be8ea: call     0x524944
+  h2c_epi 2c668b: call     0x25f72e
+  cap_epi 578273: call     0x57b98c
+
+=== C2 SoftCap epi dump ===
+  2be8e0: add      byte ptr [rbp - 0x77], al
+  2be8e3: rol      dword ptr [rcx - 0x77], 0xc8
+  2be8e7: mov      rcx, rax
+  2be8ea: call     0x524944
+  2be8ef: mov      dword ptr [rbp + 0xb8], eax
+  2be8f5: cmp      dword ptr [rbp + 0xb8], 0
+  2be8fc: je       0x2be905
+  2be8fe: mov      eax, 0xffffffff
+  2be903: jmp      0x2be90a
+  2be905: mov      eax, 0
+  2be90a: add      rsp, 0x150
+  2be911: pop      rbp
+  2be912: ret      
+  2be913: push     rbp
+  2be914: mov      rbp, rsp
+  2be917: sub      rsp, 0x20
+  2be91b: mov      dword ptr [rbp + 0x10], ecx
+  2be91e: call     0x2bd991
+  2be923: mov      edx, eax
+
+=== C3 @2c614f epi dump ===
+  2c6660: add      dword ptr [rax], eax
+  2c6663: add      byte ptr [rcx + 0x4838244c], cl
+  2c6669: mov      ecx, dword ptr [rbp + 0x138]
+  2c666f: mov      qword ptr [rsp + 0x30], rcx
+  2c6674: mov      ecx, dword ptr [rbp + 0x150]
+  2c667a: mov      dword ptr [rsp + 0x28], ecx
+  2c667e: mov      ecx, dword ptr [rbp + 0x148]
+  2c6684: mov      dword ptr [rsp + 0x20], ecx
+  2c6688: mov      rcx, rax
+  2c668b: call     0x25f72e
+  2c6690: test     eax, eax
+  2c6692: je       0x2c669b
+  2c6694: mov      eax, 0
+  2c6699: jmp      0x2c66a0
+  2c669b: mov      eax, 1
+  2c66a0: add      rsp, 0x190
+  2c66a7: pop      rbp
+  2c66a8: ret      
+  2c66a9: push     rbp
+
+=== D Capless SoftCap-call → post-2c → epi ===
+  576660: leave    
+  576662: dec      dword ptr [rcx + 0x45c85]
+  576668: add      byte ptr [rbx + rcx*4 - 0x73], cl
+
+elapsed_partial=0.0s
+
+=== E dual-nop Capless post-2c locus ===
+  dual sha=7a17f9ce5df9
+  dual/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  dual/p_ret_fwd.x    GS       USER=- run=-
+  dual/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  dual/_var_let.x     AV       USER=- run=-
+
+=== E2 Capless @5766f0 dump (find real addrs) ===
+  5766e0: lea      esi, [rax - 0x76fffffc]
+  5766e6: and      al, 0x20
+  5766e9: mov      rcx, rax
+  5766ec: call     0x2c614f
+  5766f1: mov      dword ptr [rbp + 0x454], eax
+  5766f7: cmp      dword ptr [rbp + 0x454], 0
+  5766fe: jns      0x57670a
+  576700: mov      eax, 0xffffffff
+  576705: jmp      0x578278
+  57670a: cmp      dword ptr [rbp + 0x454], 0
+  576711: jle      0x57671d
+  576713: mov      eax, 0
+  576718: jmp      0x578278
+  57671d: mov      r9, qword ptr [rbp + 0x4a8]
+  576724: mov      r8d, dword ptr [rbp + 0x4a0]
+  57672b: mov      rdx, qword ptr [rbp + 0x498]
+  576732: mov      rax, qword ptr [rbp + 0x490]
+  576739: mov      ecx, dword ptr [rbp + 0x4b0]
+  57673f: mov      dword ptr [rsp + 0x20], ecx
+  576743: mov      rcx, rax
+  576746: call     0x46a4db
+  57674b: mov      dword ptr [rbp + 0x450], eax
+  576751: cmp      dword ptr [rbp + 0x450], 0
+  576758: jns      0x576764
+  57675a: mov      eax, 0xffffffff
+  57675f: jmp      0x578278
+  576764: cmp      dword ptr [rbp + 0x450], 0
+  57676b: jle      0x576777
+  57676d: mov      eax, 0
+  576772: jmp      0x578278
+  576777: mov      r9, qword ptr [rbp + 0x4a8]
+  57677e: mov      r8d, dword ptr [rbp + 0x4a0]
+  576785: mov      rdx, qword ptr [rbp + 0x498]
+  57678c: mov      rax, qword ptr [rbp + 0x490]
+  576793: mov      ecx, dword ptr [rbp + 0x4b0]
+  576799: mov      dword ptr [rsp + 0x20], ecx
+  57679d: mov      rcx, rax
+  5767a0: call     0x493d31
+  5767a5: mov      dword ptr [rbp + 0x44c], eax
+  5767ab: cmp      dword ptr [rbp + 0x44c], 0
+  5767b2: jns      0x5767be
+  5767b4: mov      eax, 0xffffffff
+  5767b9: jmp      0x578278
+  5767be: cmp      dword ptr [rbp + 0x44c], 0
+  5767c5: jle      0x5767d1
+  5767c7: mov      eax, 0
+  5767cc: jmp      0x578278
+  5767d1: mov      r9, qword ptr [rbp + 0x4a8]
+  5767d8: mov      r8d, dword ptr [rbp + 0x4a0]
+  5767df: mov      rdx, qword ptr [rbp + 0x498]
+  5767e6: mov      rax, qword ptr [rbp + 0x490]
+
+=== E3 INT3 probes under dual (12) ===
+  dual INT3@5766e0 fwd=GS       let=AV      
+  dual INT3@5766f1 fwd=INT3     let=INT3    
+  dual INT3@5766f7 fwd=INT3     let=INT3    
+  dual INT3@576700 fwd=GS       let=AV      
+  dual INT3@576705 fwd=GS       let=OK      
+  dual INT3@576718 fwd=GS       let=AV      
+  dual INT3@576746 fwd=INT3     let=INT3    
+  dual INT3@57675f fwd=GS       let=OK      
+  dual INT3@576772 fwd=GS       let=AV      
+  dual INT3@5767a0 fwd=GS       let=AV      
+  dual INT3@5767b9 fwd=GS       let=AV      
+  dual INT3@5767cc fwd=GS       let=OK      
+
+elapsed=1.8s (part E done)

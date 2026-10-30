@@ -1,0 +1,66 @@
+=== A SoftCap prol full ===
+  2be519: push     rbp
+  2be51a: sub      rsp, 0x150
+  2be521: lea      rbp, [rsp + 0x80]
+  2be529: mov      qword ptr [rbp + 0xe0], rcx
+  2be530: mov      qword ptr [rbp + 0xe8], rdx
+  2be537: mov      dword ptr [rbp + 0xf0], r8d
+  2be53e: mov      qword ptr [rbp + 0xf8], r9
+  2be545: mov      dword ptr [rbp + 0xc4], 0
+  2be54f: mov      dword ptr [rbp + 0xcc], 0
+  2be559: mov      dword ptr [rbp + 0xc8], 0
+  2be563: mov      dword ptr [rbp + 0xc0], 0
+  2be56d: mov      qword ptr [rbp - 0x50], 0
+  2be575: mov      qword ptr [rbp - 0x48], 0
+  2be57d: mov      qword ptr [rbp - 0x40], 0
+  2be585: mov      qword ptr [rbp - 0x38], 0
+  2be58d: mov      qword ptr [rbp - 0x30], 0
+  2be595: mov      qword ptr [rbp - 0x28], 0
+  2be59d: mov      qword ptr [rbp - 0x20], 0
+  2be5a5: mov      qword ptr [rbp - 0x18], 0
+  2be5ad: mov      qword ptr [rbp - 0x10], 0
+  2be5b5: mov      qword ptr [rbp - 8], 0
+  2be5bd: mov      qword ptr [rbp], 0
+  2be5c5: mov      qword ptr [rbp + 8], 0
+  2be5cd: mov      qword ptr [rbp + 0x10], 0
+  2be5d5: mov      qword ptr [rbp + 0x18], 0
+  2be5dd: mov      qword ptr [rbp + 0x20], 0
+  2be5e5: mov      qword ptr [rbp + 0x28], 0
+  2be5ed: mov      qword ptr [rbp + 0x30], 0
+  2be5f5: mov      qword ptr [rbp + 0x38], 0
+  2be5fd: mov      qword ptr [rbp + 0x40], 0
+  2be605: mov      qword ptr [rbp + 0x48], 0
+  2be60d: mov      qword ptr [rbp + 0x50], 0
+  2be615: mov      qword ptr [rbp + 0x58], 0
+  2be61d: mov      qword ptr [rbp + 0x60], 0
+  2be625: mov      qword ptr [rbp + 0x68], 0
+  2be62d: mov      qword ptr [rbp + 0x70], 0
+
+=== B miss-path hit check ===
+  INT3@2be734(miss) fwd=INT3 let=INT3
+  INT3@2be739(jepi) fwd=INT3 let=INT3
+
+=== C 46a4db smash math ===
+  [rbp+0x198] = call_rsp+0x20 = Capless[rsp+0x20] (r9d home) ISOMORPHIC
+  46a500: mov      dword ptr [rbp + 0x198], r9d sz=7
+  46a8ba: mov      eax, dword ptr [rbp + 0x198] sz=6
+
+=== D plant chain_rt: scs+2c+46a4db retarget ===
+  scs 2be53e mov →0xb0
+  scs 2be7f5 mov →0xb0
+  scs 2be832 cmp →0xb0
+  scs 2be850 mov →0xb0
+  h2c 2c6174 mov →0x100
+  h2c 2c618f cmp →0x100
+  h2c 2c6514 mov →0x100
+  h2c 2c654c mov →0x100
+  h2c 2c6668 mov →0x100
+  c46 46a500 mov →0x160
+Traceback (most recent call last):
+  File "C:\xlang_tmp\p1060\cave\dig_fwd_2c6174_4.py", line 129, in <module>
+    ins=patch_disp32(pe,insn.address,0x198,0x160); P(f"  c46 {ins.address:06x} {ins.mnemonic} ��0x160")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\xlang_tmp\p1060\cave\dig_fwd_2c6174_4.py", line 76, in patch_disp32
+    assert cur==old_disp, (hex(rva),hex(cur),hex(old_disp),ins.mnemonic,ins.op_str,bytes(pe[o:o+ins.size]).hex())
+           ^^^^^^^^^^^^^
+AssertionError: ('0x46a8ba', '-0x76ffffff', '0x198', 'mov', 'eax, dword ptr [rbp + 0x198]', '8b8598010000')
