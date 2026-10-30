@@ -776,3 +776,71 @@ Isol CapFN 体内 E8 入 SoftCap mega `[0x57effc,0x58e9a0)`：**5** 处；−Δ`
 - Path-C′′ DIG root cause nailed; no isol binary this shot
 - next: Capless-slot E8 retarget 9 sites → `@0x57656c` + run gates
 - PROD／nail untouched; bans unchanged
+
+## 2026-10-30 ~08:51 CST Asia/Shanghai — Isol-QQ/RR Capless-slot retarget + gates
+
+### 0) 闸
+- tip HEAD `b764da9c8`＝origin/dev（开拍）
+- Isol-G `7701dac5b813` → Isol-QQ `ddcedcc6d596` → Isol-RR `1c3119231383`
+- PROD SoftCap `7a2cf5da581a` **未动**（p_ret_lit 仍 CG002 code_len=0）／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega 主刀／假绿／LEGACY：遵守
+
+### 1) Isol-QQ：Capless-slot 9× `@0x59aa08`→`@0x57656c`
+- sites：`0x12377c 0x126cda 0x128402 0x1d9a89 0x1d9c8b 0x1d9d0e 0x1da455 0x1dd9b3 0x270317`
+- 改挂后 Capless callers=9；stub `@0x59aa08` callers=0
+- **p_ret_{lit,fwd,local} 编译仍 AV `0xC0000005`**（与 Isol-G 同形）
+
+### 2) DIG：Capless 本体内部盲 Δ 错靶（QQ 后 AV 根因）
+- Capless `@0x57656c` ≅ LIVE `@0x2967b4`：**整段 span `0x1d10` 除 E8/E9 rel32 外 0 mismatch**
+- 外部 helper 多数已 remap 到 Isol 真 prol（match_delta=False, prolish）
+- **盲 +DELTA 错靶（落非 prol／非 Capless 内标）7：**
+
+| LIVE tgt | Isol broken | Capless call site | RR remap → Isol iso |
+|---|---|---|---|
+| `@0x28e9c0` | `@0x56e778` | `@0x576692` | `@0x231334` |
+| `@0x28eeb6` | `@0x56ec6e` | `@0x5766ec` | `@0x2c614f` |
+| `@0x28fb43` | `@0x56f8fb` | `@0x576746` | `@0x46a4db` |
+| `@0x291256` | `@0x57100e` | `@0x5767a0` | `@0x29aefb` |
+| `@0x293080` | `@0x572e38` | `@0x5767fa` | `@0x49c90f` |
+| `@0x2822e2` | `@0x56209a` | `@0x576a47` | `@0x5e5d7d` |
+| `@0x29ac14` | `@0x57a9cc` | `@0x577405` | `@0x495fa7` |
+
+- Isol gap `@0x56e778..@0x57656c`（span=`0x7df4`＝LIVE 家族窗）**非 CC 空洞**，禁整树 plant 覆盖。
+
+### 3) Isol-RR：Capless-slot + 7× internal callee E8 改挂
+- sha12 **`1c3119231383`**（Win `C:/xlang_tmp/p1060/cave/xlang_isol1060_RR.exe`）
+- **编译门：p_ret_lit/fwd/local 全 c=0**（AV 清）
+- **运行门（未绿）：**
+
+| probe | compile | emit sha12 | run |
+|---|---|---|---|
+| p_ret_lit | 0 | `cf747d6b5129`（≠LIVE `dbaab1c7ce70`） | exit `0x6ea2f8a8`（非 0/1/2/3） |
+| p_ret_fwd | 0 | `426aec23c78d` | AV `0xC0000005` |
+| p_ret_local | 0 | `301576854809` | illegal `0xC000001D` |
+
+- LIVE 同探针：c=0 r=0 emit `dbaab1c7ce70` size 58766；RR lit size 58254；entry@0x1440 头近同（仅一处 jmp disp 异）。
+
+### 4) 三端门
+| 端 | 结果 |
+|---|---|
+| Win SoftCap Isol-RR `p_ret_*` | **编译绿／运行未绿**（上表） |
+| Win PROD SoftCap `7a2cf5da581a` | p_ret_lit **仍 CG002**（未动） |
+| Darwin tip Cap soft | p_ret_lit/fwd/local **r=0**；i32 ret_* **7** ✅ |
+| Ubuntu tip（`compiler/xlang` sha12 `ea9ddf4eb937`，HEAD `b764da9c8`） | p_ret_* **r=0**；i32 **7** ✅；`./xbuild build` tip-cold **FAIL**（`pipeline_asm_emit_return_elf_impl_prev` undef）— 真 RC 用既有 tip 二进制，非纯-ld 冷链 |
+
+### 5) 硬 blocker（不可请批／勿收刀／勿升 PROD）
+1. Isol-RR 运行未绿：lit 错 exit／fwd AV／local illegal；emit ≠ LIVE。
+2. Capless 家族窗 helper 未 plant；RR remap 为弱同构（score 29–89B）— 可能仍错 ABI／语义。
+3. PAIR-slot 9× 仍挂 SoftCap stub `@0x57ef78`；LIVE PAIR `@0x289dcb` Isol **缺席**（本拍未主刀）。
+4. Ubuntu tip-cold pure-ld 断链（`_prev` undef）— 与 SoftCap 运行绿无关，另记。
+
+### 6) 下一拍最小刀
+1. **emit DIG：** Isol-RR vs LIVE `p_ret_lit` 反汇编差（sret park／rs_copy／fwd）；定位错 emit 是否仍经 PAIR-slot／mega。
+2. 或：**PAIR-slot** 9× 寻替代同构／最小补（禁 mega 主刀／禁 LIVE 整树）。
+3. 或：Capless 盲 Δ 靶改为 **高分同构校验 + 单点 plant 缺口 helper**（仅缺的 7，非整树）。
+4. 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 7) open
+- Isol-QQ/RR 二进制在 Win cave；PROD／nail untouched
+- Darwin／Ubuntu tip p_ret 仍绿；Win SoftCap 运行门红
+- bans unchanged
