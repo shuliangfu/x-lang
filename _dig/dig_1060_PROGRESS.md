@@ -1,5 +1,49 @@
 # DIG 10.60 SoftCap PROGRESS
 
+**2026-10-30 ~15:10 CST (Asia/Shanghai)** · SoftCap lit emit `call @201f36` **AV root 钉死：非 @201f36 内**（entry→ret HIT；args `node@+0x490`／`idx@+0x424`／`buf@+0x60` OK）· AV＝Capless **返回后**（`@201ea0`／`@201ddf`）· SoftCap **未绿** → 勿升 PROD／钉 **不升**／勿收刀 · 下一拍：post-`@201f36` SoftCap lit AV（`@201ddf`/+0x150）单点；禁长挂／移植／arg-loop／twin／字母堆
+
+
+## 2026-10-30 ~15:10 CST Asia/Shanghai — DIG SoftCap lit emit @201f36 AV root；完成非内 AV
+
+### 0) 闸
+- tip HEAD `a783501e1`＝origin/dev（本拍前；commit 后见 tip）
+- Base h3_jesk `cfb0fae4f5d9`；短超时 INT3（已杀 run_scsite 长挂）
+- PROD SoftCap `7a2cf5da581a` **未动**／钉 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／未绿请批／LEGACY／字母堆／LIVE SoftCap 移植／arg-loop／twin：遵守
+
+### 1) DIG 钉死（本拍）
+1. Caller `@576f47`：`buf=[rbp+0x60]`／`idx=[rbp+0x424]`／`node=[rbp+0x490]` → `call @201f36`。
+2. SoftCap lit `@201f36`：**entry→save args→lookup→load+120→memset→memcpy+20→ret 全 HIT**。
+3. Call-site `@576f5e`／after `@576f63` INT3→AV＝plant／返回后现象；**非** `@201f36` 体内 AV。
+4. ⇒ SoftCap lit Cap emit copy **成功**；blocker＝Capless post-return（`@201ddf` `node+0x150`／size`+0x250` 先前 DIG AV；skip→T001≠绿）。
+5. 已杀卡住 `run_scsite`／ssh；勿再开长挂探测。
+
+### 2) Win SoftCap 门
+| Isol | sha12 | lit |
+|---|---|---|
+| h3_jesk | `cfb0fae4f5d9` | AV（基；@201f36 内完成） |
+
+### 3) 三端门
+| 端 | 结果 |
+|---|---|
+| Win SoftCap p_ret_* | **未运行绿** |
+| Darwin／Ubuntu | **未扩** |
+| PROD／钉 | **未动** |
+
+### 4) 硬 blocker
+1. SoftCap lit Capless AV **after** `@201f36`（`@201ddf` 路径）。
+2. 无 Isol-native SoftCap lit call-mk／`0x868` 写出。
+3. Ban 移植／arg-loop／twin／字母堆／长挂。
+
+### 5) 下一拍最小刀
+1. 单点 DIG SoftCap lit post-`@201f36` AV（`@201ddf`／+0x150）；短超时；禁长挂。
+2. 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 6) open
+- 笔记 `_dig/dig_f36_av.md`；log f36root.log／f36.log
+- PROD SoftCap `7a2cf5da581a`／钉 ecdb5cc1e **未动**
+
+
 **2026-10-30 ~15:00 CST (Asia/Shanghai)** · Capless SoftCap lit **原生入** Cap`@0024e6`-class `@576d5a`（post_alt jne；kind`@+0x45c==0x2c`）· helpers `@201eeb`/`@20cd98`/`@20203f` HIT · emit call `@201f36` **AV** · SoftCap **未绿** → 勿升 PROD／钉 **不升**／勿收刀 · 下一拍：`@201f36` SoftCap lit 无 AV（禁移植／arg-loop／twin／字母堆）
 
 
