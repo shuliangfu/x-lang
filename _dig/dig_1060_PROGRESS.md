@@ -985,3 +985,80 @@ Isol CapFN 体内 E8 入 SoftCap mega `[0x57effc,0x58e9a0)`：**5** 处；−Δ`
 - Isol-SS `4e35dff4d102`＋`_dig/build_isol_ss.py`／`_dig/p1060_ss/`；PAIR 证伪记录在案
 - PROD SoftCap `7a2cf5da581a`／钉盘 ecdb5cc1e **未动**
 - bans unchanged
+
+## 2026-10-30 ~09:13 CST Asia/Shanghai — encoder／frame_size 落点 DIG + Isol-TT LEA plant
+
+### 0) 闸
+- tip HEAD `eed82f362`＝origin/dev（本拍自 tip 续）
+- LIVE SoftCap host `lab_LIVE_pret.exe` sha12 `cbc0d8e8d96f`；LIVE lit emit sha12 `dbaab1c7ce70`
+- Isol-G `7701dac5b813`／Isol-SS `4e35dff4d102`／**Isol-TT `1f836615e0fc`**（Win `C:/xlang_tmp/p1060/cave/xlang_isol1060_TT.exe`）
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega 主刀／假绿／未绿请批／LEGACY／整树／cave 字母堆：遵守
+- 本拍：encoder／frame_size 落点 DIG 钉死；最小缺口 → 单点 LEA opcode-blob plant（Isol-TT）；未 SoftCap 运行绿 → **勿收刀**
+
+### 1) tip 源 vs Isol／LIVE 二进制 encoder 形
+| 层 | mov_rbx_to_rax | load_64_from_rax |
+|---|---|---|
+| tip 源 `x86_64_enc.x` | `buf=[72,137,216]` + `append_elf_bytes` | `buf=[72,139,0]` + append |
+| LIVE SoftCap 薄包装 | `@0x26ceeb`：`lea rdx,[rip+0xfc472]` → **.rdata** `48 89 d8`；`x86_enc_bytes(...,3)` | `@0x26d4b5`：`lea rdx,[rip+0xfbede]` → **.rdata** `48 8b 00` |
+| Isol Capless 同形薄包装 | `@0x513828`：**同 displ `0xfc472`** → **.text** `@0x60fcbb`＝**`e9 00 00`** | `@0x5149d4`：**同 displ `0xfbede`** → **.text** `@0x6108d3`＝**`a8 fe ff`** |
+| Isol tmpl 写入器 | `@0x51569c`／`@0x5156ec` 正确 imm→`[rbx]`（Capless **不**直调作用户 emit） | — |
+
+- Isol `.rdata` **无** LIVE 同位 opcode 池（LIVE rdata off `0x2437e` 超出 Isol rdata 尺寸）→ 冻结 RIP displ 落进 .text 中部（同 10.54 SoftCap opcode-table LEA 误指症候）。
+- Capless `@0x57656c` BFS：**depth 2 即达** `@0x513828`／`@0x5149d4` → **用户 emit 链确走坏 LEA 薄包装**（非 tip 源立即数错）。
+- Isol 全库 `lea rdx,[rip]; mov r8d,3; call append` 扫描：len=3 目标中 **仅 2 处 BAD**（`e90000`／`a8feff`）；LIVE 同位 0 BAD／3 GOOD。
+
+### 2) frame_size 路径分叉（钉死）
+| 路径 | 入口 | 用户帧 | rdx 封送 | 备注 |
+|---|---|---|---|---|
+| LIVE SoftCap | Cap decode → SoftCap helpers（含 tip `@0x121278` 形 `sub rsp,0x868`） | **`0x868`／`0x878`** | 有（值←rdx） | HOST Isol 内 `0x868` 模板 29×，**未**接到 Capless 用户 emit |
+| Isol Capless | `@0x57656c`（`sub rsp,0x500`）→ Capless 族 helpers | **`0x68`／`0x1b8`** | mk 有 rdx 存；**main 未 call mk**（直 lea 未初始化局部再 `488b00`） | PAIR／高分 remap **不能**改帧；`compute_frame_size`／Capless 分支 ≠ SoftCap |
+| tip Darwin Cap soft | tip 源 prologue(`frame_sz`) | SoftCap 形（本拍 Darwin r=0） | 正常 | 证明 tip 源路径绿；Isol SoftCap 二进制布局／Capless 槽红 |
+
+- `arch_x86_64_enc_enc_prologue(frame_sz)` 本身按传入 `frame_sz` 编码；分叉在 **上游 `pipeline_asm_compute_frame_size_c`／Capless vs SoftCap 选路**，非 prologue 编码器写死错立即数。
+
+### 3) 谁写出 `e90000`／`a8feff`（钉死）
+1. **根因（用户 mk／main 腐蚀位）**：Isol `@0x513828`／`@0x5149d4` LEA→错 blob → `x86_enc_bytes` 原样拷 3B 进产物。
+2. **非根因假阳**：emit 内其余 `e9 00 00 00 00`＝`jmp +0` 落空桩；`a8 fe ff ff` 可作 CRT `jmp rel32` 立即数（TT 后仅余 CRT 位）。
+3. Isol **无** imm8 三连写入器发 `e9/00/00` 或 `a8/fe/ff`；坏字节来自 **错 LEA 目标内存**，非独立「坏常量 writer」。
+
+### 4) 单点 helper plant — Isol-TT
+- 脚本：`_dig/build_isol_tt.py`（＝SS Capless 9×＋7× 高分 remap ＋ LEA plant；PAIR stub 保留；禁 mega／整树）
+- Plant：
+  - INT3 cave `@0x513861` ← `48 89 d8`；LEA `@0x513842` displ `0xfc472`→**`0x18`**
+  - INT3 cave `@0x514a0d` ← `48 8b 00`；LEA `@0x5149ee` displ `0xfbede`→**`0x18`**
+- Isol-TT sha12 **`1f836615e0fc`**
+
+### 5) Isol-TT 门（Win SoftCap）— **编译绿／运行 exit=1／SoftCap 帧仍 0**
+| probe | compile | emit sha12 | SoftCap `0x868`/`0x878` | mk `4889d8` | field `488b00` | run |
+|---|---|---|---|---|---|---|
+| p_ret_lit | 0 | `5b173cef1205` | **0／0**（仍 `0x68`／`0x1b8`） | **✅ @0x14ec** | **✅ @0x150f/44/79** | **exit 1**（非 AV） |
+| p_ret_fwd | 0 | `546a4c6d02df` | 0／0 | ✅ | ✅ | exit 1 |
+| p_ret_local | 0 | `018c76562e9e` | 0／0 | ✅ | ✅ | exit 1 |
+
+- vs Isol-SS：运行 **AV `0xC0000005` → exit 1**；用户位 `e90000`／`a8feff` **已消除**（假阳 CRT／jmp+0 除外）。
+- main 仍 **未 call mk**：`lea [rbp-0x28]` 后直接 load → 与期望 0xa/0xb/0xc 比较失败 → exit 1。帧仍 thin。
+
+### 6) 三端门
+| 端 | 结果 |
+|---|---|
+| Win SoftCap Isol-TT `p_ret_*` | 编译绿／**exit 1**；encoder 腐蚀位已修；SoftCap 帧 0；≠LIVE |
+| Win PROD SoftCap `7a2cf5da581a` | **未动** |
+| Darwin tip Cap soft | p_ret_lit/fwd/local **r=0** ✅ |
+| Ubuntu tip `compiler/bootstrap_xlangc` sha12 `ea9ddf4eb937` | p_ret_* **r=0** ✅；tip-cold pure-ld 既有断链另记 |
+
+### 7) 硬 blocker（不可请批／勿收刀／勿升 PROD）
+1. Capless 用户路径 **帧／call-mk／rdx 封送** ≠ LIVE SoftCap（encoder 3B 腐蚀已钉＋plant；**不足以** SoftCap 运行绿）。
+2. Isol SoftCap `@0x121278`（0x868）**未**接到 Capless `@0x57656c` 用户 emit；PAIR 已证伪；禁 mega／整树。
+3. Ubuntu tip-cold pure-ld 断链另记（与 SoftCap 运行绿无关）。
+
+### 8) 下一拍最小刀
+1. **Capless→SoftCap 用户 emit 接线**：从 Capless `@0x57656c`／main 缺 `call mk`＋`compute_frame_size` 分支追 LIVE SoftCap 等价 helpers（禁 mega／禁整树；可新 Isol 试验槽）。
+2. 或：定点补 main lit init／frame 缺口 helper（单点；验证 Win SoftCap `p_ret_*` r=0＋帧 `0x868`/`0x878`）。
+3. 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 9) open
+- Isol-TT `1f836615e0fc`＋`_dig/build_isol_tt.py`／`_dig/p1060_tt/`；LEA plant 证明 encoder 缺口闭合
+- Isol-SS `4e35dff4d102` 保留作对照
+- PROD SoftCap `7a2cf5da581a`／钉盘 ecdb5cc1e **未动**
+- bans unchanged
