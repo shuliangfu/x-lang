@@ -1,6 +1,47 @@
 # DIG 10.60 SoftCap PROGRESS
 
-**2026-10-30 ~15:55 CST (Asia/Shanghai)** · SoftCap alt **坏帧／rbp** DIG：`@5603b8`＝合法 prol＋epi `@560dc7`（非缺 rbp 恢复）；Cap FN `0x9e0` lea 槽与 SoftCap lit `0x868`／Capless `0x1b8` **正交**；假 AV＝mid-insn／loop state；Isol `alt_frame2` `9378df517f96` 强退环 compile OK／GS／OK 但 emit 薄 `0x68/0x1b8` 运行 rc=1 **未绿** → 勿升 PROD／钉 **不升**／勿收刀 · 下一拍：join `@576523`→epi／谁写 `0x868`；禁长挂／移植／arg-loop／twin／字母堆
+**2026-10-30 ~15:40 CST (Asia/Shanghai)** · DIG join `@576523`→epi `@576555`：join＝Cap FN loop-exit gate（`934` vs `998`／jl `@5763e5`）；epi `add rsp,0x9e0` **正交** SoftCap lit `0x868`；**写者＝SoftCap tip `@121278` 族**（29×模板；E8 `@1215b9`），Capless `enc_prologue` 仍薄 `0x68/0x1b8`；Isol `join_epi` `ff46f731435d` AV/GS/AV **红** → 勿升 PROD／钉 **不升**／勿收刀 · 下一拍：Capless→SoftCap lit emit 接线（禁 join 再跳／移植／arg-loop）
+
+
+## 2026-10-30 ~15:40 CST Asia/Shanghai — DIG join→epi／0x868 writer；Isol join_epi 红
+
+### 0) 闸
+- tip HEAD `afc930226`＝origin/dev（本拍前；commit 后见 tip）
+- Base alt_frame2 `9378df517f96`；短超时 INT3；已清 cave `_dig_host_je_*`
+- PROD SoftCap `7a2cf5da581a` **未动**／钉 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／未绿请批／LEGACY／字母堆／LIVE SoftCap 移植／arg-loop／twin：遵守
+
+### 1) DIG 钉死（本拍）
+1. Join `@576523`：`eax=[rbp+0x934]; cmp [rbp+0x998]; jl @5763e5` → fall `@576535 call @24b022` → epi `@576555 add rsp,0x9e0`。
+2. Force-exit `@5763d6` clear-934＋jmp join：count>0 时 **jl 再入**；真退环 land＝`@576535`／`@576555`。
+3. INT3：clr934／jl／post_jl／inc934 **HIT**；baseline lit OK 仍 **薄 `0x68/0x1b8`**、`0x868=False`。
+4. **`0x868` 写者＝SoftCap tip `@121278` 族**（HOST 29×；sole E8 `@1215b9`），≠ Cap FN `0x9e0`／≠ join-epi；Capless `enc_prologue`／`compute_frame_size` → 薄帧。
+5. Isol `join_epi` `ff46f731435d`（`@5763e0→@576535`）：lit/fwd/local **AV/GS/AV**；**非运行绿**。
+
+### 2) Win SoftCap 门
+| Isol | sha12 | lit／fwd／local |
+|---|---|---|
+| alt_frame2 | `9378df517f96` | compile OK／GS／OK；emit 薄；run rc=1 |
+| join_epi | `ff46f731435d` | **AV／GS／AV** |
+
+### 3) 三端门
+| 端 | 结果 |
+|---|---|
+| Win SoftCap p_ret_* | **未运行绿**（emit≠LIVE `0x868`） |
+| Darwin／Ubuntu | **未扩**（Win 未绿） |
+| PROD／钉 | **未动** |
+
+### 4) 硬 blocker
+1. SoftCap lit 用户 emit 未接 tip `0x868` 写者；join/epi 再跳无效。
+2. Ban 移植／arg-loop／twin／字母堆／长挂。
+
+### 5) 下一拍最小刀
+1. 单点 DIG／Isol：**Capless→SoftCap lit emit 接线**（tip `@121278`／`0x868` vs Capless `enc_prologue` 薄帧）；短超时。
+2. 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 6) open
+- 笔记 `_dig/dig_join_epi_868.md`；脚本 `_dig/dig_join_epi.py`；cave Isol `join_epi`
+- PROD SoftCap `7a2cf5da581a`／钉 ecdb5cc1e **未动**
 
 
 ## 2026-10-30 ~15:55 CST Asia/Shanghai — DIG alt bad-frame／rbp；Isol alt_frame2 编译假过
