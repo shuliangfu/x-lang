@@ -1,9 +1,46 @@
 # 10.60 SoftCap DIG PROGRESS
 
+**2026-10-30 ~20:14 CST (Asia/Shanghai)** · DIG/plant `softcap_tip_capsoft_win_promote`：tip SoftCap 身份接到 Cap soft Win `lab_SoftCap_tip.exe`=`9c4746d5b5d7`（`build`+WORK seeds/include）**四门冷绿 4/4** past CG002／可跑 USER；PROD Capless `7a2cf5da581a` 仍 CG002红**未动**；Isol 对照仍绿；勿升 PROD／钉 **不升** · 下一单点：`softcap_g05_capsoft_win_tiphead`
+
+
 **2026-10-30 ~20:12 CST (Asia/Shanghai)** · DIG/plant `softcap_capsoft_win_rebuild`：Cap soft Win `lab_CapSoftWin_w1778` `9c4746d5b5d7`＋tip seeds/include **四门冷绿 4/4**（past CG002／可跑 USER；Cap soft emit≠PE Isol）；tip SoftCap(=PROD Capless) `7a2cf5da581a` 仍 **CG002红未动**；Isol 对照仍绿；勿升 PROD／钉 **不升** · 下一单点：`softcap_tip_capsoft_win_promote`
 
 
-**2026-10-30 ~20:01 CST (Asia/Shanghai)** · DIG/plant `src_softcap_s25_emit`：Isol↔tip Cap soft 源映射钉清；tip SoftCap(=PROD) 四门 **CG002红**；Isol 四门仍绿；Darwin Cap soft p_ret 绿；**无 tip Cap soft 源改**（Cap soft 已含 Isol 语义；缺口＝SoftCap Capless 无 tip twin／需 Cap soft Win rebuild）；勿升 PROD／钉 **不升** · 下一单点：`softcap_capsoft_win_rebuild`
+## 2026-10-30 ~20:14 CST Asia/Shanghai — DIG/plant `softcap_tip_capsoft_win_promote`；下一 `softcap_g05_capsoft_win_tiphead`
+
+### 0) 闸
+- tip base `11acc8ecc`＝origin/dev（本拍前；commit 后见 tip）
+- Isol `host_967_s25` sha12 `e53841ce0e24`（对照 only；四门仍绿）
+- PROD SoftCap Capless `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- tip SoftCap identity plant `lab_SoftCap_tip.exe` sha12 `9c4746d5b5d7` (= Cap soft Win w1778)
+- 禁 CloudAgent／10.74／HARD BAN／mega／假绿／LIVE SoftCap 移植／PE Isol 当收刀／arg-loop／PROD Capless 覆盖：遵守
+
+### 1) DIG 钉死（本拍）
+1. tip SoftCap 身份改接 Cap soft Win：cave `lab_SoftCap_tip.exe`（+alias `lab_tip_SoftCap_CapSoftWin.exe`）= `9c4746d5b5d7`；**不再**等于 PROD Capless。
+2. tip SoftCap Cap soft CLI＝`xlang build`＋WORK `seeds`/`include`；PROD Capless bare CLI 仍 CG002。
+3. tip SoftCap 四门 **冷绿 4/4** past CG002／可跑 USER；USER sha＝Cap soft Win（≠ Isol Capless）。
+4. PROD Capless／钉 **未动**；门绿≠PROD 升／≠收刀。
+5. 无 PE Isol 当 tip SoftCap／无 LIVE 移植／无 PROD 覆盖。
+
+### 2) Win SoftCap／tip SoftCap／Isol 门
+| host | lit | fwd | local | let |
+|---|---|---|---|---|
+| **tip SoftCap(=Cap soft Win) `9c4746d5b5d7`** | **0** | **0** | **0** | **0** |
+| Cap soft Win direct `9c4746d5b5d7` | 0 | 0 | 0 | 0 |
+| Isol `e53841ce0e24` | 0 | 0 | 0 | 0 |
+| PROD Capless `7a2cf5da581a` | CG002 | CG002 | CG002 | CG002 |
+
+### 3) Plant 尝试
+- Cap soft Win → `lab_SoftCap_tip.exe`／alias → tip SoftCap 四门 **4/4 冷绿**。
+- PROD Capless／钉：**未动**。无 PE Isol 收刀／无 LIVE 移植。
+
+### 4) 下一拍最小刀（单点）
+- **`softcap_g05_capsoft_win_tiphead`**：修 `win_g05_rebuild` ld undef `g_pipeline_elf_reloc_*`，重建 tip-HEAD Cap soft Win，使 tip SoftCap 身份跟踪 tip-HEAD Cap soft（仍 **勿升 PROD Capless／钉**）。可选 Darwin Cap soft＋Ubuntu tip-cold 再确认。
+
+### 5) open
+- 笔记 `_dig/dig_softcap_tip_capsoft_win_promote.md`；脚本／log `_dig/p1060_promote.{py,log}`
+- PROD／钉 **未动**；bans unchanged；**门绿≠PROD✅／≠收刀**
+
 
 ## 2026-10-30 ~20:12 CST Asia/Shanghai — DIG/plant `softcap_capsoft_win_rebuild`；下一 `softcap_tip_capsoft_win_promote`
 
