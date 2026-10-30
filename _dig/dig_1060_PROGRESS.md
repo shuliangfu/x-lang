@@ -1,5 +1,37 @@
 # 10.60 SoftCap DIG PROGRESS
 
+**2026-10-30 ~16:50 CST (Asia/Shanghai)** · pre_last 后半：`@2a62c9` HIT len=0→`@5688b7` 跳过 `@2a5ca8`；plant `prelast_immrdx`（nop je）**AV/GS 红不可隔离**；`rbp260_rdx` sha＝base 红 → 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：为何 SoftCap lit arg 容器 `@2a62c9` len=0／填 args（禁 tip@121278／join／epi／LIVE／mega）
+
+
+## 2026-10-30 ~16:50 CST Asia/Shanghai — DIG pre_last@567a30 后半／[rbp+0x260]；plant prelast_immrdx 红
+
+### 0) 闸
+- tip HEAD `48a23b747`＝origin/dev（本拍前；commit 后见 tip）
+- Isol alt_frame2 `9378df517f96`；`base_828` sha12 `0977d6fbb472` lit sha `61afec45d7ff`
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／tip@121278／join／epi／LIVE SoftCap 移植／arg-loop：遵守
+
+### 1) DIG 钉死（本拍）
+1. 走廊 `[rbp+0x260]` 清零 HIT；call-mk rdx＝`[rbp+0x498]`（`@576583` store／`@578238` load **HIT**）＝宿主指针，非 USER imm。
+2. pre_last 后半 post-zero `@56814a`：`@2a62c9` **HIT**（len）；`@5688b7` **HIT 跳过**；`@2a5ca8` get-elem **miss** ⇒ SoftCap lit **arg 容器空**。
+3. plant `rbp260_rdx`（nop zero_260）：lit sha＝base；保 call-mk；无 mov rdx。**红**。
+4. plant `prelast_immrdx`（nop `@5688b7`）：lit/local **AV**／fwd **GS** — **不可隔离**。
+
+### 2) Win SoftCap 门
+| Isol plant | sha12 | lit | run | USER |
+|---|---|---|---|---|
+| rbp260_rdx (nop @578071) | `e5b069f409b1` | OK n868=2 sha `61afec45d7ff` | exit1 | 保 call-mk；无 mov rdx |
+| prelast_immrdx (nop @5688b7) | `32cd7130045d` | AV | — | 不可隔离 |
+
+### 3) 下一拍最小刀（单点）
+- SoftCap lit 下 **`@2a62c9`([rbp-0x30]) 为何 len=0**：谁填 CallExpr args／`@201f36` 后写容器；单点 plant 使 len≥1→`@2a5ca8`＋保 call-mk（禁 tip@121278／LIVE／arg-loop）。
+- 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 4) open
+- 笔记 `_dig/dig_prelast_immrdx.md`；脚本＋log `_dig/dig_prelast_immrdx.py`／`2.py`／`3.py`／`.log`
+- PROD／钉 **未动**；bans unchanged
+
+
 **2026-10-30 ~16:45 CST (Asia/Shanghai)** · Capless `@578071`..`@578273`：pre_last ret>0＋call-mk 装载 **HIT**；plant `immrdx_578`（`@5781df` mov edx,1）**红**（USER sha＝base；保 call-mk；无 mov rdx）→ 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：pre_last `@567a30` 后半／`[rbp+0x260]` USER imm→rdx emit（禁 tip@121278／join／epi／LIVE／mega）
 
 

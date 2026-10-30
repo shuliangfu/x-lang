@@ -1,0 +1,57 @@
+host_b828=0977d6fbb472
+b828 lit try0 AV sha=- n868=0
+b828 lit try1 AV sha=- n868=0
+b828 lit try2 AV sha=- n868=0
+b828 lit try3 AV sha=- n868=0
+
+=== decode @576580 / Capless store 498+4a0 ===
+  @576570: add byte ptr [rip - 0x72b80000], al
+  @576576: lodsb al, byte ptr [rsi]
+  @576577: and al, 0x80
+  @576579: add byte ptr [rax], al
+  @57657b: add byte ptr [rax - 0x77], cl
+  @57657e: lea edx, [rax + 0x48000004]
+  @576584: mov dword ptr [rbp + 0x498], edx
+  @57658a: mov dword ptr [rbp + 0x4a0], r8d
+  @576591: mov qword ptr [rbp + 0x4a8], r9
+  @576598: cmp qword ptr [rbp + 0x490], 0
+  @5765a0: jne 0x5765ac
+  @5765a2: mov eax, 0xffffffff
+  @5765a7: jmp 0x578278
+
+=== INT3 post-zero / emit-ish / store498 ===
+  @56814a pz_sub20           -> AV (0.8s)
+  @56815c call_20203f        -> AV (0.8s)
+  @568183 pz_je_le0          -> HIT (0.1s)
+  @5681b5 pz_je_gtff         -> HIT (0.1s)
+  @5681f9 call_201f36        -> AV (0.8s)
+  @56822a call_1933d8        -> HIT (0.1s)
+  @568251 je_null_tok        -> AV (0.8s)
+  @568273 je_tok0            -> HIT (0.1s)
+  @568523 call_23030e        -> AV (0.8s)
+  @568587 call_205068        -> HIT (0.1s)
+  @5687b8 call_5adf04        -> OK (0.1s)
+  @568829 call_1ffe34        -> AV (0.8s)
+  @56888d call_2a62c9        -> HIT (0.1s)
+  @5688d2 call_2a5ca8        -> OK (0.1s)
+  @576583 store_498          -> HIT (0.1s)
+  @57658b store_4a0          -> HIT (0.1s)
+  @578238 load_rdx_498       -> HIT (0.1s)
+HITs: [('0x568183', 'pz_je_le0'), ('0x5681b5', 'pz_je_gtff'), ('0x56822a', 'call_1933d8'), ('0x568273', 'je_tok0'), ('0x568587', 'call_205068'), ('0x56888d', 'call_2a62c9'), ('0x576583', 'store_498'), ('0x57658b', 'store_4a0'), ('0x578238', 'load_rdx_498')]
+
+=== decode HIT sites ===
+  @568183 pz_je_le0: je 0x56819d [0f8414000000]
+  @5681b5 pz_je_gtff: je 0x5681cf [0f8414000000]
+  @56822a call_1933d8: call 0x1933d8 [e8a9b1c2ff]
+  @568273 je_tok0: je 0x5684e8 [0f846f020000]
+  @568587 call_205068: call 0x205068 [e8dccac9ff]
+  @56888d call_2a62c9: call 0x2a62c9 [e837dad3ff]
+  @576583 store_498: mov qword ptr [rbp + 0x498], rdx [48899598040000]
+  @57658b store_4a0: mov dword ptr [rbp + 0x4a0], eax [8985a0040000]
+  @578238 load_rdx_498: mov rdx, qword ptr [rbp + 0x498] [488b9598040000]
+  emit-ish HIT @56888d call_2a62c9 but no jcc plant; leave as DIG nail
+
+PLANTED=False name=None
+RESULTS: []
+elapsed=10.1s DONE
+EXIT:0

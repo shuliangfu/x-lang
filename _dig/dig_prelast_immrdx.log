@@ -1,0 +1,435 @@
+host_b828=0977d6fbb472
+b828 lit try0 AV sha=- n868=0
+b828 lit try1 AV sha=- n868=0
+b828 lit try2 AV sha=- n868=0
+b828 lit try3 AV sha=- n868=0
+
+=== pre_last@567a30 disasm (to first ret / 0x400) ===
+  @567a30: push rbp
+  @567a31: mov rbp, rsp
+  @567a34: push rbx
+  @567a35: sub rsp, 0xda8
+  @567a3c: mov rax, rcx
+  @567a3f: mov qword ptr [rbp - 0x10], rax
+  @567a43: mov rax, rdx
+  @567a46: cdqe 
+  @567a48: mov qword ptr [rbp - 0x18], rax
+  @567a4c: mov rax, r8
+  @567a4f: cdqe 
+  @567a51: mov qword ptr [rbp - 0x20], rax
+  @567a55: mov rax, r9
+  @567a58: mov qword ptr [rbp - 0x28], rax
+  @567a5c: mov rax, qword ptr [rbp + 0x30]
+  @567a60: mov qword ptr [rbp - 0x30], rax
+  @567a64: mov rax, qword ptr [rbp + 0x38]
+  @567a68: mov qword ptr [rbp - 0x38], rax
+  @567a6c: mov rax, qword ptr [rbp + 0x40]
+  @567a70: cdqe 
+  @567a72: mov qword ptr [rbp - 0x40], rax
+  @567a76: mov rbx, qword ptr [rbp - 0x10]
+  @567a7a: mov eax, 0
+  @567a7f: cmp rbx, rax
+  @567a82: sete al
+  @567a85: movzx eax, al
+  @567a88: test eax, eax
+  @567a8a: je 0x567aa4
+  @567a90: movabs rax, 0xffffffffffffffff
+  @567a9a: jmp 0x56ab42
+  @567a9f: jmp 0x567aa4
+  @567aa4: mov rax, qword ptr [rbp - 0x20]
+  @567aa8: cdqe 
+  @567aaa: mov rbx, rax
+  @567aad: mov eax, 0
+  @567ab2: cmp ebx, eax
+  @567ab4: setle al
+  @567ab7: movzx eax, al
+  @567aba: test eax, eax
+  @567abc: je 0x567ad6
+  @567ac2: movabs rax, 0xffffffffffffffff
+  @567acc: jmp 0x56ab42
+  @567ad1: jmp 0x567ad6
+  @567ad6: mov rbx, qword ptr [rbp - 0x38]
+  @567ada: mov eax, 0
+  @567adf: cmp rbx, rax
+  @567ae2: sete al
+  @567ae5: movzx eax, al
+  @567ae8: test eax, eax
+  @567aea: je 0x567b04
+  @567af0: movabs rax, 0xffffffffffffffff
+  @567afa: jmp 0x56ab42
+  @567aff: jmp 0x567b04
+  @567b04: mov rax, qword ptr [rbp - 0x40]
+  @567b08: cdqe 
+  @567b0a: mov rbx, rax
+  @567b0d: mov eax, 0
+  @567b12: cmp ebx, eax
+  @567b14: setle al
+  @567b17: movzx eax, al
+  @567b1a: test eax, eax
+  @567b1c: je 0x567b36
+  @567b22: movabs rax, 0xffffffffffffffff
+  @567b2c: jmp 0x56ab42
+  @567b31: jmp 0x567b36
+  @567b36: lea rax, [rbp - 0x150]
+  @567b3d: mov rbx, rax
+  @567b40: movabs rax, 0
+  @567b4a: mov byte ptr [rbx], al
+  @567b50: mov byte ptr [rbx + 1], al
+  @567b56: mov byte ptr [rbx + 2], al
+  @567b5c: mov byte ptr [rbx + 3], al
+  @567b62: mov byte ptr [rbx + 4], al
+  @567b68: mov byte ptr [rbx + 5], al
+  @567b6e: mov byte ptr [rbx + 6], al
+  @567b74: mov byte ptr [rbx + 7], al
+  @567b7a: mov byte ptr [rbx + 8], al
+  @567b80: mov byte ptr [rbx + 9], al
+  @567b86: mov byte ptr [rbx + 0xa], al
+  @567b8c: mov byte ptr [rbx + 0xb], al
+  @567b92: mov byte ptr [rbx + 0xc], al
+  @567b98: mov byte ptr [rbx + 0xd], al
+  @567b9e: mov byte ptr [rbx + 0xe], al
+  @567ba4: mov byte ptr [rbx + 0xf], al
+  @567baa: mov byte ptr [rbx + 0x10], al
+  @567bb0: mov byte ptr [rbx + 0x11], al
+  @567bb6: mov byte ptr [rbx + 0x12], al
+  @567bbc: mov byte ptr [rbx + 0x13], al
+  @567bc2: mov byte ptr [rbx + 0x14], al
+  @567bc8: mov byte ptr [rbx + 0x15], al
+  @567bce: mov byte ptr [rbx + 0x16], al
+  @567bd4: mov byte ptr [rbx + 0x17], al
+  @567bda: mov byte ptr [rbx + 0x18], al
+  @567be0: mov byte ptr [rbx + 0x19], al
+  @567be6: mov byte ptr [rbx + 0x1a], al
+  @567bec: mov byte ptr [rbx + 0x1b], al
+  @567bf2: mov byte ptr [rbx + 0x1c], al
+  @567bf8: mov byte ptr [rbx + 0x1d], al
+  @567bfe: mov byte ptr [rbx + 0x1e], al
+  @567c04: mov byte ptr [rbx + 0x1f], al
+  @567c0a: mov byte ptr [rbx + 0x20], al
+  @567c10: mov byte ptr [rbx + 0x21], al
+  @567c16: mov byte ptr [rbx + 0x22], al
+  @567c1c: mov byte ptr [rbx + 0x23], al
+  @567c22: mov byte ptr [rbx + 0x24], al
+  @567c28: mov byte ptr [rbx + 0x25], al
+  @567c2e: mov byte ptr [rbx + 0x26], al
+  @567c34: mov byte ptr [rbx + 0x27], al
+  @567c3a: mov byte ptr [rbx + 0x28], al
+  @567c40: mov byte ptr [rbx + 0x29], al
+  @567c46: mov byte ptr [rbx + 0x2a], al
+  @567c4c: mov byte ptr [rbx + 0x2b], al
+  @567c52: mov byte ptr [rbx + 0x2c], al
+  @567c58: mov byte ptr [rbx + 0x2d], al
+  @567c5e: mov byte ptr [rbx + 0x2e], al
+  @567c64: mov byte ptr [rbx + 0x2f], al
+  @567c6a: mov byte ptr [rbx + 0x30], al
+  @567c70: mov byte ptr [rbx + 0x31], al
+  @567c76: mov byte ptr [rbx + 0x32], al
+  @567c7c: mov byte ptr [rbx + 0x33], al
+  @567c82: mov byte ptr [rbx + 0x34], al
+  @567c88: mov byte ptr [rbx + 0x35], al
+  @567c8e: mov byte ptr [rbx + 0x36], al
+  @567c94: mov byte ptr [rbx + 0x37], al
+  @567c9a: mov byte ptr [rbx + 0x38], al
+  @567ca0: mov byte ptr [rbx + 0x39], al
+  @567ca6: mov byte ptr [rbx + 0x3a], al
+  @567cac: mov byte ptr [rbx + 0x3b], al
+  @567cb2: mov byte ptr [rbx + 0x3c], al
+  @567cb8: mov byte ptr [rbx + 0x3d], al
+  @567cbe: mov byte ptr [rbx + 0x3e], al
+  @567cc4: mov byte ptr [rbx + 0x3f], al
+  @567cca: mov byte ptr [rbx + 0x40], al
+  @567cd0: mov byte ptr [rbx + 0x41], al
+  @567cd6: mov byte ptr [rbx + 0x42], al
+  @567cdc: mov byte ptr [rbx + 0x43], al
+  @567ce2: mov byte ptr [rbx + 0x44], al
+  @567ce8: mov byte ptr [rbx + 0x45], al
+  @567cee: mov byte ptr [rbx + 0x46], al
+  @567cf4: mov byte ptr [rbx + 0x47], al
+  @567cfa: mov byte ptr [rbx + 0x48], al
+  @567d00: mov byte ptr [rbx + 0x49], al
+  @567d06: mov byte ptr [rbx + 0x4a], al
+  @567d0c: mov byte ptr [rbx + 0x4b], al
+  @567d12: mov byte ptr [rbx + 0x4c], al
+  @567d18: mov byte ptr [rbx + 0x4d], al
+  @567d1e: mov byte ptr [rbx + 0x4e], al
+  @567d24: mov byte ptr [rbx + 0x4f], al
+  @567d2a: mov byte ptr [rbx + 0x50], al
+  @567d30: mov byte ptr [rbx + 0x51], al
+  @567d36: mov byte ptr [rbx + 0x52], al
+  @567d3c: mov byte ptr [rbx + 0x53], al
+  @567d42: mov byte ptr [rbx + 0x54], al
+  @567d48: mov byte ptr [rbx + 0x55], al
+  @567d4e: mov byte ptr [rbx + 0x56], al
+  @567d54: mov byte ptr [rbx + 0x57], al
+  @567d5a: mov byte ptr [rbx + 0x58], al
+  @567d60: mov byte ptr [rbx + 0x59], al
+  @567d66: mov byte ptr [rbx + 0x5a], al
+  @567d6c: mov byte ptr [rbx + 0x5b], al
+  @567d72: mov byte ptr [rbx + 0x5c], al
+  @567d78: mov byte ptr [rbx + 0x5d], al
+  @567d7e: mov byte ptr [rbx + 0x5e], al
+  @567d84: mov byte ptr [rbx + 0x5f], al
+  @567d8a: mov byte ptr [rbx + 0x60], al
+  @567d90: mov byte ptr [rbx + 0x61], al
+  @567d96: mov byte ptr [rbx + 0x62], al
+  @567d9c: mov byte ptr [rbx + 0x63], al
+  @567da2: mov byte ptr [rbx + 0x64], al
+  @567da8: mov byte ptr [rbx + 0x65], al
+  @567dae: mov byte ptr [rbx + 0x66], al
+  @567db4: mov byte ptr [rbx + 0x67], al
+  @567dba: mov byte ptr [rbx + 0x68], al
+  @567dc0: mov byte ptr [rbx + 0x69], al
+  @567dc6: mov byte ptr [rbx + 0x6a], al
+  @567dcc: mov byte ptr [rbx + 0x6b], al
+  @567dd2: mov byte ptr [rbx + 0x6c], al
+  @567dd8: mov byte ptr [rbx + 0x6d], al
+  @567dde: mov byte ptr [rbx + 0x6e], al
+  @567de4: mov byte ptr [rbx + 0x6f], al
+  @567dea: mov byte ptr [rbx + 0x70], al
+  @567df0: mov byte ptr [rbx + 0x71], al
+  @567df6: mov byte ptr [rbx + 0x72], al
+  @567dfc: mov byte ptr [rbx + 0x73], al
+  @567e02: mov byte ptr [rbx + 0x74], al
+  @567e08: mov byte ptr [rbx + 0x75], al
+  @567e0e: mov byte ptr [rbx + 0x76], al
+  @567e14: mov byte ptr [rbx + 0x77], al
+  @567e1a: mov byte ptr [rbx + 0x78], al
+  @567e20: mov byte ptr [rbx + 0x79], al
+  pre_last_end=?
+
+=== pre_last SECOND HALF from @567b30 ===
+  @567b30: add cl, ch
+  @567b32: add byte ptr [rax], al
+  @567b34: add byte ptr [rax], al
+  @567b36: lea rax, [rbp - 0x150]
+  @567b3d: mov rbx, rax
+  @567b40: movabs rax, 0
+  @567b4a: mov byte ptr [rbx], al
+  @567b50: mov byte ptr [rbx + 1], al
+  @567b56: mov byte ptr [rbx + 2], al
+  @567b5c: mov byte ptr [rbx + 3], al
+  @567b62: mov byte ptr [rbx + 4], al
+  @567b68: mov byte ptr [rbx + 5], al
+  @567b6e: mov byte ptr [rbx + 6], al
+  @567b74: mov byte ptr [rbx + 7], al
+  @567b7a: mov byte ptr [rbx + 8], al
+  @567b80: mov byte ptr [rbx + 9], al
+  @567b86: mov byte ptr [rbx + 0xa], al
+  @567b8c: mov byte ptr [rbx + 0xb], al
+  @567b92: mov byte ptr [rbx + 0xc], al
+  @567b98: mov byte ptr [rbx + 0xd], al
+  @567b9e: mov byte ptr [rbx + 0xe], al
+  @567ba4: mov byte ptr [rbx + 0xf], al
+  @567baa: mov byte ptr [rbx + 0x10], al
+  @567bb0: mov byte ptr [rbx + 0x11], al
+  @567bb6: mov byte ptr [rbx + 0x12], al
+  @567bbc: mov byte ptr [rbx + 0x13], al
+  @567bc2: mov byte ptr [rbx + 0x14], al
+  @567bc8: mov byte ptr [rbx + 0x15], al
+  @567bce: mov byte ptr [rbx + 0x16], al
+  @567bd4: mov byte ptr [rbx + 0x17], al
+  @567bda: mov byte ptr [rbx + 0x18], al
+  @567be0: mov byte ptr [rbx + 0x19], al
+  @567be6: mov byte ptr [rbx + 0x1a], al
+  @567bec: mov byte ptr [rbx + 0x1b], al
+  @567bf2: mov byte ptr [rbx + 0x1c], al
+  @567bf8: mov byte ptr [rbx + 0x1d], al
+  @567bfe: mov byte ptr [rbx + 0x1e], al
+  @567c04: mov byte ptr [rbx + 0x1f], al
+  @567c0a: mov byte ptr [rbx + 0x20], al
+  @567c10: mov byte ptr [rbx + 0x21], al
+  @567c16: mov byte ptr [rbx + 0x22], al
+  @567c1c: mov byte ptr [rbx + 0x23], al
+  @567c22: mov byte ptr [rbx + 0x24], al
+  @567c28: mov byte ptr [rbx + 0x25], al
+  @567c2e: mov byte ptr [rbx + 0x26], al
+  @567c34: mov byte ptr [rbx + 0x27], al
+  @567c3a: mov byte ptr [rbx + 0x28], al
+  @567c40: mov byte ptr [rbx + 0x29], al
+  @567c46: mov byte ptr [rbx + 0x2a], al
+  @567c4c: mov byte ptr [rbx + 0x2b], al
+  @567c52: mov byte ptr [rbx + 0x2c], al
+  @567c58: mov byte ptr [rbx + 0x2d], al
+  @567c5e: mov byte ptr [rbx + 0x2e], al
+  @567c64: mov byte ptr [rbx + 0x2f], al
+  @567c6a: mov byte ptr [rbx + 0x30], al
+  @567c70: mov byte ptr [rbx + 0x31], al
+  @567c76: mov byte ptr [rbx + 0x32], al
+  @567c7c: mov byte ptr [rbx + 0x33], al
+  @567c82: mov byte ptr [rbx + 0x34], al
+  @567c88: mov byte ptr [rbx + 0x35], al
+  @567c8e: mov byte ptr [rbx + 0x36], al
+  @567c94: mov byte ptr [rbx + 0x37], al
+  @567c9a: mov byte ptr [rbx + 0x38], al
+  @567ca0: mov byte ptr [rbx + 0x39], al
+  @567ca6: mov byte ptr [rbx + 0x3a], al
+  @567cac: mov byte ptr [rbx + 0x3b], al
+  @567cb2: mov byte ptr [rbx + 0x3c], al
+  @567cb8: mov byte ptr [rbx + 0x3d], al
+  @567cbe: mov byte ptr [rbx + 0x3e], al
+  @567cc4: mov byte ptr [rbx + 0x3f], al
+  @567cca: mov byte ptr [rbx + 0x40], al
+  @567cd0: mov byte ptr [rbx + 0x41], al
+  @567cd6: mov byte ptr [rbx + 0x42], al
+  @567cdc: mov byte ptr [rbx + 0x43], al
+  @567ce2: mov byte ptr [rbx + 0x44], al
+  @567ce8: mov byte ptr [rbx + 0x45], al
+  @567cee: mov byte ptr [rbx + 0x46], al
+  @567cf4: mov byte ptr [rbx + 0x47], al
+  @567cfa: mov byte ptr [rbx + 0x48], al
+  @567d00: mov byte ptr [rbx + 0x49], al
+  @567d06: mov byte ptr [rbx + 0x4a], al
+  @567d0c: mov byte ptr [rbx + 0x4b], al
+  @567d12: mov byte ptr [rbx + 0x4c], al
+  @567d18: mov byte ptr [rbx + 0x4d], al
+  @567d1e: mov byte ptr [rbx + 0x4e], al
+  @567d24: mov byte ptr [rbx + 0x4f], al
+  @567d2a: mov byte ptr [rbx + 0x50], al
+  @567d30: mov byte ptr [rbx + 0x51], al
+  @567d36: mov byte ptr [rbx + 0x52], al
+  @567d3c: mov byte ptr [rbx + 0x53], al
+  @567d42: mov byte ptr [rbx + 0x54], al
+  @567d48: mov byte ptr [rbx + 0x55], al
+  @567d4e: mov byte ptr [rbx + 0x56], al
+  @567d54: mov byte ptr [rbx + 0x57], al
+  @567d5a: mov byte ptr [rbx + 0x58], al
+  @567d60: mov byte ptr [rbx + 0x59], al
+  @567d66: mov byte ptr [rbx + 0x5a], al
+  @567d6c: mov byte ptr [rbx + 0x5b], al
+  @567d72: mov byte ptr [rbx + 0x5c], al
+  @567d78: mov byte ptr [rbx + 0x5d], al
+  @567d7e: mov byte ptr [rbx + 0x5e], al
+  @567d84: mov byte ptr [rbx + 0x5f], al
+  @567d8a: mov byte ptr [rbx + 0x60], al
+  @567d90: mov byte ptr [rbx + 0x61], al
+  @567d96: mov byte ptr [rbx + 0x62], al
+  @567d9c: mov byte ptr [rbx + 0x63], al
+  @567da2: mov byte ptr [rbx + 0x64], al
+
+=== pre_last E8 (valid .text) n=0 ===
+
+=== Capless [rbp+0x260] refs near @578000..@578400 ===
+  refs260 n=4
+  @578072: mov dword ptr [rbp + 0x260], 0 [c7856002000000000000]
+  @5781f5: lea ecx, [rbp + 0x260] [8d8d60020000]
+  @578251: lea ecx, [rbp + 0x260] [8d8d60020000]
+  @578071: mov qword ptr [rbp + 0x260], 0 [48c7856002000000000000]
+
+=== corridor @578071..@578280 ===
+  @578071: mov qword ptr [rbp + 0x260], 0
+  @57807c: mov qword ptr [rbp + 0x268], 0
+  @578087: mov qword ptr [rbp + 0x270], 0
+  @578092: mov qword ptr [rbp + 0x278], 0
+  @57809d: mov qword ptr [rbp + 0x280], 0
+  @5780a8: mov qword ptr [rbp + 0x288], 0
+  @5780b3: mov qword ptr [rbp + 0x290], 0
+  @5780be: mov qword ptr [rbp + 0x298], 0
+  @5780c9: mov qword ptr [rbp + 0x2a0], 0
+  @5780d4: mov qword ptr [rbp + 0x2a8], 0
+  @5780df: mov qword ptr [rbp + 0x2b0], 0
+  @5780ea: mov qword ptr [rbp + 0x2b8], 0
+  @5780f5: mov qword ptr [rbp + 0x2c0], 0
+  @578100: mov qword ptr [rbp + 0x2c8], 0
+  @57810b: mov qword ptr [rbp + 0x2d0], 0
+  @578116: mov qword ptr [rbp + 0x2d8], 0
+  @578121: mov qword ptr [rbp + 0x2e0], 0
+  @57812c: mov qword ptr [rbp + 0x2e8], 0
+  @578137: mov qword ptr [rbp + 0x2f0], 0
+  @578142: mov qword ptr [rbp + 0x2f8], 0
+  @57814d: mov qword ptr [rbp + 0x300], 0
+  @578158: mov qword ptr [rbp + 0x308], 0
+  @578163: mov qword ptr [rbp + 0x310], 0
+  @57816e: mov qword ptr [rbp + 0x318], 0
+  @578179: mov qword ptr [rbp + 0x320], 0
+  @578184: mov qword ptr [rbp + 0x328], 0
+  @57818f: mov qword ptr [rbp + 0x330], 0
+  @57819a: mov qword ptr [rbp + 0x338], 0
+  @5781a5: mov qword ptr [rbp + 0x340], 0
+  @5781b0: mov qword ptr [rbp + 0x348], 0
+  @5781bb: mov qword ptr [rbp + 0x350], 0
+  @5781c6: mov qword ptr [rbp + 0x358], 0
+  @5781d1: mov r9, qword ptr [rbp + 0x460]
+  @5781d8: mov r8d, dword ptr [rbp + 0x468]
+  @5781df: mov edx, dword ptr [rbp + 0x4a0]
+  @5781e5: mov rax, qword ptr [rbp + 0x490]
+  @5781ec: mov dword ptr [rsp + 0x30], 0x100
+  @5781f4: lea rcx, [rbp + 0x260]
+  @5781fb: mov qword ptr [rsp + 0x28], rcx
+  @578200: mov rcx, qword ptr [rbp + 0x478]
+  @578207: mov qword ptr [rsp + 0x20], rcx
+  @57820c: mov rcx, rax
+  @57820f: call 0x567a30
+  @578214: mov dword ptr [rbp + 0x3d4], eax
+  @57821a: cmp dword ptr [rbp + 0x3d4], 0
+  @578221: jg 0x57822a
+  @578223: mov eax, 0xffffffff
+  @578228: jmp 0x578278
+  @57822a: mov r9, qword ptr [rbp + 0x4a8]
+  @578231: mov r8d, dword ptr [rbp + 0x4a0]
+  @578238: mov rdx, qword ptr [rbp + 0x498]
+  @57823f: mov rax, qword ptr [rbp + 0x490]
+  @578246: mov ecx, dword ptr [rbp + 0x3d4]
+  @57824c: mov dword ptr [rsp + 0x38], ecx
+  @578250: lea rcx, [rbp + 0x260]
+  @578257: mov qword ptr [rsp + 0x30], rcx
+  @57825c: mov ecx, dword ptr [rbp + 0x3e0]
+  @578262: mov dword ptr [rsp + 0x28], ecx
+  @578266: mov ecx, dword ptr [rbp + 0x4b0]
+  @57826c: mov dword ptr [rsp + 0x20], ecx
+  @578270: mov rcx, rax
+  @578273: call 0x57b98c
+  @578278: add rsp, 0x500
+  @57827f: pop rbp
+  @578280: ret 
+
+=== INT3 pre_last 2nd half / 260 / emit-ish ===
+  @578072 r260_578072            -> HIT (0.1s)
+  @5781f5 r260_5781f5            -> AV (0.8s)
+  @578251 r260_578251            -> AV (0.8s)
+  @578071 r260_578071            -> HIT (0.1s)
+  @567aea pl_je_stk              -> AV (0.8s)
+  @5781f4 lea_buf                -> AV (0.8s)
+  @578238 mov_rdx_498            -> HIT (0.1s)
+  @578250 lea_buf_cmk            -> AV (0.8s)
+HITs: [('0x578072', 'r260_578072'), ('0x578071', 'r260_578071'), ('0x578238', 'mov_rdx_498')]
+
+=== decode HIT 2nd-half / plant cands ===
+  @578072 r260_578072: mov dword ptr [rbp + 0x260], 0 [c7856002000000000000]
+  @578071 r260_578071: mov qword ptr [rbp + 0x260], 0 [48c7856002000000000000]
+  @578238 mov_rdx_498: mov rdx, qword ptr [rbp + 0x498] [488b9598040000]
+  cand @578238: mov rdx, qword ptr [rbp + 0x498] [488b9598040000]
+  cand @5781f4: lea rcx, [rbp + 0x260] [488d8d60020000]
+  zero_260 @578071: mov qword ptr [rbp + 0x260], 0 [48c7856002000000000000]
+  -> plant rbp260_rdx: nop zero_260
+
+=== plant rbp260_rdx sha12=e5b069f409b1 ===
+  p_ret_lit.x      OK       sha=61afec45d7ff n868=2 run=crc=0x1/1 (0.1s)
+  rbp260_rdx sret @0xb04:
+    @0b04: lea rax, [rbp - 0x28]
+    @0b08: mov rcx, rax
+    @0b0b: sub rsp, 0x20
+    @0b0f: call 0xa90
+    @0b14: add rsp, 0x20
+    @0b18: lea rax, [rbp - 0x28]
+    @0b1c: mov rax, qword ptr [rax]
+    @0b1f: mov rbx, rax
+    @0b22: mov eax, 0xa
+    @0b27: cmp rbx, rax
+    @0b2a: setne al
+    @0b2d: movzx eax, al
+    @0b30: test eax, eax
+    @0b32: je 0xb47
+    @0b38: mov eax, 1
+    @0b3d: jmp 0xbbb
+    @0b42: jmp 0xb47
+    @0b47: lea rax, [rbp - 0x28]
+    @0b4b: add rax, 8
+    @0b51: mov rax, qword ptr [rax]
+  rbp260_rdx has_imm10=True mov_rdx=False sub20=True call=True true_immrdx=False
+  p_ret_fwd.x      GS       sha=- n868=0 run=-/-1 (0.7s)
+  p_ret_local.x    OK       sha=83b72210d7e8 n868=2 run=crc=0x1/1 (0.1s)
+
+PLANTED=True name=rbp260_rdx
+RESULTS: [('rbp260_rdx', 'e5b069f409b1', [('p_ret_lit.x', 'OK', '61afec45d7ff', 2, 'crc=0x1', 1), ('p_ret_fwd.x', 'GS', '-', 0, '-', -1), ('p_ret_local.x', 'OK', '83b72210d7e8', 2, 'crc=0x1', 1)])]
+elapsed=9.6s DONE
+EXIT:0
