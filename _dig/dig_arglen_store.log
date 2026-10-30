@@ -1,0 +1,199 @@
+host_b828=0977d6fbb472
+b828 lit try0 AV sha=- n868=0
+b828 lit try1 AV sha=- n868=0
+b828 lit try2 AV sha=- n868=0
+
+=== SCAN pre_last for [rbp-0x30] / rbp-0x30 refs ===
+pre_last end=0x56ab48
+all rbp±0x30 refs n=9
+  @567a5c: mov rax, qword ptr [rbp + 0x30]
+  @567a60: mov qword ptr [rbp - 0x30], rax
+  @56885c: mov rbx, qword ptr [rbp - 0x30]
+  @568886: mov rax, qword ptr [rbp - 0x30]
+  @5688c1: mov rax, qword ptr [rbp - 0x30]
+  @568a51: mov rbx, qword ptr [rbp - 0x30]
+  @56908f: mov rax, qword ptr [rbp - 0x30]
+  @5690b4: mov rax, qword ptr [rbp - 0x30]
+  @56946d: mov rax, qword ptr [rbp - 0x30]
+stores to [rbp-0x30] n=1
+  STORE @567a60: mov qword ptr [rbp - 0x30], rax [488945d0]
+
+=== nearby context for each STORE ===
+--- around STORE @567a60 ---
+  @567a40: mov dword ptr [rbp - 0x10], eax
+  @567a43: mov rax, rdx
+  @567a46: cdqe 
+  @567a48: mov qword ptr [rbp - 0x18], rax
+  @567a4c: mov rax, r8
+  @567a4f: cdqe 
+  @567a51: mov qword ptr [rbp - 0x20], rax
+  @567a55: mov rax, r9
+  @567a58: mov qword ptr [rbp - 0x28], rax
+  @567a5c: mov rax, qword ptr [rbp + 0x30]
+  @567a60: mov qword ptr [rbp - 0x30], rax <<<
+  @567a64: mov rax, qword ptr [rbp + 0x38]
+  @567a68: mov qword ptr [rbp - 0x38], rax
+  @567a6c: mov rax, qword ptr [rbp + 0x40]
+
+=== callers of pre_last @567a30 ===
+n=3
+  @0f2108
+    @0f20c8: movabs al, byte ptr [0xf840858b48fffff7]
+  @57820f
+    @5781cf: add byte ptr [rax], al
+    @5781d1: mov r9, qword ptr [rbp + 0x460]
+    @5781d8: mov r8d, dword ptr [rbp + 0x468]
+    @5781df: mov edx, dword ptr [rbp + 0x4a0]
+    @5781e5: mov rax, qword ptr [rbp + 0x490]
+    @5781ec: mov dword ptr [rsp + 0x30], 0x100
+    @5781f4: lea rcx, [rbp + 0x260]
+    @5781fb: mov qword ptr [rsp + 0x28], rcx
+    @578200: mov rcx, qword ptr [rbp + 0x478]
+    @578207: mov qword ptr [rsp + 0x20], rcx
+    @57820c: mov rcx, rax
+    @57820f: call 0x567a30 <<<
+    @578214: mov dword ptr [rbp + 0x3d4], eax
+    @57821a: cmp dword ptr [rbp + 0x3d4], 0
+  @5a0dd2
+    @5a0d92: std 
+
+=== INT3 on [rbp-0x30] STOREs ===
+  @567a60 -> INT3
+
+=== calls with rcx from [rbp-0x30] in pre_last (push candidates) ===
+push-ish n=0
+
+=== DISASM @205068 (HIT call from pre_last) head ===
+  @205068: push rbp
+  @205069: mov rbp, rsp
+  @20506c: sub rsp, 0x30
+  @205070: mov qword ptr [rbp + 0x10], rcx
+  @205074: mov dword ptr [rbp + 0x18], edx
+  @205077: mov qword ptr [rbp + 0x20], r8
+  @20507b: mov dword ptr [rbp + 0x28], r9d
+  @20507f: cmp qword ptr [rbp + 0x10], 0
+  @205084: je 0x20509c
+  @205086: cmp qword ptr [rbp + 0x20], 0
+  @20508b: je 0x20509c
+  @20508d: cmp dword ptr [rbp + 0x28], 0
+  @205091: jle 0x20509c
+  @205093: cmp dword ptr [rbp + 0x28], 0xff
+  @20509a: jle 0x2050a3
+  @20509c: mov eax, 0
+  @2050a1: jmp 0x2050f4
+  @2050a3: mov edx, dword ptr [rbp + 0x18]
+  @2050a6: mov rax, qword ptr [rbp + 0x10]
+  @2050aa: mov rcx, rax
+  @2050ad: call 0x20374e
+  @2050b2: mov qword ptr [rbp - 8], rax
+  @2050b6: cmp qword ptr [rbp - 8], 0
+  @2050bb: je 0x2050cc
+  @2050bd: mov rax, qword ptr [rbp - 8]
+  @2050c1: mov eax, dword ptr [rax + 0x100]
+
+=== DISASM @1933d8 head ===
+  @1933d8: jmp 0x18dc54
+  @1933dd: add byte ptr [rax], al
+  @1933df: add byte ptr [rbp + 0x48], dl
+  @1933e2: mov ebp, esp
+  @1933e4: push rbx
+  @1933e5: sub rsp, 0x388
+  @1933ec: mov rax, rcx
+  @1933ef: cdqe 
+  @1933f1: mov qword ptr [rbp - 0x10], rax
+  @1933f5: mov rax, rdx
+  @1933f8: mov qword ptr [rbp - 0x18], rax
+  @1933fc: mov rax, r8
+  @1933ff: mov qword ptr [rbp - 0x20], rax
+  @193403: mov rax, r9
+  @193406: cdqe 
+  @193408: mov qword ptr [rbp - 0x28], rax
+  @19340c: mov eax, 0
+  @193411: mov qword ptr [rbp - 0x68], rax
+
+=== Capless call-pre_last site @5781f4 area ===
+-- @5781c0 --
+  @5781c0: add byte ptr [rax], al
+  @5781c2: add byte ptr [rax], al
+  @5781c4: add byte ptr [rax], al
+  @5781c6: mov qword ptr [rbp + 0x358], 0
+  @5781d1: mov r9, qword ptr [rbp + 0x460]
+  @5781d8: mov r8d, dword ptr [rbp + 0x468]
+  @5781df: mov edx, dword ptr [rbp + 0x4a0]
+  @5781e5: mov rax, qword ptr [rbp + 0x490]
+  @5781ec: mov dword ptr [rsp + 0x30], 0x100
+  @5781f4: lea rcx, [rbp + 0x260]
+  @5781fb: mov qword ptr [rsp + 0x28], rcx
+  @578200: mov rcx, qword ptr [rbp + 0x478]
+  @578207: mov qword ptr [rsp + 0x20], rcx
+  @57820c: mov rcx, rax
+  @57820f: call 0x567a30
+  @578214: mov dword ptr [rbp + 0x3d4], eax
+  @57821a: cmp dword ptr [rbp + 0x3d4], 0
+  @578221: jg 0x57822a
+  @578223: mov eax, 0xffffffff
+  @578228: jmp 0x578278
+  @57822a: mov r9, qword ptr [rbp + 0x4a8]
+  @578231: mov r8d, dword ptr [rbp + 0x4a0]
+-- @578220 --
+  @578220: add byte ptr [rdi + 7], bh
+  @578223: mov eax, 0xffffffff
+  @578228: jmp 0x578278
+  @57822a: mov r9, qword ptr [rbp + 0x4a8]
+  @578231: mov r8d, dword ptr [rbp + 0x4a0]
+  @578238: mov rdx, qword ptr [rbp + 0x498]
+  @57823f: mov rax, qword ptr [rbp + 0x490]
+  @578246: mov ecx, dword ptr [rbp + 0x3d4]
+  @57824c: mov dword ptr [rsp + 0x38], ecx
+  @578250: lea rcx, [rbp + 0x260]
+  @578257: mov qword ptr [rsp + 0x30], rcx
+  @57825c: mov ecx, dword ptr [rbp + 0x3e0]
+  @578262: mov dword ptr [rsp + 0x28], ecx
+  @578266: mov ecx, dword ptr [rbp + 0x4b0]
+  @57826c: mov dword ptr [rsp + 0x20], ecx
+  @578270: mov rcx, rax
+  @578273: call 0x57b98c
+  @578278: add rsp, 0x500
+  @57827f: pop rbp
+  @578280: ret 
+  @578281: int3 
+  @578282: int3 
+  @578283: int3 
+  @578284: int3 
+  @578285: int3 
+  @578286: int3 
+  @578287: int3 
+  @578288: int3 
+  @578289: int3 
+  @57828a: int3 
+  @57828b: int3 
+  @57828c: int3 
+  @57828d: int3 
+  @57828e: int3 
+  @57828f: int3 
+  @578290: int3 
+  @578291: int3 
+-- @578070 --
+  @578070: add byte ptr [rax - 0x39], cl
+  @578073: test dword ptr [rax + 2], esp
+  @578076: add byte ptr [rax], al
+  @578078: add byte ptr [rax], al
+  @57807a: add byte ptr [rax], al
+  @57807c: mov qword ptr [rbp + 0x268], 0
+  @578087: mov qword ptr [rbp + 0x270], 0
+  @578092: mov qword ptr [rbp + 0x278], 0
+  @57809d: mov qword ptr [rbp + 0x280], 0
+  @5780a8: mov qword ptr [rbp + 0x288], 0
+  @5780b3: mov qword ptr [rbp + 0x290], 0
+  @5780be: mov qword ptr [rbp + 0x298], 0
+  @5780c9: mov qword ptr [rbp + 0x2a0], 0
+  @5780d4: mov qword ptr [rbp + 0x2a8], 0
+  @5780df: mov qword ptr [rbp + 0x2b0], 0
+
+=== dig je near first store / push ===
+  @567a8a: je 0x567aa4 [0f8414000000]
+  @567abc: je 0x567ad6 [0f8414000000]
+
+RESULTS: []
+elapsed=3.6s DONE
+EXIT:0

@@ -1,5 +1,38 @@
 # 10.60 SoftCap DIG PROGRESS
 
+**2026-10-30 ~17:05 CST (Asia/Shanghai)** · DIG `@2a62c9` len=0：Capless `+0x478`＝`@55d730(0x568)` **空 alloc**（HIT `@576631`），**无** push args；pre_last arg5→local→len=0 跳过 get-elem；plants `arglen_force1`／`fill_args_ast*` **红** → 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：AST args 字段／push-into-`+0x478`（禁 tip@121278／join／epi／LIVE／mega）
+
+
+## 2026-10-30 ~17:05 CST Asia/Shanghai — DIG SoftCap lit arg 容器 len=0；plant fill_args 红
+
+### 0) 闸
+- tip HEAD `8d282da2f`＝origin/dev（本拍前；commit 后见 tip）
+- Isol alt_frame2 `9378df517f96`；`base_828` sha12 `0977d6fbb472` lit sha `61afec45d7ff`
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／tip@121278／join／epi／LIVE SoftCap 移植／arg-loop：遵守
+
+### 1) DIG 钉死（本拍）
+1. `@2a62c9`＝len(rcx)；pre_last `[rbp-0x30]`←arg5←Capless `[rbp+0x478]`。
+2. `+0x478` 唯一写入：`@55d730(0x568)` 空壳 STORE `@576631` **HIT**；Capless 至 pre_last **零** len/getelem/set_len call。
+3. 根因＝**空 alloc、未填 CallExpr args**（非清零）；`@201f36` 不写容器元素。
+4. plants `arglen_force1`／`fill_args_tok0`／`fill_args_ast20/28/18`：**红**（sha＝base 或 AV；无 imm→rdx）。
+
+### 2) Win SoftCap 门
+| Isol plant | sha12 | lit | run | USER |
+|---|---|---|---|---|
+| arglen_force1 (mov eax,1 @56888d) | `af7203b66778` | OK n868=2 sha base | exit1 | 保 call-mk；无 mov rdx |
+| fill_args_ast28 (node+0x28→+0x478) | `6a6bf72a7677` | OK sha base | exit1 | 保 call-mk；无 mov rdx |
+| fill_args_ast20 / ast18 | `faca49778777` / `9f253187543c` | AV | — | — |
+
+### 3) 下一拍最小刀（单点）
+- SoftCap lit CallExpr **AST args**（`[rbp+0x490]` 何 offs len≥1）或缺失 **push-into-`+0x478`**；plant 使 `@2a62c9` len≥1→`@2a5ca8`＋保 call-mk（禁 tip@121278／LIVE／arg-loop）。
+- 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 4) open
+- 笔记 `_dig/dig_arglen_2a62.md`；脚本＋log `_dig/dig_arglen_*.py`／`.log`
+- PROD／钉 **未动**；bans unchanged
+
+
 **2026-10-30 ~16:50 CST (Asia/Shanghai)** · pre_last 后半：`@2a62c9` HIT len=0→`@5688b7` 跳过 `@2a5ca8`；plant `prelast_immrdx`（nop je）**AV/GS 红不可隔离**；`rbp260_rdx` sha＝base 红 → 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：为何 SoftCap lit arg 容器 `@2a62c9` len=0／填 args（禁 tip@121278／join／epi／LIVE／mega）
 
 

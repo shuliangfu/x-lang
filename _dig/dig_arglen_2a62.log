@@ -1,0 +1,669 @@
+host_b828=0977d6fbb472
+b828 lit try0 OK sha=61afec45d7ff n868=2
+  b828 sret @0xb04:
+    @0b04: lea rax, [rbp - 0x28]
+    @0b08: mov rcx, rax
+    @0b0b: sub rsp, 0x20
+    @0b0f: call 0xa90
+    @0b14: add rsp, 0x20
+    @0b18: lea rax, [rbp - 0x28]
+    @0b1c: mov rax, qword ptr [rax]
+    @0b1f: mov rbx, rax
+    @0b22: mov eax, 0xa
+    @0b27: cmp rbx, rax
+    @0b2a: setne al
+    @0b2d: movzx eax, al
+    @0b30: test eax, eax
+    @0b32: je 0xb47
+    @0b38: mov eax, 1
+    @0b3d: jmp 0xbbb
+    @0b42: jmp 0xb47
+    @0b47: lea rax, [rbp - 0x28]
+    @0b4b: add rax, 8
+    @0b51: mov rax, qword ptr [rax]
+  b828 has_imm10=True mov_rdx=False sub20=True call=True true_immrdx=False
+
+=== DISASM len_helper_2a62c9 @2a62c9 +0xa0 ===
+  @2a62c9: push rbp
+  @2a62ca: mov rbp, rsp
+  @2a62cd: sub rsp, 0x40
+  @2a62d1: mov qword ptr [rbp + 0x10], rcx
+  @2a62d5: cmp qword ptr [rbp + 0x10], 0
+  @2a62da: jne 0x2a62e6
+  @2a62dc: mov eax, 0
+  @2a62e1: jmp 0x2a6368
+  @2a62e6: mov rax, qword ptr [rbp + 0x10]
+  @2a62ea: mov edx, 0
+  @2a62ef: mov rcx, rax
+  @2a62f2: call 0x2a5410
+  @2a62f7: mov qword ptr [rbp - 0x10], rax
+  @2a62fb: call 0x2a5195
+  @2a6300: mov edx, eax
+  @2a6302: mov rax, qword ptr [rbp + 0x10]
+  @2a6306: mov rcx, rax
+  @2a6309: call 0x215c68
+  @2a630e: mov dword ptr [rbp - 4], eax
+  @2a6311: cmp qword ptr [rbp - 0x10], 0
+  @2a6316: je 0x2a6365
+  @2a6318: call 0x2a513d
+  @2a631d: mov edx, eax
+  @2a631f: mov rax, qword ptr [rbp - 0x10]
+  @2a6323: mov rcx, rax
+  @2a6326: call 0x2a52c7
+  @2a632b: mov qword ptr [rbp - 0x18], rax
+  @2a632f: mov rax, qword ptr [rbp - 0x18]
+  @2a6333: mov rcx, rax
+  @2a6336: call 0x2a4750
+  @2a633b: mov dword ptr [rbp - 0x1c], eax
+  @2a633e: mov eax, dword ptr [rbp - 0x1c]
+  @2a6341: cmp eax, dword ptr [rbp - 4]
+  @2a6344: jle 0x2a6365
+  @2a6346: call 0x2a5195
+  @2a634b: mov edx, eax
+  @2a634d: mov ecx, dword ptr [rbp - 0x1c]
+  @2a6350: mov rax, qword ptr [rbp + 0x10]
+  @2a6354: mov r8d, ecx
+  @2a6357: mov rcx, rax
+  @2a635a: call 0x215bd0
+  @2a635f: mov eax, dword ptr [rbp - 0x1c]
+  @2a6362: mov dword ptr [rbp - 4], eax
+  @2a6365: mov eax, dword ptr [rbp - 4]
+
+=== DISASM getelem_2a5ca8 @2a5ca8 +0x80 ===
+  @2a5ca8: push rbp
+  @2a5ca9: mov rbp, rsp
+  @2a5cac: sub rsp, 0x50
+  @2a5cb0: mov qword ptr [rbp + 0x10], rcx
+  @2a5cb4: mov dword ptr [rbp + 0x18], edx
+  @2a5cb7: cmp qword ptr [rbp + 0x10], 0
+  @2a5cbc: je 0x2a5cc4
+  @2a5cbe: cmp dword ptr [rbp + 0x18], 0
+  @2a5cc2: jns 0x2a5cce
+  @2a5cc4: mov eax, 0
+  @2a5cc9: jmp 0x2a5d8f
+  @2a5cce: mov rax, qword ptr [rbp + 0x10]
+  @2a5cd2: mov edx, 0
+  @2a5cd7: mov rcx, rax
+  @2a5cda: call 0x2a5410
+  @2a5cdf: mov qword ptr [rbp - 0x10], rax
+  @2a5ce3: mov qword ptr [rbp - 8], 0
+  @2a5ceb: cmp qword ptr [rbp - 0x10], 0
+  @2a5cf0: je 0x2a5d49
+  @2a5cf2: call 0x2a513d
+  @2a5cf7: mov edx, eax
+  @2a5cf9: mov rax, qword ptr [rbp - 0x10]
+  @2a5cfd: mov rcx, rax
+  @2a5d00: call 0x2a52c7
+  @2a5d05: mov qword ptr [rbp - 0x18], rax
+  @2a5d09: mov rax, qword ptr [rbp - 0x18]
+  @2a5d0d: mov rcx, rax
+  @2a5d10: call 0x2a4750
+  @2a5d15: cmp dword ptr [rbp + 0x18], eax
+  @2a5d18: jge 0x2a5d49
+  @2a5d1a: mov edx, dword ptr [rbp + 0x18]
+  @2a5d1d: mov rax, qword ptr [rbp - 0x18]
+  @2a5d21: mov rcx, rax
+
+=== DISASM caller_pre_len_getelem @568850 +0xc0 ===
+  @568850: ror byte ptr [rdi], 0xb6
+  @568853: rol byte ptr [rbp - 0x2b7bf040], 1
+  @56885a: add byte ptr [rax], al
+  @56885c: mov rbx, qword ptr [rbp - 0x30]
+  @568860: mov eax, 0
+  @568865: cmp rbx, rax
+  @568868: setne al
+  @56886b: movzx eax, al
+  @56886e: test eax, eax
+  @568870: je 0x568a26
+  @568876: mov eax, 0
+  @56887b: mov qword ptr [rbp - 0x180], rax
+  @568882: sub rsp, 0x20
+  @568886: mov rax, qword ptr [rbp - 0x30]
+  @56888a: mov rcx, rax
+  @56888d: call 0x2a62c9
+  @568892: cdqe 
+  @568894: add rsp, 0x20
+  @568898: mov qword ptr [rbp - 0x178], rax
+  @56889f: mov rbx, qword ptr [rbp - 0x180]
+  @5688a6: mov rax, qword ptr [rbp - 0x178]
+  @5688ad: cmp ebx, eax
+  @5688af: setl al
+  @5688b2: movzx eax, al
+  @5688b5: test eax, eax
+  @5688b7: je 0x568a21
+  @5688bd: sub rsp, 0x20
+  @5688c1: mov rax, qword ptr [rbp - 0x30]
+  @5688c5: mov rcx, rax
+  @5688c8: mov rax, qword ptr [rbp - 0x180]
+  @5688cf: mov rdx, rax
+  @5688d2: call 0x2a5ca8
+  @5688d7: add rsp, 0x20
+  @5688db: mov qword ptr [rbp - 0x188], rax
+  @5688e2: mov rbx, qword ptr [rbp - 0x188]
+  @5688e9: mov eax, 0
+  @5688ee: cmp rbx, rax
+  @5688f1: setne al
+  @5688f4: movzx eax, al
+  @5688f7: test eax, eax
+  @5688f9: je 0x5689d8
+  @5688ff: mov eax, 0
+  @568904: mov qword ptr [rbp - 0x198], rax
+  @56890b: sub rsp, 0x20
+
+=== DISASM post_zero_to_mid @56814a +0x200 ===
+  @56814a: sub rsp, 0x20
+  @56814e: mov rax, qword ptr [rbp - 0x10]
+  @568152: mov rcx, rax
+  @568155: mov rax, qword ptr [rbp - 0x20]
+  @568159: mov rdx, rax
+  @56815c: call 0x20203f
+  @568161: cdqe 
+  @568163: add rsp, 0x20
+  @568167: mov qword ptr [rbp - 0x50], rax
+  @56816b: mov rax, qword ptr [rbp - 0x50]
+  @56816f: cdqe 
+  @568171: mov rbx, rax
+  @568174: mov eax, 0
+  @568179: cmp ebx, eax
+  @56817b: setle al
+  @56817e: movzx eax, al
+  @568181: test eax, eax
+  @568183: je 0x56819d
+  @568189: movabs rax, 0xffffffffffffffff
+  @568193: jmp 0x56ab42
+  @568198: jmp 0x56819d
+  @56819d: mov rax, qword ptr [rbp - 0x50]
+  @5681a1: cdqe 
+  @5681a3: mov rbx, rax
+  @5681a6: mov eax, 0xff
+  @5681ab: cmp ebx, eax
+  @5681ad: setg al
+  @5681b0: movzx eax, al
+  @5681b3: test eax, eax
+  @5681b5: je 0x5681cf
+  @5681bb: movabs rax, 0xffffffffffffffff
+  @5681c5: jmp 0x56ab42
+  @5681ca: jmp 0x5681cf
+  @5681cf: sub rsp, 0x20
+  @5681d3: lea rax, [rbp - 0x150]
+  @5681da: mov qword ptr [rbp - 0x170], rax
+  @5681e1: mov rax, qword ptr [rbp - 0x10]
+  @5681e5: mov rcx, rax
+  @5681e8: mov rax, qword ptr [rbp - 0x20]
+  @5681ec: mov rdx, rax
+  @5681ef: mov rax, qword ptr [rbp - 0x170]
+  @5681f6: mov r8, rax
+  @5681f9: call 0x201f36
+  @5681fe: add rsp, 0x20
+  @568202: mov eax, 0
+  @568207: mov qword ptr [rbp - 0x180], rax
+  @56820e: mov eax, 0
+  @568213: mov qword ptr [rbp - 0x188], rax
+  @56821a: mov eax, 0
+  @56821f: mov qword ptr [rbp - 0x190], rax
+  @568226: sub rsp, 0x20
+  @56822a: call 0x1933d8
+  @56822f: add rsp, 0x20
+  @568233: mov qword ptr [rbp - 0x178], rax
+  @56823a: mov rbx, qword ptr [rbp - 0x178]
+  @568241: mov eax, 0
+  @568246: cmp rbx, rax
+  @568249: setne al
+  @56824c: movzx eax, al
+  @56824f: test eax, eax
+  @568251: je 0x5684f2
+  @568257: mov rax, qword ptr [rbp - 0x178]
+  @56825e: movzx eax, byte ptr [rax]
+  @568261: mov rbx, rax
+  @568264: mov eax, 0
+  @568269: cmp ebx, eax
+  @56826b: setne al
+  @56826e: movzx eax, al
+  @568271: test eax, eax
+  @568273: je 0x5684e8
+  @568279: mov eax, 0
+  @56827e: mov qword ptr [rbp - 0x198], rax
+  @568285: mov rax, qword ptr [rbp - 0x198]
+  @56828c: cdqe 
+  @56828e: mov rbx, rax
+  @568291: mov eax, 0x78
+  @568296: cmp ebx, eax
+  @568298: setl al
+  @56829b: movzx eax, al
+  @56829e: test eax, eax
+  @5682a0: je 0x5684e3
+  @5682a6: mov rax, qword ptr [rbp - 0x178]
+  @5682ad: push rax
+  @5682ae: mov rax, qword ptr [rbp - 0x198]
+  @5682b5: cdqe 
+  @5682b7: mov rbx, rax
+  @5682ba: pop rax
+  @5682bb: lea rax, [rax + rbx]
+  @5682bf: movzx eax, byte ptr [rax]
+  @5682c2: mov rbx, rax
+  @5682c5: mov eax, 0
+  @5682ca: cmp ebx, eax
+  @5682cc: sete al
+  @5682cf: movzx eax, al
+  @5682d2: test eax, eax
+  @5682d4: je 0x5682e4
+  @5682da: jmp 0x5684e3
+  @5682df: jmp 0x5682e4
+  @5682e4: mov rax, qword ptr [rbp - 0x178]
+  @5682eb: push rax
+  @5682ec: mov rax, qword ptr [rbp - 0x198]
+  @5682f3: cdqe 
+  @5682f5: mov rbx, rax
+  @5682f8: pop rax
+  @5682f9: lea rax, [rax + rbx]
+  @5682fd: movzx eax, byte ptr [rax]
+  @568300: mov rbx, rax
+  @568303: mov eax, 0x68
+  @568308: cmp ebx, eax
+  @56830a: sete al
+  @56830d: movzx eax, al
+  @568310: test eax, eax
+  @568312: je 0x56835f
+  @568318: mov rax, qword ptr [rbp - 0x178]
+  @56831f: push rax
+  @568320: mov rax, qword ptr [rbp - 0x198]
+  @568327: cdqe 
+  @568329: mov ebx, 1
+  @56832e: add eax, ebx
+  @568330: cdqe 
+  @568332: mov rbx, rax
+  @568335: pop rax
+  @568336: lea rax, [rax + rbx]
+  @56833a: movzx eax, byte ptr [rax]
+  @56833d: mov rbx, rax
+  @568340: mov eax, 0x65
+  @568345: cmp ebx, eax
+  @568347: sete al
+
+=== CALLERS of @2a62c9 ===
+  n=100
+  call-site @0244ad
+    @02447d: mov ebx, eax
+    @02447f: pop rax
+    @024480: lea rax, [rax + rbx]
+    @024484: mov rbx, rax
+    @024487: pop rax
+    @024488: mov byte ptr [rbx], al
+    @02448a: mov rax, qword ptr [rbp - 0x38]
+    @02448e: cdqe 
+    @024490: mov ebx, 1
+    @024495: add eax, ebx
+    @024497: cdqe 
+    @024499: mov qword ptr [rbp - 0x38], rax
+    @02449d: jmp 0x2442e
+    @0244a2: sub rsp, 0x20
+    @0244a6: mov rax, qword ptr [rbp - 0x18]
+    @0244aa: mov rcx, rax
+    @0244ad: call 0x2a62c9 <<<
+    @0244b2: cdqe 
+    @0244b4: add rsp, 0x20
+  call-site @027cfa
+    @027cca: cmp rbx, rax
+    @027ccd: sete al
+    @027cd0: movzx eax, al
+    @027cd3: test eax, eax
+    @027cd5: je 0x27cef
+    @027cdb: movabs rax, 0xffffffffffffffff
+    @027ce5: jmp 0x27e19
+    @027cea: jmp 0x27cef
+    @027cef: sub rsp, 0x20
+    @027cf3: mov rax, qword ptr [rbp - 0x40]
+    @027cf7: mov rcx, rax
+    @027cfa: call 0x2a62c9 <<<
+    @027cff: cdqe 
+    @027d01: add rsp, 0x20
+  call-site @02cf2c
+    @02cefc: cmp rbx, rax
+    @02ceff: sete al
+    @02cf02: movzx eax, al
+    @02cf05: test eax, eax
+    @02cf07: je 0x2cf21
+    @02cf0d: movabs rax, 0xffffffffffffffff
+    @02cf17: jmp 0x2d15a
+    @02cf1c: jmp 0x2cf21
+    @02cf21: sub rsp, 0x20
+    @02cf25: mov rax, qword ptr [rbp - 0x18]
+    @02cf29: mov rcx, rax
+    @02cf2c: call 0x2a62c9 <<<
+    @02cf31: cdqe 
+    @02cf33: add rsp, 0x20
+  call-site @0340c5
+    @034095: mov r9, rax
+    @034098: call 0x230bc
+    @03409d: and eax, 0xff
+    @0340a2: add rsp, 0x20
+    @0340a6: test eax, eax
+    @0340a8: je 0x34616
+    @0340ae: mov eax, 0
+    @0340b3: mov qword ptr [rbp - 0x260], rax
+    @0340ba: sub rsp, 0x20
+    @0340be: mov rax, qword ptr [rbp - 0x30]
+    @0340c2: mov rcx, rax
+    @0340c5: call 0x2a62c9 <<<
+    @0340ca: cdqe 
+    @0340cc: add rsp, 0x20
+  call-site @0346fb
+  call-site @035abe
+  call-site @035cb8
+  call-site @038579
+    @038549: cdqe 
+    @03854b: mov qword ptr [rbp - 0x38], rax
+    @03854f: jmp 0x383ce
+    @038554: mov rbx, qword ptr [rbp - 0x18]
+    @038558: mov eax, 0
+    @03855d: cmp rbx, rax
+    @038560: setne al
+    @038563: movzx eax, al
+    @038566: test eax, eax
+    @038568: je 0x3895d
+    @03856e: sub rsp, 0x20
+    @038572: mov rax, qword ptr [rbp - 0x18]
+    @038576: mov rcx, rax
+    @038579: call 0x2a62c9 <<<
+    @03857e: cdqe 
+    @038580: add rsp, 0x20
+  call-site @03c7ab
+    @03c77b: setne al
+    @03c77e: movzx eax, al
+    @03c781: test eax, eax
+    @03c783: je 0x3c793
+    @03c789: mov eax, 1
+    @03c78e: jmp 0x3c798
+    @03c793: mov eax, 0
+    @03c798: test eax, eax
+    @03c79a: je 0x3cc78
+    @03c7a0: sub rsp, 0x20
+    @03c7a4: mov rax, qword ptr [rbp - 0x30]
+    @03c7a8: mov rcx, rax
+    @03c7ab: call 0x2a62c9 <<<
+    @03c7b0: cdqe 
+    @03c7b2: add rsp, 0x20
+  call-site @047eb2
+    @047e82: mov eax, 0
+    @047e87: cmp rbx, rax
+    @047e8a: sete al
+    @047e8d: movzx eax, al
+    @047e90: test eax, eax
+    @047e92: je 0x47ea7
+    @047e98: mov eax, 0
+    @047e9d: jmp 0x480b1
+    @047ea2: jmp 0x47ea7
+    @047ea7: sub rsp, 0x20
+    @047eab: mov rax, qword ptr [rbp - 0x28]
+    @047eaf: mov rcx, rax
+    @047eb2: call 0x2a62c9 <<<
+    @047eb7: cdqe 
+    @047eb9: add rsp, 0x20
+  call-site @04b632
+    @04b602: mov eax, 0
+    @04b607: cmp rbx, rax
+    @04b60a: sete al
+    @04b60d: movzx eax, al
+    @04b610: test eax, eax
+    @04b612: je 0x4b627
+    @04b618: mov eax, 0
+    @04b61d: jmp 0x4d3df
+    @04b622: jmp 0x4b627
+    @04b627: sub rsp, 0x20
+    @04b62b: mov rax, qword ptr [rbp - 0x20]
+    @04b62f: mov rcx, rax
+    @04b632: call 0x2a62c9 <<<
+    @04b637: cdqe 
+    @04b639: add rsp, 0x20
+  call-site @04f1df
+    @04f1af: dec dword ptr [rax - 0x75]
+    @04f1b2: pop rbp
+    @04f1b3: loopne 0x4f16d
+    @04f1b5: add byte ptr [rax], al
+    @04f1b7: add byte ptr [rax], al
+    @04f1b9: cmp rbx, rax
+    @04f1bc: sete al
+    @04f1bf: movzx eax, al
+    @04f1c2: test eax, eax
+    @04f1c4: je 0x4f1d4
+    @04f1ca: jmp 0x4fe94
+    @04f1cf: jmp 0x4f1d4
+    @04f1d4: sub rsp, 0x20
+    @04f1d8: mov rax, qword ptr [rbp - 0x20]
+    @04f1dc: mov rcx, rax
+    @04f1df: call 0x2a62c9 <<<
+    @04f1e4: cdqe 
+    @04f1e6: add rsp, 0x20
+  call-site @04ffe2
+    @04ffb2: or al, byte ptr [rax]
+    @04ffb4: add byte ptr [rax], al
+    @04ffb6: mov eax, 0
+    @04ffbb: jmp 0x4ffc5
+    @04ffc0: mov eax, 1
+    @04ffc5: test eax, eax
+    @04ffc7: je 0x4ffd7
+    @04ffcd: jmp 0x505bf
+    @04ffd2: jmp 0x4ffd7
+    @04ffd7: sub rsp, 0x20
+    @04ffdb: mov rax, qword ptr [rbp - 0x18]
+    @04ffdf: mov rcx, rax
+    @04ffe2: call 0x2a62c9 <<<
+    @04ffe7: cdqe 
+    @04ffe9: add rsp, 0x20
+  call-site @05a896
+    @05a866: cwde 
+    @05a867: jmp 0x5a938
+    @05a86c: jmp 0x5a871
+    @05a871: sub rsp, 0x20
+    @05a875: mov rax, qword ptr [rbp - 0x10]
+    @05a879: mov rcx, rax
+    @05a87c: call 0x2321c
+    @05a881: cdqe 
+    @05a883: add rsp, 0x20
+    @05a887: mov qword ptr [rbp - 0x58], rax
+    @05a88b: sub rsp, 0x20
+    @05a88f: mov rax, qword ptr [rbp - 0x30]
+    @05a893: mov rcx, rax
+    @05a896: call 0x2a62c9 <<<
+    @05a89b: cdqe 
+    @05a89d: add rsp, 0x20
+  call-site @0a115f
+    @0a112f: cwde 
+    @0a1130: mov rbx, rax
+    @0a1133: mov eax, 0
+    @0a1138: cmp ebx, eax
+    @0a113a: setle al
+    @0a113d: movzx eax, al
+    @0a1140: test eax, eax
+    @0a1142: je 0xa14d5
+    @0a1148: mov eax, 0
+    @0a114d: mov qword ptr [rbp - 0x510], rax
+    @0a1154: sub rsp, 0x20
+    @0a1158: mov rax, qword ptr [rbp - 0x30]
+    @0a115c: mov rcx, rax
+    @0a115f: call 0x2a62c9 <<<
+    @0a1164: cdqe 
+    @0a1166: add rsp, 0x20
+  call-site @0cdc61
+    @0cdc31: setne al
+    @0cdc34: movzx eax, al
+    @0cdc37: test eax, eax
+    @0cdc39: je 0xcdc49
+    @0cdc3f: mov eax, 1
+    @0cdc44: jmp 0xcdc4e
+    @0cdc49: mov eax, 0
+    @0cdc4e: test eax, eax
+    @0cdc50: je 0xcdd54
+    @0cdc56: sub rsp, 0x20
+    @0cdc5a: mov rax, qword ptr [rbp - 0x28]
+    @0cdc5e: mov rcx, rax
+    @0cdc61: call 0x2a62c9 <<<
+    @0cdc66: cdqe 
+    @0cdc68: add rsp, 0x20
+  call-site @0cdea5
+    @0cde75: setne al
+    @0cde78: movzx eax, al
+    @0cde7b: test eax, eax
+    @0cde7d: je 0xcde8d
+    @0cde83: mov eax, 1
+    @0cde88: jmp 0xcde92
+    @0cde8d: mov eax, 0
+    @0cde92: test eax, eax
+    @0cde94: je 0xce0d5
+    @0cde9a: sub rsp, 0x20
+    @0cde9e: mov rax, qword ptr [rbp - 0x28]
+    @0cdea2: mov rcx, rax
+    @0cdea5: call 0x2a62c9 <<<
+    @0cdeaa: cdqe 
+    @0cdeac: add rsp, 0x20
+  call-site @0efad7
+  call-site @1012fc
+    @1012cc: add byte ptr [rax], al
+    @1012ce: cmp rbx, rax
+    @1012d1: sete al
+    @1012d4: movzx eax, al
+    @1012d7: test eax, eax
+    @1012d9: je 0x1012ee
+    @1012df: mov eax, 0
+    @1012e4: jmp 0x10149c
+    @1012e9: jmp 0x1012ee
+    @1012ee: sub rsp, 0x20
+    @1012f2: mov rax, qword ptr [rbp - 0x148]
+    @1012f9: mov rcx, rax
+    @1012fc: call 0x2a62c9 <<<
+    @101301: cdqe 
+    @101303: add rsp, 0x20
+  call-site @166e76
+    @166e46: add byte ptr [rax], al
+    @166e48: mov rbx, qword ptr [rbp - 0x20]
+    @166e4c: mov eax, 0
+    @166e51: cmp rbx, rax
+    @166e54: setne al
+    @166e57: movzx eax, al
+    @166e5a: test eax, eax
+    @166e5c: je 0x166f9c
+    @166e62: mov eax, 0
+    @166e67: mov qword ptr [rbp - 0x70], rax
+    @166e6b: sub rsp, 0x20
+    @166e6f: mov rax, qword ptr [rbp - 0x20]
+    @166e73: mov rcx, rax
+    @166e76: call 0x2a62c9 <<<
+    @166e7b: cdqe 
+    @166e7d: add rsp, 0x20
+
+=== CALLERS of @2a5ca8 (get-elem) ===
+  n=140
+  @01fee6
+  @023b56
+  @027d3c
+  @02cf65
+  @03410a
+  @03474c
+  @035b0f
+  @035d09
+  @0385ca
+  @03c7fc
+  @047d22
+  @047eeb
+
+=== Capless CallExpr corridor refs to 2a62 / vec helpers ===
+  calls->len(@2a62c9) in Capless-ish: n=1 ['0x56888d']
+  calls->getelem(@2a5ca8) in Capless-ish: n=2 ['0x5688d2', '0x5690a0']
+  calls->getelem+(@2a5d00) in Capless-ish: n=0 []
+  calls->201f36(@201f36) in Capless-ish: n=3 ['0x5681f9', '0x56e434', '0x576f5e']
+
+=== INT3 after @2a62c9 / at je / at container setup ===
+  decode @56888d..:
+    @56888d: call 0x2a62c9
+    @568892: cdqe 
+    @568894: add rsp, 0x20
+    @568898: mov qword ptr [rbp - 0x178], rax
+    @56889f: mov rbx, qword ptr [rbp - 0x180]
+    @5688a6: mov rax, qword ptr [rbp - 0x178]
+    @5688ad: cmp ebx, eax
+    @5688af: setl al
+    @5688b2: movzx eax, al
+    @5688b5: test eax, eax
+    @5688b7: je 0x568a21
+    @5688bd: sub rsp, 0x20
+    @5688c1: mov rax, qword ptr [rbp - 0x30]
+    @5688c5: mov rcx, rax
+  @56888d call_2a62c9        -> INT3
+  @568892 after_len_ret      -> AV
+  @5688b7 je_idx_ge_len      -> AV
+  @568870 je_null_30         -> AV
+  @568850 setup_850          -> AV
+  @568860 setup_860          -> AV
+
+=== INT3 arg-fill candidate calls (HIT/miss) ===
+  @5681f9 call_201f36        -> INT3
+  @56822a call_1933d8        -> INT3
+  @568587 call_205068        -> INT3
+  @568829 call_1ffe34        -> INT3
+  @5684f2 alt_fill_tgt       -> INT3
+
+=== PLANT arglen / fill_args ===
+after_len @568892: cdqe  [4898]
+call@56888d bytes=e837dad3ff
+
+=== plant arglen_force1 sha12=af7203b66778 ===
+  p_ret_lit.x      OK       sha=61afec45d7ff n868=2 run=crc=0x1/1 (0.1s)
+  arglen_force1 sret @0xb04:
+    @0b04: lea rax, [rbp - 0x28]
+    @0b08: mov rcx, rax
+    @0b0b: sub rsp, 0x20
+    @0b0f: call 0xa90
+    @0b14: add rsp, 0x20
+    @0b18: lea rax, [rbp - 0x28]
+    @0b1c: mov rax, qword ptr [rax]
+    @0b1f: mov rbx, rax
+    @0b22: mov eax, 0xa
+    @0b27: cmp rbx, rax
+    @0b2a: setne al
+    @0b2d: movzx eax, al
+    @0b30: test eax, eax
+    @0b32: je 0xb47
+    @0b38: mov eax, 1
+    @0b3d: jmp 0xbbb
+    @0b42: jmp 0xb47
+    @0b47: lea rax, [rbp - 0x28]
+    @0b4b: add rax, 8
+    @0b51: mov rax, qword ptr [rax]
+  arglen_force1 has_imm10=True mov_rdx=False sub20=True call=True true_immrdx=False
+  NOTE: lit sha==base (61afec45d7ff)
+  p_ret_fwd.x      GS       sha=- n868=0 run=-/-1 (0.7s)
+  p_ret_local.x    OK       sha=83b72210d7e8 n868=2 run=crc=0x1/1 (0.1s)
+je_tok0 @568273: je 0x5684e8 [0f846f020000] -> 0x5684e8
+
+=== plant fill_args_tok0 sha12=55565a9ab8b8 ===
+  p_ret_lit.x      OK       sha=61afec45d7ff n868=2 run=crc=0x1/1 (0.1s)
+  fill_args_tok0 sret @0xb04:
+    @0b04: lea rax, [rbp - 0x28]
+    @0b08: mov rcx, rax
+    @0b0b: sub rsp, 0x20
+    @0b0f: call 0xa90
+    @0b14: add rsp, 0x20
+    @0b18: lea rax, [rbp - 0x28]
+    @0b1c: mov rax, qword ptr [rax]
+    @0b1f: mov rbx, rax
+    @0b22: mov eax, 0xa
+    @0b27: cmp rbx, rax
+    @0b2a: setne al
+    @0b2d: movzx eax, al
+    @0b30: test eax, eax
+    @0b32: je 0xb47
+    @0b38: mov eax, 1
+    @0b3d: jmp 0xbbb
+    @0b42: jmp 0xb47
+    @0b47: lea rax, [rbp - 0x28]
+    @0b4b: add rax, 8
+    @0b51: mov rax, qword ptr [rax]
+  fill_args_tok0 has_imm10=True mov_rdx=False sub20=True call=True true_immrdx=False
+  NOTE: lit sha==base (61afec45d7ff)
+  p_ret_fwd.x      GS       sha=- n868=0 run=-/-1 (0.7s)
+  p_ret_local.x    OK       sha=83b72210d7e8 n868=2 run=crc=0x1/1 (0.1s)
+je_null_30 @568870: je 0x568a26 [0f84b0010000]
+
+RESULTS: [('arglen_force1', 'af7203b66778', [('p_ret_lit.x', 'OK', '61afec45d7ff', 2, 'crc=0x1', 1), ('p_ret_fwd.x', 'GS', '-', 0, '-', -1), ('p_ret_local.x', 'OK', '83b72210d7e8', 2, 'crc=0x1', 1)]), ('fill_args_tok0', '55565a9ab8b8', [('p_ret_lit.x', 'OK', '61afec45d7ff', 2, 'crc=0x1', 1), ('p_ret_fwd.x', 'GS', '-', 0, '-', -1), ('p_ret_local.x', 'OK', '83b72210d7e8', 2, 'crc=0x1', 1)])]
+elapsed=6.5s DONE
+EXIT:0

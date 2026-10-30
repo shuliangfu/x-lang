@@ -1,0 +1,102 @@
+host_b828=0977d6fbb472
+b828 lit try0 AV sha=- n868=0
+b828 lit try1 AV sha=- n868=0
+b828 lit try2 AV sha=- n868=0
+b828 lit try3 AV sha=- n868=0
+b828 lit try4 AV sha=- n868=0
+
+=== find Capless fn start before @57820f ===
+prologues before call n=0 last5=[]
+Capless-ish start guess=0x57656c
+
+=== SCAN [57656c..578214] for rbp+0x478 ===
+refs n=4
+  @576631: mov qword ptr [rbp + 0x478], rax [48898578040000]
+  @576638: cmp qword ptr [rbp + 0x478], 0 [4883bd7804000000]
+  @576647: mov qword ptr [rbp + 0x478], rax [48898578040000]
+  @578200: mov rcx, qword ptr [rbp + 0x478] [488b8d78040000]
+STORES n=3 LOADS n=1
+
+--- STORE context @576631 ---
+  @576601: add byte ptr [rax - 0x75], cl
+  @576604: test dword ptr [rax - 0x45fffffc], ebp
+  @57660a: adc byte ptr [rax], al
+  @57660c: add byte ptr [rax], al
+  @57660e: mov rcx, rax
+  @576611: call 0x55d730
+  @576616: mov qword ptr [rbp + 0x460], rax
+  @57661d: mov rax, qword ptr [rbp + 0x4a8]
+  @576624: mov edx, 0x568
+  @576629: mov rcx, rax
+  @57662c: call 0x55d730
+  @576631: mov qword ptr [rbp + 0x478], rax <<<
+  @576638: cmp qword ptr [rbp + 0x478], 0
+  @576640: jne 0x57664e
+
+--- STORE context @576638 ---
+  @576608: add byte ptr [rdx + 0x10], bh
+  @57660e: mov rcx, rax
+  @576611: call 0x55d730
+  @576616: mov qword ptr [rbp + 0x460], rax
+  @57661d: mov rax, qword ptr [rbp + 0x4a8]
+  @576624: mov edx, 0x568
+  @576629: mov rcx, rax
+  @57662c: call 0x55d730
+  @576631: mov qword ptr [rbp + 0x478], rax
+  @576638: cmp qword ptr [rbp + 0x478], 0 <<<
+  @576640: jne 0x57664e
+  @576642: call 0x24afe0
+  @576647: mov qword ptr [rbp + 0x478], rax
+
+--- STORE context @576647 ---
+  @576617: mov dword ptr [rbp + 0x460], eax
+  @57661d: mov rax, qword ptr [rbp + 0x4a8]
+  @576624: mov edx, 0x568
+  @576629: mov rcx, rax
+  @57662c: call 0x55d730
+  @576631: mov qword ptr [rbp + 0x478], rax
+  @576638: cmp qword ptr [rbp + 0x478], 0
+  @576640: jne 0x57664e
+  @576642: call 0x24afe0
+  @576647: mov qword ptr [rbp + 0x478], rax <<<
+  @57664e: mov edx, dword ptr [rbp + 0x468]
+  @576654: mov rax, qword ptr [rbp + 0x490]
+
+=== INT3 on +0x478 stores / key loads before pre_last ===
+  STORE @576631 -> INT3
+  STORE @576638 -> INT3
+  STORE @576647 -> AV
+  @578200 load478_arg5         -> AV
+  @57820f call_prelast         -> INT3
+  @567a5c pl_load_arg5         -> AV
+  @567a60 pl_store_local30     -> AV
+  @56888d call_len             -> AV
+  @5688b7 je_ge_len            -> AV
+
+=== broader Capless-region +0x478 refs ===
+n=4
+  @576631: mov qword ptr [rbp + 0x478], rax
+  @576638: cmp qword ptr [rbp + 0x478], 0
+  @576647: mov qword ptr [rbp + 0x478], rax
+  @578200: mov rcx, qword ptr [rbp + 0x478]
+
+=== raw disp32=0x478 in Capless 570000..580000 ===
+raw n=4 ['0x576634', '0x57663b', '0x57664a', '0x578203']
+zero-store candidate @576638 qword ptr [rbp + 0x478], 0
+
+=== plant nop_z478_576638 sha12=93f1943b29bc ===
+  p_ret_lit.x      AV       sha=- n868=0 run=-/-1
+  p_ret_fwd.x      GS       sha=- n868=0 run=-/-1
+  p_ret_local.x    AV       sha=- n868=0 run=-/-1
+jcc before store: @576640 jne 0x57664e [750c]
+  -> plant nop jcc (was skip-over-store)
+
+=== plant fill478_nop_576640 sha12=18f8c30e86bf ===
+  p_ret_lit.x      OK       sha=61afec45d7ff n868=2 run=crc=0x1/1
+  fill478_nop_576640 true_immrdx=False callmk=True
+  p_ret_fwd.x      GS       sha=- n868=0 run=-/-1
+  p_ret_local.x    OK       sha=83b72210d7e8 n868=2 run=crc=0x1/1
+
+RESULTS: [('nop_z478_576638', '93f1943b29bc', [('p_ret_lit.x', 'AV', '-', 0, '-'), ('p_ret_fwd.x', 'GS', '-', 0, '-'), ('p_ret_local.x', 'AV', '-', 0, '-')]), ('fill478_nop_576640', '18f8c30e86bf', [('p_ret_lit.x', 'OK', '61afec45d7ff', 2, 'crc=0x1'), ('p_ret_fwd.x', 'GS', '-', 0, '-'), ('p_ret_local.x', 'OK', '83b72210d7e8', 2, 'crc=0x1')])]
+elapsed=14.2s DONE
+EXIT:0

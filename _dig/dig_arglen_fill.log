@@ -1,0 +1,336 @@
+host_b828=0977d6fbb472
+b828 lit try0 OK sha=61afec45d7ff n868=2
+  b828 true_immrdx=False callmk=True
+
+=== DISASM Capless @57664e .. @576900 (post-alloc head) ===
+  @57664e: mov edx, dword ptr [rbp + 0x468]
+  @576654: mov rax, qword ptr [rbp + 0x490]
+  @57665b: mov rcx, rax
+  @57665e: call 0x20cd98
+  @576663: mov dword ptr [rbp + 0x45c], eax
+  @576669: mov r9, qword ptr [rbp + 0x460]
+  @576670: mov r8d, dword ptr [rbp + 0x4a0]
+  @576677: mov rdx, qword ptr [rbp + 0x498]
+  @57667e: mov rax, qword ptr [rbp + 0x490]
+  @576685: mov ecx, dword ptr [rbp + 0x4b0]
+  @57668b: mov dword ptr [rsp + 0x20], ecx
+  @57668f: mov rcx, rax
+  @576692: call 0x2be519
+  @576697: mov dword ptr [rbp + 0x458], eax
+  @57669d: cmp dword ptr [rbp + 0x458], 0
+  @5766a4: jns 0x5766b0
+  @5766a6: mov eax, 0xffffffff
+  @5766ab: jmp 0x578278
+  @5766b0: cmp dword ptr [rbp + 0x458], 0
+  @5766b7: jle 0x5766c3
+  @5766b9: mov eax, 0
+  @5766be: jmp 0x578278
+  @5766c3: mov r9, qword ptr [rbp + 0x4a8]
+  @5766ca: mov r8d, dword ptr [rbp + 0x4a0]
+  @5766d1: mov rdx, qword ptr [rbp + 0x498]
+  @5766d8: mov rax, qword ptr [rbp + 0x490]
+  @5766df: mov ecx, dword ptr [rbp + 0x4b0]
+  @5766e5: mov dword ptr [rsp + 0x20], ecx
+  @5766e9: mov rcx, rax
+  @5766ec: call 0x2c614f
+  @5766f1: mov dword ptr [rbp + 0x454], eax
+  @5766f7: cmp dword ptr [rbp + 0x454], 0
+  @5766fe: jns 0x57670a
+  @576700: mov eax, 0xffffffff
+  @576705: jmp 0x578278
+  @57670a: cmp dword ptr [rbp + 0x454], 0
+  @576711: jle 0x57671d
+  @576713: mov eax, 0
+  @576718: jmp 0x578278
+  @57671d: mov r9, qword ptr [rbp + 0x4a8]
+  @576724: mov r8d, dword ptr [rbp + 0x4a0]
+  @57672b: mov rdx, qword ptr [rbp + 0x498]
+  @576732: mov rax, qword ptr [rbp + 0x490]
+  @576739: mov ecx, dword ptr [rbp + 0x4b0]
+  @57673f: mov dword ptr [rsp + 0x20], ecx
+  @576743: mov rcx, rax
+  @576746: call 0x46a4db
+  @57674b: mov dword ptr [rbp + 0x450], eax
+  @576751: cmp dword ptr [rbp + 0x450], 0
+  @576758: jns 0x576764
+  @57675a: mov eax, 0xffffffff
+  @57675f: jmp 0x578278
+  @576764: cmp dword ptr [rbp + 0x450], 0
+  @57676b: jle 0x576777
+  @57676d: mov eax, 0
+  @576772: jmp 0x578278
+  @576777: mov r9, qword ptr [rbp + 0x4a8]
+  @57677e: mov r8d, dword ptr [rbp + 0x4a0]
+  @576785: mov rdx, qword ptr [rbp + 0x498]
+  @57678c: mov rax, qword ptr [rbp + 0x490]
+  @576793: mov ecx, dword ptr [rbp + 0x4b0]
+  @576799: mov dword ptr [rsp + 0x20], ecx
+  @57679d: mov rcx, rax
+  @5767a0: call 0x493d31
+  @5767a5: mov dword ptr [rbp + 0x44c], eax
+  @5767ab: cmp dword ptr [rbp + 0x44c], 0
+  @5767b2: jns 0x5767be
+  @5767b4: mov eax, 0xffffffff
+  @5767b9: jmp 0x578278
+  @5767be: cmp dword ptr [rbp + 0x44c], 0
+  @5767c5: jle 0x5767d1
+  @5767c7: mov eax, 0
+  @5767cc: jmp 0x578278
+  @5767d1: mov r9, qword ptr [rbp + 0x4a8]
+  @5767d8: mov r8d, dword ptr [rbp + 0x4a0]
+  @5767df: mov rdx, qword ptr [rbp + 0x498]
+  @5767e6: mov rax, qword ptr [rbp + 0x490]
+  @5767ed: mov ecx, dword ptr [rbp + 0x4b0]
+  @5767f3: mov dword ptr [rsp + 0x20], ecx
+  @5767f7: mov rcx, rax
+  @5767fa: call 0x49c90f
+  @5767ff: mov dword ptr [rbp + 0x448], eax
+  @576805: cmp dword ptr [rbp + 0x448], 0
+  @57680c: jns 0x576818
+  @57680e: mov eax, 0xffffffff
+  @576813: jmp 0x578278
+  @576818: cmp dword ptr [rbp + 0x448], 0
+  @57681f: jle 0x57682b
+  @576821: mov eax, 0
+  @576826: jmp 0x578278
+  @57682b: mov dword ptr [rbp + 0x444], 0
+  @576835: mov dword ptr [rbp + 0x440], 0
+  @57683f: mov dword ptr [rbp + 0x43c], 0
+  @576849: mov dword ptr [rbp + 0x438], 0
+  @576853: mov dword ptr [rbp + 0x434], 0
+  @57685d: mov eax, dword ptr [rbp + 0x468]
+  @576863: mov dword ptr [rbp + 0x474], eax
+  @576869: mov dword ptr [rbp + 0x430], 0
+  @576873: mov dword ptr [rbp + 0x470], 0
+  @57687d: cmp dword ptr [rbp + 0x45c], 0x33
+  @576884: je 0x57688f
+  @576886: cmp dword ptr [rbp + 0x45c], 0x34
+  @57688d: jne 0x5768bf
+  @57688f: mov edx, dword ptr [rbp + 0x468]
+  @576895: mov rax, qword ptr [rbp + 0x490]
+  @57689c: mov rcx, rax
+  @57689f: call 0x201d9f
+  @5768a4: mov dword ptr [rbp + 0x42c], eax
+  @5768aa: cmp dword ptr [rbp + 0x42c], 0
+  @5768b1: jle 0x5768bf
+  @5768b3: mov eax, dword ptr [rbp + 0x42c]
+  @5768b9: mov dword ptr [rbp + 0x474], eax
+  @5768bf: mov edx, dword ptr [rbp + 0x474]
+  @5768c5: mov rax, qword ptr [rbp + 0x490]
+  @5768cc: mov rcx, rax
+  @5768cf: call 0x200ff7
+  @5768d4: mov dword ptr [rbp + 0x444], eax
+  @5768da: cmp dword ptr [rbp + 0x444], 0
+  @5768e1: jle 0x576b7b
+  @5768e7: mov edx, dword ptr [rbp + 0x444]
+  @5768ed: mov rax, qword ptr [rbp + 0x490]
+  @5768f4: mov rcx, rax
+  @5768f7: call 0x4dac80
+  @5768fc: mov dword ptr [rbp + 0x440], eax
+  @576902: cmp dword ptr [rbp + 0x440], 0x12
+
+=== E8 calls in Capless @57664e..@578200 ===
+n=70
+  @57665e -> @20cd98
+  @576692 -> @2be519
+  @5766ec -> @2c614f
+  @576746 -> @46a4db
+  @5767a0 -> @493d31
+  @5767fa -> @49c90f
+  @57689f -> @201d9f
+  @5768cf -> @200ff7
+  @5768f7 -> @4dac80
+  @576930 -> @1f564c
+  @576954 -> @4dac80
+  @57698f -> @1ff2ef
+  @5769d6 -> @1ddefa
+  @576a0a -> @530a78
+  @576a47 -> @2b55e7
+  @576a98 -> @5752bc
+  @576adc -> @530b50
+  @576b07 -> @530a78
+  @576b33 -> @523ba4
+  @576b5e -> @530a78
+  @576c6e -> @56d014
+  @576d29 -> @56d014
+  @576d85 -> @201eeb
+  @576dad -> @20cd98
+  @576dcb -> @20203f
+  @576ea5 -> @576eaa
+  @576f5e -> @201f36
+  @576f73 -> @201ea0
+  @577059 -> @57705f
+  @577115 -> @201ddf
+  @57712e -> @6354f0
+  @57714e -> @21eecd
+  @57717d -> @5a9e44
+  @577195 -> @57719a
+  @577221 -> @55cf88
+  @5772fd -> @577304
+  @577405 -> @27a89b
+  @577475 -> @56d014
+  @5774f8 -> @572620
+  @577539 -> @1ff2ef
+  @577569 -> @22424f
+  @5775a7 -> @5752bc
+  @5775de -> @57464c
+  @5775ff -> @57bebc
+  @577636 -> @525544
+  @57774f -> @577755
+  @57781c -> @57c050
+  @57784c -> @6354f0
+  @577871 -> @201ea0
+  @577960 -> @577967
+  @577a1c -> @201ddf
+  @577adc -> @55cf88
+  @577b0a -> @1ff2ef
+  @577b3a -> @22424f
+  @577b78 -> @5752bc
+  @577baf -> @57464c
+  @577bd0 -> @57bebc
+  @577c07 -> @525544
+  @577c47 -> @1ff2ef
+  @577ca1 -> @555ed8
+  @577cfb -> @557974
+  @577d55 -> @55483c
+  @577daf -> @55ac08
+  @577e09 -> @55bdd0
+  @577f53 -> @173f45
+  @577f6b -> @173f45
+  @577fa2 -> @55abc8
+  @577ffc -> @55ab88
+  @57803d -> @20203f
+  @57812f -> @578136
+
+=== DISASM @55d730 alloc head ===
+  @55d730: push rbp
+  @55d731: mov rbp, rsp
+  @55d734: push rbx
+  @55d735: sub rsp, 0x58
+  @55d73c: mov rax, rcx
+  @55d73f: mov qword ptr [rbp - 0x10], rax
+  @55d743: mov rax, rdx
+  @55d746: cdqe 
+  @55d748: mov qword ptr [rbp - 0x18], rax
+  @55d74c: mov eax, 0x100
+  @55d751: mov qword ptr [rbp - 0x28], rax
+  @55d755: mov eax, 0x10000
+  @55d75a: mov qword ptr [rbp - 0x30], rax
+  @55d75e: mov eax, 0x1000000
+  @55d763: mov qword ptr [rbp - 0x38], rax
+  @55d767: mov rax, qword ptr [rbp - 0x10]
+  @55d76b: mov rbx, rax
+  @55d76e: mov eax, 0
+  @55d773: cmp rbx, rax
+  @55d776: sete al
+  @55d779: movzx eax, al
+  @55d77c: test eax, eax
+
+=== Capless calls to len/getelem/push-ish ===
+  len (@2a62c9): in-window=[] all-capless=[]
+  getelem (@2a5ca8): in-window=[] all-capless=[]
+  len_inner (@215c68): in-window=[] all-capless=[]
+  set_len? (@215bd0): in-window=[] all-capless=[]
+  vec_len (@2a4750): in-window=[] all-capless=[]
+  alloc (@55d730): in-window=[] all-capless=['0x576611', '0x57662c']
+
+=== INT3 first post-alloc calls ===
+  @57665e->20cd98 -> INT3
+  @576692->2be519 -> INT3
+  @5766ec->2c614f -> INT3
+  @576746->46a4db -> INT3
+  @5767a0->493d31 -> INT3
+  @5767fa->49c90f -> INT3
+  @57689f->201d9f -> OK
+  @5768cf->200ff7 -> INT3
+  @5768f7->4dac80 -> AV
+  @576930->1f564c -> AV
+  @576954->4dac80 -> AV
+  @57698f->1ff2ef -> OK
+
+=== INT3 late Capless before pre_last ===
+  @577daf->55ac08 -> INT3
+  @577e09->55bdd0 -> INT3
+  @577f53->173f45 -> INT3
+  @577f6b->173f45 -> INT3
+  @577fa2->55abc8 -> AV
+  @577ffc->55ab88 -> AV
+  @57803d->20203f -> AV
+  @57812f->578136 -> AV
+
+=== loads from [rbp+0x490] then field in @57664e..@577200 ===
+  load490 @576654: mov rax, qword ptr [rbp + 0x490]
+  load490 @57667e: mov rax, qword ptr [rbp + 0x490]
+  load490 @5766d8: mov rax, qword ptr [rbp + 0x490]
+  load490 @576732: mov rax, qword ptr [rbp + 0x490]
+  load490 @57678c: mov rax, qword ptr [rbp + 0x490]
+  load490 @5767e6: mov rax, qword ptr [rbp + 0x490]
+  load490 @576895: mov rax, qword ptr [rbp + 0x490]
+  load490 @5768c5: mov rax, qword ptr [rbp + 0x490]
+  load490 @5768ed: mov rax, qword ptr [rbp + 0x490]
+  load490 @576926: mov rax, qword ptr [rbp + 0x490]
+  load490 @57694a: mov rax, qword ptr [rbp + 0x490]
+  load490 @576985: mov rax, qword ptr [rbp + 0x490]
+  load490 @5769c2: mov rax, qword ptr [rbp + 0x490]
+  load490 @576a7a: mov rax, qword ptr [rbp + 0x490]
+  load490 @576c32: mov rax, qword ptr [rbp + 0x490]
+    field? @576c41: lea rcx, [rbp + 0x380]
+    field? @576c48: mov qword ptr [rsp + 0x38], rcx
+    field? @576c5c: mov qword ptr [rsp + 0x28], rcx
+  load490 @576ced: mov rax, qword ptr [rbp + 0x490]
+    field? @576d03: mov qword ptr [rsp + 0x38], rcx
+    field? @576d17: mov qword ptr [rsp + 0x28], rcx
+  load490 @576d7b: mov rax, qword ptr [rbp + 0x490]
+  load490 @576da3: mov rax, qword ptr [rbp + 0x490]
+  load490 @576dc1: mov rax, qword ptr [rbp + 0x490]
+  load490 @576f51: mov rax, qword ptr [rbp + 0x490]
+  load490 @576f69: mov rax, qword ptr [rbp + 0x490]
+  load490 @577108: mov rax, qword ptr [rbp + 0x490]
+
+=== large forward je/jne in @57664e..@5781c0 ===
+n=22
+  @5768e1 jle -> @576b7b dist=0x29a [0f8e94020000]
+  @57691e jne -> @576972 dist=0x54 [7552]
+  @576979 je -> @576b7b dist=0x202 [0f84fc010000]
+  @576ab2 jne -> @576b1a dist=0x68 [7566]
+  @576b0e je -> @576b71 dist=0x63 [7461]
+  @576b82 jne -> @576d5a dist=0x1d8 [0f85d2010000]
+  @576d62 je -> @57766c dist=0x90a [0f8404090000]
+  @576d6f jne -> @57766c dist=0x8fd [0f85f7080000]
+  @576d97 jle -> @57766c dist=0x8d5 [0f8ecf080000]
+  @576db5 jne -> @57766c dist=0x8b7 [0f85b1080000]
+  @576ddd jle -> @57766c dist=0x88f [0f8e89080000]
+  @576ded jg -> @57766c dist=0x87f [0f8f79080000]
+  @576f85 jle -> @57766c dist=0x6e7 [0f8ee1060000]
+  @576f95 jg -> @57766c dist=0x6d7 [0f8fd1060000]
+  @577156 jne -> @577653 dist=0x4fd [0f85f7040000]
+  @577184 je -> @577653 dist=0x4cf [0f84c9040000]
+  @577674 je -> @577c24 dist=0x5b0 [0f84aa050000]
+  @577681 jne -> @577c24 dist=0x5a3 [0f859d050000]
+  @57782e jle -> @577c24 dist=0x3f6 [0f8ef0030000]
+  @57785b jle -> @577c24 dist=0x3c9 [0f8ec3030000]
+  @577f5b jne -> @57802d dist=0xd2 [0f85cc000000]
+  @577f73 jne -> @57802d dist=0xba [0f85b4000000]
+
+=== INT3 large-skip jccs (first 10) ===
+  @5768e1 jle -> INT3
+  @57691e jne -> OK
+  @576979 je -> OK
+  @576ab2 jne -> OK
+  @576b0e je -> OK
+  @576b82 jne -> INT3
+  @576d62 je -> INT3
+  @576d6f jne -> AV
+  @576d97 jle -> AV
+  @576db5 jne -> AV
+
+=== plant fill_nop_576b82 sha12=53438a8bd10b ===
+  p_ret_lit.x      OK       sha=61afec45d7ff n868=2 run=crc=0x1/1
+  fill_nop_576b82 true_immrdx=False callmk=True
+  NOTE sha==base
+  p_ret_fwd.x      GS       sha=- n868=0 run=-/-1
+  p_ret_local.x    OK       sha=83b72210d7e8 n868=2 run=crc=0x1/1
+
+RESULTS: [('fill_nop_576b82', '53438a8bd10b', [('p_ret_lit.x', 'OK', '61afec45d7ff', 2, 'crc=0x1'), ('p_ret_fwd.x', 'GS', '-', 0, '-'), ('p_ret_local.x', 'OK', '83b72210d7e8', 2, 'crc=0x1')])]
+elapsed=10.2s DONE
+EXIT:0
