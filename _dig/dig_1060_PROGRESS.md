@@ -672,8 +672,49 @@ CloudAgent ✕ · 升钉 ✕ · 10.74 ✕ · mega ✕ · HARD BAN／LEGACY ✕ �
 ### 禁令
 CloudAgent ✕ · 升钉 ✕ · 10.74 ✕ · mega 主刀 ✕ · HARD BAN／LEGACY ✕ · LIVE 整树 ✕ · 假绿 ✕ · **未绿勿请批** · **无新 cave**
 
-## 2026-10-30 open (post 08:40 DIG)
-- tip tip/egg+Path-C DIG done; PROD 7a2cf5da581a untouched; nail not raised
-- p_ret still red; no please-batch; no new cave
-- next Path-C′ tip 0x868 decode wiring vs SoftCap mega
+## 2026-10-30 ~08:41 CST Asia/Shanghai — Path-C′ DIG tip 0x868 / Capless wiring vs SoftCap mega
+
+### 0) 闸
+- Isol-G sha12 `7701dac5b813`（未动）／LIVE pret `cbc0d8e8d96f`
+- PROD SoftCap `7a2cf5da581a` **勿动**／钉盘 ecdb5cc1e **不升**
+- 无新 cave／无 isol 二进制／无假绿／禁 mega 主刀
+
+### 1) tip `sub rsp,0x868` 对照
+| 端 | count | 关键位点 |
+|---|---|---|
+| Isol tip | **29** | 含 `@0x121278`（prol `55 48 89 e5 53 48 81 ec 68 08 00 00`） |
+| LIVE pret | **2** | `@0x140d00`／`@0x140d58`（同 prol；绿 emit 帧） |
+
+**Isol `@0x121278` ≅ LIVE emit `@0x140d00`**（帧模板同构）。但 Isol tip 该 fn **仅自呼** `E8 @0x1215b9`；LIVE emit `@0x140d00` **0 外部 E8 caller**（入口由更大 dispatch／尾调用／非 E8 路径进入，待下拍）。
+
+### 2) Capless 接线（Path-C′ 新硬点）
+| | Isol Capless `@0x57656c` | LIVE Capless `@0x2967b4` |
+|---|---|---|
+| prol | 同构 `55 48 81 ec 00 05 00 00 …` | 同 |
+| E8 callers | **0（孤儿）** | **6**（`@0x5067e` `@0x50880` `@0x50903` `@0x511a2` `@0x54700` `@0xe84a6`） |
+| 同 prol 克隆 | Isol 另 5 处有 caller | LIVE 另 5 处 |
+
+Isol CapFN `@0x5752bc` 仍有 7 caller（含 sig `89 4c 24 20 48 89 c1 e8` → CapFN @`0x576a91`／`5775a0`／`577b71`，落在 Capless 邻区）。**结论：Isol SoftCap 路径只走 CapFN→mega mid，Capless 未挂上。**
+
+### 3) Path-C `@0x1d80` 假友
+- Isol tip 首呼 `@0x21b5fa`（自 `@0x1212aa`）与 LIVE `@0x1d80` **仅前 16B 同**（prol+arg store），+20 起分叉。
+- Isol `@0x21b5fa` callers **130+**；LIVE `@0x1d80` sole `@0x55c6`。
+- **不可**把 `@0x21b5fa` 当 Cap-decode 同构体；上拍「`@0x1d80` 缺席」仍成立。
+
+### 4) CapFN→mega（复证）
+Isol CapFN 体内 E8 入 SoftCap mega `[0x57effc,0x58e9a0)`：**5** 处；−Δ`0x2edc70` 落 LIVE 真 prol helpers（`@0x29b965`／`@0x298759`／`@0x298688`）。mid→mega 仍是 SoftCap 错 emit 根因之一。
+
+### 5) 硬 blocker（不可请批）
+1. Isol Capless `@0x57656c` **0 caller** — LIVE 绿路径用的 Capless 在 Isol **未接线**。
+2. tip `0x868` 帧模板在 `@0x121278`，**未**接到 SoftCap `p_ret_*` emit（对 CapFN／mega）。
+3. tip／egg 8-helper 同构仍 0／8；`@0x1d80` 真同构仍缺席。
+
+### 6) 下一拍最小刀
+1. **Path-C′′**：在 Isol tip 低 RVA 找回 LIVE Capless 6 caller 的同构 call-site，把调用从 CapFN 改挂 **已有** Capless `@0x57656c`（或证伪无同构）。
+2. 或：追 LIVE emit `@0x140d00` 非 E8 入口，对齐 Isol `@0x121278` 如何进入 SoftCap `p_ret_*` 绿帧。
+3. 仍禁 mega 主刀／LIVE 整树 plant／未绿请批／新 cave 除非上两项给出可 reloc 单点。
+
+### 7) open
+- Path-C′ DIG done; no isol binary; PROD／nail untouched
+- next: Capless rewire dig or LIVE emit non-E8 entry
 - bans unchanged
