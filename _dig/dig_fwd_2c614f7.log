@@ -1,0 +1,41 @@
+=== find sub/add 0x150 near SoftCap ===
+sub rsp,0x150 RVAs: ['0x2be51a']
+add rsp,0x150 RVAs: ['0x2be90a']
+
+=== plant frame 0x180 sha12=b9401d45a4ad ===
+  180/p_ret_lit.x    OK       USER=78015bac7508 n868=2 run=OK/0
+  180/p_ret_fwd.x    GS       USER=- n868=0 run=-/-
+  180/p_ret_local.x  OK       USER=021c621d2143 n868=2 run=crc=0x1/1
+  180/_var_let.x     OK       USER=8506caa7a731 n868=3 run=crc=0x1/1
+  180/_var_fwd.x     GS       USER=- n868=0 run=-/-
+
+=== plant frame 0x190 sha12=64e1acc2a2a5 ===
+  190/p_ret_lit.x    OK       USER=78015bac7508 n868=2 run=OK/0
+  190/p_ret_fwd.x    GS       USER=- n868=0 run=-/-
+  190/p_ret_local.x  OK       USER=021c621d2143 n868=2 run=crc=0x1/1
+  190/_var_let.x     OK       USER=8506caa7a731 n868=3 run=crc=0x1/1
+  190/_var_fwd.x     GS       USER=- n868=0 run=-/-
+
+=== plant frame 0x1a0 sha12=c5d49bd617d6 ===
+  1a0/p_ret_lit.x    OK       USER=78015bac7508 n868=2 run=OK/0
+  1a0/p_ret_fwd.x    GS       USER=- n868=0 run=-/-
+  1a0/p_ret_local.x  OK       USER=021c621d2143 n868=2 run=crc=0x1/1
+  1a0/_var_let.x     OK       USER=8506caa7a731 n868=3 run=crc=0x1/1
+  1a0/_var_fwd.x     GS       USER=- n868=0 run=-/-
+
+=== plant frame 0x1b0 sha12=939dc262125a ===
+  1b0/p_ret_lit.x    OK       USER=78015bac7508 n868=2 run=OK/0
+  1b0/p_ret_fwd.x    GS       USER=- n868=0 run=-/-
+  1b0/p_ret_local.x  OK       USER=021c621d2143 n868=2 run=crc=0x1/1
+  1b0/_var_let.x     OK       USER=8506caa7a731 n868=3 run=crc=0x1/1
+  1b0/_var_fwd.x     GS       USER=- n868=0 run=-/-
+
+=== plant ONLY entry+epi 0x190 ===
+pair190 sha12=64e1acc2a2a5
+  pair190/p_ret_lit.x    OK       USER=78015bac7508 run=OK/0
+  pair190/p_ret_fwd.x    GS       USER=- run=-/-
+  pair190/p_ret_local.x  OK       USER=021c621d2143 run=crc=0x1/1
+  pair190/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1/1
+
+elapsed=1.6s
+cleaned

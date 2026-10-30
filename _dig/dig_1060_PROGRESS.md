@@ -1,5 +1,38 @@
 # 10.60 SoftCap DIG PROGRESS
 
+**2026-10-30 ~18:07 CST (Asia/Shanghai)** · DIG `fwd_2c614f`：real GS＝SoftCap kind=`0x30` **miss-epi**（`@2be90a`/`pop`；let/lit 同 kind 过）；`@2c614f` 仅 stub 后继（`@20cd98`）；force-kind／force30+epi＝假绿；frame 扩 lit 绿 fwd 仍 GS；无 plant；勿升 PROD／钉 **不升**／勿收刀 · 下一单点：`fwd_scs_epi`
+
+
+## 2026-10-30 ~18:07 CST Asia/Shanghai — DIG `fwd_2c614f`；钉 SoftCap miss-epi；下一 `fwd_scs_epi`
+
+### 0) 闸
+- tip HEAD `646f3361a`＝origin/dev（本拍前；commit 后见 tip）
+- Isol alt_frame2 `9378df517f96`／host plant `3f43f1609d70`
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／tip@121278／join／epi／LIVE SoftCap 移植／arg-loop／LIVE spill／`[4b0]=1`：遵守
+
+### 1) DIG 钉死（本拍）
+1. real host：SoftCap 入；fwd 不达 Capless `@5766ec`/`@2c614f`（store `@576697`＝GS）。`@2c614f`＝stub 后继 only。
+2. SoftCap kind eq：fwd/let/lit 皆 **`0x30`**；miss→`@2be90a`；`@2be911` pop fwd=GS／let=INT3。
+3. force kind `0x36/0x33/3`：fwd compile OK 但 lit USER/run 坏 — **假绿**。frame `0x150→0x180..0x1b0`：lit 仍 `78015bac7508` run0；fwd 仍 GS — **证伪**仅 home 溢出。
+4. stub `@2c614f`：kind=`0x30`；lastHIT `@2c61c1`；`@20cd98` lastHIT `@20cdd0`；force30+epi＝Capless eax>0 early-exit **假绿**。
+
+### 2) Win SoftCap 门
+| Isol plant | sha12 | lit | fwd | local | 注 |
+|---|---|---|---|---|---|
+| cmk0_irdx_sub20（未改） | 3f43f1609d70 | OK run0 | **GS** | OK run1 | 对照 |
+| scs frame 0x190（诊） | 64e1acc2a2a5 | OK 同 lit | GS | OK | 非 plant |
+| force kind 0x36（诊） | 653abd21e495 | 坏 sha/run1 | OK run1 | OK run1 | 假绿 |
+
+### 3) 下一拍最小刀（单点）
+- **`fwd_scs_epi`**：DIG SoftCap kind=`0x30` miss-epi 上 return-Call vs let/lit →可 Isol。禁 tip@121278／join／epi-raise／LIVE／mega／字母堆／假绿 force-kind。
+- 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 4) open
+- 笔记 `_dig/dig_fwd_2c614f.md`；脚本／log `_dig/dig_fwd_2c614f{,2..7}.py`／`.log`
+- PROD／钉 **未动**；bans unchanged
+
+
 **2026-10-30 ~17:57 CST (Asia/Shanghai)** · DIG `fwd_gs_root`：**钉死** p_ret_fwd compile GS＝`return SoftCapCallExpr`（fwd_let OK）；real SoftCap_site 未返；stub 后 Capless `@5766ec→@2c614f` lastHIT `@2c61c1`；无 plant；勿升 PROD／钉 **不升**／勿收刀 · 下一单点：`fwd_2c614f`
 
 

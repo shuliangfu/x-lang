@@ -1,0 +1,116 @@
+=== DIG fwd_2c614f under scs_ret0 ===
+stub baseline fwd=GS let=OK lit=OK
+
+=== A disasm @2c614f ---
+  2c614f: push     rbp
+  2c6150: sub      rsp, 0x190
+  2c6157: lea      rbp, [rsp + 0x80]
+  2c615f: mov      qword ptr [rbp + 0x120], rcx
+  2c6166: mov      qword ptr [rbp + 0x128], rdx
+  2c616d: mov      dword ptr [rbp + 0x130], r8d
+  2c6174: mov      qword ptr [rbp + 0x138], r9
+  2c617b: cmp      qword ptr [rbp + 0x120], 0
+  2c6183: je       0x2c61a2 J
+  2c6185: cmp      qword ptr [rbp + 0x128], 0
+  2c618d: je       0x2c61a2 J
+  2c618f: cmp      qword ptr [rbp + 0x138], 0
+  2c6197: je       0x2c61a2 J
+  2c6199: cmp      dword ptr [rbp + 0x130], 0
+  2c61a0: jg       0x2c61ac J
+  2c61a2: mov      eax, 0
+  2c61a7: jmp      0x2c66a0 J
+  2c61ac: mov      edx, dword ptr [rbp + 0x130]
+  2c61b2: mov      rax, qword ptr [rbp + 0x120]
+  2c61b9: mov      rcx, rax
+  2c61bc: call     0x20cd98 CALL
+  2c61c1: mov      dword ptr [rbp + 0xf4], eax
+  2c61c7: cmp      dword ptr [rbp + 0xf4], 0x30
+  2c61ce: je       0x2c61e3 J
+  2c61d0: cmp      dword ptr [rbp + 0xf4], 0x31
+  2c61d7: je       0x2c61e3 J
+  2c61d9: mov      eax, 0
+  2c61de: jmp      0x2c66a0 J
+  2c61e3: cmp      dword ptr [rbp + 0xf4], 0x31
+  2c61ea: sete     al
+  2c61ed: movzx    eax, al
+  2c61f0: mov      dword ptr [rbp + 0xf0], eax
+  2c61f6: cmp      dword ptr [rbp + 0xf0], 0
+  2c61fd: je       0x2c621c J
+  2c61ff: mov      edx, dword ptr [rbp + 0x130]
+  2c6205: mov      rax, qword ptr [rbp + 0x120]
+  2c620c: mov      rcx, rax
+  2c620f: call     0x1fff7e CALL
+  2c6214: mov      dword ptr [rbp + 0xf8], eax
+  2c621a: jmp      0x2c6237 J
+  2c621c: mov      edx, dword ptr [rbp + 0x130]
+  2c6222: mov      rax, qword ptr [rbp + 0x120]
+  2c6229: mov      rcx, rax
+  2c622c: call     0x1ff2ef CALL
+  2c6231: mov      dword ptr [rbp + 0xf8], eax
+  2c6237: cmp      dword ptr [rbp + 0xf8], 2
+  2c623e: je       0x2c624a J
+  2c6240: mov      eax, 0
+  2c6245: jmp      0x2c66a0 J
+  2c624a: cmp      dword ptr [rbp + 0xf0], 0
+  2c6251: je       0x2c62a8 J
+  2c6253: mov      edx, dword ptr [rbp + 0x130]
+  2c6259: mov      rax, qword ptr [rbp + 0x120]
+  2c6260: mov      rcx, rax
+  2c6263: call     0x1fffbe CALL
+  2c6268: mov      dword ptr [rbp + 0x10c], eax
+  2c626e: cmp      dword ptr [rbp + 0x10c], 0
+  2c6275: jle      0x2c6280 J
+  2c6277: cmp      dword ptr [rbp + 0x10c], 0x3f
+  2c627e: jle      0x2c628a J
+  2c6280: mov      eax, 0
+  2c6680: add      qword ptr [rax], rax
+  2c6683: add      byte ptr [rcx + 0x4820244c], cl
+  2c6689: mov      ecx, eax
+  2c668b: call     0x25f72e
+  2c6690: test     eax, eax
+  2c6692: je       0x2c669b
+  2c6694: mov      eax, 0
+  2c6699: jmp      0x2c66a0
+  2c669b: mov      eax, 1
+  2c66a0: add      rsp, 0x190
+  2c66a7: pop      rbp
+  2c66a8: ret      
+  2c66a9: push     rbp
+  2c66aa: sub      rsp, 0x1b0
+  2c66b1: lea      rbp, [rsp + 0x80]
+  2c66b9: mov      qword ptr [rbp + 0x140], rcx
+
+=== B kind ladder @2c61c1 cmp eax,imm;int3 ===
+orig@2c61c1=8985f4000000
+  (always-int3 probe) k=0x0 fwd=INT3 let=INT3
+  (always-int3 probe) k=0x1 fwd=INT3 let=INT3
+  (always-int3 probe) k=0x2 fwd=INT3 let=INT3
+  (always-int3 probe) k=0x3 fwd=INT3 let=INT3
+  (always-int3 probe) k=0x30 fwd=INT3 let=INT3
+  (always-int3 probe) k=0x31 fwd=INT3 let=INT3
+  (always-int3 probe) k=0x32 fwd=INT3 let=INT3
+  (always-int3 probe) k=0x33 fwd=INT3 let=INT3
+  (always-int3 probe) k=0x36 fwd=INT3 let=INT3
+  (always-int3 probe) k=0x10 fwd=INT3 let=INT3
+  (always-int3 probe) k=0x20 fwd=INT3 let=INT3
+  (always-int3 probe) k=0x40 fwd=INT3 let=INT3
+  (always-int3 probe) k=0xff fwd=INT3 let=INT3
+  (always-int3 probe) k=0x100 fwd=INT3 let=INT3
+
+=== B2 kind eq probe: cmp eax,imm; je+1; int3 ===
+  k=0x0 fwd=INT3     let=INT3      (INT3=eax!=k; else eax==k then fall)
+  k=0x1 fwd=INT3     let=INT3      (INT3=eax!=k; else eax==k then fall)
+  k=0x2 fwd=INT3     let=INT3      (INT3=eax!=k; else eax==k then fall)
+  k=0x3 fwd=INT3     let=INT3      (INT3=eax!=k; else eax==k then fall)
+  k=0x30 fwd=GS       let=OK        (INT3=eax!=k; else eax==k then fall)
+  k=0x31 fwd=INT3     let=INT3      (INT3=eax!=k; else eax==k then fall)
+  k=0x32 fwd=INT3     let=INT3      (INT3=eax!=k; else eax==k then fall)
+  k=0x33 fwd=INT3     let=INT3      (INT3=eax!=k; else eax==k then fall)
+  k=0x36 fwd=INT3     let=INT3      (INT3=eax!=k; else eax==k then fall)
+
+=== C force kind mov eax,imm; store [rbp+0xf4] ===
+Traceback (most recent call last):
+  File "C:\xlang_tmp\p1060\cave\dig_fwd_2c614f.py", line 141, in <module>
+    assert len(patch)==10
+           ^^^^^^^^^^^^^^
+AssertionError

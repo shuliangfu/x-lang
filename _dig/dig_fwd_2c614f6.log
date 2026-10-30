@@ -1,0 +1,142 @@
+=== baseline cmk0_irdx_sub20 ===
+  base/p_ret_lit.x    OK       sha=78015bac7508 n868=2 sub20=True run=OK/0
+  base/p_ret_fwd.x    GS       sha=- n868=0 sub20=False run=-/-
+  base/p_ret_local.x  OK       sha=021c621d2143 n868=2 sub20=True run=crc=0x1/1
+  base/_var_let.x     OK       sha=98c9714985ed n868=3 sub20=True run=crc=0x1/1
+
+=== A force SoftCap kind=0x36 ===
+plant sha12=653abd21e495
+  fk36/p_ret_lit.x    OK       sha=316d87f04203 n868=2 sub20=True run=crc=0x1/1
+  -- USER head p_ret_lit.x --
+    U 001440: sub rsp, 0x28
+    U 001444: mov rax, qword ptr [rip + 0x4105]
+    U 00144b: mov dword ptr [rax], 0
+    U 001451: call 0x1020
+    U 001456: nop 
+    U 001457: nop 
+    U 001458: add rsp, 0x28
+    U 00145c: ret 
+    U 00145d: nop dword ptr [rax]
+    U 001460: jmp 0x3d30
+    U 001465: nop 
+    U 001466: nop 
+    U 001467: nop 
+    U 001468: nop 
+    U 001469: nop 
+    U 00146a: nop 
+    U 00146b: nop 
+    U 00146c: nop 
+    U 00146d: nop 
+    U 00146e: nop 
+    U 00146f: nop 
+    U 001470: lea rcx, [rip + 9]
+    U 001477: jmp 0x1460
+    U 00147c: nop dword ptr [rax]
+    U 001480: ret 
+    U 001481: nop 
+    U 001482: nop 
+    U 001483: nop 
+    U 001484: nop 
+    U 001485: nop 
+    U 001486: nop 
+    U 001487: nop 
+    U 001488: nop 
+    U 001489: nop 
+    U 00148a: nop 
+    U 00148b: nop 
+    U 00148c: nop 
+    U 00148d: nop 
+    U 00148e: nop 
+    U 00148f: nop 
+  fk36/p_ret_fwd.x    OK       sha=e085761d4f46 n868=3 sub20=True run=crc=0x1/1
+  -- USER head p_ret_fwd.x --
+    U 001440: sub rsp, 0x28
+    U 001444: mov rax, qword ptr [rip + 0x4105]
+    U 00144b: mov dword ptr [rax], 0
+    U 001451: call 0x1020
+    U 001456: nop 
+    U 001457: nop 
+    U 001458: add rsp, 0x28
+    U 00145c: ret 
+    U 00145d: nop dword ptr [rax]
+    U 001460: jmp 0x3d50
+    U 001465: nop 
+    U 001466: nop 
+    U 001467: nop 
+    U 001468: nop 
+    U 001469: nop 
+    U 00146a: nop 
+    U 00146b: nop 
+    U 00146c: nop 
+    U 00146d: nop 
+    U 00146e: nop 
+    U 00146f: nop 
+    U 001470: lea rcx, [rip + 9]
+    U 001477: jmp 0x1460
+    U 00147c: nop dword ptr [rax]
+    U 001480: ret 
+    U 001481: nop 
+    U 001482: nop 
+    U 001483: nop 
+    U 001484: nop 
+    U 001485: nop 
+    U 001486: nop 
+    U 001487: nop 
+    U 001488: nop 
+    U 001489: nop 
+    U 00148a: nop 
+    U 00148b: nop 
+    U 00148c: nop 
+    U 00148d: nop 
+    U 00148e: nop 
+    U 00148f: nop 
+  fk36/p_ret_local.x  OK       sha=dfc99e1a3e0b n868=2 sub20=True run=crc=0x1/1
+  fk36/_var_fwd.x     OK       sha=e9e668ac1a28 n868=3 sub20=True run=crc=0x1/1
+  fk36/_var_let.x     OK       sha=2b65b6df8ebf n868=3 sub20=True run=crc=0x1/1
+
+=== B SoftCap frame 0x150→0x1d0 + miss path ===
+sub@2be51a=4881ec50010000
+add@2be90a=4881c450010000
+  frame1d0/p_ret_lit.x    AV       sha=- run=-/-
+  frame1d0/p_ret_fwd.x    GS       sha=- run=-/-
+  frame1d0/p_ret_local.x  AV       sha=- run=-/-
+  frame1d0/_var_let.x     AV       sha=- run=-/-
+
+=== C rewrite SoftCap cmp 0x36 → also je for 0x30 (diagnostic) ===
+  2be810: call 0x2bd6ed
+  2be85d: call 0x25d09b
+  2be89c: call 0x2bd5a0
+  2be8e1: mov r9d, r8d
+  2be8e4: mov r8d, ecx
+  2be8e7: mov rcx, rax
+  2be8ea: call 0x524944
+  2be8ef: mov dword ptr [rbp + 0xb8], eax
+  2be8f5: cmp dword ptr [rbp + 0xb8], 0
+  2be8fc: je 0x2be905
+  2be8fe: mov eax, 0xffffffff
+  2be903: jmp 0x2be90a
+  2be905: mov eax, 0
+  2be90a: add rsp, 0x150
+  2be911: pop rbp
+  2be912: ret 
+  2be913: push rbp
+  2be914: mov rbp, rsp
+  2be917: sub rsp, 0x20
+  2be91b: mov dword ptr [rbp + 0x10], ecx
+
+=== D Capless skip SoftCap @576692 (real host) ===
+  skip_scs/p_ret_lit.x    AV       sha=- n868=0 sub20=False run=-/-
+  skip_scs/p_ret_fwd.x    GS       sha=- n868=0 sub20=False run=-/-
+  skip_scs/p_ret_local.x  AV       sha=- n868=0 sub20=False run=-/-
+  skip_scs/_var_let.x     AV       sha=- n868=0 sub20=False run=-/-
+  skip_scs/_var_fwd.x     GS       sha=- n868=0 sub20=False run=-/-
+
+=== F lit natural kind (eq probe on lit only via host) ===
+  lit-kind probe k=0x30 lit=OK       fwd=GS       let=OK      
+  lit-kind probe k=0x36 lit=INT3     fwd=INT3     let=INT3    
+  lit-kind probe k=0x33 lit=INT3     fwd=INT3     let=INT3    
+  lit-kind probe k=0x3 lit=INT3     fwd=INT3     let=INT3    
+  lit-kind probe k=0x0 lit=INT3     fwd=INT3     let=INT3    
+
+elapsed=2.2s
+cleaned

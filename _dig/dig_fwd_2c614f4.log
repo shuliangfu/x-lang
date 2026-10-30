@@ -1,0 +1,168 @@
+=== A force30+epi USER + variants ===
+  force30+epi/_var_fwd.x     compile=OK       sha=e9e668ac1a28 n868=3 run=crc=0x1/1
+  force30+epi/_var_let.x     compile=OK       sha=2b65b6df8ebf n868=3 run=crc=0x1/1
+  force30+epi/p_ret_lit.x    compile=OK       sha=316d87f04203 n868=2 run=crc=0x1/1
+  force30+epi/p_ret_fwd.x    compile=OK       sha=e085761d4f46 n868=3 run=crc=0x1/1
+  force30+epi/p_ret_local.x  compile=OK       sha=dfc99e1a3e0b n868=2 run=crc=0x1/1
+  jmp_miss_no_kind fwd=GS sha=-
+  jmp_miss_no_kind let=AV
+  skip_kind+epi0 fwd=GS let=AV sha=- n868=0 run=-/-
+
+=== B @20cd98 under stub ===
+  20cd98: push     rbp
+  20cd99: mov      rbp, rsp
+  20cd9c: sub      rsp, 0x30
+  20cda0: mov      qword ptr [rbp + 0x10], rcx
+  20cda4: mov      dword ptr [rbp + 0x18], edx
+  20cda7: cmp      qword ptr [rbp + 0x10], 0
+  20cdac: je       0x20cdb4
+  20cdae: cmp      dword ptr [rbp + 0x18], 0
+  20cdb2: jg       0x20cdbb
+  20cdb4: mov      eax, 0xffffffff
+  20cdb9: jmp      0x20ce0b
+  20cdbb: mov      rax, qword ptr [rbp + 0x10]
+  20cdbf: mov      rcx, rax
+  20cdc2: call     0x20bcb5 CALL
+  20cdc7: mov      dword ptr [rbp - 4], eax
+  20cdca: mov      eax, dword ptr [rbp + 0x18]
+  20cdcd: cmp      eax, dword ptr [rbp - 4]
+  20cdd0: jle      0x20cdd9
+  20cdd2: mov      eax, 0xffffffff
+  20cdd7: jmp      0x20ce0b
+  20cdd9: mov      edx, dword ptr [rbp + 0x18]
+  20cddc: mov      rax, qword ptr [rbp + 0x10]
+  20cde0: mov      rcx, rax
+  20cde3: call     0x2b4203 CALL
+  20cde8: mov      qword ptr [rbp - 0x10], rax
+(re-run INT3 properly)
+  @20cd98 push     rbp                                      fwd=INT3     let=INT3    
+  @20cd99 mov      rbp, rsp                                 fwd=INT3     let=INT3    
+  @20cd9c sub      rsp, 0x30                                fwd=INT3     let=INT3    
+  @20cda0 mov      qword ptr [rbp + 0x10], rcx              fwd=INT3     let=INT3    
+  @20cda4 mov      dword ptr [rbp + 0x18], edx              fwd=INT3     let=INT3    
+  @20cda7 cmp      qword ptr [rbp + 0x10], 0                fwd=INT3     let=INT3    
+  @20cdac je       0x20cdb4                                 fwd=INT3     let=INT3    
+  @20cdae cmp      dword ptr [rbp + 0x18], 0                fwd=INT3     let=INT3    
+  @20cdb2 jg       0x20cdbb                                 fwd=INT3     let=INT3    
+  @20cdb4 mov      eax, 0xffffffff                          fwd=GS       let=OK       DIFF
+  >> fwd left INT3 at @0x20cdb4
+
+=== C SoftCap_site walk from @2be6a0 ===
+  2be6a0: call     0x2be6a5 CALL
+  2be6a5: je       0x2be6b0 J
+  2be6a7: cmp      dword ptr [rbp + 0xf0], 0
+  2be6ae: jg       0x2be6ba J
+  2be6b0: mov      eax, 0
+  2be6b5: jmp      0x2be90a J
+  2be6ba: mov      edx, dword ptr [rbp + 0xf0]
+  2be6c0: mov      rax, qword ptr [rbp + 0xe0]
+  2be6c7: mov      rcx, rax
+  2be6ca: call     0x20cd98 CALL
+  2be6cf: mov      dword ptr [rbp + 0xc4], eax
+  2be6d5: cmp      dword ptr [rbp + 0xc4], 0x36
+  2be6dc: jne      0x2be6fb J
+  2be6de: mov      edx, dword ptr [rbp + 0xf0]
+  2be6e4: mov      rax, qword ptr [rbp + 0xe0]
+  2be6eb: mov      rcx, rax
+  2be6ee: call     0x200b0e CALL
+  2be6f3: mov      dword ptr [rbp + 0xc8], eax
+  2be6f9: jmp      0x2be74a J
+  2be6fb: cmp      dword ptr [rbp + 0xc4], 0x33
+  2be702: jne      0x2be72b J
+  2be704: mov      dword ptr [rbp + 0xcc], 1
+  2be70e: mov      edx, dword ptr [rbp + 0xf0]
+  2be714: mov      rax, qword ptr [rbp + 0xe0]
+  2be71b: mov      rcx, rax
+  2be71e: call     0x201d9f CALL
+  2be723: mov      dword ptr [rbp + 0xc8], eax
+  2be729: jmp      0x2be74a J
+  2be72b: cmp      dword ptr [rbp + 0xc4], 3
+  2be732: je       0x2be73e J
+  2be734: mov      eax, 0
+  2be739: jmp      0x2be90a J
+  2be73e: mov      eax, dword ptr [rbp + 0xf0]
+  2be744: mov      dword ptr [rbp + 0xc8], eax
+  2be74a: cmp      dword ptr [rbp + 0xc8], 0
+  2be751: jg       0x2be75d J
+  2be753: mov      eax, 1
+  2be758: jmp      0x2be90a J
+  2be75d: mov      edx, dword ptr [rbp + 0xc8]
+  2be763: mov      rax, qword ptr [rbp + 0xe0]
+--- INT3 ---
+  @2be6a0 call     0x2be6a5                                 fwd=GS       let=OK       DIFF
+  @2be6a5 je       0x2be6b0                                 fwd=INT3     let=INT3    
+  @2be6a7 cmp      dword ptr [rbp + 0xf0], 0                fwd=INT3     let=INT3    
+  @2be6ae jg       0x2be6ba                                 fwd=INT3     let=INT3    
+  @2be6b0 mov      eax, 0                                   fwd=GS       let=OK       DIFF
+  >> last_fwd_HIT @0x2be6ae; GS at @0x2be6b0
+  @2be6b5 jmp      0x2be90a                                 fwd=GS       let=OK       DIFF
+  >> last_fwd_HIT @0x2be6ae; GS at @0x2be6b5
+  @2be6ba mov      edx, dword ptr [rbp + 0xf0]              fwd=INT3     let=INT3    
+  @2be6c0 mov      rax, qword ptr [rbp + 0xe0]              fwd=INT3     let=INT3    
+  @2be6c7 mov      rcx, rax                                 fwd=INT3     let=INT3    
+  @2be6ca call     0x20cd98                                 fwd=INT3     let=INT3    
+  @2be6cf mov      dword ptr [rbp + 0xc4], eax              fwd=INT3     let=INT3    
+  @2be6d5 cmp      dword ptr [rbp + 0xc4], 0x36             fwd=INT3     let=INT3    
+  @2be6dc jne      0x2be6fb                                 fwd=INT3     let=INT3    
+  @2be6de mov      edx, dword ptr [rbp + 0xf0]              fwd=GS       let=AV       DIFF
+  >> last_fwd_HIT @0x2be6dc; GS at @0x2be6de
+  @2be6e4 mov      rax, qword ptr [rbp + 0xe0]              fwd=GS       let=AV       DIFF
+  >> last_fwd_HIT @0x2be6dc; GS at @0x2be6e4
+  @2be6eb mov      rcx, rax                                 fwd=GS       let=OK       DIFF
+  >> last_fwd_HIT @0x2be6dc; GS at @0x2be6eb
+  @2be6ee call     0x200b0e                                 fwd=GS       let=OK       DIFF
+  >> last_fwd_HIT @0x2be6dc; GS at @0x2be6ee
+  @2be6f3 mov      dword ptr [rbp + 0xc8], eax              fwd=GS       let=OK       DIFF
+  >> last_fwd_HIT @0x2be6dc; GS at @0x2be6f3
+  @2be6f9 jmp      0x2be74a                                 fwd=GS       let=AV       DIFF
+  >> last_fwd_HIT @0x2be6dc; GS at @0x2be6f9
+  @2be6fb cmp      dword ptr [rbp + 0xc4], 0x33             fwd=INT3     let=INT3    
+  @2be702 jne      0x2be72b                                 fwd=INT3     let=INT3    
+  @2be704 mov      dword ptr [rbp + 0xcc], 1                fwd=GS       let=OK       DIFF
+  >> last_fwd_HIT @0x2be702; GS at @0x2be704
+  @2be70e mov      edx, dword ptr [rbp + 0xf0]              fwd=GS       let=AV       DIFF
+  >> last_fwd_HIT @0x2be702; GS at @0x2be70e
+  @2be714 mov      rax, qword ptr [rbp + 0xe0]              fwd=GS       let=AV       DIFF
+  >> last_fwd_HIT @0x2be702; GS at @0x2be714
+  @2be71b mov      rcx, rax                                 fwd=GS       let=OK       DIFF
+  >> last_fwd_HIT @0x2be702; GS at @0x2be71b
+  @2be71e call     0x201d9f                                 fwd=GS       let=OK       DIFF
+  >> last_fwd_HIT @0x2be702; GS at @0x2be71e
+  @2be723 mov      dword ptr [rbp + 0xc8], eax              fwd=GS       let=AV       DIFF
+  >> last_fwd_HIT @0x2be702; GS at @0x2be723
+  @2be729 jmp      0x2be74a                                 fwd=GS       let=OK       DIFF
+  >> last_fwd_HIT @0x2be702; GS at @0x2be729
+  @2be72b cmp      dword ptr [rbp + 0xc4], 3                fwd=INT3     let=INT3    
+  @2be732 je       0x2be73e                                 fwd=INT3     let=INT3    
+  @2be734 mov      eax, 0                                   fwd=INT3     let=INT3    
+  @2be739 jmp      0x2be90a                                 fwd=INT3     let=INT3    
+  @2be73e mov      eax, dword ptr [rbp + 0xf0]              fwd=GS       let=AV       DIFF
+  >> last_fwd_HIT @0x2be739; GS at @0x2be73e
+  @2be744 mov      dword ptr [rbp + 0xc8], eax              fwd=GS       let=OK       DIFF
+  >> last_fwd_HIT @0x2be739; GS at @0x2be744
+  @2be74a cmp      dword ptr [rbp + 0xc8], 0                fwd=GS       let=AV       DIFF
+  >> last_fwd_HIT @0x2be739; GS at @0x2be74a
+  @2be751 jg       0x2be75d                                 fwd=GS       let=OK       DIFF
+  >> last_fwd_HIT @0x2be739; GS at @0x2be751
+  @2be753 mov      eax, 1                                   fwd=GS       let=OK       DIFF
+  >> last_fwd_HIT @0x2be739; GS at @0x2be753
+  @2be758 jmp      0x2be90a                                 fwd=GS       let=OK       DIFF
+  >> last_fwd_HIT @0x2be739; GS at @0x2be758
+  @2be75d mov      edx, dword ptr [rbp + 0xc8]              fwd=GS       let=AV       DIFF
+  >> last_fwd_HIT @0x2be739; GS at @0x2be75d
+  @2be763 mov      rax, qword ptr [rbp + 0xe0]              fwd=GS       let=OK       DIFF
+  >> last_fwd_HIT @0x2be739; GS at @0x2be763
+  @2be76a mov      rcx, rax                                 fwd=GS       let=OK       DIFF
+  >> last_fwd_HIT @0x2be739; GS at @0x2be76a
+  @2be76d call     0x20cd98                                 fwd=GS       let=OK       DIFF
+  >> last_fwd_HIT @0x2be739; GS at @0x2be76d
+  @2be772 mov      dword ptr [rbp + 0xc4], eax              fwd=GS       let=OK       DIFF
+  >> last_fwd_HIT @0x2be739; GS at @0x2be772
+  @2be778 cmp      dword ptr [rbp + 0xc4], 3                fwd=GS       let=OK       DIFF
+  >> last_fwd_HIT @0x2be739; GS at @0x2be778
+  @2be77f je       0x2be78b                                 fwd=GS       let=OK       DIFF
+  >> last_fwd_HIT @0x2be739; GS at @0x2be77f
+last_fwd_HIT=0x2be739
+
+elapsed=8.0s
+cleaned

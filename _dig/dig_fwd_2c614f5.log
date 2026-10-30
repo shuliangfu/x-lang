@@ -1,0 +1,87 @@
+=== A SoftCap epi @2be90a ===
+  2be8e0: add      byte ptr [rbp - 0x77], al
+  2be8e3: rol      dword ptr [rcx - 0x77], 0xc8
+  2be8e7: mov      rcx, rax
+  2be8ea: call     0x524944
+  2be8ef: mov      dword ptr [rbp + 0xb8], eax
+  2be8f5: cmp      dword ptr [rbp + 0xb8], 0
+  2be8fc: je       0x2be905
+  2be8fe: mov      eax, 0xffffffff
+  2be903: jmp      0x2be90a
+  2be905: mov      eax, 0
+  2be90a: add      rsp, 0x150
+  2be911: pop      rbp
+  2be912: ret      
+  2be913: push     rbp
+  2be914: mov      rbp, rsp
+  2be917: sub      rsp, 0x20
+  2be91b: mov      dword ptr [rbp + 0x10], ecx
+  2be91e: call     0x2bd991
+  2be923: mov      edx, eax
+  2be925: mov      ecx, dword ptr [rbp + 0x10]
+  2be928: lea      rax, [rip + 0x1465b11]
+bytes@2be90a=4881c4500100005dc3554889e54883ec
+  @2be8e0 add      byte ptr [rbp - 0x77], al                fwd=GS       let=OK       DIFF
+  @2be8e3 rol      dword ptr [rcx - 0x77], 0xc8             fwd=GS       let=OK       DIFF
+  @2be8e7 mov      rcx, rax                                 fwd=GS       let=AV       DIFF
+  @2be8ea call     0x524944                                 fwd=GS       let=AV       DIFF
+  @2be8ef mov      dword ptr [rbp + 0xb8], eax              fwd=GS       let=OK       DIFF
+  @2be8f5 cmp      dword ptr [rbp + 0xb8], 0                fwd=GS       let=AV       DIFF
+  @2be8fc je       0x2be905                                 fwd=GS       let=OK       DIFF
+  @2be8fe mov      eax, 0xffffffff                          fwd=GS       let=OK       DIFF
+  @2be903 jmp      0x2be90a                                 fwd=GS       let=AV       DIFF
+  @2be905 mov      eax, 0                                   fwd=GS       let=OK       DIFF
+  @2be90a add      rsp, 0x150                               fwd=INT3     let=INT3    
+  @2be911 pop      rbp                                      fwd=GS       let=INT3     DIFF
+  @2be912 ret                                               fwd=GS       let=INT3     DIFF
+  @2be913 push     rbp                                      fwd=GS       let=OK       DIFF
+  @2be914 mov      rbp, rsp                                 fwd=GS       let=OK       DIFF
+  @2be917 sub      rsp, 0x20                                fwd=GS       let=OK       DIFF
+  @2be91b mov      dword ptr [rbp + 0x10], ecx              fwd=GS       let=OK       DIFF
+  @2be91e call     0x2bd991                                 fwd=GS       let=OK       DIFF
+  @2be923 mov      edx, eax                                 fwd=GS       let=AV       DIFF
+  @2be925 mov      ecx, dword ptr [rbp + 0x10]              fwd=GS       let=OK       DIFF
+  @2be928 lea      rax, [rip + 0x1465b11]                   fwd=GS       let=AV       DIFF
+
+=== B SoftCap kind eq @2be6cf ===
+orig@2be6cf=8985c4000000
+  k=0x0 fwd=INT3     let=INT3     (INT3=neq)
+  k=0x1 fwd=INT3     let=INT3     (INT3=neq)
+  k=0x2 fwd=INT3     let=INT3     (INT3=neq)
+  k=0x3 fwd=INT3     let=INT3     (INT3=neq)
+  k=0x30 fwd=GS       let=OK       (INT3=neq)
+  k=0x31 fwd=INT3     let=INT3     (INT3=neq)
+  k=0x32 fwd=INT3     let=INT3     (INT3=neq)
+  k=0x33 fwd=INT3     let=INT3     (INT3=neq)
+  k=0x36 fwd=INT3     let=INT3     (INT3=neq)
+  k=0x10 fwd=INT3     let=INT3     (INT3=neq)
+  k=0x20 fwd=INT3     let=INT3     (INT3=neq)
+  k=0x40 fwd=INT3     let=INT3     (INT3=neq)
+  k=0xff fwd=INT3     let=INT3     (INT3=neq)
+
+=== C SoftCap force kind then miss-exit ===
+call@2be6ca=e8c9e6f4ff
+  force_scs_kind=0x30 fwd=GS       let=AV       lit=AV      
+  force_scs_kind=0x0 fwd=GS       let=OK       lit=OK      
+  force_scs_kind=0x36 fwd=OK       let=OK       lit=OK      
+  force_scs_kind=0x33 fwd=OK       let=OK       lit=OK      
+  force_scs_kind=0x3 fwd=OK       let=OK       lit=OK      
+
+=== D SoftCap entry jmp to miss-eax0 @2be734 ===
+  jmp_miss@693 fwd=GS       let=OK       lit=OK      
+  scs_ret0      fwd=GS       let=AV       lit=AV      
+
+=== E stub @20cd98 happy-path walk ===
+  @20cdbb mov      rax, qword ptr [rbp + 0x10]              fwd=INT3     let=INT3    
+  @20cdbf mov      rcx, rax                                 fwd=INT3     let=INT3    
+  @20cdc2 call     0x20bcb5                                 fwd=INT3     let=INT3    
+  @20cdc7 mov      dword ptr [rbp - 4], eax                 fwd=INT3     let=INT3    
+  @20cdca mov      eax, dword ptr [rbp + 0x18]              fwd=INT3     let=INT3    
+  @20cdcd cmp      eax, dword ptr [rbp - 4]                 fwd=INT3     let=INT3    
+  @20cdd0 jle      0x20cdd9                                 fwd=INT3     let=INT3    
+  @20cdd2 mov      eax, 0xffffffff                          fwd=GS       let=AV       DIFF
+  >> lastHIT @0x20cdd0
+last_fwd_HIT=0x20cdd0
+
+elapsed=6.5s
+cleaned

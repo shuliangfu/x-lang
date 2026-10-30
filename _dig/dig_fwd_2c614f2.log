@@ -1,0 +1,95 @@
+=== DIG2 fwd_2c614f (kind=0x30 both) ===
+stub fwd=GS (real host, expect GS)
+stub fwd=GS let=AV
+
+=== B skip @20cd98 force eax=0x30 ===
+call@2c61bc=e8d76bf4ff
+  skip_kind eax=0x30 fwd=GS       let=AV      
+  skip_kind eax=0x31 fwd=GS       let=OK      
+  skip_kind eax=0x0 fwd=GS       let=OK      
+  skip_kind eax=0x36 fwd=GS       let=AV      
+
+=== C nop store @2c61c1 ===
+  nopstore fwd=GS       let=AV      
+
+=== C2 force [rbp+0xf4]=0x30 via mov-imm (skip eax) ===
+  force_slot30 fwd=GS       let=OK      
+
+=== D INT3 epi / key points ===
+  @2c61c1 store_kind           fwd=INT3     let=INT3    
+  @2c61c7 cmp30                fwd=GS       let=TIMEOUT  DIFF
+  @2c61e3 match_path           fwd=GS       let=TIMEOUT  DIFF
+  @2c61f0 set_is31             fwd=GS       let=TIMEOUT  DIFF
+  @2c620f call_1fff7e          fwd=GS       let=AV       DIFF
+  @2c622c call_1ff2ef          fwd=GS       let=TIMEOUT  DIFF
+  @2c6237 cmp_f8_2             fwd=GS       let=INT3     DIFF
+  @2c624a after_arity          fwd=GS       let=AV       DIFF
+  @2c6263 call_1fffbe          fwd=GS       let=OK       DIFF
+  @2c66a0 epi_add              fwd=GS       let=INT3     DIFF
+  @2c66a8 epi_ret              fwd=GS       let=INT3     DIFF
+  @2c62a1 call_0x1ffffe        fwd=GS       let=AV       DIFF
+  @2c62b8 call_0x1ffefe        fwd=GS       let=OK       DIFF
+  @2c62f3 call_0x25dc19        fwd=GS       let=AV       DIFF
+  @2c6338 call_0x63b1e8        fwd=GS       let=OK       DIFF
+  @2c636d call_0x63b1e8        fwd=GS       let=OK       DIFF
+  @2c639f call_0x63b1e8        fwd=GS       let=AV       DIFF
+  @2c63d1 call_0x63b1e8        fwd=GS       let=OK       DIFF
+  @2c640e call_0x25cbac        fwd=GS       let=AV       DIFF
+
+=== E let walk selected + fwd (post 0x2c6280 calls/jmps) ===
+  @2c6280 mov      eax, 0                                   fwd=GS       let=OK      
+  @2c6285 jmp      0x2c66a0                                 fwd=GS       let=AV      
+  @2c628e mov      edx, dword ptr [rbp + 0x130]             fwd=GS       let=AV      
+  @2c6294 mov      rax, qword ptr [rbp + 0x120]             fwd=GS       let=AV      
+  @2c629b mov      r8, rcx                                  fwd=GS       let=AV      
+  @2c629e mov      rcx, rax                                 fwd=GS       let=OK      
+  @2c62a1 call     0x1ffffe                                 fwd=GS       let=AV      
+  @2c62a6 jmp      0x2c6311                                 fwd=GS       let=OK      
+  @2c62a8 mov      edx, dword ptr [rbp + 0x130]             fwd=GS       let=OK      
+  @2c62ae mov      rax, qword ptr [rbp + 0x120]             fwd=GS       let=OK      
+  @2c62b5 mov      rcx, rax                                 fwd=GS       let=OK      
+  @2c62b8 call     0x1ffefe                                 fwd=GS       let=OK      
+  @2c62bd mov      dword ptr [rbp + 0xec], eax              fwd=GS       let=AV      
+  @2c62ca jg       0x2c62d6                                 fwd=GS       let=AV      
+  @2c62cc mov      eax, 0                                   fwd=GS       let=OK      
+  @2c62d1 jmp      0x2c66a0                                 fwd=GS       let=AV      
+  @2c62da mov      edx, dword ptr [rbp + 0xec]              fwd=GS       let=AV      
+  @2c62e0 mov      rax, qword ptr [rbp + 0x120]             fwd=GS       let=OK      
+  @2c62e7 mov      r9d, 0x40                                fwd=GS       let=AV      
+  @2c62ed mov      r8, rcx                                  fwd=GS       let=AV      
+  @2c62f0 mov      rcx, rax                                 fwd=GS       let=OK      
+  @2c62f3 call     0x25dc19                                 fwd=GS       let=OK      
+  @2c62f8 mov      dword ptr [rbp + 0x10c], eax             fwd=GS       let=OK      
+  @2c6305 jg       0x2c6311                                 fwd=GS       let=AV      
+  @2c6307 mov      eax, 0                                   fwd=GS       let=AV      
+  @2c630c jmp      0x2c66a0                                 fwd=GS       let=OK      
+  @2c6311 mov      dword ptr [rbp + 0x108], 0               fwd=GS       let=AV      
+  @2c6322 jne      0x2c6350                                 fwd=GS       let=OK      
+  @2c632f mov      r8d, 0xd                                 fwd=GS       let=AV      
+  @2c6335 mov      rcx, rax                                 fwd=GS       let=OK      
+  @2c6338 call     0x63b1e8                                 fwd=GS       let=AV      
+  @2c633f jne      0x2c6350                                 fwd=GS       let=AV      
+  @2c6341 mov      dword ptr [rbp + 0x108], 4               fwd=GS       let=AV      
+  @2c634b jmp      0x2c63f0                                 fwd=GS       let=AV      
+  @2c6350 cmp      dword ptr [rbp + 0x10c], 0xd             fwd=GS       let=AV      
+  @2c6357 jne      0x2c6382                                 fwd=GS       let=OK      
+  @2c6360 lea      rax, [rbp - 0x30]                        fwd=GS       let=AV      
+  @2c6364 mov      r8d, 0xd                                 fwd=GS       let=OK      
+  @2c636a mov      rcx, rax                                 fwd=GS       let=OK      
+  @2c636d call     0x63b1e8                                 fwd=GS       let=AV      
+  @2c6374 jne      0x2c6382                                 fwd=GS       let=AV      
+  @2c6376 mov      dword ptr [rbp + 0x108], 8               fwd=GS       let=AV      
+  @2c6380 jmp      0x2c63f0                                 fwd=GS       let=OK      
+  @2c6389 jne      0x2c63b4                                 fwd=GS       let=OK      
+  @2c6396 mov      r8d, 0xc                                 fwd=GS       let=AV      
+  @2c639c mov      rcx, rax                                 fwd=GS       let=OK      
+  @2c639f call     0x63b1e8                                 fwd=GS       let=OK      
+last_let_HIT=None
+
+=== F real host (no stub) reach @2c614f? ===
+  real INT3@2c614f fwd=GS let=INT3 lit=INT3
+  real INT3@5766ec fwd=GS let=INT3
+  real INT3@SoftCap fwd=INT3 let=INT3
+
+elapsed=23.0s
+cleaned

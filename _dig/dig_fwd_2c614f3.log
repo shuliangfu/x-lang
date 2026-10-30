@@ -1,0 +1,116 @@
+=== A early-ret @2c614f under SoftCap stub ===
+  entry xor;ret  fwd=GS       let=AV       lit=AV      
+  postprol jmp epi fwd=GS       let=OK      
+  postkind jmp epi fwd=GS       let=AV      
+  force30+epi   fwd=OK       let=OK      
+
+=== B Capless skip @5766ec call @2c614f ===
+  skip_2c614f   fwd=GS       let=AV       lit=AV      
+
+=== C REAL SoftCap_site @2be519 INT3 walk ===
+--- SoftCap_site prol/head ---
+  2be519: push     rbp
+  2be51a: sub      rsp, 0x150
+  2be521: lea      rbp, [rsp + 0x80]
+  2be529: mov      qword ptr [rbp + 0xe0], rcx
+  2be530: mov      qword ptr [rbp + 0xe8], rdx
+  2be537: mov      dword ptr [rbp + 0xf0], r8d
+  2be53e: mov      qword ptr [rbp + 0xf8], r9
+  2be545: mov      dword ptr [rbp + 0xc4], 0
+  2be54f: mov      dword ptr [rbp + 0xcc], 0
+  2be559: mov      dword ptr [rbp + 0xc8], 0
+  2be563: mov      dword ptr [rbp + 0xc0], 0
+  2be56d: mov      qword ptr [rbp - 0x50], 0
+  2be575: mov      qword ptr [rbp - 0x48], 0
+  2be57d: mov      qword ptr [rbp - 0x40], 0
+  2be585: mov      qword ptr [rbp - 0x38], 0
+  2be58d: mov      qword ptr [rbp - 0x30], 0
+  2be595: mov      qword ptr [rbp - 0x28], 0
+  2be59d: mov      qword ptr [rbp - 0x20], 0
+  2be5a5: mov      qword ptr [rbp - 0x18], 0
+  2be5ad: mov      qword ptr [rbp - 0x10], 0
+  2be5b5: mov      qword ptr [rbp - 8], 0
+  2be5bd: mov      qword ptr [rbp], 0
+  2be5c5: mov      qword ptr [rbp + 8], 0
+  2be5cd: mov      qword ptr [rbp + 0x10], 0
+  2be5d5: mov      qword ptr [rbp + 0x18], 0
+  2be5dd: mov      qword ptr [rbp + 0x20], 0
+  2be5e5: mov      qword ptr [rbp + 0x28], 0
+  2be5ed: mov      qword ptr [rbp + 0x30], 0
+  2be5f5: mov      qword ptr [rbp + 0x38], 0
+  2be5fd: mov      qword ptr [rbp + 0x40], 0
+  2be605: mov      qword ptr [rbp + 0x48], 0
+  2be60d: mov      qword ptr [rbp + 0x50], 0
+  2be615: mov      qword ptr [rbp + 0x58], 0
+  2be61d: mov      qword ptr [rbp + 0x60], 0
+  2be625: mov      qword ptr [rbp + 0x68], 0
+  2be62d: mov      qword ptr [rbp + 0x70], 0
+  2be635: mov      qword ptr [rbp + 0x78], 0
+  2be63d: mov      qword ptr [rbp + 0x80], 0
+  2be648: mov      qword ptr [rbp + 0x88], 0
+  2be653: mov      qword ptr [rbp + 0x90], 0
+  2be65e: mov      qword ptr [rbp + 0x98], 0
+  2be669: mov      qword ptr [rbp + 0xa0], 0
+  2be674: mov      qword ptr [rbp + 0xa8], 0
+  2be67f: mov      dword ptr [rbp + 0xbc], 0
+  2be689: mov      dword ptr [rbp + 0xb8], 0
+
+--- INT3 walk SoftCap_site (fwd vs let) ---
+  @2be519 push     rbp                                        fwd=INT3     let=INT3    
+  @2be51a sub      rsp, 0x150                                 fwd=INT3     let=INT3    
+  @2be521 lea      rbp, [rsp + 0x80]                          fwd=INT3     let=TIMEOUT  DIFF
+  @2be529 mov      qword ptr [rbp + 0xe0], rcx                fwd=INT3     let=TIMEOUT  DIFF
+  @2be530 mov      qword ptr [rbp + 0xe8], rdx                fwd=INT3     let=TIMEOUT  DIFF
+  @2be537 mov      dword ptr [rbp + 0xf0], r8d                fwd=INT3     let=TIMEOUT  DIFF
+  @2be53e mov      qword ptr [rbp + 0xf8], r9                 fwd=INT3     let=TIMEOUT  DIFF
+  @2be545 mov      dword ptr [rbp + 0xc4], 0                  fwd=INT3     let=TIMEOUT  DIFF
+  @2be54f mov      dword ptr [rbp + 0xcc], 0                  fwd=INT3     let=TIMEOUT  DIFF
+  @2be559 mov      dword ptr [rbp + 0xc8], 0                  fwd=INT3     let=TIMEOUT  DIFF
+  @2be563 mov      dword ptr [rbp + 0xc0], 0                  fwd=INT3     let=TIMEOUT  DIFF
+  @2be56d mov      qword ptr [rbp - 0x50], 0                  fwd=INT3     let=INT3    
+  @2be575 mov      qword ptr [rbp - 0x48], 0                  fwd=INT3     let=INT3    
+  @2be57d mov      qword ptr [rbp - 0x40], 0                  fwd=INT3     let=INT3    
+  @2be585 mov      qword ptr [rbp - 0x38], 0                  fwd=INT3     let=INT3    
+  @2be58d mov      qword ptr [rbp - 0x30], 0                  fwd=INT3     let=INT3    
+  @2be595 mov      qword ptr [rbp - 0x28], 0                  fwd=INT3     let=INT3    
+  @2be59d mov      qword ptr [rbp - 0x20], 0                  fwd=INT3     let=INT3    
+  @2be5a5 mov      qword ptr [rbp - 0x18], 0                  fwd=INT3     let=INT3    
+  @2be5ad mov      qword ptr [rbp - 0x10], 0                  fwd=INT3     let=INT3    
+  @2be5b5 mov      qword ptr [rbp - 8], 0                     fwd=INT3     let=INT3    
+  @2be5bd mov      qword ptr [rbp], 0                         fwd=INT3     let=INT3    
+  @2be5c5 mov      qword ptr [rbp + 8], 0                     fwd=INT3     let=INT3    
+  @2be5cd mov      qword ptr [rbp + 0x10], 0                  fwd=INT3     let=INT3    
+  @2be5d5 mov      qword ptr [rbp + 0x18], 0                  fwd=INT3     let=INT3    
+  @2be5dd mov      qword ptr [rbp + 0x20], 0                  fwd=INT3     let=INT3    
+  @2be5e5 mov      qword ptr [rbp + 0x28], 0                  fwd=INT3     let=INT3    
+  @2be5ed mov      qword ptr [rbp + 0x30], 0                  fwd=INT3     let=INT3    
+  @2be5f5 mov      qword ptr [rbp + 0x38], 0                  fwd=INT3     let=INT3    
+  @2be5fd mov      qword ptr [rbp + 0x40], 0                  fwd=INT3     let=INT3    
+  @2be605 mov      qword ptr [rbp + 0x48], 0                  fwd=INT3     let=INT3    
+  @2be60d mov      qword ptr [rbp + 0x50], 0                  fwd=INT3     let=INT3    
+  @2be615 mov      qword ptr [rbp + 0x58], 0                  fwd=INT3     let=INT3    
+  @2be61d mov      qword ptr [rbp + 0x60], 0                  fwd=INT3     let=INT3    
+  @2be625 mov      qword ptr [rbp + 0x68], 0                  fwd=INT3     let=INT3    
+  @2be62d mov      qword ptr [rbp + 0x70], 0                  fwd=INT3     let=INT3    
+  @2be635 mov      qword ptr [rbp + 0x78], 0                  fwd=INT3     let=INT3    
+  @2be63d mov      qword ptr [rbp + 0x80], 0                  fwd=INT3     let=INT3    
+  @2be648 mov      qword ptr [rbp + 0x88], 0                  fwd=INT3     let=INT3    
+  @2be653 mov      qword ptr [rbp + 0x90], 0                  fwd=INT3     let=INT3    
+  @2be65e mov      qword ptr [rbp + 0x98], 0                  fwd=INT3     let=INT3    
+  @2be669 mov      qword ptr [rbp + 0xa0], 0                  fwd=INT3     let=INT3    
+  @2be674 mov      qword ptr [rbp + 0xa8], 0                  fwd=INT3     let=INT3    
+  @2be67f mov      dword ptr [rbp + 0xbc], 0                  fwd=INT3     let=INT3    
+  @2be689 mov      dword ptr [rbp + 0xb8], 0                  fwd=INT3     let=INT3    
+  @2be693 cmp      qword ptr [rbp + 0xe0], 0                  fwd=INT3     let=INT3    
+  @2be69b je       0x2be6b0                                   fwd=INT3     let=INT3    
+  @2be69d cmp      qword ptr [rbp + 0xe8], 0                  fwd=INT3     let=INT3    
+  @2be6a5 je       0x2be6b0                                   fwd=INT3     let=INT3    
+  @2be6a7 cmp      dword ptr [rbp + 0xf0], 0                  fwd=INT3     let=INT3    
+last_fwd_HIT=0x2be6a7
+last_let_HIT=0x2be6a7
+
+=== D SoftCap_site quick plants (real host) ===
+  scs_ret0      fwd=GS       let=OK       lit=OK      
+
+elapsed=43.4s
+cleaned
