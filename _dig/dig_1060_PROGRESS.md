@@ -1142,3 +1142,70 @@ Isol CapFN 体内 E8 入 SoftCap mega `[0x57effc,0x58e9a0)`：**5** 处；−Δ`
 - Isol-UU `54ed284b17dc`／VV `34e7bd40413a`／WW `20357ddfefe8`＋`_dig/build_isol_{uu,vv,ww}.py`；TT 对照保留
 - PROD SoftCap `7a2cf5da581a`／钉盘 ecdb5cc1e **未动**
 - bans unchanged
+
+## 2026-10-30 ~09:47 CST Asia/Shanghai — Isol-XX Capless `@56d014` call-mk plant 证伪
+
+### 0) 闸
+- tip HEAD `2174df838`＝origin/dev（DIG 前；本拍后 tip 见 commit）
+- Isol-TT `1f836615e0fc` 基线；Isol-XX sha12 **`4687a4112204`**
+- LIVE SoftCap lit emit `dbaab1c7ce70`；TT／XX lit emit **`5b173cef1205`**
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega 主刀／假绿／未绿请批／LEGACY／整树／cave 字母堆：遵守
+- 本拍：Capless `@57656c`／`@56d014` 定点 call-mk（imm→rdx＋E8）缺口 plant／retarget；最小 isol；**未运行绿 → 勿收刀**
+
+### 1) Isol-XX plant（最小）
+- 脚本：`_dig/build_isol_xx.py`（基 TT；cave `@0x116998`）
+- Plant LIVE `{@284d24, @2984c9, @29bac6}` → cave `@0x1169a0`／`@0x1171d0`／`@0x117330`
+  - L2I exact twins + role-parallel；chkstk／memset 用 Isol 既有
+  - Capstone 按 LIVE RVA 改写 plant 内 E8
+- Retarget **全部 7×** Isol E8→`@56d014` → plant `@0x1169a0`：
+  - Capless fo+`0x702`／`+0x7bd`／`+0xf09`（＝LIVE Capless fo 同形）
+  - SoftMega 3×（`@0x59d14a`／`@0x59d2c5`／`@0x59ed31`）
+  - 另 1× `@0x5859f1`
+- Isol-XX sha12 **`4687a4112204`**
+
+### 2) Win SoftCap 门（out_xx）
+| probe | crc | emit sha | vs TT counterpart | n868／n878 | run |
+|---|---|---|---|---|---|
+| p_ret_lit | 0 | `5b173cef1205` | **＝TT** | **0／0** | **exit 1** |
+| p_ret_fwd | 0 | `546a4c6d02df` | **＝TT** | 0／0 | exit 1 |
+| p_ret_local | 0 | `018c76562e9e` | **＝TT** | 0／0 | exit 1 |
+
+- SoftCap 帧仍 thin（mk／main `0x68`／`0x1b8`）；call-mk 仍缺（main 仍 `lea→rcx` 后直 `lea`＋`488b00`）
+- ⇒ **`@56d014`／LIVE `@284d24` plant＋7× retarget 不改 SoftCap `p_ret_*` 用户 emit**
+
+### 3) `@56d014`／`@284d24` 角色钉死（非 SoftCap CallExpr call-mk）
+1. Capless→helper fo+702／7bd／f09 LIVE↔Isol **同构**；prev＝`lea`＋`mov [rsp+0x20],ecx`＋`mov rcx,rax`（println／spill 形 shared helper），**无** imm10→rdx。
+2. LIVE SoftCap **1×** E8→`@284d24` @`0x28be7f`（SoftCap+~`0x20b4`）：prev 同样 spill／`mov rcx,rax`；**±0x200 无 imm10** ⇒ **不是** lit `mk(10)` 的 imm→rdx＋E8。
+3. lit SoftCap CallExpr call-mk 在 LIVE 用户 emit 内联：
+   ```
+   lea rax,[rbp-0x28]; mov rcx,rax;
+   mov eax,0xa; mov [rbp-0x38],rax; mov rax,[rbp-0x38]; mov rdx,rax;
+   call mk;  lea rax,[rbp-0x28]; mov rax,[rax] …
+   ```
+   Isol／XX 同点：`lea→rcx` 后 **跳过** imm／rdx／call，直字段读 → exit 1。
+4. SoftMega 可达 `@56d014`／CapFN，**仍**产 Capless 形 thin emit（WW 已证 SoftCap twin→mega 同形）。
+
+### 4) 三端门
+| 端 | 结果 |
+|---|---|
+| Win SoftCap Isol-XX `p_ret_*` | 编译绿／**exit 1**；SoftCap 帧 0；emit＝TT ≠LIVE |
+| Win PROD SoftCap `7a2cf5da581a` | **未动** |
+| Darwin tip Cap soft `./compiler/xlang` | p_ret_lit/fwd/local **r=0** ✅（ARM64；无 x86 SoftCap 帧） |
+| Ubuntu tip `compiler/bootstrap_xlangc` sha12 `ea9ddf4eb937` | p_ret_* **r=0** ✅；tip-cold pure-ld 既有断链另记 |
+
+### 5) 硬 blocker（不可请批／勿收刀／勿升 PROD）
+1. Capless／Isol-SoftMega SoftCap CallExpr：**sret `lea→rcx` 后跳过 imm→rdx＋`call mk`** → exit 1；帧 thin。
+2. `@56d014`／`@284d24`＝shared Capless SoftCap-site helper（非 lit CallExpr call-mk）→ plant／retarget **证伪**。
+3. Isol SoftCap twin／mega ≠ LIVE SoftCap `@289dcb`；LIVE SoftCap 整树 plant **禁**；mega 主刀 **禁**。
+4. Ubuntu tip-cold pure-ld 断链另记（与 SoftCap 运行绿无关）。
+
+### 6) 下一拍最小刀
+1. **SoftCap CallExpr call-mk 真缺口**（非 `@56d014`）：Isol Capless／SoftMega 上「`lea→rcx` 后 early-out」单点 — tip leftover `glue_emit_struct_type_let_init` CALL＞16B／Windows SoftCap 路径，或 Capless SoftCap CallExpr 发射点定点 plant（imm→rdx＋E8；禁 mega／整树）。
+2. 通后再验 SoftCap 帧 `0x868`／`0x878`（call-mk 后 SoftCap floor／HOST spill 或再单点抬帧）。
+3. 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 7) open
+- Isol-XX `4687a4112204`＋`_dig/build_isol_xx.py`；TT／UU／VV／WW 对照保留
+- PROD SoftCap `7a2cf5da581a`／钉盘 ecdb5cc1e **未动**
+- bans unchanged
