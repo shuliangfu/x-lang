@@ -1,0 +1,138 @@
+=== A 0x46a4db prol / homes / cookie scan ===
+  46a4db: push     rbp
+  46a4dc: sub      rsp, 0x1f0
+  46a4e3: lea      rbp, [rsp + 0x80]
+  46a4eb: mov      qword ptr [rbp + 0x180], rcx
+  46a4f2: mov      qword ptr [rbp + 0x188], rdx
+  46a4f9: mov      dword ptr [rbp + 0x190], r8d
+  46a500: mov      dword ptr [rbp + 0x198], r9d
+  46a507: mov      ecx, dword ptr [rbp + 0x1a8]
+  46a50d: mov      edx, dword ptr [rbp + 0x190]
+  46a513: mov      rax, qword ptr [rbp + 0x188]
+  46a51a: mov      r8d, ecx
+  46a51d: mov      rcx, rax
+  46a520: call     0x1fe04d
+  46a525: mov      dword ptr [rbp + 0x150], eax
+  46a52b: mov      ecx, dword ptr [rbp + 0x1a8]
+  46a531: mov      edx, dword ptr [rbp + 0x190]
+  46a537: mov      rax, qword ptr [rbp + 0x188]
+  46a53e: mov      r8d, ecx
+  46a541: mov      rcx, rax
+  46a544: call     0x1fe07b
+  46a549: mov      dword ptr [rbp + 0x16c], eax
+  46a54f: mov      dword ptr [rbp + 0x168], 0
+  46a559: mov      dword ptr [rbp + 0x164], 0
+  46a563: mov      qword ptr [rbp + 0x148], 0
+  0x198 sites=['0x46a500', '0x46a8ba']
+  security-ish count=0
+
+=== A2 find rets / likely epi in first 0x1000 ===
+  rets_first8=['0x46af65', '0x46b065', '0x46b1f7', '0x46b398'] n=4
+
+=== B b0_h2c baseline + INT3 binary search inside 46a4db ===
+  [b0_h2c] sha=9eb76632c3b3
+  b0_h2c/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  b0_h2c/p_ret_fwd.x    GS       USER=- run=-
+  b0_h2c/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  b0_h2c/_var_let.x     AV       USER=- run=-
+  INT3@2be911 scs_pop      fwd=INT3     let=INT3    
+  INT3@2c66a7 h2c_pop      fwd=INT3     let=INT3    
+  INT3@576746 call_46      fwd=INT3     let=INT3    
+  INT3@57674b after_46     fwd=GS       let=AV      
+
+=== B2 probes under b0_h2c ===
+  INT3@46a4db entry        fwd=INT3     let=INT3    
+  INT3@46a500 home_r9      fwd=INT3     let=INT3    
+  INT3@46a520 c1           fwd=INT3     let=INT3    
+  INT3@46a544 c2           fwd=INT3     let=INT3    
+  INT3@46a6e3 c3           fwd=INT3     let=INT3    
+  INT3@46a6fc c4           fwd=INT3     let=INT3    
+  INT3@46a720 pre741       fwd=GS       let=OK      
+  INT3@46a725 mov_ecx      fwd=GS       let=AV      
+  INT3@46a738 mov_r9d      fwd=GS       let=OK      
+  INT3@46a741 call_1fb0    fwd=GS       let=AV      
+  INT3@46a746 post_call    fwd=GS       let=OK      
+  INT3@46a76f call_1fb1    fwd=INT3     let=INT3    
+  INT3@46a8a0 late_jmp     fwd=GS       let=OK      
+
+=== C dump 46a6d0..46a780 ===
+  46a6d0: add      bh, al
+  46a6d2: test     dword ptr [rcx + rax], ebp
+  46a6d5: add      byte ptr [rax], al
+  46a6d7: add      byte ptr [rax], al
+  46a6d9: add      byte ptr [rax], al
+  46a6db: mov      eax, dword ptr [rbp + 0x16c]
+  46a6e1: mov      ecx, eax
+  46a6e3: call     0x2b49f3
+  46a6e8: test     eax, eax
+  46a6ea: jne      0x46a756
+  46a6ec: mov      edx, dword ptr [rbp + 0x16c]
+  46a6f2: mov      rax, qword ptr [rbp + 0x188]
+  46a6f9: mov      rcx, rax
+  46a6fc: call     0x439b41
+  46a701: mov      dword ptr [rbp + 0x12c], eax
+  46a707: cmp      dword ptr [rbp + 0x12c], 0
+  46a70e: jle      0x46a756
+  46a710: mov      eax, dword ptr [rbp + 0x12c]
+  46a716: cmp      eax, dword ptr [rbp + 0x16c]
+  46a71c: je       0x46a756
+  46a71e: mov      r8d, dword ptr [rbp + 0x12c]
+  46a725: mov      ecx, dword ptr [rbp + 0x1a8]
+  46a72b: mov      edx, dword ptr [rbp + 0x190]
+  46a731: mov      rax, qword ptr [rbp + 0x188]
+  46a738: mov      r9d, r8d
+  46a73b: mov      r8d, ecx
+  46a73e: mov      rcx, rax
+  46a741: call     0x1fb0ec
+  46a746: test     eax, eax
+  46a748: jne      0x46a756
+  46a74a: mov      eax, dword ptr [rbp + 0x12c]
+  46a750: mov      dword ptr [rbp + 0x16c], eax
+  46a756: mov      ecx, dword ptr [rbp + 0x1a8]
+  46a75c: mov      edx, dword ptr [rbp + 0x190]
+  46a762: mov      rax, qword ptr [rbp + 0x188]
+  46a769: mov      r8d, ecx
+  46a76c: mov      rcx, rax
+  46a76f: call     0x1fb198
+  46a774: mov      dword ptr [rbp + 0x134], eax
+
+=== D plant b0_h2c + 46 home-only 0x198→0x160 (write site only) ===
+  [home160] sha=0e86288cc922
+  home160/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  home160/p_ret_fwd.x    AV       USER=- run=-
+  home160/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  home160/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  INT3@2be911 scs_pop      fwd=INT3     let=INT3    
+  INT3@576746 call_46      fwd=INT3     let=INT3    
+  INT3@57674b after_46     fwd=AV       let=INT3    
+  INT3@46a741 c46_741      fwd=AV       let=OK      
+  INT3@123781 caller       fwd=AV       let=AV      
+
+=== E plant b0_h2c + nop @46a500 (DIG) ===
+  nop 46a500 sz=7 mov dword ptr [rbp + 0x198], r9d
+  [nop500] sha=3f3b815d98a8
+  nop500/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  nop500/p_ret_fwd.x    AV       USER=- run=-
+  nop500/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  nop500/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  INT3@2be911 scs_pop      fwd=INT3     let=INT3    
+  INT3@576746 call_46      fwd=INT3     let=INT3    
+  INT3@57674b after_46     fwd=AV       let=AV      
+  INT3@46a741 c46_741      fwd=AV       let=OK      
+  INT3@123781 caller       fwd=AV       let=TIMEOUT 
+
+=== F plant b0_h2c + 46 full 0x198→0x160 (no 493) ===
+  rt 46a500 0x198→0x160
+  rt 46a8ba 0x198→0x160
+  [full160] sha=9c4781748832
+  full160/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  full160/p_ret_fwd.x    AV       USER=- run=-
+  full160/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  full160/_var_let.x     AV       USER=- run=-
+  INT3@57674b after_46     fwd=AV       let=AV      
+  INT3@46a741 c46_741      fwd=AV       let=OK      
+  INT3@5767a0 call_493     fwd=AV       let=AV      
+  INT3@123781 caller       fwd=AV       let=AV      
+
+elapsed=18.0s
+cleaned

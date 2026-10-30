@@ -1,0 +1,100 @@
+=== A corrected frame math ===
+  after push+sub0x1f0+lea: rbp=CALL_RSP-0x180
+  saved_rbp=[rbp+0x170]; retaddr=[rbp+0x178]
+  shadow: +0x180..+0x198 (=CALL_RSP+0..+0x18); 5tharg=[rbp+0x1a0]=CALL_RSP+0x20
+  @46a500 r9d home → shadow r9 (NOT 5th arg); SoftCap @2be53e → 5th arg (different)
+  0x170 sites=[]
+  0x178 sites=[]
+  0x1a0 sites=['0x46a7cd', '0x46a958', '0x46a97a']
+  0x198 sites=['0x46a500', '0x46a8ba']
+  0x180 sites=['0x46a4eb', '0x46a803', '0x46a951', '0x46aa04', '0x46ad88']
+
+=== B Capless call_46 setup raw ===
+  576720: a804                     test     al, 4
+  576722: 0000                     add      byte ptr [rax], al
+  576724: 448b85a0040000           mov      r8d, dword ptr [rbp + 0x4a0]
+  57672b: 488b9598040000           mov      rdx, qword ptr [rbp + 0x498]
+  576732: 488b8590040000           mov      rax, qword ptr [rbp + 0x490]
+  576739: 8b8db0040000             mov      ecx, dword ptr [rbp + 0x4b0]
+  57673f: 894c2420                 mov      dword ptr [rsp + 0x20], ecx
+  576743: 4889c1                   mov      rcx, rax
+  576746: e8903defff               call     0x46a4db
+  57674b: 898550040000             mov      dword ptr [rbp + 0x450], eax
+  -- call_493 setup --
+  576777: 4c8b8da8040000           mov      r9, qword ptr [rbp + 0x4a8]
+  57677e: 448b85a0040000           mov      r8d, dword ptr [rbp + 0x4a0]
+  576785: 488b9598040000           mov      rdx, qword ptr [rbp + 0x498]
+  57678c: 488b8590040000           mov      rax, qword ptr [rbp + 0x490]
+  576793: 8b8db0040000             mov      ecx, dword ptr [rbp + 0x4b0]
+  576799: 894c2420                 mov      dword ptr [rsp + 0x20], ecx
+  57679d: 4889c1                   mov      rcx, rax
+  5767a0: e88cd5f1ff               call     0x493d31
+  5767a5: 89854c040000             mov      dword ptr [rbp + 0x44c], eax
+
+=== C b0_h2c + rd198→0x1a0 ===
+  [rd1a0] sha=1c5ab447cdd3
+  rd1a0/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  rd1a0/p_ret_fwd.x    GS       USER=- run=-
+  rd1a0/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  rd1a0/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  INT3@57674b after_46       fwd=GS       let=INT3    
+  INT3@46af65 ret1           fwd=INT3     let=INT3    
+  INT3@46a8ba rd             fwd=INT3     let=INT3    
+  INT3@123781 caller         fwd=GS       let=TIMEOUT 
+
+=== D b0_h2c + nop500 + rd1a0 ===
+  [nop_rd1a0] sha=529299cd7c22
+  nop_rd1a0/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  nop_rd1a0/p_ret_fwd.x    AV       USER=- run=-
+  nop_rd1a0/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  nop_rd1a0/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  INT3@57674b after_46       fwd=AV       let=INT3    
+  INT3@46af65 ret1           fwd=INT3     let=INT3    
+  INT3@123781 caller         fwd=AV       let=AV      
+
+=== E design Capless r9-set patch ===
+  window 576724..576746 len=34 bytes hex=448b85a0040000488b9598040000488b85900400008b8db0040000894c24204889c1
+  -- bytes before 576724 --
+  576710: 007e0a                   add      byte ptr [rsi + 0xa], bh
+  576713: b800000000               mov      eax, 0
+  576718: e95b1b0000               jmp      0x578278
+  57671d: 4c8b8da8040000           mov      r9, qword ptr [rbp + 0x4a8]
+  576724: 448b85a0040000           mov      r8d, dword ptr [rbp + 0x4a0]
+
+=== F b0_h2c + home r9d→r8d (Capless-set) ===
+  before 44898d98010000
+  after  44898598010000
+  disasm mov dword ptr [rbp + 0x198], r8d
+  [home_r8d] sha=cf84b10a329b
+  home_r8d/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  home_r8d/p_ret_fwd.x    GS       USER=- run=-
+  home_r8d/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  home_r8d/_var_let.x     AV       USER=- run=-
+  INT3@57674b after_46       fwd=GS       let=AV      
+  INT3@46af65 ret1           fwd=INT3     let=INT3    
+  INT3@46a8ba rd198          fwd=INT3     let=INT3    
+  INT3@123781 caller         fwd=GS       let=AV      
+
+=== G scan deep callees for gs: ===
+  45198d gs=[] prol=['push rbp', 'mov rbp, rsp', 'sub rsp, 0x40', 'mov qword ptr [rbp + 0x10], rcx']
+  44ce03 gs=[] prol=['push rbp', 'mov rbp, rsp', 'sub rsp, 0x20', 'mov qword ptr [rbp + 0x10], rcx']
+  44f7e8 gs=[] prol=['push rbp', 'mov rbp, rsp', 'sub rsp, 0x20', 'mov qword ptr [rbp + 0x10], rcx']
+  469aa4 gs=[] prol=['push rbp', 'mov rbp, rsp', 'sub rsp, 0x40', 'mov qword ptr [rbp + 0x10], rcx']
+  47a492 gs=[] prol=['push rbp', 'mov rbp, rsp', 'sub rsp, 0x20', 'mov qword ptr [rbp + 0x10], rcx']
+  452df5 gs=[] prol=['push rbp', 'mov rbp, rsp', 'sub rsp, 0x30', 'mov qword ptr [rbp + 0x10], rcx']
+  45234b gs=[] prol=['push rbp', 'mov rbp, rsp', 'sub rsp, 0x10', 'mov qword ptr [rbp + 0x10], rcx']
+  1a80b0 gs=[] prol=['push rbp', 'mov rbp, rsp', 'push rbx', 'sub rsp, 0x508']
+  1a5bd0 gs=[] prol=['push rbp', 'mov rbp, rsp', 'push rbx', 'sub rsp, 0x18']
+  44e0d1 gs=[] prol=['push rbp', 'mov rbp, rsp', 'sub rsp, 0x20', 'mov qword ptr [rbp + 0x10], rcx']
+  47a34f gs=[] prol=['push rbp', 'mov eax, 0x2460', 'call 0x63a7b0', 'sub rsp, rax']
+
+=== H after_46 neighborhood INT3 ===
+  INT3@57674a b_after        fwd=AV       let=AV      
+  INT3@57674b after_46       fwd=GS       let=INT3    
+  INT3@57674c a_after        fwd=GS       let=AV      
+  INT3@46af64 pop_rbp        fwd=INT3     let=INT3    
+  INT3@46af65 ret1           fwd=INT3     let=INT3    
+  INT3@46af66 after_ret      fwd=GS       let=AV      
+
+elapsed=13.9s
+cleaned

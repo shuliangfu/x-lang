@@ -1,0 +1,160 @@
+=== A frame math + 0x168/170/164 sites in 0x46a4db ===
+  rbp=call_rsp-0x178; saved_rbp=[rbp+0x168]; retaddr=[rbp+0x170]; 5tharg=[rbp+0x198]
+  disp 0x168 n=16: [('0x46a54f', 'mov', 'dword ptr [rbp + 0x168], 0'), ('0x46aa3c', 'mov', 'dword ptr [rbp + 0x168], eax'), ('0x46ab77', 'mov', 'eax, dword ptr [rbp + 0x168]'), ('0x46ab88', 'mov', 'ecx, dword ptr [rbp + 0x168]'), ('0x46abaa', 'mov', 'ecx, dword ptr [rbp + 0x168]'), ('0x46abf0', 'mov', 'dword ptr [rbp + 0x168], eax'), ('0x46abf6', 'mov', 'eax, dword ptr [rbp + 0x168]'), ('0x46ac0b', 'mov', 'ecx, dword ptr [rbp + 0x168]'), ('0x46ac31', 'mov', 'ecx, dword ptr [rbp + 0x168]'), ('0x46ac72', 'mov', 'edx, dword ptr [rbp + 0x168]'), ('0x46acb4', 'mov', 'edx, dword ptr [rbp + 0x168]'), ('0x46ad4a', 'mov', 'edx, dword ptr [rbp + 0x168]')]
+  disp 0x170 n=0: []
+  disp 0x164 n=5: [('0x46a559', 'mov', 'dword ptr [rbp + 0x164], 0'), ('0x46a8c0', 'mov', 'dword ptr [rbp + 0x164], eax'), ('0x46a8dd', 'mov', 'dword ptr [rbp + 0x164], eax'), ('0x46a932', 'mov', 'dword ptr [rbp + 0x164], 0'), ('0x46a93c', 'mov', 'r9d, dword ptr [rbp + 0x164]')]
+  disp 0x160 n=3: [('0x46a82d', 'mov', 'dword ptr [rbp + 0x160], 0'), ('0x46a867', 'mov', 'dword ptr [rbp + 0x160], eax'), ('0x46a88e', 'mov', 'eax, dword ptr [rbp + 0x160]')]
+  disp 0x15c n=3: [('0x46a837', 'mov', 'dword ptr [rbp + 0x15c], 0'), ('0x46a882', 'mov', 'dword ptr [rbp + 0x15c], eax'), ('0x46a888', 'mov', 'edx, dword ptr [rbp + 0x15c]')]
+  disp 0x150 n=21: [('0x46a525', 'mov', 'dword ptr [rbp + 0x150], eax'), ('0x46a841', 'mov', 'eax, dword ptr [rbp + 0x150]'), ('0x46a852', 'mov', 'edx, dword ptr [rbp + 0x150]'), ('0x46a86d', 'mov', 'edx, dword ptr [rbp + 0x150]'), ('0x46a8a5', 'mov', 'eax, dword ptr [rbp + 0x150]'), ('0x46a8f4', 'mov', 'edx, dword ptr [rbp + 0x150]'), ('0x46a943', 'mov', 'r8d, dword ptr [rbp + 0x150]'), ('0x46a9c6', 'mov', 'eax, dword ptr [rbp + 0x150]'), ('0x46a9f7', 'mov', 'ecx, dword ptr [rbp + 0x150]'), ('0x46aa27', 'mov', 'edx, dword ptr [rbp + 0x150]'), ('0x46aa42', 'mov', 'edx, dword ptr [rbp + 0x150]'), ('0x46aaf2', 'mov', 'edx, dword ptr [rbp + 0x150]')]
+
+=== B BASE plant s168: 0x168→0x100 ===
+  rt 46a54f 0x168→0x100
+  rt 46aa3c 0x168→0x100
+  rt 46ab77 0x168→0x100
+  rt 46ab88 0x168→0x100
+  rt 46abaa 0x168→0x100
+  rt 46abf0 0x168→0x100
+  rt 46abf6 0x168→0x100
+  rt 46ac0b 0x168→0x100
+  rt 46ac31 0x168→0x100
+  rt 46ac72 0x168→0x100
+  rt 46acb4 0x168→0x100
+  rt 46ad4a 0x168→0x100
+  rt 46ad73 0x168→0x100
+  rt 46ae3f 0x168→0x100
+  rt 46aee5 0x168→0x100
+  rt 46aef6 0x168→0x100
+  [s168] sha=7b4635fe6ae3
+  s168/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  s168/p_ret_fwd.x    GS       USER=- run=-
+  s168/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  s168/_var_let.x     AV       USER=- run=-
+  INT3@2be911 scs_pop        fwd=GS       let=INT3    
+  INT3@57674b after_46       fwd=GS       let=AV      
+  INT3@46af65 ret1           fwd=INT3     let=INT3    
+  INT3@123781 caller         fwd=GS       let=TIMEOUT 
+
+=== C plant b0_h2c + s168 ===
+  [b0h2c_s168] sha=80b001051bf5
+  b0h2c_s168/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  b0h2c_s168/p_ret_fwd.x    GS       USER=- run=-
+  b0h2c_s168/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  b0h2c_s168/_var_let.x     AV       USER=- run=-
+  INT3@2be911 scs_pop        fwd=INT3     let=INT3    
+  INT3@2c66a7 h2c_pop        fwd=INT3     let=INT3    
+  INT3@576746 call_46        fwd=INT3     let=INT3    
+  INT3@57674b after_46       fwd=GS       let=INT3    
+  INT3@5767a0 call_493       fwd=GS       let=INT3    
+  INT3@578278 cap_epi        fwd=GS       let=AV      
+  INT3@46af65 ret1           fwd=INT3     let=INT3    
+  INT3@123781 caller         fwd=GS       let=TIMEOUT 
+
+=== D b0_h2c + s168→0x110 ===
+  [s110] sha=e459b9f7d22e
+  s110/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  s110/p_ret_fwd.x    GS       USER=- run=-
+  s110/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  s110/_var_let.x     AV       USER=- run=-
+
+=== E DIG b0_h2c+s168+nop500 (only if still red) ===
+  [s168_nop500] sha=f9af26cbc67d
+  s168_nop500/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  s168_nop500/p_ret_fwd.x    AV       USER=- run=-
+  s168_nop500/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  s168_nop500/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+
+=== F 0x168 site context ===
+  46a543: shr      eax, 0x32
+  46a546: cmp      ebx, ecx
+  46a548: dec      dword ptr [rcx + 0x16c85]
+  46a54e: add      bh, al
+  46a550: test     dword ptr [rax + 1], ebp
+  46a553: add      byte ptr [rax], al
+  46a555: add      byte ptr [rax], al
+  46a557: add      byte ptr [rax], al
+  46aa30: mov      byte ptr [rcx], al
+  46aa32: add      byte ptr [rax], al
+  46aa34: mov      rcx, rax
+  46aa37: call     0x44ce03
+  46aa3c: mov      dword ptr [rbp + 0x168], eax <<<
+  46aa42: mov      edx, dword ptr [rbp + 0x150]
+  46aa48: mov      rax, qword ptr [rbp + 0x188]
+  46ab6b: sar      edi, cl
+  46ab6d: mov      eax, 0xffffffff
+  46ab72: jmp      0x46af5d
+  46ab77: mov      eax, dword ptr [rbp + 0x168] <<<
+  46ab7d: mov      ecx, eax
+  46ab7f: call     0x2b49f3
+  46ab7c: add      byte ptr [rcx - 0x6190173f], cl
+  46ab82: in       al, 0xff
+  46ab84: test     eax, eax
+  46ab86: jne      0x46abf6
+  46ab88: mov      ecx, dword ptr [rbp + 0x168] <<<
+  46ab8e: mov      edx, dword ptr [rbp + 0x16c]
+  46ab94: mov      rax, qword ptr [rbp + 0x188]
+  46ab9e: mov      rcx, rax
+  46aba1: call     0x44e0d1
+  46aba6: test     eax, eax
+  46aba8: jne      0x46abf6
+  46abaa: mov      ecx, dword ptr [rbp + 0x168] <<<
+  46abb0: mov      edx, dword ptr [rbp + 0x16c]
+  46abb6: mov      rax, qword ptr [rbp + 0x188]
+  46abe4: shr      eax, 0x9f
+  46abe7: insd     dword ptr [rdi], dx
+  46abe8: fcos     
+  46abea: mov      eax, dword ptr [rbp + 0x16c]
+  46abf0: mov      dword ptr [rbp + 0x168], eax <<<
+  46abf6: mov      eax, dword ptr [rbp + 0x168]
+  46abfc: mov      ecx, eax
+  46abea: mov      eax, dword ptr [rbp + 0x16c]
+  46abf0: mov      dword ptr [rbp + 0x168], eax
+  46abf6: mov      eax, dword ptr [rbp + 0x168] <<<
+  46abfc: mov      ecx, eax
+  46abfe: call     0x2b49f3
+  46ac25: test     al, 0x34
+  46ac66: shr      eax, 0xcb
+  46ac69: nop      
+  46ac6a: jrcxz    0x46ac6b
+  46ac6c: mov      dword ptr [rbp + 0x11c], eax
+  46ac72: mov      edx, dword ptr [rbp + 0x168] <<<
+  46ac78: mov      rax, qword ptr [rbp + 0x188]
+  46ac7f: mov      rcx, rax
+  46aca8: jne      0x46ad73
+  46acae: mov      ecx, dword ptr [rbp + 0x150]
+  46acb4: mov      edx, dword ptr [rbp + 0x168] <<<
+  46acba: mov      rax, qword ptr [rbp + 0x188]
+  46acc1: mov      r8d, ecx
+  46ad3e: sub      al, byte ptr [rbx + rcx*4 - 0x7b]
+  46ad42: adc      al, 1
+  46ad44: add      byte ptr [rax], al
+  46ad46: lea      rcx, [rbp - 0x40]
+  46ad4a: mov      edx, dword ptr [rbp + 0x168] <<<
+  46ad50: mov      rax, qword ptr [rbp + 0x188]
+  46ad57: mov      r9d, r8d
+  46ad67: jne      0x46ad73
+  46ad69: mov      dword ptr [rbp + 0x158], 1
+  46ad73: mov      r9d, dword ptr [rbp + 0x168] <<<
+  46ad7a: mov      r8d, dword ptr [rbp + 0x16c]
+  46ad81: mov      rdx, qword ptr [rbp + 0x188]
+  46ae33: test     dword ptr [rcx + rax], edi
+  46ae36: add      byte ptr [rax], al
+  46ae38: mov      rcx, qword ptr [rbp + 0x140]
+  46ae3f: mov      edx, dword ptr [rbp + 0x168] <<<
+  46ae45: mov      rax, qword ptr [rbp + 0x188]
+  46ae4c: mov      r9d, 0x60
+  46aed9: call     0x1a80b0
+  46aede: mov      eax, 0xffffffff
+  46aee3: jmp      0x46af5d
+  46aee5: mov      eax, dword ptr [rbp + 0x168] <<<
+  46aeeb: mov      ecx, eax
+  46aeed: call     0x2b49f3
+  46aeea: add      byte ptr [rcx - 0x64fe173f], cl
+  46aef0: in       al, 0xff
+  46aef2: test     eax, eax
+  46aef4: jne      0x46af29
+  46aef6: mov      r8d, dword ptr [rbp + 0x168] <<<
+  46aefd: mov      ecx, dword ptr [rbp + 0x16c]
+  46af03: mov      edx, dword ptr [rbp + 0x150]
+
+elapsed=20.8s
+cleaned

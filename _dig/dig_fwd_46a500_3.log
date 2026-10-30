@@ -1,0 +1,285 @@
+  [b0_h2c] sha=9eb76632c3b3
+  b0_h2c/p_ret_lit.x    OK       USER=5c6778769c3c
+  b0_h2c/p_ret_fwd.x    GS       USER=-
+  b0_h2c/p_ret_local.x  OK       USER=36d26fcc9657
+  b0_h2c/_var_let.x     AV       USER=-
+
+=== A Capless @57656c prol/epi/cookie ===
+  57656c: push     rbp
+  57656d: sub      rsp, 0x500
+  576574: lea      rbp, [rsp + 0x80]
+  57657c: mov      qword ptr [rbp + 0x490], rcx
+  576583: mov      qword ptr [rbp + 0x498], rdx
+  57658a: mov      dword ptr [rbp + 0x4a0], r8d
+  576591: mov      qword ptr [rbp + 0x4a8], r9
+  576598: cmp      qword ptr [rbp + 0x490], 0
+  5765a0: jne      0x5765ac
+  5765a2: mov      eax, 0xffffffff
+  5765a7: jmp      0x578278
+  5765ac: cmp      qword ptr [rbp + 0x498], 0
+  5765b4: jne      0x5765c0
+  5765b6: mov      eax, 0xffffffff
+  5765bb: jmp      0x578278
+  5765c0: cmp      qword ptr [rbp + 0x4a8], 0
+  5765c8: jne      0x5765d4
+  5765ca: mov      eax, 0xffffffff
+  5765cf: jmp      0x578278
+  5765d4: mov      edx, dword ptr [rbp + 0x4a0]
+  5765da: mov      rax, qword ptr [rbp + 0x490]
+  5765e1: mov      rcx, rax
+  [capless_body] gs/security=[] n=0
+  -- epi @578250 --
+  578250: lea      rcx, [rbp + 0x260]
+  578257: mov      qword ptr [rsp + 0x30], rcx
+  57825c: mov      ecx, dword ptr [rbp + 0x3e0]
+  578262: mov      dword ptr [rsp + 0x28], ecx
+  578266: mov      ecx, dword ptr [rbp + 0x4b0]
+  57826c: mov      dword ptr [rsp + 0x20], ecx
+  578270: mov      rcx, rax
+  578273: call     0x57b98c
+  578278: add      rsp, 0x500
+  57827f: pop      rbp
+  578280: ret      
+  578281: int3     
+  578282: int3     
+  578283: int3     
+  578284: int3     
+  578285: int3     
+  578286: int3     
+  578287: int3     
+  578288: int3     
+  578289: int3     
+  57828a: int3     
+  57828b: int3     
+  57828c: int3     
+  57828d: int3     
+  57828e: int3     
+  57828f: int3     
+  578290: int3     
+  578291: int3     
+  578292: int3     
+  578293: int3     
+  578294: int3     
+  578295: int3     
+  578296: int3     
+  578297: int3     
+  578298: int3     
+  578299: int3     
+  57829a: int3     
+  57829b: int3     
+  57829c: int3     
+  57829d: int3     
+  57829e: int3     
+  57829f: int3     
+
+=== B 46a4db epi near 46af40 ===
+  46af20: je       0x46af29
+  46af22: mov      eax, 0xffffffff
+  46af27: jmp      0x46af5d
+  46af29: mov      eax, dword ptr [rbp + 0x150]
+  46af2f: mov      ecx, eax
+  46af31: call     0x2b49f3
+  46af36: test     eax, eax
+  46af38: jne      0x46af58
+  46af3a: mov      ecx, dword ptr [rbp + 0x150]
+  46af40: mov      edx, dword ptr [rbp + 0x190]
+  46af46: mov      rax, qword ptr [rbp + 0x188]
+  46af4d: mov      r8d, ecx
+  46af50: mov      rcx, rax
+  46af53: call     0x47a34f
+  46af58: mov      eax, 0
+  46af5d: add      rsp, 0x1f0
+  46af64: pop      rbp
+  46af65: ret      
+  46af66: push     rbp
+  46af67: push     rbx
+  46af68: sub      rsp, 0x48
+  46af6c: lea      rbp, [rsp + 0x40]
+  46af71: mov      qword ptr [rbp + 0x20], rcx
+  46af75: mov      qword ptr [rbp + 0x28], rdx
+  46af79: mov      dword ptr [rbp + 0x30], r8d
+  46af7d: mov      dword ptr [rbp + 0x38], r9d
+  46af81: mov      ecx, dword ptr [rbp + 0x48]
+  [c46_body] gs/security=[] n=0
+
+=== C re-verify ret / after_46 / caller / cap_epi ===
+  INT3@46af5d jmp_ret        fwd=INT3     let=INT3    
+  INT3@46af65 ret1           fwd=INT3     let=INT3    
+  INT3@57674b after_46       fwd=GS       let=INT3    
+  INT3@576764 after_cmp      fwd=GS       let=INT3    
+  INT3@5767a0 call_493       fwd=GS       let=INT3    
+  INT3@578278 cap_epi        fwd=GS       let=INT3    
+  INT3@123781 caller         fwd=GS       let=AV      
+
+=== D path after 46a9e3 ===
+  46a9c0: mov      dword ptr [rbp + 0x16c], eax
+  46a9c6: mov      eax, dword ptr [rbp + 0x150]
+  46a9cc: mov      ecx, eax
+  46a9ce: call     0x2b49f3
+  46a9d3: test     eax, eax
+  46a9d5: jne      0x46af29
+  46a9db: mov      eax, dword ptr [rbp + 0x16c]
+  46a9e1: mov      ecx, eax
+  46a9e3: call     0x2b49f3
+  46a9e8: test     eax, eax
+  46a9ea: jne      0x46af29
+  46a9f0: mov      r8d, dword ptr [rbp + 0x16c]
+  46a9f7: mov      ecx, dword ptr [rbp + 0x150]
+  46a9fd: mov      rdx, qword ptr [rbp + 0x188]
+  46aa04: mov      rax, qword ptr [rbp + 0x180]
+  46aa0b: mov      r9d, r8d
+  46aa0e: mov      r8d, ecx
+  46aa11: mov      rcx, rax
+  46aa14: call     0x45198d
+  46aa19: test     eax, eax
+  46aa1b: jns      0x46aa27
+  46aa1d: mov      eax, 0xffffffff
+  46aa22: jmp      0x46af5d
+  46aa27: mov      edx, dword ptr [rbp + 0x150]
+  46aa2d: mov      rax, qword ptr [rbp + 0x188]
+  46aa34: mov      rcx, rax
+  46aa37: call     0x44ce03
+  46aa3c: mov      dword ptr [rbp + 0x168], eax
+  46aa42: mov      edx, dword ptr [rbp + 0x150]
+  46aa48: mov      rax, qword ptr [rbp + 0x188]
+  46aa4f: mov      rcx, rax
+  46aa52: call     0x44f7e8
+  46aa57: test     eax, eax
+  46aa59: je       0x46ab77
+  46aa5f: mov      edx, dword ptr [rbp + 0x16c]
+  46aa65: mov      rax, qword ptr [rbp + 0x188]
+  46aa6c: mov      rcx, rax
+  46aa6f: call     0x2a3d37
+  46aa74: cmp      eax, 9
+  46aa77: je       0x46ab77
+  46aa7d: call     0x1a5bd0
+  46aa82: mov      qword ptr [rbp + 0x148], rax
+  46aa89: call     0x1a5bec
+  46aa8e: mov      qword ptr [rbp + 0x140], rax
+  46aa95: mov      rcx, qword ptr [rbp + 0x148]
+  46aa9c: mov      edx, dword ptr [rbp + 0x16c]
+  46aaa2: mov      rax, qword ptr [rbp + 0x188]
+  46aaa9: mov      r9d, 0x60
+  46aaaf: mov      r8, rcx
+  46aab2: mov      rcx, rax
+  46aab5: call     0x452df5
+  46aaba: mov      dword ptr [rbp + 0x13c], eax
+  46aac0: lea      rdx, [rip + 0x1f2bed]
+  46aac7: mov      rax, qword ptr [rbp + 0x140]
+  46aace: mov      dword ptr [rsp + 0x20], 4
+  46aad6: mov      r9, rdx
+  46aad9: mov      r8d, 0x60
+  46aadf: mov      edx, 0
+  46aae4: mov      rcx, rax
+  46aae7: call     0x45234b
+  46aaec: mov      dword ptr [rbp + 0x138], eax
+  46aaf2: mov      edx, dword ptr [rbp + 0x150]
+  46aaf8: mov      rax, qword ptr [rbp + 0x188]
+  46aaff: mov      rcx, rax
+  46ab02: call     0x201b7c
+  46ab07: mov      dword ptr [rbp + 0x124], eax
+  46ab0d: mov      edx, dword ptr [rbp + 0x150]
+  46ab13: mov      rax, qword ptr [rbp + 0x188]
+  46ab1a: mov      rcx, rax
+  46ab1d: call     0x201bb9
+  46ab22: mov      dword ptr [rbp + 0x120], eax
+  46ab28: mov      r8, qword ptr [rbp + 0x148]
+  46ab2f: mov      ecx, dword ptr [rbp + 0x120]
+  46ab35: mov      eax, dword ptr [rbp + 0x124]
+  46ab3b: mov      edx, dword ptr [rbp + 0x138]
+  46ab41: mov      dword ptr [rsp + 0x30], edx
+  46ab45: mov      rdx, qword ptr [rbp + 0x140]
+  46ab4c: mov      qword ptr [rsp + 0x28], rdx
+  46ab51: mov      edx, dword ptr [rbp + 0x13c]
+  46ab57: mov      dword ptr [rsp + 0x20], edx
+  46ab5b: mov      r9, r8
+  46ab5e: mov      r8d, ecx
+  46ab61: mov      edx, eax
+  46ab63: mov      ecx, 0
+  46ab68: call     0x1a80b0
+  46ab6d: mov      eax, 0xffffffff
+  46ab72: jmp      0x46af5d
+  46ab77: mov      eax, dword ptr [rbp + 0x168]
+  46ab7d: mov      ecx, eax
+  46ab7f: call     0x2b49f3
+  46ab84: test     eax, eax
+
+=== D2 probes 46a9e3..46af65 ===
+  INT3@46a9e3 d46a9e3        fwd=INT3     let=INT3    
+  INT3@46aa14 d46aa14        fwd=INT3     let=INT3    
+  INT3@46aa22 d46aa22        fwd=GS       let=OK      
+  INT3@46aa37 d46aa37        fwd=INT3     let=INT3    
+  INT3@46aa52 d46aa52        fwd=INT3     let=INT3    
+  INT3@46aa6f d46aa6f        fwd=GS       let=OK      
+  INT3@46aa7d d46aa7d        fwd=GS       let=AV      
+  INT3@46aa89 d46aa89        fwd=GS       let=AV      
+  INT3@46aab5 d46aab5        fwd=GS       let=OK      
+  INT3@46aae7 d46aae7        fwd=GS       let=AV      
+  INT3@46ab02 d46ab02        fwd=GS       let=AV      
+  INT3@46ab1d d46ab1d        fwd=GS       let=OK      
+  INT3@46ab68 d46ab68        fwd=GS       let=OK      
+  INT3@46ab72 d46ab72        fwd=GS       let=OK      
+  INT3@46ab7f d46ab7f        fwd=INT3     let=INT3    
+  INT3@46aba1 d46aba1        fwd=INT3     let=INT3    
+  INT3@46abc3 d46abc3        fwd=GS       let=AV      
+  INT3@46abe5 d46abe5        fwd=GS       let=OK      
+  INT3@46abfe d46abfe        fwd=INT3     let=INT3    
+  INT3@46ac24 d46ac24        fwd=INT3     let=INT3    
+  INT3@46ac4a d46ac4a        fwd=GS       let=OK      
+  INT3@46ac67 d46ac67        fwd=GS       let=AV      
+  INT3@46ac82 d46ac82        fwd=GS       let=OK      
+  INT3@46acc7 d46acc7        fwd=GS       let=AV      
+  INT3@46ad2b d46ad2b        fwd=GS       let=AV      
+
+=== E Capless 57674b..5767a5 detail ===
+  57674b: mov      dword ptr [rbp + 0x450], eax
+  576751: cmp      dword ptr [rbp + 0x450], 0
+  576758: jns      0x576764
+  57675a: mov      eax, 0xffffffff
+  57675f: jmp      0x578278
+  576764: cmp      dword ptr [rbp + 0x450], 0
+  57676b: jle      0x576777
+  57676d: mov      eax, 0
+  576772: jmp      0x578278
+  576777: mov      r9, qword ptr [rbp + 0x4a8]
+  57677e: mov      r8d, dword ptr [rbp + 0x4a0]
+  576785: mov      rdx, qword ptr [rbp + 0x498]
+  57678c: mov      rax, qword ptr [rbp + 0x490]
+  576793: mov      ecx, dword ptr [rbp + 0x4b0]
+  576799: mov      dword ptr [rsp + 0x20], ecx
+  57679d: mov      rcx, rax
+  5767a0: call     0x493d31
+  5767a5: mov      dword ptr [rbp + 0x44c], eax
+
+=== F BASE-only 46 plants (no SoftCap/2c retarget) ===
+  [base_nop500] sha=a8f078aa4475
+  base_nop500/p_ret_lit.x    OK       USER=5c6778769c3c
+  base_nop500/p_ret_fwd.x    GS       USER=-
+  base_nop500/p_ret_local.x  OK       USER=36d26fcc9657
+  base_nop500/_var_let.x     OK       USER=8506caa7a731
+  [base_home160] sha=95a8f489652e
+  base_home160/p_ret_lit.x    OK       USER=5c6778769c3c
+  base_home160/p_ret_fwd.x    GS       USER=-
+  base_home160/p_ret_local.x  OK       USER=36d26fcc9657
+  base_home160/_var_let.x     AV       USER=-
+
+=== G b0_h2c + home write→0x164 (use-slot, no smash) ===
+  [home164] sha=722bceb987e9
+  home164/p_ret_lit.x    OK       USER=5c6778769c3c
+  home164/p_ret_fwd.x    AV       USER=-
+  home164/p_ret_local.x  OK       USER=36d26fcc9657
+  home164/_var_let.x     AV       USER=-
+  INT3@2be911 scs_pop        fwd=INT3     let=INT3    
+  INT3@57674b after_46       fwd=AV       let=INT3    
+  INT3@46af65 ret1           fwd=INT3     let=INT3    
+  INT3@123781 caller         fwd=AV       let=AV      
+
+=== H b0_h2c + home write→0x170 (pad) ===
+  [home170] sha=020e05cb191c
+  home170/p_ret_lit.x    TIMEOUT  USER=-
+  home170/p_ret_fwd.x    TIMEOUT  USER=-
+  home170/p_ret_local.x  TIMEOUT  USER=-
+  home170/_var_let.x     TIMEOUT  USER=-
+  INT3@57674b after_46       fwd=TIMEOUT  let=TIMEOUT 
+  INT3@46af65 ret1           fwd=TIMEOUT  let=TIMEOUT 
+  INT3@46a8ba rd198          fwd=TIMEOUT  let=TIMEOUT 

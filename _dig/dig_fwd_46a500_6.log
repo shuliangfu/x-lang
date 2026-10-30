@@ -1,0 +1,97 @@
+=== A Capless 5766f0..576750 ===
+  5766e0: 8db004000089             lea      esi, [rax - 0x76fffffc]
+  5766e6: 4c2420                   and      al, 0x20
+  5766e9: 4889c1                   mov      rcx, rax
+  5766ec: e85efad4ff               call     0x2c614f
+  5766f1: 898554040000             mov      dword ptr [rbp + 0x454], eax
+  5766f7: 83bd5404000000           cmp      dword ptr [rbp + 0x454], 0
+  5766fe: 790a                     jns      0x57670a
+  576700: b8ffffffff               mov      eax, 0xffffffff
+  576705: e96e1b0000               jmp      0x578278
+  57670a: 83bd5404000000           cmp      dword ptr [rbp + 0x454], 0
+  576711: 7e0a                     jle      0x57671d
+  576713: b800000000               mov      eax, 0
+  576718: e95b1b0000               jmp      0x578278
+  57671d: 4c8b8da8040000           mov      r9, qword ptr [rbp + 0x4a8]
+  576724: 448b85a0040000           mov      r8d, dword ptr [rbp + 0x4a0]
+  57672b: 488b9598040000           mov      rdx, qword ptr [rbp + 0x498]
+  576732: 488b8590040000           mov      rax, qword ptr [rbp + 0x490]
+  576739: 8b8db0040000             mov      ecx, dword ptr [rbp + 0x4b0]
+  57673f: 894c2420                 mov      dword ptr [rsp + 0x20], ecx
+  576743: 4889c1                   mov      rcx, rax
+  576746: e8903defff               call     0x46a4db
+  57674b: 898550040000             mov      dword ptr [rbp + 0x450], eax
+  576751: 83bd5004000000           cmp      dword ptr [rbp + 0x450], 0
+
+=== B path INT3 under b0_h2c ===
+  [b0_h2c] sha=9eb76632c3b3
+  b0_h2c/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  b0_h2c/p_ret_fwd.x    GS       USER=- run=-
+  b0_h2c/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  b0_h2c/_var_let.x     AV       USER=- run=-
+  INT3@5766f1 store_2c       fwd=INT3     let=INT3    
+  INT3@57671d mov_r9         fwd=INT3     let=INT3    
+  INT3@576724 mov_r8         fwd=INT3     let=INT3    
+  INT3@576746 call_46        fwd=INT3     let=INT3    
+  INT3@57674b after_46       fwd=GS       let=INT3    
+  INT3@46af5d add_rsp        fwd=INT3     let=INT3    
+  INT3@46af64 pop_rbp        fwd=INT3     let=INT3    
+  INT3@46af65 ret1           fwd=INT3     let=INT3    
+
+=== C plant epi ret→jmp after_46 (bypass retaddr) under b0_h2c ===
+
+=== C2 spray INT3 Capless after likely bad ret targets? ===
+  str b'security_check_cookie' MISSING
+  str b'__report_gsfailure' MISSING
+  str b'Stack around' MISSING
+  scanning .text for gs:[48] / gs:[58] (x64 PE cookie TLS) first 20...
+  gs 001030: mov rax, qword ptr gs:[0x30]
+  gs 1748ef: cmp qword ptr gs:[rbp + 0x10], 0
+  gs 174c1e: add byte ptr gs:[rax - 0x73], r9b
+  gs 174cf6: add byte ptr gs:[rax - 0x75], r9b
+  gs 17eadc: lea rdx, gs:[rip + 0x4c6aa7]
+  gs 17f181: add byte ptr gs:[rax - 0x73], r9b
+  gs 17f188: add byte ptr gs:[rax - 0x75], r9b
+  gs 187da1: mov eax, dword ptr gs:[rbp - 4]
+  gs 18b861: mov eax, dword ptr gs:[rbp - 8]
+  gs 18d24d: mov eax, dword ptr gs:[rbp + 0x20]
+  gs 1c7ce7: mov eax, dword ptr gs:[rbp - 4]
+  gs 1cf845: mov r9, qword ptr gs:[rbp + 0x258]
+  gs 1d0dc9: mov edx, dword ptr gs:[rbp - 0xc]
+  gs 1d40ff: mov ecx, dword ptr gs:[rbp + 0xc4]
+  gs 1d565c: mov edx, dword ptr gs:[rbp - 0xc]
+
+=== D confirm: if retaddr wrong, where? patch 46 to save retaddr to [rbp-0x40] DIG ===
+
+=== E find all E8 callers of 0x46a4db ===
+  callers=['0x46bac7', '0x46bda6', '0x576746']
+
+=== F INT3 after each caller ===
+  INT3@46bacc ac46bac7       fwd=INT3     let=INT3    
+  INT3@46bdab ac46bda6       fwd=GS       let=AV      
+  INT3@57674b ac576746       fwd=GS       let=AV      
+
+=== G b0_h2c + skip call_46 (mov eax,0; nop pad) ===
+  [skip46] sha=922e01140bf6
+  skip46/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  skip46/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS
+  skip46/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  skip46/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  INT3@57674b after_46       fwd=INT3     let=INT3    
+  INT3@5767a0 call_493       fwd=INT3     let=INT3    
+  INT3@578278 cap_epi        fwd=GS       let=INT3    
+  INT3@123781 caller         fwd=INT3     let=TIMEOUT 
+
+=== H find xor eax,eax; ret gadget ===
+  gadget=0x1e7f5
+  [call_ret0] sha=b1a1293fa9e7
+  call_ret0/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  call_ret0/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS
+  call_ret0/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  call_ret0/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  INT3@57674b after_46       fwd=INT3     let=INT3    
+  INT3@5767a0 call_493       fwd=INT3     let=INT3    
+  INT3@123781 caller         fwd=INT3     let=TIMEOUT 
+
+elapsed=23.1s
+cleaned

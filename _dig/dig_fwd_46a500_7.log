@@ -1,0 +1,215 @@
+=== A 46a4db prologue / @46a76f / epi ===
+  -- 46a4db --
+  46a4db: 55                           push     rbp
+  46a4dc: 4881ecf0010000               sub      rsp, 0x1f0
+  46a4e3: 488dac2480000000             lea      rbp, [rsp + 0x80]
+  46a4eb: 48898d80010000               mov      qword ptr [rbp + 0x180], rcx
+  46a4f2: 48899588010000               mov      qword ptr [rbp + 0x188], rdx
+  46a4f9: 44898590010000               mov      dword ptr [rbp + 0x190], r8d
+  46a500: 44898d98010000               mov      dword ptr [rbp + 0x198], r9d
+  46a507: 8b8da8010000                 mov      ecx, dword ptr [rbp + 0x1a8]
+  46a50d: 8b9590010000                 mov      edx, dword ptr [rbp + 0x190]
+  46a513: 488b8588010000               mov      rax, qword ptr [rbp + 0x188]
+  46a51a: 4189c8                       mov      r8d, ecx
+  46a51d: 4889c1                       mov      rcx, rax
+  46a520: e8283bd9ff                   call     0x1fe04d
+  46a525: 898550010000                 mov      dword ptr [rbp + 0x150], eax
+  46a52b: 8b8da8010000                 mov      ecx, dword ptr [rbp + 0x1a8]
+  46a531: 8b9590010000                 mov      edx, dword ptr [rbp + 0x190]
+  46a537: 488b8588010000               mov      rax, qword ptr [rbp + 0x188]
+  46a53e: 4189c8                       mov      r8d, ecx
+  46a541: 4889c1                       mov      rcx, rax
+  46a544: e8323bd9ff                   call     0x1fe07b
+  46a549: 89856c010000                 mov      dword ptr [rbp + 0x16c], eax
+  46a54f: c7856801000000000000         mov      dword ptr [rbp + 0x168], 0
+  -- 46a740 --
+  46a740: c1e8a6                       shr      eax, 0xa6
+  46a743: 09d9                         or       ecx, ebx
+  46a745: ff85c0750c8b                 inc      dword ptr [rbp - 0x74f38a40]
+  46a74b: 852c01                       test     dword ptr [rcx + rax], ebp
+  46a74e: 0000                         add      byte ptr [rax], al
+  46a750: 89856c010000                 mov      dword ptr [rbp + 0x16c], eax
+  46a756: 8b8da8010000                 mov      ecx, dword ptr [rbp + 0x1a8]
+  46a75c: 8b9590010000                 mov      edx, dword ptr [rbp + 0x190]
+  46a762: 488b8588010000               mov      rax, qword ptr [rbp + 0x188]
+  46a769: 4189c8                       mov      r8d, ecx
+  46a76c: 4889c1                       mov      rcx, rax
+  46a76f: e8240ad9ff                   call     0x1fb198
+  46a774: 898534010000                 mov      dword ptr [rbp + 0x134], eax
+  46a77a: 83bd3401000000               cmp      dword ptr [rbp + 0x134], 0
+  46a781: 0f8e1e010000                 jle      0x46a8a5
+  46a787: 83bd340100007f               cmp      dword ptr [rbp + 0x134], 0x7f
+  46a78e: 0f8f11010000                 jg       0x46a8a5
+  46a794: 4989e8                       mov      r8, rbp
+  46a797: 8b8da8010000                 mov      ecx, dword ptr [rbp + 0x1a8]
+  -- 46af40 --
+  46af40: 8b9590010000                 mov      edx, dword ptr [rbp + 0x190]
+  46af46: 488b8588010000               mov      rax, qword ptr [rbp + 0x188]
+  46af4d: 4189c8                       mov      r8d, ecx
+  46af50: 4889c1                       mov      rcx, rax
+  46af53: e8f7f30000                   call     0x47a34f
+  46af58: b800000000                   mov      eax, 0
+  46af5d: 4881c4f0010000               add      rsp, 0x1f0
+  46af64: 5d                           pop      rbp
+  46af65: c3                           ret      
+  46af66: 55                           push     rbp
+  46af67: 53                           push     rbx
+  46af68: 4883ec48                     sub      rsp, 0x48
+  46af6c: 488d6c2440                   lea      rbp, [rsp + 0x40]
+  46af71: 48894d20                     mov      qword ptr [rbp + 0x20], rcx
+  46af75: 48895528                     mov      qword ptr [rbp + 0x28], rdx
+  46af79: 44894530                     mov      dword ptr [rbp + 0x30], r8d
+
+=== B Capless 5767a0..578290 (skim call_493→epi) ===
+  5767a0: e88cd5f1ff               call     0x493d31
+  5767a5: 89854c040000             mov      dword ptr [rbp + 0x44c], eax
+  5767ab: 83bd4c04000000           cmp      dword ptr [rbp + 0x44c], 0
+  5767b2: 790a                     jns      0x5767be
+  5767b4: b8ffffffff               mov      eax, 0xffffffff
+  5767b9: e9ba1a0000               jmp      0x578278
+  5767be: 83bd4c04000000           cmp      dword ptr [rbp + 0x44c], 0
+  5767c5: 7e0a                     jle      0x5767d1
+  5767c7: b800000000               mov      eax, 0
+  5767cc: e9a71a0000               jmp      0x578278
+  5767d1: 4c8b8da8040000           mov      r9, qword ptr [rbp + 0x4a8]
+  5767d8: 448b85a0040000           mov      r8d, dword ptr [rbp + 0x4a0]
+  5767df: 488b9598040000           mov      rdx, qword ptr [rbp + 0x498]
+  5767e6: 488b8590040000           mov      rax, qword ptr [rbp + 0x490]
+  5767ed: 8b8db0040000             mov      ecx, dword ptr [rbp + 0x4b0]
+  5767f3: 894c2420                 mov      dword ptr [rsp + 0x20], ecx
+  5767f7: 4889c1                   mov      rcx, rax
+  5767fa: e81061f2ff               call     0x49c90f
+  5767ff: 898548040000             mov      dword ptr [rbp + 0x448], eax
+  576805: 83bd4804000000           cmp      dword ptr [rbp + 0x448], 0
+  57680c: 790a                     jns      0x576818
+  57680e: b8ffffffff               mov      eax, 0xffffffff
+  576813: e9601a0000               jmp      0x578278
+  576818: 83bd4804000000           cmp      dword ptr [rbp + 0x448], 0
+  57681f: 7e0a                     jle      0x57682b
+  576821: b800000000               mov      eax, 0
+  576826: e94d1a0000               jmp      0x578278
+  57682b: c7854404000000000000     mov      dword ptr [rbp + 0x444], 0
+  576835: c7854004000000000000     mov      dword ptr [rbp + 0x440], 0
+  57683f: c7853c04000000000000     mov      dword ptr [rbp + 0x43c], 0
+  576849: c7853804000000000000     mov      dword ptr [rbp + 0x438], 0
+  576853: c7853404000000000000     mov      dword ptr [rbp + 0x434], 0
+  57685d: 8b8568040000             mov      eax, dword ptr [rbp + 0x468]
+  576863: 898574040000             mov      dword ptr [rbp + 0x474], eax
+  576869: c7853004000000000000     mov      dword ptr [rbp + 0x430], 0
+  576873: c7857004000000000000     mov      dword ptr [rbp + 0x470], 0
+  57687d: 83bd5c04000033           cmp      dword ptr [rbp + 0x45c], 0x33
+  576886: 83bd5c04000034           cmp      dword ptr [rbp + 0x45c], 0x34
+  57688f: 8b9568040000             mov      edx, dword ptr [rbp + 0x468]
+  576895: 488b8590040000           mov      rax, qword ptr [rbp + 0x490]
+  57689f: e8fbb4c8ff               call     0x201d9f
+  5768a4: 89852c040000             mov      dword ptr [rbp + 0x42c], eax
+  5768aa: 83bd2c04000000           cmp      dword ptr [rbp + 0x42c], 0
+  5768b3: 8b852c040000             mov      eax, dword ptr [rbp + 0x42c]
+  5768b9: 898574040000             mov      dword ptr [rbp + 0x474], eax
+  5768bf: 8b9574040000             mov      edx, dword ptr [rbp + 0x474]
+  5768c5: 488b8590040000           mov      rax, qword ptr [rbp + 0x490]
+  5768cf: e823a7c8ff               call     0x200ff7
+  5768d4: 898544040000             mov      dword ptr [rbp + 0x444], eax
+  5768da: 83bd4404000000           cmp      dword ptr [rbp + 0x444], 0
+  5768e7: 8b9544040000             mov      edx, dword ptr [rbp + 0x444]
+  5768ed: 488b8590040000           mov      rax, qword ptr [rbp + 0x490]
+  5768f7: e88443f6ff               call     0x4dac80
+  5768fc: 898540040000             mov      dword ptr [rbp + 0x440], eax
+  576902: 83bd4004000012           cmp      dword ptr [rbp + 0x440], 0x12
+  57690b: c7857004000001000000     mov      dword ptr [rbp + 0x470], 1
+  576915: eb5b                     jmp      0x576972
+  576917: 83bd4004000009           cmp      dword ptr [rbp + 0x440], 9
+  576920: 8b9544040000             mov      edx, dword ptr [rbp + 0x444]
+  576926: 488b8590040000           mov      rax, qword ptr [rbp + 0x490]
+  576930: e817edc7ff               call     0x1f564c
+  576935: 89853c040000             mov      dword ptr [rbp + 0x43c], eax
+  57693b: 83bd3c04000000           cmp      dword ptr [rbp + 0x43c], 0
+  576944: 8b953c040000             mov      edx, dword ptr [rbp + 0x43c]
+  57694a: 488b8590040000           mov      rax, qword ptr [rbp + 0x490]
+  576954: e82743f6ff               call     0x4dac80
+  576959: 898538040000             mov      dword ptr [rbp + 0x438], eax
+  57695f: 83bd3804000002           cmp      dword ptr [rbp + 0x438], 2
+  576968: c7857004000001000000     mov      dword ptr [rbp + 0x470], 1
+  576972: 83bd7004000000           cmp      dword ptr [rbp + 0x470], 0
+  57697f: 8b95a0040000             mov      edx, dword ptr [rbp + 0x4a0]
+  576985: 488b8590040000           mov      rax, qword ptr [rbp + 0x490]
+  57698f: e85b89c8ff               call     0x1ff2ef
+  576994: 898534040000             mov      dword ptr [rbp + 0x434], eax
+
+=== C plant: at 46 entry save retaddr to [rbp+0x168]; at epi restore ===
+
+=== D path INT3 inside 46 under b0_h2c ===
+
+=== E skip46 denser Capless path ===
+  [skip46] sha=922e01140bf6
+  skip46/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  skip46/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS
+  skip46/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  skip46/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  calls between 493 and epi: ['0x5767a0', '0x5767fa', '0x57689f', '0x5768cf', '0x5768f7', '0x576930', '0x576954', '0x57698f', '0x5769d6', '0x576a0a', '0x576a47', '0x576a98', '0x576adc', '0x576b07', '0x576b33', '0x576b5e', '0x576c6e', '0x576d29', '0x576d85', '0x576dad'] n=28
+  INT3@5767a0 c5767a0        fwd=INT3     let=INT3    
+  INT3@5767a5 a5767a0        fwd=GS       let=INT3    
+  INT3@5767fa c5767fa        fwd=GS       let=INT3    
+  INT3@5767ff a5767fa        fwd=GS       let=INT3    
+  INT3@57689f c57689f        fwd=OK       let=OK      
+  INT3@5768a4 a57689f        fwd=OK       let=OK      
+  INT3@5768cf c5768cf        fwd=GS       let=INT3    
+  INT3@5768d4 a5768cf        fwd=GS       let=INT3    
+  INT3@5768f7 c5768f7        fwd=OK       let=OK      
+  INT3@5768fc a5768f7        fwd=OK       let=OK      
+  INT3@576930 c576930        fwd=OK       let=OK      
+  INT3@576935 a576930        fwd=OK       let=OK      
+  INT3@576954 c576954        fwd=OK       let=OK      
+  INT3@576959 a576954        fwd=OK       let=OK      
+  INT3@57698f c57698f        fwd=OK       let=OK      
+  INT3@576994 a57698f        fwd=OK       let=OK      
+  INT3@5769d6 c5769d6        fwd=OK       let=OK      
+  INT3@5769db a5769d6        fwd=OK       let=OK      
+  INT3@576a0a c576a0a        fwd=OK       let=OK      
+  INT3@576a0f a576a0a        fwd=OK       let=OK      
+  INT3@576a47 c576a47        fwd=OK       let=OK      
+  INT3@576a4c a576a47        fwd=OK       let=OK      
+  INT3@576a98 c576a98        fwd=OK       let=OK      
+  INT3@576a9d a576a98        fwd=OK       let=OK      
+
+=== F craft entry+epi retaddr save/restore ===
+  pro 46a4db: push rbp sz=1
+  pro 46a4dc: sub rsp, 0x1f0 sz=7
+  pro 46a4e3: lea rbp, [rsp + 0x80] sz=8
+  pro 46a4eb: mov qword ptr [rbp + 0x180], rcx sz=7
+  pro 46a4f2: mov qword ptr [rbp + 0x188], rdx sz=7
+  pro 46a4f9: mov dword ptr [rbp + 0x190], r8d sz=7
+  pro 46a500: mov dword ptr [rbp + 0x198], r9d sz=7
+  pro 46a507: mov ecx, dword ptr [rbp + 0x1a8] sz=6
+  pro 46a50d: mov edx, dword ptr [rbp + 0x190] sz=6
+  pro 46a513: mov rax, qword ptr [rbp + 0x188] sz=7
+
+elapsed_so_far=5.0s — continuing plants after prologue parse in-script
+  first16=554881ecf0010000488dac2480000000
+
+=== G hollow-46: keep prologue, xor eax,eax, jump epi ===
+  hscan 46a4db: push rbp
+  hscan 46a4dc: sub rsp, 0x1f0
+  hijack@46a4e3
+  [hollow] sha=617ba26e47b9
+  hollow/p_ret_lit.x    OK       USER=863f340950ce run=OK
+  hollow/p_ret_fwd.x    OK       USER=e411d7260d78 run=OK
+  hollow/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  hollow/_var_let.x     OK       USER=f6d6443bef9e run=OK
+  INT3@57674b after_46       fwd=INT3     let=INT3    
+  INT3@5767a0 call_493       fwd=INT3     let=INT3    
+  INT3@578278 cap_epi        fwd=GS       let=INT3    
+  INT3@123781 caller         fwd=INT3     let=TIMEOUT 
+
+=== H b0_h2c + INT3 mid-46 body samples ===
+  INT3@46a500 at500          fwd=INT3     let=INT3    
+  INT3@46a520 at520          fwd=INT3     let=INT3    
+  INT3@46a760 at760          fwd=AV       let=AV      
+  INT3@46a76f at76f          fwd=INT3     let=INT3    
+  INT3@46a780 at780          fwd=AV       let=AV      
+  INT3@46a800 at800          fwd=AV       let=AV      
+  INT3@46af00 atf00          fwd=AV       let=AV      
+  INT3@46af50 atf50          fwd=INT3     let=INT3    
+
+elapsed=16.9s
+cleaned

@@ -1,0 +1,98 @@
+=== A baselines ===
+  [base] sha=3f43f1609d70
+  base/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  base/p_ret_fwd.x    GS       USER=- run=-
+  base/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  base/_var_let.x     AV       USER=- run=-
+  base/_var_fwd.x     GS       USER=- run=-
+  [b0_h2c] sha=9eb76632c3b3
+  b0_h2c/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  b0_h2c/p_ret_fwd.x    GS       USER=- run=-
+  b0_h2c/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  b0_h2c/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  b0_h2c/_var_fwd.x     GS       USER=- run=-
+
+=== B hollow@46a4e3 alone ===
+  [hollow_only] sha=18b229af77bd
+  hollow_only/p_ret_lit.x    OK       USER=863f340950ce run=OK
+  hollow_only/p_ret_fwd.x    OK       USER=e411d7260d78 run=OK
+  hollow_only/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  hollow_only/_var_let.x     OK       USER=f6d6443bef9e run=OK
+  hollow_only/_var_fwd.x     OK       USER=e411d7260d78 run=OK
+
+=== C b0_h2c+hollow@46a4e3 ===
+  [b0h2c_hollow] sha=617ba26e47b9
+  b0h2c_hollow/p_ret_lit.x    OK       USER=863f340950ce run=OK
+  b0h2c_hollow/p_ret_fwd.x    OK       USER=e411d7260d78 run=OK
+  b0h2c_hollow/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  b0h2c_hollow/_var_let.x     OK       USER=f6d6443bef9e run=OK
+  b0h2c_hollow/_var_fwd.x     OK       USER=e411d7260d78 run=OK
+
+=== D plant 46: [rbp+0x1a8]→[rbp+0x1a0] at first read @46a507 ===
+  1a8 sites in 46: ['0x46a507', '0x46a52b', '0x46a725', '0x46a756', '0x46a797', '0x46a80f', '0x46a981', '0x46a9a2']
+  [1a8to1a0] sha=a21e71b7eebf
+  1a8to1a0/p_ret_lit.x    AV       USER=- run=-
+  1a8to1a0/p_ret_fwd.x    GS       USER=- run=-
+  1a8to1a0/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  1a8to1a0/_var_let.x     AV       USER=- run=-
+  1a8to1a0/_var_fwd.x     GS       USER=- run=-
+
+=== E b0_h2c + zero [rbp+0x1a8] early in 46 ===
+  remaining 1a8 after xor-first: ['0x46a52b', '0x46a725', '0x46a756', '0x46a797', '0x46a80f', '0x46a981', '0x46a9a2']
+  [z6th] sha=653b3e44a586
+  z6th/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  z6th/p_ret_fwd.x    GS       USER=- run=-
+  z6th/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  z6th/_var_let.x     AV       USER=- run=-
+  z6th/_var_fwd.x     GS       USER=- run=-
+
+=== F bisect hollow points in 46 under b0_h2c ===
+  [h_after_1fe04d] sha=add62f0bddb8
+  h_after_1fe04d/p_ret_lit.x    OK       USER=863f340950ce run=OK
+  h_after_1fe04d/p_ret_fwd.x    OK       USER=e411d7260d78 run=OK
+  h_after_1fe04d/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  h_after_1fe04d/_var_let.x     OK       USER=f6d6443bef9e run=OK
+  h_after_1fe04d/_var_fwd.x     OK       USER=e411d7260d78 run=OK
+  [h_after_1fe07b] sha=9e1ec172387d
+  h_after_1fe07b/p_ret_lit.x    OK       USER=863f340950ce run=OK
+  h_after_1fe07b/p_ret_fwd.x    OK       USER=e411d7260d78 run=OK
+  h_after_1fe07b/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  h_after_1fe07b/_var_let.x     OK       USER=f6d6443bef9e run=OK
+  h_after_1fe07b/_var_fwd.x     OK       USER=e411d7260d78 run=OK
+  [h_after_1fb198] sha=a9b222f986eb
+  h_after_1fb198/p_ret_lit.x    OK       USER=863f340950ce run=OK
+  h_after_1fb198/p_ret_fwd.x    OK       USER=e411d7260d78 run=OK
+  h_after_1fb198/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  h_after_1fb198/_var_let.x     OK       USER=f6d6443bef9e run=OK
+  h_after_1fb198/_var_fwd.x     OK       USER=e411d7260d78 run=OK
+  [h_before_epi] sha=ff4a4f0e1f4e
+  h_before_epi/p_ret_lit.x    crc=0xc000001d USER=- run=-
+  h_before_epi/p_ret_fwd.x    crc=0xc000001d USER=- run=-
+  h_before_epi/p_ret_local.x  crc=0xc000001d USER=- run=-
+  h_before_epi/_var_let.x     crc=0xc000001d USER=- run=-
+  h_before_epi/_var_fwd.x     crc=0xc000001d USER=- run=-
+
+=== G b0_h2c + skip call@46a76f (xor eax;nop*3) ===
+  [skip76f] sha=7c7174adacf3
+  skip76f/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  skip76f/p_ret_fwd.x    GS       USER=- run=-
+  skip76f/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  skip76f/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  skip76f/_var_fwd.x     GS       USER=- run=-
+  INT3@46a774 aft76f         fwd=INT3     let=INT3    
+  INT3@46af5d add_rsp        fwd=INT3     let=INT3    
+  INT3@46af65 ret1           fwd=INT3     let=INT3    
+  INT3@57674b after_46       fwd=GS       let=AV      
+
+=== H Capless widen: mov qword [rsp+0x20], rcx (zeros upper=6th half?) ===
+
+=== I INT3 path under b0h2c_hollow ===
+  INT3@57674b after_46       fwd=INT3     let=INT3    
+  INT3@5767a0 call_493       fwd=INT3     let=INT3    
+  INT3@5767a5 aft_493        fwd=GS       let=INT3    
+  INT3@5767fa call_49c       fwd=GS       let=INT3    
+  INT3@578278 cap_epi        fwd=GS       let=INT3    
+  INT3@123781 caller         fwd=INT3     let=TIMEOUT 
+
+elapsed=15.8s
+cleaned

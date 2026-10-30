@@ -1,7 +1,37 @@
 # 10.60 SoftCap DIG PROGRESS
 
-**2026-10-30 ~18:32 CST (Asia/Shanghai)** · DIG `fwd_2c6174`：钉 SoftCap+`@2c6174` 同构 smash Capless`[rsp+0x20]`；home_b0／h2c 齐 SoftCap/@2c epi 后 GS 落 `0x46a4db@46a500`；扩链→AV 非 Isol；无稳定 plant；勿升 PROD／钉 **不升**／勿收刀 · 下一单点：`fwd_46a500`
+**2026-10-30 ~18:45 CST (Asia/Shanghai)** · DIG `fwd_46a500`：钉 `0x46a4db` body 砸 ret／after_46 fwd=GS；**hollow_only `@46a4e3→epi` sha `18b229af77bd`** lit/local/fwd/let **OK run**；body 跳过非手术；勿升 PROD／钉 **不升** · 下一单点：`fwd_46_post76f`
 
+
+## 2026-10-30 ~18:45 CST Asia/Shanghai — DIG `fwd_46a500`；Isol hollow_only 绿；下一 `fwd_46_post76f`
+
+### 0) 闸
+- tip HEAD `e07f6a087`＝origin/dev（本拍前；commit 后见 tip）
+- Isol host baseline `3f43f1609d70`；plant hollow_only `18b229af77bd`
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／tip@121278／join／epi／LIVE SoftCap 移植／arg-loop／LIVE spill／`[4b0]=1`／字母堆／扩链假 Isol／依赖 nopr9 抖 AV：遵守
+
+### 1) DIG 钉死（本拍）
+1. SoftCap+`@2c` epi 齐后：call_46／46 epi HIT；**after_46 fwd=GS**（let INT3）→ GS 在 `0x46a4db` body（ret 达但返不上 Capless）。
+2. 帧：`sub 0x1f0; lea rbp,[rsp+0x80]`；`@46a500 [rbp+0x198]`＝call_rsp+0x20 同构砸；体读 `[rbp+0x1a8]` 6th，Capless 只写 5th。
+3. Capless `@57671d` 有 on-path `mov r9,[4a8]`；skip Capless call_46 → fwd run GS at `0x493d31`（需真实 call/ret）。
+4. **hollow `@46a4e3` xor eax; jmp epi**：hollow_only／+b0_h2c／hollow@after 1fe04d|1fe07b|1fb198 **门绿**；skip76f／1a8 修 **仍红** → 砸点在 `@46a774` 之后至真 epi。
+
+### 2) Win SoftCap 门
+| Isol plant | sha12 | lit | fwd | local | let | 注 |
+|---|---|---|---|---|---|---|
+| cmk0_irdx_sub20（对照） | 3f43f1609d70 | OK run0 | **GS** | OK run1 | AV | |
+| b0_h2c（诊） | 9eb76632c3b3 | OK | **GS** | OK | OK | after_46 |
+| skip46（诊） | 922e01140bf6 | OK | run **GS** | OK | OK | 493 |
+| **hollow_only** | **18b229af77bd** | **OK run0** | **OK run0** | **OK run1** | **OK** | **Isol；跳 body** |
+
+### 3) 下一拍最小刀（单点）
+- **`fwd_46_post76f`**：手术 DIG/plant `@46a774`→epi 砸点，保 46 体工作。禁 tip@121278／join／epi-raise／LIVE／mega／字母堆／假绿 force-kind／扩链假 Isol。
+- hollow 跳 body → **勿当语义收刀**；勿升 PROD／勿请批 直至术后稳绿。
+
+### 4) open
+- 笔记 `_dig/dig_fwd_46a500.md`；脚本／log `_dig/dig_fwd_46a500{,_2..8}.py`／`.log`
+- PROD／钉 **未动**；bans unchanged
 
 ## 2026-10-30 ~18:32 CST Asia/Shanghai — DIG `fwd_2c6174`；钉 iso-chain→`@46a500`；下一 `fwd_46a500`
 
