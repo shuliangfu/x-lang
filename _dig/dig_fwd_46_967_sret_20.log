@@ -1,0 +1,95 @@
+
+=== A x+1 plant + c1toc2 ===
+  A: Capless payload=4883ec20488b45f048ffc04889c2 len=14
+  fixup len=180 pad=236 let_sret=False
+  s20a/p_ret_lit.x      host=OK       USER=5c6778769c3c run=0        LIT
+  s20a/p_ret_fwd.x      host=OK       USER=f48efae657b2 run=1        
+  s20a/p_ret_local.x    host=OK       USER=36d26fcc9657 run=0        LOC
+  s20a/_var_let.x       host=OK       USER=81a3c4de8b73 run=1        
+  dump let s20a:
+    0004f8: 55                 push rbp
+    0004f9: 4889e5             mov rbp, rsp
+    0004fc: 53                 push rbx
+    0004fd: 4881ec68080000     sub rsp, 0x868
+    000504: 4889c8             mov rax, rcx
+    000507: 488945b0           mov qword ptr [rbp - 0x50], rax
+    00050b: 4889d0             mov rax, rdx
+    00050e: 488945f0           mov qword ptr [rbp - 0x10], rax
+    000512: 488d45c8           lea rax, [rbp - 0x38]
+    000516: 4889c1             mov rcx, rax
+    000519: 4883ec20           sub rsp, 0x20
+    00051d: 488b45f0           mov rax, qword ptr [rbp - 0x10]
+    000521: 48ffc0             inc rax
+    000524: 4889c2             mov rdx, rax
+    000527: e864ffffff         call 0x490
+    00052c: 4883c420           add rsp, 0x20
+    000530: 488b45c8           mov rax, qword ptr [rbp - 0x38]
+    000534: e900000000         jmp 0x539
+    000539: 488d65f8           lea rsp, [rbp - 8]
+    00053d: 5b                 pop rbx
+    00053e: 5d                 pop rbp
+    00053f: c3                 ret 
+
+=== B x+1 plant + c1toc2 + let_sret ===
+  B: Capless payload=4883ec20488b45f048ffc04889c2 len=14
+  fixup len=289 pad=127 let_sret=True
+  s20b/p_ret_lit.x      host=OK       USER=5c6778769c3c run=0        LIT
+  s20b/p_ret_fwd.x      host=OK       USER=f48efae657b2 run=1        
+  s20b/p_ret_local.x    host=OK       USER=36d26fcc9657 run=0        LOC
+  s20b/_var_let.x       host=OK       USER=20d8835a5340 run=1        
+  dump let s20b:
+    0004f8: 55                 push rbp
+    0004f9: 4889e5             mov rbp, rsp
+    0004fc: 53                 push rbx
+    0004fd: 4881ec68080000     sub rsp, 0x868
+    000504: 4889c8             mov rax, rcx
+    000507: 488945b0           mov qword ptr [rbp - 0x50], rax
+    00050b: 4889d0             mov rax, rdx
+    00050e: 488945f0           mov qword ptr [rbp - 0x10], rax
+    000512: 488b45b0           mov rax, qword ptr [rbp - 0x50]
+    000516: 4889c1             mov rcx, rax
+    000519: 4883ec20           sub rsp, 0x20
+    00051d: 488b45f0           mov rax, qword ptr [rbp - 0x10]
+    000521: 48ffc0             inc rax
+    000524: 4889c2             mov rdx, rax
+    000527: e864ffffff         call 0x490
+    00052c: 4883c420           add rsp, 0x20
+    000530: 488b45c8           mov rax, qword ptr [rbp - 0x38]
+    000534: e900000000         jmp 0x539
+    000539: 488d65f8           lea rsp, [rbp - 8]
+    00053d: 5b                 pop rbx
+    00053e: 5d                 pop rbp
+    00053f: c3                 ret 
+
+=== C imm9 (s19a) + let_sret ===
+  C: Capless payload=4883ec20b8090000004889c2 len=12
+  fixup len=289 pad=127 let_sret=True
+  s20c/p_ret_lit.x      host=OK       USER=5c6778769c3c run=0        LIT
+  s20c/p_ret_fwd.x      host=OK       USER=d9ffcb750e0b run=0        S19A_FWD
+  s20c/p_ret_local.x    host=OK       USER=36d26fcc9657 run=0        LOC
+  s20c/_var_let.x       host=OK       USER=5fed48e353aa run=1        
+  dump let s20c:
+    0004f8: 55                 push rbp
+    0004f9: 4889e5             mov rbp, rsp
+    0004fc: 53                 push rbx
+    0004fd: 4881ec68080000     sub rsp, 0x868
+    000504: 4889c8             mov rax, rcx
+    000507: 488945b0           mov qword ptr [rbp - 0x50], rax
+    00050b: 4889d0             mov rax, rdx
+    00050e: 488945f0           mov qword ptr [rbp - 0x10], rax
+    000512: 488b45b0           mov rax, qword ptr [rbp - 0x50]
+    000516: 4889c1             mov rcx, rax
+    000519: 4883ec20           sub rsp, 0x20
+    00051d: b809000000         mov eax, 9
+    000522: 4889c2             mov rdx, rax
+    000525: e866ffffff         call 0x490
+    00052a: 4883c420           add rsp, 0x20
+    00052e: 488b45c8           mov rax, qword ptr [rbp - 0x38]
+    000532: e900000000         jmp 0x537
+    000537: 488d65f8           lea rsp, [rbp - 8]
+    00053b: 5b                 pop rbx
+    00053c: 5d                 pop rbp
+    00053d: c3                 ret 
+    00053e: 0000               add byte ptr [rax], al
+
+=== SUMMARY elapsed=0.9s ===

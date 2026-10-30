@@ -1,0 +1,87 @@
+HOST=host_967_s20b.exe sha=fa3b242b2580
+  p_ret_lit.x      host=OK       USER=5c6778769c3c run=0        patches=0
+  patched main imm9 at text+0x55f
+  p_ret_fwd.x      host=OK       USER=9439f8857d57 run=0        patches=1
+  dump p_ret_fwd.x:
+    000540: 20488d             and byte ptr [rax - 0x73], cl
+    000543: 65f8               clc 
+    000545: 5b                 pop rbx
+    000546: 5d                 pop rbp
+    000547: c3                 ret 
+    000548: 55                 push rbp
+    000549: 4889e5             mov rbp, rsp
+    00054c: 53                 push rbx
+    00054d: 4881ec68080000     sub rsp, 0x868
+    000554: 488d45d8           lea rax, [rbp - 0x28]
+    000558: 4889c1             mov rcx, rax
+    00055b: 4883ec20           sub rsp, 0x20
+    00055f: b809000000         mov eax, 9
+    000564: 4889c2             mov rdx, rax
+    000567: 90                 nop 
+    000568: 90                 nop 
+    000569: e88affffff         call 0x4f8
+    00056e: 4883c420           add rsp, 0x20
+    000572: 488d45d8           lea rax, [rbp - 0x28]
+    000576: 488b00             mov rax, qword ptr [rax]
+    000579: 4889c3             mov rbx, rax
+    00057c: b80a000000         mov eax, 0xa
+    000581: 4839c3             cmp rbx, rax
+    000584: 0f95c0             setne al
+    000587: 0fb6c0             movzx eax, al
+    00058a: 85c0               test eax, eax
+    00058c: 0f840f000000       je 0x5a1
+    000592: b801000000         mov eax, 1
+    000597: e979000000         jmp 0x615
+    00059c: e900000000         jmp 0x5a1
+    0005a1: 488d45d8           lea rax, [rbp - 0x28]
+    0005a5: 480508000000       add rax, 8
+    0005ab: 488b00             mov rax, qword ptr [rax]
+    0005ae: 4889c3             mov rbx, rax
+    0005b1: b80b000000         mov eax, 0xb
+    0005b6: 4839c3             cmp rbx, rax
+    0005b9: 0f95c0             setne al
+    0005bc: 0fb6c0             movzx eax, al
+  p_ret_local.x    host=OK       USER=36d26fcc9657 run=0        patches=0
+  patched main imm9 at text+0x557
+  _var_let.x       host=OK       USER=677376eba3d0 run=0        patches=1
+  dump _var_let.x:
+    0004f8: 55                 push rbp
+    0004f9: 4889e5             mov rbp, rsp
+    0004fc: 53                 push rbx
+    0004fd: 4881ec68080000     sub rsp, 0x868
+    000504: 4889c8             mov rax, rcx
+    000507: 488945b0           mov qword ptr [rbp - 0x50], rax
+    00050b: 4889d0             mov rax, rdx
+    00050e: 488945f0           mov qword ptr [rbp - 0x10], rax
+    000512: 488b45b0           mov rax, qword ptr [rbp - 0x50]
+    000516: 4889c1             mov rcx, rax
+    000519: 4883ec20           sub rsp, 0x20
+    00051d: 488b45f0           mov rax, qword ptr [rbp - 0x10]
+    000521: 48ffc0             inc rax
+    000524: 4889c2             mov rdx, rax
+    000527: e864ffffff         call 0x490
+    00052c: 4883c420           add rsp, 0x20
+    000530: 488b45c8           mov rax, qword ptr [rbp - 0x38]
+    000534: e900000000         jmp 0x539
+    000539: 488d65f8           lea rsp, [rbp - 8]
+    00053d: 5b                 pop rbx
+    00053e: 5d                 pop rbp
+    00053f: c3                 ret 
+    000540: 55                 push rbp
+    000541: 4889e5             mov rbp, rsp
+    000544: 53                 push rbx
+    000545: 4881ec68080000     sub rsp, 0x868
+    00054c: 488d45d8           lea rax, [rbp - 0x28]
+    000550: 4889c1             mov rcx, rax
+    000553: 4883ec20           sub rsp, 0x20
+    000557: b809000000         mov eax, 9
+    00055c: 4889c2             mov rdx, rax
+    00055f: 90                 nop 
+    000560: 90                 nop 
+    000561: e892ffffff         call 0x4f8
+    000566: 4883c420           add rsp, 0x20
+    00056a: 488d45d8           lea rax, [rbp - 0x28]
+    00056e: 488b00             mov rax, qword ptr [rax]
+    000571: 4889c3             mov rbx, rax
+
+=== SUMMARY elapsed=0.3s ===

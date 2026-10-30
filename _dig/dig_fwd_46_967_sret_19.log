@@ -1,0 +1,241 @@
+BASE sha=336f7fe218be
+
+=== A sub20+imm9 + c1toc2 ===
+  A: Capless payload=4883ec20b8090000004889c2 len=12
+  s19a/p_ret_lit.x      host=OK       USER=5c6778769c3c run=0        LIT out=b''
+  s19a/p_ret_fwd.x      host=OK       USER=d9ffcb750e0b run=0         out=b''
+  s19a/p_ret_local.x    host=OK       USER=36d26fcc9657 run=0        LOC out=b''
+  s19a/_var_let.x       host=OK       USER=f7362e799223 run=1         out=b''
+  dump s19a:
+    sretOK@['0x52f']
+    sretBAD@[]
+    imm09@['0x516', '0x55f']
+    imm0a@['0x57a']
+    rdxCALL@['0x533', '0x564']
+    === fw @0x4f8 ===
+      0004f8: 55                 push rbp
+      0004f9: 4889e5             mov rbp, rsp
+      0004fc: 53                 push rbx
+      0004fd: 4881ec68080000     sub rsp, 0x868
+      000504: 4889c8             mov rax, rcx
+      000507: 488945d0           mov qword ptr [rbp - 0x30], rax
+      00050b: 4889d0             mov rax, rdx
+      00050e: 488945f0           mov qword ptr [rbp - 0x10], rax
+      000512: 4883ec20           sub rsp, 0x20
+      000516: b809000000         mov eax, 9
+      00051b: 4889c2             mov rdx, rax
+      00051e: 488b45f0           mov rax, qword ptr [rbp - 0x10]
+      000522: bb01000000         mov ebx, 1
+      000527: 488d0418           lea rax, [rax + rbx]
+      00052b: 488945c0           mov qword ptr [rbp - 0x40], rax
+      00052f: 488b45c0           mov rax, qword ptr [rbp - 0x40]
+      000533: 4889c2             mov rdx, rax
+      000536: e855ffffff         call 0x490
+      00053b: 4883c420           add rsp, 0x20
+      00053f: 488d65f8           lea rsp, [rbp - 8]
+      000543: 5b                 pop rbx
+      000544: 5d                 pop rbp
+      000545: c3                 ret 
+      000546: 0000               add byte ptr [rax], al
+      000548: 55                 push rbp
+      000549: 4889e5             mov rbp, rsp
+      00054c: 53                 push rbx
+      00054d: 4881ec68080000     sub rsp, 0x868
+      000554: 488d45d8           lea rax, [rbp - 0x28]
+      000558: 4889c1             mov rcx, rax
+      00055b: 4883ec20           sub rsp, 0x20
+      00055f: b809000000         mov eax, 9
+      000564: 4889c2             mov rdx, rax
+    === main @0x540 ===
+      000540: 8d65f8             lea esp, [rbp - 8]
+      000543: 5b                 pop rbx
+      000544: 5d                 pop rbp
+      000545: c3                 ret 
+      000546: 0000               add byte ptr [rax], al
+      000548: 55                 push rbp
+      000549: 4889e5             mov rbp, rsp
+      00054c: 53                 push rbx
+      00054d: 4881ec68080000     sub rsp, 0x868
+      000554: 488d45d8           lea rax, [rbp - 0x28]
+      000558: 4889c1             mov rcx, rax
+      00055b: 4883ec20           sub rsp, 0x20
+      00055f: b809000000         mov eax, 9
+      000564: 4889c2             mov rdx, rax
+      000567: e88cffffff         call 0x4f8
+      00056c: 4883c420           add rsp, 0x20
+      000570: 488d45d8           lea rax, [rbp - 0x28]
+      000574: 488b00             mov rax, qword ptr [rax]
+      000577: 4889c3             mov rbx, rax
+      00057a: b80a000000         mov eax, 0xa
+      00057f: 4839c3             cmp rbx, rax
+      000582: 0f95c0             setne al
+      000585: 0fb6c0             movzx eax, al
+      000588: 85c0               test eax, eax
+      00058a: 0f840f000000       je 0x59f
+      000590: b801000000         mov eax, 1
+      000595: e979000000         jmp 0x613
+      00059a: e900000000         jmp 0x59f
+      00059f: 488d45d8           lea rax, [rbp - 0x28]
+      0005a3: 480508000000       add rax, 8
+      0005a9: 488b00             mov rax, qword ptr [rax]
+      0005ac: 4889c3             mov rbx, rax
+
+=== B sret+sub20+imm9 + c1toc2 ===
+  B: Capless payload=488b4dd04883ec20b8090000004889c2 len=16
+  s19b/p_ret_lit.x      host=OK       USER=5c6778769c3c run=0        LIT out=b''
+  s19b/p_ret_fwd.x      host=OK       USER=5d495cb5c8b2 run=1         out=b''
+  s19b/p_ret_local.x    host=OK       USER=36d26fcc9657 run=0        LOC out=b''
+  s19b/_var_let.x       host=OK       USER=59e33201ba01 run=GS        out=b''
+  dump s19b:
+    sretOK@['0x533']
+    sretBAD@[]
+    imm09@['0x51a', '0x567']
+    imm0a@['0x582']
+    rdxCALL@['0x537', '0x56c']
+    === fw @0x4f8 ===
+      0004f8: 55                 push rbp
+      0004f9: 4889e5             mov rbp, rsp
+      0004fc: 53                 push rbx
+      0004fd: 4881ec68080000     sub rsp, 0x868
+      000504: 4889c8             mov rax, rcx
+      000507: 488945d0           mov qword ptr [rbp - 0x30], rax
+      00050b: 4889d0             mov rax, rdx
+      00050e: 488945f0           mov qword ptr [rbp - 0x10], rax
+      000512: 488b4dd0           mov rcx, qword ptr [rbp - 0x30]
+      000516: 4883ec20           sub rsp, 0x20
+      00051a: b809000000         mov eax, 9
+      00051f: 4889c2             mov rdx, rax
+      000522: 488b45f0           mov rax, qword ptr [rbp - 0x10]
+      000526: bb01000000         mov ebx, 1
+      00052b: 488d0418           lea rax, [rax + rbx]
+      00052f: 488945c0           mov qword ptr [rbp - 0x40], rax
+      000533: 488b45c0           mov rax, qword ptr [rbp - 0x40]
+      000537: 4889c2             mov rdx, rax
+      00053a: e851ffffff         call 0x490
+      00053f: 4883c420           add rsp, 0x20
+      000543: 488d65f8           lea rsp, [rbp - 8]
+      000547: 5b                 pop rbx
+      000548: 5d                 pop rbp
+      000549: c3                 ret 
+      00054a: 0000               add byte ptr [rax], al
+      00054c: 55                 push rbp
+      00054d: 4889e5             mov rbp, rsp
+      000550: 53                 push rbx
+      000551: 4881ec68080000     sub rsp, 0x868
+      000558: 488d45d8           lea rax, [rbp - 0x28]
+      00055c: 4889c1             mov rcx, rax
+      00055f: 488b4dd0           mov rcx, qword ptr [rbp - 0x30]
+      000563: 4883ec20           sub rsp, 0x20
+    === main @0x540 ===
+      000540: 83c420             add esp, 0x20
+      000543: 488d65f8           lea rsp, [rbp - 8]
+      000547: 5b                 pop rbx
+      000548: 5d                 pop rbp
+      000549: c3                 ret 
+      00054a: 0000               add byte ptr [rax], al
+      00054c: 55                 push rbp
+      00054d: 4889e5             mov rbp, rsp
+      000550: 53                 push rbx
+      000551: 4881ec68080000     sub rsp, 0x868
+      000558: 488d45d8           lea rax, [rbp - 0x28]
+      00055c: 4889c1             mov rcx, rax
+      00055f: 488b4dd0           mov rcx, qword ptr [rbp - 0x30]
+      000563: 4883ec20           sub rsp, 0x20
+      000567: b809000000         mov eax, 9
+      00056c: 4889c2             mov rdx, rax
+      00056f: e884ffffff         call 0x4f8
+      000574: 4883c420           add rsp, 0x20
+      000578: 488d45d8           lea rax, [rbp - 0x28]
+      00057c: 488b00             mov rax, qword ptr [rax]
+      00057f: 4889c3             mov rbx, rax
+      000582: b80a000000         mov eax, 0xa
+      000587: 4839c3             cmp rbx, rax
+      00058a: 0f95c0             setne al
+      00058d: 0fb6c0             movzx eax, al
+      000590: 85c0               test eax, eax
+      000592: 0f840f000000       je 0x5a7
+      000598: b801000000         mov eax, 1
+      00059d: e979000000         jmp 0x61b
+      0005a2: e900000000         jmp 0x5a7
+      0005a7: 488d45d8           lea rax, [rbp - 0x28]
+
+=== D imm9 only + c1toc2 (no sub20; SoftCap may provide) ===
+  D: Capless payload=b8090000004889c2 len=8
+  s19d/p_ret_lit.x      host=OK       USER=5c6778769c3c run=0        LIT out=b''
+  s19d/p_ret_fwd.x      host=OK       USER=e43063e2bf52 run=0         out=b''
+  s19d/p_ret_local.x    host=OK       USER=36d26fcc9657 run=0        LOC out=b''
+  s19d/_var_let.x       host=OK       USER=38cdd4430bba run=1         out=b''
+  dump s19d:
+    sretOK@['0x52b']
+    sretBAD@[]
+    imm09@['0x512', '0x557']
+    imm0a@['0x572']
+    rdxCALL@['0x52f', '0x55c']
+    === fw @0x4f8 ===
+      0004f8: 55                 push rbp
+      0004f9: 4889e5             mov rbp, rsp
+      0004fc: 53                 push rbx
+      0004fd: 4881ec68080000     sub rsp, 0x868
+      000504: 4889c8             mov rax, rcx
+      000507: 488945d0           mov qword ptr [rbp - 0x30], rax
+      00050b: 4889d0             mov rax, rdx
+      00050e: 488945f0           mov qword ptr [rbp - 0x10], rax
+      000512: b809000000         mov eax, 9
+      000517: 4889c2             mov rdx, rax
+      00051a: 488b45f0           mov rax, qword ptr [rbp - 0x10]
+      00051e: bb01000000         mov ebx, 1
+      000523: 488d0418           lea rax, [rax + rbx]
+      000527: 488945c0           mov qword ptr [rbp - 0x40], rax
+      00052b: 488b45c0           mov rax, qword ptr [rbp - 0x40]
+      00052f: 4889c2             mov rdx, rax
+      000532: e859ffffff         call 0x490
+      000537: 4883c420           add rsp, 0x20
+      00053b: 488d65f8           lea rsp, [rbp - 8]
+      00053f: 5b                 pop rbx
+      000540: 5d                 pop rbp
+      000541: c3                 ret 
+      000542: 0000               add byte ptr [rax], al
+      000544: 55                 push rbp
+      000545: 4889e5             mov rbp, rsp
+      000548: 53                 push rbx
+      000549: 4881ec68080000     sub rsp, 0x868
+      000550: 488d45d8           lea rax, [rbp - 0x28]
+      000554: 4889c1             mov rcx, rax
+      000557: b809000000         mov eax, 9
+      00055c: 4889c2             mov rdx, rax
+      00055f: e894ffffff         call 0x4f8
+      000564: 4883c420           add rsp, 0x20
+    === main @0x540 ===
+      000540: 5d                 pop rbp
+      000541: c3                 ret 
+      000542: 0000               add byte ptr [rax], al
+      000544: 55                 push rbp
+      000545: 4889e5             mov rbp, rsp
+      000548: 53                 push rbx
+      000549: 4881ec68080000     sub rsp, 0x868
+      000550: 488d45d8           lea rax, [rbp - 0x28]
+      000554: 4889c1             mov rcx, rax
+      000557: b809000000         mov eax, 9
+      00055c: 4889c2             mov rdx, rax
+      00055f: e894ffffff         call 0x4f8
+      000564: 4883c420           add rsp, 0x20
+      000568: 488d45d8           lea rax, [rbp - 0x28]
+      00056c: 488b00             mov rax, qword ptr [rax]
+      00056f: 4889c3             mov rbx, rax
+      000572: b80a000000         mov eax, 0xa
+      000577: 4839c3             cmp rbx, rax
+      00057a: 0f95c0             setne al
+      00057d: 0fb6c0             movzx eax, al
+      000580: 85c0               test eax, eax
+      000582: 0f840f000000       je 0x597
+      000588: b801000000         mov eax, 1
+      00058d: e979000000         jmp 0x60b
+      000592: e900000000         jmp 0x597
+      000597: 488d45d8           lea rax, [rbp - 0x28]
+      00059b: 480508000000       add rax, 8
+      0005a1: 488b00             mov rax, qword ptr [rax]
+      0005a4: 4889c3             mov rbx, rax
+      0005a7: b80b000000         mov eax, 0xb
+      0005ac: 4839c3             cmp rbx, rax
+
+=== SUMMARY elapsed=0.9s ===
