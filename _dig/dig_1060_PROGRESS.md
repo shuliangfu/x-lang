@@ -620,8 +620,60 @@ CloudAgent ✕ · 升钉 ecdb5cc1e ✕ · 10.74 ✕ · mega ✕ · HARD BAN／LE
 ### 禁令
 CloudAgent ✕ · 升钉 ✕ · 10.74 ✕ · mega ✕ · HARD BAN／LEGACY ✕ · LIVE 字节树 ✕ · 假绿 ✕ · **未绿勿请批** · **停开新 cave**
 
-## 2026-10-30 open
-- tip 569428ff2; PROD sha12 7a2cf5da581a untouched; nail not raised
+---
+
+## 2026-10-30 ~08:40 CST Asia/Shanghai — DIG Isol Cap tip/egg isomorphic + Path-C Cap decode@0x1d80
+
+**PROD** `7a2cf5da581a` 未动 · Isol-G `7701dac5b813` 基线未改 · LIVE pret `cbc0d8e8d96f` · tip HEAD（本拍 docs 前）· 钉 ecdb5cc1e **不升** · SoftCap `p_ret_*` **仍未运行绿** → **不可请批** · **无新 cave**
+
+### 0) 本拍范围
+- 优先：(A) Isol Cap tip／egg 未吞区 vs LIVE Cap `@0x28764c` 同构 callee
+- 或：(C) Path-C Cap decode 对齐 LIVE `@0x1d80` 绕 SoftCap mega
+- 禁：CloudAgent／mega 主刀／LIVE 整树 plant／假绿／10.74／HARD BAN
+
+### 1) Cap FN call-graph（钉死）
+- Isol Cap FN `@0x5752bc` ≡ LIVE `@0x28764c`（prol 字节同构；`sub rsp,0x9e0`）
+- 已知 16× E8 位点：**全部** `Isol_dst = LIVE_dst + Δ(0x2edc70)`（纯 delta，无 tip 重标定）
+- 其中 **5** 落入 SoftCap mega mid（无 prol）；**11** 落入 pre-Cap 无 prol mid（同属被吞 helper 体，非独立入口）
+- SoftCap mega `[0x57effc,0x58e9a0)` pushrbp≈**1**（仅入口）；Cap..Soft pushrbp≈7
+
+### 2) (A) tip／egg 同构 callee 结果
+| LIVE helper | tip 同构结论 |
+|-------------|-------------|
+| cmp10 `@0x281df8` | **无 exact**。近克隆 Isol `@0x2b49f3` masked 25/27，但 imm `0x10→0` 且 jcc `7e→75`——**语义非 drop-in** |
+| store688 `@0x298688` | 无 ≥55% masked tip 命中；旧友 `0x27e73b` 仅 ~38%，callee 图异（禁当 EXIST） |
+| store759／h1171／h11bc／h22e2／h23f9／h965 | **full exact＝0**；唯一指纹无稀疏 tip prol 命中；前缀命中＝假阳 |
+| 8 helper full exact in Isol | **0／8**（重证 KK–PP 结论） |
+
+**结论 (A) 本层仍堵：** tip／egg 未吞区 **没有** 可安全 retarget 的 8-helper 同构 callee 集；仅 cmp10 近克隆且语义错。
+
+### 3) (C) Path-C Cap decode `@0x1d80`
+| 项 | 值 |
+|----|-----|
+| LIVE `@0x1d80` | 真函数 prol；crude size≈205；sole caller `0x55c6`（fn `@0x53cb`）；**不**直接 call Cap FN |
+| Isol strict body-match | **无**（plen≥24 hits＝0；abs／表常量不同） |
+| Isol 结构近亲 | `@0x22ed10`／`@0x22f84a`／`@0x28de10`（loose `837d10007413…`）；ABI 偏 4-arg，**非** Cap decode drop-in |
+| Isol 已有 `sub rsp,0x868` | tip 多处（含先验 `@0x121278`）；LIVE pret 仅 2 处——**帧模板在 tip，不在 SoftCap 错 emit** |
+| Isol Cap FN callers | `0x576a98`（fn `@0x57656c`，≡LIVE `@0x2967b4` 头同构，`sub rsp,0x500`，**无** SoftCap 外呼）等；**非** LIVE+Δ 一一对应 |
+
+**结论 (C) 本层：** LIVE Cap decode `@0x1d80` **无法**在 Isol 找到同构体可直接绕 mega；Path-C 需改盯「tip 已有 0x868 Cap decode 路径如何接到 SoftCap `p_ret_*` emit」而非植物 `@0x1d80`。
+
+### 4) 硬 blocker（不可请批）
+1. SoftCap `p_ret_{lit,fwd,local}` **运行时未绿**（本拍仅 DIG，无新 isol 二进制）。
+2. tip／egg 同构 callee **未就绪**（exact 0／8；cmp10 近克隆语义错）。
+3. Path-C `@0x1d80` 同构 **缺席**；绕 mega 需另挖 tip `0x868` decode→emit 接线（下拍）。
+4. PROD SoftCap `7a2cf5da581a`／钉 ecdb5cc1e／Isol-G：**不动**。
+
+### 5) 下一拍最小刀
+1. **Path-C′**：从 Isol tip `sub rsp,0x868`（尤 `@0x121278`）与 Cap-less caller fn `@0x57656c` 追 `p_ret_*` emit 调用链，对齐 LIVE 绿 emit `dbaab1c7ce70` 帧，**绕开** Cap FN mid→SoftCap mega。
+2. 或：cmp10 单点语义补丁（`@0x2b49f3` imm/jcc）仅作探针——**不算**请批绿，须另解 store* 七件。
+3. 仍禁：LIVE 整树 plant／mega 主刀／CloudAgent／假绿／未绿请批。
+
+### 禁令
+CloudAgent ✕ · 升钉 ✕ · 10.74 ✕ · mega 主刀 ✕ · HARD BAN／LEGACY ✕ · LIVE 整树 ✕ · 假绿 ✕ · **未绿勿请批** · **无新 cave**
+
+## 2026-10-30 open (post 08:40 DIG)
+- tip tip/egg+Path-C DIG done; PROD 7a2cf5da581a untouched; nail not raised
 - p_ret still red; no please-batch; no new cave
-- next Path-C Cap decode or Isol Cap tip/egg isomorphic callee
-- Win DIG channel blocked this morning; bans unchanged
+- next Path-C′ tip 0x868 decode wiring vs SoftCap mega
+- bans unchanged
