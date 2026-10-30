@@ -1,5 +1,44 @@
 # 10.60 SoftCap DIG PROGRESS
 
+**2026-10-30 ~16:15 CST (Asia/Shanghai)** · DIG lit `@27fbc5` ec：ret＝global spill `RVA 0xb756ac`（`@27ea1e` accum）；Capless lit ec≤`0x3ff`→clamp off；plant `ec_400` **AV/GS 不可隔离** → 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：`base_828` 帧下 Isol-native CallExpr call-mk（imm→rdx＋E8）（禁 tip@121278／join／epi／LIVE／mega）
+
+
+## 2026-10-30 ~16:15 CST Asia/Shanghai — DIG lit @27fbc5 ec small；plant ec_400 不可隔离
+
+### 0) 闸
+- tip HEAD `3756a258d`＝origin/dev
+- Isol alt_frame2 `9378df517f96`；baseline lit sha `332eed5f048b`（`0x68`+`0x1b8`，`0x868=False`，run exit1）
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／LEGACY／字母堆／LIVE SoftCap 移植／arg-loop／tip@121278／join／epi：遵守
+
+### 1) DIG 钉死（本拍）
+1. `@27fbc5` sole caller `@24b8bc`／store `@24b8c1`／entry／acc `@27ea1e`／ret-load `@2804dc`：**HIT**。
+2. Ret＝`mov eax,[rip+0x8f51ca]` → **global spill counter RVA `0xb756ac`**（非 imm）；`@27ea1e` 累加 spill bytes。
+3. Capless SoftCap lit：walk 几乎不加 spill ⇒ **ec 小（≤0x3ff）** ⇒ `@24b998` clamp **不走**；薄 base↔缺 `0x800` pad（先验 `0x828−0x28=0x800`）。
+4. plant `ec_400`（`@2804dc`→`mov eax,0x400`）lit/local **AV**／fwd **GS** — **不可隔离**。
+
+### 2) Win SoftCap 门（cave；probe 后清）
+| probe | result |
+|---|---|
+| INT3 ec chain／jle_ec_le0 | **HIT** |
+| plant ec_400 p_ret_* | **AV／GS／AV**（已删 cave） |
+| baseline p_ret_lit | OK `332eed5f048b`；`868=False`；run exit1 |
+
+### 3) 硬 blocker（勿收刀／勿升 PROD／勿请批）
+1. SoftCap CallExpr：sret 后缺 imm→rdx＋call mk → exit 1；帧 thin≠`0x868`/`0x878`（`base_828` 可出 n868=2 仍 exit1）。
+2. `ec_400`／`f8_800`／`edx_868`：**不可隔离**（AV/GS）；`base_828` 非绿。
+3. bans：tip@121278／join／epi／LIVE／mega／arg-loop。
+
+### 4) 下一拍最小刀（单点）
+1. 在 `base_828` SoftCap 形帧下，单点 DIG／plant Isol-native CallExpr **call-mk**（imm→rdx＋E8 mk；禁 tip@121278／LIVE 移植／arg-loop）；短超时。
+2. 通后再验帧＋Darwin Cap soft＋Ubuntu tip-cold。未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 5) open
+- 笔记 `_dig/dig_ec_small.md`；脚本 `_dig/dig_ec_small.py`＋log
+- PROD SoftCap `7a2cf5da581a`／钉盘 ecdb5cc1e **未动**
+- bans unchanged
+
+
 **2026-10-30 ~16:05 CST (Asia/Shanghai)** · DIG `@523600` callers／edx size：on-path **`@20f08a` HIT**（edx=`[rbp+0x828]`←`@24b49d` sum+`0x40`）；无 imm `0x68/0x1b8`；plant `edx_868` **AV/GS 不可隔离** → 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：`@24b49d` summand feeders（为何薄 `0x28/0x178`≠`0x828`）（禁 tip@121278／join／epi／LIVE／mega）
 
 
