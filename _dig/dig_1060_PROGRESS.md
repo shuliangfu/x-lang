@@ -1348,3 +1348,47 @@ Isol CapFN 体内 E8 入 SoftCap mega `[0x57effc,0x58e9a0)`：**5** 处；−Δ`
 - PROD SoftCap `7a2cf5da581a`／钉盘 ecdb5cc1e **未动**
 - bans unchanged
 
+## 2026-10-30 ~13:10 CST Asia/Shanghai — DIG SoftMega smega_le；ARM egg／≤16 SoftCap-full 证伪
+
+### 0) 闸
+- tip HEAD `c12201522`＝origin/dev（本拍前；commit 后见 tip）
+- Isol-TT `1f836615e0fc`；LIVE lit emit `dbaab1c7ce70`；TT lit emit `5b173cef1205`
+- Isol-smega_le sha12 **`984e58dc6677`**（语义短名；禁字母堆）
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／未绿请批／LEGACY／cave 字母堆／LIVE SoftCap 整树移植：遵守
+
+### 1) DIG 钉死（本拍）
+1. **真实 USER 缺口**（非 ba0a）：LIVE `mov eax,0xa; spill; mov rdx,rax; call mk`＋帧 `0x868`/`0x878`；Isol-TT `lea→rcx` 后直字段读＋帧 thin `0x1b8`。
+2. SoftMega body `@59b170`：early SoftCap-full `@59b4e0`／`@59b911`；size gate `@59b608` `je@59b617→@59b85d`（≤16）；>16 → **Isol-only** ARM egg `@59b6a9→@57426c`（LIVE egg const **0**）。
+3. SoftCap-full 调 Isol `@1fff*` ≅ LIVE SoftCap `@77cbe` 族，仍 **无** lit CallExpr call-mk；LIVE SoftCap 独有 callee（`@2818c1` 等）Isol **无** body。
+4. callsz_le 证伪 twin helpers；本拍证伪 SoftMega 内 ≤16（跳过 ARM egg）—— emit 仍＝TT ⇒ SoftCap CallExpr 已走 SoftCap-full，非 ARM egg。
+
+### 2) Win SoftCap 门（cave `out_smega_le`）
+| Isol | sha12 | plant | lit emit | n868／n878 | run |
+|---|---|---|---|---|---|
+| smega_le | `984e58dc6677` | SoftMega je@59b617→jmp ≤16 @59b85d | `5b173cef1205`＝TT | **0／0** | **exit 1** |
+
+- fwd／local 同形；`n1b8=1` thin；`b80a=1`（仅 if 比较，非 call-arg）
+
+### 3) 三端门
+| 端 | 结果 |
+|---|---|
+| Win SoftCap Isol-smega_le `p_ret_*` | 编译绿／**exit 1**；帧 thin；emit＝TT |
+| Win PROD SoftCap `7a2cf5da581a` | **未动** |
+| Darwin tip Cap soft `./compiler/xlang` sha12 `0c0a41335a35` | p_ret_lit/fwd/local **r=0** ✅ |
+| Ubuntu tip `compiler/bootstrap_xlangc` sha12 `ea9ddf4eb937` | p_ret_* **r=0** ✅；tip-cold pure-ld 既有断链另记 |
+
+### 4) 硬 blocker（勿收刀／勿升 PROD／勿请批）
+1. SoftCap CallExpr：sret `lea→rcx` 后缺 imm→rdx＋`call mk` → exit 1；帧 thin≠`0x868`/`0x878`。
+2. SoftCap flag／encode／scap0／Capless CapFN／callsz_le／**smega_le** plants **均** emit＝TT。
+3. Isol SoftMega≠LIVE SoftCap `@289dcb`；LIVE SoftCap 整树／mega **禁**。
+
+### 5) 下一拍最小刀（单点；禁字母堆／禁移植）
+1. DIG Isol 内真实写出 `mov eax,imm`＋`mov rdx,rax`＋E8 的 helper（CE／Capless CALL encode／仍链上的 `emit_call_*`）；SoftCap-full 或 glue >16 sret 成功后 **单点 call** 该 helper。
+2. 通后再验帧 `0x868`/`0x878`＋Darwin Cap soft＋Ubuntu tip-cold。未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 6) open
+- Isol-smega_le `984e58dc6677`＋`_dig/build_isol_smega_le.py`；笔记 `dig_smega_le.md`（续 `dig_callsz_le.md`）
+- PROD SoftCap `7a2cf5da581a`／钉盘 ecdb5cc1e **未动**
+- bans unchanged
+
