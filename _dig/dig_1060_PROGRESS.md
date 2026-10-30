@@ -1,6 +1,35 @@
 # 10.60 SoftCap DIG PROGRESS
 
-**2026-10-30 ~16:30 CST (Asia/Shanghai)** · base_828 下 CallExpr：**call mk 已写出**／缺 **imm→rdx**；plant `b828_cmk`／`callmk_b828`（force try／eax==2／Capless continue）**红**（exit1／AV／GS）→ 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：base_828 下 Isol-native **arg0 imm→rdx**（禁 tip@121278／join／epi／LIVE／mega）
+**2026-10-30 ~16:35 CST (Asia/Shanghai)** · base_828 下 CallExpr：call mk 在、缺 **imm→rdx**（call-mk 只写 sub rsp+E8；arg0 须 Capless 预写）；plant `b828_immrdx` **红**（nop try-continue 打断 call-mk／假 imm10；`@1ff316` AV）→ 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：Capless `@578071`..`@578273` arg0 imm→rdx（禁 tip@121278／join／epi／LIVE／mega）
+
+
+## 2026-10-30 ~16:35 CST Asia/Shanghai — DIG base_828 arg0 imm→rdx；plant b828_immrdx 红
+
+### 0) 闸
+- tip HEAD `1000beca8`＝origin/dev（本拍前；commit 后见 tip）
+- Isol alt_frame2 `9378df517f96`；`base_828` sha12 `0977d6fbb472`
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／tip@121278／join／epi／LIVE SoftCap 移植／arg-loop：遵守
+
+### 1) DIG 钉死（本拍）
+1. LIVE lit：`lea→rcx; mov eax,0xa; spill; mov rdx,rax; call mk`。base_828：call mk 在、缺 imm→rdx（上拍钉）。
+2. call-mk `@57b98c`：`[rbp-0x30]==0` 时只写 USER `sub rsp,0x20`＋后继 E8；**无** USER `ba0a`/`4889c2`。arg0 须在 Capless 调 `@578273` **之前**写出。
+3. Isol `@51f0d9` SoftCap lit **HIT**（`mov eax,0xa`→其它 call）≠ USER arg0→rdx。Capless-ish 无 `ba0a` 模板。
+4. plant `b828_immrdx`：nop `@57800e` 打断 call-mk（USER 回退直字段读；假 imm10＝cmp 0xa）；nop `@1ff316` AV/GS。**红**。
+
+### 2) Win SoftCap 门
+| Isol plant | sha12 | lit | run | USER |
+|---|---|---|---|---|
+| b828_immrdx (`@57800e` nop) | `de71ff525453` | OK n868=2 sha `316d87f04203` | exit1 | 无 call mk；假 imm10；无 mov rdx |
+| b828_immrdx (`@1ff316` nop) | `ac53351068c4` | AV | — | — |
+
+### 3) 下一拍最小刀（单点）
+- Capless CallExpr **arg0 imm→rdx** before `@578273` call-mk（走廊 `@578071`..`@578273`；保持已有 call mk；禁 tip@121278／LIVE／arg-loop）。
+- 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 4) open
+- 笔记 `_dig/dig_b828_immrdx.md`；脚本＋log `_dig/dig_b828_immrdx.py`／`immrdx2.py`／`.log`
+- PROD／钉 **未动**；bans unchanged
 
 
 ## 2026-10-30 ~16:30 CST Asia/Shanghai — DIG base_828 + call-mk；plant b828_cmk 红
