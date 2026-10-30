@@ -1,0 +1,161 @@
+Isol sha12=9378df517f96 left=84s
+=== A) Find prologue near @20a948 (thin fill wrapper) ===
+  prologue @20a91a
+  prologue @20a948
+  prologue @20a98a
+  prologue @20a9cc
+disasm @20a960..:
+  @20a960: mov ecx, dword ptr [rbp + 0x28]
+  @20a963: mov r8, qword ptr [rbp + 0x20]
+  @20a967: mov edx, dword ptr [rbp + 0x18]
+  @20a96a: mov rax, qword ptr [rbp + 0x10]
+  @20a96e: mov ecx, dword ptr [rbp + 0x38]
+  @20a971: mov dword ptr [rsp + 0x28], ecx
+  @20a975: mov ecx, dword ptr [rbp + 0x30]
+  @20a978: mov dword ptr [rsp + 0x20], ecx
+  @20a97c: mov rcx, rax
+  @20a97f: call 0x1f9619
+  @20a984: add rsp, 0x30
+  @20a988: pop rbp
+  @20a989: ret 
+  @20a98a: push rbp
+  @20a98b: mov rbp, rsp
+  @20a98e: sub rsp, 0x30
+  @20a992: mov qword ptr [rbp + 0x10], rcx
+  @20a996: mov dword ptr [rbp + 0x18], edx
+  @20a999: mov qword ptr [rbp + 0x20], r8
+  @20a99d: mov dword ptr [rbp + 0x28], r9d
+  @20a9a1: mov r9d, dword ptr [rbp + 0x28]
+  @20a9a5: mov r8, qword ptr [rbp + 0x20]
+  @20a9a9: mov edx, dword ptr [rbp + 0x18]
+  @20a9ac: mov rax, qword ptr [rbp + 0x10]
+  @20a9b0: mov ecx, dword ptr [rbp + 0x38]
+  @20a9b3: mov dword ptr [rsp + 0x28], ecx
+  @20a9b7: mov ecx, dword ptr [rbp + 0x30]
+  @20a9ba: mov dword ptr [rsp + 0x20], ecx
+  @20a9be: mov rcx, rax
+  @20a9c1: call 0x1f9768
+  @20a9c6: add rsp, 0x30
+  @20a9ca: pop rbp
+  @20a9cb: ret 
+  @20a9cc: push rbp
+  @20a9cd: mov rbp, rsp
+  @20a9d0: sub rsp, 0x30
+  @20a9d4: mov qword ptr [rbp + 0x10], rcx
+  @20a9d8: mov dword ptr [rbp + 0x18], edx
+  @20a9db: mov dword ptr [rbp + 0x20], r8d
+  @20a9df: mov dword ptr [rbp + 0x28], r9d
+
+=== B) Callers of fill @1f9619 / @1f9768 / @1fa9d9 — by region ===
+  fill @1f9619 n=2 regions={'wrap20a': 1, '5dxxxx': 1}
+  fill @1f9768 n=3 regions={'wrap20a': 1, 'other': 1, '5dxxxx': 1}
+    other sample=['0x29c910']
+  fill @1f99b2 n=3 regions={'20xxxx': 1, 'wrap20a': 1, '36-39': 1}
+  fill @1fa9d9 n=7 regions={'20xxxx': 2, '36-39': 5}
+  fill @207462 n=5 regions={'36-39': 5}
+  fill @20760b n=2 regions={'other': 2}
+    other sample=['0x3e42cf', '0x410a6b']
+  fill @207aef n=1 regions={'36-39': 1}
+
+=== C) @5d276c subsystem: callers of its 2 sites' fns; what fills does it use ===
+E8 dests in @5d276c..+0x500 (validated):
+  @5d286b → @205916
+  @5d28b1 → @205895
+  @5d28e8 → @205adb
+  @5d2901 → @5d2764
+  @5d2951 → @205997
+  @5d2971 → @206aae
+  @5d29a4 → @1f9619
+  @5d2ae7 → @205fc1
+  @5d2b2d → @205f40
+  @5d2b92 → @205ebf
+  @5d2bab → @5d2764
+  @5d2c00 → @205d75
+  @5d2c20 → @206bbe
+  @5d2c53 → @1f9768
+entry @5d276c callers n=2: ['0x5d2dcf', '0x5d2fe6']
+    from @5d2dcf fn≈0x5d2c98
+    from @5d2fe6 fn≈0x5d2eb0
+entry @5d2c98 callers n=1: ['0x5cf8f6']
+    from @5cf8f6 fn≈?
+entry @5d2eb0 callers n=1: ['0x5cfa07']
+    from @5cfa07 fn≈?
+
+=== D) Parent kinded elem FACTORY: who ALLOCs then ensure? ===
+ensure-using fns: 51
+  ensure-fn @1fb2a6 notable callers=['0x20b955'] total_n=10
+  ensure-fn @1fb358 notable callers=['0x20b983'] total_n=8
+  ensure-fn @1fb40b notable callers=['0x20b9b1'] total_n=6
+  ensure-fn @1fd534 notable callers=['0x20b6d7'] total_n=4
+  ensure-fn @1ff466 notable callers=['0x5dcf54'] total_n=1
+  ensure-fn @1ff5c7 notable callers=['0x58f80f', '0x59447a'] total_n=9
+  ensure-fn @1ffb5c notable callers=['0x5dbcd4'] total_n=2
+  ensure-fn @2004f4 notable callers=['0x5d5b24', '0x5d5c84'] total_n=3
+  ensure-fn @200988 notable callers=['0x5d75e0'] total_n=4
+
+SoftCap-reachable ensure-fns: [2094535]
+soft_reach sites=['0x58f80f', '0x59447a']
+cap_reach sites=[]
+
+=== E) Who calls @20a9xx wrapper that calls fill? scan wrap20a callers ===
+wrap prologues: ['0x20a91a', '0x20a948', '0x20a98a', '0x20a9cc', '0x20aa07', '0x20aa42', '0x20aa70', '0x20aaa9', '0x20aae2']
+  @20a91a callers n=0 []
+  @20a948 callers n=0 []
+  @20a98a callers n=0 []
+  @20a9cc callers n=0 []
+  @20aa07 callers n=0 []
+  @20aa42 callers n=0 []
+  @20aa70 callers n=0 []
+  @20aaa9 callers n=0 []
+  @20aae2 callers n=0 []
+
+=== F) Capless +0x478 STORE site @576631 context — any nearby kinded ptr? ===
+  @576600: add byte ptr [rax], al
+  @576602: mov rax, qword ptr [rbp + 0x4a8]
+  @576609: mov edx, 0x10
+  @57660e: mov rcx, rax
+  @576611: call 0x55d730
+  @576616: mov qword ptr [rbp + 0x460], rax
+  @57661d: mov rax, qword ptr [rbp + 0x4a8]
+  @576624: mov edx, 0x568
+  @576629: mov rcx, rax
+  @57662c: call 0x55d730
+  @576631: mov qword ptr [rbp + 0x478], rax
+  @576638: cmp qword ptr [rbp + 0x478], 0
+  @576640: jne 0x57664e
+  @576642: call 0x24afe0
+  @576647: mov qword ptr [rbp + 0x478], rax
+  @57664e: mov edx, dword ptr [rbp + 0x468]
+  @576654: mov rax, qword ptr [rbp + 0x490]
+  @57665b: mov rcx, rax
+  @57665e: call 0x20cd98
+  @576663: mov dword ptr [rbp + 0x45c], eax
+  @576669: mov r9, qword ptr [rbp + 0x460]
+  @576670: mov r8d, dword ptr [rbp + 0x4a0]
+  @576677: mov rdx, qword ptr [rbp + 0x498]
+
+=== G) Is there ANY single E8 in Capless to kinded subsystem 0x1f6xxx-0x205xxx? ===
+Capless→kinded/5d hits n=19
+  @57607a → @1ff2a3
+  @5762f3 → @1ff2a3
+  @5765e4 → @1ffefe
+  @57665e → @20cd98
+  @57689f → @201d9f
+  @5768cf → @200ff7
+  @57698f → @1ff2ef
+  @576d85 → @201eeb
+  @576dad → @20cd98
+  @576dcb → @20203f
+  @576f5e → @201f36
+  @576f73 → @201ea0
+  @577115 → @201ddf
+  @577539 → @1ff2ef
+  @577871 → @201ea0
+  @577a1c → @201ddf
+  @577b0a → @1ff2ef
+  @577c47 → @1ff2ef
+  @57803d → @20203f
+
+=== H) @36xxxx / @39xxxx fill callers (prior note) — SoftCap? ===
+
+DONE elapsed=10.4s left=74s

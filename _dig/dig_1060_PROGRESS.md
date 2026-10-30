@@ -1,5 +1,39 @@
 # 10.60 SoftCap DIG PROGRESS
 
+**2026-10-30 ~17:12 CST (Asia/Shanghai)** · DIG parent kinded `elem`／fill callers：`@20a948` **死**（E8=0／data-ref=0）；`@5d276c` fill 属 `@5cf*` 编码器≠Capless；SoftCap 仅 `@58f/@594→@1ff5c7` ensure→**status** 非 emit-arg；Capless 零 fill；plant **不可隔离** → 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：Capless 已调 `@1ff2ef`／`@201eeb|@201f36` 父／slot 能否单点接 `+0x478`（禁 tip@121278／join／epi／LIVE／mega）
+
+
+## 2026-10-30 ~17:12 CST Asia/Shanghai — DIG parent kinded `elem`／`@5d276c`／`@20a948`；无 plant
+
+### 0) 闸
+- tip HEAD `570820caa`＝origin/dev（本拍前；commit 后见 tip）
+- Isol alt_frame2 `9378df517f96`
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／tip@121278／join／epi／LIVE SoftCap 移植／arg-loop：遵守
+
+### 1) DIG 钉死（本拍）
+1. Parent kinded：ensure `@1f70cf`；构造方＝fill-fam＋`@1fb/@1fd/@1ff/@200/@202/@203` 同族。
+2. SoftCap-reachable ensure：**仅** SoftMega-ish `@58f80f`／`@59447a`→`@1ff5c7`→ensure；**返回 eax status**；无 fill／unwrap／push；无 `+0x478`。
+3. Capless：**零** ensure／fill 直调（`@1ff2ef` num_args 仅副作用 ensure）。
+4. `@20a948` 族薄包装→fill：**E8=0**＋ImageBase data-ref=0 → **死代码**；不可钩。
+5. `@5d276c` **确** fill（`@1f9619`／`@1f9768`）；链 `@5cf*→@5d2c98/@5d2eb0` 写 `[+0x124]`＝编码器；Soft／Capless 上溯无。
+6. Capless 已调 `@201*`／`@1ff2*` ∩ fill／unwrap／push／`@20a948`／`@5d276c`＝**0**。
+7. Plant **不可隔离**；无 `elem_fill`／`fill_5d`／`fill_20a`；无 `p_ret_*`。
+
+### 2) Win SoftCap 门
+| Isol plant | sha12 | lit | run | USER |
+|---|---|---|---|---|
+| （本拍无） | — | — | — | N/A；frontier 仍红 |
+
+### 3) 下一拍最小刀（单点）
+- Capless 已在路上的 `@1ff2ef`（ensure 副作用）／`@201eeb|@201f36`（`@63b200`）：父／slot 是否已是 SoftCap lit 可用 kinded 容器，能否 **单点** 接到 `+0x478`（或证伪 Capless 父无 kinded slot）。禁 tip@121278／join／epi／LIVE／mega／arg-loop。
+- 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 4) open
+- 笔记 `_dig/dig_elem_fill_callers.md`；先验 `_dig/dig_mk_emitarg.md`
+- PROD／钉 **未动**；bans unchanged
+
+
 **2026-10-30 ~17:05 CST (Asia/Shanghai)** · DIG emit-arg 构造：Isol **有** fill-builders `@1f9619` 族／consume `@205068`，**Capless 零触及**；写 `+0x478` inner＝`@2a5410`＋`@2a4f6a` 理论链、**无** Capless 调用点；plant **不可隔离** → 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：parent kinded `elem` 构造／fill 调用方能否单点喂 `+0x478`（禁 tip@121278／join／epi／LIVE／mega）
 
 

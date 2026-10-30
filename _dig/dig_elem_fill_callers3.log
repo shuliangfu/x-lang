@@ -1,0 +1,272 @@
+=== A) @1ff5c7 body + SoftCap call sites @58f80f / @59447a ===
+  @1ff5c7: push rbp
+  @1ff5c8: mov rbp, rsp
+  @1ff5cb: sub rsp, 0x50
+  @1ff5cf: mov qword ptr [rbp + 0x10], rcx
+  @1ff5d3: mov dword ptr [rbp + 0x18], edx
+  @1ff5d6: mov dword ptr [rbp + 0x20], r8d
+  @1ff5da: cmp qword ptr [rbp + 0x10], 0
+  @1ff5df: je 0x1ff5ed
+  @1ff5e1: cmp dword ptr [rbp + 0x18], 0
+  @1ff5e5: jle 0x1ff5ed
+  @1ff5e7: cmp dword ptr [rbp + 0x20], 0
+  @1ff5eb: jns 0x1ff5f7
+  @1ff5ed: mov eax, 0
+  @1ff5f2: jmp 0x1ff6e2
+  @1ff5f7: mov rax, qword ptr [rbp + 0x10]
+  @1ff5fb: mov edx, 0
+  @1ff600: mov rcx, rax
+  @1ff603: call 0x1f70cf
+  @1ff608: mov qword ptr [rbp - 8], rax
+  @1ff60c: mov edx, dword ptr [rbp + 0x18]
+  @1ff60f: mov rax, qword ptr [rbp + 0x10]
+  @1ff613: mov rcx, rax
+  @1ff616: call 0x1fe37d
+  @1ff61b: mov qword ptr [rbp - 0x10], rax
+  @1ff61f: cmp qword ptr [rbp - 8], 0
+  @1ff624: je 0x1ff62d
+  @1ff626: cmp qword ptr [rbp - 0x10], 0
+  @1ff62b: jne 0x1ff637
+  @1ff62d: mov eax, 0
+  @1ff632: jmp 0x1ff6e2
+  @1ff637: mov rax, qword ptr [rbp - 0x10]
+  @1ff63b: mov eax, dword ptr [rax + 0x278]
+  @1ff641: cmp dword ptr [rbp + 0x20], eax
+  @1ff644: jl 0x1ff650
+  @1ff646: mov eax, 0
+  @1ff64b: jmp 0x1ff6e2
+  @1ff650: mov edx, dword ptr [rbp + 0x18]
+  @1ff653: mov rax, qword ptr [rbp + 0x10]
+  @1ff657: mov r8d, 0
+  @1ff65d: mov rcx, rax
+  @1ff660: call 0x1ff36f
+  @1ff665: mov qword ptr [rbp - 0x18], rax
+  @1ff669: cmp qword ptr [rbp - 0x18], 0
+  @1ff66e: je 0x1ff67a
+  @1ff670: mov rax, qword ptr [rbp - 0x18]
+E8 in @1ff5c7..+0x180:
+  @1ff603 → @1f70cf
+  @1ff616 → @1fe37d
+  @1ff660 → @1ff36f
+  @1ff6c5 → @1f61f7
+  @1ff727 → @1f70cf
+
+--- SoftCap site @58f80f fn≈? ---
+  @58f7cf: mov eax, 1
+  @58f7d4: mov qword ptr [rbp - 0x68], rax
+  @58f7d8: jmp 0x58f7e7
+  @58f7dd: mov eax, 0
+  @58f7e2: jmp 0x58f99b
+  @58f7e7: sub rsp, 0x20
+  @58f7eb: mov eax, 0
+  @58f7f0: mov qword ptr [rbp - 0x198], rax
+  @58f7f7: mov rax, qword ptr [rbp - 0x10]
+  @58f7fb: mov rcx, rax
+  @58f7fe: mov rax, qword ptr [rbp - 0x20]
+  @58f802: mov rdx, rax
+  @58f805: mov rax, qword ptr [rbp - 0x198]
+  @58f80c: mov r8, rax
+  @58f80f: call 0x1ff5c7 <<<
+  @58f814: cdqe 
+  @58f816: add rsp, 0x20
+  @58f81a: mov qword ptr [rbp - 0x58], rax
+  @58f81e: mov rax, qword ptr [rbp - 0x58]
+  @58f822: cdqe 
+  @58f824: mov rbx, rax
+  @58f827: mov eax, 0
+  @58f82c: cmp ebx, eax
+  @58f82e: setle al
+  @58f831: movzx eax, al
+  @58f834: test eax, eax
+  @58f836: je 0x58f84b
+  @58f83c: mov eax, 0
+  @58f841: jmp 0x58f99b
+  @58f846: jmp 0x58f84b
+  @58f84b: mov rax, qword ptr [rbp - 0x60]
+  @58f84f: cdqe 
+  @58f851: mov rbx, rax
+  @58f854: mov eax, 0
+  @58f859: cmp ebx, eax
+  @58f85b: setne al
+  @58f85e: movzx eax, al
+  @58f861: test eax, eax
+  @58f863: je 0x58f8ac
+  @58f869: sub rsp, 0x20
+
+--- SoftCap site @59447a fn≈? ---
+  @59443a: rol byte ptr [rbp + 0xf840fc0], 0
+  @594441: add byte ptr [rax], al
+  @594443: mov eax, 0
+  @594448: jmp 0x5952ee
+  @59444d: jmp 0x594452
+  @594452: sub rsp, 0x20
+  @594456: mov eax, 0
+  @59445b: mov qword ptr [rbp - 0x318], rax
+  @594462: mov rax, qword ptr [rbp - 0x10]
+  @594466: mov rcx, rax
+  @594469: mov rax, qword ptr [rbp - 0x20]
+  @59446d: mov rdx, rax
+  @594470: mov rax, qword ptr [rbp - 0x318]
+  @594477: mov r8, rax
+  @59447a: call 0x1ff5c7 <<<
+  @59447f: cdqe 
+  @594481: add rsp, 0x20
+  @594485: mov qword ptr [rbp - 0x1b8], rax
+  @59448c: mov rax, qword ptr [rbp - 0x1b8]
+  @594493: cdqe 
+  @594495: mov rbx, rax
+  @594498: mov eax, 0
+  @59449d: cmp ebx, eax
+  @59449f: setle al
+  @5944a2: movzx eax, al
+  @5944a5: test eax, eax
+  @5944a7: je 0x5944bc
+  @5944ad: mov eax, 0
+  @5944b2: jmp 0x5952ee
+  @5944b7: jmp 0x5944bc
+  @5944bc: sub rsp, 0x20
+  @5944c0: mov rax, qword ptr [rbp - 0x10]
+  @5944c4: mov rcx, rax
+  @5944c7: mov rax, qword ptr [rbp - 0x1b8]
+  @5944ce: mov rdx, rax
+  @5944d1: call 0x2a3d37
+  @5944d6: cdqe 
+
+=== B) Does @1ff5c7 produce filled emit-arg? calls fill? returns what? ===
+fill∩? []
+ensure∩? [('0x1ff603', '0x1f70cf'), ('0x1ff727', '0x1f70cf')]
+unwrap/push∩? []
+
+=== C) @5cf8f6 / @5cfa07 chain upward (who drives @5d276c fill) ===
+
+site @5cf8f6 fn≈?
+  @5cf8d6: mov r8, qword ptr [rbp + 0xb8]
+  @5cf8dd: mov edx, dword ptr [rbp + 0xd8]
+  @5cf8e3: mov rax, qword ptr [rbp + 0xd0]
+  @5cf8ea: lea rcx, [rbp - 0x50]
+  @5cf8ee: mov qword ptr [rsp + 0x20], rcx
+  @5cf8f3: mov rcx, rax
+  @5cf8f6: call 0x5d2c98 <<<
+  @5cf8fb: test eax, eax
+  @5cf8fd: jne 0x5cf906
+  @5cf8ff: mov eax, 0
+  @5cf904: jmp 0x5cf943
+  @5cf906: mov rax, qword ptr [rbp + 0xb8]
+  @5cf90d: mov rcx, rax
+  @5cf910: call 0x205b5c
+  @5cf915: mov rdx, qword ptr [rbp + 0xe0]
+  @5cf91c: mov dword ptr [rdx + 0x124], eax
+
+site @5cfa07 fn≈?
+  @5cf9e7: add byte ptr [rax], al
+  @5cf9e9: add byte ptr [rax - 0x75], cl
+  @5cf9ec: test eax, edx
+  @5cf9ee: add byte ptr [rax], al
+  @5cf9f0: add byte ptr [rax - 0x73], cl
+  @5cf9f3: mov r8b, 0x48
+  @5cf9f6: mov dword ptr [rsp + 0x28], ecx
+  @5cf9fa: mov ecx, dword ptr [rbp + 0xf0]
+  @5cfa00: mov dword ptr [rsp + 0x20], ecx
+  @5cfa04: mov rcx, rax
+  @5cfa07: call 0x5d2eb0 <<<
+  @5cfa0c: test eax, eax
+  @5cfa0e: jne 0x5cfa17
+  @5cfa10: mov eax, 0
+  @5cfa15: jmp 0x5cfa54
+  @5cfa17: mov rax, qword ptr [rbp + 0xb8]
+  @5cfa1e: mov rcx, rax
+  @5cfa21: call 0x205b5c
+  @5cfa26: mov rdx, qword ptr [rbp + 0xe0]
+  @5cfa2d: mov dword ptr [rdx + 0x124], eax
+
+=== D) wrap20a dead? also check qword ptr tables / FF15 / mov rax imm ===
+ImageBase=0x140000000
+  abs 0x14020a948 (@20a948) data-refs n=0 file_offs=[]
+  abs 0x14020a98a (@20a98a) data-refs n=0 file_offs=[]
+  abs 0x14020a91a (@20a91a) data-refs n=0 file_offs=[]
+  abs 0x14020a9cc (@20a9cc) data-refs n=0 file_offs=[]
+  abs 0x1405d276c (@5d276c) data-refs n=0 file_offs=[]
+
+=== E) @36/@39 fill callers (1fa9d9 / 207462) SoftCap reach? ===
+  fill@1fa9d9 ← @3605f9 fn≈?
+  fill@1fa9d9 ← @361937 fn≈?
+  fill@1fa9d9 ← @361ace fn≈?
+  fill@1fa9d9 ← @3624ae fn≈?
+  fill@1fa9d9 ← @36269d fn≈?
+  fill@207462 ← @39bbd6 fn≈?
+  fill@207462 ← @39c972 fn≈?
+  fill@207462 ← @39d4a0 fn≈?
+  fill@207462 ← @39d608 fn≈?
+  fill@207462 ← @39d786 fn≈?
+  fill@1f99b2 ← @36a5a8 fn≈?
+  fill@207aef ← @39a45c fn≈?
+
+=== F) Soft sites @58f80f/@59447a — what is stored after ensure call? 0x478? ===
+
+post-call window @58f80f:
+  @58f80f: call 0x1ff5c7
+  @58f814: cdqe 
+  @58f816: add rsp, 0x20
+  @58f81a: mov qword ptr [rbp - 0x58], rax
+  @58f81e: mov rax, qword ptr [rbp - 0x58]
+  @58f822: cdqe 
+  @58f824: mov rbx, rax
+  @58f827: mov eax, 0
+  @58f82c: cmp ebx, eax
+  @58f82e: setle al
+  @58f831: movzx eax, al
+  @58f834: test eax, eax
+  @58f836: je 0x58f84b
+  @58f83c: mov eax, 0
+  @58f841: jmp 0x58f99b
+  @58f846: jmp 0x58f84b
+  @58f84b: mov rax, qword ptr [rbp - 0x60]
+  @58f84f: cdqe 
+  @58f851: mov rbx, rax
+  @58f854: mov eax, 0
+  @58f859: cmp ebx, eax
+  @58f85b: setne al
+  @58f85e: movzx eax, al
+  @58f861: test eax, eax
+  @58f863: je 0x58f8ac
+  0x478 imm in fn: []
+
+post-call window @59447a:
+  @59447a: call 0x1ff5c7
+  @59447f: cdqe 
+  @594481: add rsp, 0x20
+  @594485: mov qword ptr [rbp - 0x1b8], rax
+  @59448c: mov rax, qword ptr [rbp - 0x1b8]
+  @594493: cdqe 
+  @594495: mov rbx, rax
+  @594498: mov eax, 0
+  @59449d: cmp ebx, eax
+  @59449f: setle al
+  @5944a2: movzx eax, al
+  @5944a5: test eax, eax
+  @5944a7: je 0x5944bc
+  @5944ad: mov eax, 0
+  @5944b2: jmp 0x5952ee
+  @5944b7: jmp 0x5944bc
+  @5944bc: sub rsp, 0x20
+  @5944c0: mov rax, qword ptr [rbp - 0x10]
+  @5944c4: mov rcx, rax
+  @5944c7: mov rax, qword ptr [rbp - 0x1b8]
+  @5944ce: mov rdx, rax
+  @5944d1: call 0x2a3d37
+  @5944d6: cdqe 
+  0x478 imm in fn: []
+
+=== G) Plant isolatable? checklist ===
+
+Criteria for isolatable plant:
+  1. Single semantic call that produces @205068-compatible filled elem OR filled vec for +0x478
+  2. SoftCap/Capless can reach with ONE site change (not mega/arg-loop)
+Findings:
+  - @20a948 family: E8 callers=0 AND need data-ref check (D)
+  - @5d276c: fills yes, but driven by @5cf* subsystem ≠ Capless SoftCap lit path
+  - SoftCap→@1ff5c7: ensure path exists at SoftMega-ish @58f/@594 — check if filled emit-arg
+  - Capless→fill/ensure/unwrap/push: 0
+  - Capless→kinded helpers: only num_args/@20cd98/@201* (known non-fill)
+
+DONE elapsed=0.7s left=84s

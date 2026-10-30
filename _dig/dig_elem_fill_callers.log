@@ -1,0 +1,224 @@
+Isol sha12=9378df517f96 size=7961399 left=84s
+
+=== A) @20a948 body (thin fill wrapper?) ===
+  @20a948: push rbp
+  @20a949: mov rbp, rsp
+  @20a94c: sub rsp, 0x30
+  @20a950: mov qword ptr [rbp + 0x10], rcx
+  @20a954: mov dword ptr [rbp + 0x18], edx
+  @20a957: mov qword ptr [rbp + 0x20], r8
+  @20a95b: mov dword ptr [rbp + 0x28], r9d
+  @20a95f: mov r9d, dword ptr [rbp + 0x28]
+  @20a963: mov r8, qword ptr [rbp + 0x20]
+  @20a967: mov edx, dword ptr [rbp + 0x18]
+  @20a96a: mov rax, qword ptr [rbp + 0x10]
+  @20a96e: mov ecx, dword ptr [rbp + 0x38]
+  @20a971: mov dword ptr [rsp + 0x28], ecx
+  @20a975: mov ecx, dword ptr [rbp + 0x30]
+  @20a978: mov dword ptr [rsp + 0x20], ecx
+  @20a97c: mov rcx, rax
+  @20a97f: call 0x1f9619
+  @20a984: add rsp, 0x30
+  @20a988: pop rbp
+  @20a989: ret 
+  @20a98a: push rbp
+  @20a98b: mov rbp, rsp
+  @20a98e: sub rsp, 0x30
+  @20a992: mov qword ptr [rbp + 0x10], rcx
+  @20a996: mov dword ptr [rbp + 0x18], edx
+  @20a999: mov qword ptr [rbp + 0x20], r8
+  @20a99d: mov dword ptr [rbp + 0x28], r9d
+  @20a9a1: mov r9d, dword ptr [rbp + 0x28]
+
+=== B) @5d276c body (fill caller region) ===
+  @5d276c: push rbp
+  @5d276d: mov rbp, rsp
+  @5d2770: push rbx
+  @5d2771: sub rsp, 0x178
+  @5d2778: mov rax, rcx
+  @5d277b: mov qword ptr [rbp - 0x10], rax
+  @5d277f: mov rax, rdx
+  @5d2782: mov qword ptr [rbp - 0x18], rax
+  @5d2786: mov rax, r8
+  @5d2789: mov qword ptr [rbp - 0x20], rax
+  @5d278d: mov rax, r9
+  @5d2790: mov qword ptr [rbp - 0x28], rax
+  @5d2794: mov rax, qword ptr [rbp + 0x30]
+  @5d2798: mov qword ptr [rbp - 0x30], rax
+  @5d279c: mov rax, qword ptr [rbp + 0x38]
+  @5d27a0: mov qword ptr [rbp - 0x38], rax
+  @5d27a4: mov eax, 0
+  @5d27a9: mov qword ptr [rbp - 0x48], rax
+  @5d27ad: mov eax, 0
+  @5d27b2: mov qword ptr [rbp - 0x50], rax
+  @5d27b6: mov eax, 0
+  @5d27bb: mov qword ptr [rbp - 0x58], rax
+  @5d27bf: mov eax, 0
+  @5d27c4: mov qword ptr [rbp - 0x60], rax
+  @5d27c8: mov rbx, qword ptr [rbp - 0x10]
+  @5d27cc: mov eax, 0
+  @5d27d1: cmp rbx, rax
+  @5d27d4: sete al
+  @5d27d7: movzx eax, al
+  @5d27da: test eax, eax
+  @5d27dc: jne 0x5d2806
+  @5d27e2: mov rbx, qword ptr [rbp - 0x20]
+  @5d27e6: mov eax, 0
+  @5d27eb: cmp rbx, rax
+  @5d27ee: sete al
+  @5d27f1: movzx eax, al
+  @5d27f4: test eax, eax
+  @5d27f6: jne 0x5d2806
+  @5d27fc: mov eax, 0
+  @5d2801: jmp 0x5d280b
+  @5d2806: mov eax, 1
+
+=== C) E8 callers of @20a948 ===
+n=0
+
+=== D) E8 callers of @5d276c ===
+n=2
+  caller @5d2dcf fn≈0x5d2c98
+  caller @5d2fe6 fn≈0x5d2eb0
+
+=== E) What does @20a948 call? (E8 dests) ===
+  @20a97f → @1f9619
+  @20a9c1 → @1f9768
+
+=== F) What does @5d276c call? (E8 dests in 0x200) ===
+  @5d2785 → @491db0d6
+  @5d286b → @205916
+  @5d28b1 → @205895
+  @5d28e8 → @205adb
+  @5d2901 → @5d2764
+  @5d2951 → @205997
+fn≈ of @5d276c = ?
+
+left=84s elapsed=0.3s
+
+=== G) E8 → @1f70cf (ensure kinded parent) — group by fn ===
+n_call_sites=53 n_fns=52
+  fn≈@1fd534 ×2 OUTSIDE
+  fn≈@1f9619 ×1 FILL-fam
+  fn≈@1f9768 ×1 FILL-fam
+  fn≈@1f98c0 ×1 FILL-fam
+  fn≈@1f99b2 ×1 FILL-fam
+  fn≈@1f9af8 ×1 FILL-fam
+  fn≈@1f9c0a ×1 FILL-fam
+  fn≈@1f9d13 ×1 FILL-fam
+  fn≈@1f9f9e ×1 FILL-fam
+  fn≈@1fa07b ×1 FILL-fam
+  fn≈@1fa154 ×1 FILL-fam
+  fn≈@1fa22b ×1 FILL-fam
+  fn≈@1fa314 ×1 FILL-fam
+  fn≈@1fa3ae ×1 FILL-fam
+  fn≈@1fa449 ×1 FILL-fam
+  fn≈@1fa4e4 ×1 FILL-fam
+  fn≈@1fa57f ×1 FILL-fam
+  fn≈@1fa61a ×1 FILL-fam
+  fn≈@1fa727 ×1 FILL-fam
+  fn≈@1fa9d9 ×1 FILL-fam
+  fn≈@1fab0a ×1 FILL-fam
+  fn≈@1faba5 ×1 FILL-fam
+  fn≈@1fb2a6 ×1 OUTSIDE
+  fn≈@1fb358 ×1 OUTSIDE
+  fn≈@1fb40b ×1 OUTSIDE
+  fn≈@1fcdbc ×1 OUTSIDE
+  fn≈@1fd16d ×1 OUTSIDE
+  fn≈@1feb85 ×1 OUTSIDE
+  fn≈@1fec87 ×1 OUTSIDE
+  fn≈@1fed89 ×1 OUTSIDE
+  fn≈@1fee8b ×1 OUTSIDE
+  fn≈@1fef8d ×1 OUTSIDE
+  fn≈@1ff08f ×1 OUTSIDE
+  fn≈@1ff101 ×1 OUTSIDE
+  fn≈@1ff36f ×1 OUTSIDE
+  fn≈@1ff466 ×1 OUTSIDE
+  fn≈@1ff5c7 ×1 OUTSIDE
+  fn≈@1ff6e8 ×1 OUTSIDE
+  fn≈@1ff8a3 ×1 OUTSIDE
+  fn≈@1ffa31 ×1 OUTSIDE
+
+OUTSIDE fill-fam ensure callers: 31
+  OUT fn≈@1fd534 ×2 sites=['0x1fd577', '0x1fd724']
+  OUT fn≈@1fb2a6 ×1 sites=['0x1fb2cc']
+  OUT fn≈@1fb358 ×1 sites=['0x1fb37e']
+  OUT fn≈@1fb40b ×1 sites=['0x1fb431']
+  OUT fn≈@1fcdbc ×1 sites=['0x1fce09']
+  OUT fn≈@1fd16d ×1 sites=['0x1fd16d']
+  OUT fn≈@1feb85 ×1 sites=['0x1febca']
+  OUT fn≈@1fec87 ×1 sites=['0x1feccc']
+  OUT fn≈@1fed89 ×1 sites=['0x1fedce']
+  OUT fn≈@1fee8b ×1 sites=['0x1feed0']
+  OUT fn≈@1fef8d ×1 sites=['0x1fefd2']
+  OUT fn≈@1ff08f ×1 sites=['0x1ff0b7']
+  OUT fn≈@1ff101 ×1 sites=['0x1ff133']
+  OUT fn≈@1ff36f ×1 sites=['0x1ff3aa']
+  OUT fn≈@1ff466 ×1 sites=['0x1ff4a2']
+  OUT fn≈@1ff5c7 ×1 sites=['0x1ff603']
+  OUT fn≈@1ff6e8 ×1 sites=['0x1ff727']
+  OUT fn≈@1ff8a3 ×1 sites=['0x1ff8df']
+  OUT fn≈@1ffa31 ×1 sites=['0x1ffa6d']
+  OUT fn≈@1ffb5c ×1 sites=['0x1ffbc4']
+  OUT fn≈@200071 ×1 sites=['0x2000dd']
+  OUT fn≈@2004f4 ×1 sites=['0x20056d']
+  OUT fn≈@200988 ×1 sites=['0x2009f0']
+  OUT fn≈@202b14 ×1 sites=['0x202b5e']
+  OUT fn≈@202c21 ×1 sites=['0x202c51']
+  OUT fn≈@202ea1 ×1 sites=['0x202ec4']
+  OUT fn≈@203036 ×1 sites=['0x203055']
+  OUT fn≈@2030fa ×1 sites=['0x2031fb']
+  OUT fn≈@203a3d ×1 sites=['0x203ab2']
+  OUT fn≈@203dd4 ×1 sites=['0x203e78']
+
+=== H) Who constructs kinded elem? Look for alloc+ensure patterns near OUTSIDE ===
+  fn≈@1fd534: interesting E8=['@1fd562→@1f93e3', '@1fd577→@1f70cf', '@1fd5cc→@1f9da7', '@1fd5eb→@1f9e53', '@1fd682→@1f61f7', '@1fd709→@1f93e3', '@1fd724→@1f70cf']
+  fn≈@1fb2a6: interesting E8=['@1fb2cc→@1f70cf', '@1fb2e6→@1f93e3', '@1fb335→@1f61f7', '@1fb37e→@1f70cf', '@1fb398→@1f93e3', '@1fb3e7→@1f61f7', '@1fb431→@1f70cf', '@1fb44b→@1f93e3', '@1fb49a→@1f61f7', '@1fb4e1→@1fa449', '@1fb527→@1fa449', '@1fb56e→@1fa449']
+  fn≈@1fb358: interesting E8=['@1fb37e→@1f70cf', '@1fb398→@1f93e3', '@1fb3e7→@1f61f7', '@1fb431→@1f70cf', '@1fb44b→@1f93e3', '@1fb49a→@1f61f7', '@1fb4e1→@1fa449', '@1fb527→@1fa449', '@1fb56e→@1fa449']
+  fn≈@1fb40b: interesting E8=['@1fb431→@1f70cf', '@1fb44b→@1f93e3', '@1fb49a→@1f61f7', '@1fb4e1→@1fa449', '@1fb527→@1fa449', '@1fb56e→@1fa449', '@1fb6bd→@1f9407', '@1fb6e1→@1f93e3']
+  fn≈@1fcdbc: interesting E8=['@1fce09→@1f70cf', '@1fce27→@1f93e3', '@1fcfb0→@1f93e3', '@1fcff2→@1f9407']
+  fn≈@1fd16d: interesting E8=['@1fd16d→@1f70cf']
+  fn≈@1feb85: interesting E8=['@1febca→@1f70cf', '@1fec7b→@1f61f7', '@1feccc→@1f70cf', '@1fed7d→@1f61f7', '@1fedce→@1f70cf', '@1fee7f→@1f61f7']
+  fn≈@1fec87: interesting E8=['@1feccc→@1f70cf', '@1fed7d→@1f61f7', '@1fedce→@1f70cf', '@1fee7f→@1f61f7', '@1feed0→@1f70cf', '@1fef81→@1f61f7']
+  fn≈@1fed89: interesting E8=['@1fedce→@1f70cf', '@1fee7f→@1f61f7', '@1feed0→@1f70cf', '@1fef81→@1f61f7', '@1fefd2→@1f70cf', '@1ff083→@1f61f7']
+  fn≈@1fee8b: interesting E8=['@1feed0→@1f70cf', '@1fef81→@1f61f7', '@1fefd2→@1f70cf', '@1ff083→@1f61f7', '@1ff0b7→@1f70cf', '@1ff133→@1f70cf']
+  fn≈@1fef8d: interesting E8=['@1fefd2→@1f70cf', '@1ff083→@1f61f7', '@1ff0b7→@1f70cf', '@1ff133→@1f70cf']
+  fn≈@1ff08f: interesting E8=['@1ff0b7→@1f70cf', '@1ff133→@1f70cf']
+
+=== I) Capless window E8 ∩ {fill, ensure, unwrap, push, 20a948, 5d276c} ===
+Capless hits n=0
+
+=== J) SoftCap-ish 0x570000..0x5a0000 callers of fill wrappers ===
+  @20a948 soft-ish callers n=0: []
+  @5d276c soft-ish callers n=0: []
+
+=== K) Disasm SoftCap-ish callers of @20a948 / @5d276c (context) ===
+
+=== L) Does any fill-result STORE into [reg+0x478]? scan fill callers for 0x478 disp ===
+fns with 0x478 imm near fill-caller: n=0
+
+=== M) @1f70cf body (ensure) brief ===
+  @1f70cf: push rbp
+  @1f70d0: mov rbp, rsp
+  @1f70d3: sub rsp, 0x50
+  @1f70d7: mov qword ptr [rbp + 0x10], rcx
+  @1f70db: mov dword ptr [rbp + 0x18], edx
+  @1f70de: cmp qword ptr [rbp + 0x10], 0
+  @1f70e3: jne 0x1f70ef
+  @1f70e5: mov eax, 0
+  @1f70ea: jmp 0x1f77db
+  @1f70ef: mov r9, qword ptr [rip + 0x879f02]
+  @1f70f6: mov r8, qword ptr [rip + 0x879ef3]
+  @1f70fd: mov rdx, qword ptr [rip + 0x879ee4]
+  @1f7104: mov rax, qword ptr [rip + 0x879ed5]
+  @1f710b: mov rcx, qword ptr [rbp + 0x10]
+  @1f710f: mov qword ptr [rsp + 0x20], rcx
+  @1f7114: mov rcx, rax
+  @1f7117: call 0x1f676b
+  @1f711c: mov qword ptr [rbp - 0x10], rax
+  @1f7120: cmp qword ptr [rbp - 0x10], 0
+  @1f7125: je 0x1f7130
+  @1f7127: mov rax, qword ptr [rbp - 0x10]
+
+DONE elapsed=0.5s left=84s
+

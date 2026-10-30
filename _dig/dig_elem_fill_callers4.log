@@ -1,0 +1,189 @@
+=== Capless-called helpers: E8∩fill/chain? brief role ===
+
+@1ff2a3 chain∩=[('0x1ff3aa', '0x1f70cf')]
+  @1ff2a3: push rbp
+  @1ff2a4: mov rbp, rsp
+  @1ff2a7: sub rsp, 0x30
+  @1ff2ab: mov qword ptr [rbp + 0x10], rcx
+  @1ff2af: mov dword ptr [rbp + 0x18], edx
+  @1ff2b2: mov dword ptr [rbp + 0x20], r8d
+  @1ff2b6: mov ecx, dword ptr [rbp + 0x20]
+  @1ff2b9: mov edx, dword ptr [rbp + 0x18]
+  @1ff2bc: mov rax, qword ptr [rbp + 0x10]
+  @1ff2c0: mov r9d, 0
+  @1ff2c6: mov r8d, ecx
+  @1ff2c9: mov rcx, rax
+  E8 sample=['0x1fed89', '0x1fe37d', '0x1fe37d', '0x1f70cf', '0x1f624c', '0x1f61f7', '0x1ef4fc', '0x1f61f7']
+
+@1ffefe chain∩=[('0x2000dd', '0x1f70cf')]
+  @1ffefe: push rbp
+  @1ffeff: mov rbp, rsp
+  @1fff02: sub rsp, 0x30
+  @1fff06: mov qword ptr [rbp + 0x10], rcx
+  @1fff0a: mov dword ptr [rbp + 0x18], edx
+  @1fff0d: mov edx, dword ptr [rbp + 0x18]
+  @1fff10: mov rax, qword ptr [rbp + 0x10]
+  @1fff14: mov rcx, rax
+  @1fff17: call 0x1fe37d
+  @1fff1c: mov qword ptr [rbp - 8], rax
+  @1fff20: cmp qword ptr [rbp - 8], 0
+  @1fff25: je 0x1fff33
+  E8 sample=['0x1fe37d', '0x1fe37d', '0x1fe37d', '0x1fe37d', '0x1fe37d', '0x63b200', '0x63b1f0', '0x1fe37d']
+
+@20cd98 chain∩=NONE
+  @20cd98: push rbp
+  @20cd99: mov rbp, rsp
+  @20cd9c: sub rsp, 0x30
+  @20cda0: mov qword ptr [rbp + 0x10], rcx
+  @20cda4: mov dword ptr [rbp + 0x18], edx
+  @20cda7: cmp qword ptr [rbp + 0x10], 0
+  @20cdac: je 0x20cdb4
+  @20cdae: cmp dword ptr [rbp + 0x18], 0
+  @20cdb2: jg 0x20cdbb
+  @20cdb4: mov eax, 0xffffffff
+  @20cdb9: jmp 0x20ce0b
+  @20cdbb: mov rax, qword ptr [rbp + 0x10]
+  E8 sample=['0x20bcb5', '0x2b4203', '0x20bc38', '0x46c549', '0x46cfb0', '0x46d27d', '0x46d387', '0x29f144']
+
+@201d9f chain∩=NONE
+  @201d9f: push rbp
+  @201da0: mov rbp, rsp
+  @201da3: sub rsp, 0x30
+  @201da7: mov qword ptr [rbp + 0x10], rcx
+  @201dab: mov dword ptr [rbp + 0x18], edx
+  @201dae: mov edx, dword ptr [rbp + 0x18]
+  @201db1: mov rax, qword ptr [rbp + 0x10]
+  @201db5: mov rcx, rax
+  @201db8: call 0x1fe37d
+  @201dbd: mov qword ptr [rbp - 8], rax
+  @201dc1: cmp qword ptr [rbp - 8], 0
+  @201dc6: je 0x201dd4
+  E8 sample=['0x1fe37d', '0x1fe37d', '0x63b200', '0x63b200', '0x63b1f0', '0x1fe37d', '0x1fe37d', '0x1fe37d']
+
+@200ff7 chain∩=NONE
+  @200ff7: push rbp
+  @200ff8: mov rbp, rsp
+  @200ffb: sub rsp, 0x30
+  @200fff: mov qword ptr [rbp + 0x10], rcx
+  @201003: mov dword ptr [rbp + 0x18], edx
+  @201006: mov edx, dword ptr [rbp + 0x18]
+  @201009: mov rax, qword ptr [rbp + 0x10]
+  @20100d: mov rcx, rax
+  @201010: call 0x1fe37d
+  @201015: mov qword ptr [rbp - 8], rax
+  @201019: cmp qword ptr [rbp - 8], 0
+  @20101e: je 0x201029
+  E8 sample=['0x1fe37d', '0x1fe35e', '0x1fe37d', '0x1fe35e', '0x1fe37d', '0x1fe35e', '0x1fe37d', '0x1fe35e']
+
+@1ff2ef chain∩=[('0x1ff3aa', '0x1f70cf'), ('0x1ff4a2', '0x1f70cf')]
+  @1ff2ef: push rbp
+  @1ff2f0: mov rbp, rsp
+  @1ff2f3: sub rsp, 0x30
+  @1ff2f7: mov qword ptr [rbp + 0x10], rcx
+  @1ff2fb: mov dword ptr [rbp + 0x18], edx
+  @1ff2fe: mov edx, dword ptr [rbp + 0x18]
+  @1ff301: mov rax, qword ptr [rbp + 0x10]
+  @1ff305: mov rcx, rax
+  @1ff308: call 0x1fe37d
+  @1ff30d: mov qword ptr [rbp - 8], rax
+  @1ff311: cmp qword ptr [rbp - 8], 0
+  @1ff316: je 0x1ff324
+  E8 sample=['0x1fe37d', '0x1fe37d', '0x1f70cf', '0x1f624c', '0x1f61f7', '0x1ef4fc', '0x1f61f7', '0x1f70cf']
+
+@201eeb chain∩=NONE
+  @201eeb: push rbp
+  @201eec: mov rbp, rsp
+  @201eef: sub rsp, 0x30
+  @201ef3: mov qword ptr [rbp + 0x10], rcx
+  @201ef7: mov dword ptr [rbp + 0x18], edx
+  @201efa: mov edx, dword ptr [rbp + 0x18]
+  @201efd: mov rax, qword ptr [rbp + 0x10]
+  @201f01: mov rcx, rax
+  @201f04: call 0x1fe37d
+  @201f09: mov qword ptr [rbp - 8], rax
+  @201f0d: cmp qword ptr [rbp - 8], 0
+  @201f12: je 0x201f1f
+  E8 sample=['0x1fe37d', '0x1fe37d', '0x63b200', '0x63b200', '0x63b1f0', '0x1fe37d', '0x1fe37d', '0x1fe37d']
+
+@20203f chain∩=NONE
+  @20203f: push rbp
+  @202040: mov rbp, rsp
+  @202043: sub rsp, 0x30
+  @202047: mov qword ptr [rbp + 0x10], rcx
+  @20204b: mov dword ptr [rbp + 0x18], edx
+  @20204e: mov edx, dword ptr [rbp + 0x18]
+  @202051: mov rax, qword ptr [rbp + 0x10]
+  @202055: mov rcx, rax
+  @202058: call 0x1fe37d
+  @20205d: mov qword ptr [rbp - 8], rax
+  @202061: cmp qword ptr [rbp - 8], 0
+  @202066: je 0x202073
+  E8 sample=['0x1fe37d', '0x1fe37d', '0x1fe37d', '0x1fe37d', '0x1fe37d']
+
+@201f36 chain∩=NONE
+  @201f36: push rbp
+  @201f37: mov rbp, rsp
+  @201f3a: sub rsp, 0x30
+  @201f3e: mov qword ptr [rbp + 0x10], rcx
+  @201f42: mov dword ptr [rbp + 0x18], edx
+  @201f45: mov qword ptr [rbp + 0x20], r8
+  @201f49: cmp qword ptr [rbp + 0x20], 0
+  @201f4e: je 0x201fed
+  @201f54: mov edx, dword ptr [rbp + 0x18]
+  @201f57: mov rax, qword ptr [rbp + 0x10]
+  @201f5b: mov rcx, rax
+  @201f5e: call 0x1fe37d
+  E8 sample=['0x1fe37d', '0x63b200', '0x63b200', '0x63b1f0', '0x1fe37d', '0x1fe37d', '0x1fe37d']
+
+@201ea0 chain∩=NONE
+  @201ea0: push rbp
+  @201ea1: mov rbp, rsp
+  @201ea4: sub rsp, 0x30
+  @201ea8: mov qword ptr [rbp + 0x10], rcx
+  @201eac: mov dword ptr [rbp + 0x18], edx
+  @201eaf: mov edx, dword ptr [rbp + 0x18]
+  @201eb2: mov rax, qword ptr [rbp + 0x10]
+  @201eb6: mov rcx, rax
+  @201eb9: call 0x1fe37d
+  @201ebe: mov qword ptr [rbp - 8], rax
+  @201ec2: cmp qword ptr [rbp - 8], 0
+  @201ec7: je 0x201ed4
+  E8 sample=['0x1fe37d', '0x1fe37d', '0x1fe37d', '0x63b200', '0x63b200', '0x63b1f0', '0x1fe37d', '0x1fe37d']
+
+@201ddf chain∩=NONE
+  @201ddf: push rbp
+  @201de0: mov rbp, rsp
+  @201de3: sub rsp, 0x30
+  @201de7: mov qword ptr [rbp + 0x10], rcx
+  @201deb: mov dword ptr [rbp + 0x18], edx
+  @201dee: mov qword ptr [rbp + 0x20], r8
+  @201df2: cmp qword ptr [rbp + 0x20], 0
+  @201df7: je 0x201e99
+  @201dfd: mov edx, dword ptr [rbp + 0x18]
+  @201e00: mov rax, qword ptr [rbp + 0x10]
+  @201e04: mov rcx, rax
+  @201e07: call 0x1fe37d
+  E8 sample=['0x1fe37d', '0x63b200', '0x63b200', '0x63b1f0', '0x1fe37d', '0x1fe37d', '0x1fe37d', '0x63b200']
+
+=== SoftCap @1ff5c7: rcx parent — who is [rbp-0x10] at @58f80f? ===
+
+=== Verdict summary ===
+
+parent kinded elem:
+  - ensure API @1f70cf; constructors = fill-fam + @1fb/@1fd/@1ff/@200/@202/@203 kinded subsystem
+  - SoftCap-reachable: SoftMega-ish @58f80f/@59447a → @1ff5c7 → ensure; RETURNS STATUS eax, NOT emit-arg ptr; NO fill/unwrap/push; NO +0x478
+  - Capless: ZERO ensure/fill
+
+@20a948:
+  - thin wrappers → @1f9619/@1f9768; E8 callers=0; ImageBase data-refs=0 → DEAD; cannot single-point hook
+
+@5d276c:
+  - DOES fill (@1f9619/@1f9768); callers only @5d2c98/@5d2eb0 ← @5cf8f6/@5cfa07 (encoder writes [+0x124]); NOT Capless SoftCap lit; no Soft/Capless ups
+
+Capless-called @201*/@1ff2*:
+  - chain∩ fill/ensure/unwrap/push = (see above); prior known num_args/@20cd98 only
+
+⇒ plant elem_fill / fill_5d / fill_20a: NOT isolatable (dead wrap OR wrong subsystem OR ensure≠filled emit-arg).
+⇒ no p_ret_* this beat.
+
+DONE 0.0s
