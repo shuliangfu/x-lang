@@ -718,3 +718,61 @@ Isol CapFN 体内 E8 入 SoftCap mega `[0x57effc,0x58e9a0)`：**5** 处；−Δ`
 - Path-C′ DIG done; no isol binary; PROD／nail untouched
 - next: Capless rewire dig or LIVE emit non-E8 entry
 - bans unchanged
+
+## 2026-10-30 ~08:45 CST Asia/Shanghai — Path-C′′ DIG Capless-slot retarget + emit non-E8
+
+### 0) 闸
+- tip HEAD was `375b31488`＝origin/dev（父已推通）
+- Isol-G `7701dac5b813`／LIVE pret `cbc0d8e8d96f`／PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 无新 isol 二进制／无 cave／无假绿
+
+### 1) 目标1：LIVE Capless 6 call-site → Isol 同构
+
+**Tip-dispatch 同构：** Isol `@0x1d9710` ≅ LIVE `@0x50305`（exact 前 64B；first_diff@75＝首个 E8 rel32）。
+
+**双槽位（pair→Capless，间距 0x24；pre24 marshal **全等**）：**
+
+| 槽 | LIVE site → tgt | Isol site → tgt | pre24 |
+|---|---|---|---|
+| PAIR | `@0x5065a` → `@0x289dcb` | `@0x1d9a65` → **`@0x57ef78`** | eq |
+| Capless | `@0x5067e` → **`@0x2967b4`** | `@0x1d9a89` → **`@0x59aa08`** | eq |
+| PAIR | `@0x5085c` → `@0x289dcb` | `@0x1d9c67` → `@0x57ef78` | eq |
+| Capless | `@0x50880` → `@0x2967b4` | `@0x1d9c8b` → `@0x59aa08` | eq |
+| PAIR | `@0x508d6` → `@0x289dcb` | `@0x1d9ce1` → `@0x57ef78` | eq |
+| Capless | `@0x50903` → `@0x2967b4` | `@0x1d9d0e` → `@0x59aa08` | eq |
+
+另 LIVE Capless `@0xe84a6` 所在 fn `@0xe815b` ≅ Isol `@0x26ffcc`（同 prol）；Isol 同源槽同样打到 `57ef78`／`59aa08`。
+
+**错挂靶：**
+- `@0x57ef78`／`@0x59aa08`：同构 thin SoftCap stub（`sub rsp,0xa8`），**不是** Capless；`@0x57ef78` 完整短函数，ret 后紧贴 mega `@0x57effc`（Δ`0x84`）。
+- Isol Capless `@0x57656c` ≅ LIVE Capless `@0x2967b4`（exact 前 **121B**）但 **E8 callers=0**（孤儿）。
+- LIVE PAIR `@0x289dcb` prol `55 b8 70 10 00 00 e8` 在 Isol **0 hit**（PAIR 同构体缺席／改编码）。
+
+**Capless-slot 全图（打到 `@0x59aa08` 的 9 caller）：**  
+`0x12377c 0x126cda 0x128402 0x1d9a89 0x1d9c8b 0x1d9d0e 0x1da455 0x1dd9b3 0x270317`  
+**PAIR-slot 全图（打到 `@0x57ef78` 的 9 caller）：**  
+`0x1237be 0x126c0a 0x12849e 0x1d9a65 0x1d9c67 0x1d9ce1 0x1da497 0x1dd8e3 0x270344`
+
+**结论1（最小根因）：** Isol tip 已具备 LIVE Capless 调用点同构，但 **Capless-slot 被改挂 SoftCap stub `@0x59aa08`**，致使 `@0x57656c` 孤儿、路径落入 SoftCap 薄桩／邻 mega 区，而非 Capless→CapFN 绿图。
+
+### 2) 目标2：LIVE emit `@0x140d00` 非 E8 入口
+
+- E8／E9／FF15／FF25／abs64／.pdata Begin：**全 0** xref。
+- emit16 仅两处 `.text` 代码（`@0x140d00`／`@0x140d58`），无表项／无 lea rip。
+- Isol tip `@0x121278` 与 LIVE emit **非**同体（masked-E8 first_diff@14）；29×`0x868` 帧模板≠emit 接线。
+- **结论2：** pret 内 emit 无发现可跟入口（疑 codegen 模板／死码）；本拍 **不**以 emit 入口为主刀。
+
+### 3) 硬 blocker（不可请批）
+1. Capless-slot→`@0x59aa08` 错挂（9 site）；Capless 本体在但 0 caller。
+2. LIVE PAIR `@0x289dcb` Isol 同构 **缺席**（改挂 `@0x57ef78`）。
+3. 未做二进制 retarget／未跑 `p_ret_*` → **无运行绿**。
+
+### 4) 下一拍最小刀
+1. **Isol retarget（首选）：** 将 Capless-slot 9× E8 `@0x59aa08` → `@0x57656c`（单点 rel32；禁 mega 主刀／禁 LIVE 整树 plant）。
+2. 同步 DIG PAIR-slot：为 `@0x289dcb` 找替代同构或证伪可暂留 stub。
+3. Win SoftCap／Isol 跑 `p_ret_*`；Darwin Cap soft + Ubuntu tip-cold 真 RC。未绿勿收刀／勿升 PROD。
+
+### 5) open
+- Path-C′′ DIG root cause nailed; no isol binary this shot
+- next: Capless-slot E8 retarget 9 sites → `@0x57656c` + run gates
+- PROD／nail untouched; bans unchanged
