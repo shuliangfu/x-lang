@@ -619,3 +619,9 @@ CloudAgent ✕ · 升钉 ecdb5cc1e ✕ · 10.74 ✕ · mega ✕ · HARD BAN／LE
 
 ### 禁令
 CloudAgent ✕ · 升钉 ✕ · 10.74 ✕ · mega ✕ · HARD BAN／LEGACY ✕ · LIVE 字节树 ✕ · 假绿 ✕ · **未绿勿请批** · **停开新 cave**
+
+## 2026-10-30 open
+- tip 569428ff2; PROD sha12 7a2cf5da581a untouched; nail not raised
+- p_ret still red; no please-batch; no new cave
+- next Path-C Cap decode or Isol Cap tip/egg isomorphic callee
+- Win DIG channel blocked this morning; bans unchanged
