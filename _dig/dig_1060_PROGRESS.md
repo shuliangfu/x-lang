@@ -1,5 +1,35 @@
 # 10.60 SoftCap DIG PROGRESS
 
+**2026-10-30 ~16:45 CST (Asia/Shanghai)** · Capless `@578071`..`@578273`：pre_last ret>0＋call-mk 装载 **HIT**；plant `immrdx_578`（`@5781df` mov edx,1）**红**（USER sha＝base；保 call-mk；无 mov rdx）→ 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：pre_last `@567a30` 后半／`[rbp+0x260]` USER imm→rdx emit（禁 tip@121278／join／epi／LIVE／mega）
+
+
+## 2026-10-30 ~16:45 CST Asia/Shanghai — DIG Capless @578071..@578273；plant immrdx_578 红
+
+### 0) 闸
+- tip HEAD `181d30631`＝origin/dev（本拍前；commit 后见 tip）
+- Isol alt_frame2 `9378df517f96`；`base_828` sha12 `0977d6fbb472` lit sha `61afec45d7ff`
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／tip@121278／join／epi／LIVE SoftCap 移植／arg-loop：遵守
+
+### 1) DIG 钉死（本拍）
+1. 走廊 `@578071` zeros → `@567a30` pre_last → `@578273` call-mk：pre_last／jg_3d4／`@57822a`／`@578231` **HIT** ⇒ ret>0 进 call-mk。
+2. pre_last 前 0x800 **无** emit_raw／enc E8／imm byte 模板 ⇒ USER arg0 不在此前段。
+3. plant `immrdx_578`：`@5781df`→`mov edx,1`；lit sha **同 base**；call-mk **在**；无 mov rdx；exit1／fwd GS。**红**。
+
+### 2) Win SoftCap 门
+| Isol plant | sha12 | lit | run | USER |
+|---|---|---|---|---|
+| immrdx_578 (`@5781df` edx=1) | `c0ddee6ef1d4` | OK n868=2 sha `61afec45d7ff` | exit1 | 保 call-mk；无 mov rdx |
+
+### 3) 下一拍最小刀（单点）
+- pre_last `@567a30` 后半／缓冲 `[rbp+0x260]`：谁写 USER lea→rcx 与缺失的 imm→rdx；单点 plant 强制 emit＋保 call-mk（禁 tip@121278／LIVE／arg-loop）。
+- 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 4) open
+- 笔记 `_dig/dig_immrdx_578.md`；脚本＋log `_dig/dig_immrdx_578.py`／`.log`
+- PROD／钉 **未动**；bans unchanged
+
+
 **2026-10-30 ~16:35 CST (Asia/Shanghai)** · base_828 下 CallExpr：call mk 在、缺 **imm→rdx**（call-mk 只写 sub rsp+E8；arg0 须 Capless 预写）；plant `b828_immrdx` **红**（nop try-continue 打断 call-mk／假 imm10；`@1ff316` AV）→ 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：Capless `@578071`..`@578273` arg0 imm→rdx（禁 tip@121278／join／epi／LIVE／mega）
 
 
