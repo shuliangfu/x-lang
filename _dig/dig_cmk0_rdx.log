@@ -1,0 +1,52 @@
+=== DIG call-mk [4b0]==0 Isol-native imm->rdx (cmk0_rdx) ===
+Prior: immrdx_bypass force [4b0]=1 -> AV; base_828 keeps call-mk / missing imm->rdx
+call-mk @57b98c: [rbp-0x30]<-Capless [4b0]
+  [4b0]==0: @57ba0f fallthrough -> @57ba3b byte-asm USER 48 83 ec 20 -> append @2a7f07 -> @57bafe
+  [4b0]!=0: je @57bafe skip byte-asm
+Nail: do NOT force [4b0]=1; plant on ==0 byte-asm path only
+  @57ba0f je skip ok; @57ba3b mov eax,0x48 ok; @57ba94 mov eax,4 ok; @578266 intact
+
+host_b828=0977d6fbb472
+b828 lit try0 OK sha=61afec45d7ff n868=2
+  b828 sret @0xb04:
+    @0b04: lea rax, [rbp - 0x28]
+    @0b08: mov rcx, rax
+    @0b0b: sub rsp, 0x20
+    @0b0f: call 0xa90
+    @0b14: add rsp, 0x20
+    @0b18: lea rax, [rbp - 0x28]
+    @0b1c: mov rax, qword ptr [rax]
+    @0b1f: mov rbx, rax
+    @0b22: mov eax, 0xa
+    @0b27: cmp rbx, rax
+    @0b2a: setne al
+    @0b2d: movzx eax, al
+    @0b30: test eax, eax
+    @0b32: je 0xb47
+    @0b38: mov eax, 1
+    @0b3d: jmp 0xbbb
+    @0b42: jmp 0xb47
+    @0b47: lea rax, [rbp - 0x28]
+    @0b4b: add rax, 8
+    @0b51: mov rax, qword ptr [rax]
+    @0b54: mov rbx, rax
+  b828 has_imm10=True mov_rdx=False sub20=True call=True
+  run=crc=0x1/1 immrdx=False call=True
+
+=== plant cmk0_rdx: [4b0]==0 byte-asm -> LIVE imm->rdx (len=16); keep call-mk ===
+cmk0_rdx sha12=3a6ac64a6dc0
+  USER16=b80a000000488945c8488b45c84889c2
+  patch74_len=74 append_len=16; [4b0] force=NO
+  p_ret_lit.x      AV       sha=- n868=0 run=-/-1 (0.3s)
+  p_ret_fwd.x      GS       sha=- n868=0 run=-/-1 (0.2s)
+  p_ret_local.x    AV       sha=- n868=0 run=-/-1 (0.3s)
+
+=== INT3 path check under cmk0_rdx ===
+  @57ba3b (plant/[4b0]==0 asm) -> INT3
+  @575799 ([990]==1 body) -> AV  (expect not INT3 if [4b0] stayed 0)
+
+=== VERDICT ===
+cmk0_rdx lit: compile=AV run=-/-1 n868=0 immrdx=False call=False
+GREEN=False  (need OK run0 + imm->rdx + call)
+elapsed=1.4s
+cleaned probes

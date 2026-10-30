@@ -2680,3 +2680,29 @@ Isol CapFN 体内 E8 入 SoftCap mega `[0x57effc,0x58e9a0)`：**5** 处；−Δ`
 - 笔记 `_dig/dig_sum_feed.md`；脚本＋log `_dig/dig_sum_feed.py`／`.log`
 - PROD／钉 **未动**；bans unchanged
 
+## 2026-10-30 ~17:32 CST Asia/Shanghai — DIG+plant cmk0_rdx 红 AV；钉 cmk0_irdx
+
+### 0) 闸
+- tip base `6c0e76d01`＝origin/dev（本拍前；commit 后见 tip）
+- Isol alt_frame2 `9378df517f96`；host_b828 `0977d6fbb472`；plant `3a6ac64a6dc0`
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／假绿／整树／LEGACY／字母堆／LIVE SoftCap 移植／arg-loop／tip@121278／join／epi／mega glue／+0x478：遵守
+
+### 1) DIG 钉死（本拍）
+1. call-mk `[4b0]==0`：`@57ba3b` 字节拼 USER `48 83 ec 20`（`88 83`）→ append `@2a7f07` len=4；`@578266` 未触。
+2. INT3 `@57ba3b` **HIT**；INT3 `@575799`（`[990]==1`）非 INT3（AV）⇒ `[4b0]` 保持 0。
+3. plant `cmk0_rdx`：74B 窗换 LIVE16＋`c643`＋len 4→16 → lit/local **AV**／fwd **GS**；未成 USER。
+
+### 2) Win SoftCap 门
+| Isol plant | sha12 | lit | fwd | local | run |
+|---|---|---|---|---|---|
+| cmk0_rdx | `3a6ac64a6dc0` | AV | GS | AV | — |
+
+### 3) 下一拍最小刀（单点）
+- **`cmk0_irdx`**：`[4b0]==0` 发 Isol-native 10B `b80a0000004889c2`（无 LIVE spill）；先 DIG `[rbp-0x80]` 容量；保 `@57ba85` fallthrough／call-mk；禁 `[4b0]=1`／mega glue／+0x478。
+- 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 4) open
+- 笔记 `_dig/dig_cmk0_rdx.md`；脚本＋log `_dig/dig_cmk0_rdx.py`／`.log`
+- PROD／钉 **未动**；bans unchanged
+
