@@ -1,6 +1,47 @@
 # DIG 10.60 SoftCap PROGRESS
 
-**2026-10-30 ~15:25 CST (Asia/Shanghai)** · SoftCap lit post-`@201f36`：**@201ea0／@201ddf 全 HIT**（AV ≠ +0x150）· Capless→kind3→call-mk `@57b98c`→`@5752bc`：**eax==2→@5aaf18 HIT**·loop `@575778`→**jne `@575fa3` HIT**·fa3 clear 体 HIT · frontier＝post-fa3/`@5762a2` · SoftCap **未绿** → 勿升 PROD／钉 **不升**／勿收刀 · 下一拍：`@575fa3` post-clear／`@5762a2` 单点；禁长挂／移植／arg-loop／twin／字母堆
+**2026-10-30 ~15:40 CST (Asia/Shanghai)** · SoftCap lit post-`@575fa3`：clear+`@5762a2` loop **HIT** · AV根＝`@5760c2→@5862f8`／`@5760fb→@5863c9` **mid-insn**（非合法入口）· Isol `post_fa3` `453f3e66f96c` jmp-skip → `@57619e` HIT；p_ret **AV／GS／AV** · SoftCap **未绿** → 勿升 PROD／钉 **不升**／勿收刀 · 下一拍：`@57619e` alt（`@5603b8`／`@56fa68`）→`@57629b`；禁长挂／移植／arg-loop／twin／字母堆
+
+
+## 2026-10-30 ~15:40 CST Asia/Shanghai — DIG post-@575fa3／@5762a2；AV＝mid-insn call；Isol post_fa3 红
+
+### 0) 闸
+- tip HEAD `ab6639cf1`＝origin/dev（本拍前；commit 后见 tip）
+- Base h3_jesk `cfb0fae4f5d9`；短超时 INT3；已清 cave `_dig_host_*`
+- PROD SoftCap `7a2cf5da581a` **未动**／钉 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／未绿请批／LEGACY／字母堆／LIVE SoftCap 移植／arg-loop／twin：遵守
+
+### 1) DIG 钉死（本拍）
+1. post-fa3 clear `@575fa3..@576052` HIT；`jmp @5762a2` loop cond／body head／`call @1ff2a3` HIT。
+2. **AV root**：`@5760c2 call @5862f8`／`@5760fb call @5863c9` 落在 clear 序列 **mid-insn**（`@5862f0 mov [rbx+0x104],eax` 中部），非合法入口。
+3. Isol `post_fa3` `453f3e66f96c`：`jmp @5760c2→@576110` 跳过坏 call 块 → `@576110`／`@576132`／`@57619e` HIT；仍 AV 于 alt→`@57629b` 前。
+4. SoftCap p_ret lit／fwd／local ＝ **AV／GS／AV**（非绿）。
+
+### 2) Win SoftCap 门
+| Isol | sha12 | lit／fwd／local |
+|---|---|---|
+| h3_jesk | `cfb0fae4f5d9` | AV／GS／AV |
+| post_fa3 | `453f3e66f96c` | AV／GS／AV |
+
+### 3) 三端门
+| 端 | 结果 |
+|---|---|
+| Win SoftCap p_ret_* | **未运行绿** |
+| Darwin／Ubuntu | **未扩**（Win 未绿） |
+| PROD／钉 | **未动** |
+
+### 4) 硬 blocker
+1. SoftCap lit AV 在 call-mk loop alt `@57619e` 后（坏 mid-insn call 已跳过仍红）。
+2. 无稳定 Isol-native SoftCap lit `0x868` 写出／p_ret 运行绿。
+3. Ban 移植／arg-loop／twin／字母堆／长挂。
+
+### 5) 下一拍最小刀
+1. 单点 DIG `@57619e` alt／`@5603b8`／`@56fa68` → `@57629b`；短超时。
+2. 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 6) open
+- 笔记 `_dig/dig_post_fa3.md`；plant `_dig/build_isol_post_fa3.py`；logs post_fa3／5862f8／post_fa3b
+- PROD SoftCap `7a2cf5da581a`／钉 ecdb5cc1e **未动**
 
 
 ## 2026-10-30 ~15:25 CST Asia/Shanghai — DIG SoftCap lit post-@201f36；AV ≠ @201ddf；入 call-mk→@575fa3
