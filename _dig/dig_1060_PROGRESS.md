@@ -1,6 +1,56 @@
 # DIG 10.60 SoftCap PROGRESS
 
-**2026-10-30 ~13:45 CST (Asia/Shanghai)** · Isol-calt_args `c65741a41b67`／calt_miss `6927bb640c22` **证伪**（Win SoftCap `p_ret_*` host AV／`0xC0000409`；无 emit）· tip dig-only push · SoftCap **未绿** → 勿升 PROD／钉 ecdb5cc1e **不升**／勿收刀 · DIG：SoftCap lit 唯 `@12377c`→Capless-alt；SoftCap-site Isol `eax=1` early-claim ≠ LIVE `eax=0`；`calt_twin` CG002 · 下一拍：Isol SoftCap-site claim→LIVE 形 ret0＋state（禁 LIVE SoftCap 移植／字母堆／arg-loop 强跳）
+**2026-10-30 ~14:03 CST (Asia/Shanghai)** · Isol-site_abi_r8 `de066e24b417` **证伪**（Win SoftCap `p_ret_*` OK compile＝TT thin `5b173cef1205`／rc=1；非 LIVE `dbaab1c7ce70`）· tip dig-only push · SoftCap **未绿** → 勿升 PROD／钉 ecdb5cc1e **不升**／勿收刀 · DIG：ABI LIVE-shaped 后 SoftCap lit 入 body；`@2be734`／`@2be781` kind-gate `eax=1` false-claim；中和→Capless AV；Isol 无 Cap`@0024e6` SoftCap dispatch · 下一拍：Isol-native SoftCap lit call-mk（LIVE 形 miss 后无 Capless AV）或 Isol 自建 Cap`@0024e6` 类 SoftCap dispatch（禁移植／字母堆／arg-loop／twin）
+
+
+## 2026-10-30 ~14:03 CST Asia/Shanghai — DIG Isol SoftCap-site site_abi_r8；证伪（TT thin）
+
+### 0) 闸
+- tip HEAD `a3e194958`＝origin/dev（本拍前；commit 后见 tip）
+- Isol-TT `1f836615e0fc`；LIVE lit emit `dbaab1c7ce70`；TT lit emit `5b173cef1205`
+- Isol-site_abi_r8 sha12 **`de066e24b417`**（语义短名；禁字母堆）
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／未绿请批／LEGACY／cave 字母堆／LIVE SoftCap 移植／arg-loop 强跳／twin retarget：遵守
+
+### 1) DIG 钉死（本拍）
+1. SoftCap lit → Capless-alt `@57656c` → SoftCap-site `@2be519`（Cap21c8-pro ≅ LIVE `@0021c8`／`@28e9c0`）。
+2. Isol SoftCap-site entry stores **swapped** vs LIVE＋Capless ABI：Isol `f0=r8(q)`／`f8=r9d(d)`；LIVE `f0=r8d(d)`／`f8=r9(q)`。Isol null 查 `f8` → SoftCap lit 命中 `@2be6b0 eax=1` early-claim → TT。
+3. Plant `site_abi_r8`：stores LIVE-shaped＋null claim `eax=0`＋body slot retarget（保留 site state）。SoftCap lit **入 body**；命中 kind-gate `@2be734`（`kind∉{0x36,0x33,3}` → `eax=1`）→ Capless early → 仍 TT thin。
+4. `site_abi_c36`（`@2be734→0`）→ Capless fallthrough → **AV**（无 emit）。`site_abi_unk3`／`kany` 过 c8 → `@2be781` nested kind≠3 `eax=1` → TT；`@2be781→0` → **AV**。
+5. LIVE SoftCap lit SoftCap-site：validate **miss `eax=0`** → Capless continue；另走 Cap`@0024e6` kind`0x30`→`@0021c8`。
+6. Isol SoftCap-site callers：唯 Capless `@576692`＋wrapper `@2be40f`。**无** Isol Cap`@0024e6`-like（cmp`0x40`＋kind`0x30`→SoftCap-site）调度。
+7. Prior falsified: calt_args／calt_miss／calt_twin／full_chain／smega_le／callsz_le／scap0。
+
+### 2) Win SoftCap 门（cave `out_abi`）
+| Isol | sha12 | plant | lit／fwd／local |
+|---|---|---|---|
+| site_abi_r8 | `de066e24b417` | SoftCap-site ABI LIVE-shaped＋null `eax=0`＋state | OK＝TT thin／OK／OK；**非** LIVE；run rc=1 |
+| site_abi_c36 | `29a8ae206733` | abi_r8＋`@2be734→0` | **AV**／—／—（无 emit） |
+| site_abi_unk3／kany | `ce727252c3d6`／`bafead692405` | force kind3-like | TT／`@2be781→0` AV |
+
+- ⇒ ABI 修 null-claim 不够；kind-gate false-claim 中和＝Capless AV；未达帧／call-mk／`0x868`。
+
+### 3) 三端门
+| 端 | 结果 |
+|---|---|
+| Win SoftCap Isol-site_abi_r8 `p_ret_*` | compile OK＝TT thin；**未运行绿** |
+| Win PROD SoftCap `7a2cf5da581a` | **未动** |
+| Darwin／Ubuntu | **未扩**（Win 未绿） |
+
+### 4) 硬 blocker（勿收刀／勿升 PROD／勿请批）
+1. Isol SoftCap-site kind-gates `@2be734`／`@2be781` `eax=1` false-claim SoftCap lit；中和→Capless continue **AV**。
+2. Isol SoftCap-site body ≠ LIVE SoftCap-site（kind dispatch vs validate／miss-`eax=0`）。
+3. Isol 缺 LIVE Cap`@0024e6` SoftCap lit 调度；单靠 Capless SoftCap-site miss 不够。
+4. Ban LIVE SoftCap 移植／arg-loop／twin。
+
+### 5) 下一拍最小刀（单点；禁字母堆／禁移植）
+1. Isol-native SoftCap lit call-mk writer：LIVE 形 SoftCap-site miss 后 Capless continue **无 AV** 且写出 call-mk／`0x868`；或 Isol 自建 Cap`@0024e6` 类 SoftCap dispatch（Isol-native；禁 LIVE SoftCap 移植／arg-loop 强跳／twin retarget）。
+2. 通后再验帧＋Darwin Cap soft＋Ubuntu tip-cold。未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 6) open
+- Isol-site_abi_r8 `de066e24b417`＋`_dig/build_isol_site_abi_r8.py`；笔记 `dig_site_abi_r8.md`
+- PROD SoftCap `7a2cf5da581a`／钉盘 ecdb5cc1e **未动**
+- bans unchanged
 
 
 ## 2026-10-30 ~13:45 CST Asia/Shanghai — DIG Capless-alt SoftCap-site；calt_args／calt_miss 证伪（AV）
