@@ -1,5 +1,92 @@
 # DIG 10.60 SoftCap PROGRESS
 
+**2026-10-30 ~15:25 CST (Asia/Shanghai)** · SoftCap lit post-`@201f36`：**@201ea0／@201ddf 全 HIT**（AV ≠ +0x150）· Capless→kind3→call-mk `@57b98c`→`@5752bc`：**eax==2→@5aaf18 HIT**·loop `@575778`→**jne `@575fa3` HIT**·fa3 clear 体 HIT · frontier＝post-fa3/`@5762a2` · SoftCap **未绿** → 勿升 PROD／钉 **不升**／勿收刀 · 下一拍：`@575fa3` post-clear／`@5762a2` 单点；禁长挂／移植／arg-loop／twin／字母堆
+
+
+## 2026-10-30 ~15:25 CST Asia/Shanghai — DIG SoftCap lit post-@201f36；AV ≠ @201ddf；入 call-mk→@575fa3
+
+### 0) 闸
+- tip HEAD `8c3fcd91a`＝origin/dev（本拍前；commit 后见 tip）
+- Base h3_jesk `cfb0fae4f5d9`；短超时 INT3；已清 cave `_dig_host_*`
+- PROD SoftCap `7a2cf5da581a` **未动**／钉 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／未绿请批／LEGACY／字母堆／LIVE SoftCap 移植／arg-loop／twin：遵守
+
+### 1) DIG 钉死（本拍）
+1. Capless post-`@201f36`：`@201ea0`／`@201ddf` **entry→ret HIT** ⇒ **AV ≠ `@201ddf`／+0x150**（证伪）。
+2. Cap join `@577681`→kind3 `@577c37`→`@1ff2ef`→`@578273 call @57b98c`：**入 call-mk**（`@57bb30` HIT）。
+3. `@5752bc`：`@563e0c` HIT；**eax==2 fallthrough**→`@5aaf18` HIT；loop `@5755a9`／join `@575778` HIT。
+4. Loop exit `@575793 jne @575fa3` **HIT**；`@575fa3` clear 路径体 HIT（`@575fb7`／`@575fcc`／`@575fe3`／`@575fef`…）。
+5. Frontier＝post-fa3 clear／`@57605c jmp @5762a2`（未全 densed）。
+6. Plants：skip_ddf→T001；kind_ft→仍 AV；非绿。
+
+### 2) Win SoftCap 门
+| Isol | sha12 | lit／fwd／local |
+|---|---|---|
+| h3_jesk | `cfb0fae4f5d9` | AV／GS／AV |
+
+### 3) 三端门
+| 端 | 结果 |
+|---|---|
+| Win SoftCap p_ret_* | **未运行绿** |
+| Darwin／Ubuntu | **未扩**（Win 未绿） |
+| PROD／钉 | **未动** |
+
+### 4) 硬 blocker
+1. SoftCap lit AV 在 call-mk `@5752bc` post-`@575fa3` clear（非 `@201ddf`）。
+2. 无稳定 Isol-native SoftCap lit `0x868` 写出／p_ret 运行绿。
+3. Ban 移植／arg-loop／twin／字母堆／长挂。
+
+### 5) 下一拍最小刀
+1. 单点 DIG `@575fa3` post-clear／`@5762a2`；短超时。
+2. 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 6) open
+- 笔记 `_dig/dig_post_f36.md`；logs post_jmp／post_loop／fa3＋既有
+- PROD SoftCap `7a2cf5da581a`／钉 ecdb5cc1e **未动**
+
+
+## 2026-10-30 ~15:15 CST Asia/Shanghai — DIG SoftCap lit post-@201f36；AV ≠ @201ddf/+0x150；入 call-mk
+
+### 0) 闸
+- tip HEAD `8c3fcd91a`＝origin/dev（本拍前；commit 后见 tip）
+- Base h3_jesk `cfb0fae4f5d9`；短超时 INT3；已清 cave `_dig_host_*`（盘满）
+- PROD SoftCap `7a2cf5da581a` **未动**／钉 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／未绿请批／LEGACY／字母堆／LIVE SoftCap 移植／arg-loop／twin：遵守
+
+### 1) DIG 钉死（本拍）
+1. Capless post-`@201f36`：`call @201ea0`（size +0x250）**entry→ret HIT**；`call @201ddf`（memcpy +0x150）**entry→memcpy→ret HIT**。
+2. ⇒ **AV root ≠ inside `@201ddf`／+0x150**（证伪本拍前假设）。
+3. Cap join `@577681` HIT → kind3 exit `@577c37` HIT → `@1ff2ef` HIT → `@578273 call @57b98c` **入 call-mk**。
+4. call-mk：`@57bb30 call @5752bc` HIT；`@5752bc` 深 HIT（`@5754ed`／`@1ff2a3` 全 HIT／`@563e0c` HIT／`@575645`／`@575648` HIT）。
+5. Frontier＝post-`@575648`（`@575667 call @5aaf18`／skip `@575778` plant AV）。
+6. Plants：skip_ddf→T001；kind_ft→仍 AV；非绿。
+
+### 2) Win SoftCap 门
+| Isol | sha12 | lit／fwd／local |
+|---|---|---|
+| h3_jesk | `cfb0fae4f5d9` | AV／GS／AV |
+
+### 3) 三端门
+| 端 | 结果 |
+|---|---|
+| Win SoftCap p_ret_* | **未运行绿** |
+| Darwin／Ubuntu | **未扩**（Win 未绿） |
+| PROD／钉 | **未动** |
+
+### 4) 硬 blocker
+1. SoftCap lit AV 在 call-mk `@5752bc` post-`@575648`（非 `@201ddf`）。
+2. 无稳定 Isol-native SoftCap lit `0x868` 写出／p_ret 运行绿。
+3. Ban 移植／arg-loop／twin／字母堆／长挂。
+
+### 5) 下一拍最小刀
+1. 单点 DIG call-mk `@5752bc` post-`@575648`（`@5aaf18`／skip／eax==2 分支）；短超时。
+2. 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 6) open
+- 笔记 `_dig/dig_post_f36.md`；logs post_f36／post_ddf／post_kind／k3_epi／callmk*／5752bc／5754c1／1ff2a3／post_1ff
+- PROD SoftCap `7a2cf5da581a`／钉 ecdb5cc1e **未动**
+
+
 **2026-10-30 ~15:10 CST (Asia/Shanghai)** · SoftCap lit emit `call @201f36` **AV root 钉死：非 @201f36 内**（entry→ret HIT；args `node@+0x490`／`idx@+0x424`／`buf@+0x60` OK）· AV＝Capless **返回后**（`@201ea0`／`@201ddf`）· SoftCap **未绿** → 勿升 PROD／钉 **不升**／勿收刀 · 下一拍：post-`@201f36` SoftCap lit AV（`@201ddf`/+0x150）单点；禁长挂／移植／arg-loop／twin／字母堆
 
 
