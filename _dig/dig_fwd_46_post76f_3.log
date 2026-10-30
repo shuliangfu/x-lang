@@ -1,0 +1,108 @@
+=== A refs ===
+  [base] sha=3f43f1609d70
+  base/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  base/p_ret_fwd.x    GS       USER=- run=-
+  base/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  base/_var_let.x     AV       USER=- run=-
+  [hollow] sha=18b229af77bd
+  hollow/p_ret_lit.x    OK       USER=863f340950ce run=OK
+  hollow/p_ret_fwd.x    OK       USER=e411d7260d78 run=OK
+  hollow/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  hollow/_var_let.x     OK       USER=f6d6443bef9e run=OK
+  [h8a5] sha=16e9fedabe3e
+  h8a5/p_ret_lit.x    OK       USER=863f340950ce run=OK
+  h8a5/p_ret_fwd.x    OK       USER=e411d7260d78 run=OK
+  h8a5/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  h8a5/_var_let.x     OK       USER=f6d6443bef9e run=OK
+
+=== B jmp @46a8a5 → 46a97a ===
+  [jmp97a] sha=8f86f135625a
+  jmp97a/p_ret_lit.x    OK       USER=863f340950ce run=OK
+  jmp97a/p_ret_fwd.x    GS       USER=- run=-
+  jmp97a/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  jmp97a/_var_let.x     OK       USER=f6d6443bef9e run=OK
+
+=== C skip967 variants ===
+  [skip967] sha=6046b0d1e7c8
+  skip967/p_ret_lit.x    OK       USER=863f340950ce run=OK
+  skip967/p_ret_fwd.x    GS       USER=- run=-
+  skip967/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  skip967/_var_let.x     OK       USER=f6d6443bef9e run=OK
+  [s967_99d] sha=79f39a84ead4
+  s967_99d/p_ret_lit.x    OK       USER=863f340950ce run=OK
+  s967_99d/p_ret_fwd.x    OK       USER=e411d7260d78 run=OK
+  s967_99d/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  s967_99d/_var_let.x     OK       USER=f6d6443bef9e run=OK
+
+=== D z1a0_1a8 ===
+  [z1a0] sha=a20801275579
+  z1a0/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  z1a0/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS
+  z1a0/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  z1a0/_var_let.x     crc=0x1  USER=- run=-
+
+=== E z1a0 combos ===
+  [z_s99] sha=4c66fac3109c
+  z_s99/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  z_s99/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS
+  z_s99/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  z_s99/_var_let.x     crc=0x1  USER=- run=-
+  [z_s96799] sha=0538680b7a95
+  z_s96799/p_ret_lit.x    OK       USER=863f340950ce run=OK
+  z_s96799/p_ret_fwd.x    OK       USER=e411d7260d78 run=OK
+  z_s96799/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  z_s96799/_var_let.x     OK       USER=f6d6443bef9e run=OK
+
+=== F hollow bisect 8a5..97a ===
+  [h8a5b] sha=16e9fedabe3e
+  h8a5b/p_ret_lit.x    OK       USER=863f340950ce run=OK
+  h8a5b/p_ret_fwd.x    OK       USER=e411d7260d78 run=OK
+  h8a5b/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  h8a5b/_var_let.x     OK       USER=f6d6443bef9e run=OK
+  [h8ba] sha=8f033c2dfc50
+  h8ba/p_ret_lit.x    OK       USER=863f340950ce run=OK
+  h8ba/p_ret_fwd.x    GS       USER=- run=-
+  h8ba/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  h8ba/_var_let.x     OK       USER=f6d6443bef9e run=OK
+  [h8e3] sha=c9a8d9683484
+  h8e3/p_ret_lit.x    OK       USER=863f340950ce run=OK
+  h8e3/p_ret_fwd.x    GS       USER=- run=-
+  h8e3/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  h8e3/_var_let.x     OK       USER=f6d6443bef9e run=OK
+  [h93c] sha=83e3a2a12307
+  h93c/p_ret_lit.x    OK       USER=863f340950ce run=OK
+  h93c/p_ret_fwd.x    GS       USER=- run=-
+  h93c/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  h93c/_var_let.x     OK       USER=f6d6443bef9e run=OK
+  [h958b] sha=072f1a241ff2
+  h958b/p_ret_lit.x    OK       USER=863f340950ce run=OK
+  h958b/p_ret_fwd.x    GS       USER=- run=-
+  h958b/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  h958b/_var_let.x     OK       USER=f6d6443bef9e run=OK
+  [h96c] sha=bfd78c9fdce9
+  h96c/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  h96c/p_ret_fwd.x    GS       USER=- run=-
+  h96c/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  h96c/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  [h97ab] sha=faca446042b6
+  h97ab/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  h97ab/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS
+  h97ab/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  h97ab/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+
+=== G z1a0 INT3 path (if lit not AV) ===
+  INT3@46a967 z_c469         fwd=INT3     let=INT3    
+  INT3@46a96c z_a469         fwd=INT3     let=INT3    
+  INT3@46a99d z_c47a         fwd=INT3     let=crc=0x1 
+  INT3@46af65 z_ret          fwd=INT3     let=INT3    
+  INT3@57674b z_aft46        fwd=INT3     let=crc=0x1 
+
+=== H jmp97a + skip99d ===
+  [j97_s99] sha=3548f1e05758
+  j97_s99/p_ret_lit.x    OK       USER=863f340950ce run=OK
+  j97_s99/p_ret_fwd.x    OK       USER=e411d7260d78 run=OK
+  j97_s99/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  j97_s99/_var_let.x     OK       USER=f6d6443bef9e run=OK
+
+elapsed=5.4s
+cleaned

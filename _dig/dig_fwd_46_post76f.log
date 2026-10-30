@@ -1,0 +1,130 @@
+=== A baselines ===
+  [base] sha=3f43f1609d70
+  base/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  base/p_ret_fwd.x    GS       USER=- run=-
+  base/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  base/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  [hollow_only] sha=18b229af77bd
+  hollow_only/p_ret_lit.x    OK       USER=863f340950ce run=OK
+  hollow_only/p_ret_fwd.x    OK       USER=e411d7260d78 run=OK
+  hollow_only/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  hollow_only/_var_let.x     OK       USER=f6d6443bef9e run=OK
+
+=== B INT3 post-76f under base ===
+  INT3@46a774 aft76f         fwd=INT3     let=INT3    
+  INT3@46a781 jle8a5         fwd=INT3     let=INT3    
+  INT3@46a8a5 at8a5          fwd=INT3     let=INT3    
+  INT3@46a8ba rd198          fwd=INT3     let=INT3    
+  INT3@46a93c set_r9         fwd=INT3     let=INT3    
+  INT3@46a958 rd1a0          fwd=INT3     let=INT3    
+  INT3@46a967 call_469       fwd=INT3     let=INT3    
+  INT3@46a96c aft_469        fwd=INT3     let=INT3    
+  INT3@46a97a cont97a        fwd=INT3     let=INT3    
+  INT3@46a99d call_47a       fwd=INT3     let=INT3    
+  INT3@46a9c6 aft_fe0        fwd=INT3     let=INT3    
+  INT3@46aa14 call_451       fwd=INT3     let=INT3    
+  INT3@46aa27 at_aa27        fwd=INT3     let=INT3    
+  INT3@46aa3c aft_44c        fwd=INT3     let=INT3    
+  INT3@46ab77 at_ab77        fwd=INT3     let=INT3    
+  INT3@46af29 at_af29        fwd=INT3     let=INT3    
+  INT3@46af58 eax0           fwd=INT3     let=INT3    
+  INT3@46af5d add_rsp        fwd=INT3     let=INT3    
+  INT3@46af65 ret1           fwd=INT3     let=INT3    
+  INT3@57674b after_46       fwd=GS       let=AV      
+
+=== C hollow bisect post-76f ===
+  [h774] sha=c8ac8c76ecab
+  h774/p_ret_lit.x    OK       USER=863f340950ce run=OK
+  h774/p_ret_fwd.x    OK       USER=e411d7260d78 run=OK
+  h774/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  h774/_var_let.x     OK       USER=f6d6443bef9e run=OK
+  [h8a5] sha=16e9fedabe3e
+  h8a5/p_ret_lit.x    OK       USER=863f340950ce run=OK
+  h8a5/p_ret_fwd.x    OK       USER=e411d7260d78 run=OK
+  h8a5/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  h8a5/_var_let.x     OK       USER=f6d6443bef9e run=OK
+  [h958] sha=072f1a241ff2
+  h958/p_ret_lit.x    AV       USER=- run=-
+  h958/p_ret_fwd.x    GS       USER=- run=-
+  h958/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  h958/_var_let.x     AV       USER=- run=-
+  [h967] sha=e6f1111422a4
+  h967/p_ret_lit.x    AV       USER=- run=-
+  h967/p_ret_fwd.x    GS       USER=- run=-
+  h967/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  h967/_var_let.x     AV       USER=- run=-
+  [h97a] sha=faca446042b6
+  h97a/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  h97a/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS
+  h97a/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  h97a/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  [h9c6] sha=1e5536697c9a
+  h9c6/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  h9c6/p_ret_fwd.x    GS       USER=- run=-
+  h9c6/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  h9c6/_var_let.x     AV       USER=- run=-
+  [haa27] sha=527fcad795f8
+  haa27/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  haa27/p_ret_fwd.x    GS       USER=- run=-
+  haa27/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  haa27/_var_let.x     AV       USER=- run=-
+  [hab77] sha=d4b84f195b97
+  hab77/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  hab77/p_ret_fwd.x    GS       USER=- run=-
+  hab77/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  hab77/_var_let.x     AV       USER=- run=-
+  [haf29] sha=18e4ef5df6ee
+  haf29/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  haf29/p_ret_fwd.x    GS       USER=- run=-
+  haf29/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  haf29/_var_let.x     AV       USER=- run=-
+  [haf58] sha=8193b85d6bd1
+  haf58/p_ret_lit.x    crc=0xc000001d USER=- run=-
+  haf58/p_ret_fwd.x    crc=0xc000001d USER=- run=-
+  haf58/p_ret_local.x  crc=0xc000001d USER=- run=-
+  haf58/_var_let.x     crc=0xc000001d USER=- run=-
+
+=== D plant z1a0 @46a54f (zero 6th stack home) ===
+  [z1a0d] sha=c691455f5433
+  z1a0d/p_ret_lit.x    AV       USER=- run=-
+  z1a0d/p_ret_fwd.x    AV       USER=- run=-
+  z1a0d/p_ret_local.x  AV       USER=- run=-
+  z1a0d/_var_let.x     AV       USER=- run=-
+
+=== E plant z1a0d+z1a8d @54f/@559 ===
+  [z6th7th] sha=f60b8b076e8b
+  z6th7th/p_ret_lit.x    AV       USER=- run=-
+  z6th7th/p_ret_fwd.x    AV       USER=- run=-
+  z6th7th/p_ret_local.x  AV       USER=- run=-
+  z6th7th/_var_let.x     AV       USER=- run=-
+
+=== F force jle@46a781 → jmp 46a8a5 (skip 1fb1e2 path) ===
+  [force8a5] sha=97b95e5ede15
+  force8a5/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  force8a5/p_ret_fwd.x    GS       USER=- run=-
+  force8a5/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  force8a5/_var_let.x     AV       USER=- run=-
+
+=== G skip call@46a967 (uses [rbp+0x1a0]) ===
+  [skip967] sha=6046b0d1e7c8
+  skip967/p_ret_lit.x    OK       USER=863f340950ce run=OK
+  skip967/p_ret_fwd.x    GS       USER=- run=-
+  skip967/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  skip967/_var_let.x     OK       USER=f6d6443bef9e run=OK
+
+=== H skip call@46a99d ===
+  [skip99d] sha=e001a1f2b0ee
+  skip99d/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  skip99d/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS
+  skip99d/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  skip99d/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+
+=== I z6th7th + skip967 ===
+  [zskip967] sha=9670b72ba7b7
+  zskip967/p_ret_lit.x    AV       USER=- run=-
+  zskip967/p_ret_fwd.x    AV       USER=- run=-
+  zskip967/p_ret_local.x  AV       USER=- run=-
+  zskip967/_var_let.x     AV       USER=- run=-
+
+elapsed=8.1s
+cleaned

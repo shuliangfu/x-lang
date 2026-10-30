@@ -1,5 +1,38 @@
 # 10.60 SoftCap DIG PROGRESS
 
+**2026-10-30 ~18:55 CST (Asia/Shanghai)** · DIG `fwd_46_post76f`：钉 body 砸＝miss 6th/7th→`call@46a967`/`@46a99d`；**Isol `skip_1a0_calls` sha `79f39a84ead4`** lit/local/fwd/let **OK run**（保 body，跳两 call；USER＝hollow 形，非语义收刀）；勿升 PROD／钉 **不升** · 下一单点：`fwd_46_capless_1a0`
+
+
+## 2026-10-30 ~18:55 CST Asia/Shanghai — DIG `fwd_46_post76f`；Isol skip_1a0_calls 绿；下一 `fwd_46_capless_1a0`
+
+### 0) 闸
+- tip HEAD `187c1942a`＝origin/dev（本拍前；commit 后见 tip）
+- Isol host baseline `3f43f1609d70`；plant skip_1a0_calls `79f39a84ead4`；hollow_only 对照 `18b229af77bd`
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／tip@121278／join／epi／LIVE SoftCap 移植／arg-loop／LIVE spill／`[4b0]=1`／字母堆／扩链假 Isol／依赖 nopr9 抖 AV：遵守
+
+### 1) DIG 钉死（本拍）
+1. INT3：post-76f 至 `ret1` 齐 HIT；`after_46` fwd=GS。hollow`@774`/`@8a5` 绿；跑满 `8a5+`→emit 变／GS。
+2. Capless 只写 5th `[rsp+0x20]`；46 读 **`[rbp+0x1a0]`/`[rbp+0x1a8]`**（6th/7th）未写 → `call@46a967`/`@46a99d` 砸。
+3. `skip99d`／`z1a0`：compile 过或 call HIT，USER run 仍 GS。
+4. **`skip_1a0_calls`**：两 call→`xor eax;nop*3` sha `79f39a84ead4` 门绿；保 pre-76f＋8a5 检查＋post-99d；USER＝hollow 形 → **非语义收刀**。
+
+### 2) Win SoftCap 门
+| Isol plant | sha12 | lit | fwd | local | let | 注 |
+|---|---|---|---|---|---|---|
+| cmk0_irdx_sub20（对照） | 3f43f1609d70 | OK run0 | **GS** | OK run1 | ∽ | |
+| hollow_only（对照） | 18b229af77bd | OK | OK | OK | OK | 跳 body |
+| skip99d（诊） | e001a1f2b0ee | OK | OK/run **GS** | OK | OK | |
+| **skip_1a0_calls** | **79f39a84ead4** | **OK run0** | **OK run0** | **OK run1** | **OK** | **Isol；跳两 call** |
+
+### 3) 下一拍最小刀（单点）
+- **`fwd_46_capless_1a0`**：Capless 写实 6th/7th 或 Isol 填真 `[rbp+0x1a0]`/`[rbp+0x1a8]`，让两 call 可跑且 USER≠hollow。禁 tip@121278／join／epi-raise／LIVE／mega／字母堆／假绿 force-kind／整函数 hollow 当收刀。
+- USER 仍 hollow 形 → **勿升 PROD／勿请批** 直至真参路径稳绿。
+
+### 4) open
+- 笔记 `_dig/dig_fwd_46_post76f.md`；脚本／log `_dig/dig_fwd_46_post76f{,_2,_3,_4}.py`／`.log`
+- PROD／钉 **未动**；bans unchanged
+
 **2026-10-30 ~18:45 CST (Asia/Shanghai)** · DIG `fwd_46a500`：钉 `0x46a4db` body 砸 ret／after_46 fwd=GS；**hollow_only `@46a4e3→epi` sha `18b229af77bd`** lit/local/fwd/let **OK run**；body 跳过非手术；勿升 PROD／钉 **不升** · 下一单点：`fwd_46_post76f`
 
 

@@ -1,0 +1,10 @@
+=== confirm skip_1a0_calls (nop call@46a967 + call@46a99d) ===
+  [skip_1a0_calls] sha=79f39a84ead4
+  skip_1a0_calls/p_ret_lit.x    OK       USER=863f340950ce run=OK
+  skip_1a0_calls/p_ret_fwd.x    OK       USER=e411d7260d78 run=OK
+  skip_1a0_calls/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  skip_1a0_calls/_var_let.x     OK       USER=f6d6443bef9e run=OK
+  skip_1a0_calls/_var_fwd.x     OK       USER=e411d7260d78 run=OK
+CONFIRMED green skip_1a0_calls sha=79f39a84ead4
+elapsed=0.4s
+cleaned

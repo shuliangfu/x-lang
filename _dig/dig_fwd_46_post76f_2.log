@@ -1,0 +1,79 @@
+=== A refs ===
+  [base] sha=3f43f1609d70
+  base/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  base/p_ret_fwd.x    GS       USER=- run=-
+  base/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  base/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  [hollow_only] sha=18b229af77bd
+  hollow_only/p_ret_lit.x    OK       USER=863f340950ce run=OK
+  hollow_only/p_ret_fwd.x    OK       USER=e411d7260d78 run=OK
+  hollow_only/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  hollow_only/_var_let.x     OK       USER=f6d6443bef9e run=OK
+  [skip99d] sha=e001a1f2b0ee
+  skip99d/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  skip99d/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS
+  skip99d/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  skip99d/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+
+=== B skip99d + b0_h2c ===
+  [s99_b0] sha=c4fda1db7279
+  s99_b0/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  s99_b0/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS
+  s99_b0/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  s99_b0/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+
+=== C xor_r8 @46a97a (keep call 47a492) ===
+  [xor_r8] sha=c549287a922d
+  xor_r8/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  xor_r8/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS
+  xor_r8/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  xor_r8/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+
+=== D xor_r8 + z_ecx @981 ===
+  [xor_r8_z1a8] sha=deb46491e43c
+  xor_r8_z1a8/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  xor_r8_z1a8/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS
+  xor_r8_z1a8/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  xor_r8_z1a8/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+
+=== E skip99d + hollow after ===
+  [s99_h9c6] sha=a2f2b893c0ab
+  s99_h9c6/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  s99_h9c6/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS
+  s99_h9c6/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  s99_h9c6/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  [s99_haa27] sha=2c734050b0cd
+  s99_haa27/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  s99_haa27/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS
+  s99_haa27/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  s99_haa27/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  [s99_hab77] sha=a4535978ec8e
+  s99_hab77/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  s99_hab77/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS
+  s99_hab77/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  s99_hab77/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  [s99_haf29] sha=198c49b5c2cf
+  s99_haf29/p_ret_lit.x    OK       USER=5c6778769c3c run=OK
+  s99_haf29/p_ret_fwd.x    OK       USER=f4839df16ab1 run=GS
+  s99_haf29/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  s99_haf29/_var_let.x     OK       USER=8506caa7a731 run=crc=0x1
+  [s99_hollow] sha=a7a35047fc95
+  s99_hollow/p_ret_lit.x    OK       USER=863f340950ce run=OK
+  s99_hollow/p_ret_fwd.x    OK       USER=e411d7260d78 run=OK
+  s99_hollow/p_ret_local.x  OK       USER=36d26fcc9657 run=OK
+  s99_hollow/_var_let.x     OK       USER=f6d6443bef9e run=OK
+
+=== F Capless stack args dig sizes ===
+  576732: 488b8590040000       mov rax, qword ptr [rbp + 0x490]
+  576739: 8b8db0040000         mov ecx, dword ptr [rbp + 0x4b0]
+  57673f: 894c2420             mov dword ptr [rsp + 0x20], ecx
+  576743: 4889c1               mov rcx, rax
+  576746: e8903defff           call 0x46a4db
+  57674b: 898550040000         mov dword ptr [rbp + 0x450], eax
+
+=== G zero 1a0/1a8 via buffer-clear slots @58d/@595 ===
+Traceback (most recent call last):
+  File "C:\xlang_tmp\p1060\cave\dig_fwd_46_post76f_2.py", line 180, in <module>
+    assert len(blob)==16
+           ^^^^^^^^^^^^^
+AssertionError
