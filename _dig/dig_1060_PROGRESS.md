@@ -1,5 +1,44 @@
 # 10.60 SoftCap DIG PROGRESS
 
+**2026-10-30 ~16:00 CST (Asia/Shanghai)** · DIG `emit_u32` feeder：frontier **falsified**（`emit_u32`≠frame_sz）；真 USER `enc_prologue=@50f3e0` HIT（edx→align→`emit_raw4` `48 81 EC`+sz）；dispatch `@523600` HIT（edx=sz arg）；无 on-path imm `0x68/0x1b8`；plant `feed_u32`/`fsz_868` **不可隔离** → 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：`@523600` callers／edx size compute（禁 tip@121278／join／epi／LIVE／mega）
+
+
+## 2026-10-30 ~16:00 CST Asia/Shanghai — DIG emit_u32 feeder；real prol@50f3e0；plant 不可隔离
+
+### 0) 闸
+- tip HEAD `d3c2d1a68`＝origin/dev
+- Isol alt_frame2 `9378df517f96`；baseline lit sha `332eed5f048b`（`0x68`+`0x1b8`，`0x868=False`）
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／LEGACY／字母堆／LIVE SoftCap 移植／arg-loop／tip@121278／join／epi：遵守
+
+### 1) DIG 钉死（本拍）
+1. 先验 frontier「on-path `emit_u32(frame_sz)` feeder」**证伪**：`emit_u32@5110f8` HIT 为通用 u32 写，**非** USER `sub rsp` size。
+2. 真 USER prologue 写者＝**`@50f3e0` HIT**：edx=`frame_sz` → align → pack `0xEC8148` → `emit_raw4@511094` HIT 写出 `48 81 EC`+sz。
+3. 模板 `@512f0c` 仍 off-path（0 E8）；dispatch **`@523600` HIT**（mode else → prol；edx 自 `[rbp+0x18]` arg）。
+4. Capless/enc-band／prol 近窗 `mov *,0x68/0x1b8` → E8 prol：**[]**；size 为上游 arg／compute。
+
+### 2) Win SoftCap 门（cave；probe 后清）
+| probe | result |
+|---|---|
+| INT3 emit_u32 / emit_raw4 / prol@50f3e0 / e8@52364b / cfn@523600 | **HIT** |
+| INT3 e8@5236c1 | OK off-path |
+| plant fsz_868 imm | **无可 HIT imm 位** → 未造船 |
+| baseline p_ret_lit | OK `332eed5f048b`；`868=False` |
+
+### 3) 硬 blocker（勿收刀／勿升 PROD／勿请批）
+1. SoftCap CallExpr：sret 后缺 imm→rdx＋call mk → exit 1；帧 thin≠`0x868`/`0x878`。
+2. `feed_u32`／`fsz_868`：**不可隔离**（size＝arg into `@523600`/`@50f3e0`）。
+3. bans：tip@121278／join／epi／LIVE／mega／arg-loop。
+
+### 4) 下一拍最小刀（单点）
+1. DIG 谁 **call `@523600`** 且 edx=`0x68`/`0x1b8`（E8：`@20ee89/@20f08a/@238694/@5b0d49`）／size compute；有 HIT imm 则单点 plant SoftCap `0x868`。
+2. 通后再验帧＋Darwin Cap soft＋Ubuntu tip-cold。未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 5) open
+- 笔记 `_dig/dig_feed_u32.md`；脚本 `_dig/dig_feed_u32{,b,c,d,e,f}.py`＋logs
+- PROD SoftCap `7a2cf5da581a`／钉盘 ecdb5cc1e **未动**
+- bans unchanged
+
 **2026-10-30 ~15:54 CST (Asia/Shanghai)** · DIG Capless-internal USER enc：`emit_u8@511018`/`emit_u32@5110f8` **HIT**；prologue 模板 `@512f0c`=`48 81 EC`+zero（0 E8 callers／lit off-path）；Capless/enc-band `frame_sz` imm **未 HIT**；plant `int_enc868` AV/GS；**plant 不可隔离** → 勿升 PROD／钉 **不升**／勿收刀 · 下一单点：on-path `emit_u32(frame_sz)` 喂入（禁 tip@121278／join／epi／LIVE／mega）
 
 ## 2026-10-30 ~15:54 CST Asia/Shanghai — DIG Capless-internal USER enc frame_sz→enc_prologue
