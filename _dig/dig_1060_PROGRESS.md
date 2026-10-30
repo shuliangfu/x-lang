@@ -1,5 +1,38 @@
 # 10.60 SoftCap DIG PROGRESS
 
+**2026-10-30 ~17:45 CST (Asia/Shanghai)** · plant `cmk0_irdx_sub20`：**lit 绿** sub20-first＋imm→rdx（USER `78015bac7508` run=0；序反则 AV）；fwd **仍 GS**（证伪仅缺 sub20）／local OK run=1；INT3 `@57ba3b` HIT；勿升 PROD／钉 **不升**／勿收刀 · 下一单点：`fwd_gs_root`（DIG p_ret_fwd compile GS）
+
+
+## 2026-10-30 ~17:45 CST Asia/Shanghai — plant `cmk0_irdx_sub20`；lit 绿；fwd GS
+
+### 0) 闸
+- tip HEAD `0a0c910c8`＝origin/dev（本拍前；commit 后见 tip）
+- Isol alt_frame2 `9378df517f96`／host plant `3f43f1609d70`
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／tip@121278／join／epi／LIVE SoftCap 移植／arg-loop／LIVE spill／`[4b0]=1`：遵守
+
+### 1) DIG 钉死（本拍）
+1. 承接 `cmk0_irdx` lit 无 sub20；假说 fwd GS＝缺影空。
+2. USER12＝12B≤24；`c643`×12 贴 74B；`@57ba94` 8→12。
+3. **序**：imm→rdx+sub20 → AV；**sub20→imm→rdx** → lit 绿。
+4. lit USER：`lea; sub20; mov eax,0xa; mov rdx,rax; call; add rsp,0x20`。
+5. fwd 仍 GS → **证伪**「仅补 call-mk sub20 治 fwd GS」。
+
+### 2) Win SoftCap 门
+| Isol plant | sha12 | lit | fwd | local | USER |
+|---|---|---|---|---|---|
+| cmk0_irdx_sub20 (sub+imm) | 3f43f1609d70 | OK 78015bac7508 run0 | GS | OK 021c621d2143 run1 | sub20＋imm→rdx；lit 绿 |
+| cmk0_irdx_sub20 (imm+sub) | 1060073517a5 | AV | GS | AV | 序红 |
+
+### 3) 下一拍最小刀（单点）
+- **`fwd_gs_root`**：DIG SoftCap `p_ret_fwd` compile GS（lit/local 同 plant 可编）。禁 tip@121278／join／epi／LIVE／mega／arg-loop／字母堆。
+- 未双门绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 4) open
+- 笔记 `_dig/dig_cmk0_irdx_sub20.md`；脚本／log `_dig/dig_cmk0_irdx_sub20.py`／`.log`
+- PROD／钉 **未动**；bans unchanged
+
+
 **2026-10-30 ~17:40 CST (Asia/Shanghai)** · plant `cmk0_irdx`：**lit 绿** Isol-native imm→rdx（USER `776e855a8cae` run=0；无 LIVE spill）；fwd **GS**／local OK run=1；INT3 `@57ba3b` HIT；`[rbp-0x80]` 24B 够 8B；勿升 PROD／钉 **不升**／勿收刀 · 下一单点：`cmk0_irdx_sub20`（保 sub20 影空治 fwd GS）或 DIG fwd GS
 
 
