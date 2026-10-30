@@ -44,3 +44,8 @@ Capless early-out alone cannot explain LIVE green (LIVE Capless same). Dig **one
 3. Confirm whether Isol SoftCap CallExpr even enters CALL handler after glue sret lea, or returns success with zero call bytes.
 
 Plant only that single site on Isol-TT. **Ban** mega / whole-tree / new cave letter pile.
+
+
+## Follow-up 2026-10-30 ~12:40 — candidates 1+2 isomorphic; Isol-scap0 SoftCap=0 falsified
+
+See `dig_scap0_flag_encode.md`. SoftCap flag Isol@1cf074/LIVE@464cb isomorphic; encode Isol@1e20b1/LIVE@59ad9 isomorphic and unused on >16 SoftCap twin early-return. LIVE call-mk = SoftCap `@289dcb` via twin kind==0x31. Plant `scap0` (nop SoftCap≠0 jne @1cf0a8) emit＝TT / exit 1.

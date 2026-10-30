@@ -1254,3 +1254,50 @@ Isol CapFN 体内 E8 入 SoftCap mega `[0x57effc,0x58e9a0)`：**5** 处；−Δ`
 - Isol-AAA `9326cde5b6af`／DDD `a9e70ef1595b`＋`_dig/build_isol_{aaa,ddd}.py`；笔记 `dig_earlyout_{yy155_gap,yy164_capfn,aaa_ddd_gap}.md`
 - PROD SoftCap `7a2cf5da581a`／钉盘 ecdb5cc1e **未动**
 - bans unchanged
+
+## 2026-10-30 ~12:40 CST Asia/Shanghai — DIG SoftCap flag／encode 同构钉死；Isol-scap0 SoftCap=0 证伪
+
+### 0) 闸
+- tip HEAD `fd99fd5b6`＝origin/dev（本拍前；commit 后见 tip）
+- Isol-TT `1f836615e0fc`；LIVE lit emit `dbaab1c7ce70`；TT lit emit `5b173cef1205`
+- Isol-scap0 sha12 **`a147a2410f84`**（语义短名；禁字母堆）
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／未绿请批／LEGACY／cave 字母堆：遵守
+
+### 1) DIG 钉死（本拍）
+1. **emit_expr SoftCap flag** Isol `@1cf074`／LIVE `@464cb`：**同构**；flag 本身不写 call-mk。SoftCap≠0→twin(0x30\|0x31)；SoftCap=0→alt `@272bde`。
+2. **CALL post-Capless encode** Isol `@1e20b1`／LIVE `@59ad9`：**同构**；仅 type==`0xa` 且 SoftCap／Capless 成功后调用。SoftCap twin `cmp [rbp-4],0x10`：**>16** 路径 SoftCap 后 **`mov eax,0; ret`**，**不**进 encode。
+3. **LIVE call-mk 权威**：SoftCap twin kind==`0x31` → LIVE SoftCap `@289dcb`；Isol 同槽 SoftMega `@57ef78`→SoftCap-full（YY155 无 CALL／CE／h_emit）。
+4. Capless 非 SoftCap CallExpr call-mk 权威（AAA／DDD／LIVE Capless 无 kind=0x30）仍持。
+
+### 2) Win SoftCap 门（cave `out_scap0`）
+| Isol | sha12 | plant | lit emit | n868／n878 | run |
+|---|---|---|---|---|---|
+| scap0 | `a147a2410f84` | SoftCap flag `@1cf0a8` jne→nop → SoftCap=0 alt | `5b173cef1205`＝TT | **0／0** | **exit 1** |
+
+- fwd／local 同形 emit＝TT；`n1b8=1` thin；`ba0a=0`
+- ⇒ SoftCap=0 alt **亦不**装 SoftCap lit call-mk
+
+### 3) 三端门
+| 端 | 结果 |
+|---|---|
+| Win SoftCap Isol-scap0 `p_ret_*` | 编译绿／**exit 1**；帧 thin；emit＝TT |
+| Win PROD SoftCap `7a2cf5da581a` | **未动** |
+| Darwin tip Cap soft `./compiler/xlang` sha12 `0c0a41335a35` | p_ret_lit/fwd/local **r=0** ✅ |
+| Ubuntu tip `compiler/bootstrap_xlangc` sha12 `ea9ddf4eb937` | p_ret_* **r=0** ✅；tip-cold pure-ld 既有断链另记 |
+
+### 4) 硬 blocker（勿收刀／勿升 PROD／勿请批）
+1. SoftCap CallExpr：sret `lea→rcx` 后缺 imm→rdx＋`call mk` → exit 1；帧 thin≠`0x868`/`0x878`。
+2. SoftCap flag／encode／SoftCap=0／Capless CapFN／SoftMega plants **均** emit＝TT。
+3. Isol SoftCap twin kind==0x31 → SoftMega ≠ LIVE SoftCap `@289dcb`；LIVE SoftCap 整树／mega **禁**。
+
+### 5) 下一拍最小刀（单点；禁字母堆）
+1. SoftCap twin `cmp [rbp-4],0x10`：试 `callsz_le`（强制 ≤0x10 路径＝SoftCap＋post helpers）或 >16 成功后落入 ≤0x10 helper 链（禁 early `mov eax,0; ret`）—— DIG helpers 是否写 call-mk。
+2. 或 SoftCap-full early success 后注入 Isol 内真实 imm→rdx＋E8 helper（先证 Isol 有该 helper；禁 LIVE SoftCap 移植）。
+3. 通后再验帧 `0x868`/`0x878`＋Darwin Cap soft＋Ubuntu tip-cold。未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 6) open
+- Isol-scap0 `a147a2410f84`＋`_dig/build_isol_scap0.py`；笔记 `dig_scap0_flag_encode.md`（续 `dig_earlyout_aaa_ddd_gap.md`）
+- PROD SoftCap `7a2cf5da581a`／钉盘 ecdb5cc1e **未动**
+- bans unchanged
+
