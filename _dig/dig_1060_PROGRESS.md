@@ -2191,3 +2191,32 @@ Isol CapFN 体内 E8 入 SoftCap mega `[0x57effc,0x58e9a0)`：**5** 处；−Δ`
 - PROD SoftCap `7a2cf5da581a`／钉盘 ecdb5cc1e **未动**
 - bans unchanged
 
+## 2026-10-30 ~16:12 CST Asia/Shanghai — DIG @24b49d summand／thin≠SoftCap；plant base_828 n868但exit1
+
+### 0) 闸
+- tip HEAD `c05001afc`＝origin/dev（本拍前；commit 后见 tip）
+- Isol alt_frame2 `9378df517f96`；baseline lit `332eed5f048b` n68=1 n1b8=1 n868=0 run_rc=1
+- PROD SoftCap `7a2cf5da581a` **未动**／钉盘 ecdb5cc1e **不升**
+- 禁 CloudAgent／10.74／HARD BAN／mega／整树／假绿／tip@121278／join／epi／LIVE SoftCap 移植／arg-loop：遵守
+
+### 1) DIG 钉死（本拍）
+1. `@24b49d` sum：`fc=(-44)+f0(@2a2ef3)+dc(@2a3077)+d8(@27ef44)`；`f8←ec(@27fbc5)`（0／ec+0x100／**clamp 0x800**）；`eax=fc+f8+0x40`。
+2. 四 feeder＋mut **全 HIT**；clamp`@24b998` lit **OK＝off-path** ⇒ 薄＝无 SoftCap pad。
+3. **`0x828−0x28=0x800`**＝f8 clamp；薄 base `0x28`/`0x178` 纯 compute，无 imm。
+4. plant `base_828` sha12 `0977d6fbb472`：lit/local **n868=2** 编译OK／**run exit1**（同薄 baseline）；fwd GS。`f8_800` 不稳 AV。帧 SoftCap 形 **≠** CallExpr 绿。
+
+### 2) Win SoftCap 门
+| Isol plant | sha12 | lit n868 | run |
+|---|---|---|---|
+| base_828 | `0977d6fbb472` | 2 | exit 1 |
+| f8_800 | `7fb689b4501e` | flaky | AV／GS |
+| edx_868（上拍） | `21827e406f6e` | — | AV／GS |
+
+### 3) 下一拍最小刀（单点）
+- DIG lit `@27fbc5` 为何 ec 小（无自然 0x800）；或 base_828 帧下 Isol-native CallExpr call-mk 单点。
+- 未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 4) open
+- 笔记 `_dig/dig_sum_feed.md`；脚本＋log `_dig/dig_sum_feed.py`／`.log`
+- PROD／钉 **未动**；bans unchanged
+
