@@ -1,5 +1,8 @@
 # DIG 10.60 / 10.61 SoftCap progress
 
+**2026-10-31 ~17:00 CST (Asia/Shanghai)** · SoftCap Prefer-M2 **+ dest-direct dig-egg GATE** on tip egg `06fa`: `lab_SoftCap_tip_preferM2.exe` sha12 **`db734adafe5e`** = store-encoder clamp `|off|>0x1000→0x18` + skip post-emit_expr `rs_copy_x86`@`0x1400f9974`. `p1061_sret_lit_multi` **EXIT=0** dest-direct (no identity copy); SoftCap cold **4/4**; one-stmt 0. Name-find@`local_offset_at` falsified earlier. Prefer-M2 tip `.x` deferred. **PROD Soft Cap `d263fe8c312b` / nail `ecdb5cc1e` unchanged**. Soft-stop 20:00 Asia/Shanghai.
+
+
 **2026-10-31 ~16:55 CST (Asia/Shanghai)** · Prefer-M2 dig-egg **GATE landed** (Win SoftCap tip egg only): store-encoder clamp `|off|>0x1000→0x18` on dig tip `06fa` → `lab_SoftCap_tip_clamp18.exe`/`preferM2` sha12 **`7d0998f54245`**; `p1061_sret_lit_multi` **EXIT=0** store `488945e8`; SoftCap cold lit/fwd/local/_var_let **4/4**; one-stmt still 0. Prefer name-find @`local_offset_at` **falsified** (scoped find returns 0 at store-time). Prefer-M2 tip `.x` deferred. **PROD Soft Cap `d263fe8c312b` / nail `ecdb5cc1e` unchanged**. Next: dest-direct on clamp-green egg. Soft-stop 20:00 Asia/Shanghai.
 
 # 10.60 SoftCap DIG PROGRESS

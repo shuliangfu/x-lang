@@ -67,3 +67,30 @@ Plant on SoftCap dig tip `06fa052fb409` → `lab_SoftCap_tip_clamp18.exe` / alia
 1. Dest-direct dig on clamp-green SoftCap tip egg (or Prefer-M2 tip.x if emit_let_init site found).
 2. Keep PROD `d263` / nail `ecdb` frozen until Darwin + Ubuntu + Win Soft Cap same tiphead all green.
 
+
+## 2026-10-31 ~17:00 CST Asia/Shanghai — Dest-direct dig-egg on clamp SoftCap tip
+
+**Tip:** `2bb734cdc`. **Dest-direct dig-egg:** **YES** (Win SoftCap tip egg only). **PROD Soft Cap** `d263fe8c312b` / **nail** `ecdb5cc1e` **unchanged**.
+
+### Measure
+F8 SoftCap tip already dest-writes STRUCT_LIT fields via `rbx←sret` (`fields(-3)`). Multi residual was **identity** `w1521_rs_copy_x86` (rax already == sret home). USER-strip of that copy → EXIT=0 (falsify).
+
+ONE / cold lit / fwd: no copy already. MULTI / local / `_var_let`: had copy; local/_var_let need the **early** win_forced VAR/FIELD `rs_copy` site.
+
+### Plant (stacked on clamp18)
+`lab_SoftCap_tip_clamp18_dd.exe` / alias `lab_SoftCap_tip_preferM2.exe` sha12 **`db734adafe5e`**:
+1. Store-encoder clamp `|off|>0x1000→0x18` @`0x14052f45e` (Prefer-M2 AV gate).
+2. Skip post-`emit_expr` Windows `rs_copy_x86` call @`0x1400f9974` → `xor eax,eax; nop×3` (keep early call @`0x1400f21c7` for VAR/FIELD).
+
+### Gate
+| probe | EXIT | sret-copy pattern |
+|-------|------|-------------------|
+| `p1061_sret_lit_multi` | **0** | **absent** (dest-direct; store `488945e8`) |
+| `p1061_sret_lit_one` | **0** | absent |
+| cold lit/fwd/local/_var_let | **4/4** | local/_var_let keep early copy |
+
+### Still open
+- Prefer-M2 tip `.x` (emit_let_init prefer name-find) deferred — root remains SoftCap index torn; clamp is dig smoke.
+- Tip `.x` dest-direct (skip Windows copy when STRUCT_LIT already wrote sret / `sret_copied`) not landed — SoftCap dig egg only.
+- No PROD Soft Cap / nail raise.
+
