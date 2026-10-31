@@ -151,3 +151,11 @@ Still **no PROD raise**. SoftCap PE clamp retire: **not yet**.
 2. Do **not** treat F9 SoftCap PE cave promote as Cap soft tip-HEAD cold-chain close.
 3. SoftCap PE clamp retire still **NO** until Cap soft tiphead cold green + Prefer-M2 E2E.
 4. Soft-stop 20:00; usage stop at 99.5%.
+
+
+## 12) 2026-10-31 ~18:06 CST — named-struct parse slit (thin_glue first-wins)
+
+- Hangprobe Cap soft tiphead `ae815` let_slit: HIT `named_type_x` / `type_alloc`; **MISS** `pipeline_type_init_named_at` / `finish_struct_lit`; HIT parse-skip. w1778 opposite (finish_struct HIT; no skip).
+- True-fix: tiphead `named_type_x` prologue **`sub rsp,0x258`**; w1778 + on-disk `pthin_type_ref_consume_real.o` = **`sub rsp,0x628`**. type_alloc body identical → Cap soft under-frame → alloc returns 0 → named_type fails → parse-skip → CG002 `code_len=0`.
+- Link root: `parser_asm_thin_glue.o` (USER_ASM_LINK, stale small-frame W) **first-wins** over `build_asm/selfhost_pabi/pthin_type_ref_consume_real.o` (large-frame W). `objcopy -N` refused (reloc-named); `objcopy --redefine-sym …=__stale_*` clears 31 overlap W on thin_glue.
+- Dig: redefine thin_glue → relink dig host (not PROD/nail; not SoftCap PE promote). Live page tip → `7086f0da7`.
