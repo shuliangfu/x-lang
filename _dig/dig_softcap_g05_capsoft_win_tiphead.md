@@ -318,3 +318,12 @@ body (stub vs E9 over-skip). SoftCap PE promote **NO**.
 3. COMBINED+MIN_TRAMP(+ATENDFIX if needed) cold N/4.
 4. If XT001 remains: realign stub/REV on tiphead dig (dig-only) — not PROD raise.
 
+## 22) 2026-10-31 ~19:31 Asia/Shanghai — Win NO_RECOVERY; soft-stop approach
+
+- Poll×8 (19:25–19:31): SSH closed / timed out / kex reset. Host ping was OK earlier; later nc/ssh flaky. Disk-full plant left sshd refusing sessions (`Not allowed at this time` then timeouts).
+- **No** slim at_end plant, **no** new tiphead dig sha, **no** cold re-run this slot.
+- Tiphead Cap soft still **`a135fe2c5162`** (at_end W JMP). Dig cold still ATENDFIX **`c6ee92cdc0b7` 0/4 XT001**. Cave **`ae81595209f3`**.
+- XT001 isol (Mac): hypothesis PARSE realign truncate (p1061) — pending Win nif/nso confirm.
+- PROD Soft Cap **`db734adafe5e` 不升**. Nail **`ecdb5cc1e` 不升**. SoftCap PE promote **NO**.
+- **Next after Win console/disk free:** delete `_atend_dis.asm`+temps → slim plant `pe_at_end_fix`/extracted Prefer-M2 at_end → prove `sub` → COMBINED/MIN_TRAMP cold → XT001/realign dig if needed.
+
