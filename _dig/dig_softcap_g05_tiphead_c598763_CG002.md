@@ -311,3 +311,11 @@ Guarded tiphead Cap soft rebuild / intentional cave promote of F9 dig host only 
 ## 13) 2026-10-31 ~15:35 CST — tiphead Cap soft = F9 dig (cold 4/4)
 
 Cave tip SoftCap promoted dig-only F9 `d263fe8c312b` (backup `13e5e99ef39b` at `.bak_pre_F9_promote`). Tiphead cold 4/4 + slit run=1. PROD/nail untouched. **Not SoftCap close.** Residual: HIT short main; Cap soft source rebuild still future path.
+
+## 2026-10-31 ~15:29 CST — cross-host SoftCap soft gates (post F9 tip SoftCap)
+
+- tip `92f11dbc2`; tip SoftCap Cap soft Win **`d263fe8c312b`**
+- Darwin Cap soft `compiler/xlang` **`0c0a41335a35`**: p_ret_lit/fwd/local **3/3 RC0**
+- Ubuntu tip SoftCap true RC `bootstrap_xlangc` **`ea9ddf4eb937`** @ tip `92f11dbc2`: p_ret_* **3/3 RC0** (pure-ld tip-cold skip — `_prev` undef known)
+- PROD/`7a2cf5da581a` / nail/`ecdb5cc1e` / w1778/`9c4746d5b5d7` untouched
+- Residual HIT short-main open. **Do not** mark knife ✅ / raise PROD — parent／经理 closes after Darwin+Ubuntu green (now reported).

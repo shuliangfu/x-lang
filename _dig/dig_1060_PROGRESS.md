@@ -3350,3 +3350,31 @@ Dig PE scaffold now sits as tip SoftCap Cap soft host. **Gate green ≠ PROD✅ 
 - Optional: clear HIT implicit-tail for full main a/b/c (W1778 span 0xe8).
 - Cap soft source/relink path still open for durable non-PE fix.
 - Soft 20:00 / 硬停 21:00. Dig beat parked green.
+
+
+## 2026-10-31 ~15:29 CST Asia/Shanghai — Darwin Cap soft + Ubuntu tip SoftCap true RC
+
+### 0) Gate (surgical; tip `92f11dbc2`)
+| Host | Binary | Result |
+|------|--------|--------|
+| Darwin Cap soft | `./compiler/xlang` sha12 **`0c0a41335a35`** | p_ret_lit/fwd/local **build=0 run=0** (3/3). `_var_let` no Darwin src — Win-only fourth. |
+| Ubuntu tip SoftCap true RC | `compiler/bootstrap_xlangc` sha12 **`ea9ddf4eb937`** size 7956816; tip ff `b764da9c8`→`92f11dbc2` | p_ret_lit/fwd/local **build=0 run=0** (3/3). |
+| Win tip SoftCap (settled) | cave `lab_CapSoftWin_tiphead.exe` **`d263fe8c312b`** size 8062464 | prior cold lit/fwd/local/_var_let **4/4** (F9). |
+
+### 1) Ubuntu tip-cold note
+- **True RC** = existing tip binary gates above (SoftCap knife pattern).
+- Skipped pure-ld `./xbuild build` tip-cold: historical `_prev` / `pipeline_asm_emit_return_elf_impl_prev` undef — **not** SoftCap runtime green; separate chain break.
+- ubuntu-remote-server (45.136.14.129:2200) Connection closed; used local gold `ubuntu-server` (ubuntu26).
+
+### 2) Untouched
+- PROD Capless cave `lab_SoftCap_76795.exe` **`7a2cf5da581a`**
+- nail **`ecdb5cc1e`**
+- w1778 `host_w1778.exe` **`9c4746d5b5d7`**
+- No tip SoftCap demote; WIP `g05_relink_env.sh` HAS_HOME left uncommitted.
+
+### 3) Residual (open; dig-only)
+- `has_implicit_return_tail` → USER main span **0x88** vs W1778 **0xe8** (mk still writes a/b/c; ABI matches W1778 fw). Historical dig bar since F3 — not empty-sret 假绿.
+- Gate green ≠ SoftCap knife close ≠ PROD raise. **Parent／经理 closes** knife ✅.
+
+### 4) Bans unchanged
+No PROD/nail raise. Ban CloudAgent／10.74／HARD BAN／mega／假绿／LEGACY／LIVE transplant／PE Isol as SoftCap close.
