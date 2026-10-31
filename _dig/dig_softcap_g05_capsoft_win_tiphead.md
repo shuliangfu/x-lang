@@ -283,3 +283,38 @@ tiphead rebuild to land in dig host; ATENDFIX remains dig proof until then.
 3. Re-apply COMBINED+MIN_TRAMP(+ATENDFIX if thin miss) on new tiphead dig; cold N/4.
 4. If-return coverage isol true-fix. SoftCap PE promote **NO**.
 
+## 21) 2026-10-31 ~19:22 Asia/Shanghai — XT001 if-return isol (Mac); Win still wedged
+
+### Tip / hosts
+- Mac tip HEAD after docs: see live page (Prefer-M2 content tip still `34832b037` / thin `d3e853e40`).
+- Tiphead Cap soft rebuild sha **`a135fe2c5162`** (Prefer-M2 at_end **not** in PE; still W JMP).
+- Dig cold still on ATENDFIX **`c6ee92cdc0b7`** (0/4 XT001). Cave **`ae81595209f3`**.
+- PROD Soft Cap **`db734adafe5e` 不升**. Nail **`ecdb5cc1e` 不升**.
+- Win SSH: TCP:22 up; kex **reset/timeout** after disk-full plant — no plant/cold this slot.
+
+### XT001 if-return coverage isol (true-fix progress; no code landed)
+Cold gates `p_ret_lit` / `p_ret_fwd` are the `if { return N; }… return 0` pattern.
+Prior SoftCap dig (`_dig/p1061_implicit_tail_DIG.md`) already falsified:
+
+- SoftCap Cap soft Win F9 AST: **nso=2 nif=1** (let+first if only) vs W1778 **nso=10 nif=3**.
+- **PARSE truncate WINS** — after first mid-block `parse_if`, Cap soft egg
+  `parser_asm_realign_lex_after_if_arm_into_c` E9 over-advances `lex_cur`,
+  dropping sibling if/let/while **and trailing `return`** → typeck **-6 / XT001**
+  (F0–F2 CONSUME_FIX same class: parse drops trailing return → XT001).
+- Tip Darwin Cap soft + tip `parser.x` emit 3×if OK — not tip Prefer-M2 `.x` root.
+- SoftCap tip egg REV_REALIGN dig **`06fa052fb409`** restored jcc=3 / cold 4/4
+  (PROD Soft Cap was **not** raised; stay on current PROD `db734`).
+
+**Hypothesis for Cap soft tiphead ATENDFIX residual XT001:** same PARSE
+over-skip lineage on tiphead dig host (COMBINED/ATENDFIX built from tiphead
+cave path, **not** REV_REALIGN SoftCap egg). `t_ret_only` OK / `t_if_ret` XT001
+matches truncate-after-first-if. Confirm when Win recovers: nif/nso on
+ATENDFIX vs w1778 for `p_ret_fwd`; check tiphead `realign_lex_after_if_arm`
+body (stub vs E9 over-skip). SoftCap PE promote **NO**.
+
+### Blocker / next
+1. **Win recover** → free `/c` (`_atend_dis.asm` ~97MB + temps).
+2. Slim plant Prefer-M2/`pe_at_end_fix` at_end thin → prove `sub` not JMP.
+3. COMBINED+MIN_TRAMP(+ATENDFIX if needed) cold N/4.
+4. If XT001 remains: realign stub/REV on tiphead dig (dig-only) — not PROD raise.
+
