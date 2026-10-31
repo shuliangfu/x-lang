@@ -187,3 +187,18 @@ Still **no PROD raise**. SoftCap PE clamp retire: **not yet**.
 - FACE_TRAMP `3feda7638972`: `finish_struct_into_c` HIT still CG002 (likely type-decl path, not let-lit).
 - **Next slit:** combine TYPE_REF_STRIP (named_type **0x628**) + primary_ident real (redefine thin_glue primary→`__stale_prim_*` + link `pthin_primary_lbrace_real.o` + consume_real) → hangprobe finish vs parse_skip. No SoftCap PE promote. PROD `db734` / nail ecdb **不升**.
 
+## 16) 2026-10-31 ~18:47 CST — COMBINED TYPE+PRIM dig host (dual-redefine + both reals)
+
+- Dig host: `lab_CapSoftWin_tiphead_COMBINED_TYPE_PRIM.exe` sha12 **`129b2d41fb57`** size 8081379 (dig-only; cave tiphead restored **`ae81595209f3`**).
+- thin_glue: type_ref → `__stale_*` + primary family → `__stale_prim_*`; G05_OBJS prepend `pthin_primary_lbrace_real.o` + append `pthin_type_ref_consume_real.o`.
+- NM live: `primary_ident` **REAL frame 0x6b8**; `named_type` **REAL frame 0x628**; `finish_struct_lit_from_type_ident_x` **REAL frame 0x368**.
+- Cold COMBINED **still 0/4 CG002** `code_len=0`. Hangprobe: live named_type/primary **MISS**; **`__stale_*` / `__stale_prim_*` HIT** — thin_glue internal relative calls still bind stale bodies after redefine (same class as TRS_TRAMP necessity).
+- PROD Soft Cap **`db734adafe5e` lit OK / 不升**. Nail ecdb **不升**. Prefer-M2 SoftCap dig STOP.
+
+## 17) 2026-10-31 ~18:49 CST — COMBINED_DUAL_TRAMP — named-struct parse acceptance TRUE-FIXED
+
+- Dig host: `lab_CapSoftWin_tiphead_COMBINED_DUAL_TRAMP.exe` sha12 **`064b35b2e8cc`** (COMBINED + E9 tramp 60 `__stale_*`/`__stale_prim_*` → live reals).
+- Hangprobe let_slit: **named_type HIT / primary_ident HIT / finish_struct_lit HIT**; **parse_skip MISS**; stale bodies MISS. `-c` ft_slit2: **no CG002** — exits typeck.
+- Cold dig **0/4 TYPECK** (class shift CG002→TYPECK): `expected  , found W` / slit `expected  = Po, found Point` (truncated type-name identity). PROD Soft Cap **`db734adafe5e` lit OK / 不升**. Tiphead cave **`ae81595209f3`**. Nail ecdb **不升**.
+- **Parse acceptance isol CLOSED** for Cap soft tiphead dig path (fix parse-skip → finish_struct_lit). **Next slit:** Cap soft tiphead typeck type-name identity (`Po`/`W` truncation vs full `Point`) — not SoftCap PE promote.
+
