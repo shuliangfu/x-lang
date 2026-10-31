@@ -181,3 +181,102 @@ RBP+LEFT_PUSH dig host is dig-only. No SoftCap tiphead promote, no PROD/nail rai
 - Dig host: `C:\xlang_tmp\p1060\g05th_dig\lab_CapSoftWin_tiphead_RBP_LEFTPUSH.exe` (`e0946cbb62f5`)
 - Cold: `C:\xlang_tmp\p1060\g05th_dig\rbp_leftpush_cold4.txt`
 - Tip SoftCap backup pre-dig: `cave\lab_CapSoftWin_tiphead.exe.bak_pre_rbp_leftpush` (= `13e5e99ef39b`)
+
+## 10) 2026-10-31 ~11:45 CST (Asia/Shanghai) — HAS_HOME Cap soft helpers plant falsified
+
+### Root evidence (pre-plant)
+- tip SoftCap Cap soft T `pipeline_asm_emit_expr_elf_rec` body: **home20=0**, r8 movs abundant (NO_HOME).
+- tip `asm_expr_helpers_win.o` (Cap soft tiphead Cap soft Cap soft-compiled): **home20=0**.
+- w1778 Cap soft-compile of `runtime_pipeline_abi_asm_expr_helpers_thin.x`: **home20=37**, Cap soft T sites emit `mov [rsp+0x20],rax` before 5-arg calls (HAS_HOME).
+- tip SoftCap Cap soft-compiling helpers_thin → **CG002** `code_len=0` (chicken-egg). Encoder Windows twin is linked (clamp 0x3f + home template) but Cap soft tiphead Cap soft Cap soft cannot Cap soft-compile this thin.
+
+### Plant (M2 Cap soft reduction, dig-only)
+- Source: `C:\xlang_tmp\p1060\m2_expr\helpers_from_w1778.o` → `g05th_dig/asm_expr_helpers_win.hashome.o` (12475).
+- `g05_relink_env.sh` WIN_REC: `G05_ASM_EXPR_HELPERS_WIN_REINJECT` / `.hashome` + reject NO_HOME Cap soft T (home `[rsp+0x20]` count≥1); optional `XLANG_SIDE_EXE` Cap soft-compile fallback.
+- Dig relink: `win_g05_dig_hashome_helpers_relink.sh` / log `g05_dig_hashome_helpers.log`.
+- Dig host sha12 **`9c08bd814c11`** size **7989102**.
+- Live: `T pipeline_asm_emit_expr_elf_rec@14012cb4c` **HAS_HOME** (`homes_in_first_1k=4`, plant count=37); W jmp→T patched.
+- Tip SoftCap cave restored **`13e5e99ef39b`** (dig-only; no promote).
+
+### Cold 4-gate (compiler cwd; `-c` codegen scoring)
+| host | sha12 | ret0 | mk_only | slit | p_ret_lit |
+|------|-------|------|---------|------|----------|
+| dig HAS_HOME helpers | `9c08bd814c11` | OK | OK | **CG002** | **CG002** |
+| tip SoftCap | `13e5e99ef39b` | OK | (OK class) | **CG002** | **CG002** |
+| w1778 | `9c4746d5b5d7` | — | — | OK | (XP001 dialect on one probe; slit OK) |
+
+- Dig HAS_HOME: **0/4 green** on aggregate (slit/p_ret_lit CG002). Cap soft T HAS_HOME alone insufficient.
+- Hang-probe (Python `subprocess` timeout only — Win `TIMEOUT` broken): Cap soft T / glue_struct / glue_block / struct_let_init / struct_lit / lit_fields / w1010 all **MISS_CG002** on dig HAS_HOME for `_p_slit.x` — those entry points are **not** reached before CG002 (or path aborts earlier). glue_struct ~4.9s / lit_fields ~5.8s of work then CG002 without entering patched T.
+
+### Falsified (add)
+4. **HAS_HOME Cap soft helpers** (w1778 Cap soft-compile of `asm_expr_helpers_thin` → Cap soft T N≥5 homes) → still aggregate CG002. Cap soft T NO_HOME was real but **not** the slit abort site on tip SoftCap family.
+
+### Not a SoftCap close
+HAS_HOME dig host is dig-only. No SoftCap tiphead promote, no PROD/nail raise, no PE Isol SoftCap close, no mega / LIVE / egg mega. Gate green ≠ knife done.
+
+### Next single point
+**Find the actual CG002 abort path for slit** on tip SoftCap `13e5e99ef39b` (or dig HAS_HOME): who is entered on `_p_slit.x` codegen before `code_len=0`. Map remaining Win64 N≥5 marshal gaps on that path (homes vs r8/r9 clobber at Cap soft-compiled callers). Prefer M2 host-cc / HAS_HOME plant of the **proven** on-path module — do **not** re-thrash Cap soft helpers alone. **No SoftCap re-close / no PROD raise until cold green.**
+
+### Artifacts
+- HAS_HOME COFF: `C:\xlang_tmp\p1060\g05th_dig\asm_expr_helpers_win.hashome.o` (+ tip `build_asm/selfhost_pabi/asm_expr_helpers_win.o.hashome`)
+- Dig relink: `C:\xlang_tmp\g05_dig_hashome_helpers.log` / `win_g05_dig_hashome_helpers_relink.sh`
+- Dig host: `C:\xlang_tmp\p1060\g05th_dig\lab_CapSoftWin_tiphead_HASHOME_HELPERS.exe` (`9c08bd814c11`); cave dig copy
+- Cold: `C:\xlang_tmp\p1060\g05th_dig\hashome_helpers_cold4.txt`
+- Tip SoftCap backup pre-dig: `cave\lab_CapSoftWin_tiphead.exe.bak_pre_hashome_helpers` (= `13e5e99ef39b`)
+- WIP: `compiler/scripts/g05_relink_env.sh` HAS_HOME reinject (kept for future tiphead Cap soft rebuilds)
+
+## 11) 2026-10-31 ~12:25 CST (Asia/Shanghai) — slit CG002 abort is parse-skip (not Cap soft T N≥5)
+
+### Abort map (tip SoftCap cave `13e5e99ef39b`, `-c` from compiler cwd)
+
+Cold-gate `_p_slit.x` / `p_ret_lit.x` fail **before Cap soft T codegen**:
+
+| probe | tip SoftCap | w1778 `9c4746d5b5d7` |
+|-------|-------------|----------------------|
+| `let x: i64 = 1` | parse OK nf=1 | OK |
+| `struct Point` + `main return 0` (no let) | parse OK nf=1 | OK |
+| `let p: Point;` (uninit, no lit) | **P001 no functions** | OK nf=1 |
+| `let p: Point = Point { … }` (slit) | **P001** | OK nf=1 |
+| `function mk(): Point { … }` + clean main | OK **nf=1** (mk silently dropped) | OK nf=2 |
+| `function f(p: Point)` + clean main | OK **nf=1** (f dropped) | OK nf=2 |
+
+Bare `-o` maps parse-fail / nf=0 → **CG002 code_len=0**. So mk_only “OK” on tip SoftCap is a **false green** (main never names Point).
+
+### Hang-probe (Python `subprocess` timeout + explicit kill; Win `TIMEOUT` broken)
+
+tip SoftCap slit (`EB FE` at Cap soft T / listed W):
+
+| symbol | tip SoftCap slit | w1778 slit |
+|--------|------------------|------------|
+| `parser_parse_type_ref_for_arena_into` | HIT | HIT |
+| `parser_asm_parse_named_type_ref_c` | HIT | MISS_OK |
+| `parser_skip_one_function_full_into` + asm slice | **HIT** | MISS_OK |
+| `driver_diagnostic_parse_skip_function` / `parser_diagnostic_parse_skip` | **HIT** | MISS_OK |
+| `parser_asm_finish_struct_lit_from_type_ident_into_c` | **MISS_P001** | **HIT** |
+| `parser_asm_primary_ident_x_into_c` | HIT (W) | HIT (W) |
+| `parser_asm_primary_ident_suffix_loop_c` | MISS_P001 | NO_SYM |
+| Cap soft glue_block / glue_struct / emit_expr (prior) | MISS_CG002 | (entered on W) |
+
+tip SoftCap lun (`let p: Point;`): `parser_body_skip_let_const_then_if_into` **HIT**, `pipeline_parser_library_init_named_type_c` **HIT**, skip_one_function **HIT**; finish_struct MISS (no lit).
+
+**Chain:** named-struct in let/params/returns → tip SoftCap **parse-skips the function** (`diagnostic_parse_skip` → `skip_one_function_full_into`) → `num_funcs=0` when main itself uses Point → P001 / bare CG002. Never reaches Cap soft `finish_struct_lit` / glue_struct / HAS_HOME helpers. w1778 never skip-hits; reaches `finish_struct_lit`.
+
+### Off-path (still real, not slit abort)
+- Cap soft T `pipeline_asm_emit_expr_elf_rec` NO_HOME / HAS_HOME plant (**falsify #4**).
+- `assign_var_try_let` NO_HOME r8/r9 clobber sites (prior `1400043d2`/`140004817` class) — not entered on slit.
+- EXPORT_R9LEA dig `ccca8f5f32c0` and FORCE_FULL `force_full_bodies→mov eax,1;ret` dig `0353d85aa9a7`: still slit CG002; force_full MISS on slit (not consulted). Treat as **falsify #5 / #6** (marshal / force_full plants off abort path).
+
+### Falsified (add)
+5. EXPORT_R9LEA / assign_var N≥5 marshal plant — not on slit abort path (parse-skip earlier).
+6. FORCE_FULL / `force_full_bodies` plant — MISS on slit; still CG002.
+
+### Not a SoftCap close
+Parse-root DIG only. Tip SoftCap cave remains **`13e5e99ef39b`**. No tiphead promote, no PROD/nail raise, no PE Isol SoftCap close, no mega / LIVE / egg mega. Gate green ≠ knife done.
+
+### Next single point
+**Smallest isol:** restore tip SoftCap **parse acceptance** of named-struct in let (and signatures) so `skip_one_function` is not taken — then Cap soft `finish_struct_lit` can run (w1778 path). Prefer M2 host-cc / dig plant of proven parser pieces (`parse_type_ref` / `named_type_ref` / let-bind path that avoids `diagnostic_parse_skip`; or primary_ident→finish_struct once type annot works). Do **not** re-thrash HAS_HOME helpers / FORCE_FULL / EXPORT_R9LEA. Prior PROD SoftCap Isol-A/B (consume + LBRACE→finish_struct) is related but RVAs differ on tiphead Cap soft; re-verify on `13e5e99ef39b` before transplant. Dig-only → cold 4-gate; if green, guarded tiphead Cap soft rebuild; **still no PROD/nail**.
+
+### Artifacts
+- Hangprobe: `C:\xlang_tmp\p1060\g05th_dig\hangprobe7b.py` / `hangprobe7w.py` (+ outs)
+- Parse iso matrix: `iso_parse.py` / `iso_parse2.py` / `iso_parse3.py` under `g05th_dig/`
+- Tip SoftCap cave: `13e5e99ef39b` unchanged

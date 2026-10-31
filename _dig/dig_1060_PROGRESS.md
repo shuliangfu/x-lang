@@ -3267,3 +3267,25 @@ Isol CapFN 体内 E8 入 SoftCap mega `[0x57effc,0x58e9a0)`：**5** 处；−Δ`
 - 笔记 `_dig/dig_softcap_g05_tiphead_c598763_CG002.md`（prior `…_7c1051_…` 仍留）
 - PROD／钉 **未动**；bans unchanged；**门绿≠PROD✅／≠收刀**
 
+
+## 2026-10-31 ~11:45 CST Asia/Shanghai — HAS_HOME Cap soft helpers dig `9c08bd814c11` falsify #4
+
+### 0) 闸
+- tip `6ddf8d768` (=origin/dev); tip SoftCap cave **`13e5e99ef39b`** restored; dig HAS_HOME **`9c08bd814c11`** cold slit/p_ret_lit **CG002**
+- w1778 `9c4746d5b5d7` slit OK; PROD `7a2cf5da581a`／钉 `ecdb5cc1e` **未动**
+- Falsified #4: Cap soft T HAS_HOME plant alone insufficient (emit_expr_elf_rec not on slit abort path)
+
+### 1) Next
+- Trace slit CG002 abort path (who is entered); plant/fix proven on-path N≥5 marshal gap. DIG §10. **勿收刀／勿升 PROD.**
+
+
+## 2026-10-31 ~12:25 CST Asia/Shanghai — slit CG002 = parse-skip (falsify #5/#6)
+
+### 0) 闸
+- tip `6ddf8d768` (=origin/dev); tip SoftCap cave **`13e5e99ef39b`** unchanged; dig HAS_HOME `9c08bd814c11` remains dig-only
+- w1778 `9c4746d5b5d7` 4/4; PROD `7a2cf5da581a`／钉 `ecdb5cc1e` **未动**
+- Slit abort: tip SoftCap **parse-skips** funcs with named-struct in let/sig (`diagnostic_parse_skip`→`skip_one_function`); never Cap soft `finish_struct_lit`. Hangprobe7b/7w. DIG §11.
+- Falsified #5 EXPORT_R9LEA / #6 FORCE_FULL (off-path). mk_only OK = false green.
+
+### 1) Next
+- Dig/host-cc fix named-struct let parse (avoid skip); then finish_struct path. **勿收刀／勿升 PROD.** Do not re-thrash HAS_HOME helpers.
