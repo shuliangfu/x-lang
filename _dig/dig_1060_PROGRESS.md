@@ -3333,3 +3333,20 @@ Isol CapFN 体内 E8 入 SoftCap mega `[0x57effc,0x58e9a0)`：**5** 处；−Δ`
 
 ### 6) Bans unchanged
 CloudAgent／10.74／HARD BAN／mega／假绿／LEGACY／LIVE SoftCap transplant／PE Isol as tip SoftCap close／egg mega／sub $0x190. Do not thrash HAS_HOME／FORCE_FULL／EXPORT_R9LEA／LEFT_PUSH／RBP.
+
+
+## 2026-10-31 ~15:35 CST Asia/Shanghai — tiphead Cap soft F9 promote cold **4/4**
+
+### 0) Gate
+- Intentional tiphead Cap soft promote: cave `lab_CapSoftWin_tiphead.exe` ← dig F9 `d263fe8c312b`
+- Backup: `cave\lab_CapSoftWin_tiphead.exe.bak_pre_F9_promote` = prior **`13e5e99ef39b`**
+- Cold tiphead four-gate: lit/fwd/local/_var_let **run=0**; ft_slit build run=1
+- PROD `7a2cf5da581a` / nail `ecdb5cc1e` / w1778 `9c4746d5b5d7` **未动**
+
+### 1) Not a SoftCap knife close
+Dig PE scaffold now sits as tip SoftCap Cap soft host. **Gate green ≠ PROD✅ ≠ knife close.** No PE Isol SoftCap close claim. No PROD/nail raise. Residual HIT short-main (a-only) remains open.
+
+### 2) Next
+- Optional: clear HIT implicit-tail for full main a/b/c (W1778 span 0xe8).
+- Cap soft source/relink path still open for durable non-PE fix.
+- Soft 20:00 / 硬停 21:00. Dig beat parked green.

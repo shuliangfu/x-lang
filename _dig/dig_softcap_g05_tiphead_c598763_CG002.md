@@ -306,3 +306,8 @@ Dig PE scaffold only. No tiphead promote, no PROD/nail, no PE Isol SoftCap close
 
 ### Next
 Guarded tiphead Cap soft rebuild / intentional cave promote of F9 dig host only after explicit promote beat; optional HIT implicit-tail for full main a/b/c. Dig notes + English commit this beat.
+
+
+## 13) 2026-10-31 ~15:35 CST — tiphead Cap soft = F9 dig (cold 4/4)
+
+Cave tip SoftCap promoted dig-only F9 `d263fe8c312b` (backup `13e5e99ef39b` at `.bak_pre_F9_promote`). Tiphead cold 4/4 + slit run=1. PROD/nail untouched. **Not SoftCap close.** Residual: HIT short main; Cap soft source rebuild still future path.
