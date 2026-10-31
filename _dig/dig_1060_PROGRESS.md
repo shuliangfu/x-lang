@@ -1,5 +1,18 @@
 # DIG 10.60 / 10.61 SoftCap progress
 
+**2026-10-31 ~17:05 CST (Asia/Shanghai)** · **10.61 SoftCap CLOSE** WORK→PROD Soft Cap: cave `lab_SoftCap_76795.exe` ← dig SoftCap egg Prefer-M2/clamp18_dd sha12 **`db734adafe5e`** size 8062464. bak prior PROD **`d263fe8c312b`** @ `C:/xlang_tmp/p1060/bak/lab_SoftCap_76795_d263fe8c312b_pre_1061_raise.exe`. Post-raise cold lit/fwd/local/_var_let **4/4** + multi/one **EXIT=0** dest-direct (store_e8=Y). Nail **`ecdb5cc1e` NEVER raised**. Prefer-M2 tip `.x` still deferred (not tip.x green). Next-beat: **idle / none** (SoftCap knife closed; Prefer-M2 tip.x deferred off-board). Soft-stop 20:00 Asia/Shanghai.
+
+## 2026-10-31 ~17:05 CST Asia/Shanghai — **10.61 SoftCap CLOSE** WORK→PROD Soft Cap
+
+- Manager 【裁定·10.61】APPROVED dig SoftCap egg `db734adafe5e` → PROD Soft Cap
+- WORK→PROD Soft Cap: cave `lab_SoftCap_76795.exe` ← Prefer-M2/clamp18_dd dig egg **`db734adafe5e`** size **8062464**
+- bak prior PROD Cap soft **`d263fe8c312b`** @ `C:/xlang_tmp/p1060/bak/lab_SoftCap_76795_d263fe8c312b_pre_1061_raise.exe`
+- Post-raise PROD Soft Cap: cold lit/fwd/local/_var_let **4/4 RC0**; `p1061_sret_lit_multi` **EXIT=0** dest-direct store_e8; `p1061_sret_lit_one` **EXIT=0**
+- Nail **`ecdb5cc1e` NEVER raised**
+- Prefer-M2 tip `.x` still deferred — **not** fake tip.x green
+- Board: 10.61 SoftCap **CLOSE**. Next-beat on live page: **idle / none** (Prefer-M2 tip.x deferred off SoftCap knife)
+
+
 **2026-10-31 ~17:05 CST (Asia/Shanghai)** · Cross-tip Cap soft re-gate on tip **`55bf7a425`**: Darwin Cap soft `compiler/xlang` sha12 **`0c0a41335a35`** p_ret_lit/fwd/local **3/3 RC0**; Ubuntu tip SoftCap/true RC `bootstrap_xlangc` sha12 **`ea9ddf4eb937`** p_ret_* **3/3 RC0** (checkout origin/dev tiphead); Win dig SoftCap preferM2/clamp18_dd sha12 **`db734adafe5e`** cold+multi+one **6/6 EXIT=0** (store_e8=Y). Prefer-M2 tip `.x` still deferred. **PROD Soft Cap `d263fe8c312b` / nail `ecdb5cc1e` unchanged**. Ready to ask manager for dig SoftCap→PROD (PE dig-egg; not tip.x). Soft-stop 20:00 Asia/Shanghai.
 
 

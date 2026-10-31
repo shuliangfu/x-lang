@@ -108,3 +108,10 @@ ONE / cold lit / fwd: no copy already. MULTI / local / `_var_let`: had copy; loc
 ### Ready for manager dig→PROD ask?
 **Yes (with caveats):** tiphead Cap soft contracts green on Darwin + Ubuntu + Win dig SoftCap egg. Dig SoftCap true-fix remains a **PE dig-egg plant** (store-encoder clamp + skip post-emit rs_copy) on dig tip `06fa`, not a Prefer-M2 tip `.x` / product source patch. Do **not** raise PROD/nail until manager accepts dig SoftCap egg as Soft Cap product.
 
+
+## 2026-10-31 ~17:05 CST Asia/Shanghai — **10.61 SoftCap CLOSE** (manager APPROVED)
+
+**Tip:** post-raise docs tip. **PROD Soft Cap** now **`db734adafe5e`** size 8062464 at `C:/xlang_tmp/p1060/cave/lab_SoftCap_76795.exe` (was `d263fe8c312b`; bak `.../bak/lab_SoftCap_76795_d263fe8c312b_pre_1061_raise.exe`).
+
+Post-raise gate: cold **4/4** + multi/one **EXIT=0** dest-direct. Nail **`ecdb5cc1e` NEVER raised**. Prefer-M2 tip `.x` deferred. Next-beat: **idle / none**.
+
