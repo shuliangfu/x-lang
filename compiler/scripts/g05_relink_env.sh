@@ -5295,11 +5295,64 @@ case "$UNAME_S" in
       echo "g05_relink_env: $_wrec_x missing (Windows expr rec)" >&2
       exit 1
     fi
-    _g05_pure_overlay "$_wrec_x" "$_wrec_o" "$_wrec_s"
+    # 10.60 SoftCap DIG §9/§10: tip SoftCap Cap soft-compiling helpers_thin
+    # yields CG002 (code_len=0) or Cap soft T with Win64 N>=5 NO_HOME
+    # (mov r8,rax clobber for k>=4). w1778 Cap soft-compile emits
+    # mov [rsp+0x20],rax homes. Prefer G05_ASM_EXPR_HELPERS_WIN_REINJECT
+    # HAS_HOME .o; else pure_overlay; else XLANG_SIDE_EXE Cap soft-compile.
+    # Reject NO_HOME Cap soft T. PLATFORM: WINDOWS.
+    _wrec_reinject="${G05_ASM_EXPR_HELPERS_WIN_REINJECT:-}"
+    _wrec_built=0
+    if [ -n "$_wrec_reinject" ] && [ -s "$_wrec_reinject" ]; then
+      mkdir -p build_asm/selfhost_pabi
+      cp -f "$_wrec_reinject" "$_wrec_o"
+      echo "g05_relink_env: 10.60 SoftCap reinject asm_expr_helpers_win.o from $(basename "$_wrec_reinject")" >&2
+      _wrec_built=1
+    else
+      _g05_pure_overlay "$_wrec_x" "$_wrec_o" "$_wrec_s"
+      if [ -s "$_wrec_o" ]; then
+        _wrec_built=1
+      fi
+    fi
+    # Cap soft tiphead Cap soft often CG002s helpers; Cap soft-compile with
+    # XLANG_SIDE_EXE (w1778-class Cap soft) when overlay empty.
+    if [ "$_wrec_built" != "1" ] && [ -n "${XLANG_SIDE_EXE:-}" ] && [ -x "${XLANG_SIDE_EXE}" ]; then
+      mkdir -p build_asm/selfhost_pabi
+      rm -f "${_wrec_o}.tmp.o"
+      if "${XLANG_SIDE_EXE}" -backend asm -c "$_wrec_x" -o "${_wrec_o}.tmp.o" \
+          && nm "${_wrec_o}.tmp.o" 2>/dev/null | tr -d '\r' | grep -q " T ${_wrec_s}\$"; then
+        mv -f "${_wrec_o}.tmp.o" "$_wrec_o"
+        echo "g05_relink_env: 10.60 SoftCap Cap soft-compile helpers via XLANG_SIDE_EXE" >&2
+        _wrec_built=1
+      else
+        rm -f "${_wrec_o}.tmp.o"
+      fi
+    fi
     if [ ! -s "$_wrec_o" ]; then
       echo "g05_relink_env: ERROR Windows expr rec .x did not build" >&2
       exit 1
     fi
+    # Require at least one Win64 home store (48 89 44 24 20) in Cap soft T
+    # object — tip SoftCap Cap soft T had 0 (r8 clobber path).
+    _wrec_homes=$(python3 -c 'import sys; d=open(sys.argv[1],"rb").read(); print(d.count(bytes.fromhex("4889442420")))' "$_wrec_o" 2>/dev/null || echo 0)
+    if [ "${_wrec_homes:-0}" -lt 1 ]; then
+      _wrec_fallback=""
+      if [ -s build_asm/selfhost_pabi/asm_expr_helpers_win.o.hashome ]; then
+        _wrec_fallback=build_asm/selfhost_pabi/asm_expr_helpers_win.o.hashome
+      elif [ -s "${G05_ASM_EXPR_HELPERS_WIN_HASHome:-}" ]; then
+        _wrec_fallback="${G05_ASM_EXPR_HELPERS_WIN_HASHome}"
+      fi
+      if [ -n "$_wrec_fallback" ] && [ -s "$_wrec_fallback" ]; then
+        cp -f "$_wrec_fallback" "$_wrec_o"
+        _wrec_homes=$(python3 -c 'import sys; d=open(sys.argv[1],"rb").read(); print(d.count(bytes.fromhex("4889442420")))' "$_wrec_o" 2>/dev/null || echo 0)
+        echo "g05_relink_env: 10.60 SoftCap replaced NO_HOME helpers with HAS_HOME fallback (homes=${_wrec_homes})" >&2
+      fi
+    fi
+    if [ "${_wrec_homes:-0}" -lt 1 ]; then
+      echo "g05_relink_env: ERROR Windows expr rec Cap soft T lacks Win64 home [rsp+0x20] (N>=5 NO_HOME)" >&2
+      exit 1
+    fi
+    echo "g05_relink_env: 10.60 SoftCap Windows helpers Cap soft T HAS_HOME count=${_wrec_homes}" >&2
     if ! nm "$_wrec_o" 2>/dev/null | tr -d '\r' | grep -q " T ${_wrec_s}\$"; then
       echo "g05_relink_env: $_wrec_x lacks strong $_wrec_s (Windows expr rec)" >&2
       exit 1

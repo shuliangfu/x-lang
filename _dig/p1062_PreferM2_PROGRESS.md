@@ -1,7 +1,7 @@
 # 10.62 SoftCap — Prefer-M2 tip.x prefer name-find (PROGRESS / SoftCap dig STOP)
 
 **Date:** 2026-10-31 ~17:20 CST (Asia/Shanghai)
-**Tip:** `a9709dec1` (+ Prefer-M2 tip source commit this beat)
+**Tip:** `83bde10a5` (Prefer-M2 tip source; Cap soft Win tiphead dig on this tip)
 **PROD Soft Cap:** `db734adafe5e` (**unchanged** — PE clamp dig-egg kept)
 **Nail:** `ecdb5cc1e` (**unchanged**)
 **Beat:** Prefer-M2 tip `.x` (or twin) so `emit_let_init` prefers `asm_ctx_local_find_offset` when `llen>0`; strip-clamp dig host multi EXIT=0 + SoftCap cold 4/4; no PROD raise.
@@ -49,3 +49,32 @@ See `_dig/dig_softcap_tip_capsoft_win_promote.md` residual.
 ## Bans held
 
 No CloudAgent / no PROD raise / no NEW host-cc `.c` / no fake SoftCap green / no mega glue_tail close.
+
+---
+
+## Cap soft Win tiphead DIG (~17:25 Asia/Shanghai) — `softcap_g05_capsoft_win_tiphead`
+
+**Tip now:** `83bde10a5` (Win repo ff to origin/dev; Prefer-M2 in thin.c).
+
+### true-fix: ld undef `g_pipeline_elf_reloc_*`
+
+**RESOLVED (plant path), not open ld-fail.** Evidence:
+
+1. `seeds/runtime_pipeline_abi_reloc_typed_overlay.c` defines **B** `g_pipeline_elf_reloc_r_type` / `_r_pcrel` / `_sidecar_owner` (long names).
+2. `win_elf_dual_bss.o` defines **B** `g_pipe_elf_reloc_*` (short names the overlay also refs as U) **and** long `g_pipeline_elf_reloc_*`.
+3. Morning `win_g05_rebuild` (~10:28) with that plant: **relink exit 0**, tiphead sha12 **`13e5e99ef39b`** size 7990620 (`lab_tip_SoftCap_CapSoftWin.exe`).
+4. Stale promote note “still FAIL ld undef” is **obsolete** relative to that green relink.
+
+### Remaining (this beat)
+
+Cave `lab_CapSoftWin_tiphead.exe` is still dig-egg **`06fa052fb409`** (REV_REALIGN SoftCap), **not** tip-HEAD Cap soft from tip `83bde10a5`. Single detached `win_g05_rebuild` from tip Prefer-M2 is in flight; cold-chain after xlang.exe sha lands. **No PROD Soft Cap raise** (`db734adafe5e` keep clamp). Nail **ecdb5cc1e** unchanged.
+
+Prefer-M2 SoftCap dig remains **STOP** — this beat is Cap soft Win tiphead rebuild/ld only.
+
+### tiphead rebuild result (~17:36 Asia/Shanghai)
+
+- ld `g_pipeline_elf_reloc_*`: **RESOLVED** (reloc_typed + dual_bss)
+- ld named_narrow (widen_mixed): **RESOLVED** via `win_named_narrow_stubs.o` on G05_OBJS → relink exit 0
+- tip-HEAD Cap soft Win dig: **`ae81595209f3`** (Prefer-M2 emit_let T present)
+- cold 4/4 tiphead: **0/4 CG002**; PROD Soft Cap `db734adafe5e` still **4/4**
+- SoftCap PE clamp retire: **NO**; Prefer-M2 SoftCap dig remains STOP
