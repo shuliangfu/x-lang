@@ -280,3 +280,29 @@ Parse-root DIG only. Tip SoftCap cave remains **`13e5e99ef39b`**. No tiphead pro
 - Hangprobe: `C:\xlang_tmp\p1060\g05th_dig\hangprobe7b.py` / `hangprobe7w.py` (+ outs)
 - Parse iso matrix: `iso_parse.py` / `iso_parse2.py` / `iso_parse3.py` under `g05th_dig/`
 - Tip SoftCap cave: `13e5e99ef39b` unchanged
+
+
+## 12) 2026-10-31 ~15:30 CST (Asia/Shanghai) — FACE_UNIFY→F9 dig cold 4/4
+
+### Status
+Dig-only SoftCap Cap soft PE path past slit CG002/XT001 and four-gate XT001/AV:
+
+| step | sha12 | result |
+|------|-------|--------|
+| FACE_UNIFY | `5151b295e30d` | slit -c/.o past CG002+XT001; four-gate build XT001 |
+| F3 COPY+HIT | `e4b57ee59d26` | typeck OK; lit empty sret |
+| F8 sret-lit trampoline | `0013593f2db0` | lit/local/_var_let/slit OK; fwd AV |
+| **F9 win_note plant** | **`d263fe8c312b`** | **4/4 run=0** + slit build run=1 + `_p_slit` 0 |
+
+Cave tip SoftCap **`13e5e99ef39b` still CG002** (untouched). PROD/nail untouched.
+
+### F9 plant (Prefer M2)
+- Site: LIVE dig `pipeline_asm_emit_param_home_elf_c` @`0x140262ecd` (`call sret_active_get`) → jmp trampoline
+- Tramp @`0x1402db1df` (dead body after F8 `emit_struct_lit` hook jmp): note(module=`[rbp+0x20]`, idx=`[rbp+0x28]`) then `sret_active_get`, return to `0x140262ed2`
+- Enables existing `w1521_win_fwd_ret_call` / `sret_wrap` / park path (Lxml_0c5e stamp); no new call-sret logic
+
+### Not a SoftCap close
+Dig PE scaffold only. No tiphead promote, no PROD/nail, no PE Isol SoftCap close, no mega/LIVE/egg. **Gate green ≠ knife done.**
+
+### Next
+Guarded tiphead Cap soft rebuild / intentional cave promote of F9 dig host only after explicit promote beat; optional HIT implicit-tail for full main a/b/c. Dig notes + English commit this beat.

@@ -3289,3 +3289,47 @@ Isol CapFN 体内 E8 入 SoftCap mega `[0x57effc,0x58e9a0)`：**5** 处；−Δ`
 
 ### 1) Next
 - Dig/host-cc fix named-struct let parse (avoid skip); then finish_struct path. **勿收刀／勿升 PROD.** Do not re-thrash HAS_HOME helpers.
+
+
+## 2026-10-31 ~15:30 CST Asia/Shanghai — FACE_UNIFY dig F9 cold **4/4** (lit/fwd/local/_var_let)
+
+### 0) Gate
+- Dig host F9 `d263fe8c312b` = F8 `0013593f2db0` + Prefer-M2 `w1521_win_note_func_c` plant in LIVE `pipeline_asm_emit_param_home_elf_c`
+- Base lineage: FACE_UNIFY `5151b295e30d` → F3 COPY+CONT+HIT `e4b57ee59d26` → F8 sret-lit trampoline `0013593f2db0` → F9 `d263fe8c312b`
+- Cave tip SoftCap **`13e5e99ef39b` UNCHANGED**; PROD `7a2cf5da581a` / nail `ecdb5cc1e` **未动**; w1778 `9c4746d5b5d7` OK
+- Dig-only plant: `cave\lab_CapSoftWin_tiphead_FACE_UNIFY_dig.exe` (= F9 sha); **not** tiphead promote
+
+### 1) Cold (WORK=`capsoft_win_rebuild`)
+| host | lit | fwd | local | _var_let | ft_slit build | _p_slit |
+|------|-----|-----|-------|----------|---------------|---------|
+| F9 dig `d263fe8c312b` | 0 | 0 | 0 | 0 | run=1 (OK) | 0 |
+| F8 dig `0013593f2db0` | 0 | **AV** | 0 | 0 | run=1 | — |
+| tip SoftCap cave `13e5e99ef39b` | CG002 | — | — | — | — | — |
+| w1778 | 0 | 0 | 0 | 0 | OK | — |
+
+### 2) Root cause chain (this beat)
+1. **Let-UNIFY / named←fieldful** (PAD1 @`0x1406587c0`): slit past CG002/XT001; four-gate build still XT001 until COPY.
+2. **Return COPY** (F3): clears T001; name wipe → lit dest=temp → lit run=1 empty sret.
+3. **F8 sret-lit trampoline** (`emit_struct_lit_elf_c` @`0x1402db1da` → PAD @`0x1406586c0`): when sret_active+home≥0+16<sz≤0x1000+arch==0, park rcx→rbx, `fields(-3)`, `mov_rbx_to_rax`. Else `fields(-1)`. Lit/local/_var_let/slit green; **fwd AV** (mk writes through rcx=arg).
+4. **fwd call-sret ABI**: tip SoftCap `w1521_win_fwd_ret_call` gated on `Lxml_0c5e` stamp set by `w1521_win_note_func_c`. Dig had **zero callers** of win_note; W1778 calls it from `emit_param_home` before `sret_active_get`.
+5. **F9 Prefer-M2**: replace `call sret_active_get` @`0x140262ecd` with jmp trampoline in dead body after F8 hook @`0x1402db1df`:
+   - `mov rcx,[rbp+0x20]; movsxd rdx,[rbp+0x28]; call win_note@0x1405b1a48; call sret_active_get@0x1402af954; jmp 0x140262ed2`
+   - Mirrors W1778 note args (r8=module, r9=func_index).
+6. F9 USER `fw`: rcx=sret, rdx=x+1, call mk; mk writes a/b/c via rbx=sret. Matches W1778 ABI.
+
+### 3) Residual (not blocking this cold bar; not 假绿 of empty sret)
+- Dig USER `main` span `0x88` vs W1778 `0xe8`: only first `if (w.a …)` emitted (HIT `has_implicit_return_tail` @`0x140480c68` since F3). mk still writes a/b/c; a-check + ABI match is the historical dig cold bar. Full a/b/c main emit = open (clear/fix HIT) — do not thrash unless next beat.
+- `ft_slit -c` PRC001 (`xlang_run_1` missing) under compiler cwd — build path is the gate; run=1 correct (`p.x==1`).
+
+### 4) Artifacts
+- Plant: `_dig/_dig_f9_win_note.py` (+ Win `g05th_dig/_dig_f9_win_note.py`); F8 script `_dig/_dig_f8_sret_lit.py`
+- Hosts: `g05th_dig/lab_CapSoftWin_tiphead_FACE_OKKEEP_dig_UNIFY_F{8,9}.exe`
+- Cold outs: `g05th_dig/unify_cold/F9_{p_ret_lit,p_ret_fwd,p_ret_local,_var_let,ft_slit}.exe`
+
+### 5) Next
+- Dig cold **4/4 green** — guarded **tiphead Cap soft rebuild** candidate is F9 dig host; **cave tip stays `13e5e99ef39b` until intentional promote**. No PROD/nail. No PE Isol SoftCap close claim. Gate green ≠ knife close.
+- Optional residual: HIT implicit-tail → full main a/b/c emit.
+- Soft 20:00 / 硬停 21:00 Asia/Shanghai.
+
+### 6) Bans unchanged
+CloudAgent／10.74／HARD BAN／mega／假绿／LEGACY／LIVE SoftCap transplant／PE Isol as tip SoftCap close／egg mega／sub $0x190. Do not thrash HAS_HOME／FORCE_FULL／EXPORT_R9LEA／LEFT_PUSH／RBP.
