@@ -3450,3 +3450,11 @@ PROD Soft Cap **`d263fe8c312b`** · nail **`ecdb5cc1e`** · w1778 **`9c4746d5b5d
 - Prefer-M2 tip `.x` **blocked** (tip source + Darwin OK). SoftCap Cap soft Win egg / F3 HIT collateral. No PROD/nail raise.
 - SoftCap body_sync still nso=2 nif=1 / USER main **0x88**; w1778 nso=10 nif=3 / **0xe8**.
 - Next: Cap soft Win tiphead HIT-reverse / egg rebuild dig (no PROD raise). Soft-stop 20:00 Asia/Shanghai.
+
+## 2026-10-31 ~16:10 CST Asia/Shanghai — `has_implicit_return_tail` HIT-reverse / REV_REALIGN dig SoftCap tip egg
+
+- Plant between Capless→F3→F9: over-skip already at **PRIMARY_LBRACE** (XT001); F3 HIT `e4b57ee59d26` not introducer. Residual tip SoftCap egg plant = Cap soft `parser_asm_realign_lex_after_if_arm_into_c` E9 @`0x1406029d4` (over-skip after first mid-block `parse_if`). bak Capless = stub no-op.
+- Reverse: dig SoftCap tip **REV_REALIGN** stub → tip SoftCap / CapSoftWin tiphead **`06fa052fb409`** (bak_pre_REV `d263fe8c312b`). PROD Soft Cap **`d263fe8c312b` restored/kept**; nail **`ecdb5cc1e`** unchanged.
+- Post: tip SoftCap dig plain_ifs **jcc=3** / p_ret_fwd USER **sp=0xe8 jcc=3** (= W1778); PROD still jcc=1 / 0x88. SoftCap dig cold lit/fwd/local/_var_let **4/4** + slit OK. Darwin/Ubuntu tip `.x` untouched.
+- True-fix: **yes** dig SoftCap tip egg only (no PROD raise). Prefer-M2 tip `.x` still blocked/unneeded for SoftCap identity.
+- Next: optional nif confirm; later PROD promote decision; soft-stop 20:00 Asia/Shanghai. Detail: `_dig/p1061_implicit_tail_DIG.md` §16:10.

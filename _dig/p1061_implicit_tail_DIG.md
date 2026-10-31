@@ -98,3 +98,39 @@ After first mid-block `parse_if_stmt_into`, SoftCap Cap soft Win FACE_UNIFY eggs
 1. Cap soft Win tiphead rebuild / HIT-plant reverse dig (still **no PROD/nail raise**) — restore multi-if append without losing cold 4/4.
 2. Optional: SoftCap debugger lex-pos after first `parse_if` (confirm scan_sync over-skip delta vs W1778).
 3. Soft-stop 20:00 Asia/Shanghai still applies for later beats.
+
+## 2026-10-31 ~16:10 CST Asia/Shanghai — Cap soft Win tiphead HIT-reverse / egg rebuild (REV_REALIGN)
+
+### Plant (Capless → F3 → F9)
+- Ladder: bak Capless SoftCap `7a2cf5da581a` **plain_ifs jcc=3** → FACE_UNIFY → **PRIMARY_LBRACE first XT001** (truncate already) → F3 HIT `e4b57ee59d26`…F9 tip SoftCap `d263fe8c312b` all **jcc=1**.
+- **F3 HIT is not the introducer** of over-skip (HIT unblocks typeck on already-truncated AST). PRIMARY_LBRACE tiphead already over-skips siblings after first mid-block `parse_if`.
+- SoftCap tip **ifx** restored to bak Capless identity earlier; residual causal plant on tip SoftCap egg = Cap soft Win `parser_asm_realign_lex_after_if_arm_into_c` **E9 body** @ VA `0x1406029d4` (Cap soft realign sha `fbc4c55a` ≠ pre_lb/PRIM `cec63de6`). E9 over-advances `lex_cur` past sibling if/let/while after first if-arm.
+- bak Capless realign site = stub `B8 01 00 00 00 C3` (mov eax,1; ret) — Capless-style no-op.
+
+### Reverse / rebuild (Prefer-M2 egg reverse; dig-only)
+- Dig host `g05th_dig/lab_SoftCap_tip_REV_REALIGN_dig.exe` = tip SoftCap pre-REV `d263fe8c312b` with W@`0x1406029d4` E9 → Capless stub `B801000000C39090`.
+- Promoted **tip SoftCap** `lab_SoftCap_tip.exe` + Cap soft Win tiphead `lab_CapSoftWin_tiphead.exe` → **`06fa052fb409`**.
+- Bak: `lab_SoftCap_tip.exe.bak_pre_REV_REALIGN` = `d263fe8c312b`.
+- **PROD Soft Cap `lab_SoftCap_76795.exe` restored/kept `d263fe8c312b`** (brief accidental promote of 76795 rolled back; PROD pin unchanged). Nail **`ecdb5cc1e`** untouched.
+- No tip `.x` change; Darwin Cap soft / Ubuntu tip SoftCap source gates untouched (Win SoftCap egg only). Optional SoftCap lex-pos after first `parse_if` vs W1778 **skipped** (causal plant confirmed by stub reverse).
+
+### Post metrics (tip SoftCap dig `06fa052fb409` vs W1778 `9c4746d5b5d7` vs PROD `d263fe8c312b`)
+| probe | tip SoftCap dig | W1778 | PROD Soft Cap |
+|---|---|---|---|
+| plain_ifs | **sp=0x60 / jcc=3** | sp=0x60 / jcc=3 | sp=0x30 / jcc=1 |
+| p_ret_fwd USER main (SoftCap frame `sub rsp,0x1b8` / W1778 `0x78`) | **sp=0xe8 / jcc=3** | sp=0xe8 / jcc=3 | sp=0x88 / jcc=1 |
+| cold lit/fwd/local/_var_let | **4/4** | 4/4 | 4/4 |
+| slit | OK | — | — |
+
+Toward body_sync nif=3: plain_ifs/fwd jcc=3 + span 0xe8 restore a/b/c (match bak Capless / Darwin / w1778). Live nif dump not re-run this beat; jcc/span proxy green.
+
+### True-fix?
+**Yes (dig SoftCap tip egg only).** Tip SoftCap Cap soft Win egg rebuilt to `06fa052fb409` via REV_REALIGN stub; cold 4/4 + plain/fwd jcc→3 / USER main →0xe8. **Not** a PROD Soft Cap raise. Docs commit + self-push tip this beat.
+
+### Untouched
+PROD Soft Cap **`d263fe8c312b`** · nail **`ecdb5cc1e`** · w1778 **`9c4746d5b5d7`** · Darwin Cap soft / Ubuntu tip SoftCap true RC · tip Prefer-M2 `.x`.
+
+### Next
+1. Optional: live SoftCap dig body_sync nif/nso confirm (=3/≥10) after REV.
+2. Decide later whether to promote dig tip SoftCap → PROD Soft Cap (separate beat; **not** this dig).
+3. Soft-stop 20:00 Asia/Shanghai.
