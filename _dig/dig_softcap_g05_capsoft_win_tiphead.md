@@ -159,3 +159,14 @@ Still **no PROD raise**. SoftCap PE clamp retire: **not yet**.
 - True-fix: tiphead `named_type_x` prologue **`sub rsp,0x258`**; w1778 + on-disk `pthin_type_ref_consume_real.o` = **`sub rsp,0x628`**. type_alloc body identical → Cap soft under-frame → alloc returns 0 → named_type fails → parse-skip → CG002 `code_len=0`.
 - Link root: `parser_asm_thin_glue.o` (USER_ASM_LINK, stale small-frame W) **first-wins** over `build_asm/selfhost_pabi/pthin_type_ref_consume_real.o` (large-frame W). `objcopy -N` refused (reloc-named); `objcopy --redefine-sym …=__stale_*` clears 31 overlap W on thin_glue.
 - Dig: redefine thin_glue → relink dig host (not PROD/nail; not SoftCap PE promote). Live page tip → `7086f0da7`.
+
+
+## 13) 2026-10-31 ~18:18 CST — TYPE_REF_STRIP dig host (thin_glue redefine → consume_real)
+
+- Dig host: `lab_CapSoftWin_tiphead_TYPE_REF_STRIP.exe` sha12 **`7c205f452157`** size 8024972 (dig-only; cave tiphead still **`ae81595209f3`**).
+- `parser_asm_thin_glue.o` 31 overlap W → `__stale_*`; link binds `pthin_type_ref_consume_real.o`.
+- Dig `named_type_x` prologue **`sub rsp,0x628`** (was tiphead 0x258) — frame true-fix closed.
+- Cold dig **still 0/4 CG002** (`code_len=0`) on `p_ret_lit` — same class as ae815. PROD Soft Cap **`db734adafe5e` lit OK / 不升**. Nail ecdb **不升**.
+- Hangprobe (let_slit): dig+tip **parse_skip HIT**; dig **finish_struct MISS**; w1778 finish_struct HIT / parse_skip MISS. Dig named_type HIT @0x628 still does not clear parse-skip.
+- Surgical redefine (only named_type+type_ref_impl) relink aborted (g05 fell to CC-residual / WinMain undef) — not a symbol falsify; keep full-31 redefine dig artifact.
+- **Next slit:** why consume_real-framed named_type still → parse-skip / no finish_struct (init_named reachability + sibling type_ref path; not SoftCap PE promote). Prefer-M2 SoftCap dig STOP.
