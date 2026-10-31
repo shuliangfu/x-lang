@@ -96,3 +96,42 @@ Smallest isol that can falsify or green cold gates: SoftCap-plant leftover-class
 
 ### Next
 Guarded-relink → dig cold 4-gate on new tiphead sha. If still CG002, dig whether struct T still selfhost (reinject) needs leftover overlay, or N≥5 emit elsewhere.
+
+## 8) 2026-10-31 ~10:40 CST (Asia/Shanghai) — host-cc cold + LEFT_PUSH struct dig
+
+### Tip SoftCap after host-cc plant
+- tip git: `82700e544` = origin/dev (host-cc body_sync+emit_let + block_prefix)
+- Cap soft tiphead sha12 **`13e5e99ef39b`** size **7990620**
+- Live: `t w1010_emit_let@14010b380` (MS homes), `T glue_block_body_emit_let_init@14010bed0` (host-cc PUSH), `T glue_emit_struct_type_let_init_elf_c@14011aa40` **still selfhost** (`mov $0x1ca8`), W@`1402c8f0e` jmp→T
+- Cold tip SoftCap / tiphead: **0/4 CG002** (synced WORK). Smoke `_min_ret0` / `_p_mk_only` RC0; aggregate slit/`p_ret_lit` CG002.
+- Dig T→restored-W leftover struct (prior): still **0/4 CG002** — tip W leftover is rbp-frame, **not** w1778 push-all.
+
+### Dig SoftCap plant: leftover-class LEFT_PUSH struct (w1741 `let_only.o`)
+- Source COFF: `C:\xlang_tmp\w1741\let_only.o` (63609) — **single** `T glue_emit_struct_type_let_init_elf_c`, locals include `t pipeline_asm_emit_struct_let_init_elf_c`; prologue **byte-match** w1778 live T@`1404af9f0` (`push r15..`, `sub $0x58`, homes `rsp+0xc0..`).
+- Relink: `G05_STRUCT_LET_INIT_WIN_REINJECT` → leftpush; post-env force; `g05_relink_xlang`; **dig host only** then restore tip SoftCap cave + selfhost `.good`.
+- Dig host sha12 **`edce125ae6d0`** size **8020281** (`g05th_dig/lab_CapSoftWin_tiphead_LEFTPUSH.exe`; cave copy `lab_CapSoftWin_tiphead_LEFTPUSH_dig.exe` for seed-relative cold).
+- Live dig: `T glue_emit_struct@14011ebe0` **LEFT_PUSH**, W jmp→T; w1010 + host-cc glue_block unchanged.
+- Cold dig LEFT_PUSH (cave-hosted): **0/4 CG002**. Smoke ret0/mk_only RC0. w1778 still **4/4**.
+- PROD `7a2cf5da581a` / nail untouched / w1778 `9c4746d5b5d7` untouched. Tip SoftCap remains `13e5e99ef39b`.
+
+### Falsified
+1. host-cc w1010 + host-cc glue_block alone (struct still selfhost) → still CG002.
+2. host-cc callers + **leftover-class LEFT_PUSH struct** (w1778-class body, W→T patched) → still CG002.
+Caller-marshal-only and struct-body-only plants are each insufficient on tip SoftCap family.
+
+### Still diverging vs w1778 (next pressure)
+- dig/tip `glue_block` = host-cc **PUSH**; w1778 live T@`140019d12` = **RBP** `sub $0xa0` (also T@`14013ac48` MSVC-ish). No thin isol `.o` yet matching `@140019d12` (egg mega only).
+- `pipeline_asm_emit_struct_let_init_elf_c` winners / multiples differ tip vs w1778.
+- Optional: fix Win thin SEGV on `struct_let_init_thin.x` for true overlay; or fix selfhost Win64 N≥5 call emit at source and rebuild tiphead Cap soft.
+
+### Not a SoftCap close
+LEFT_PUSH dig host is dig-only. No SoftCap tiphead promote, no PROD/nail raise, no PE Isol SoftCap close.
+
+### Next single point
+Plant w1778-class **RBP leftover `glue_block_body_emit_let_init`** (extract thin COFF from egg / match T@`140019d12`) **with** LEFT_PUSH struct + host-cc w1010 — **or** fix selfhost Win64 N≥5 call emit and rebuild tiphead. Prefer smallest isol that can falsify/green cold. **No SoftCap re-close / no PROD raise until cold green.**
+
+### Artifacts
+- Dig relink: `C:\xlang_tmp\g05_dig_leftpush.log` / `win_g05_dig_leftpush_relink.sh`
+- Dig host: `C:\xlang_tmp\p1060\g05th_dig\lab_CapSoftWin_tiphead_LEFTPUSH.exe` (`edce125ae6d0`)
+- LEFT_PUSH COFF: `C:\xlang_tmp\w1741\let_only.o`
+- Tip SoftCap backup pre-dig: `cave\lab_CapSoftWin_tiphead.exe.bak_pre_leftpush` (= `13e5e99ef39b`)
