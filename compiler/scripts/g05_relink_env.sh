@@ -5796,6 +5796,18 @@ PY
     _wsl_o=build_asm/selfhost_pabi/struct_let_init_win.o
     if [ -f "$_wsl_x" ]; then
       mkdir -p build_asm/selfhost_pabi
+      # 10.60 SoftCap: tiphead thin SEGV on struct_let_init_thin.x leaves a fat
+      # prior (also T sli_emit_if_arm_or_array_elf_c) that W→T into mega and
+      # CG002s aggregate let-init. Reinject known-good let_init-only COFF so
+      # keep-prior stays the Oct-6 w2060_side saved overlay. Override via
+      # G05_STRUCT_LET_INIT_WIN_REINJECT. PLATFORM: WINDOWS · PE isolate.
+      _wsl_good="${G05_STRUCT_LET_INIT_WIN_REINJECT:-build_asm/selfhost_pabi/struct_let_init_win.o.good}"
+      if [ -s "$_wsl_good" ] \
+        && nm "$_wsl_good" 2>/dev/null | tr -d '\r' \
+             | grep -q " T glue_emit_struct_type_let_init_elf_c\$"; then
+        cp -f "$_wsl_good" "$_wsl_o"
+        echo "g05_relink_env: 10.60 reinject struct_let_init_win.o from $(basename "$_wsl_good")" >&2
+      fi
       rm -f "$_wsl_o.tmp.o"
       _wsl_ok=0
       if _g05_win_asm_c "$_wsl_x" "$_wsl_o.tmp.o"; then

@@ -3238,3 +3238,32 @@ Isol CapFN 体内 E8 入 SoftCap mega `[0x57effc,0x58e9a0)`：**5** 处；−Δ`
 ### 4) open
 - 笔记 `_dig/dig_softcap_g05_tiphead_7c1051_CG002.md`
 - PROD／钉 **未动**；bans unchanged；**门绿≠PROD✅**
+
+## 2026-10-31 ~09:40 CST Asia/Shanghai — softcap_g05 reinject SLI → tiphead `c598763c708d` cold still RED
+
+### 0) 闸
+- tip after this beat: Mac **`59bfc9d05`** (=origin/dev) + commit of g05_relink_env reinject + DIG/cold (see tip after push)
+- tiphead Cap soft sha12 **`c598763c708d`** size=8014310（guarded-relink ~09:35 exit 0；G05_OBJS=155+named_narrow；**10.60 reinject struct_let_init_win.o.good HIT**）
+- tip SoftCap **planted** to `c598763c708d`（identity）；cold **0/4**（lit CG002 code_len=0）
+- w1778 `9c4746d5b5d7` **4/4**；PROD `7a2cf5da581a`／钉 `ecdb5cc1e` **未动**
+- 禁 CloudAgent／10.74／HARD BAN／mega／假绿／LIVE SoftCap 移植／PE Isol 当 tip SoftCap：遵守
+
+### 1) Reinject / fix landed
+- Saved good: `C:\xlang_tmp\w2060_side\saved\build_asm\selfhost_pabi\struct_let_init_win.o` (18115) sole T `glue_emit_struct_type_let_init_elf_c`
+- `g05_relink_env.sh`: reinject from `G05_STRUCT_LET_INIT_WIN_REINJECT` / `.good` before thin SEGV keep-prior
+- Guarded Win script: plant SLI + `win_named_narrow_stubs.o`（fast-path without stubs linked fail／wiped xlang.exe；restored then full guarded）
+- tiphead nm: **no** `sli_emit_if_arm_or_array`（fat 31221 gone）；T let_init present — still CG002 on `let w: W = mk()`
+
+### 2) Cold
+| host | lit | fwd | local | let |
+|---|---|---|---|---|
+| tip SoftCap / tiphead `c598763c708d` | CG002 | (cascade) | (cascade) | (cascade) |
+| w1778 `9c4746d5b5d7` | 0 | 0 | 0 | 0 |
+
+### 3) 下一拍最小刀
+- Dig call-return→aggregate-let path tiphead T@`140120c60` vs w1778 T@`1404af9f0`（`try_inline_*` / `pipeline_asm_emit_struct_let_init`）；或修 thin SEGV 出更新 overlay。未冷绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 4) open
+- 笔记 `_dig/dig_softcap_g05_tiphead_c598763_CG002.md`（prior `…_7c1051_…` 仍留）
+- PROD／钉 **未动**；bans unchanged；**门绿≠PROD✅／≠收刀**
+
