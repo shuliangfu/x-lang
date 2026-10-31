@@ -115,3 +115,15 @@ ONE / cold lit / fwd: no copy already. MULTI / local / `_var_let`: had copy; loc
 
 Post-raise gate: cold **4/4** + multi/one **EXIT=0** dest-direct. Nail **`ecdb5cc1e` NEVER raised**. Prefer-M2 tip `.x` deferred. Next-beat: **idle / none**.
 
+
+## 2026-10-31 ~17:05 CST Asia/Shanghai — 10.62 SoftCap OPEN / Prefer-M2 tip.x first DIG
+
+**Beat:** `Prefer-M2 tip.x prefer name-find`. **PROD Soft Cap** `db734adafe5e` / **nail** `ecdb5cc1e` **unchanged**.
+
+### First DIG
+1. tip plant site confirmed: `runtime_pipeline_abi_glue_block_body_emit_let_init_thin.x` uses only `backend_asm_ctx_slot_offset`; thin.c `(void)lnb;(void)llen`.
+2. Strip PE clamp on PROD copy (restore encoder window from bak `d263`; keep skip rs_copy@`0x1400f9974`) → sha `38727056bb53`: multi **AV** `torn85=Y` store_e8=N; one+cold still 0. So dest-direct alone ≠ Prefer-M2 AV fix; tip.x prefer name-find still needed to retire PE clamp.
+3. FACE_UNIFY / SoftCap over-skip: **not** the open-door hard blocker this beat (PROD egg already REV_REALIGN). Prefer-M2 tip.x **progressing** (not switched).
+
+### Next
+Draft tip `.x` prefer `asm_ctx_local_find_offset` when `llen>0` (+ thin twin); SoftCap dig validate without clamp; Darwin Cap soft gate hold.

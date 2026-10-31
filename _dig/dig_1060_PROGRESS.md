@@ -1,4 +1,7 @@
-# DIG 10.60 / 10.61 SoftCap progress
+# DIG 10.60 / 10.61 / 10.62 SoftCap progress
+
+**2026-10-31 ~17:05 CST (Asia/Shanghai)** · **10.62 SoftCap OPEN** beat **`Prefer-M2 tip.x prefer name-find`**. First DIG: strip-clamp SoftCap PROD (keep skip rs_copy) → `p1061_sret_lit_multi` **AV** torn85 — Prefer-M2 AV root still live without PE clamp; tip `emit_let_init` thin.x/thin.c still ignore/void `llen`. FACE_UNIFY over-skip **not** hard-blocking SoftCap dig now (PROD has REV_REALIGN). Prefer-M2 tip.x **progressing**. PROD Soft Cap **`db734adafe5e`** / nail **`ecdb5cc1e`** unchanged. Soft-stop 20:00 Asia/Shanghai.
+
 
 **2026-10-31 ~17:05 CST (Asia/Shanghai)** · **10.61 SoftCap CLOSE** WORK→PROD Soft Cap: cave `lab_SoftCap_76795.exe` ← dig SoftCap egg Prefer-M2/clamp18_dd sha12 **`db734adafe5e`** size 8062464. bak prior PROD **`d263fe8c312b`** @ `C:/xlang_tmp/p1060/bak/lab_SoftCap_76795_d263fe8c312b_pre_1061_raise.exe`. Post-raise cold lit/fwd/local/_var_let **4/4** + multi/one **EXIT=0** dest-direct (store_e8=Y). Nail **`ecdb5cc1e` NEVER raised**. Prefer-M2 tip `.x` still deferred (not tip.x green). Next-beat: **idle / none** (SoftCap knife closed; Prefer-M2 tip.x deferred off-board). Soft-stop 20:00 Asia/Shanghai.
 
