@@ -60357,6 +60357,13 @@ function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_ref: i32,
 
   unsafe {
     slot_off = backend_asm_ctx_slot_offset(ctx, slot);
+    // Prefer-M2: prefer name-find when llen>0 (SoftCap index may be torn).
+    if (llen > 0 && lnb != 0 as *u8) {
+      let found: i32 = asm_ctx_local_find_offset(ctx, lnb, llen);
+      if (found >= 0) {
+        slot_off = found;
+      }
+    }
   }
 
   /* F7: TYPE_DYN let-init → 16-byte fat {data, vtable}. Authority lives in

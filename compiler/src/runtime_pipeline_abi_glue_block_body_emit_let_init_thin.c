@@ -46,6 +46,7 @@ static int32_t w1010_store_eax_rbp(uint8_t *elf_ctx, int32_t offset) {
 }
 
 extern int32_t backend_asm_ctx_slot_offset(uint8_t *ctx, int32_t slot_idx);
+extern int32_t asm_ctx_local_find_offset(uint8_t *ctx, uint8_t *name, int32_t name_len);
 extern int32_t backend_enc_store_eax_to_rbp_arch(uint8_t *elf_ctx, int32_t offset, int32_t ta);
 extern int32_t backend_enc_store_rax_to_rbp_arch(uint8_t *elf_ctx, int32_t offset, int32_t ta);
 extern int32_t glue_array_temp_bytes_for_let_init(uint8_t *arena, int32_t let_type_ref, int32_t init_ref);
@@ -122,10 +123,14 @@ int32_t glue_block_body_emit_let_init(uint8_t *arena, uint8_t *elf_ctx, int32_t 
   int32_t rc = 0;
   int32_t slot_off = 0;
   int32_t init_f32_lit = 0;
-  (void)lnb;
-  (void)llen;
-
   slot_off = backend_asm_ctx_slot_offset(ctx, slot);
+  /* Prefer-M2: name-find when llen>0 (SoftCap index may be torn). */
+  if (llen > 0 && lnb != 0) {
+    int32_t found = asm_ctx_local_find_offset(ctx, lnb, llen);
+    if (found >= 0) {
+      slot_off = found;
+    }
+  }
   rc = pipeline_asm_try_emit_dyn_coerce_let(arena, elf_ctx, block_ref, idx, init_ref, slot_off, ctx, ta);
   if (rc == 1) {
     return 0;
