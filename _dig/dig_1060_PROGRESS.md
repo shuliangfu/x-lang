@@ -3443,3 +3443,10 @@ PROD Soft Cap **`d263fe8c312b`** · nail **`ecdb5cc1e`** · w1778 **`9c4746d5b5d
 - Next: Prefer-M2 parse-append dig (`onefunc_append_if` counts / Cap soft Win egg vs tip Darwin); no PROD/nail; soft-stop 20:00 Asia/Shanghai.
 - Detail: `_dig/p1061_implicit_tail_DIG.md` §15:47.
 
+## 2026-10-31 ~16:00 CST Asia/Shanghai — Prefer-M2 parse-append dig result
+
+- tip SoftCap Cap soft Win FACE_UNIFY **F3+** (`e4b57ee59d26`…`d263fe8c312b`=tip) truncates mid-block consecutive ifs: plain_ifs **jcc=1**; bak_pre_1060 SoftCap **jcc=3**; W1778 **jcc=3**; Darwin Cap soft tip `0c0a41335a35` **3×cbz**.
+- Over-skip also eats mid `let` / trailing `while` after first if. if-else-if chain OK (single stmt).
+- Prefer-M2 tip `.x` **blocked** (tip source + Darwin OK). SoftCap Cap soft Win egg / F3 HIT collateral. No PROD/nail raise.
+- SoftCap body_sync still nso=2 nif=1 / USER main **0x88**; w1778 nso=10 nif=3 / **0xe8**.
+- Next: Cap soft Win tiphead HIT-reverse / egg rebuild dig (no PROD raise). Soft-stop 20:00 Asia/Shanghai.

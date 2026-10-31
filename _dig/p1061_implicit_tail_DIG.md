@@ -57,3 +57,44 @@ Breakpoints on `w1010_body_sync_level` stmt_order loop: after `num_stmt_order`, 
 4. Success bar unchanged: SoftCap USER main → **0xe8** a/b/c + cold lit/fwd/local/_var_let **4/4**.
 
 Artifacts: Win `g05th_dig/unify_cold/_dig_p1061_falsify.txt`, `_dig_p1061_falsify_w1778.txt`; scripts `/tmp/p1061_falsify_nif2.py`, `/tmp/p1061_falsify_w1778.py` (also under Win `C:\xlang_tmp\`).
+
+## 2026-10-31 ~16:00 CST Asia/Shanghai — Prefer-M2 parse-append dig (SoftCap Cap soft Win egg)
+
+### Pin: truncate site = SoftCap Cap soft Win FACE_UNIFY eggs (not tip parser.x)
+
+Probe matrix (Win `lab_SoftCap_tip.exe`=`d263fe8c312b` vs W1778=`9c4746d5b5d7` vs SoftCap bak_pre_1060=`7a2cf5da581a`):
+
+| probe | SoftCap tip | SoftCap bak | W1778 | note |
+|---|---|---|---|---|
+| plain 3× empty if | jcc=1 sp=0x40 | **jcc=3** sp=0x80 | jcc=3 | tip truncates; bak OK |
+| if + let + 2×if | jcc=1 | jcc=3 | jcc=3 | tip over-skips mid `let` too |
+| while + if + while | jcc=2 | — | jcc=3 | tip drops stmt after first if |
+| if-else-if chain | jcc=2 | — | jcc=2 | single if-stmt OK |
+| one if / ret_then | match | — | match | |
+| p_ret_fwd USER main | **0x88 / jcc=1** | CG002 (pre-raise) | **0xe8 / jcc=3** | |
+
+FACE ladder (hosts copied into `cave/` so seeds resolve):
+- F0..F2 / CONSUME_FIX: XT001 on plain_ifs (parse drops trailing `return` → typeck)
+- **F3 HIT `e4b57ee59d26` → F9 `d263fe8c312b`**: build OK, **jcc=1** (truncate present at F3 already)
+- tip SoftCap PE **byte-identical to F9**
+
+Darwin tip Cap soft `./compiler/xlang` sha12 **`0c0a41335a35`**: plain 3×if `_main` emits **3× cbz** (a/b/c) — tip `parser.x` / `pthin_ctrl.x` source path OK.
+
+### Mechanism (best current)
+After first mid-block `parse_if_stmt_into`, SoftCap Cap soft Win FACE_UNIFY eggs leave `lex_cur` past following sibling stmts (ifs **and** `let`/`while`). Outer block loop never appends them → body_sync `nif=1` / `nso=2`. Likely Cap soft egg `scan_sync_after_if` / `realign_lex_after_if_arm` collateral from F3 HIT plant — **not** tip Prefer-M2 `.x` defect (Darwin + SoftCap bak falsify tip-source root for SoftCap identity).
+
+### Prefer-M2 change?
+**Blocked** for SoftCap identity this beat: tip `.x` already correct (Darwin positive control). SoftCap Cap soft Win tiphead eggs (F3+) diverge. No host-cc `.c` added; no HARD BAN / mega / glue_tail / P4b / bstrict / CloudAgent; **PROD Soft Cap `d263fe8c312b` / nail `ecdb5cc1e` unchanged**.
+
+### Post metrics (unchanged — no fix)
+- tip SoftCap: nso=2 nif=1; USER main span **~0x88** a-only
+- w1778: nso=10 nif=3; USER main span **0xe8** a/b/c
+- SoftCap cold lit/fwd/local/_var_let 4/4 still green on tip SoftCap (F9); a/b/c still missing in USER main
+
+### True-fix?
+**No.** Docs-only dig progress.
+
+### Next
+1. Cap soft Win tiphead rebuild / HIT-plant reverse dig (still **no PROD/nail raise**) — restore multi-if append without losing cold 4/4.
+2. Optional: SoftCap debugger lex-pos after first `parse_if` (confirm scan_sync over-skip delta vs W1778).
+3. Soft-stop 20:00 Asia/Shanghai still applies for later beats.
