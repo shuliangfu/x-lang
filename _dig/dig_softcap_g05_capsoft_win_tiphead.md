@@ -202,3 +202,8 @@ Still **no PROD raise**. SoftCap PE clamp retire: **not yet**.
 - Cold dig **0/4 TYPECK** (class shift CG002→TYPECK): `expected  , found W` / slit `expected  = Po, found Point` (truncated type-name identity). PROD Soft Cap **`db734adafe5e` lit OK / 不升**. Tiphead cave **`ae81595209f3`**. Nail ecdb **不升**.
 - **Parse acceptance isol CLOSED** for Cap soft tiphead dig path (fix parse-skip → finish_struct_lit). **Next slit:** Cap soft tiphead typeck type-name identity (`Po`/`W` truncation vs full `Point`) — not SoftCap PE promote.
 
+## 18) 2026-10-31 ~18:51 CST — MIN_TRAMP (12-sym) same TYPECK class
+
+- Dig `lab_CapSoftWin_tiphead_COMBINED_MIN_TRAMP.exe` sha12 **`957f60cda4f6`**: only named_type/type_ref_impl + primary/finish/lbrace/fields/anonymous/empty_braces/suffix_loop stale→live (12 E9).
+- Same surface as dual-60: `-c` slit **typeck** `expected = Po, found Point`; cold **0/4 TYPECK** `expected , found W`. Over-tramp 60 **not** unique cause.
+- **Parse acceptance remains CLOSED**. Next = typeck type-name identity isol (why expected side truncates / empties under consume_real+primary real wire). PROD `db734` / nail ecdb **不升**. Prefer-M2 SoftCap dig STOP.
