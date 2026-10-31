@@ -170,3 +170,20 @@ Still **no PROD raise**. SoftCap PE clamp retire: **not yet**.
 - Hangprobe (let_slit): dig+tip **parse_skip HIT**; dig **finish_struct MISS**; w1778 finish_struct HIT / parse_skip MISS. Dig named_type HIT @0x628 still does not clear parse-skip.
 - Surgical redefine (only named_type+type_ref_impl) relink aborted (g05 fell to CC-residual / WinMain undef) — not a symbol falsify; keep full-31 redefine dig artifact.
 - **Next slit:** why consume_real-framed named_type still → parse-skip / no finish_struct (init_named reachability + sibling type_ref path; not SoftCap PE promote). Prefer-M2 SoftCap dig STOP.
+
+## 14) 2026-10-31 ~18:25 CST — TRS_TRAMP (stale → consume_real E9)
+
+- Dig host: `lab_CapSoftWin_tiphead_TRS_TRAMP.exe` sha12 **`54d57f8b082d`** (from TYPE_REF_STRIP + E9 tramp `__stale_*` → live `pthin_type_ref_consume_real` bodies).
+- Hangprobe let_slit: **named_type / type_ref_impl HIT** (tramp path); **finish_struct still MISS**; parse_skip still HIT. Cold still CG002 `code_len=0`.
+- True-fix closed for relative-call false-bind to `__stale_*` after redefine: tramp makes type path hit consume_real. Still insufficient for Cap soft emit.
+- PROD Soft Cap **`db734adafe5e` 不升**; nail ecdb **不升**. Prefer-M2 SoftCap dig STOP.
+
+## 15) 2026-10-31 ~18:40 CST — primary_ident stub true-fix (acceptance slit)
+
+- Tip / TYPE_REF / TRS dig `parser_asm_primary_ident_x_into_c` = **8-byte E9 stub → `primary_suffix_loop`** (thin_glue reloc intentional alias). Tip EXE has **no** 0x6b8 / 0xbb8 primary body.
+- w1778 has real ~2072B primary_ident (frame **0xbb8**) calling `lbrace_looks_like_block` / `empty_ident_braces` / `finish_struct_lit_ptr`.
+- Real Cap soft body lives in `build_asm/selfhost_pabi/pthin_primary_lbrace_real.o` (W primary_ident frame **0x6b8**) — **not** in default G05_OBJS / USER_ASM_LINK (only thin_glue stub).
+- Dig PRIMARY_LBRACE `5bace8ed04e4`: dual primary (low REAL + high E9 stub). E9FIX `6d30bc5a5c71` retargets stub→REAL; still CG002; **named_type still 0x258** there (no TYPE_REF strip). hang_focus: primary often MISS_rc; finish MISS.
+- FACE_TRAMP `3feda7638972`: `finish_struct_into_c` HIT still CG002 (likely type-decl path, not let-lit).
+- **Next slit:** combine TYPE_REF_STRIP (named_type **0x628**) + primary_ident real (redefine thin_glue primary→`__stale_prim_*` + link `pthin_primary_lbrace_real.o` + consume_real) → hangprobe finish vs parse_skip. No SoftCap PE promote. PROD `db734` / nail ecdb **不升**.
+
