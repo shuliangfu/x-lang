@@ -94,3 +94,17 @@ ONE / cold lit / fwd: no copy already. MULTI / local / `_var_let`: had copy; loc
 - Tip `.x` dest-direct (skip Windows copy when STRUCT_LIT already wrote sret / `sret_copied`) not landed — SoftCap dig egg only.
 - No PROD Soft Cap / nail raise.
 
+
+## 2026-10-31 ~17:05 CST Asia/Shanghai — Cross-tip Cap soft re-gate (Darwin + Ubuntu + Win)
+
+**Tip:** `55bf7a425` (= origin/dev). **PROD Soft Cap** `d263fe8c312b` / **nail** `ecdb5cc1e` **unchanged**.
+
+| host | sha12 | p_ret_lit | p_ret_fwd | p_ret_local | extra |
+|------|-------|-----------|-----------|-------------|-------|
+| Darwin Cap soft `compiler/xlang` | `0c0a41335a35` | 0 | 0 | 0 | — |
+| Ubuntu tip SoftCap/true RC `bootstrap_xlangc` | `ea9ddf4eb937` | 0 | 0 | 0 | tiphead 55bf7a425 |
+| Win dig SoftCap preferM2 (clamp18_dd) | `db734adafe5e` | 0 | 0 | 0 | + `_var_let` 0; multi dest-direct store_e8; one 0 |
+
+### Ready for manager dig→PROD ask?
+**Yes (with caveats):** tiphead Cap soft contracts green on Darwin + Ubuntu + Win dig SoftCap egg. Dig SoftCap true-fix remains a **PE dig-egg plant** (store-encoder clamp + skip post-emit rs_copy) on dig tip `06fa`, not a Prefer-M2 tip `.x` / product source patch. Do **not** raise PROD/nail until manager accepts dig SoftCap egg as Soft Cap product.
+

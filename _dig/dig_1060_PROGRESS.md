@@ -1,5 +1,8 @@
 # DIG 10.60 / 10.61 SoftCap progress
 
+**2026-10-31 ~17:05 CST (Asia/Shanghai)** · Cross-tip Cap soft re-gate on tip **`55bf7a425`**: Darwin Cap soft `compiler/xlang` sha12 **`0c0a41335a35`** p_ret_lit/fwd/local **3/3 RC0**; Ubuntu tip SoftCap/true RC `bootstrap_xlangc` sha12 **`ea9ddf4eb937`** p_ret_* **3/3 RC0** (checkout origin/dev tiphead); Win dig SoftCap preferM2/clamp18_dd sha12 **`db734adafe5e`** cold+multi+one **6/6 EXIT=0** (store_e8=Y). Prefer-M2 tip `.x` still deferred. **PROD Soft Cap `d263fe8c312b` / nail `ecdb5cc1e` unchanged**. Ready to ask manager for dig SoftCap→PROD (PE dig-egg; not tip.x). Soft-stop 20:00 Asia/Shanghai.
+
+
 **2026-10-31 ~17:00 CST (Asia/Shanghai)** · SoftCap Prefer-M2 **+ dest-direct dig-egg GATE** on tip egg `06fa`: `lab_SoftCap_tip_preferM2.exe` sha12 **`db734adafe5e`** = store-encoder clamp `|off|>0x1000→0x18` + skip post-emit_expr `rs_copy_x86`@`0x1400f9974`. `p1061_sret_lit_multi` **EXIT=0** dest-direct (no identity copy); SoftCap cold **4/4**; one-stmt 0. Name-find@`local_offset_at` falsified earlier. Prefer-M2 tip `.x` deferred. **PROD Soft Cap `d263fe8c312b` / nail `ecdb5cc1e` unchanged**. Soft-stop 20:00 Asia/Shanghai.
 
 
