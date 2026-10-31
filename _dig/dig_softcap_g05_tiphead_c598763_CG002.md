@@ -135,3 +135,49 @@ Plant w1778-class **RBP leftover `glue_block_body_emit_let_init`** (extract thin
 - Dig host: `C:\xlang_tmp\p1060\g05th_dig\lab_CapSoftWin_tiphead_LEFTPUSH.exe` (`edce125ae6d0`)
 - LEFT_PUSH COFF: `C:\xlang_tmp\w1741\let_only.o`
 - Tip SoftCap backup pre-dig: `cave\lab_CapSoftWin_tiphead.exe.bak_pre_leftpush` (= `13e5e99ef39b`)
+
+## 9) 2026-10-31 ~11:00 CST (Asia/Shanghai) — RBP leftover glue_block + LEFT_PUSH dig
+
+### Thin extract (not mega)
+- Source: `compiler/src/runtime_pipeline_abi_glue_block_body_emit_let_init_thin.c`
+- Build: `gcc -c -O0 -fno-omit-frame-pointer` → `C:\xlang_tmp\p1060\g05th_dig\el_O0fp.o` (5956)
+- Prologue **byte-match** w1778 live T@`140019d12`: `push rbp; mov rbp,rsp; sub rsp,0xa0` (a0_off=422 in COFF)
+- `-O2` / `-O1` / no-fp → **not** A0 (host-cc PUSH or other). Egg/`egg_thin.o` = `sub $0x190` class — **wrong** (mega-ish).
+
+### Dig SoftCap plant
+- Force after `g05_relink_env`: `el_O0fp.o` → `emit_let_init.o` + LEFT_PUSH `let_only.o` → `struct_let_init_win.o` + host-cc `body_sync` w1010.
+- Relink: `win_g05_dig_rbp_leftpush_relink.sh` / log `g05_dig_rbp_leftpush.log`.
+- Note: `g05_relink_xlang` returned 1 after OK link (`win_patch_body_sync_jmp` PermissionError on rewrite); product `compiler/xlang.exe` still held the plant (T symbols classified). Saved dig-only; tip SoftCap cave restored.
+
+### Dig host
+- sha12 **`e0946cbb62f5`** size **8021361**
+- Paths: `g05th_dig/lab_CapSoftWin_tiphead_RBP_LEFTPUSH.exe`, cave `lab_CapSoftWin_tiphead_RBP_LEFTPUSH_dig.exe` / `_cold_RBP_LEFTPUSH_host.exe`
+- Live: `T glue_block_body_emit_let_init@14010bf72` **RBP_A0** (`sub rsp,0xa0`); `T glue_emit_struct@14011efc0` **LEFT_PUSH**; `t w1010_emit_let@14010b380`
+
+### Cold 4-gate (cave-hosted; codegen view)
+| host | sha12 | ret0 | mk_only | slit | p_ret_lit |
+|------|-------|------|---------|------|----------|
+| dig RBP+LEFT_PUSH | `e0946cbb62f5` | PRC001 (codegen OK) | PRC001 | **CG002** | **CG002** |
+| tip SoftCap | `13e5e99ef39b` | PRC001 | PRC001 | **CG002** | **CG002** |
+| LEFT_PUSH dig | `edce125ae6d0` | PRC001 | PRC001 | **CG002** | **CG002** |
+| w1778 | `9c4746d5b5d7` | PRC001 | PRC001 | PRC001 | PRC001 |
+
+- Dig / tip SoftCap / LEFT_PUSH: **0/4 green** (aggregate **CG002**). w1778 still **4/4** codegen-green (PRC001 = spawn `xlang_run_1` missing in this PATH; not CG002).
+- Tip SoftCap cave unchanged **`13e5e99ef39b`**. PROD Capless `lab_SoftCap_76795.exe` **`7a2cf5da581a`** untouched. Nail `ecdb5cc1e` not raised. w1778 untouched.
+
+### Falsified (add)
+3. host-cc w1010 + **RBP leftover glue_block** (w1778 T@`140019d12` class) + **LEFT_PUSH struct** → still aggregate CG002.
+Caller stack + leftover glue_block shape + leftover struct body together are still insufficient on tip SoftCap family.
+
+### Not a SoftCap close
+RBP+LEFT_PUSH dig host is dig-only. No SoftCap tiphead promote, no PROD/nail raise, no PE Isol SoftCap close, no mega / LIVE / egg mega.
+
+### Next single point
+**Fix selfhost Win64 N≥5 call emit** and rebuild tiphead Cap soft (remaining fork from §8). Dig whether `pipeline_asm_emit_struct_let_init_elf_c` / call-return-to-slot winners still diverge vs w1778 after that. Prefer M2 true host-cc reduction. **No SoftCap re-close / no PROD raise until cold green.** Gate green ≠ knife done.
+
+### Artifacts
+- Thin COFF: `C:\xlang_tmp\p1060\g05th_dig\el_O0fp.o`
+- Dig relink: `C:\xlang_tmp\g05_dig_rbp_leftpush.log` / `win_g05_dig_rbp_leftpush_relink.sh`
+- Dig host: `C:\xlang_tmp\p1060\g05th_dig\lab_CapSoftWin_tiphead_RBP_LEFTPUSH.exe` (`e0946cbb62f5`)
+- Cold: `C:\xlang_tmp\p1060\g05th_dig\rbp_leftpush_cold4.txt`
+- Tip SoftCap backup pre-dig: `cave\lab_CapSoftWin_tiphead.exe.bak_pre_rbp_leftpush` (= `13e5e99ef39b`)
