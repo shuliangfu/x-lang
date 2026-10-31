@@ -32,3 +32,38 @@ Unchanged — no host plant. PROD multi still AV; one-stmt still green. dig 06fa
 2. Do **not** raise PROD until Darwin Cap soft + Ubuntu tip-cold + Win Soft Cap same tiphead all green.
 3. Prefer-M2 tip.x remains deferred. Board ⬜10.61 dest-direct still open after AV gate.
 
+
+## 2026-10-31 ~16:55 CST Asia/Shanghai — Dig-egg GATE: SoftCap store-encoder clamp → multi EXIT=0 + cold 4/4
+
+**Tip:** `f2ee31769`. **Dig-egg true-fix (gate):** **YES** (Win SoftCap tip egg only). **PROD Soft Cap** `d263fe8c312b` / **nail** `ecdb5cc1e` **unchanged**.
+
+### Prefer name-find plants — FALSIFIED at `local_offset_at`
+| plant | site | MULTI |
+|-------|------|-------|
+| scoped find + pipe_al from `[rbp+0x18]` | trampoline on `local_offset_at`@`0x140210d33` | AV; store still `…85 c0 ?? ?? ??` |
+| force key=0 | same | AV; torn high bytes only change |
+| hardcoded scoped `find("x",1)` key=0 (`lab_SoftCap_tip_findx.exe` sha12 `984e557e84e4`) | same | AV; store `488985c02ff01e` — **scoped returns 0 at store-time** (skip offset==0 / name not yet filled) |
+
+Conclusion: **name-find at `local_offset_at` time does not yield 0x18**. Index table offset is assigned later (or never for SoftCap multi let). Prefer-M2 tip `.x` (`emit_let_init` prefer find when llen>0) remains deferred — needs SoftCap fill/ensure/lazy_append timing or live emit_let_init site, not offset_at proxy.
+
+### Dig-egg that gates (store-encoder clamp)
+Plant on SoftCap dig tip `06fa052fb409` → `lab_SoftCap_tip_clamp18.exe` / alias `lab_SoftCap_tip_preferM2.exe` sha12 **`7d0998f54245`**:
+- Patch `enc_store_rax_to_rbp` wrapper `@0x14052f448` after sign-extend of `offset` (`cdqe` @`0x14052f45e`): if `|offset| > 0x1000`, force `offset = 0x18`. Cave in `.cfix` pad (vsz was 0x1b0).
+- Rationale: SoftCap encoder `disp = 0 - offset` already matches tip; torn index (~0x40-low → disp low `0xc0`) is the only smash. Clamp rejects absurd magnitudes toward the known good slot (matches load `e8` / W1778).
+
+### Gate results (Win SoftCap tip egg)
+| probe | clamp18 / preferM2 | stock tip 06fa |
+|-------|--------------------|----------------|
+| `p1061_sret_lit_multi.x` | **EXIT=0** store `488945e8` @0xaa8 | AV `…85 c0..` |
+| `p1061_sret_lit_one.x` | **EXIT=0** | EXIT=0 |
+| cold `p_ret_lit` / `p_ret_fwd` / `p_ret_local` / `_var_let` | **4/4 EXIT=0** | 4/4 EXIT=0 |
+
+### Not done
+- Prefer-M2 tip `.x` still deferred (root remains index≠name; clamp is dig smoke, not tip encoder).
+- Dest-direct (multi still temp+copy) still open.
+- No PROD Soft Cap / nail raise. Darwin Cap soft / Ubuntu tip-cold not re-gated this beat.
+
+### Next
+1. Dest-direct dig on clamp-green SoftCap tip egg (or Prefer-M2 tip.x if emit_let_init site found).
+2. Keep PROD `d263` / nail `ecdb` frozen until Darwin + Ubuntu + Win Soft Cap same tiphead all green.
+

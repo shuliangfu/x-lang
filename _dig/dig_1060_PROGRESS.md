@@ -1,3 +1,7 @@
+# DIG 10.60 / 10.61 SoftCap progress
+
+**2026-10-31 ~16:55 CST (Asia/Shanghai)** · Prefer-M2 dig-egg **GATE landed** (Win SoftCap tip egg only): store-encoder clamp `|off|>0x1000→0x18` on dig tip `06fa` → `lab_SoftCap_tip_clamp18.exe`/`preferM2` sha12 **`7d0998f54245`**; `p1061_sret_lit_multi` **EXIT=0** store `488945e8`; SoftCap cold lit/fwd/local/_var_let **4/4**; one-stmt still 0. Prefer name-find @`local_offset_at` **falsified** (scoped find returns 0 at store-time). Prefer-M2 tip `.x` deferred. **PROD Soft Cap `d263fe8c312b` / nail `ecdb5cc1e` unchanged**. Next: dest-direct on clamp-green egg. Soft-stop 20:00 Asia/Shanghai.
+
 # 10.60 SoftCap DIG PROGRESS
 
 **2026-10-30 ~20:14 CST (Asia/Shanghai)** · DIG/plant `softcap_tip_capsoft_win_promote`：tip SoftCap 身份接到 Cap soft Win `lab_SoftCap_tip.exe`=`9c4746d5b5d7`（`build`+WORK seeds/include）**四门冷绿 4/4** past CG002／可跑 USER；PROD Capless `7a2cf5da581a` 仍 CG002红**未动**；Isol 对照仍绿；勿升 PROD／钉 **不升** · 下一单点：`softcap_g05_capsoft_win_tiphead`
