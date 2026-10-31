@@ -3458,3 +3458,10 @@ PROD Soft Cap **`d263fe8c312b`** · nail **`ecdb5cc1e`** · w1778 **`9c4746d5b5d
 - Post: tip SoftCap dig plain_ifs **jcc=3** / p_ret_fwd USER **sp=0xe8 jcc=3** (= W1778); PROD still jcc=1 / 0x88. SoftCap dig cold lit/fwd/local/_var_let **4/4** + slit OK. Darwin/Ubuntu tip `.x` untouched.
 - True-fix: **yes** dig SoftCap tip egg only (no PROD raise). Prefer-M2 tip `.x` still blocked/unneeded for SoftCap identity.
 - Next: optional nif confirm; later PROD promote decision; soft-stop 20:00 Asia/Shanghai. Detail: `_dig/p1061_implicit_tail_DIG.md` §16:10.
+
+## 2026-10-31 ~16:13 CST Asia/Shanghai — **10.61 SoftCap OPEN** / first DIG `sret-lit dest direct`
+
+- Board: 终局待办 ⬜→🟡 **10.61** (Win Soft Cap serial). Live beat name **sret-lit dest direct**. Prefer-M2 tip.x deferred. PROD Soft Cap **`d263fe8c312b`** / nail **`ecdb5cc1e`** unchanged. dig egg `06fa052fb409` referenced only.
+- Probe `p1061_sret_lit_one.x` (single-stmt `return Point{…}`): PROD／dig／W1778 **RUN=0**; make() dest-direct stores via rbx←rcx (no post-copy).
+- Probe `p1061_sret_lit_multi.x` (`let x=1; return Point{a:x,b:2,c:3}`): **W1778 RUN=0**; **PROD＋dig AV** (`0xC0000005`). Both SoftCap+W1778 still emit temp lit + qword copy to sret home (not yet dest-direct). SoftCap multi diverges at local `x=1` store: W1778 `mov [rbp-0x18],rax` (`48 89 45 e8`); SoftCap smashed disp32 `48 89 85 c0 ff 54 e3` (want `…c0 ff ff ff`).
+- Next DIG: falsify whether AV root = let-local encode smash vs sret copy dest; then Prefer-M2 path to dest-direct fields(-3)/sret_home (board ✅) without new host-cc .c / PROD raise.
