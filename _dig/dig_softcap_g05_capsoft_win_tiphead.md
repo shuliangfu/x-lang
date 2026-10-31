@@ -253,3 +253,33 @@ tiphead rebuild to land in dig host; ATENDFIX remains dig proof until then.
    real subtract (not JMP).
 2. If-return coverage isol on Cap soft tiphead (cold 4/4 blocker after
    name identity). SoftCap PE promote **NO**.
+
+## 20) 2026-10-31 ~19:17 Asia/Shanghai — tiphead Cap soft rebuild; Prefer-M2 thin plant blocked
+
+### Tiphead Cap soft rebuild (win_g05)
+- Worker tree tip `34832b037`. `win_g05_rebuild.sh` ensure+relink **OK**.
+- New tiphead PE sha12 **`a135fe2c5162`** (size ~7989831; worker `compiler/xlang.exe` @19:04).
+- Cave tiphead still **`ae81595209f3`** (untouched). PROD Soft Cap **`db734adafe5e` 不升**. Nail **`ecdb5cc1e` 不升**.
+
+### Prefer-M2 at_end thin did **NOT** land in tiphead PE
+- `parser_asm_copy_slice_to_{name64,param32}_at_end_buf_c` still **W bare JMP** → `*_buf_c` (drops `end_pos-nlen`).
+- Cap soft proof `.o` exists: `/c/xlang_tmp/p1060/pthin_lex_skip_prefer_m2_atend.o` (T bodies with real frame; not JMP).
+- Also present unused: `build_asm/selfhost_pabi/pe_at_end_fix.o` (T name64 with `sub %rax,%r8` then JMP buf_c) — **not on G05_OBJS**.
+- JMP source in tiphead link: `parser_asm_thin_glue.o` W stubs.
+
+### Plant attempt (failed)
+- Appended full Prefer-M2 TU `.o` to G05_OBJS → ld undefs (`parser_asm_lex_peek_*` etc.; WinMain) — full TU not isol plant.
+- `g05_relink_env` also hit **`No space left on device`** (objcopy). Relink exit 1; may have removed/clobbered worker `xlang.exe`.
+- Windows SSH subsequently **wedged** (TCP:22 open, session hang) — dig blocked until disk freed / sshd recovers.
+
+### Cold / XT001 (still on prior dig ATENDFIX `c6ee92cdc0b7`)
+- Cold tiphead dig (ATENDFIX): **0/4 XT001** if-return class (name TYPECK/CG002 cleared).
+- Matrix: `t_ret_only` TYPECK OK (BLD001 host-cc); `t_if_ret` XT001 implicit tail; w1778 both TYPECK OK.
+- Root still open: Cap soft tiphead `func_body_tail_expr_ref` / final_expr after `if { return }; return 0` vs w1778. ATENDFIX has duplicate `t`+`T` `typeck_func_body_has_implicit_return_tail` (w1778 T-only).
+
+### Next (when Win recovers)
+1. Free `/c` space (drop `_atend_dis.asm` ~97MB, kept C, `_hf_COMBINED_*` temps).
+2. Slim plant: `pe_at_end_fix.o` (name64) + dig-only param32 twin **or** objcopy-extract only two `*_at_end_buf_c` from Prefer-M2 `.o` → G05_OBJS → relink tiphead; prove `sub` not bare JMP.
+3. Re-apply COMBINED+MIN_TRAMP(+ATENDFIX if thin miss) on new tiphead dig; cold N/4.
+4. If-return coverage isol true-fix. SoftCap PE promote **NO**.
+
