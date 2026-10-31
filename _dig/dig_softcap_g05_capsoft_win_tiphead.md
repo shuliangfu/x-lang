@@ -327,3 +327,9 @@ body (stub vs E9 over-skip). SoftCap PE promote **NO**.
 - PROD Soft Cap **`db734adafe5e` 不升**. Nail **`ecdb5cc1e` 不升**. SoftCap PE promote **NO**.
 - **Next after Win console/disk free:** delete `_atend_dis.asm`+temps → slim plant `pe_at_end_fix`/extracted Prefer-M2 at_end → prove `sub` → COMBINED/MIN_TRAMP cold → XT001/realign dig if needed.
 
+## 23) 2026-10-31 ~19:41 Asia/Shanghai — STOP_SOFT
+
+- Soft-stop hold. Win briefly recovered (~19:34: ping/SSH UP, `/c` 19.8G free / 71%). Restored tiphead `xlang.exe` sha12 **`a135fe2c5162`** from `xlang_asm.exe`. Slim Prefer-M2 at_end localize started; SSH **closed** before `g05_relink_atend_thin` finished. No thrash.
+- Dig cold still ATENDFIX **`c6ee92cdc0b7` 0/4 XT001**. Cave **`ae81595209f3`**. PROD Soft Cap **`db734adafe5e` 不升**. Nail **`ecdb5cc1e` 不升**.
+- Live tip line → **`215432446`**. Next after Win stable: finish slim at_end plant → prove `sub` → COMBINED/MIN_TRAMP cold → XT001/realign if needed.
+
