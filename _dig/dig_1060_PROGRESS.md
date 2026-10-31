@@ -3431,3 +3431,15 @@ Byte length of USER `main` in the cold-gate PE (push rbp … ret). Gap = missing
 
 ### 5) Untouched
 PROD Soft Cap **`d263fe8c312b`** · nail **`ecdb5cc1e`** · w1778 **`9c4746d5b5d7`** · Darwin Cap soft / Ubuntu tip SoftCap true RC baselines.
+
+## 2026-10-31 ~15:47 CST Asia/Shanghai — `has_implicit_return_tail` falsify: **PARSE wins**
+
+- tip HEAD **4408c54cf** (= origin/dev). No true-fix. PROD Soft Cap **d263fe8c312b** / nail **ecdb5cc1e** unchanged.
+- Live debugger SoftCap vs W1778 on `p_ret_fwd`:
+  - SoftCap main: **nso=2** (let+if), **nif=1**, emit_if×1
+  - W1778 main: **nso=10** (let+if×3+…), **nif=3**, emit_if×3
+- **Emit/join hypothesis eliminated.** Root = SoftCap Cap soft Win F9 AST has only first if before body_sync.
+- USER spans unchanged: SoftCap **0x88** a-only vs W1778 **0xe8** a/b/c.
+- Next: Prefer-M2 parse-append dig (`onefunc_append_if` counts / Cap soft Win egg vs tip Darwin); no PROD/nail; soft-stop 20:00 Asia/Shanghai.
+- Detail: `_dig/p1061_implicit_tail_DIG.md` §15:47.
+
