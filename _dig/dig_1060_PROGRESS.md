@@ -3378,3 +3378,21 @@ Dig PE scaffold now sits as tip SoftCap Cap soft host. **Gate green ≠ PROD✅ 
 
 ### 4) Bans unchanged
 No PROD/nail raise. Ban CloudAgent／10.74／HARD BAN／mega／假绿／LEGACY／LIVE transplant／PE Isol as SoftCap close.
+
+
+## 2026-10-31 ~15:31 CST Asia/Shanghai — **10.60 SoftCap CLOSE** WORK→PROD Soft Cap
+
+### Manager ✅
+- WORK→PROD Soft Cap: cave `lab_SoftCap_76795.exe` ← tip SoftCap Cap soft **`d263fe8c312b`** size 8062464
+- bak Capless **`7a2cf5da581a`** @ `C:/xlang_tmp/p1060/bak/lab_SoftCap_76795_Capless_7a2cf5da581a_pre_1060_raise.exe`
+- tip SoftCap alias `lab_SoftCap_tip.exe` → **`d263fe8c312b`**
+- Post-raise PROD Soft Cap cold lit/fwd/local/_var_let **4/4 RC0**
+- Darwin Cap soft 3/3 + Ubuntu tip SoftCap true RC 3/3 already green
+- Nail **`ecdb5cc1e` unchanged**
+- Close note: `_dig/p1060_CLOSE.md` · live page `analysis/自举进度.md` · `analysis/终局待办.md`
+
+### Residual (next-beat open; non-blocking)
+`has_implicit_return_tail` USER main 0x88 vs W1778 0xe8 — dig-only. Listed on live progress page.
+
+### Not opened
+Next knife left for parent／经理.
