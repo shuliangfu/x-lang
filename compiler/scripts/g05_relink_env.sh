@@ -685,6 +685,11 @@ case "$UNAME_S" in
       rm -f "${_g05_bs_o}.tmp.o"
       exit 1
     fi
+    if ! nm "${_g05_bs_o}.tmp.o" 2>/dev/null | grep -qE ' T pipeline_asm_emit_block_prefix_elf$'; then
+      echo "g05_relink_env: ERROR host-cc body_sync missing T pipeline_asm_emit_block_prefix_elf" >&2
+      rm -f "${_g05_bs_o}.tmp.o"
+      exit 1
+    fi
     mv -f "${_g05_bs_o}.tmp.o" "$_g05_bs_o"
     echo "g05_relink_env: 10.60 SoftCap Windows host-cc body_sync (.c twin, w1010)" >&2
     if ! gcc -c -O2 -o "${_g05_el_o}.tmp.o" "$_g05_el_c" 2>/tmp/g05_el_hostcc.err; then

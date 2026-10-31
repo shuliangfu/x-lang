@@ -149,7 +149,7 @@ static int32_t w1010_emit_let(void *arena, void *elf_ctx, int32_t block_ref, int
  * PLATFORM: WINDOWS — host-gcc twin of pipeline_asm_emit_block_body_sync_elf.
  */
 static int32_t w1010_body_sync_level(void *arena, void *elf_ctx, int32_t block_ref, void *ctx,
-                                     int32_t ta, uint8_t *dm) {
+                                     int32_t ta, uint8_t *dm, int32_t skip_final) {
   int32_t slot_base;
   int32_t nconst;
   int32_t nlet;
@@ -396,8 +396,12 @@ static int32_t w1010_body_sync_level(void *arena, void *elf_ctx, int32_t block_r
   if (glue_emit_run_language_defers_elf(arena, elf_ctx, block_ref, ctx, ta) != 0) {
     return -1;
   }
-  if (glue_emit_block_final_expr_elf(arena, elf_ctx, block_ref, ctx, ta) != 0) {
-    return -1;
+  /* skip_final: leave value expr for caller (field rvalue / prefix). Defers
+   * already ran, matching the .x path. PLATFORM: WINDOWS host-cc twin. */
+  if (skip_final == 0) {
+    if (glue_emit_block_final_expr_elf(arena, elf_ctx, block_ref, ctx, ta) != 0) {
+      return -1;
+    }
   }
   return 0;
 }
@@ -413,7 +417,25 @@ int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_
   int32_t rc;
   uint8_t *dm = (d >= 0 && d < 64) ? g_w1010_let_defer[d] : 0;
   g_w1010_depth = d + 1;
-  rc = w1010_body_sync_level(arena, elf_ctx, block_ref, ctx, ta, dm);
+  rc = w1010_body_sync_level(arena, elf_ctx, block_ref, ctx, ta, dm, 0);
+  g_w1010_depth = d;
+  return rc;
+}
+
+/**
+ * Emit a block's consts/lets/statements, not its value expr (w1009 prefix).
+ * @return 0 ok; -1 fail
+ * PLATFORM: WINDOWS — host-gcc twin of pipeline_asm_emit_block_prefix_elf.
+ * 10.60 SoftCap: required by lane_f32_lit_operand.o when body_sync is host-cc
+ * (selfhost .x twin exported this T from the same TU).
+ */
+int32_t pipeline_asm_emit_block_prefix_elf(void *arena, void *elf_ctx, int32_t block_ref, void *ctx,
+                                            int32_t ta) {
+  int32_t d = g_w1010_depth;
+  int32_t rc;
+  uint8_t *dm = (d >= 0 && d < 64) ? g_w1010_let_defer[d] : 0;
+  g_w1010_depth = d + 1;
+  rc = w1010_body_sync_level(arena, elf_ctx, block_ref, ctx, ta, dm, 1);
   g_w1010_depth = d;
   return rc;
 }
