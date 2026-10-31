@@ -816,7 +816,31 @@ if [ "${XLANG_ELF_UNDEF_CAP_OVERLAY:-1}" = "1" ]; then
   if [ "$_cap_os" != "linux" ] && [ -n "$_cap_egg" ] && [ -x "$_cap_egg" ]; then
     _cap_bins="$_cap_bins $_cap_egg"
   fi
-  if [ -f "$_cap_x" ] && [ -n "$_cap_bins" ]; then
+  # 10.60: G05_SKIP_HOT_REBUILD — tiphead Cap soft Win PE cannot reliably
+  # re-emit this thin (fork/CG pressure); keep prior_ok / existing T overlay.
+  # PLATFORM: WINDOWS · PE isolate (also safe SHARED when SKIP_HOT).
+  if [ "${G05_SKIP_HOT_REBUILD:-0}" = "1" ]; then
+    if [ ! -s "$_cap_o" ] && [ -s "${_cap_o}.prior_ok" ]; then
+      cp -f "${_cap_o}.prior_ok" "$_cap_o"
+      echo "g05_relink_env: 10.60 SKIP_HOT restore ${_cap_o}.prior_ok" >&2
+    fi
+    _cap_skip_ok=1
+    if [ -s "$_cap_o" ]; then
+      for _csym in pipe_elf_undef_cap pipe_elf_ws_undef_name_row \
+          pipe_elf_ws_undef_len_at pipe_elf_ws_undef_len_set; do
+        if ! nm "$_cap_o" 2>/dev/null | grep -q "T _*${_csym}\$"; then
+          _cap_skip_ok=0
+        fi
+      done
+    else
+      _cap_skip_ok=0
+    fi
+    if [ "$_cap_skip_ok" = "1" ]; then
+      _G05_PO_OUT="$_cap_o"
+      echo "g05_relink_env: 10.60 SKIP_HOT reuse $_cap_o (accessor T)" >&2
+    fi
+  fi
+  if [ -z "$_G05_PO_OUT" ] && [ -f "$_cap_x" ] && [ -n "$_cap_bins" ]; then
     mkdir -p build_asm/selfhost_pabi
     rm -f "$_cap_o" "$_cap_o.tmp.o"
     # macOS has no timeout(1); perl alarm gives the same 240s cap there
@@ -1654,6 +1678,56 @@ case "$UNAME_S" in
            | grep -qE " T pipeline_asm_emit_binop_mod_elf_c$"; then
       _PABI_BINOP_WIDE="build_asm/selfhost_pabi/binop_wide.o"
       echo "g05_relink_env: 10.46 reinject binop_wide.o" >&2
+    fi
+    # 10.60 tiphead Cap soft Win: mega-merge emptied STRUCT_LIT_FIELD overlay;
+    # reinject leftover-rest struct_lit_field.o so win_emit gets by-name
+    # field_offset/type_ref/store_sz (stage dual T@low + W@egg). Without it
+    # tiphead STRUCT_LIT → CG002 code_len=0. PLATFORM: WINDOWS · PE isolate.
+    if [ -s build_asm/selfhost_pabi/struct_lit_field.o ] \
+      && nm build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null \
+           | grep -qE " T pipeline_expr_struct_lit_field_offset_at$"; then
+      _PABI_STRUCT_LIT_FIELD="build_asm/selfhost_pabi/struct_lit_field.o"
+      echo "g05_relink_env: 10.60 reinject struct_lit_field.o" >&2
+    fi
+    # 10.60: mega-merge emptied call_spill; stage/w1778 still export
+    # glue_asm_last_struct_lit_temp_bytes_c from leftover call_spill.o.
+    # tiphead Cap soft lacked it after SKIP_HOT Soft Cap link → min_point /
+    # p_ret_lit CG002 code_len=0 while min_ret0 OK. call_spill U needs
+    # glue_addr_simd_lane_type_c from addr_of_call.o (sole missing U vs tiphead).
+    # Weaken PE-clash strong T so egg/prior first-wins: call_spill clashes
+    # glue_asm_sum_block_call_spill_bytes; addr_of clashes
+    # pipeline_asm_emit_addr_of_elf_c. PLATFORM: WINDOWS · PE isolate.
+    _cs_oc=""
+    if command -v llvm-objcopy >/dev/null 2>&1; then _cs_oc=llvm-objcopy
+    elif command -v objcopy >/dev/null 2>&1; then _cs_oc=objcopy
+    fi
+    if [ -s build_asm/selfhost_pabi/addr_of_call.o ] \
+      && nm build_asm/selfhost_pabi/addr_of_call.o 2>/dev/null \
+           | grep -qE " T glue_addr_simd_lane_type_c$"; then
+      if [ -n "$_cs_oc" ] \
+        && nm build_asm/selfhost_pabi/addr_of_call.o 2>/dev/null \
+             | grep -qE " T pipeline_asm_emit_addr_of_elf_c$"; then
+        "$_cs_oc" --weaken-symbol=pipeline_asm_emit_addr_of_elf_c \
+          build_asm/selfhost_pabi/addr_of_call.o 2>/dev/null \
+          && echo "g05_relink_env: 10.60 weaken addr_of emit (egg wins)" >&2 \
+          || true
+      fi
+      _PABI_ADDR_OF_CALL="build_asm/selfhost_pabi/addr_of_call.o"
+      echo "g05_relink_env: 10.60 reinject addr_of_call.o (simd lane for call_spill)" >&2
+    fi
+    if [ -s build_asm/selfhost_pabi/call_spill.o ] \
+      && nm build_asm/selfhost_pabi/call_spill.o 2>/dev/null \
+           | grep -qE " T glue_asm_last_struct_lit_temp_bytes_c$"; then
+      if [ -n "$_cs_oc" ] \
+        && nm build_asm/selfhost_pabi/call_spill.o 2>/dev/null \
+             | grep -qE " T glue_asm_sum_block_call_spill_bytes$"; then
+        "$_cs_oc" --weaken-symbol=glue_asm_sum_block_call_spill_bytes \
+          build_asm/selfhost_pabi/call_spill.o 2>/dev/null \
+          && echo "g05_relink_env: 10.60 weaken call_spill sum_block (egg wins)" >&2 \
+          || true
+      fi
+      _PABI_CALL_SPILL="build_asm/selfhost_pabi/call_spill.o"
+      echo "g05_relink_env: 10.60 reinject call_spill.o" >&2
     fi
     mkdir -p build_asm/selfhost_pabi
     # assign_var_compound U faces — full av_assign satellite set.

@@ -3212,3 +3212,29 @@ Isol CapFN 体内 E8 入 SoftCap mega `[0x57effc,0x58e9a0)`：**5** 处；−Δ`
 ### 4) open
 - 笔记 `_dig/dig_live_isol_parity.md`；脚本／log `_dig/dig_live_isol_parity.py`／`.log`
 - PROD／钉 **未动**；bans unchanged；**门绿≠PROD✅／≠收刀**
+
+## 2026-10-31 ~09:16 CST Asia/Shanghai — softcap_g05 tiphead `7c1051a95fcc` cold RED; DIG vs w1778
+
+### 0) 闸
+- tiphead Cap soft sha12 **`7c1051a95fcc`** size=8026647（guarded-relink ~09:12 exit 0；G05_OBJS=155；10.60 reinject HIT）
+- tip SoftCap plant = tiphead sha（identity）
+- w1778 `9c4746d5b5d7` **4/4 冷绿**；PROD `7a2cf5da581a`／钉 `ecdb5cc1e` **未动**
+- 禁 CloudAgent／10.74／HARD BAN／mega／假绿／LIVE SoftCap 移植／PE Isol 当 tip SoftCap：遵守
+
+### 1) Cold
+| host | lit | fwd | local | let |
+|---|---|---|---|---|
+| tip SoftCap / tiphead direct `7c1051a95fcc` | CG002 | CG002 | CG002 | CG002 |
+| w1778 `9c4746d5b5d7` | 0 | 0 | 0 | 0 |
+
+### 2) DIG 钉死
+1. last_struct／simd／field_offset **已在 tiphead**；STRUCT_LIT **return** 路径 OK —— 非缺 call_spill 符号。
+2. Ladder：任意 **aggregate let**（struct／array／empty／uninit）→ CG002 code_len=0；scalar／type-only OK。
+3. 根：`struct_let_init_thin.x` Win 编译 **SEGV**；prior `struct_let_init_win.o` 缺失；mega T `glue_emit_struct_type_let_init` W→T 错赢 vs w1778 C leftover。
+
+### 3) 下一拍最小刀
+- **`struct_let_init_win` overlay**：修 Win thin SEGV 或 reinject 已知好 `.o`／让 egg W 赢 mega T；再 guarded-relink＋冷四门。未运行绿 → **勿收刀／勿升 PROD／勿请批**。
+
+### 4) open
+- 笔记 `_dig/dig_softcap_g05_tiphead_7c1051_CG002.md`
+- PROD／钉 **未动**；bans unchanged；**门绿≠PROD✅**
