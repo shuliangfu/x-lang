@@ -3396,3 +3396,38 @@ No PROD/nail raise. Ban CloudAgent／10.74／HARD BAN／mega／假绿／LEGACY�
 
 ### Not opened
 Next knife left for parent／经理.
+
+## 2026-10-31 ~15:37 CST Asia/Shanghai — **has_implicit_return_tail dig** OPEN (dig-only; not SoftCap raise)
+
+### 0) Scope (manager refined)
+- 10.60 SoftCap ✅ closed. This beat = residual DIG/falsify only.
+- **Not** a PROD Soft Cap raise knife. PROD Soft Cap stays **`d263fe8c312b`**. Nail **`ecdb5cc1e`** unchanged.
+- Fold residual into Soft Cap DIG/root-fix; do **not** open a separate HIT residual main knife.
+- Bans: CloudAgent／10.74／HARD BAN／mega／glue_tail／P4b／假绿／NEW host-cc .c／LEGACY.
+
+### 1) First measurement (cold USER products)
+Hosts: tip SoftCap Cap soft **`d263fe8c312b`** (F9 unify_cold) vs w1778 **`9c4746d5b5d7`**.
+
+| product | tip SoftCap main span | W1778 main span | tip SoftCap checks | W1778 checks |
+|---------|----------------------|-----------------|--------------------|--------------|
+| `p_ret_fwd` | **0x88** (rva `@0x1558`) | **0xe8** (`@0x1558`) | a only → `return 0` | a/b/c → `return 0` |
+| `p_ret_lit` | **0x88** (`@0x14f8`) | **0xe8** (`@0x14f8`) | a only | a/b/c |
+| `_var_let` | **0x80** a-only | **0xf0** (last-ret **0xe8**) | a only | a/b/c |
+
+Tip SoftCap `main` also uses SoftCap-shaped `sub rsp,0x1b8` vs W1778 `sub rsp,0x78`. After first `if (w.a)` fallthrough, tip emits `mov eax,0` + epilogue (skips b/c). mk/fw ABI still write a/b/c (historical dig cold bar).
+
+### 2) What 0x88 vs 0xe8 measures
+Byte length of USER `main` in the cold-gate PE (push rbp … ret). Gap = missing emit of 2nd/3rd field ifs (`return 2` / `return 3`), not host size and not empty-sret 假绿.
+
+### 3) Detection / label
+- Source helper: `func_body_has_implicit_return_tail` in `compiler/src/typeck/typeck.x` (tail via `func_body_tail_expr_ref_for_implicit_rule` + `ast_expr_disallows_implicit_tail`). Typeck fail-kind **-6** when non-void + implicit tail.
+- Dig label since F3: HIT `@0x140480c68` on tip SoftCap PE is a squeezed stub `xor eax,eax; ret` between prior `ret` and next body — **not** W1778 layout at that RVA. Do not thrash PE plant as first Prefer-M2 step.
+- Emit walker `pipeline_asm_emit_block_body_sync_elf` walks full `stmt_order` (k==5 → `pipeline_asm_emit_block_if_stmt_elf`) then `glue_emit_block_final_expr_elf`. No per-stmt diverged skip in the host-cc twin loop → short main more likely **missing stmt_order ifs** or **wrong if/final join**, not mid-loop diverged break.
+
+### 4) DIG plan (next)
+1. Falsify parse vs emit: dump SoftCap vs W1778 `num_if_stmts` / `num_stmt_order` for `p_ret_fwd` main (parse_commit_shape / one-func diag) — if tip SoftCap n_if<3 → parse/skip path; if n_if==3 → emit/join path.
+2. Prefer-M2 true host-cc/.x reduction on the winning path; keep three-end L2 gates; no SoftCap PROD raise.
+3. Success bar: tip SoftCap USER main span **0xe8** with a/b/c + cold 4/4 still green (not a-only 假绿).
+
+### 5) Untouched
+PROD Soft Cap **`d263fe8c312b`** · nail **`ecdb5cc1e`** · w1778 **`9c4746d5b5d7`** · Darwin Cap soft / Ubuntu tip SoftCap true RC baselines.
