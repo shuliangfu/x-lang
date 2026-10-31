@@ -104,3 +104,50 @@ Still **no PROD raise**. SoftCap PE clamp retire: **not yet**.
 2. Dig CG002 abort path on `ae815` (parse skip / Cap soft T / N≥5) — reuse prior tiphead CG002 map; do not re-thrash helpers-only.
 3. Optional: wire `win_named_narrow_stubs.o` into committed `g05_relink_env.sh` (currently Win tmp rebuild script only).
 4. SoftCap PE clamp drop still blocked until Cap soft tiphead cold green + Prefer-M2 end-to-end.
+
+## CG002 root DIG (~17:43 Asia/Shanghai) — ae815 vs PROD/F9/w1778
+
+### Re-verify hosts
+| host | sha12 | size |
+|------|-------|------|
+| dig tiphead Cap soft | **ae81595209f3** | 7989102 |
+| morning tip SoftCap Cap soft | 13e5e99ef39b | 7990620 |
+| SoftCap bak_pre_83bde | 06fa052fb409 | 8062464 |
+| FACE_UNIFY F9 dig SoftCap PE | d263fe8c312b | 8062464 |
+| PROD Soft Cap | **db734adafe5e** | 8062464 |
+| w1778 Cap soft | 9c4746d5b5d7 | 8447113 |
+
+### Cold 4-gate (`build` / bare `-o`)
+| host | lit | fwd | local | _var_let |
+|------|-----|-----|-------|----------|
+| tiphead **ae815** | **CG002** | **CG002** | **CG002** | **CG002** |
+| morning **13e5** | CG002 | CG002 | CG002 | CG002 |
+| F9 dig **d263** | OK | OK | OK | OK |
+| PROD **db734** | OK | OK | OK | OK |
+| w1778 **9c47** | OK | OK | OK | OK |
+
+### Parse / emit iso (`-c`)
+| probe | ae815 | 13e5 | SoftCap 06fa/PROD/F9 | w1778 |
+|-------|-------|------|----------------------|-------|
+| ret0 | OK | OK | OK | OK |
+| scalar_let `let x: i64=1` | CG002 code_len=**17** | same | same (SoftCap `-c` quirk) | **OK** |
+| let_slit named-struct | CG002 code_len=**0** | same | **OK** | **OK** |
+| fn_ret_Point | OK but **false green** (nm: only `T main`, mk dropped) | — | — | OK nf≥2 |
+
+### Root finding (true-fix class)
+1. **Tip-HEAD Cap soft Win `ae815` cold CG002 is Cap soft tiphead family residual** (same as morning `13e5`), **not** ld-undef and **not** Prefer-M2 tip.x alone.
+2. Abort class for aggregate gates: **named-struct let → empty codegen ctx (`code_len=0`)** — prior hangprobe on `13e5` mapped this to **parse-skip** (`diagnostic_parse_skip` → `skip_one_function_full_into`) before Cap soft `finish_struct_lit` / HAS_HOME helpers. ae815 same cold surface; do **not** re-thrash helpers-only.
+3. **SoftCap PE dig F9 `d263fe8c312b` already cold 4/4** (parse/sret plants on SoftCap PE text). Tiphead Cap soft **rebuild from Prefer-M2 tip does not carry those SoftCap PE plants** → cold regresses to CG002. F9 green ≠ Cap soft tip-HEAD green; door green ≠ close knife.
+4. `scalar_let` CG002 code_len=17 appears on SoftCap PE **and** Cap soft tiphead under `-c`; only w1778 OK. **Not** the cold-gate discriminator (PROD `build` 4/4 despite `-c` scalar_let CG002). Cold residual discriminator is **let_slit / aggregate** Cap soft tiphead vs SoftCap PE/w1778.
+5. Prefer-M2 SoftCap dig remains **STOP**. Cap soft tiphead has Prefer-M2 `emit_let` / `asm_ctx_local_find_offset` symbols HIT but Cap soft emit path never verified on cold green.
+
+### PROD / nail
+- PROD Soft Cap **db734adafe5e** re-verified cold **4/4** — **unchanged** (no raise).
+- Nail **ecdb5cc1e** — **not raised** this beat.
+- Darwin Cap soft `0c0a41335a35` / Ubuntu tip SoftCap `ea9ddf4eb937` — not touched.
+
+### Next (no fake green)
+1. Smallest Cap soft tiphead isol: restore **named-struct parse acceptance** in let/signatures so `skip_one_function` is not taken (w1778 parser path), then Cap soft `finish_struct_lit` can run — dig plant Prefer-M2 host-cc of proven parser pieces; **or** guarded Cap soft tiphead rebuild that actually wires those parser Ts.
+2. Do **not** treat F9 SoftCap PE cave promote as Cap soft tip-HEAD cold-chain close.
+3. SoftCap PE clamp retire still **NO** until Cap soft tiphead cold green + Prefer-M2 E2E.
+4. Soft-stop 20:00; usage stop at 99.5%.

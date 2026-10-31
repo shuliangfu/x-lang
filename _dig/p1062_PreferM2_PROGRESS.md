@@ -78,3 +78,9 @@ Prefer-M2 SoftCap dig remains **STOP** — this beat is Cap soft Win tiphead reb
 - tip-HEAD Cap soft Win dig: **`ae81595209f3`** (Prefer-M2 emit_let T present)
 - cold 4/4 tiphead: **0/4 CG002**; PROD Soft Cap `db734adafe5e` still **4/4**
 - SoftCap PE clamp retire: **NO**; Prefer-M2 SoftCap dig remains STOP
+
+## CG002 root on tiphead ae815 (~17:43 Asia/Shanghai)
+
+- Re-verify: tiphead **ae815** cold **0/4 CG002**; PROD **db734** cold **4/4**; w1778 **4/4**; F9 SoftCap PE dig **d263** cold **4/4**.
+- Root: Cap soft tiphead aggregate **let_slit → code_len=0** (parse-skip class per prior `13e5` hangprobe); SoftCap PE F9 plants not in Cap soft tip-HEAD rebuild. Prefer-M2 SoftCap dig **STOP**. No PROD/nail raise.
+- Next: named-struct parse acceptance isol on Cap soft tiphead (not helpers re-thrash; not F9-as-CapSoft-tiphead fake green).
