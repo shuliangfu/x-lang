@@ -327,10 +327,17 @@ export function parser_asm_copy_slice_to_name64_at_end_buf_c(source: *u8, source
   if (source == 0 as *u8 || out == 0 as *u8 || nlen <= 0) {
     return;
   }
+  // Prefer-M2 Cap soft tiphead (10.62 SoftCap tiphead typeck name identity):
+  // tip miscompiled `end_pos - nlen as usize` as a call-arg into a bare
+  // JMP to *_buf_c (start-pos API), so consume_qualified first segment
+  // copied the bytes *after* the IDENT (` = Po` / blank `W`). Mirror
+  // parser.x: bind start to a local before the call so tip cannot fold
+  // the subtract away.
   // Darwin compiles this function alone. The name64 copy is an extern,
   // so the call sits in unsafe.
   unsafe {
-    parser_asm_copy_slice_to_name64_buf_c(source, source_len, end_pos - nlen as usize, nlen, out);
+    let start: usize = end_pos - (nlen as usize);
+    parser_asm_copy_slice_to_name64_buf_c(source, source_len, start, nlen, out);
   }
 }
 
@@ -385,10 +392,12 @@ export function parser_asm_copy_slice_to_param32_at_end_buf_c(source: *u8, sourc
   if (out == 0 as *u8) {
     return;
   }
+  // Same Prefer-M2 local-start shield as name64_at_end (tip JMP-alias).
   // Darwin compiles this function alone. The param32 copy is an extern,
   // so the call sits in unsafe.
   unsafe {
-    parser_asm_copy_slice_to_param32_buf_c(source, source_len, end_pos - nlen as usize, nlen, out);
+    let start: usize = end_pos - (nlen as usize);
+    parser_asm_copy_slice_to_param32_buf_c(source, source_len, start, nlen, out);
   }
 }
 

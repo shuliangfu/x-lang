@@ -207,3 +207,49 @@ Still **no PROD raise**. SoftCap PE clamp retire: **not yet**.
 - Dig `lab_CapSoftWin_tiphead_COMBINED_MIN_TRAMP.exe` sha12 **`957f60cda4f6`**: only named_type/type_ref_impl + primary/finish/lbrace/fields/anonymous/empty_braces/suffix_loop stale→live (12 E9).
 - Same surface as dual-60: `-c` slit **typeck** `expected = Po, found Point`; cold **0/4 TYPECK** `expected , found W`. Over-tramp 60 **not** unique cause.
 - **Parse acceptance remains CLOSED**. Next = typeck type-name identity isol (why expected side truncates / empties under consume_real+primary real wire). PROD `db734` / nail ecdb **不升**. Prefer-M2 SoftCap dig STOP.
+
+## 19. TYPECK type-name identity isol (2026-10-31 ~18:56 Asia/Shanghai)
+
+### True-fix
+Cap soft tiphead dig under COMBINED+MIN_TRAMP (`957f60cda4f6`) TYPECK
+`expected  = Po, found Point` / `expected  , found W` is **not** a
+typeck equality bug and **not** over-tramp. Root:
+
+- `parser_asm_consume_qualified_type_ident_name_into_c` (consume_real)
+  steps the IDENT then calls `parser_asm_copy_slice_to_name64_at_end_buf_c`
+  with `end_pos = lex_pos` (one-past IDENT) + `nlen = first_ident_len`.
+- Tip body of `parser_asm_copy_slice_to_name64_at_end_buf_c` is a **bare
+  `JMP` to `parser_asm_copy_slice_to_name64_buf_c`** — drops
+  `end_pos - nlen`. First segment therefore copies the next `nlen` bytes
+  *after* the IDENT (`Point` → ` = Po`; `W` → ` `).
+- Strong `parser_copy_slice_to_name64_at_end_buf` (T) still subtracts
+  correctly; SoftCap/w1778 typeck OK because Cap soft PE / w1778 do not
+  take the consume_real → `parser_asm_*_at_end_c` path for these gates.
+- SoftCap PE **`db734adafe5e`** also carries the same broken W stub, but
+  does not exercise it on the cold gates (PE path).
+
+### Dig proof (no SoftCap PE plant; PROD/nail untouched)
+- `lab_CapSoftWin_tiphead_COMBINED_MIN_TRAMP_ATENDFIX.exe` sha12
+  **`c6ee92cdc0b7`**: E9 retarget
+  `parser_asm_copy_slice_to_name64_at_end_buf_c` →
+  `parser_copy_slice_to_name64_at_end_buf`.
+- `-c ft_slit2`: MIN `expected  = Po, found Point` → ATENDFIX **typeck OK**.
+- `-c` / `build` gates: name-identity TYPECK **cleared**; residual becomes
+  XT001 **implicit tail return** on `if (...) { return N; } ... return 0;`
+  (t_ret_only / t_field OK; t_if_ret FAIL). PROD/w1778 still typeck OK on
+  same sources — next slit = Cap soft tiphead **if-return coverage**
+  (not SoftCap PE promote).
+- Tiphead cave still **`ae81595209f3`**. PROD Soft Cap still
+  **`db734adafe5e`**. Nail **`ecdb5cc1e`** 不升. Prefer-M2 SoftCap dig STOP.
+
+### Prefer-M2 tip.x thin (this commit)
+`compiler/src/asm/pthin_lex_skip.x`: `name64` + `param32` `*_at_end_buf_c`
+bind `let start = end_pos - (nlen as usize)` before the `*_buf_c` call
+(mirror `parser.x`) so tip cannot JMP-alias the subtract. Needs Cap soft
+tiphead rebuild to land in dig host; ATENDFIX remains dig proof until then.
+
+### Next
+1. Cap soft tiphead rebuild with tip.x thin → confirm asm `at_end_c` has
+   real subtract (not JMP).
+2. If-return coverage isol on Cap soft tiphead (cold 4/4 blocker after
+   name identity). SoftCap PE promote **NO**.
