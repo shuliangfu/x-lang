@@ -650,35 +650,55 @@ if [ -s build_asm/selfhost_pabi/emit_epilogue_f64.o ]; then
   _G05_LINK_WINNERS="$_G05_LINK_WINNERS _w499_mega_emit_f64_ret=build_asm/selfhost_pabi/emit_epilogue_f64.o"
   _G05_LINK_WINNERS="$_G05_LINK_WINNERS _w499_mega_emit_f32_ret=build_asm/selfhost_pabi/emit_epilogue_f64.o"
 fi
-# w1486 / w2060: Windows block-entry VAR-slot cache clear lives in
-# backend_emit_block_body_sync_elf in the let-order thin below. That
-# function clears only when link_abi_host_is_windows() is set, then binds
-# and emits. The host-cc overlay that only cleared and forwarded is not a
-# build input. Egg T is weakened when the let-order object exists.
+# w1486 / w2060 / 10.60 SoftCap: Windows block-entry VAR-slot cache clear
+# lives in backend_emit_block_body_sync_elf in the let-order thin below.
+# Egg T is weakened when the let-order object exists.
 # PLATFORM: WINDOWS | MSYS | MINGW for the clear; Darwin/Linux do not clear.
-# w2060: Windows let-order / emit_let_init compile from the same .x Darwin
-# and Linux already overlay. The host-gcc .c twins stayed for two old PE
-# symptoms: store_eax returned -1 after a null compare that did not reload
-# elf_ctx, and the egg body_sync forwarder left the VAR-slot cache stale.
-# The installed Windows compiler reloads elf_ctx (probe_store_eax_null),
-# and backend_emit_block_body_sync_elf clears the cache when
-# link_abi_host_is_windows() is set. A missing object exits 1. No host-cc
-# of the .c twins or of the cache-clear overlay.
-# PLATFORM: WINDOWS | MSYS | MINGW only — Darwin/Linux use the block below.
+#
+# 10.60 SoftCap DIG tiphead c598763 §6: tip PREFER_ASM .x body_sync emits
+# w1009_emit_let_SCAPDEAD with broken Win64 N≥5 marshal (push without
+# shadow + r8/r9 clobber). Host-gcc .c twins carry leftover-class
+# w1010_emit_let that homes rsp+0x20..+0x48 (MS ABI), matching w1778.
+# Prefer host-cc of the .c twins on Windows; fail closed if nm lacks
+# w1010_emit_let. Darwin/Linux keep the .x pure_overlay block below.
+# PLATFORM: WINDOWS | MSYS | MINGW only.
 case "$UNAME_S" in
   MINGW*|MSYS*|CYGWIN*|Windows_NT*)
-    _g05_pure_overlay src/runtime_pipeline_abi_block_body_sync_let_order_thin.x \
-      build_asm/selfhost_pabi/body_sync_let_order.o pipeline_asm_emit_block_body_sync_elf
-    if [ ! -s build_asm/selfhost_pabi/body_sync_let_order.o ]; then
-      echo "g05_relink_env: ERROR Windows body_sync let-order .x did not build" >&2
+    mkdir -p build_asm/selfhost_pabi
+    _g05_bs_c=src/runtime_pipeline_abi_block_body_sync_let_order_thin.c
+    _g05_bs_o=build_asm/selfhost_pabi/body_sync_let_order.o
+    _g05_el_c=src/runtime_pipeline_abi_glue_block_body_emit_let_init_thin.c
+    _g05_el_o=build_asm/selfhost_pabi/emit_let_init.o
+    if ! gcc -c -O2 -o "${_g05_bs_o}.tmp.o" "$_g05_bs_c" 2>/tmp/g05_bs_hostcc.err; then
+      echo "g05_relink_env: ERROR Windows host-cc body_sync .c twin failed" >&2
+      cat /tmp/g05_bs_hostcc.err >&2 || true
       exit 1
     fi
-    _g05_pure_overlay src/runtime_pipeline_abi_glue_block_body_emit_let_init_thin.x \
-      build_asm/selfhost_pabi/emit_let_init.o glue_block_body_emit_let_init
-    if [ ! -s build_asm/selfhost_pabi/emit_let_init.o ]; then
-      echo "g05_relink_env: ERROR Windows emit_let_init .x did not build" >&2
+    if ! nm "${_g05_bs_o}.tmp.o" 2>/dev/null | grep -qE ' [tT] w1010_emit_let$'; then
+      echo "g05_relink_env: ERROR host-cc body_sync missing w1010_emit_let" >&2
+      nm "${_g05_bs_o}.tmp.o" 2>/dev/null | grep -E 'emit_let|body_sync' >&2 || true
+      rm -f "${_g05_bs_o}.tmp.o"
       exit 1
     fi
+    if ! nm "${_g05_bs_o}.tmp.o" 2>/dev/null | grep -qE ' T pipeline_asm_emit_block_body_sync_elf$'; then
+      echo "g05_relink_env: ERROR host-cc body_sync missing T pipeline_asm_emit_block_body_sync_elf" >&2
+      rm -f "${_g05_bs_o}.tmp.o"
+      exit 1
+    fi
+    mv -f "${_g05_bs_o}.tmp.o" "$_g05_bs_o"
+    echo "g05_relink_env: 10.60 SoftCap Windows host-cc body_sync (.c twin, w1010)" >&2
+    if ! gcc -c -O2 -o "${_g05_el_o}.tmp.o" "$_g05_el_c" 2>/tmp/g05_el_hostcc.err; then
+      echo "g05_relink_env: ERROR Windows host-cc emit_let_init .c twin failed" >&2
+      cat /tmp/g05_el_hostcc.err >&2 || true
+      exit 1
+    fi
+    if ! nm "${_g05_el_o}.tmp.o" 2>/dev/null | grep -qE ' T glue_block_body_emit_let_init$'; then
+      echo "g05_relink_env: ERROR host-cc emit_let_init missing T glue_block_body_emit_let_init" >&2
+      rm -f "${_g05_el_o}.tmp.o"
+      exit 1
+    fi
+    mv -f "${_g05_el_o}.tmp.o" "$_g05_el_o"
+    echo "g05_relink_env: 10.60 SoftCap Windows host-cc emit_let_init (.c twin)" >&2
     ;;
 esac
 # w1487 / w2060 / knife 254: tip thin for w499_mega_try_tail_jmp. Darwin
@@ -1549,8 +1569,8 @@ esac
 # block's mask and an outer pass1-deferred `let` (`let m2 = msg;` after an if
 # holding its own let) was emitted by neither pass. The object used to be a
 # leftover (Sep 25); compile its source with the current product every relink
-# so the per-level mask reaches the product. Windows compiles the same .x
-# in the MINGW block above. PLATFORM: MACOS|DARWIN + LINUX.
+# so the per-level mask reaches the product. Windows uses host-cc .c twins
+# in the MINGW block above (10.60 SoftCap w1010). PLATFORM: MACOS|DARWIN + LINUX.
 case "$UNAME_S" in
   Darwin|Linux)
     if [ "${XLANG_BODY_SYNC_LET_ORDER_OVERLAY:-1}" = "1" ]; then

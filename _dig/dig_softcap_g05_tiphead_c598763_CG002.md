@@ -75,3 +75,24 @@ Replace tip’s live let-emit caller with leftover-class **`w1010_emit_let`** (c
 ### Artifacts (Win)
 - `C:\xlang_tmp\p1060\g05th_dig\sli_*.ps1` / `sli_*.txt`
 - dig hosts: `cave\lab_CapSoftWin_tiphead_gb_st*.exe`, `lab_CapSoftWin_tiphead_TjmpW.exe`
+
+## 7) 2026-10-31 ~10:15 CST (Asia/Shanghai) — host-cc w1010 plant (concrete patch)
+
+### Patch
+- `compiler/scripts/g05_relink_env.sh` Windows `MINGW*` case for body_sync / emit_let_init:
+  - **was** `_g05_pure_overlay` of the `.x` twins → selfhost `w1009_*_SCAPDEAD`
+  - **now** `gcc -c -O2` of the `.c` twins → leftover-class `t w1010_emit_let` + `T glue_block_body_emit_let_init`
+  - fail-closed if nm lacks `w1010_emit_let` / pipeline T / glue_block T
+- Darwin/Linux `.x` pure_overlay unchanged.
+
+### Pre-relink plant (Win tree)
+- `build_asm/selfhost_pabi/body_sync_let_order.o` = host-cc 7972 (`t w1010_emit_let`, homes `rsp+0x20..+0x48`)
+- `build_asm/selfhost_pabi/emit_let_init.o` = host-cc 4806 (`T glue_block_body_emit_let_init`)
+- selfhost bak: `C:\xlang_tmp\p1060\g05th_dig\*.selfhost.bak`
+- dig stash: `C:\xlang_tmp\p1060\g05th_dig\*.hostcc.o`
+
+### Intent
+Smallest isol that can falsify or green cold gates: SoftCap-plant leftover-class w1010 + correct glue_block chain (DIG §6). Relink tiphead Cap soft next; cold 4-gate; **no SoftCap re-close / no PROD/nail raise until cold green**.
+
+### Next
+Guarded-relink → dig cold 4-gate on new tiphead sha. If still CG002, dig whether struct T still selfhost (reinject) needs leftover overlay, or N≥5 emit elsewhere.
