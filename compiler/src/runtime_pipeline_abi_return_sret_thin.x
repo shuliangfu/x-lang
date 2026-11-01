@@ -297,6 +297,17 @@ function w1521_rs_copy_to_dest(elf_ctx: *u8, home: i32, sz: i32): i32 {
 }
 
 /**
+ * Exported entry for the single w1521_rs_copy_to_dest authority above.
+ * fa_array emit_return (runtime_pipeline_abi_fixed_array_copy_thin.x) calls it
+ * through the pipeline_ prefixed extern; without an exporter every pure-ld
+ * product link left it undefined (10.67). Only reached when ta == 1.
+ * PLATFORM: SHARED (symbol present everywhere); body is MACOS|ARM64.
+ */
+export function pipeline_w1521_rs_copy_to_dest(elf_ctx: *u8, home: i32, sz: i32): i32 {
+  return w1521_rs_copy_to_dest(elf_ctx, home, sz);
+}
+
+/**
  * x0 holds one element's address. Copy `width` bytes from x0 onto the
  * sret dest saved at [x29,#home], at byte dest_off, then leave that dest
  * pointer in x0. The frame slot itself stays one element wide: the next
