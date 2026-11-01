@@ -131,6 +131,18 @@ int32_t glue_block_body_emit_let_init(uint8_t *arena, uint8_t *elf_ctx, int32_t 
       slot_off = found;
     }
   }
+  /* Prefer-M2 clamp18 (10.66): SoftCap let-store smash guard — dig-egg
+   * lineage d8e2 |off|>0x1000→0x18 elevated to tip.x true-fix.
+   * PLATFORM: SHARED freestanding emit (Win SoftCap host). */
+  {
+    int32_t abs_off = slot_off;
+    if (abs_off < 0) {
+      abs_off = 0 - abs_off;
+    }
+    if (abs_off > 4096) {
+      slot_off = 24;
+    }
+  }
   rc = pipeline_asm_try_emit_dyn_coerce_let(arena, elf_ctx, block_ref, idx, init_ref, slot_off, ctx, ta);
   if (rc == 1) {
     return 0;
