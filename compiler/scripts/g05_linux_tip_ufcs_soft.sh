@@ -105,17 +105,23 @@ _try_soft_emit() {
   local out="$1" src="$2" cache="$3" xl
   if [ -s "$out" ]; then return 0; fi
   if [ -s "$cache" ]; then cp -f "$cache" "$out"; return 0; fi
-  for xl in "${XLANG:-}" ./xlang_dur1029 ./xlang_dur1028 ./xlang_asm ./xlang /tmp/xlang_ufcs_only; do
+  # PLATFORM: LINUX. Scratch name must end in .o: the driver treats any other
+  # -o suffix as an executable link (BLD001 "undefined main"), which hid
+  # behind the cache until a thin source change invalidated it. Cold seed
+  # (same egg linux_selfhost_pabi_sidecars.sh uses) is the last fallback so
+  # an L4 wipe with no product compiler still emits.
+  local _tmp="${out%.o}.partial.o"
+  for xl in "${XLANG:-}" ./xlang_dur1029 ./xlang_dur1028 ./xlang_asm ./xlang /tmp/xlang_ufcs_only seeds/bootstrap_xlangc.linux.x86_64; do
     [ -x "$xl" ] || continue
     [ -f "$src" ] || continue
-    if "$xl" -backend asm -c -o "${out}.partial" "$src" >/tmp/g05_linux_tfs_emit.log 2>&1 \
-      && [ -s "${out}.partial" ]; then
-      mv -f "${out}.partial" "$out"
+    if "$xl" -backend asm -c -o "$_tmp" "$src" >/tmp/g05_linux_tfs_emit.log 2>&1 \
+      && [ -s "$_tmp" ]; then
+      mv -f "$_tmp" "$out"
       mkdir -p /tmp/xlang_soft_cache_linux
       cp -f "$out" "$cache"
       return 0
     fi
-    rm -f "${out}.partial"
+    rm -f "$_tmp"
   done
   return 1
 }
