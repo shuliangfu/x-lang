@@ -361,3 +361,6 @@ g05_pthin_p4b.*
 # Informal local probes (leading underscore; not suite cases)
 tests/io/_probe_a.x
 tests/typeck/_idx_assign.x
+
+# DIG temporary dig notes/scripts/logs (do not commit)
+_dig/
