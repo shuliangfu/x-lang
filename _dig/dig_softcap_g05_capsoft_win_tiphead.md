@@ -333,3 +333,41 @@ body (stub vs E9 over-skip). SoftCap PE promote **NO**.
 - Dig cold still ATENDFIX **`c6ee92cdc0b7` 0/4 XT001**. Cave **`ae81595209f3`**. PROD Soft Cap **`db734adafe5e` 不升**. Nail **`ecdb5cc1e` 不升**.
 - Live tip line → **`215432446`**. Next after Win stable: finish slim at_end plant → prove `sub` → COMBINED/MIN_TRAMP cold → XT001/realign if needed.
 
+
+## 24) 2026-11-01 ~10:30 Asia/Shanghai — Win recover; realign nail; REV dig plant; cold CG002
+
+### Tip / hosts
+- Tip HEAD **`450d9663b`** (docs STOP_SOFT; Prefer-M2 thin still `d3e853e40`). Live tip line was LAG `215432446` → sync this beat.
+- Tiphead Cap soft Win `xlang.exe` / `xlang_asm.exe` sha12 **`a135fe2c5162`** restored (size 7989831).
+- PROD Soft Cap `C:\xlang_tmp\prod_softcap\lab_SoftCap_76795.exe` sha12 **`db734adafe5e`** **未动** / **不升**.
+- Nail **`ecdb5cc1e` 不升**. Prefer-M2 SoftCap dig **STOP**.
+- `/c` free ~41.8G. Cave tiphead/ATENDFIX digs wiped earlier; p1060/cave empty. SoftCap bak `d263` / pre_1061 **not** under `C:\xlang_tmp` after disk clean (PROD slot alone). Mac has `_dig/artifacts_p1061/lab_SoftCap_tip_clamp18.exe` only — **not** re-hung; PROD untouched.
+- Win SSH rate-limit → cold/plant via `pve qm guest-exec 101` when needed.
+
+### Realign byte nail (A135 vs PROD)
+| host | sym | kind | VA | first bytes | class |
+|------|-----|------|-----|-------------|-------|
+| A135 tiphead | `parser_asm_realign_lex_after_if_arm_into_c` | W | `0x1405f1614` | `e909fc0000…` | **E9** → `0x140601222` (`T parser_asm_lex_set_pos_c`) — Cap soft over-skip class |
+| PROD Soft Cap | same | W | `0x1406029d4` | `b801000000c39090` | **CAPLESS_STUB** mov eax,1; ret (REV_REALIGN lineage) |
+| A135 / PROD | `parser_asm_copy_slice_to_name64_at_end_buf_c` | W | a135 `0x1405c1c4c` / prod `0x1405d300c` | `e977feffff…` | both still **bare JMP** → `*_buf_c` (drops `end_pos-nlen`) |
+
+**Falsify / nail:** tiphead Cap soft residual XT001 hypothesis (PARSE truncate after first if; p1061) **confirmed at PE bytes** — tiphead still carries Cap soft realign E9; PROD Soft Cap already Capless. at_end Prefer-M2 thin **still not in tiphead PE** (W JMP).
+
+### Dig plant (dig-only; no PROD/nail)
+- `C:\xlang_tmp\cave\lab_CapSoftWin_tiphead_REV_REALIGN_a135.exe` sha12 **`175f9ca39888`** (copy of a135; plant Capless stub at `realign_into` W; was E9→`lex_set_pos_c`).
+- Prep still on disk: `g05th_dig/{pe_at_end_fix.o,parser_asm_thin_glue.atend.o,.bak_pre_atend.o}`; COMBINED objs present (`pthin_primary_lbrace_real.o`, `pthin_type_ref_consume_real.o`, `parser_asm_thin_glue.o`, `pe_at_end_fix.o`).
+
+### Cold
+| host | sha12 | gate | result |
+|------|-------|------|--------|
+| tiphead a135 | `a135fe2c5162` | `-o` / prior `-c` p_ret_lit | **CG002** `code_len=0` |
+| REV dig | `175f9ca39888` | `-o` p_ret_lit | **CG002** `code_len=0` (REV Capless alone **insufficient** — parse acceptance still needs COMBINED/MIN_TRAMP) |
+| PROD Soft Cap | `db734adafe5e` | `-c` p_ret_lit | parse OK + typeck OK (**未动**) |
+
+Tiphead Cap soft `-c out.o src` CLI flaky (P001 / hang); use `-o` for tiphead cold signature.
+
+### Next
+1. **Slim at_end plant** (true path): `pe_at_end_fix.o` + `thin_glue.atend` → dig relink; prove `sub` not bare JMP.
+2. Re-apply COMBINED+MIN_TRAMP(+ATENDFIX if thin miss) on tiphead dig; cold N/4.
+3. With Capless REV + at_end + COMBINED: expect CG002→TYPECK cleared path; XT001 may clear if realign was sole remaining truncate — confirm nif/nso.
+4. SoftCap PE promote **NO**. PROD `db734` / nail ecdb **不升**. 门绿≠收刀.
