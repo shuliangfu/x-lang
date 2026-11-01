@@ -867,6 +867,7 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
       }
       /* w1046 (10.46): Win64 >=16B return of VAR(3)/FIELD(44) must memcpy
        * into the hidden *rcx home_u50. Force lvalue + rs_copy before mid/else.
+       * DIG4 SoftCap: also STRUCT_LIT(45) — temp let-init + LEA + rs_copy.
        * PLATFORM: WINDOWS. */
       if (act_u49 != 0 && home_u50 > 0 && rsz_u51 >= 16 && x86_fwd_u54 == 0) {
         let on_win_a_u57: i32 = 0;
@@ -879,6 +880,11 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
               opk_u55 = pipeline_expr_kind_ord_at(arena, ret_op_u44);
             }
           }
+          /* DIG4 SoftCap: Win STRUCT_LIT(45) aggregate return — materialize
+           * like let-init into a frame temp, LEA rax, then rs_copy into the
+           * hidden *rcx home. VAR(3)/FIELD(44) keep lvalue + rs_copy.
+           * Prefer lit/fwd/_var_let use return W{…}; local uses let+return v.
+           * PLATFORM: WINDOWS. */
           if (opk_u55 == 3 || opk_u55 == 44) {
             unsafe {
               rc_u45 = pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, ret_op_u44, ctx, ta);
@@ -888,6 +894,48 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                 return 0 - 1;
               }
               win_forced_u56 = 1;
+            }
+          } else if (opk_u55 == 45) {
+            let rty_u45a: i32 = 0;
+            let temp_u45b: i32 = 0 - 1;
+            let st_u45c: i32 = 0;
+            let mod_u45d: *u8 = 0 as *u8;
+            let fi_u45e: i32 = 0;
+            unsafe {
+              rty_u45a = pipeline_expr_resolved_type_ref(arena, ret_op_u44);
+            }
+            if (rty_u45a <= 0) {
+              unsafe {
+                mod_u45d = pipeline_asm_emit_module_ref_c();
+                fi_u45e = pipeline_asm_emit_func_index_c();
+              }
+              if (mod_u45d != (0 as *u8) && fi_u45e >= 0) {
+                unsafe {
+                  rty_u45a = pipeline_module_func_return_type_at(mod_u45d, fi_u45e);
+                }
+              }
+            }
+            if (rty_u45a > 0) {
+              unsafe {
+                temp_u45b = glue_simd_alloc_vector_temp_slot_c(arena, ctx, rty_u45a);
+              }
+            }
+            if (temp_u45b >= 0) {
+              unsafe {
+                st_u45c = glue_emit_struct_type_let_init_elf_c(
+                  arena, elf_ctx, ret_op_u44, ctx, ta, rty_u45a, temp_u45b);
+              }
+              if (st_u45c == 0) {
+                unsafe {
+                  rc_u45 = backend_enc_lea_rbp_to_rax_arch(elf_ctx, temp_u45b, ta);
+                }
+                if (rc_u45 == 0) {
+                  if (w1521_rs_copy_x86(elf_ctx, home_u50, rsz_u51) < 0) {
+                    return 0 - 1;
+                  }
+                  win_forced_u56 = 1;
+                }
+              }
             }
           }
         }
