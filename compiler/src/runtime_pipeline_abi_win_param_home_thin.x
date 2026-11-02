@@ -148,32 +148,32 @@ export function pipeline_asm_fill_param_slots(ctx: *u8, mod: *u8, func_index: i3
  */
 function w1521_ph_copy_byref(elf_ctx: *u8, gp: i32, slot: i32, w: i32, ta: i32): i32 {
   let k: i32 = 0;
-  let rc: i32 = 0;
+  let rc_br: i32 = 0;
   while (k < w) {
     unsafe {
-      rc = backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp, ta);
+      rc_br = backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp, ta);
     }
-    if (rc != 0) {
+    if (rc_br != 0) {
       return -1;
     }
     if (k > 0) {
       unsafe {
-        rc = backend_enc_add_imm_to_rax_arch(elf_ctx, k, ta);
+        rc_br = backend_enc_add_imm_to_rax_arch(elf_ctx, k, ta);
       }
-      if (rc != 0) {
+      if (rc_br != 0) {
         return -1;
       }
     }
     unsafe {
-      rc = backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+      rc_br = backend_enc_load_64_from_rax_arch(elf_ctx, ta);
     }
-    if (rc != 0) {
+    if (rc_br != 0) {
       return -1;
     }
     unsafe {
-      rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, slot - k, ta);
+      rc_br = backend_enc_store_rax_to_rbp_arch(elf_ctx, slot - k, ta);
     }
-    if (rc != 0) {
+    if (rc_br != 0) {
       return -1;
     }
     k = k + 8;
@@ -183,17 +183,17 @@ function w1521_ph_copy_byref(elf_ctx: *u8, gp: i32, slot: i32, w: i32, ta: i32):
 
 /** Move arg register k to rax and store it at rbp slot off. PLATFORM: WINDOWS. */
 function w1500_ph_mov_store(elf_ctx: *u8, k: i32, off: i32, ta: i32): i32 {
-  let rc: i32 = 0;
+  let rc_ms: i32 = 0;
   unsafe {
-    rc = backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, k, ta);
+    rc_ms = backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, k, ta);
   }
-  if (rc != 0) {
+  if (rc_ms != 0) {
     return -1;
   }
   unsafe {
-    rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, off, ta);
+    rc_ms = backend_enc_store_rax_to_rbp_arch(elf_ctx, off, ta);
   }
-  if (rc != 0) {
+  if (rc_ms != 0) {
     return -1;
   }
   return 0;
@@ -226,7 +226,7 @@ export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: 
   let reg_max: i32 = 0;
   let w: i32 = 0;
   let wide_home: i32 = 0;
-  let rc: i32 = 0;
+  let rc_ph: i32 = 0;
   let arena_ph: *u8 = 0 as *u8;
   let ms_off: i32 = 0 - 1;
   let pty: i32 = 0;
@@ -337,49 +337,49 @@ export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: 
       }
       if (from_xmm != 0 && pk == 15) {
         unsafe {
-          rc = backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, gp, ta);
+          rc_ph = backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, gp, ta);
         }
-        if (rc != 0) {
+        if (rc_ph != 0) {
           return -1;
         }
         unsafe {
-          rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta);
+          rc_ph = backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta);
         }
-        if (rc != 0) {
+        if (rc_ph != 0) {
           return -1;
         }
       } else if (from_xmm != 0 && pk == 14) {
         unsafe {
-          rc = backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, gp, ta);
+          rc_ph = backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, gp, ta);
         }
-        if (rc != 0) {
+        if (rc_ph != 0) {
           return -1;
         }
         unsafe {
-          rc = backend_enc_store_eax_to_rbp_arch(elf_ctx, home, ta);
+          rc_ph = backend_enc_store_eax_to_rbp_arch(elf_ctx, home, ta);
         }
-        if (rc != 0) {
+        if (rc_ph != 0) {
           return -1;
         }
       } else {
         unsafe {
-          rc = backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp, ta);
+          rc_ph = backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp, ta);
         }
-        if (rc != 0) {
+        if (rc_ph != 0) {
           return -1;
         }
         if (arena_ph != (0 as *u8)) {
           unsafe {
-            rc = glue_enc_canonicalize_param_in_rax_elf_c(elf_ctx, arena_ph, mod, func_index, i, ta);
+            rc_ph = glue_enc_canonicalize_param_in_rax_elf_c(elf_ctx, arena_ph, mod, func_index, i, ta);
           }
-          if (rc != 0) {
+          if (rc_ph != 0) {
             return -1;
           }
         }
         unsafe {
-          rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta);
+          rc_ph = backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta);
         }
-        if (rc != 0) {
+        if (rc_ph != 0) {
           return -1;
         }
       }
