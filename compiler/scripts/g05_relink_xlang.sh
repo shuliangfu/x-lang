@@ -1232,6 +1232,33 @@ case "$(uname -s 2>/dev/null)" in
       codesign --sign - --force --timestamp=none "$OUT" 2>/dev/null         || codesign -f -s - "$OUT"         || { echo "g05_relink_xlang: codesign after trampoline failed" >&2; exit 1; }
       echo "g05_relink_xlang: Darwin local-shadow trampolines + codesign OK" >&2
     fi
+    # 10.68 Prefer-M2: Cap tip size ≤10M — localize leftover external Lxml_*
+    # (modlet homes) then strip local symtab; ad-hoc resign. Probe on tip
+    # 10710672 → localize+strip-x+resign 10470048 (under 10485760). Does not
+    # raise Soft Cap/nail. PLATFORM: DARWIN only.
+    if [ "${XLANG_SKIP_DARWIN_SIZE_STRIP:-0}" != "1" ] && [ -f "$OUT" ]; then
+      _sz_oc=""
+      if command -v llvm-objcopy >/dev/null 2>&1; then _sz_oc=llvm-objcopy
+      elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then _sz_oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+      elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then _sz_oc=/usr/local/opt/llvm/bin/llvm-objcopy
+      fi
+      _sz_loc="$(mktemp "${TMPDIR:-/tmp}/g05_lxml_loc.XXXXXX")"
+      nm -g "$OUT" 2>/dev/null | awk '$2 ~ /^[A-Z]$/ && $3 ~ /^_Lxml_/ { print $3 }' | sort -u > "$_sz_loc" || true
+      if [ -s "$_sz_loc" ] && [ -n "$_sz_oc" ]; then
+        if "$_sz_oc" --localize-symbols="$_sz_loc" "$OUT" 2>/dev/null; then
+          echo "g05_relink_xlang: Darwin localized $(wc -l < "$_sz_loc" | tr -d ' ') Lxml_* for size strip" >&2
+        else
+          echo "g05_relink_xlang: WARN llvm-objcopy localize Lxml failed; strip -x only" >&2
+        fi
+      fi
+      rm -f "$_sz_loc"
+      if strip -x "$OUT" 2>/dev/null; then
+        codesign --sign - --force --timestamp=none "$OUT" 2>/dev/null           || codesign -f -s - "$OUT"           || { echo "g05_relink_xlang: codesign after size strip failed" >&2; exit 1; }
+        echo "g05_relink_xlang: Darwin size strip -x + codesign OK (size=$(wc -c < "$OUT" | tr -d ' '))" >&2
+      else
+        echo "g05_relink_xlang: WARN strip -x failed; product size unchanged" >&2
+      fi
+    fi
     ;;
 esac
 
