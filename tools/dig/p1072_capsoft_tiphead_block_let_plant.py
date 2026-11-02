@@ -95,9 +95,10 @@ def main() -> None:
 
     i = data.find(CLAMP_SIG)
     assert i > 0 and data.find(CLAMP_SIG, i + 1) < 0, "need exactly one CLAMP_SIG"
-    # dig3h body: 16 bytes before CLAMP_SIG; mov ebx,0x18 is CLAMP_SIG+6
+    # dig3h body: 16 bytes before CLAMP_SIG; mov ebx,0x18 is after cmp+jbe (= +8)
+    # CLAMP_SIG = cmp rax,0x1000 (6) + jbe +8 (2) + mov ebx,0x18 (5)
     body0 = i - 16
-    mov_off = i + 6
+    mov_off = i + 8
     assert data[mov_off : mov_off + 5] == bytes.fromhex("bb18000000"), data[
         mov_off : mov_off + 5
     ].hex()
