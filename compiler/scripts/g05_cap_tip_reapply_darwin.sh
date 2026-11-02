@@ -68,11 +68,15 @@ done
 # Tip-compile from .x; demote pabi_weak size_simple so named_size first-wins.
 # PLATFORM: MACOS Cap tip.
 if [ -f src/runtime_pipeline_abi_named_size_thin.x ]; then
-  # 10.44: prefer Cap tip / soft XLANG for named_size tip-compile.
-  # Legacy bak tip-asm omits typeck_x_named_builtin_size call (i8 stays 4).
+  # 10.44/10.67 FixC12d Prefer-M2: Cap tip REF cache over tip-cold .cap_g05_l2
+  # (tip-cold named_size tip-compile drops named_builtin U → WARN restore).
   _ns_xl="${XLANG:-}"
   [ -x ./xlang ] && _ns_xl="./xlang"
   [ -x ./xlang.cap_g05_l2 ] && _ns_xl="./xlang.cap_g05_l2"
+  [ -x /tmp/cap_tip_l4_safe_406200eef/xlang_asm ] && _ns_xl=/tmp/cap_tip_l4_safe_406200eef/xlang_asm
+  [ -x /tmp/cap_tip_l4_safe_406200eef/xlang ] && _ns_xl=/tmp/cap_tip_l4_safe_406200eef/xlang
+  [ -n "${XLANG_CAP_TIP_L4_CACHE:-}" ] && [ -x "${XLANG_CAP_TIP_L4_CACHE}/xlang_asm" ] && _ns_xl="${XLANG_CAP_TIP_L4_CACHE}/xlang_asm"
+  [ -n "${XLANG_CAP_TIP_L4_CACHE:-}" ] && [ -x "${XLANG_CAP_TIP_L4_CACHE}/xlang" ] && _ns_xl="${XLANG_CAP_TIP_L4_CACHE}/xlang"
   _ns_keep=""
   [ -s build_asm/selfhost_pabi/named_size.o ] \
     && nm build_asm/selfhost_pabi/named_size.o 2>/dev/null \
@@ -151,32 +155,42 @@ if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
       echo "g05_cap_tip_reapply: WARN struct_layout_offset tip-compile failed" >&2
     fi
   fi
-  # 10.44: struct_lit_field thin — store_sz must be T _glue_* (not pipeline_glue_*).
-  # Cap tip G05_OBJS already lists the .o; stale pin-egg emits pipeline_glue and
-  # Cap tip pure-ld then undefs _glue_struct_lit_field_store_sz. Force Cap host.
+  # 10.44/10.67 FixC11 Prefer-M2: struct_lit_field thin — store_sz must be T
+  # _glue_* (not pipeline_glue_*). Mega merge (252c0b429) dropped the pure
+  # overlay from G05_OBJS; Cap tip omits mega, so tip-compile + prepend the
+  # thin egg (i8 pack authority). Pipefail-safe nm-to-file (no nm|grep -q).
   if [ -f src/runtime_pipeline_abi_struct_lit_field_thin.x ]; then
     _slf_xl="${XLANG:-}"
     [ -x /tmp/cap_tip_l4_safe_406200eef/xlang ] && _slf_xl="/tmp/cap_tip_l4_safe_406200eef/xlang"
     [ -x ./xlang ] && _slf_xl="./xlang"
     [ -x ./xlang.cap_g05_l2 ] && _slf_xl="./xlang.cap_g05_l2"
+    _slf_o=build_asm/selfhost_pabi/struct_lit_field.o
     if XLANG_PREFER_ASM_O=1 "$_slf_xl" -backend asm -c \
         src/runtime_pipeline_abi_struct_lit_field_thin.x \
-        -o build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null; then
-      if nm build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null \
-           | grep -q ' T _pipeline_glue_struct_lit_field_store_sz$'; then
+        -o "$_slf_o" 2>/dev/null; then
+      _slf_nm=$(mktemp "${TMPDIR:-/tmp}/cap_tip_slf_nm.XXXXXX")
+      nm -gU "$_slf_o" >"$_slf_nm" 2>/dev/null || true
+      if grep -q ' T _pipeline_glue_struct_lit_field_store_sz$' "$_slf_nm"; then
         "$OC" --redefine-sym=_pipeline_glue_struct_lit_field_store_sz=_glue_struct_lit_field_store_sz \
-          build_asm/selfhost_pabi/struct_lit_field.o \
+          "$_slf_o" \
           && echo "g05_cap_tip_reapply: 10.44 renamed pipeline_glue store_sz" >&2 || true
+        nm -gU "$_slf_o" >"$_slf_nm" 2>/dev/null || true
       fi
-      if nm build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null \
-           | grep -q ' T _glue_struct_lit_field_store_sz$'; then
+      if grep -q ' T _glue_struct_lit_field_store_sz$' "$_slf_nm"; then
         echo "g05_cap_tip_reapply: tip-compiled struct_lit_field.o (10.44 store_sz)" >&2
+        case " ${G05_OBJS:-} " in
+          *" $_slf_o "*) ;;
+          *) G05_OBJS="$_slf_o ${G05_OBJS:-}"; export G05_OBJS
+             echo "g05_cap_tip_reapply: Prefer-M2 prepended struct_lit_field.o (store_sz thin)" >&2 ;;
+        esac
       else
         echo "g05_cap_tip_reapply: WARN struct_lit_field missing T store_sz" >&2
       fi
+      rm -f "$_slf_nm"
     else
       echo "g05_cap_tip_reapply: WARN struct_lit_field tip-compile failed" >&2
     fi
+    unset _slf_o _slf_xl _slf_nm
   fi
 
   # 10.91: Cap tip G05_OBJS omits runtime_pipeline_abi.o — tip-compile
@@ -690,12 +704,43 @@ fi
 # True-cold wipe drops these; assemble hand-asm (no host-cc .c).
 # PLATFORM: MACOS Cap tip.
 # size_simple authority is named_size_thin (not 2-arg Split soft)
-if [ ! -s build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o ] \
-  && [ -f src/asm/named_layout_size_split_a64.s ]; then
+# 10.67 FixC11 Prefer-M2: hand-asm .s is Cap tip named_layout soft authority
+# (REF T≈496B). Tip-compiled .x soft is ≈5852B and leaves ret_fixed_s24 at
+# Bus/138 even when Split_* pins look right. Always assemble .s when present
+# (overwrite stale tip-compiled). Fall back to .x tip-compile only if .s
+# missing. No mega/host-cc .c. PLATFORM: MACOS Cap tip.
+if [ -f src/asm/named_layout_size_split_a64.s ]; then
   as -arch arm64 -o build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o \
     src/asm/named_layout_size_split_a64.s \
-    && echo "g05_cap_tip_reapply: assembled typeck_named_layout_size_split_soft.o" >&2 \
+    && echo "g05_cap_tip_reapply: Prefer-M2 assembled named_layout soft from .s" >&2 \
     || rm -f build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o
+fi
+if [ ! -s build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o ] \
+  && [ -f src/typeck/typeck_named_layout_size_split_soft.x ]; then
+  _nls_xl="${XLANG:-}"
+  [ -x /tmp/cap_tip_l4_safe_406200eef/xlang ] && _nls_xl="/tmp/cap_tip_l4_safe_406200eef/xlang"
+  [ -n "${XLANG_CAP_TIP_L4_CACHE:-}" ] && [ -x "${XLANG_CAP_TIP_L4_CACHE}/xlang" ] && _nls_xl="${XLANG_CAP_TIP_L4_CACHE}/xlang"
+  [ -x ./xlang ] && _nls_xl="./xlang"
+  [ -x ./xlang.cap_g05_l2 ] && _nls_xl="./xlang.cap_g05_l2"
+  mkdir -p build_asm/selfhost_pabi
+  _nls_ok=0
+  if [ -n "$_nls_xl" ] && XLANG_PREFER_ASM_O=1 "$_nls_xl" -backend asm -c \
+      src/typeck/typeck_named_layout_size_split_soft.x \
+      -o build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o 2>/dev/null; then
+    _nls_chk=$(mktemp "${TMPDIR:-/tmp}/nls_chk.XXXXXX")
+    nm -gU build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o >"$_nls_chk" 2>/dev/null || true
+    if grep -q ' T _glue_type_named_layout_size_any_module_elf_c$' "$_nls_chk"; then
+      _nls_ok=1
+      echo "g05_cap_tip_reapply: tip-compiled typeck_named_layout_size_split_soft.o" >&2
+    fi
+    rm -f "$_nls_chk"; unset _nls_chk
+  fi
+  if [ "$_nls_ok" != 1 ]; then
+    rm -f build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o
+    echo "g05_cap_tip_reapply: WARN named_layout soft tip-compile failed" >&2
+  fi
+  unset _nls_ok
+  unset _nls_xl
 fi
 if [ -s build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o ]; then
   case " $G05_OBJS " in
@@ -1669,7 +1714,13 @@ _cap_tip_fill_missing_objs() {
     [ -f "$CACHE/pthin_stretch.o" ] && cp -f "$CACHE/pthin_stretch.o" src/asm/pthin_stretch.o
     [ -f "$CACHE/arg_byte_size_a64.o" ] && cp -f "$CACHE/arg_byte_size_a64.o" build_asm/selfhost_pabi/arg_byte_size_a64.o
     if [ -d "$CACHE/pabi" ]; then
-      cp -f "$CACHE/pabi"/*.o build_asm/selfhost_pabi/ 2>/dev/null || true
+      # 10.67 FixC-follow: never stomp live tip-compiles with 0-byte cache poison.
+      for _cpo in "$CACHE/pabi"/*.o; do
+        [ -f "$_cpo" ] || continue
+        [ -s "$_cpo" ] || continue
+        cp -f "$_cpo" "build_asm/selfhost_pabi/$(basename "$_cpo")"
+      done
+      unset _cpo
     fi
     # knife256/10.2: F32x4 dual-GP — CACHE/pabi may hold pre-F32x4 dual_gp;
     # always re-assert dual_gp_new after bulk stomp (mirrors product_l4 step6b).
@@ -1679,9 +1730,14 @@ _cap_tip_fill_missing_objs() {
     fi
     # 10.44: CACHE/pabi stomp may restore pre-builtin named_size (TYPE_NAMED→4).
     # Re-tip-compile size/align/layout/builtin with Cap tip host after stomp.
+    # 10.67 Prefer-M2 Cap tip cache over tip-cold ./xlang.
     _ns_xl="${XLANG:-}"
     [ -x ./xlang ] && _ns_xl="./xlang"
     [ -x ./xlang.cap_g05_l2 ] && _ns_xl="./xlang.cap_g05_l2"
+    [ -x /tmp/cap_tip_l4_safe_406200eef/xlang_asm ] && _ns_xl="/tmp/cap_tip_l4_safe_406200eef/xlang_asm"
+    [ -x /tmp/cap_tip_l4_safe_406200eef/xlang ] && _ns_xl="/tmp/cap_tip_l4_safe_406200eef/xlang"
+    [ -n "${XLANG_CAP_TIP_L4_CACHE:-}" ] && [ -x "${XLANG_CAP_TIP_L4_CACHE}/xlang_asm" ] && _ns_xl="${XLANG_CAP_TIP_L4_CACHE}/xlang_asm"
+    [ -n "${XLANG_CAP_TIP_L4_CACHE:-}" ] && [ -x "${XLANG_CAP_TIP_L4_CACHE}/xlang" ] && _ns_xl="${XLANG_CAP_TIP_L4_CACHE}/xlang"
     if [ -x "$_ns_xl" ] && [ -f src/runtime_pipeline_abi_named_size_thin.x ]; then
       if XLANG_PREFER_ASM_O=1 "$_ns_xl" -backend asm -c           src/runtime_pipeline_abi_named_size_thin.x           -o build_asm/selfhost_pabi/named_size.o 2>/dev/null         && nm build_asm/selfhost_pabi/named_size.o 2>/dev/null              | grep -q 'U _typeck_x_named_builtin_size'; then
         echo "g05_cap_tip_reapply: re-asserted named_size after pabi stomp (builtin)" >&2
@@ -1695,17 +1751,27 @@ _cap_tip_fill_missing_objs() {
     if [ -x "$_ns_xl" ] && [ -f src/runtime_pipeline_abi_struct_layout_offset_thin.x ]; then
       XLANG_PREFER_ASM_O=1 "$_ns_xl" -backend asm -c         src/runtime_pipeline_abi_struct_layout_offset_thin.x         -o build_asm/selfhost_pabi/struct_layout_offset.o 2>/dev/null         && echo "g05_cap_tip_reapply: re-asserted struct_layout_offset after pabi stomp" >&2 || true
     if [ -x "$_ns_xl" ] && [ -f src/runtime_pipeline_abi_struct_lit_field_thin.x ]; then
+      _slf_o=build_asm/selfhost_pabi/struct_lit_field.o
       XLANG_PREFER_ASM_O=1 "$_ns_xl" -backend asm -c \
         src/runtime_pipeline_abi_struct_lit_field_thin.x \
-        -o build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null || true
-      if nm build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null \
-           | grep -q ' T _pipeline_glue_struct_lit_field_store_sz$'; then
+        -o "$_slf_o" 2>/dev/null || true
+      _slf_nm=$(mktemp "${TMPDIR:-/tmp}/cap_tip_slf_re.XXXXXX")
+      nm -gU "$_slf_o" >"$_slf_nm" 2>/dev/null || true
+      if grep -q ' T _pipeline_glue_struct_lit_field_store_sz$' "$_slf_nm"; then
         "$OC" --redefine-sym=_pipeline_glue_struct_lit_field_store_sz=_glue_struct_lit_field_store_sz \
-          build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null || true
+          "$_slf_o" 2>/dev/null || true
+        nm -gU "$_slf_o" >"$_slf_nm" 2>/dev/null || true
       fi
-      nm build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null \
-        | grep -q ' T _glue_struct_lit_field_store_sz$' \
-        && echo "g05_cap_tip_reapply: re-asserted struct_lit_field after pabi stomp" >&2 || true
+      if grep -q ' T _glue_struct_lit_field_store_sz$' "$_slf_nm"; then
+        echo "g05_cap_tip_reapply: re-asserted struct_lit_field after pabi stomp" >&2
+        case " ${G05_OBJS:-} " in
+          *" $_slf_o "*) ;;
+          *) G05_OBJS="$_slf_o ${G05_OBJS:-}"; export G05_OBJS
+             echo "g05_cap_tip_reapply: Prefer-M2 prepended struct_lit_field.o (re-assert)" >&2 ;;
+        esac
+      fi
+      rm -f "$_slf_nm"
+      unset _slf_o _slf_nm
     fi
     fi
     if [ -x "$_ns_xl" ] && [ -f src/runtime_pipeline_abi_named_builtin_cap_thin.x ]; then
@@ -1732,6 +1798,64 @@ _cap_tip_fill_missing_objs() {
         && echo "g05_cap_tip_reapply: re-asserted fa_array (10.60 isol-C rs_copy)" >&2 \
         || echo "g05_cap_tip_reapply: WARN fa_array isol-C re-assert failed" >&2
     fi
+    # 10.67 FixC-follow Prefer-M2: Cap tip cache vehicle when tip-cold CG002s.
+    # Re-assert outbuf_len / pipe_elf / peel helpers after CACHE/pabi stomp so
+    # demoted pabi_weak faces keep a strong winner. No mega/host-cc.
+    _m2_xl=""
+    for _h in \
+        "${XLANG_CAP_TIP_L4_CACHE:-}/xlang" \
+        "${XLANG_CAP_TIP_L4_CACHE:-}/xlang_asm" \
+        /tmp/cap_tip_l4_safe_406200eef/xlang \
+        /tmp/cap_tip_l4_safe_406200eef/xlang_asm \
+        "${_ns_xl:-}" \
+        ./xlang \
+        ./xlang.cap_g05_l2; do
+      [ -n "$_h" ] && [ -x "$_h" ] && _m2_xl="$_h" && break
+    done
+    if [ -n "$_m2_xl" ]; then
+      if [ -f src/runtime_pipeline_abi_codegen_outbuf_len_thin.x ]; then
+        if XLANG_PREFER_ASM_O=1 "$_m2_xl" -backend asm -c \
+             src/runtime_pipeline_abi_codegen_outbuf_len_thin.x \
+             -o build_asm/selfhost_pabi/codegen_outbuf_len_thin.o 2>/dev/null \
+          && [ -s build_asm/selfhost_pabi/codegen_outbuf_len_thin.o ] \
+          && nm -gU build_asm/selfhost_pabi/codegen_outbuf_len_thin.o 2>/dev/null \
+               | grep -q ' T _codegen_out_buf_len$'; then
+          echo "g05_cap_tip_reapply: re-asserted outbuf_len after stomp via $_m2_xl" >&2
+        else
+          echo "g05_cap_tip_reapply: WARN outbuf_len re-assert after stomp failed" >&2
+        fi
+      fi
+      if [ -f src/runtime_pipeline_abi_pipe_elf_out_append_thin.x ]; then
+        if XLANG_PREFER_ASM_O=1 "$_m2_xl" -backend asm -c \
+             src/runtime_pipeline_abi_pipe_elf_out_append_thin.x \
+             -o build_asm/selfhost_pabi/pipe_elf_out_append_thin.o 2>/dev/null \
+          && [ -s build_asm/selfhost_pabi/pipe_elf_out_append_thin.o ] \
+          && nm -gU build_asm/selfhost_pabi/pipe_elf_out_append_thin.o 2>/dev/null \
+               | grep -q ' T _pipe_elf_out_append$'; then
+          echo "g05_cap_tip_reapply: re-asserted pipe_elf after stomp via $_m2_xl" >&2
+        else
+          echo "g05_cap_tip_reapply: WARN pipe_elf re-assert after stomp failed" >&2
+        fi
+      fi
+      if [ -f src/runtime_pipeline_abi_binop_block_peel_helpers_thin.x ]; then
+        if XLANG_PREFER_ASM_O=1 "$_m2_xl" -backend asm -c \
+             src/runtime_pipeline_abi_binop_block_peel_helpers_thin.x \
+             -o build_asm/selfhost_pabi/binop_block_peel_helpers_thin.o 2>/dev/null \
+          && [ -s build_asm/selfhost_pabi/binop_block_peel_helpers_thin.o ] \
+          && nm -gU build_asm/selfhost_pabi/binop_block_peel_helpers_thin.o 2>/dev/null \
+               | grep -q ' T _glue_expr_block_transparent_value_ref_at$'; then
+          echo "g05_cap_tip_reapply: re-asserted peel helpers after stomp via $_m2_xl" >&2
+          case " ${G05_OBJS:-} " in
+            *" binop_block_peel_helpers_thin.o "*) ;;
+            *) G05_OBJS="build_asm/selfhost_pabi/binop_block_peel_helpers_thin.o ${G05_OBJS:-}"
+               export G05_OBJS ;;
+          esac
+        else
+          echo "g05_cap_tip_reapply: WARN peel helpers re-assert after stomp failed" >&2
+        fi
+      fi
+    fi
+    unset _m2_xl _h
     fi
   fi
   # out.o|src.x pairs for Cap tip overlays commonly wiped
@@ -1743,10 +1867,22 @@ _cap_tip_fill_missing_objs() {
     if ! ( export XLANG_PREFER_ASM_O=1; unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME;
            . scripts/pure_ld_shared.sh;
            pure_asm_x_to_o "$o" "$src" ) || [ ! -s "$o" ]; then
-      # LEGACY -backend asm -c fallback (still no host-cc .c)
-      if [ -x "$xl" ]; then
-        "$xl" -backend asm -c -o "$o" "$src" 2>/dev/null || rm -f "$o"
-      fi
+      # LEGACY / Cap tip Prefer-M2 -backend asm -c (still no host-cc .c)
+      # 10.67: tip-cold Fix C may CG002; try Cap tip cache vehicle too.
+      _rb_ok=0
+      for _rb_xl in "$xl" \
+          "${XLANG_CAP_TIP_L4_CACHE:-}/xlang" \
+          "${XLANG_CAP_TIP_L4_CACHE:-}/xlang_asm" \
+          /tmp/cap_tip_l4_safe_406200eef/xlang \
+          /tmp/cap_tip_l4_safe_406200eef/xlang_asm; do
+        [ -n "$_rb_xl" ] && [ -x "$_rb_xl" ] || continue
+        if "$_rb_xl" -backend asm -c -o "$o" "$src" 2>/dev/null && [ -s "$o" ]; then
+          _rb_ok=1
+          break
+        fi
+        rm -f "$o"
+      done
+      unset _rb_xl _rb_ok
     fi
     [ -s "$o" ] || echo "g05_cap_tip_reapply: WARN still missing $o" >&2
   done <<'MAP'
@@ -1854,17 +1990,51 @@ if [ -f build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o ]; then
       --redefine-sym=_pipeline_asm_emit_array_lit_elf_c=_pipeline_asm_emit_array_lit_elf_c_symfill_localdead \
       build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o \
       && echo "g05_cap_tip_reapply: globalized fill glue_emit_vector; demoted fill array_lit locals" >&2 || true
-    # 10.44: do NOT globalize fill store_sz — thin struct_lit_field.o is authority
-    # (i8 pack). Demote any fill T so local trampoline can reach thin.
-    if [ -s build_asm/selfhost_pabi/struct_lit_field.o ] \
-      && nm build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null \
-           | grep -q ' T _glue_struct_lit_field_store_sz$' \
-      && nm build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o 2>/dev/null \
-           | grep -q ' T _glue_struct_lit_field_store_sz$'; then
-      "$_oc_sf" --redefine-sym=_glue_struct_lit_field_store_sz=_glue_struct_lit_field_store_sz__demoted_fill \
-        build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o \
-        && echo "g05_cap_tip_reapply: 10.44 demoted fill store_sz (thin wins)" >&2 || true
+    # 10.44/10.67 FixC11 Prefer-M2: do NOT let fill win store_sz / named_layout.
+    # Cap tip REF Prefer-M2 face map (live REF ./xlang T sizes):
+    #   size_simple named_size ≈4484; named_layout soft ≈496; store_sz thin ≈1336.
+    # FixC12: also demote fill size_simple (PE ≈1968) so named_size wins.
+    # Soft+thin still Cap tip REF winners (FixC12b fill/pabi flip was wrong — REF
+    # public T is soft/thin, not fill 1076 / pabi 716). Pipefail-safe nm-to-file.
+    _fill_nm=$(mktemp "${TMPDIR:-/tmp}/cap_tip_fill_nm.XXXXXX")
+    nm build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o >"$_fill_nm" 2>/dev/null || true
+    if [ -s build_asm/selfhost_pabi/struct_lit_field.o ]; then
+      _thin_nm=$(mktemp "${TMPDIR:-/tmp}/cap_tip_thin_nm.XXXXXX")
+      nm build_asm/selfhost_pabi/struct_lit_field.o >"$_thin_nm" 2>/dev/null || true
+      if grep -q ' T _glue_struct_lit_field_store_sz$' "$_thin_nm" \
+        && grep -q ' _glue_struct_lit_field_store_sz$' "$_fill_nm"; then
+        "$_oc_sf" --redefine-sym=_glue_struct_lit_field_store_sz=_glue_struct_lit_field_store_sz__demoted_fill \
+          build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o \
+          && echo "g05_cap_tip_reapply: 10.44 demoted fill store_sz (thin wins)" >&2 || true
+      fi
+      rm -f "$_thin_nm"
     fi
+    if [ -s build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o ]; then
+      _soft_nm=$(mktemp "${TMPDIR:-/tmp}/cap_tip_soft_nm.XXXXXX")
+      nm -gU build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o >"$_soft_nm" 2>/dev/null || true
+      if grep -q ' T _glue_type_named_layout_size_any_module_elf_c$' "$_soft_nm" \
+        && grep -q ' _glue_type_named_layout_size_any_module_elf_c$' "$_fill_nm"; then
+        "$_oc_sf" --redefine-sym=_glue_type_named_layout_size_any_module_elf_c=_glue_type_named_layout_size_any_module_elf_c__demoted_fill \
+          build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o \
+          && echo "g05_cap_tip_reapply: Prefer-M2 demoted fill named_layout (soft wins)" >&2 || true
+      fi
+      rm -f "$_soft_nm"
+    fi
+    # FixC12 Prefer-M2: fill private-extern size_simple (T≈1968) first-wins over
+    # named_size_thin (T≈4484, Cap tip S24→24 authority). Demote fill so named_size wins.
+    if [ -s build_asm/selfhost_pabi/named_size.o ]; then
+      _ns_nm=$(mktemp "${TMPDIR:-/tmp}/cap_tip_ns_nm.XXXXXX")
+      nm -gU build_asm/selfhost_pabi/named_size.o >"$_ns_nm" 2>/dev/null || true
+      nm build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o >"$_fill_nm" 2>/dev/null || true
+      if grep -q ' T _glue_type_size_simple$' "$_ns_nm" \
+        && grep -q ' _glue_type_size_simple$' "$_fill_nm"; then
+        "$_oc_sf" --redefine-sym=_glue_type_size_simple=_glue_type_size_simple__demoted_fill \
+          build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o \
+          && echo "g05_cap_tip_reapply: Prefer-M2 demoted fill size_simple (named_size wins)" >&2 || true
+      fi
+      rm -f "$_ns_nm"
+    fi
+    rm -f "$_fill_nm"
     # knife256/10.2: LEGACY-tip decline pulls lane/modlet; keep them global in fill.
     "$_oc_sf" \
       --globalize-symbol=_glue_lane_f32_lit_dest_set \
@@ -1889,35 +2059,155 @@ fi
 # knife256/10.2: true_i8 index arms lack i32 load → sum2 emits ptr+ptr (exit 10+128=138).
 # Prepend emit_index_thin (has backend_enc_load_i32); demote true_i8 elf/arms.
 # 10.22: ALWAYS tip-compile — CACHE/pabi/*.o stomps stale thin before this block.
+# 10.67 FixC12h Prefer-M2: Cap tip REF vehicle FIRST (never tip-cold hybrid
+# STAGE ./xlang). Cold L4 hybrid tip emit_index __text≈0x17c4 / spill≈796 /
+# arms≈2556 → ret_fixed_s24 CG002; Cap tip REF __text≈0x1b8c / spill≈1140 /
+# arms≈2988. Reject undersized tip and restore CACHE REF. No mega/host-cc.
 # PLATFORM: MACOS Cap tip.
-if [ -f src/runtime_pipeline_abi_emit_index_thin.x ] && [ -x ./xlang ]; then
+if [ -f src/runtime_pipeline_abi_emit_index_thin.x ]; then
   _ix_o=build_asm/selfhost_pabi/emit_index_thin_a64.o
-  # 10.22: always tip-compile (CACHE/pabi may stomp stale 7613; size gate skipped fix)
-  env -u XLANG -u XLANG_FORCE -u FORCE -u PREFER -u G05 -u RUN_ALL_USE_C \
-    -u XLANG_CAP_TIP_L4_CACHE \
-    XLANG_PREFER_ASM_O=1 ./xlang -backend asm -c \
-    src/runtime_pipeline_abi_emit_index_thin.x -o "$_ix_o" \
-    || { echo "g05_cap_tip_reapply: emit_index_thin compile failed" >&2; exit 1; }
-  echo "g05_cap_tip_reapply: tip-compiled emit_index_thin_a64.o" >&2
+  _ix_src=src/runtime_pipeline_abi_emit_index_thin.x
+  _ix_xl=""
+  for _b in \
+    /tmp/cap_tip_l4_safe_406200eef/xlang \
+    "${XLANG_CAP_TIP_L4_CACHE:-}/xlang" \
+    /tmp/cap_tip_l4_safe_406200eef/xlang_asm \
+    "${XLANG_CAP_TIP_L4_CACHE:-}/xlang_asm" \
+    "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/xlang" \
+    ./xlang \
+    ./xlang_asm \
+    seeds/bootstrap_xlangc.darwin.arm64 \
+    ./xlang.cap_g05_l2
+  do
+    [ -n "$_b" ] && [ -x "$_b" ] && _ix_xl="$_b" && break
+  done
+  _ix_keep=""
+  if [ -s "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/emit_index_thin_a64.o" ]; then
+    _ix_keep="${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/emit_index_thin_a64.o"
+  elif [ -s "$_ix_o" ]; then
+    _ix_ksz=$(otool -l "$_ix_o" 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
+    case "$_ix_ksz" in 0x*|0X*) _ix_ksz=$((_ix_ksz)) ;; esac
+    if [ -n "$_ix_ksz" ] && [ "$_ix_ksz" -ge 6800 ] 2>/dev/null; then
+      _ix_keep="$_ix_o"
+    fi
+  fi
+  _ix_ok=0
+  _ix_via=""
+  if [ -n "$_ix_xl" ] && [ -f "$_ix_src" ]; then
+    if env -u XLANG -u XLANG_FORCE -u FORCE -u PREFER -u G05 -u RUN_ALL_USE_C \
+         XLANG_PREFER_ASM_O=1 "$_ix_xl" -backend asm -c \
+         "$_ix_src" -o "$_ix_o" 2>/dev/null \
+       && [ -s "$_ix_o" ] \
+       && nm -gU "$_ix_o" 2>/dev/null | grep -q 'T _pipeline_asm_emit_index_elf_c$'; then
+      _ix_tsz=$(otool -l "$_ix_o" 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
+      case "$_ix_tsz" in 0x*|0X*) _ix_tsz=$((_ix_tsz)) ;; esac
+      _ix_min=6800
+      if [ -n "$_ix_tsz" ] && [ "$_ix_tsz" -ge "$_ix_min" ] 2>/dev/null; then
+        echo "g05_cap_tip_reapply: tip-compiled emit_index_thin_a64.o (via $_ix_xl text=$_ix_tsz)" >&2
+        mkdir -p "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi"
+        cp -f "$_ix_o" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/emit_index_thin_a64.o" 2>/dev/null || true
+        _ix_ok=1
+        _ix_via="$_ix_xl"
+      else
+        echo "g05_cap_tip_reapply: FixC12h Prefer-M2 reject undersized emit_index tip (text=${_ix_tsz:-?} via $_ix_xl); keep REF" >&2
+      fi
+    else
+      rm -f "$_ix_o"
+      echo "g05_cap_tip_reapply: emit_index_thin compile failed (via ${_ix_xl:-none})" >&2
+    fi
+  fi
+  if [ "$_ix_ok" != "1" ] && [ -n "$_ix_keep" ] && [ -s "$_ix_keep" ]; then
+    cp -f "$_ix_keep" "$_ix_o"
+    mkdir -p "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi"
+    cp -f "$_ix_keep" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/emit_index_thin_a64.o" 2>/dev/null || true
+    echo "g05_cap_tip_reapply: FixC12h Prefer-M2 restored emit_index_thin (REF keep)" >&2
+    _ix_ok=1
+    _ix_via="REF"
+  fi
+  if [ "$_ix_ok" != "1" ]; then
+    echo "g05_cap_tip_reapply: emit_index_thin compile failed" >&2
+    exit 1
+  fi
   case " $G05_OBJS " in
     *" $_ix_o "*) ;;
     *) G05_OBJS="$_ix_o $G05_OBJS"; export G05_OBJS
        echo "g05_cap_tip_reapply: prepended emit_index_thin_a64.o" >&2 ;;
   esac
+  unset _ix_ok _ix_via _ix_xl _ix_keep _ix_tsz _ix_min _ix_ksz _ix_src _b
 fi
 
 # 10.22: Cap tip archive_leaf ast_to_elf always reset_data — wipes dep Lxml
 # payload before entry module, leaving n_sect=2 with no __DATA (cims ld fail).
 # Prefer ast_to_elf_thin (reset only when data_len<=0); demote leaf face only.
-# PLATFORM: MACOS Cap tip.
-if [ -f src/runtime_pipeline_abi_ast_to_elf_thin.x ] && [ -x ./xlang ]; then
+# 10.67 FixC12i Prefer-M2: Cap tip REF vehicle FIRST (never tip-cold hybrid
+# STAGE ./xlang). Cold L4 hybrid tip ast_to_elf __text≈0x3a0 → ret_fixed_s24
+# CG002 (codegen_ast T Δ=-176); Cap tip REF __text≈0x450. Reject undersized
+# tip and restore CACHE REF. No mega/host-cc. PLATFORM: MACOS Cap tip.
+if [ -f src/runtime_pipeline_abi_ast_to_elf_thin.x ]; then
   _ale_o=build_asm/selfhost_pabi/ast_to_elf_thin_a64.o
-  env -u XLANG -u XLANG_FORCE -u FORCE -u PREFER -u G05 -u RUN_ALL_USE_C \
-    -u XLANG_CAP_TIP_L4_CACHE \
-    XLANG_PREFER_ASM_O=1 ./xlang -backend asm -c \
-    src/runtime_pipeline_abi_ast_to_elf_thin.x -o "$_ale_o" \
-    || { echo "g05_cap_tip_reapply: ast_to_elf_thin compile failed" >&2; exit 1; }
-  echo "g05_cap_tip_reapply: tip-compiled ast_to_elf_thin_a64.o" >&2
+  _ale_src=src/runtime_pipeline_abi_ast_to_elf_thin.x
+  _ale_xl=""
+  for _b in \
+    /tmp/cap_tip_l4_safe_406200eef/xlang \
+    "${XLANG_CAP_TIP_L4_CACHE:-}/xlang" \
+    /tmp/cap_tip_l4_safe_406200eef/xlang_asm \
+    "${XLANG_CAP_TIP_L4_CACHE:-}/xlang_asm" \
+    "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/xlang" \
+    ./xlang \
+    ./xlang_asm \
+    seeds/bootstrap_xlangc.darwin.arm64 \
+    ./xlang.cap_g05_l2
+  do
+    [ -n "$_b" ] && [ -x "$_b" ] && _ale_xl="$_b" && break
+  done
+  _ale_keep=""
+  if [ -s "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/ast_to_elf_thin_a64.o" ]; then
+    _ale_keep="${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/ast_to_elf_thin_a64.o"
+  elif [ -s "$_ale_o" ]; then
+    _ale_ksz=$(otool -l "$_ale_o" 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
+    case "$_ale_ksz" in 0x*|0X*) _ale_ksz=$((_ale_ksz)) ;; esac
+    if [ -n "$_ale_ksz" ] && [ "$_ale_ksz" -ge 1000 ] 2>/dev/null; then
+      _ale_keep="$_ale_o"
+    fi
+  fi
+  _ale_ok=0
+  _ale_via=""
+  if [ -n "$_ale_xl" ] && [ -f "$_ale_src" ]; then
+    if env -u XLANG -u XLANG_FORCE -u FORCE -u PREFER -u G05 -u RUN_ALL_USE_C \
+         XLANG_PREFER_ASM_O=1 "$_ale_xl" -backend asm -c \
+         "$_ale_src" -o "$_ale_o" 2>/dev/null \
+       && [ -s "$_ale_o" ] \
+       && nm -gU "$_ale_o" 2>/dev/null | grep -q 'T _pipeline_backend_asm_codegen_ast_to_elf_c$'; then
+      _ale_tsz=$(otool -l "$_ale_o" 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
+      case "$_ale_tsz" in 0x*|0X*) _ale_tsz=$((_ale_tsz)) ;; esac
+      _ale_min=1000
+      if [ -n "$_ale_tsz" ] && [ "$_ale_tsz" -ge "$_ale_min" ] 2>/dev/null; then
+        echo "g05_cap_tip_reapply: tip-compiled ast_to_elf_thin_a64.o (via $_ale_xl text=$_ale_tsz)" >&2
+        mkdir -p "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi"
+        cp -f "$_ale_o" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/ast_to_elf_thin_a64.o" 2>/dev/null || true
+        _ale_ok=1
+        _ale_via="$_ale_xl"
+      else
+        echo "g05_cap_tip_reapply: FixC12i Prefer-M2 reject undersized ast_to_elf tip (text=${_ale_tsz:-?} via $_ale_xl); keep REF" >&2
+      fi
+    else
+      rm -f "$_ale_o"
+      echo "g05_cap_tip_reapply: ast_to_elf_thin compile failed (via ${_ale_xl:-none})" >&2
+    fi
+  fi
+  if [ "$_ale_ok" != "1" ] && [ -n "$_ale_keep" ] && [ -s "$_ale_keep" ]; then
+    cp -f "$_ale_keep" "$_ale_o"
+    mkdir -p "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi"
+    cp -f "$_ale_keep" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/ast_to_elf_thin_a64.o" 2>/dev/null || true
+    echo "g05_cap_tip_reapply: FixC12i Prefer-M2 restored ast_to_elf_thin (REF keep)" >&2
+    _ale_ok=1
+    _ale_via="REF"
+  fi
+  if [ "$_ale_ok" != "1" ]; then
+    echo "g05_cap_tip_reapply: ast_to_elf_thin compile failed" >&2
+    exit 1
+  fi
+  unset _ale_ok _ale_via _ale_xl _ale_keep _ale_tsz _ale_min _ale_ksz _ale_src _b
   case " $G05_OBJS " in
     *" $_ale_o "*) ;;
     *) G05_OBJS="$_ale_o $G05_OBJS"; export G05_OBJS
@@ -2060,6 +2350,7 @@ ASM
   G05_OBJS=$(echo "$kept" | sed 's/^ *//')
   export G05_OBJS
   echo "g05_cap_tip_reapply: G05_OBJS after fill/skip=$(echo $G05_OBJS | wc -w | tr -d ' ') (skipped $miss)" >&2
+  # 10.67 FixC9: undemote moved to end of fill_missing (after bak_cap restores).
   # Same for WINNERS pairs — drop pairs whose object is missing
   if [ -n "${G05_LINK_WINNERS:-}" ]; then
     local wkept=""
@@ -2197,11 +2488,36 @@ ASM
   fi
   fi
   # Post-fill: size/layout softs + re-demote pabi (CACHE/pabi stomps demote).
-  if [ ! -s build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o ] \
-    && [ -f src/asm/named_layout_size_split_a64.s ]; then
+  # 10.67 FixC11 Prefer-M2: post-fill re-assemble .s soft (authority over .x).
+  if [ -f src/asm/named_layout_size_split_a64.s ]; then
     as -arch arm64 -o build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o \
       src/asm/named_layout_size_split_a64.s \
-      && echo "g05_cap_tip_reapply: post-fill assemble named_layout soft" >&2 || true
+      && echo "g05_cap_tip_reapply: post-fill Prefer-M2 assembled named_layout soft from .s" >&2 || true
+  fi
+  if [ ! -s build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o ] \
+    && [ -f src/typeck/typeck_named_layout_size_split_soft.x ]; then
+    _nls2_xl="${XLANG:-}"
+    [ -n "${XLANG_CAP_TIP_L4_CACHE:-}" ] && [ -x "${XLANG_CAP_TIP_L4_CACHE}/xlang" ] && _nls2_xl="${XLANG_CAP_TIP_L4_CACHE}/xlang"
+    [ -x ./xlang ] && _nls2_xl="./xlang"
+    [ -x ./xlang.cap_g05_l2 ] && _nls2_xl="./xlang.cap_g05_l2"
+    _nls2_ok=0
+    if [ -n "$_nls2_xl" ] && XLANG_PREFER_ASM_O=1 "$_nls2_xl" -backend asm -c \
+        src/typeck/typeck_named_layout_size_split_soft.x \
+        -o build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o 2>/dev/null; then
+      _nls2_chk=$(mktemp "${TMPDIR:-/tmp}/nls2_chk.XXXXXX")
+      nm -gU build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o >"$_nls2_chk" 2>/dev/null || true
+      if grep -q ' T _glue_type_named_layout_size_any_module_elf_c$' "$_nls2_chk"; then
+        _nls2_ok=1
+        echo "g05_cap_tip_reapply: post-fill tip-compiled named_layout soft" >&2
+      fi
+      rm -f "$_nls2_chk"; unset _nls2_chk
+    fi
+    if [ "$_nls2_ok" != 1 ]; then
+      rm -f build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o
+      echo "g05_cap_tip_reapply: WARN post-fill named_layout soft tip-compile failed" >&2
+    fi
+    unset _nls2_ok
+    unset _nls2_xl
   fi
   if [ -s build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o ]; then
     case " $G05_OBJS " in
@@ -2209,6 +2525,19 @@ ASM
       *) G05_OBJS="build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o $G05_OBJS"; export G05_OBJS
          echo "g05_cap_tip_reapply: post-fill prepended named_layout soft" >&2 ;;
     esac
+  fi
+  # 10.67 FixC11 Prefer-M2: post-fill re-prepend store_sz thin (MAP/fill may drop).
+  if [ -s build_asm/selfhost_pabi/struct_lit_field.o ]; then
+    _slf_pfnm=$(mktemp "${TMPDIR:-/tmp}/cap_tip_slf_pf.XXXXXX")
+    nm -gU build_asm/selfhost_pabi/struct_lit_field.o >"$_slf_pfnm" 2>/dev/null || true
+    if grep -q ' T _glue_struct_lit_field_store_sz$' "$_slf_pfnm"; then
+      case " ${G05_OBJS:-} " in
+        *" build_asm/selfhost_pabi/struct_lit_field.o "*) ;;
+        *) G05_OBJS="build_asm/selfhost_pabi/struct_lit_field.o ${G05_OBJS:-}"; export G05_OBJS
+           echo "g05_cap_tip_reapply: post-fill Prefer-M2 prepended struct_lit_field.o" >&2 ;;
+      esac
+    fi
+    rm -f "$_slf_pfnm"
   fi
   if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
     && [ -s build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o ]; then
@@ -2278,13 +2607,25 @@ _typeck_x_type_align_from_layout_glue' > /tmp/cap_tip_orch_layout.exp
     esac
     if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o.bak_cap ]; then
       cp -f build_asm/selfhost_pabi/pabi_weak.o.bak_cap build_asm/selfhost_pabi/pabi_weak.o
-      "$OC" \
-        --redefine-sym=_glue_type_size_simple=_glue_type_size_simple__demoted \
-        --redefine-sym=_glue_type_align_simple=_glue_type_align_simple__demoted \
-        --redefine-sym=_glue_type_named_layout_size_any_module_elf_c=_glue_type_named_layout_size_any_module_elf_c__demoted \
-        --redefine-sym=_typeck_x_type_size_from_layout_glue=_typeck_x_type_size_from_layout_glue__demoted \
-        --redefine-sym=_typeck_x_type_align_from_layout_glue=_typeck_x_type_align_from_layout_glue__demoted \
+      # 10.67 FixC9 Prefer-M2: orch soft wins layout_glue only. Do NOT demote
+      # named_layout_size_any unless named_layout soft is a live Cap tip winner
+      # (thin .s deleted in 10.26; demote-without-winner → pure-ld U).
+      _orch_redefs=(
+        --redefine-sym=_glue_type_size_simple=_glue_type_size_simple__demoted
+        --redefine-sym=_glue_type_align_simple=_glue_type_align_simple__demoted
+        --redefine-sym=_typeck_x_type_size_from_layout_glue=_typeck_x_type_size_from_layout_glue__demoted
+        --redefine-sym=_typeck_x_type_align_from_layout_glue=_typeck_x_type_align_from_layout_glue__demoted
+      )
+      _orch_nls_nm=$(mktemp "${TMPDIR:-/tmp}/orch_nls_nm.XXXXXX")
+      nm -gU build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o >"$_orch_nls_nm" 2>/dev/null || true
+      if [ -s build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o ] \
+        && grep -q ' T _glue_type_named_layout_size_any_module_elf_c$' "$_orch_nls_nm"; then
+        _orch_redefs+=(--redefine-sym=_glue_type_named_layout_size_any_module_elf_c=_glue_type_named_layout_size_any_module_elf_c__demoted)
+      fi
+      rm -f "$_orch_nls_nm"; unset _orch_nls_nm
+      "$OC" "${_orch_redefs[@]}" \
         build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+      unset _orch_redefs
       # re-weaken fixed-array after bak restore
       if [ -s build_asm/selfhost_pabi/fa_array_lit_a64.o ]; then
         "$OC" \
@@ -2396,6 +2737,66 @@ _typeck_x_type_align_from_layout_glue' > /tmp/cap_tip_orch_layout.exp
       echo "g05_cap_tip_reapply: G05_OBJS after ctfe filter=$(echo $G05_OBJS | wc -w | tr -d ' ')" >&2
     fi
   fi
+  # 10.67 FixC9b Prefer-M2: AFTER all bak_cap restores / post-fill demotes.
+  # If a demoted pabi_weak face has no strong Cap tip winner left in G05_OBJS
+  # (thin deleted / 0-byte stomp / soft .s missing), undemote so pure-ld does
+  # not U. Cap tip omits mega — do not treat mega as winner. No new host-cc.
+  # CRITICAL: set -o pipefail makes `nm | grep -q` return 141 (SIGPIPE) on a
+  # real match — always use nm-to-file then grep (see 10.22 peel faces check).
+  _ud_oc=""
+  for c in "${LLVM_OBJCOPY:-}" /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
+    [ -n "$c" ] && [ -x "$c" ] && _ud_oc=$c && break
+  done
+  _ud_pw=build_asm/selfhost_pabi/pabi_weak.o
+  if [ -n "$_ud_oc" ] && [ -s "$_ud_pw" ]; then
+    _ud_nm=$(mktemp "${TMPDIR:-/tmp}/cap_tip_ud_nm.XXXXXX")
+    nm -gU "$_ud_pw" >"$_ud_nm" 2>/dev/null || true
+    _g05_has_sym() {
+      local sym="$1" o _onm
+      for o in $G05_OBJS; do
+        [ -s "$o" ] || continue
+        case "$o" in */pabi_weak.o|pabi_weak.o) continue ;; esac
+        case "$o" in */runtime_pipeline_abi.o|runtime_pipeline_abi.o) continue ;; esac
+        _onm=$(mktemp "${TMPDIR:-/tmp}/cap_tip_has_nm.XXXXXX")
+        nm -gU "$o" >"$_onm" 2>/dev/null || true
+        if grep -q " T ${sym}$" "$_onm"; then
+          rm -f "$_onm"
+          return 0
+        fi
+        rm -f "$_onm"
+      done
+      return 1
+    }
+    for _ud_pair in \
+      "_codegen_out_buf_len|__demoted" \
+      "_codegen_out_buf_set_len|__demoted" \
+      "_pipe_elf_out_append|__demoted" \
+      "_glue_struct_lit_field_store_sz|__demoted" \
+      "_glue_type_named_layout_size_any_module_elf_c|__demoted" \
+      "_glue_expr_block_transparent_value_ref_at|__pabi_weak_dup" \
+      "_glue_try_binop_load_operand_elf_c|__pabi_weak_dup" \
+      "_glue_emit_assign_var_try_let_elf_c|__pabi_weak_dup"
+    do
+      _ud_sym="${_ud_pair%%|*}"
+      _ud_suf="${_ud_pair##*|}"
+      _ud_dem="${_ud_sym}${_ud_suf}"
+      if ! _g05_has_sym "$_ud_sym"; then
+        if grep -q " T ${_ud_dem}$" "$_ud_nm"; then
+          if "$_ud_oc" --redefine-sym="${_ud_dem}=${_ud_sym}" "$_ud_pw" 2>/dev/null; then
+            echo "g05_cap_tip_reapply: Prefer-M2 undemote pabi_weak ${_ud_sym#?} (no winner)" >&2
+            # refresh nm dump after each successful redefine
+            nm -gU "$_ud_pw" >"$_ud_nm" 2>/dev/null || true
+          fi
+        fi
+      fi
+    done
+    unset -f _g05_has_sym
+    unset _ud_pair _ud_sym _ud_suf _ud_dem
+    rm -f "$_ud_nm"
+    unset _ud_nm
+  fi
+  unset _ud_oc _ud_pw
+
 }
 _cap_tip_fill_missing_objs
 
@@ -2699,6 +3100,7 @@ done
 # Demote pabi_weak duplicates so peel/try_let thins first-win.
 # Resolve llvm-objcopy by full path: a bare LLVM_OBJCOPY=llvm-objcopy makes
 # `[ -x]` fail (no PATH search) and skip demote → Apple ld duplicate T.
+# 10.67 Prefer-M2: only demote when a non-pabi_weak G05 winner still has T.
 _oc=""
 for c in "${LLVM_OBJCOPY:-}" /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
   [ -n "$c" ] && [ -x "$c" ] && _oc=$c && break
@@ -2706,11 +3108,20 @@ done
 _pw=build_asm/selfhost_pabi/pabi_weak.o
 if [ -n "$_oc" ] && [ -s "$_pw" ]; then
   for _s in _glue_expr_block_transparent_value_ref_at _glue_try_binop_load_operand_elf_c _glue_emit_assign_var_try_let_elf_c; do
-    if nm -gU "$_pw" 2>/dev/null | awk '{print $3}' | grep -qxF "$_s"; then
+    _win=0
+    for _wo in $G05_OBJS; do
+      case "$_wo" in */pabi_weak.o|pabi_weak.o) continue ;; esac
+      [ -s "$_wo" ] || continue
+      nm -gU "$_wo" 2>/dev/null | grep -q " T ${_s}$" && _win=1 && break
+    done
+    if [ "$_win" = 1 ] && nm -gU "$_pw" 2>/dev/null | awk '{print $3}' | grep -qxF "$_s"; then
       "$_oc" --redefine-sym="${_s}=${_s}__pabi_weak_dup" "$_pw" 2>/dev/null \
         && echo "g05_cap_tip_reapply: demoted pabi_weak $_s" >&2 || true
+    elif [ "$_win" != 1 ]; then
+      echo "g05_cap_tip_reapply: Prefer-M2 skip demote $_s (no winner)" >&2
     fi
   done
+  unset _win _wo _s
 fi
 
 # 10.37 Cap residual: usual-arith i32↔i64 cmp + parent binop dispatcher.
@@ -2914,11 +3325,75 @@ if [ ! -f "$_rs_src" ]; then
     echo "g05_cap_tip_reapply: 10.59 dropped stale return_sret.o (merged mega)" >&2
   fi
 fi
-if [ -f "$_rs_src" ] && [ -x "${xl:-./xlang}" ]; then
-  "${xl:-./xlang}" -backend asm -c -o "$_rs_o" "$_rs_src" 2>/dev/null \
-    && echo "g05_cap_tip_reapply: 10.22 tip-compiled return_sret.o (256-byte name buffers)" >&2 \
-    || echo "g05_cap_tip_reapply: WARN 10.22 return_sret tip-compile failed" >&2
+# 10.67 FixC12j Prefer-M2: Cap tip xl duplexes _pipeline_w1521_rs_copy_to_dest
+# (n=2 → Apple ld malformed atom). Pin-egg seed (~5.08MB) emits single-T;
+# Cap tip-synced ./bootstrap_xlangc (~10.7MB) also duplexes — do NOT prefer it.
+# Prefer pin-egg tip-compile; on duplex/fail restore CACHE REF return_sret.o
+# (single-T + emit_return). Never bare-drop (fa_array U pipeline_w1521; Cap tip
+# omits mega). PLATFORM: MACOS Cap tip. No mega/host-cc.
+_rs_keep=""
+if [ -s "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/return_sret.o" ]; then
+  _rs_keep="${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/return_sret.o"
+elif [ -s "$_rs_o" ]; then
+  _rs_kd=$(nm -gU "$_rs_o" 2>/dev/null \
+    | awk '$2=="T" && $3=="_pipeline_w1521_rs_copy_to_dest" {c++} END{print c+0}')
+  if [ "${_rs_kd:-0}" = "1" ]; then
+    _rs_keep="$_rs_o"
+  fi
+  unset _rs_kd
 fi
+_rs_ok=0
+_rs_egg=""
+for _rb in   seeds/bootstrap_xlangc.darwin.arm64   seeds/bootstrap_xlangc.darwin.arm64.cap_tip_l4_aside   seeds/bootstrap_xlangc.darwin.x86_64
+do
+  if [ -x "$_rb" ]; then
+    # Cap tip-sized bin duplexes; pin-egg is ~5MB band.
+    _rb_sz=$(wc -c < "$_rb" | tr -d ' ')
+    if [ "${_rb_sz:-0}" -lt 8000000 ] 2>/dev/null; then
+      _rs_egg=$_rb
+      break
+    fi
+  fi
+done
+unset _rb _rb_sz
+if [ -n "$_rs_egg" ] && [ -f "$_rs_src" ]; then
+  if "$_rs_egg" -backend asm -c -o "$_rs_o" "$_rs_src" 2>/dev/null \
+    && [ -s "$_rs_o" ]; then
+    _rs_dup=$(nm -gU "$_rs_o" 2>/dev/null \
+      | awk '$2=="T" && $3=="_pipeline_w1521_rs_copy_to_dest" {c++} END{print c+0}')
+    if [ "${_rs_dup:-0}" = "1" ] \
+      && nm "$_rs_o" 2>/dev/null | grep -q 'T _pipeline_asm_emit_return_elf_impl$'; then
+      echo "g05_cap_tip_reapply: FixC12j Prefer-M2 tip-compiled return_sret.o (via pin-egg $_rs_egg single-T)" >&2
+      mkdir -p "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi"
+      cp -f "$_rs_o" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/return_sret.o" 2>/dev/null || true
+      _rs_ok=1
+    else
+      echo "g05_cap_tip_reapply: FixC12j Prefer-M2 reject duplex/bad return_sret tip (dup=${_rs_dup:-?} via $_rs_egg); keep REF" >&2
+      rm -f "$_rs_o"
+    fi
+    unset _rs_dup
+  else
+    echo "g05_cap_tip_reapply: WARN FixC12j pin-egg return_sret tip-compile failed (via ${_rs_egg})" >&2
+    rm -f "$_rs_o"
+  fi
+fi
+if [ "$_rs_ok" != "1" ] && [ -n "$_rs_keep" ] && [ -s "$_rs_keep" ]; then
+  cp -f "$_rs_keep" "$_rs_o"
+  mkdir -p "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi"
+  cp -f "$_rs_keep" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/return_sret.o" 2>/dev/null || true
+  echo "g05_cap_tip_reapply: FixC12j Prefer-M2 restored return_sret.o (CACHE REF single-T)" >&2
+  _rs_ok=1
+fi
+if [ "$_rs_ok" != "1" ]; then
+  echo "g05_cap_tip_reapply: WARN FixC12j return_sret unavailable (no pin-egg/REF); omit from G05_OBJS" >&2
+  rm -f "$_rs_o"
+  if printf '%s' " $G05_OBJS " | grep -Eq '(^|[[:space:]/])return_sret\.o([[:space:]]|$)'; then
+    G05_OBJS=$(printf '%s' "$G05_OBJS" | sed -E 's|(^|[[:space:]])build_asm/selfhost_pabi/return_sret\.o([[:space:]]|$)|\1|g')
+    G05_OBJS=$(printf '%s' "$G05_OBJS" | sed -E 's|[[:space:]]+| |g;s|^ ||;s| $||')
+    export G05_OBJS
+  fi
+fi
+unset _rs_ok _rs_egg _rs_keep
 if [ -s "$_rs_o" ] && nm "$_rs_o" 2>/dev/null | grep -q 'T _pipeline_asm_emit_return_elf_impl$'; then
   # Path-aware: seed list has build_asm/.../return_sret.o (space-basename misses).
   if printf '%s' " $G05_OBJS " | grep -Eq '(^|[[:space:]/])return_sret\.o([[:space:]]|$)'; then
@@ -2943,14 +3418,64 @@ if [ -s "$_rs_o" ] && nm "$_rs_o" 2>/dev/null | grep -q 'T _pipeline_asm_emit_re
 
 fi
 
-# 10.22: STRUCT_LIT.field→[]T — wire slice_modlet (calls _prev).
+# 10.22/10.67 FixC12g Prefer-M2: slice_modlet / reverse_infer / call_arg Cap tip
+# REF vehicle first (never tip-cold hybrid STAGE ./xlang). Cold L4 hybrid tip
+# reverse_infer __text≈5536 / slice≈6948 / call_arg≈5092 → ret_fixed_s24 CG002;
+# Cap tip REF reverse_infer≈7280 / slice≈7976 / call_arg≈6672. Reject undersized
+# tip and restore CACHE REF — do not poison. PLATFORM: MACOS Cap tip. No mega.
 _sm_o=build_asm/selfhost_pabi/slice_modlet.o
 _sm_src=src/runtime_pipeline_abi_slice_modlet_var_thin.x
-if [ -f "$_sm_src" ] && [ -x "${xl:-./xlang}" ]; then
-  "${xl:-./xlang}" -backend asm -c -o "$_sm_o" "$_sm_src" 2>/dev/null \
-    && echo "g05_cap_tip_reapply: 10.22 tip-compiled slice_modlet.o" >&2 \
-    || rm -f "$_sm_o"
+_sm_xl=""
+for _b in \
+  /tmp/cap_tip_l4_safe_406200eef/xlang \
+  "${XLANG_CAP_TIP_L4_CACHE:-}/xlang" \
+  /tmp/cap_tip_l4_safe_406200eef/xlang_asm \
+  "${XLANG_CAP_TIP_L4_CACHE:-}/xlang_asm" \
+  "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/xlang" \
+  ./xlang \
+  ./xlang_asm \
+  seeds/bootstrap_xlangc.darwin.arm64 \
+  ./xlang.cap_g05_l2
+do
+  [ -n "$_b" ] && [ -x "$_b" ] && _sm_xl="$_b" && break
+done
+_sm_keep=""
+if [ -s "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/slice_modlet.o" ]; then
+  _sm_keep="${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/slice_modlet.o"
+elif [ -s "$_sm_o" ]; then
+  _sm_ksz=$(otool -l "$_sm_o" 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
+  case "$_sm_ksz" in 0x*|0X*) _sm_ksz=$((_sm_ksz)) ;; esac
+  if [ -n "$_sm_ksz" ] && [ "$_sm_ksz" -ge 7800 ] 2>/dev/null; then
+    _sm_keep="$_sm_o"
+  fi
 fi
+_sm_ok=0
+if [ -n "$_sm_xl" ] && [ -f "$_sm_src" ]; then
+  if XLANG_PREFER_ASM_O=1 "$_sm_xl" -backend asm -c -o "$_sm_o" "$_sm_src" >/dev/null 2>&1 \
+    && nm "$_sm_o" 2>/dev/null | grep -q 'T _glue_emit_slice_from_array_let_init_elf_c$'; then
+    _sm_tsz=$(otool -l "$_sm_o" 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
+    case "$_sm_tsz" in 0x*|0X*) _sm_tsz=$((_sm_tsz)) ;; esac
+    _sm_min=7800
+    if [ -n "$_sm_tsz" ] && [ "$_sm_tsz" -ge "$_sm_min" ] 2>/dev/null; then
+      echo "g05_cap_tip_reapply: 10.22 tip-compiled slice_modlet.o (via $_sm_xl text=$_sm_tsz)" >&2
+      mkdir -p "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi"
+      cp -f "$_sm_o" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/slice_modlet.o" 2>/dev/null || true
+      _sm_ok=1
+    else
+      echo "g05_cap_tip_reapply: FixC12g Prefer-M2 reject undersized slice_modlet tip (text=${_sm_tsz:-?} via $_sm_xl); keep REF" >&2
+    fi
+  else
+    rm -f "$_sm_o"
+    echo "g05_cap_tip_reapply: 10.22 slice_modlet.o compile failed (via ${_sm_xl:-none})" >&2
+  fi
+fi
+if [ "$_sm_ok" != "1" ] && [ -n "$_sm_keep" ] && [ -s "$_sm_keep" ]; then
+  cp -f "$_sm_keep" "$_sm_o"
+  mkdir -p "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi"
+  cp -f "$_sm_keep" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/slice_modlet.o" 2>/dev/null || true
+  echo "g05_cap_tip_reapply: FixC12g Prefer-M2 restored slice_modlet (REF keep)" >&2
+fi
+unset _sm_xl _sm_keep _sm_ok _sm_tsz _sm_min _sm_ksz
 if [ -s "$_sm_o" ] && nm "$_sm_o" 2>/dev/null | grep -q 'T _glue_emit_slice_from_array_let_init_elf_c$'; then
   # Tip-compile + ensure in G05_OBJS only. Demote + _prev stub live solely in
   # g05_relink_xlang (after any pabi_weak refresh) so stub never stacks on egg.
@@ -2963,14 +3488,60 @@ if [ -s "$_sm_o" ] && nm "$_sm_o" 2>/dev/null | grep -q 'T _glue_emit_slice_from
 fi
 
 
-# 10.22: take_field_slice — reverse_infer soft (Wf/Wi xs) + call_arg STRUCT_LIT.field.
+# 10.22/10.67 FixC12g Prefer-M2: reverse_infer soft Cap tip REF first.
 _ri_o=build_asm/selfhost_pabi/typeck_field_reverse_infer_soft.o
 _ri_src=src/typeck/typeck_field_reverse_infer_soft.x
-if [ -f "$_ri_src" ] && [ -x "${xl:-./xlang}" ]; then
-  "${xl:-./xlang}" -backend asm -c -o "$_ri_o" "$_ri_src" 2>/dev/null \
-    && echo "g05_cap_tip_reapply: 10.22 tip-compiled typeck_field_reverse_infer_soft.o" >&2 \
-    || rm -f "$_ri_o"
+_ri_xl=""
+for _b in \
+  /tmp/cap_tip_l4_safe_406200eef/xlang \
+  "${XLANG_CAP_TIP_L4_CACHE:-}/xlang" \
+  /tmp/cap_tip_l4_safe_406200eef/xlang_asm \
+  "${XLANG_CAP_TIP_L4_CACHE:-}/xlang_asm" \
+  "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/xlang" \
+  ./xlang \
+  ./xlang_asm \
+  seeds/bootstrap_xlangc.darwin.arm64 \
+  ./xlang.cap_g05_l2
+do
+  [ -n "$_b" ] && [ -x "$_b" ] && _ri_xl="$_b" && break
+done
+_ri_keep=""
+if [ -s "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/typeck_field_reverse_infer_soft.o" ]; then
+  _ri_keep="${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/typeck_field_reverse_infer_soft.o"
+elif [ -s "$_ri_o" ]; then
+  _ri_ksz=$(otool -l "$_ri_o" 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
+  case "$_ri_ksz" in 0x*|0X*) _ri_ksz=$((_ri_ksz)) ;; esac
+  if [ -n "$_ri_ksz" ] && [ "$_ri_ksz" -ge 7000 ] 2>/dev/null; then
+    _ri_keep="$_ri_o"
+  fi
 fi
+_ri_ok=0
+if [ -n "$_ri_xl" ] && [ -f "$_ri_src" ]; then
+  if XLANG_PREFER_ASM_O=1 "$_ri_xl" -backend asm -c -o "$_ri_o" "$_ri_src" >/dev/null 2>&1 \
+    && nm "$_ri_o" 2>/dev/null | grep -q "T _typeck_field_reverse_infer_base_type$"; then
+    _ri_tsz=$(otool -l "$_ri_o" 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
+    case "$_ri_tsz" in 0x*|0X*) _ri_tsz=$((_ri_tsz)) ;; esac
+    _ri_min=7000
+    if [ -n "$_ri_tsz" ] && [ "$_ri_tsz" -ge "$_ri_min" ] 2>/dev/null; then
+      echo "g05_cap_tip_reapply: 10.22 tip-compiled typeck_field_reverse_infer_soft.o (via $_ri_xl text=$_ri_tsz)" >&2
+      mkdir -p "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi"
+      cp -f "$_ri_o" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/typeck_field_reverse_infer_soft.o" 2>/dev/null || true
+      _ri_ok=1
+    else
+      echo "g05_cap_tip_reapply: FixC12g Prefer-M2 reject undersized reverse_infer tip (text=${_ri_tsz:-?} via $_ri_xl); keep REF" >&2
+    fi
+  else
+    rm -f "$_ri_o"
+    echo "g05_cap_tip_reapply: 10.22 reverse_infer soft compile failed (via ${_ri_xl:-none})" >&2
+  fi
+fi
+if [ "$_ri_ok" != "1" ] && [ -n "$_ri_keep" ] && [ -s "$_ri_keep" ]; then
+  cp -f "$_ri_keep" "$_ri_o"
+  mkdir -p "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi"
+  cp -f "$_ri_keep" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/typeck_field_reverse_infer_soft.o" 2>/dev/null || true
+  echo "g05_cap_tip_reapply: FixC12g Prefer-M2 restored reverse_infer soft (REF keep)" >&2
+fi
+unset _ri_xl _ri_keep _ri_ok _ri_tsz _ri_min _ri_ksz
 if [ -s "$_ri_o" ] && nm "$_ri_o" 2>/dev/null | grep -q "T _typeck_field_reverse_infer_base_type$"; then
   if printf "%s" " $G05_OBJS " | grep -Eq "(^|[[:space:]/])typeck_field_reverse_infer_soft\.o([[:space:]]|$)"; then
     :
@@ -2979,13 +3550,61 @@ if [ -s "$_ri_o" ] && nm "$_ri_o" 2>/dev/null | grep -q "T _typeck_field_reverse
     echo "g05_cap_tip_reapply: 10.22 prepended typeck_field_reverse_infer_soft.o" >&2
   fi
 fi
+
+# 10.22/10.67 FixC12g Prefer-M2: call_arg STRUCT_LIT.field Cap tip REF first.
 _ca_o=build_asm/selfhost_pabi/call_arg_struct_lit_field.o
 _ca_src=src/runtime_pipeline_abi_call_arg_struct_lit_field_thin.x
-if [ -f "$_ca_src" ] && [ -x "${xl:-./xlang}" ]; then
-  "${xl:-./xlang}" -backend asm -c -o "$_ca_o" "$_ca_src" 2>/dev/null \
-    && echo "g05_cap_tip_reapply: 10.22 tip-compiled call_arg_struct_lit_field.o" >&2 \
-    || rm -f "$_ca_o"
+_ca_xl=""
+for _b in \
+  /tmp/cap_tip_l4_safe_406200eef/xlang \
+  "${XLANG_CAP_TIP_L4_CACHE:-}/xlang" \
+  /tmp/cap_tip_l4_safe_406200eef/xlang_asm \
+  "${XLANG_CAP_TIP_L4_CACHE:-}/xlang_asm" \
+  "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/xlang" \
+  ./xlang \
+  ./xlang_asm \
+  seeds/bootstrap_xlangc.darwin.arm64 \
+  ./xlang.cap_g05_l2
+do
+  [ -n "$_b" ] && [ -x "$_b" ] && _ca_xl="$_b" && break
+done
+_ca_keep=""
+if [ -s "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/call_arg_struct_lit_field.o" ]; then
+  _ca_keep="${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/call_arg_struct_lit_field.o"
+elif [ -s "$_ca_o" ]; then
+  _ca_ksz=$(otool -l "$_ca_o" 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
+  case "$_ca_ksz" in 0x*|0X*) _ca_ksz=$((_ca_ksz)) ;; esac
+  if [ -n "$_ca_ksz" ] && [ "$_ca_ksz" -ge 6500 ] 2>/dev/null; then
+    _ca_keep="$_ca_o"
+  fi
 fi
+_ca_ok=0
+if [ -n "$_ca_xl" ] && [ -f "$_ca_src" ]; then
+  if XLANG_PREFER_ASM_O=1 "$_ca_xl" -backend asm -c -o "$_ca_o" "$_ca_src" >/dev/null 2>&1 \
+    && nm "$_ca_o" 2>/dev/null | grep -q "T _glue_emit_one_call_arg_elf_c$"; then
+    _ca_tsz=$(otool -l "$_ca_o" 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
+    case "$_ca_tsz" in 0x*|0X*) _ca_tsz=$((_ca_tsz)) ;; esac
+    _ca_min=6500
+    if [ -n "$_ca_tsz" ] && [ "$_ca_tsz" -ge "$_ca_min" ] 2>/dev/null; then
+      echo "g05_cap_tip_reapply: 10.22 tip-compiled call_arg_struct_lit_field.o (via $_ca_xl text=$_ca_tsz)" >&2
+      mkdir -p "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi"
+      cp -f "$_ca_o" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/call_arg_struct_lit_field.o" 2>/dev/null || true
+      _ca_ok=1
+    else
+      echo "g05_cap_tip_reapply: FixC12g Prefer-M2 reject undersized call_arg tip (text=${_ca_tsz:-?} via $_ca_xl); keep REF" >&2
+    fi
+  else
+    rm -f "$_ca_o"
+    echo "g05_cap_tip_reapply: 10.22 call_arg_struct_lit_field.o compile failed (via ${_ca_xl:-none})" >&2
+  fi
+fi
+if [ "$_ca_ok" != "1" ] && [ -n "$_ca_keep" ] && [ -s "$_ca_keep" ]; then
+  cp -f "$_ca_keep" "$_ca_o"
+  mkdir -p "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi"
+  cp -f "$_ca_keep" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/call_arg_struct_lit_field.o" 2>/dev/null || true
+  echo "g05_cap_tip_reapply: FixC12g Prefer-M2 restored call_arg (REF keep)" >&2
+fi
+unset _ca_xl _ca_keep _ca_ok _ca_tsz _ca_min _ca_ksz
 if [ -s "$_ca_o" ] && nm "$_ca_o" 2>/dev/null | grep -q "T _glue_emit_one_call_arg_elf_c$"; then
   if printf "%s" " $G05_OBJS " | grep -Eq "(^|[[:space:]/])call_arg_struct_lit_field\.o([[:space:]]|$)"; then
     :
@@ -2998,24 +3617,69 @@ fi
 # 10.52: sign-extend module-level negative i32 COMMON seed (终局待办).
 # pabi hi=0 → GP=-3 stored without high-half fill. Overlay + table_base.
 # PLATFORM: MACOS Cap tip. Pin ecdb5cc1e.
+# 10.67 FixC12e Prefer-M2: Cap tip REF vehicle first (never tip-cold ./xlang_asm
+# first). Cold L4 tip-cold modlet __text≈0x10d0 / imm_hi≈1280 → ret_fixed_s24
+# CG002; Cap tip REF modlet __text≈0x1814 / imm_hi≈1720. Reject undersized tip
+# and restore CACHE REF — do not poison. No mega/host-cc.
 _ss_o=build_asm/selfhost_pabi/modlet_seed_signed.o
 _ss_src=src/runtime_pipeline_abi_modlet_seed_signed_thin.x
 _tb_o=build_asm/selfhost_pabi/pipe_modlet_table_base.o
 _tb_src=src/asm/pipe_modlet_table_base_a64.s
 _ss_xl=""
-for _b in ./xlang_asm ./xlang /tmp/cap_tip_l4_safe_406200eef/xlang_asm \
-  "${HOME:-}/.cache/xlang_cap_tip_l4/xlang_asm" seeds/bootstrap_xlangc.darwin.arm64; do
-  [ -x "$_b" ] && _ss_xl="$_b" && break
+for _b in \
+  /tmp/cap_tip_l4_safe_406200eef/xlang \
+  "${XLANG_CAP_TIP_L4_CACHE:-}/xlang" \
+  /tmp/cap_tip_l4_safe_406200eef/xlang_asm \
+  "${XLANG_CAP_TIP_L4_CACHE:-}/xlang_asm" \
+  "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/xlang" \
+  "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/xlang_asm" \
+  ./xlang \
+  ./xlang_asm \
+  seeds/bootstrap_xlangc.darwin.arm64 \
+  ./xlang.cap_g05_l2
+do
+  [ -n "$_b" ] && [ -x "$_b" ] && _ss_xl="$_b" && break
 done
-if [ -n "$_ss_xl" ] && [ -f "$_ss_src" ]; then
-  if "$_ss_xl" -backend asm -c "$_ss_src" -o "$_ss_o" >/dev/null 2>&1 \
-    && nm "$_ss_o" 2>/dev/null | grep -q 'T _pipeline_asm_modlet_seed_nonzero_inits_elf_c$'; then
-    echo "g05_cap_tip_reapply: 10.52 tip-compiled modlet_seed_signed.o" >&2
-  else
-    rm -f "$_ss_o"
-    echo "g05_cap_tip_reapply: 10.52 modlet_seed_signed.o compile failed" >&2
+_ss_keep=""
+if [ -s "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/modlet_seed_signed.o" ]; then
+  _ss_keep="${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/modlet_seed_signed.o"
+elif [ -s /tmp/modlet_seed_REF.o ]; then
+  _ss_keep=/tmp/modlet_seed_REF.o
+elif [ -s build_asm/selfhost_pabi/modlet_seed_signed.o ]; then
+  # only keep if already REF-sized
+  _ss_ksz=$(otool -l build_asm/selfhost_pabi/modlet_seed_signed.o 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
+  case "$_ss_ksz" in 0x*|0X*) _ss_ksz=$((_ss_ksz)) ;; esac
+  if [ -n "$_ss_ksz" ] && [ "$_ss_ksz" -ge 6000 ] 2>/dev/null; then
+    _ss_keep=build_asm/selfhost_pabi/modlet_seed_signed.o
   fi
 fi
+_ss_ok=0
+if [ -n "$_ss_xl" ] && [ -f "$_ss_src" ]; then
+  if XLANG_PREFER_ASM_O=1 "$_ss_xl" -backend asm -c "$_ss_src" -o "$_ss_o" >/dev/null 2>&1 \
+    && nm "$_ss_o" 2>/dev/null | grep -q 'T _pipeline_asm_modlet_seed_nonzero_inits_elf_c$'; then
+    _ss_tsz=$(otool -l "$_ss_o" 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
+    case "$_ss_tsz" in 0x*|0X*) _ss_tsz=$((_ss_tsz)) ;; esac
+    _ss_min=6000
+    if [ -n "$_ss_tsz" ] && [ "$_ss_tsz" -ge "$_ss_min" ] 2>/dev/null; then
+      echo "g05_cap_tip_reapply: 10.52 tip-compiled modlet_seed_signed.o (via $_ss_xl text=$_ss_tsz)" >&2
+      mkdir -p "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi"
+      cp -f "$_ss_o" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/modlet_seed_signed.o" 2>/dev/null || true
+      _ss_ok=1
+    else
+      echo "g05_cap_tip_reapply: FixC12e Prefer-M2 reject undersized modlet_seed tip (text=${_ss_tsz:-?} via $_ss_xl); keep REF" >&2
+    fi
+  else
+    rm -f "$_ss_o"
+    echo "g05_cap_tip_reapply: 10.52 modlet_seed_signed.o compile failed (via ${_ss_xl:-none})" >&2
+  fi
+fi
+if [ "$_ss_ok" != "1" ] && [ -n "$_ss_keep" ] && [ -s "$_ss_keep" ]; then
+  cp -f "$_ss_keep" "$_ss_o"
+  mkdir -p "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi"
+  cp -f "$_ss_keep" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/modlet_seed_signed.o" 2>/dev/null || true
+  echo "g05_cap_tip_reapply: FixC12e Prefer-M2 restored modlet_seed_signed (REF keep)" >&2
+fi
+unset _ss_xl _ss_keep _ss_ok _ss_tsz _ss_min _ss_ksz
 if [ -f "$_tb_src" ]; then
   if as -arch arm64 -o "$_tb_o" "$_tb_src" 2>/dev/null \
     && nm "$_tb_o" 2>/dev/null | grep -q 'T _pipe_modlet_table_base$'; then
@@ -3062,41 +3726,98 @@ if [ -n "$_g05_oc" ] && [ -s "$_ss_o" ] && [ -s build_asm/selfhost_pabi/pabi_wea
   fi
 fi
 
-# 10.62: force tip dual_gp after CACHE dual_gp_new stomp (Pair TYPE_NAMED 16B).
-# PLATFORM: MACOS Cap tip.
+# 10.62/10.67 FixC12d Prefer-M2: tip dual_gp from Cap tip REF, never tip-cold
+# ./xlang.cap_g05_l2 first. Tip-cold dual_gp text≈5824 → CG002 on ret_fixed_s24;
+# Cap tip REF dual_gp text≈9940 (F32x4). Do not poison CACHE dual_gp_new with
+# undersized tip-compile. PLATFORM: MACOS Cap tip. No mega/host-cc.
 _dg_o=build_asm/selfhost_pabi/dual_gp_byte_size_a64.o
 _dg_src=src/runtime_pipeline_abi_dual_gp_byte_size_thin.x
 _dg_xl=""
-for _b in ./xlang.cap_g05_l2 ./xlang_asm ./xlang /tmp/cap_tip_l4_safe_406200eef/xlang_asm \
-  "${HOME:-}/.cache/xlang_cap_tip_l4/xlang_asm" seeds/bootstrap_xlangc.darwin.arm64; do
-  [ -x "$_b" ] && _dg_xl="$_b" && break
+for _b in \
+  /tmp/cap_tip_l4_safe_406200eef/xlang \
+  "${XLANG_CAP_TIP_L4_CACHE:-}/xlang" \
+  /tmp/cap_tip_l4_safe_406200eef/xlang_asm \
+  "${XLANG_CAP_TIP_L4_CACHE:-}/xlang_asm" \
+  ./xlang \
+  ./xlang_asm \
+  seeds/bootstrap_xlangc.darwin.arm64 \
+  ./xlang.cap_g05_l2
+do
+  [ -n "$_b" ] && [ -x "$_b" ] && _dg_xl="$_b" && break
 done
+# Keep good CACHE dual_gp_new (≈9940) if tip-compile would shrink it.
+_dg_keep=""
+if [ -s "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/dual_gp_new.o" ]; then
+  _dg_keep="${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/dual_gp_new.o"
+elif [ -s build_asm/selfhost_pabi/dual_gp_new.o ]; then
+  _dg_keep=build_asm/selfhost_pabi/dual_gp_new.o
+fi
+_dg_ok=0
 if [ -n "$_dg_xl" ] && [ -f "$_dg_src" ]; then
   if XLANG_PREFER_ASM_O=1 "$_dg_xl" -backend asm -c "$_dg_src" -o "$_dg_o" >/dev/null 2>&1 \
     && nm "$_dg_o" 2>/dev/null | grep -q 'T _glue_sysv_dual_gp_byte_size_c'; then
-    echo "g05_cap_tip_reapply: 10.62 tip-compiled dual_gp" >&2
-    mkdir -p "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi"
-    cp -f "$_dg_o" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/dual_gp_byte_size_a64.o" 2>/dev/null || true
-    cp -f "$_dg_o" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/dual_gp_new.o" 2>/dev/null || true
-    cp -f "$_dg_o" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/dual_gp_new.o" 2>/dev/null || true
+    # Portable __text size (Mac awk has no strtonum).
+    _dg_tsz=$(otool -l "$_dg_o" 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
+    case "$_dg_tsz" in
+      0x*|0X*) _dg_tsz=$((_dg_tsz)) ;;
+    esac
+    _dg_min=9000
+    if [ -n "$_dg_tsz" ] && [ "$_dg_tsz" -ge "$_dg_min" ] 2>/dev/null; then
+      echo "g05_cap_tip_reapply: 10.62 tip-compiled dual_gp (via $_dg_xl text=$_dg_tsz)" >&2
+      mkdir -p "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi"
+      cp -f "$_dg_o" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/dual_gp_byte_size_a64.o" 2>/dev/null || true
+      cp -f "$_dg_o" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/dual_gp_new.o" 2>/dev/null || true
+      cp -f "$_dg_o" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/dual_gp_new.o" 2>/dev/null || true
+      cp -f "$_dg_o" build_asm/selfhost_pabi/dual_gp_new.o 2>/dev/null || true
+      _dg_ok=1
+    else
+      echo "g05_cap_tip_reapply: FixC12d Prefer-M2 reject undersized dual_gp tip (text=${_dg_tsz:-?} via $_dg_xl); keep REF" >&2
+    fi
   else
-    echo "g05_cap_tip_reapply: 10.62 dual_gp tip-compile failed" >&2
+    echo "g05_cap_tip_reapply: 10.62 dual_gp tip-compile failed (via ${_dg_xl:-none})" >&2
   fi
 fi
+if [ "$_dg_ok" != "1" ] && [ -n "$_dg_keep" ] && [ -s "$_dg_keep" ]; then
+  cp -f "$_dg_keep" "$_dg_o"
+  cp -f "$_dg_keep" build_asm/selfhost_pabi/dual_gp_new.o 2>/dev/null || true
+  mkdir -p "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi"
+  cp -f "$_dg_keep" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/dual_gp_new.o" 2>/dev/null || true
+  cp -f "$_dg_keep" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/dual_gp_new.o" 2>/dev/null || true
+  cp -f "$_dg_keep" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/dual_gp_byte_size_a64.o" 2>/dev/null || true
+  echo "g05_cap_tip_reapply: FixC12d Prefer-M2 restored dual_gp_new (REF keep)" >&2
+fi
+unset _dg_o _dg_src _dg_xl _dg_keep _dg_ok _dg_tsz _dg_min
 
-# 10.62: force tip compute_frame_size (struct-lit temp vs x19 separate) after CACHE/pabi stomp.
-# PLATFORM: MACOS Cap tip.
+# 10.62/10.67 FixC12c Prefer-M2: tip compute_frame_size (struct-lit temp vs x19).
+# Cap tip REF public T≈2032; pabi_weak T≈1424 undersizes frames → Bus/138 on
+# ret_fixed_s24. Thin source was folded into mega at 10.26 and deleted; Cap tip
+# vehicle still needs the tip .o. Tip-compile runs AFTER G05_OBJS missing-skip,
+# so always re-prepend + demote pabi twin. Prefer green REF ./xlang (not the
+# in-flight .cap_g05_l2). PLATFORM: MACOS Cap tip. No mega/host-cc .c.
 _fs_o=build_asm/selfhost_pabi/compute_frame_size.o
 _fs_src=src/runtime_pipeline_abi_frame_size_thin.x
 _fs_xl=""
-for _b in ./xlang.cap_g05_l2 ./xlang_asm ./xlang /tmp/cap_tip_l4_safe_406200eef/xlang_asm   "${HOME:-}/.cache/xlang_cap_tip_l4/xlang_asm" seeds/bootstrap_xlangc.darwin.arm64; do
-  [ -x "$_b" ] && _fs_xl="$_b" && break
+for _b in   /tmp/cap_tip_l4_safe_406200eef/xlang   "${XLANG_CAP_TIP_L4_CACHE:-}/xlang"   ./xlang   ./xlang_asm   /tmp/cap_tip_l4_safe_406200eef/xlang_asm   "${HOME:-}/.cache/xlang_cap_tip_l4/xlang_asm"   seeds/bootstrap_xlangc.darwin.arm64   ./xlang.cap_g05_l2
+do
+  [ -n "$_b" ] && [ -x "$_b" ] && _fs_xl="$_b" && break
 done
 if [ -n "$_fs_xl" ] && [ -f "$_fs_src" ]; then
   if XLANG_PREFER_ASM_O=1 "$_fs_xl" -backend asm -c "$_fs_src" -o "$_fs_o" >/dev/null 2>&1     && nm "$_fs_o" 2>/dev/null | grep -q 'T _pipeline_asm_compute_frame_size_c'; then
-    echo "g05_cap_tip_reapply: 10.62 tip-compiled compute_frame_size.o" >&2
+    echo "g05_cap_tip_reapply: 10.62 tip-compiled compute_frame_size.o (via $_fs_xl)" >&2
     mkdir -p "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi"
     cp -f "$_fs_o" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/compute_frame_size.o" 2>/dev/null || true
+    case " ${G05_OBJS:-} " in
+      *" build_asm/selfhost_pabi/compute_frame_size.o "*) ;;
+      *)
+        G05_OBJS="build_asm/selfhost_pabi/compute_frame_size.o ${G05_OBJS:-}"
+        export G05_OBJS
+        echo "g05_cap_tip_reapply: FixC12c Prefer-M2 prepended compute_frame_size.o" >&2
+        ;;
+    esac
+    # Demote pabi so tip thin first-wins (Apple ld).
+    if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]       && nm build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null            | grep -q ' T _pipeline_asm_compute_frame_size_c$'; then
+      "$OC" --redefine-sym=_pipeline_asm_compute_frame_size_c=_pipeline_asm_compute_frame_size_c__demoted         build_asm/selfhost_pabi/pabi_weak.o         && echo "g05_cap_tip_reapply: FixC12c demoted pabi compute_frame_size (tip wins)" >&2 || true
+    fi
   else
     echo "g05_cap_tip_reapply: 10.62 frame_size tip-compile failed" >&2
   fi
@@ -3120,6 +3841,80 @@ if [ -n "$_ad_xl" ] && [ -f "$_ad_src" ]; then
   fi
 fi
 
+
+# 10.67 FixC9b Prefer-M2: last-chance undemote before Cap tip pure-ld.
+# pipefail-safe (nm-to-file). No mega/host-cc.
+_ud2_oc=""
+for c in "${LLVM_OBJCOPY:-}" /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
+  [ -n "$c" ] && [ -x "$c" ] && _ud2_oc=$c && break
+done
+_ud2_pw=build_asm/selfhost_pabi/pabi_weak.o
+if [ -n "$_ud2_oc" ] && [ -s "$_ud2_pw" ]; then
+  _ud2_nm=$(mktemp "${TMPDIR:-/tmp}/cap_tip_ud2_nm.XXXXXX")
+  nm -gU "$_ud2_pw" >"$_ud2_nm" 2>/dev/null || true
+  _ud2_has() {
+    local sym="$1" o _onm
+    for o in $G05_OBJS; do
+      [ -s "$o" ] || continue
+      case "$o" in */pabi_weak.o|pabi_weak.o|*/runtime_pipeline_abi.o|runtime_pipeline_abi.o) continue ;; esac
+      _onm=$(mktemp "${TMPDIR:-/tmp}/cap_tip_ud2_has.XXXXXX")
+      nm -gU "$o" >"$_onm" 2>/dev/null || true
+      if grep -q " T ${sym}$" "$_onm"; then rm -f "$_onm"; return 0; fi
+      rm -f "$_onm"
+    done
+    return 1
+  }
+  for _ud2_pair in \
+    "_glue_struct_lit_field_store_sz|__demoted" \
+    "_glue_type_named_layout_size_any_module_elf_c|__demoted"
+  do
+    _ud2_sym="${_ud2_pair%%|*}"
+    _ud2_dem="${_ud2_sym}${_ud2_pair##*|}"
+    if ! _ud2_has "$_ud2_sym"; then
+      if grep -q " T ${_ud2_dem}$" "$_ud2_nm"; then
+        if "$_ud2_oc" --redefine-sym="${_ud2_dem}=${_ud2_sym}" "$_ud2_pw" 2>/dev/null; then
+          echo "g05_cap_tip_reapply: Prefer-M2 pre-ld undemote pabi_weak ${_ud2_sym#?} (no winner)" >&2
+          nm -gU "$_ud2_pw" >"$_ud2_nm" 2>/dev/null || true
+        fi
+      fi
+    fi
+  done
+  unset -f _ud2_has
+  rm -f "$_ud2_nm"
+  unset _ud2_nm _ud2_pair _ud2_sym _ud2_dem
+fi
+unset _ud2_oc _ud2_pw
+
+
+
+# 10.67 FixC12f Prefer-M2: cold step6 leaves hybrid ~15MB (or LEGACY ~25MB) as
+# ./xlang; g05_relink STAGE-snapshots that binary for fs.o / string.o cc-vehicle.
+# Hybrid Cap tip asm misses std.fs → LEGACY bak for mod+posix, then dir-cap
+# pure-asm via the same hybrid XLANG → ___getdirentries64 is not undefined
+# (FixC10 flake; FixC12e cold L4). Cap tip REF CACHE compiles fs OK (reapply-
+# alone / idle probe). Prefer Cap tip REF as STAGE vehicle only; link OUT is
+# still xlang.cap_g05_l2 from G05_OBJS; product swap after s24=110. No mega /
+# host-cc / Soft Cap. PLATFORM: MACOS Cap tip.
+_fs_stage_xl=""
+for _c in "${CACHE}/xlang" /tmp/cap_tip_l4_safe_406200eef/xlang \
+  "${HOME:-}/.cache/xlang_cap_tip_l4/xlang"; do
+  [ -n "$_c" ] && [ -x "$_c" ] && [ -s "$_c" ] || continue
+  _sz=$(stat -f '%z' "$_c" 2>/dev/null || stat -c '%s' "$_c" 2>/dev/null || echo 0)
+  # Cap tip identity ~10.7MB (reject LEGACY ~25MB and tip-cold hybrid ~15MB)
+  [ "$_sz" -gt 8000000 ] && [ "$_sz" -lt 12000000 ] || continue
+  _fs_stage_xl="$_c"
+  break
+done
+if [ -n "$_fs_stage_xl" ] && [ -x ./xlang ]; then
+  _cur_sz=$(stat -f '%z' ./xlang 2>/dev/null || stat -c '%s' ./xlang 2>/dev/null || echo 0)
+  if [ "$_cur_sz" -ge 12000000 ] || [ "$_cur_sz" -lt 8000000 ]; then
+    cp -f "$_fs_stage_xl" ./xlang
+    chmod +x ./xlang
+    codesign -s - -f --timestamp=none ./xlang >/dev/null 2>&1 || true
+    echo "g05_cap_tip_reapply: Prefer-M2 Cap tip REF stage vehicle for fs.o (was size=${_cur_sz})" >&2
+  fi
+fi
+unset _fs_stage_xl _c _sz _cur_sz
 
 bash scripts/g05_relink_xlang.sh
 

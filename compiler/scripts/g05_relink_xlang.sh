@@ -221,7 +221,12 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ] \
     # in g05_relink_env; Darwin Cap tip must demote pabi_weak pre-ld (Apple
     # ld rejects duplicate strong). Same for w211 vs const_lit_fold.
     # PLATFORM: MACOS Cap tip / tip-cold.
+    # 10.67 FixC9 Prefer-M2: only demote when thin actually provides T (path
+    # may linger in OBJS string after a skipped-missing Cap tip env list).
     if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])struct_lit_field\.o([[:space:]]|$)' \
+      && [ -s build_asm/selfhost_pabi/struct_lit_field.o ] \
+      && nm build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null \
+           | grep -q ' T _glue_struct_lit_field_store_sz$' \
       && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
       && nm build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
            | grep -q ' T _glue_struct_lit_field_store_sz$'; then
@@ -355,6 +360,51 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ] \
         fi
       done
       echo "g05_relink_xlang: 10.44 pre-ld demote pabi_weak layout offset (thin wins)" >&2
+    fi
+    # 10.67 FixC-follow: named_builtin_cap vs typeck peel duplicate T.
+    # Cap tip reapply demotes peel/cap_repr; tip-cold must pre-ld too.
+    # PLATFORM: MACOS.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])named_builtin_cap\.o([[:space:]]|$)' \
+      && [ -n "${_g05_oc:-}" ]; then
+      for _nb_pw in \
+        build_asm/selfhost_pabi/typeck_x_binop_cmp_peel.o \
+        build_asm/selfhost_pabi/typeck_x.cap_repr_weak.binop_cmp_peel.o \
+        build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o \
+        build_asm/selfhost_pabi/typeck_cap_residual.o \
+        typeck_x.o
+      do
+        [ -s "$_nb_pw" ] || continue
+        if nm -gU "$_nb_pw" 2>/dev/null | grep -q 'T _typeck_x_named_builtin_align$'; then
+          "$_g05_oc" \
+            --redefine-sym=_typeck_x_named_builtin_align=_typeck_x_named_builtin_align__demoted \
+            --redefine-sym=_typeck_x_named_builtin_size=_typeck_x_named_builtin_size__demoted \
+            "$_nb_pw" 2>/dev/null \
+            && echo "g05_relink_xlang: 10.67 pre-ld demoted named_builtin in $_nb_pw (cap wins)" >&2 \
+            || true
+        fi
+      done
+      unset _nb_pw
+    fi
+    # 10.67 FixC-follow: named_align.o U-refs _glue_type_align_simple__demoted.
+    # Tip-cold links src/runtime_pipeline_abi.o (pabi_weak gate often skipped);
+    # Cap tip bak/cp may re-strong egg after env demote — demote pre-ld on every
+    # holder. Prefer-M2 / existing objs only. PLATFORM: MACOS.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])named_align\.o([[:space:]]|$)' \
+      && [ -n "${_g05_oc:-}" ]; then
+      for _na_pw in \
+        src/runtime_pipeline_abi.o \
+        build_asm/selfhost_pabi/pabi_weak.o \
+        build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o
+      do
+        [ -s "$_na_pw" ] || continue
+        if nm -gU "$_na_pw" 2>/dev/null | grep -q " _glue_type_align_simple$"; then
+          "$_g05_oc" --redefine-sym=_glue_type_align_simple=_glue_type_align_simple__demoted \
+            "$_na_pw" 2>/dev/null \
+            && echo "g05_relink_xlang: 10.67 pre-ld demoted $_na_pw align_simple (named_align)" >&2 \
+            || true
+        fi
+      done
+      unset _na_pw
     fi
     # 10.44: Cap tip may skip g05_relink_env overlay — rename pipeline_glue→glue
     # on struct_lit_field.o and demote fill/pabi_weak store_sz so thin wins.

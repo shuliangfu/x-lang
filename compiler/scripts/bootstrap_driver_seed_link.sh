@@ -182,6 +182,65 @@ if [ -s "$_AOC" ]; then
   fi
 fi
 
+# 10.67 FixC-follow: Cap tip Darwin phase1 pure-ld misses
+# glue_emit_assign_rhs_to_rax_elf_c / var_finish / var_store / var_try_let_elf_c
+# referenced from pipeline_struct_lit_store_match_bind_field in hybrid pabi.
+# Product Cap tip G05_OBJS already carries these av_assign_*.o; seed phase1
+# catalog does not. Prepend the Cap tip assign cluster (pure-asm thins; no
+# new host-cc) when pabi still has those U refs — mirror addr_of_call.o.
+# PLATFORM: SHARED — needed wherever hybrid pabi emits the U (Darwin tip-cold).
+_PABI_O=src/runtime_pipeline_abi.o
+_NEED_ASSIGN_CLUSTER=0
+if [ -f "$_PABI_O" ]; then
+  if nm -u "$_PABI_O" 2>/dev/null | grep -qE '[_]?glue_emit_assign_(rhs_to_rax|var_finish|var_store|var_try_let)_elf_c$'; then
+    _NEED_ASSIGN_CLUSTER=1
+  fi
+fi
+if [ "$_NEED_ASSIGN_CLUSTER" = "1" ]; then
+  mkdir -p build_asm/selfhost_pabi
+  _CAP="${XLANG_CAP_TIP_L4_CACHE:-}"
+  if [ -z "$_CAP" ] || [ ! -d "$_CAP/pabi" ]; then
+    for _c in /tmp/cap_tip_l4_safe_406200eef /tmp/cap_tip_l4_safe_* "$HOME/.cache/xlang_cap_tip_l4" .cap_tip_l4_cache; do
+      if [ -d "$_c/pabi" ]; then _CAP="$_c"; break; fi
+    done
+  fi
+  _ASSIGN_CLUSTER="\
+    av_assign_var_try_let.o \
+    av_assign_var_finish.o \
+    av_assign_var_store.o \
+    av_assign_var_store_pair.o \
+    av_assign_var_store_f32.o \
+    av_assign_var_store_slice.o \
+    av_assign_rhsrax_to_rax.o \
+    av_assign_rhsrax_arms_simple.o \
+    av_assign_rhsrax_arms_div.o \
+    av_assign_rhsrax_arms_div_float.o \
+    av_assign_rhsrax_arms_shl.o \
+    av_assign_rhsrax_arms_shr.o"
+  _pre_n=0
+  for _bn in $_ASSIGN_CLUSTER; do
+    _o="build_asm/selfhost_pabi/$_bn"
+    if [ ! -s "$_o" ] && [ -n "$_CAP" ] && [ -s "$_CAP/pabi/$_bn" ]; then
+      cp -f "$_CAP/pabi/$_bn" "$_o" 2>/dev/null || true
+      note "phase1 restored $_bn from Cap tip cache"
+    fi
+    if [ -s "$_o" ]; then
+      case " $SEED_LINK_OBJS " in
+        *" $_o "*|*" build_asm/selfhost_pabi/$_bn "*) ;;
+        *)
+          SEED_LINK_OBJS="$_o $SEED_LINK_OBJS"
+          _pre_n=$((_pre_n + 1))
+          ;;
+      esac
+    fi
+  done
+  if [ "$_pre_n" -gt 0 ]; then
+    note "phase1 prepended $_pre_n Cap tip av_assign_*.o (struct_lit_store assign U)"
+  else
+    note "phase1 assign-cluster: needed but 0 objs prepended (missing thins?)"
+  fi
+fi
+
 # knife256 / 10.2: Darwin cold prefer may leave runtime_pipeline_abi.o as a
 # libtool archive (thin+rest). Apple ld -force_load then hits internal strong
 # dups. Flatten to one MH_OBJECT (rest weakened where thin already defines).

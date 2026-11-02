@@ -459,6 +459,21 @@ _g05_pure_overlay() {
       fi
       if [ "$_po_rc" -eq 0 ] \
         && nm "$_po_o.tmp.o" 2>/dev/null | grep -E "T _*${_po_sym}\$" >/dev/null; then
+        # 10.67 FixC-follow Darwin: Cap tip asm can emit two strong T of the
+        # same name in one MH_OBJECT (return_sret _pipeline_w1521_rs_copy_to_dest)
+        # → Apple ld AtomSymbolTable "malformed atom files with duplicate names".
+        # Reject duplex and try the next bin (pin-egg emits a single T).
+        # PLATFORM: MACOS.
+        _po_dup=0
+        if [ "$_po_os" = "darwin" ]; then
+          _po_dup=$(nm -gU "$_po_o.tmp.o" 2>/dev/null \
+            | awk '$2=="T" || $2=="C" {print $3}' | sort | uniq -d | wc -l | tr -d ' ')
+        fi
+        if [ "${_po_dup:-0}" -gt 0 ]; then
+          echo "g05_relink_env: 10.67 reject duplex overlay $_po_x via $_po_bin (dup T/C names=$_po_dup)" >&2
+          rm -f "$_po_o.tmp.o"
+          continue
+        fi
         mv -f "$_po_o.tmp.o" "$_po_o"
         # note743t: tip may have SEGV before a later bin won; drop recovered
         # crash rows for this .x so the ensure crash gate does not false-fail.
@@ -473,7 +488,25 @@ _g05_pure_overlay() {
     done
   done
   if [ -s "$_po_o" ]; then
-    _G05_PO_OUT="$_po_o"
+    # 10.67: drop leftover Cap tip duplex if every bin was rejected.
+    # PLATFORM: MACOS.
+    _po_keep=1
+    if [ "$_po_os" = "darwin" ]; then
+      _po_leftover=$(nm -gU "$_po_o" 2>/dev/null \
+        | awk '$2=="T" || $2=="C" {print $3}' | sort | uniq -d | wc -l | tr -d ' ')
+      if [ "${_po_leftover:-0}" -gt 0 ]; then
+        echo "g05_relink_env: 10.67 drop leftover duplex $_po_o (dup T/C names=$_po_leftover)" >&2
+        rm -f "$_po_o"
+        _po_keep=0
+      fi
+    fi
+    if [ "$_po_keep" = "1" ]; then
+      _G05_PO_OUT="$_po_o"
+    else
+      printf '%s overlay-duplex g05_relink_env: %s\n' \
+        "$(date +%H:%M:%S)" "$_po_x" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
+      echo "g05_relink_env: ERROR pure overlay $_po_x duplex-only (T $_po_sym)" >&2
+    fi
   else
     printf '%s overlay-missing g05_relink_env: %s (no T %s)\n' \
       "$(date +%H:%M:%S)" "$_po_x" "$_po_sym" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
@@ -4774,6 +4807,39 @@ g05_darwin_pabi_thin_sidecar src/runtime_pipeline_abi_dual_gp_byte_size_thin.x \
   fi
   _PABI_LINK_O="build_asm/selfhost_pabi/pabi_weak.o"
 fi
+# 10.67 FixC-follow (post pabi_weak gate): tip-cold often lacks pabi_weak /
+# lea_cold_fwd so the Darwin pabi_weak if above is skipped and _PABI_LINK_O
+# stays src/runtime_pipeline_abi.o. Cap tip env links pabi_weak (demoted
+# inside the gate); tip-cold links the egg. Demote align_simple → __demoted
+# on every live holder so named_align.o U resolves. No new host-cc.
+# PLATFORM: MACOS|DARWIN.
+if [ "$UNAME_S" = "Darwin" ] && [ -n "${_PABI_NAMED_ALIGN:-}" ]; then
+  _oc_align=""
+  if command -v llvm-objcopy >/dev/null 2>&1; then
+    _oc_align=llvm-objcopy
+  elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+    _oc_align=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+  elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+    _oc_align=/usr/local/opt/llvm/bin/llvm-objcopy
+  elif command -v objcopy >/dev/null 2>&1; then
+    _oc_align=objcopy
+  fi
+  if [ -n "$_oc_align" ]; then
+    for _align_o in \
+      "${_PABI_LINK_O:-}" \
+      src/runtime_pipeline_abi.o \
+      build_asm/selfhost_pabi/pabi_weak.o
+    do
+      [ -n "$_align_o" ] && [ -s "$_align_o" ] || continue
+      if nm -gU "$_align_o" 2>/dev/null | grep -q " _glue_type_align_simple$"; then
+        "$_oc_align" --redefine-sym=_glue_type_align_simple=_glue_type_align_simple__demoted \
+          "$_align_o" 2>/dev/null \
+          && echo "g05_relink_env: 10.67 demoted $_align_o align_simple (named_align)" >&2 \
+          || true
+      fi
+    done
+  fi
+fi
 # PLATFORM: WINDOWS | MSYS | MINGW.
 # elem_const.o is the folder. The egg global is U, and a local _cold
 # remains. The tip thin divides integers, so it is not a g05 input.
@@ -7241,6 +7307,18 @@ case "$UNAME_S" in
             || true
         fi
       done
+      # 10.67 FixC-follow: trait_check_noop_a64.o U-refs skip_hoist; Cap tip
+      # soft_prep/reapply globalize local (t) in thin_glue — tip-cold g05 must
+      # too or pure-ld undefs _xlang_skip_hoist_default_methods_c.
+      # PLATFORM: MACOS.
+      for _tg in build_asm/selfhost_pabi/parser_asm_thin_glue.nop9b.o parser_asm_thin_glue.o; do
+        [ -s "$_tg" ] || continue
+        if nm "$_tg" 2>/dev/null | grep -qE ' [tT] _xlang_skip_hoist_default_methods_c$'; then
+          "$_oc" --globalize-symbol=_xlang_skip_hoist_default_methods_c "$_tg" 2>/dev/null \
+            && echo "g05_relink_env: 10.67 globalized skip_hoist in $_tg" >&2 \
+            || true
+        fi
+      done
     fi
     # 10.37 Cap residual: usual-arith cmp + parent binop dispatch overlays.
     # PLATFORM: MACOS tip cold / Cap tip (typeck_x.o path).
@@ -7273,6 +7351,20 @@ case "$UNAME_S" in
         done
         _G05_TYPECK_X_O="$_tx_peel"
         echo "g05_relink_env: 10.37 demote typeck_x peel::binop+cmp" >&2
+        # 10.67 FixC-follow: peel is fresh cp of typeck_x — demote named_builtin
+        # so named_builtin_cap.o (i8→1) wins. Cap tip reapply does this; tip-cold
+        # Cap tip front must too or Apple ld duplicate-symbol. Prefer-M2.
+        # PLATFORM: MACOS.
+        if [ -s build_asm/selfhost_pabi/named_builtin_cap.o ]; then
+          if nm -gU "$_tx_peel" 2>/dev/null | grep -q 'T _typeck_x_named_builtin_align$'; then
+            "$_oc" \
+              --redefine-sym=_typeck_x_named_builtin_align=_typeck_x_named_builtin_align__demoted \
+              --redefine-sym=_typeck_x_named_builtin_size=_typeck_x_named_builtin_size__demoted \
+              "$_tx_peel" 2>/dev/null \
+              && echo "g05_relink_env: 10.67 demoted named_builtin in $_tx_peel (cap wins)" >&2 \
+              || true
+          fi
+        fi
         for _sym in _typeck_check_expr_binop__seed_dead _typeck_check_expr_binop_cmp__seed_dead; do
           if nm -gU "$_tx_peel" 2>/dev/null | awk '{print $3}' | grep -qxF "$_sym"; then
             "$_oc" --weaken-symbol="$_sym" "$_tx_peel" 2>/dev/null || true

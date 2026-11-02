@@ -196,10 +196,24 @@ if [ "$_fs_os" = "Darwin" ] || { [ "$_fs_os" = "Linux" ] && [ "$_fs_mach" = "x86
       echo "xlang_compile_std_fs_formal: mod.o+posix.o <- asm"
     else
       # knife256/10.2 Cap tip: tip xlang -backend asm mis-resolves std.fs
-      # imports (../std/debug/std/fs/posix.x). Retry pure-asm with LEGACY bak
-      # (same vehicle Cap tip heat uses). Prefer asm; no FORCE_CC / new .c.
-      # PLATFORM: MACOS Cap tip.
+      # imports (../std/debug/std/fs/posix.x). Retry pure-asm with Cap tip REF
+      # CACHE first (FixC12f Prefer-M2), then LEGACY bak. Prefer asm; no
+      # FORCE_CC / new .c. PLATFORM: MACOS Cap tip.
       _leg=""
+      _cap_ref=""
+      for _cr in \
+        "${XLANG_CAP_TIP_L4_CACHE:-}/xlang" \
+        /tmp/cap_tip_l4_safe_406200eef/xlang \
+        "${HOME:-}/.cache/xlang_cap_tip_l4/xlang" \
+        "$_fs_compiler_dir/xlang.cap_g05_l2"
+      do
+        [ -n "$_cr" ] && [ -x "$_cr" ] && [ -s "$_cr" ] || continue
+        _crsz=$(stat -f '%z' "$_cr" 2>/dev/null || stat -c '%s' "$_cr" 2>/dev/null || echo 0)
+        [ "$_crsz" -gt 8000000 ] && [ "$_crsz" -lt 12000000 ] || continue
+        [ "$_cr" = "$XLANG_BIN" ] && continue
+        _cap_ref="$_cr"
+        break
+      done
       # After cd to repo root: LEGACY bak lives under compiler/.
       if [ -x "$_fs_compiler_dir/xlang.product_legacy_bak" ]; then
         _leg="$_fs_compiler_dir/xlang.product_legacy_bak"
@@ -208,9 +222,16 @@ if [ "$_fs_os" = "Darwin" ] || { [ "$_fs_os" = "Linux" ] && [ "$_fs_mach" = "x86
       elif [ -x ../compiler/xlang.product_legacy_bak ]; then
         _leg=$(cd ../compiler && pwd)/xlang.product_legacy_bak
       fi
-      if [ "$_fs_os" = "Darwin" ] && [ -n "$_leg" ] && [ "$_leg" != "$XLANG_BIN" ]; then
+      _fs_retry=""
+      if [ "$_fs_os" = "Darwin" ] && [ -n "$_cap_ref" ]; then
+        _fs_retry="$_cap_ref"
+        echo "xlang_compile_std_fs_formal: Cap tip asm miss; Prefer-M2 Cap tip REF" >&2
+      elif [ "$_fs_os" = "Darwin" ] && [ -n "$_leg" ] && [ "$_leg" != "$XLANG_BIN" ]; then
+        _fs_retry="$_leg"
         echo "xlang_compile_std_fs_formal: Cap tip asm miss; retry LEGACY bak" >&2
-        XLANG_BIN="$_leg"
+      fi
+      if [ -n "$_fs_retry" ]; then
+        XLANG_BIN="$_fs_retry"
         _fs_asm_ok=0
         if "$XLANG_BIN" -backend asm -c -L "$_fs_L" -o "$tmp_dir/mod.o" "$_fs_mod"             >"$tmp_dir/mod_asm.log" 2>&1           && [ -s "$tmp_dir/mod.o" ]           && nm "$tmp_dir/mod.o" 2>/dev/null | grep -qE ' T _?std_fs_invalid$'           && "$XLANG_BIN" -backend asm -c -L "$_fs_L" -o "$tmp_dir/posix.o" "$_fs_posix"             >"$tmp_dir/posix_asm.log" 2>&1           && [ -s "$tmp_dir/posix.o" ]           && nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' T _?std_fs_posix_fs_open_read_c$'; then
           _oc="${LLVM_OBJCOPY:-}"
@@ -232,7 +253,11 @@ if [ "$_fs_os" = "Darwin" ] || { [ "$_fs_os" = "Linux" ] && [ "$_fs_mach" = "x86
       if [ "$_fs_asm_ok" = "1" ]; then
         asm_ok=1
         raw_o="$tmp_dir/fs_formal_raw.o"
-        echo "xlang_compile_std_fs_formal: mod.o+posix.o <- asm (LEGACY bak)"
+        if [ "$XLANG_BIN" = "$_cap_ref" ]; then
+          echo "xlang_compile_std_fs_formal: mod.o+posix.o <- asm (Cap tip REF)"
+        else
+          echo "xlang_compile_std_fs_formal: mod.o+posix.o <- asm (LEGACY bak)"
+        fi
       else
         echo "xlang_compile_std_fs_formal: pure-asm std.fs failed" >&2
         cat "$tmp_dir/mod_asm.log" "$tmp_dir/posix_asm.log" "$tmp_dir/ld_asm.err" >&2 || true
@@ -349,6 +374,12 @@ if [ -f "$_dir_cap_c" ]; then
     _dir_lx="../compiler/src/asm/runtime_dir_cap_linux.x"
   fi
   if [ "$_dir_os" = "Darwin" ] && [ "$_dir_mach" = "arm64" ] && [ -f "$_dir_x" ]; then
+    # FixC12f Prefer-M2: dir-cap pure_asm_x_to_o reads $XLANG. Keep it on the
+    # winning fs vehicle (Cap tip REF / LEGACY), not tip-cold hybrid STAGE.
+    # PLATFORM: MACOS Cap tip.
+    if [ -n "${XLANG_BIN:-}" ] && [ -x "$XLANG_BIN" ]; then
+      export XLANG="$XLANG_BIN"
+    fi
     _ensure="$_fs_compiler_dir/scripts/ensure_host_cc_seed_o.sh"
     if [ ! -f "$_ensure" ]; then
       _ensure="scripts/ensure_host_cc_seed_o.sh"

@@ -1463,6 +1463,10 @@ export extern "C" function driver_diagnostic_warn_hot_reorder_field(sname: *u8, 
  * Used by pipeline_asm_debug_enabled + pipeline_debug_trace_named_func_bodies_impl.
  * PLATFORM: SHARED - product hybrid pipeline_abi pure uses same face as cold seed. */
 export extern "C" function link_abi_getenv(name: *u8): *u8;
+// PLATFORM: SHARED. Declared before the first call (line ~1799): the C
+// hybrid harness emits externs in source order, so a later declaration became an
+// implicit declaration + conflicting types on Darwin cold pabi (10.67).
+export extern function pipeline_expr_struct_lit_field_name_into(arena: *u8, expr_ref: i32, j: i32, out: *u8): void;
 export extern function link_abi_host_is_windows(): i32;
 
 /* wave1222: extern declarations for parser_parse_into_init body.
@@ -2407,8 +2411,6 @@ export extern function pipeline_block_expr_stmt_ref(arena: *u8, block_ref: i32, 
 export extern function pipeline_block_if_else_body_ref(arena: *u8, block_ref: i32, index: i32): i32;
 
 export extern function pipeline_block_if_then_body_ref(arena: *u8, block_ref: i32, index: i32): i32;
-
-export extern function pipeline_expr_struct_lit_field_name_into(arena: *u8, expr_ref: i32, j: i32, out: *u8): void;
 
 export extern function pipeline_expr_struct_lit_field_name_len(arena: *u8, expr_ref: i32, j: i32): i32;
 
