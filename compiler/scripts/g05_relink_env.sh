@@ -737,28 +737,11 @@ case "$UNAME_S" in
     fi
     mv -f "${_g05_el_o}.tmp.o" "$_g05_el_o"
     echo "g05_relink_env: 10.60 SoftCap Windows host-cc emit_let_init (.c twin)" >&2
-    # 10.69 DIG3 Prefer-M2 Cap soft tiphead SoftCap named-struct / at_end:
-    # Soft Cap SoftCap-green carries T name64_at_end (sub end_pos-nlen); tiphead
-    # thin_glue only has W bare JMP. Host-cc Prefer-M2 twin → pe_at_end_fix.o
-    # first-wins. Also prepend COMBINED parse reals when present (named_type
-    # frame 0x628 / primary_lbrace) so SoftCap dig can dual-tramp stale→live.
-    # PLATFORM: WINDOWS | MSYS | MINGW. Soft Cap / tiphead cave never raised here.
-    _g05_at_c=src/asm/parser_asm_copy_slice_to_name64_at_end_buf_prefer_m2.c
-    _g05_at_o=build_asm/selfhost_pabi/pe_at_end_fix.o
-    if [ -s "$_g05_at_c" ]; then
-      if ! gcc -c -O2 -o "${_g05_at_o}.tmp.o" "$_g05_at_c" 2>/tmp/g05_at_end_hostcc.err; then
-        echo "g05_relink_env: ERROR Windows host-cc Prefer-M2 at_end .c twin failed" >&2
-        cat /tmp/g05_at_end_hostcc.err >&2 || true
-        exit 1
-      fi
-      if ! nm "${_g05_at_o}.tmp.o" 2>/dev/null | grep -qE ' T parser_asm_copy_slice_to_name64_at_end_buf_c$'; then
-        echo "g05_relink_env: ERROR Prefer-M2 at_end missing T name64_at_end_buf_c" >&2
-        rm -f "${_g05_at_o}.tmp.o"
-        exit 1
-      fi
-      mv -f "${_g05_at_o}.tmp.o" "$_g05_at_o"
-      echo "g05_relink_env: 10.69 DIG3 Prefer-M2 Windows host-cc pe_at_end_fix (.c twin)" >&2
-    fi
+    # 10.67 (reverts the 10.69 host-cc at_end twin): the end_pos-nlen
+    # Prefer-M2 body for parser_asm_copy_slice_to_name64_at_end_buf_c lives in
+    # src/asm/pthin_lex_skip.x (single .x authority, PLATFORM: SHARED). No
+    # host-cc .c twin; pe_at_end_fix.o is only prepended below if a pure-.x
+    # build already produced it.
     ;;
 esac
 # 10.69 DIG3 Prefer-M2 Cap soft tiphead SoftCap named-struct parse plants.
