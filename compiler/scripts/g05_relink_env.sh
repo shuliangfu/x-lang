@@ -737,8 +737,44 @@ case "$UNAME_S" in
     fi
     mv -f "${_g05_el_o}.tmp.o" "$_g05_el_o"
     echo "g05_relink_env: 10.60 SoftCap Windows host-cc emit_let_init (.c twin)" >&2
+    # 10.69 DIG3 Prefer-M2 Cap soft tiphead SoftCap named-struct / at_end:
+    # Soft Cap SoftCap-green carries T name64_at_end (sub end_pos-nlen); tiphead
+    # thin_glue only has W bare JMP. Host-cc Prefer-M2 twin → pe_at_end_fix.o
+    # first-wins. Also prepend COMBINED parse reals when present (named_type
+    # frame 0x628 / primary_lbrace) so SoftCap dig can dual-tramp stale→live.
+    # PLATFORM: WINDOWS | MSYS | MINGW. Soft Cap / tiphead cave never raised here.
+    _g05_at_c=src/asm/parser_asm_copy_slice_to_name64_at_end_buf_prefer_m2.c
+    _g05_at_o=build_asm/selfhost_pabi/pe_at_end_fix.o
+    if [ -s "$_g05_at_c" ]; then
+      if ! gcc -c -O2 -o "${_g05_at_o}.tmp.o" "$_g05_at_c" 2>/tmp/g05_at_end_hostcc.err; then
+        echo "g05_relink_env: ERROR Windows host-cc Prefer-M2 at_end .c twin failed" >&2
+        cat /tmp/g05_at_end_hostcc.err >&2 || true
+        exit 1
+      fi
+      if ! nm "${_g05_at_o}.tmp.o" 2>/dev/null | grep -qE ' T parser_asm_copy_slice_to_name64_at_end_buf_c$'; then
+        echo "g05_relink_env: ERROR Prefer-M2 at_end missing T name64_at_end_buf_c" >&2
+        rm -f "${_g05_at_o}.tmp.o"
+        exit 1
+      fi
+      mv -f "${_g05_at_o}.tmp.o" "$_g05_at_o"
+      echo "g05_relink_env: 10.69 DIG3 Prefer-M2 Windows host-cc pe_at_end_fix (.c twin)" >&2
+    fi
     ;;
 esac
+# 10.69 DIG3 Prefer-M2 Cap soft tiphead SoftCap named-struct parse plants.
+# Prepend pe_at_end_fix + COMBINED type_ref/primary reals when present so
+# first-wins SoftCap dig SoftCap-parity can dual-tramp __stale_* → live.
+# PLATFORM: SHARED (objs may be absent on Darwin cold; no-op then).
+_G05_DIG3_PARSE_PREPEND=""
+for _g05_dig3_o in   build_asm/selfhost_pabi/pe_at_end_fix.o   build_asm/selfhost_pabi/pthin_type_ref_consume_real.o   build_asm/selfhost_pabi/pthin_primary_lbrace_real.o
+do
+  if [ -s "$_g05_dig3_o" ]; then
+    _G05_DIG3_PARSE_PREPEND="$_G05_DIG3_PARSE_PREPEND $_g05_dig3_o"
+  fi
+done
+if [ -n "$_G05_DIG3_PARSE_PREPEND" ]; then
+  echo "g05_relink_env: 10.69 DIG3 Prefer-M2 SoftCap parse/at_end prepend:${_G05_DIG3_PARSE_PREPEND}" >&2
+fi
 # w1487 / w2060 / knife 254: tip thin for w499_mega_try_tail_jmp. Darwin
 # leftover historically held this T; tip FROM_X egg leaves it U. Link the
 # tip thin on Darwin + Linux + Windows so first-wins covers. Missing object

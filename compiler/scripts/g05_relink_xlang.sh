@@ -15,6 +15,11 @@
 #   G05_CC          编译器（默认 cc）— residual path
 #   G05_CFLAGS      完整 cflags + link flags（含 -e _start 等）— residual path
 #   G05_OUT         输出二进制名（默认 xlang）
+# 10.69 DIG3 Prefer-M2 SoftCap parse prepend (named-struct / at_end first-wins)
+if [ -n "${_G05_DIG3_PARSE_PREPEND:-}" ]; then
+  export G05_OBJS="${_G05_DIG3_PARSE_PREPEND} ${G05_OBJS:-}"
+  echo "g05_relink_xlang: 10.69 DIG3 Prefer-M2 SoftCap parse prepend applied" >&2
+fi
 #   G05_OBJS        全部 .o 参数（空格分隔）
 #   G05_XLANG_C      xlang-c 同步名（默认 xlang-c）
 #   G05_BOOTSTRAP   bootstrap_xlangc 同步名（默认 bootstrap_xlangc）
