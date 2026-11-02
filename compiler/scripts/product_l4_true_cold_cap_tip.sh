@@ -114,8 +114,14 @@ log "step0: snapshot Cap tip recipe → $CACHE"
   # Snapshot every present Cap tip overlay before true-cold wipe.
   # PLATFORM: MACOS Cap tip L4.
   mkdir -p "$CACHE/pabi"
+  # 10.67a: never clobber existing cache objects with build_asm residue. A
+  # failed earlier run leaves hollow/stale thins in build_asm (L4 wipe does
+  # not clear it), and cp -f here fed them back into the cache, where step6b
+  # and the reapply bulk stomp then restored them on every later run
+  # (reent_sum U-only Lxml, body_sync_let_order hollow, emit_let_init, ...).
+  # Only add objects the cache does not have yet. PLATFORM: MACOS Cap tip L4.
   if ls build_asm/selfhost_pabi/*.o >/dev/null 2>&1; then
-    cp -f build_asm/selfhost_pabi/*.o "$CACHE/pabi/"
+    cp -n build_asm/selfhost_pabi/*.o "$CACHE/pabi/" 2>/dev/null || true
     echo "product_l4_cap_tip: step0 cached $(ls "$CACHE/pabi"/*.o | wc -l | tr -d ' ') pabi .o" >&2
   fi
   if [ -f src/asm/pthin_stretch.o ]; then
