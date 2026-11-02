@@ -1,11 +1,14 @@
 """10.70 Soft Cap dig-egg SoftCap-green Prefer-M2 tip.x SoftCap ensure+fill+clamp.
 
-Base Soft Cap dig5fwd lineage (c8b504c47818, size 8081687). Append RX .tpad
-section (mid-file .text expand AVs on this PE); plant Prefer-M2 tip.x SoftCap
-ensure+fill on name-find miss then clamp18 (|off|>0x1000→0x18).
+Base Soft Cap dig egg d8e2d409a140 (dig5fwd+enc_store clamp18, size 8081687).
+Append RX .tpad (mid-file .text expand AVs on this lineage); plant Prefer-M2
+tip.x SoftCap ensure+fill on name-find miss then clamp18 (|off|>0x1000→0x18).
 
-Dig-only Soft Cap dig egg — never Soft Cap/nail/9ecd.
-Output: lab_SoftCap_*_P1070_*.exe (Soft Cap dig egg, not CapSoftWin tiphead).
+SoftCap dig-only SoftCap-parity Prefer lit/fwd/local/_var_let 4/4 +
+multi/one/classic/exact → 8/8 on dig PE lab_SoftCap_*_P1070_*.exe.
+
+Dig-only Soft Cap dig egg — never write Soft Cap PROD / nail / tiphead 9ecd.
+Output Soft Cap dig-egg name (not CapSoftWin tiphead).
 """
 from __future__ import annotations
 
@@ -15,7 +18,8 @@ import shutil
 import struct
 from pathlib import Path
 
-EXPECT_BASE = "c8b504c47818"
+EXPECT_BASE = "d8e2d409a140"
+CLAMP_SIG = bytes.fromhex("483d001000007608bb18000000")
 HOOK = 0x140119338
 CONT = 0x140119121
 FIND = 0x1402b2c8f
@@ -28,6 +32,7 @@ BANNED = {
     "897255a95d2d",
     "9ecd26ea44ab",
     "44273d092947",  # mid-file expand AV plant
+    "38f48f569d03",  # dig5fwd+.tpad SoftCap dig-only 5/8
 }
 
 
@@ -128,7 +133,7 @@ def build_tramp(tramp_va: int) -> bytes:
 
 
 def append_tpad(data: bytearray, pe: dict, vsz: int = 0x100) -> tuple[bytearray, dict, int]:
-    """Append RX .tpad section at SizeOfImage. Mid-file .text expand AVs on dig5fwd."""
+    """Append RX .tpad section at SizeOfImage. Mid-file .text expand AVs on Soft Cap dig egg."""
     assert pe["soh"] - (pe["opt"] + pe["optsz"] + pe["nsec"] * 40) >= 40
     new_sva = pe["soi"]
     new_rsz = pe["fa"]
@@ -163,6 +168,7 @@ def append_tpad(data: bytearray, pe: dict, vsz: int = 0x100) -> tuple[bytearray,
 def plant(src: Path, out_dir: Path) -> tuple[str, int, Path]:
     data = bytearray(src.read_bytes())
     assert sha12(data) == EXPECT_BASE, sha12(data)
+    assert CLAMP_SIG in data, "base missing Soft Cap enc_store clamp18"
     pe = parse_pe(data)
     data, pe, tramp_va = append_tpad(data, pe)
     tramp = build_tramp(tramp_va)
@@ -176,15 +182,16 @@ def plant(src: Path, out_dir: Path) -> tuple[str, int, Path]:
     data[off_h : off_h + 10] = (
         b"\xe9" + struct.pack("<i", tramp_va - (HOOK + 5)) + b"\x90" * 5
     )
+    assert CLAMP_SIG in data, "enc_store clamp18 lost after plant"
     h = sha12(data)
     size = len(data)
     assert h not in BANNED, h
     assert size <= 10_000_000
     assert 8081687 <= size <= 8081687 + 0x1000, size
     out_dir.mkdir(parents=True, exist_ok=True)
-    out = out_dir / "lab_SoftCap_dig5fwd_preferM2_ensurefill_clamp_P1070.exe"
+    out = out_dir / "lab_SoftCap_d8e2_preferM2_ensurefill_clamp_P1070.exe"
     out.write_bytes(data)
-    tagged = out_dir / f"lab_SoftCap_dig5fwd_preferM2_ensurefill_clamp_P1070_{h}.exe"
+    tagged = out_dir / f"lab_SoftCap_d8e2_preferM2_ensurefill_clamp_P1070_{h}.exe"
     shutil.copy2(out, tagged)
     return h, size, tagged
 
@@ -194,7 +201,8 @@ def main() -> None:
     ap.add_argument(
         "--src",
         type=Path,
-        default=Path("/tmp/p1064_TYPE628_nt628tramp_v2_rev_dig4slit_dig5fwd.exe"),
+        default=Path("/tmp/p1070_softcap_d8e2.exe"),
+        help="Soft Cap dig egg d8e2d409a140 base (read-only copy; never Soft Cap PROD slot)",
     )
     ap.add_argument("--out-dir", type=Path, default=Path("/tmp/p1070"))
     args = ap.parse_args()
