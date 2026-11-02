@@ -63,81 +63,81 @@ export extern function backend_enc_store_eax_to_rbp_arch(elf_ctx: *u8, offset: i
  */
 #[no_mangle]
 export function pipeline_asm_fill_param_slots(ctx: *u8, mod: *u8, func_index: i32): void {
-  let off: i32 = 16;
-  let np: i32 = 0;
-  let i: i32 = 0;
-  let pname_buf: u8[256] = [];
-  let plen: i32 = 0;
-  let arena: *u8 = 0 as *u8;
-  let width: i32 = 0;
-  let slot_off: i32 = 0;
-  let ap: i32 = 0;
-  let nloc: i32 = 0;
+  let fps_off: i32 = 16;
+  let fps_np: i32 = 0;
+  let fps_i: i32 = 0;
+  let fps_pname_buf: u8[256] = [];
+  let fps_plen: i32 = 0;
+  let fps_arena: *u8 = 0 as *u8;
+  let fps_width: i32 = 0;
+  let fps_slot_off: i32 = 0;
+  let fps_ap: i32 = 0;
+  let fps_nloc: i32 = 0;
   if (ctx == (0 as *u8) || mod == (0 as *u8)) {
     return;
   }
   unsafe {
     pipeline_asm_emit_ctx_module_set(mod);
-    arena = pipeline_asm_emit_ctx_arena_get();
-    np = pipeline_asm_module_func_num_params_at(mod, func_index);
+    fps_arena = pipeline_asm_emit_ctx_arena_get();
+    fps_np = pipeline_asm_module_func_num_params_at(mod, func_index);
   }
-  i = 0;
-  while (i < np) {
+  fps_i = 0;
+  while (fps_i < fps_np) {
     unsafe {
-      pipeline_asm_module_func_param_name_copy32(mod, func_index, i, &pname_buf[0]);
-      plen = pipeline_asm_module_func_param_name_len_at(mod, func_index, i);
+      pipeline_asm_module_func_param_name_copy32(mod, func_index, fps_i, &fps_pname_buf[0]);
+      fps_plen = pipeline_asm_module_func_param_name_len_at(mod, func_index, fps_i);
     }
-    width = 8;
-    if (arena != (0 as *u8)) {
+    fps_width = 8;
+    if (fps_arena != (0 as *u8)) {
       unsafe {
-        width = glue_func_param_home_width_c(arena, mod, func_index, i);
+        fps_width = glue_func_param_home_width_c(fps_arena, mod, func_index, fps_i);
       }
     }
-    if (width > 8) {
-      slot_off = off + width;
+    if (fps_width > 8) {
+      fps_slot_off = fps_off + fps_width;
     } else {
-      slot_off = off;
+      fps_slot_off = fps_off;
     }
     unsafe {
-      ap = asm_ctx_local_append(ctx, &pname_buf[0], plen, slot_off);
+      fps_ap = asm_ctx_local_append(ctx, &fps_pname_buf[0], fps_plen, fps_slot_off);
     }
-    if (ap < 0) {
+    if (fps_ap < 0) {
       return;
     }
     unsafe {
-      nloc = asm_ctx_local_count(ctx);
-      pipe_store_i32_le(ctx, pipe_asm_ctx_off_num_locals(), nloc);
+      fps_nloc = asm_ctx_local_count(ctx);
+      pipe_store_i32_le(ctx, pipe_asm_ctx_off_num_locals(), fps_nloc);
     }
-    if (width > 8) {
-      off = slot_off + 8;
+    if (fps_width > 8) {
+      fps_off = fps_slot_off + 8;
     } else {
-      off = off + 8;
+      fps_off = fps_off + 8;
     }
-    i = i + 1;
+    fps_i = fps_i + 1;
   }
   // w1545 (终局待办 10.72): a 9–16B named result comes back through a hidden
   // pointer in rcx (Microsoft x64). Its 8-byte save slot follows the formals;
   // the epilogue writes rax:rdx through it (backend_enc_epilogue_arch).
   // Frame: pipeline_asm_compute_frame_size_c adds 16. PLATFORM: WINDOWS.
-  width = 0;
-  if (arena != (0 as *u8)) {
+  fps_width = 0;
+  if (fps_arena != (0 as *u8)) {
     unsafe {
-      ap = pipeline_module_func_return_type_at(mod, func_index);
-      width = w1545_win_mid_named_sz(arena, ap);
+      fps_ap = pipeline_module_func_return_type_at(mod, func_index);
+      fps_width = w1545_win_mid_named_sz(fps_arena, fps_ap);
     }
   }
   unsafe {
-    if (width > 0) {
-      w1545_win_ret_slot_latch_c(mod, func_index, off, width);
+    if (fps_width > 0) {
+      w1545_win_ret_slot_latch_c(mod, func_index, fps_off, fps_width);
     } else {
       w1545_win_ret_slot_latch_c(mod, func_index, 0 - 1, 0);
     }
   }
-  if (width > 0) {
-    off = off + 8;
+  if (fps_width > 0) {
+    fps_off = fps_off + 8;
   }
   unsafe {
-    pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), off);
+    pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), fps_off);
   }
 }
 
@@ -147,53 +147,53 @@ export function pipeline_asm_fill_param_slots(ctx: *u8, mod: *u8, func_index: i3
  * @return 0 ok, -1 encode error. PLATFORM: WINDOWS x86_64.
  */
 function w1521_ph_copy_byref(elf_ctx: *u8, gp: i32, slot: i32, w: i32, ta: i32): i32 {
-  let k: i32 = 0;
-  let rc_br: i32 = 0;
-  while (k < w) {
+  let br_k: i32 = 0;
+  let br_rc_br: i32 = 0;
+  while (br_k < w) {
     unsafe {
-      rc_br = backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp, ta);
+      br_rc_br = backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp, ta);
     }
-    if (rc_br != 0) {
+    if (br_rc_br != 0) {
       return -1;
     }
-    if (k > 0) {
+    if (br_k > 0) {
       unsafe {
-        rc_br = backend_enc_add_imm_to_rax_arch(elf_ctx, k, ta);
+        br_rc_br = backend_enc_add_imm_to_rax_arch(elf_ctx, br_k, ta);
       }
-      if (rc_br != 0) {
+      if (br_rc_br != 0) {
         return -1;
       }
     }
     unsafe {
-      rc_br = backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+      br_rc_br = backend_enc_load_64_from_rax_arch(elf_ctx, ta);
     }
-    if (rc_br != 0) {
+    if (br_rc_br != 0) {
       return -1;
     }
     unsafe {
-      rc_br = backend_enc_store_rax_to_rbp_arch(elf_ctx, slot - k, ta);
+      br_rc_br = backend_enc_store_rax_to_rbp_arch(elf_ctx, slot - br_k, ta);
     }
-    if (rc_br != 0) {
+    if (br_rc_br != 0) {
       return -1;
     }
-    k = k + 8;
+    br_k = br_k + 8;
   }
   return 0;
 }
 
-/** Move arg register k to rax and store it at rbp slot off. PLATFORM: WINDOWS. */
+/** Move arg register br_k to rax and store it at rbp slot off. PLATFORM: WINDOWS. */
 function w1500_ph_mov_store(elf_ctx: *u8, k: i32, off: i32, ta: i32): i32 {
-  let rc_ms: i32 = 0;
+  let ms_rc_ms: i32 = 0;
   unsafe {
-    rc_ms = backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, k, ta);
+    ms_rc_ms = backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, k, ta);
   }
-  if (rc_ms != 0) {
+  if (ms_rc_ms != 0) {
     return -1;
   }
   unsafe {
-    rc_ms = backend_enc_store_rax_to_rbp_arch(elf_ctx, off, ta);
+    ms_rc_ms = backend_enc_store_rax_to_rbp_arch(elf_ctx, off, ta);
   }
-  if (rc_ms != 0) {
+  if (ms_rc_ms != 0) {
     return -1;
   }
   return 0;
@@ -217,22 +217,22 @@ function w1500_ph_mov_store(elf_ctx: *u8, k: i32, off: i32, ta: i32): i32 {
  */
 #[no_mangle]
 export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: *u8, func_index: i32, ta: i32): i32 {
-  let np: i32 = 0;
-  let i: i32 = 0;
-  let home: i32 = 16;
-  let sret_act: i32 = 0;
-  let sret_off: i32 = 0;
-  let gp: i32 = 0;
-  let reg_max: i32 = 0;
-  let w: i32 = 0;
-  let wide_home: i32 = 0;
-  let rc_ph: i32 = 0;
-  let arena_ph: *u8 = 0 as *u8;
-  let ms_off: i32 = 0 - 1;
-  let pty: i32 = 0;
-  let mid: i32 = 0;
-  let pk: i32 = 0;
-  let from_xmm: i32 = 0;
+  let ph_np: i32 = 0;
+  let ph_i: i32 = 0;
+  let ph_home: i32 = 16;
+  let ph_sret_act: i32 = 0;
+  let ph_sret_off: i32 = 0;
+  let ph_gp: i32 = 0;
+  let ph_reg_max: i32 = 0;
+  let ph_w: i32 = 0;
+  let ph_wide_home: i32 = 0;
+  let ph_rc_ph: i32 = 0;
+  let ph_arena_ph: *u8 = 0 as *u8;
+  let ph_ms_off: i32 = 0 - 1;
+  let ph_pty: i32 = 0;
+  let ph_mid: i32 = 0;
+  let ph_pk: i32 = 0;
+  let ph_from_xmm: i32 = 0;
   if (elf_ctx == (0 as *u8) || mod == (0 as *u8) || func_index < 0) {
     return -1;
   }
@@ -241,152 +241,152 @@ export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: 
   }
   unsafe {
     w1521_win_note_func_c(mod, func_index);
-    sret_act = pipeline_asm_emit_ctx_sret_active_get();
-    sret_off = pipeline_asm_emit_ctx_sret_home_off_get();
+    ph_sret_act = pipeline_asm_emit_ctx_sret_active_get();
+    ph_sret_off = pipeline_asm_emit_ctx_sret_home_off_get();
   }
-  if (sret_act != 0 && sret_off >= 0) {
-    if (w1500_ph_mov_store(elf_ctx, 0, sret_off, ta) != 0) {
+  if (ph_sret_act != 0 && ph_sret_off >= 0) {
+    if (w1500_ph_mov_store(elf_ctx, 0, ph_sret_off, ta) != 0) {
       return -1;
     }
   }
   // w1545 (10.72): save the hidden return pointer (rcx); formals start at rdx.
   unsafe {
-    ms_off = w1545_win_ret_slot_for_c(mod, func_index);
+    ph_ms_off = w1545_win_ret_slot_for_c(mod, func_index);
   }
-  if (ms_off > 0) {
-    if (w1500_ph_mov_store(elf_ctx, 0, ms_off, ta) != 0) {
+  if (ph_ms_off > 0) {
+    if (w1500_ph_mov_store(elf_ctx, 0, ph_ms_off, ta) != 0) {
       return -1;
     }
   }
   unsafe {
-    np = pipeline_asm_module_func_num_params_at(mod, func_index);
+    ph_np = pipeline_asm_module_func_num_params_at(mod, func_index);
   }
-  if (np <= 0) {
+  if (ph_np <= 0) {
     return 0;
   }
-  if (sret_act != 0) {
-    gp = 1;
+  if (ph_sret_act != 0) {
+    ph_gp = 1;
   }
-  if (ms_off > 0) {
-    gp = 1;
+  if (ph_ms_off > 0) {
+    ph_gp = 1;
   }
   unsafe {
-    reg_max = glue_asm_call_reg_max(ta);
+    ph_reg_max = glue_asm_call_reg_max(ta);
   }
-  if (reg_max < 1) {
-    reg_max = 6;
+  if (ph_reg_max < 1) {
+    ph_reg_max = 6;
   }
-  i = 0;
-  while (i < np && gp < reg_max) {
+  ph_i = 0;
+  while (ph_i < ph_np && ph_gp < ph_reg_max) {
     unsafe {
-      arena_ph = pipeline_asm_emit_ctx_arena_get();
-      w = glue_func_param_home_width_c(arena_ph, mod, func_index, i);
+      ph_arena_ph = pipeline_asm_emit_ctx_arena_get();
+      ph_w = glue_func_param_home_width_c(ph_arena_ph, mod, func_index, ph_i);
     }
-    if (w <= 0) {
-      w = 8;
+    if (ph_w <= 0) {
+      ph_w = 8;
     }
     // w1545 (10.72): 9–16B named formal arrives by reference, like > 16B.
-    mid = 0;
-    if (w > 8 && w <= 16 && arena_ph != (0 as *u8)) {
+    ph_mid = 0;
+    if (ph_w > 8 && ph_w <= 16 && ph_arena_ph != (0 as *u8)) {
       unsafe {
-        pty = pipeline_module_func_param_type_ref_at(mod, func_index, i);
-        mid = w1545_win_mid_named_sz(arena_ph, pty);
+        ph_pty = pipeline_module_func_param_type_ref_at(mod, func_index, ph_i);
+        ph_mid = w1545_win_mid_named_sz(ph_arena_ph, ph_pty);
       }
     }
-    if (w > 16 || mid > 0) {
+    if (ph_w > 16 || ph_mid > 0) {
       // w1521 (10.57): Win64 passes >16B by value as a pointer in one GP.
-      wide_home = home + w;
-      if (w1521_ph_copy_byref(elf_ctx, gp, wide_home, w, ta) != 0) {
+      ph_wide_home = ph_home + ph_w;
+      if (w1521_ph_copy_byref(elf_ctx, ph_gp, ph_wide_home, ph_w, ta) != 0) {
         return -1;
       }
-      gp = gp + 1;
-      home = wide_home + 8;
-    } else if (w > 8 && w <= 16) {
-      wide_home = home + w;
-      if (w1500_ph_mov_store(elf_ctx, gp, wide_home, ta) != 0) {
+      ph_gp = ph_gp + 1;
+      ph_home = ph_wide_home + 8;
+    } else if (ph_w > 8 && ph_w <= 16) {
+      ph_wide_home = ph_home + ph_w;
+      if (w1500_ph_mov_store(elf_ctx, ph_gp, ph_wide_home, ta) != 0) {
         return -1;
       }
-      gp = gp + 1;
-      if (gp >= reg_max) {
+      ph_gp = ph_gp + 1;
+      if (ph_gp >= ph_reg_max) {
         return -1;
       }
-      if (w1500_ph_mov_store(elf_ctx, gp, wide_home - 8, ta) != 0) {
+      if (w1500_ph_mov_store(elf_ctx, ph_gp, ph_wide_home - 8, ta) != 0) {
         return -1;
       }
-      gp = gp + 1;
-      home = wide_home + 8;
+      ph_gp = ph_gp + 1;
+      ph_home = ph_wide_home + 8;
     } else {
       // w1547: Win64 f32/f64 in slots 0..3 live in xmmN. Slot >= 4 is the
-      // integer stack home the GP move already reads. Kind 14 stores 4
+      // integer stack ph_home the GP move already reads. Kind 14 stores 4
       // bytes (movd leaves the high half of rax stale). Kind 15 stores 8.
       // Canonicalize is a no-op for both kinds, so the xmm path skips it.
       // The slot still advances by 8 so later formals do not move.
       // PLATFORM: WINDOWS x86_64.
-      pk = 0;
-      from_xmm = 0;
-      if (arena_ph != (0 as *u8) && gp < 4) {
+      ph_pk = 0;
+      ph_from_xmm = 0;
+      if (ph_arena_ph != (0 as *u8) && ph_gp < 4) {
         unsafe {
-          pty = pipeline_module_func_param_type_ref_at(mod, func_index, i);
-          if (pty > 0) {
-            pk = pipeline_type_kind_ord_at(arena_ph, pty);
+          ph_pty = pipeline_module_func_param_type_ref_at(mod, func_index, ph_i);
+          if (ph_pty > 0) {
+            ph_pk = pipeline_type_kind_ord_at(ph_arena_ph, ph_pty);
           }
         }
-        if (pk == 14 || pk == 15) {
-          from_xmm = 1;
+        if (ph_pk == 14 || ph_pk == 15) {
+          ph_from_xmm = 1;
         }
       }
-      if (from_xmm != 0 && pk == 15) {
+      if (ph_from_xmm != 0 && ph_pk == 15) {
         unsafe {
-          rc_ph = backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, gp, ta);
+          ph_rc_ph = backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, ph_gp, ta);
         }
-        if (rc_ph != 0) {
+        if (ph_rc_ph != 0) {
           return -1;
         }
         unsafe {
-          rc_ph = backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta);
+          ph_rc_ph = backend_enc_store_rax_to_rbp_arch(elf_ctx, ph_home, ta);
         }
-        if (rc_ph != 0) {
+        if (ph_rc_ph != 0) {
           return -1;
         }
-      } else if (from_xmm != 0 && pk == 14) {
+      } else if (ph_from_xmm != 0 && ph_pk == 14) {
         unsafe {
-          rc_ph = backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, gp, ta);
+          ph_rc_ph = backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, ph_gp, ta);
         }
-        if (rc_ph != 0) {
+        if (ph_rc_ph != 0) {
           return -1;
         }
         unsafe {
-          rc_ph = backend_enc_store_eax_to_rbp_arch(elf_ctx, home, ta);
+          ph_rc_ph = backend_enc_store_eax_to_rbp_arch(elf_ctx, ph_home, ta);
         }
-        if (rc_ph != 0) {
+        if (ph_rc_ph != 0) {
           return -1;
         }
       } else {
         unsafe {
-          rc_ph = backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp, ta);
+          ph_rc_ph = backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, ph_gp, ta);
         }
-        if (rc_ph != 0) {
+        if (ph_rc_ph != 0) {
           return -1;
         }
-        if (arena_ph != (0 as *u8)) {
+        if (ph_arena_ph != (0 as *u8)) {
           unsafe {
-            rc_ph = glue_enc_canonicalize_param_in_rax_elf_c(elf_ctx, arena_ph, mod, func_index, i, ta);
+            ph_rc_ph = glue_enc_canonicalize_param_in_rax_elf_c(elf_ctx, ph_arena_ph, mod, func_index, ph_i, ta);
           }
-          if (rc_ph != 0) {
+          if (ph_rc_ph != 0) {
             return -1;
           }
         }
         unsafe {
-          rc_ph = backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta);
+          ph_rc_ph = backend_enc_store_rax_to_rbp_arch(elf_ctx, ph_home, ta);
         }
-        if (rc_ph != 0) {
+        if (ph_rc_ph != 0) {
           return -1;
         }
       }
-      gp = gp + 1;
-      home = home + 8;
+      ph_gp = ph_gp + 1;
+      ph_home = ph_home + 8;
     }
-    i = i + 1;
+    ph_i = ph_i + 1;
   }
   return 0;
 }
