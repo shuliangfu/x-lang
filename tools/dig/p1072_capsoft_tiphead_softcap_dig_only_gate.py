@@ -123,7 +123,7 @@ def main() -> int:
     hs = sha12(host)
     assert hs not in BANNED_HOST, hs
     pre_prod, pre_cave, pre_tip = sha12(PROD), sha12(CAVE_SC), sha12(TIPHEAD)
-    assert pre_prod == EXPECT_PROD and pre_cave == EXPECT_PROD and pre_tip == EXPECT_TIP
+    assert pre_prod == EXPECTED_PROD and pre_cave == EXPECTED_PROD and pre_tip == EXPECTED_TIP
 
     rows = []
     ok = 0
@@ -141,9 +141,9 @@ def main() -> int:
     print("HOST", hs, host)
     print("HOLD_PRE ", pre_prod, pre_cave, pre_tip)
     print("HOLD_POST", post_prod, post_cave, post_tip)
-    assert post_prod == pre_prod == EXPECT_PROD
-    assert post_cave == pre_cave == EXPECT_PROD
-    assert post_tip == pre_tip == EXPECT_TIP
+    assert post_prod == pre_prod == EXPECTED_PROD
+    assert post_cave == pre_cave == EXPECTED_PROD
+    assert post_tip == pre_tip == EXPECTED_TIP
     print("HOLD_OK")
     return 0 if ok == 8 else 1
 
