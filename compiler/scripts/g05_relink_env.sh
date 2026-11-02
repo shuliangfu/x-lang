@@ -808,10 +808,13 @@ fi
 _PABI_WIN_PARAM_HOME=""
 case "$UNAME_S" in
   MINGW*|MSYS*|CYGWIN*|Windows_NT*)
-    # w1500: pure .x (was host-cc seed).
-    # 10.26 merged into mega — _g05_pure_overlay src/runtime_pipeline_abi_win_param_home_thin.x \
-    # 10.26 merged into mega — build_asm/selfhost_pabi/win_param_home.o pipeline_asm_emit_param_home_elf_c
-    _PABI_WIN_PARAM_HOME=""  # 10.26 merged into mega
+    # SoftCap Prefer 10.74: mega.o on Win Prefer-owns SysV not(windows) twin;
+    # re-Prefer win_param_home_thin (w1521 byref) so SoftCap USER >16B homes
+    # from one GP, not SysV MEMORY stack-copy. PLATFORM: WINDOWS.
+    _g05_pure_overlay src/runtime_pipeline_abi_win_param_home_thin.x \
+      build_asm/selfhost_pabi/win_param_home.o \
+      pipeline_asm_emit_param_home_elf_c
+    _PABI_WIN_PARAM_HOME="$_G05_PO_OUT"
     ;;
 esac
 # w1499: 64-bit MUL / MOD / divisor zero check (终局待办 10.20). The pabi

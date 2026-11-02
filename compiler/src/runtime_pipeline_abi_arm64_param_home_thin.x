@@ -90,6 +90,9 @@ function w2060_a64_ph_copy_byref(elf_ctx: *u8, gp: i32, home: i32, w: i32, ta: i
  * Aggregates >16B arrive as a pointer in one GP (or one stack word).
  * PLATFORM: MACOS|DARWIN ARM64. ta!=1 returns 0.
  */
+// SoftCap Prefer 10.74: never Prefer-win on Windows SoftCap; Win
+// win_param_home_thin owns SoftCap USER. PLATFORM: MACOS|DARWIN ARM64 only.
+#[cfg(target_os = "macos")]
 #[no_mangle]
 export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: *u8, func_index: i32, ta: i32): i32 {
   unsafe {
