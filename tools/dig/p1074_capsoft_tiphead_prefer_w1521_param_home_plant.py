@@ -168,6 +168,31 @@ def main() -> None:
     assert "w1521_ph_copy_byref" in local
     assert "pipeline_asm_fill_param_slots" in local
 
+    # --- Win64 5th-arg ABI fixes on tip-compiled Prefer .text ---
+    # tip-compile mis-homes 5th param from r8; emit's byref call then
+    # re-moves ta into r8, wiping ph_wide_home (slot) -> stores at
+    # 0/+8/+0x10(%rbp) (call_arg AV) instead of slot-k below rbp.
+    emit_off = local["pipeline_asm_emit_param_home_elf_c"]
+    byref_off = local["w1521_ph_copy_byref"]
+    # 1) Prefer emit: home ta from [rbp+0x30], not r8(=mod).
+    emit_ta_old = bytes.fromhex("4c89c0488945d0b800000000")
+    emit_ta_new = bytes.fromhex("488b4530488945d031c09090")
+    assert text[emit_off + 0x28 : emit_off + 0x34] == emit_ta_old, text[
+        emit_off + 0x28 : emit_off + 0x34
+    ].hex()
+    text[emit_off + 0x28 : emit_off + 0x34] = emit_ta_new
+    # 2) Prefer emit->byref call: NOP r8=ta clobber; keep ph_wide_home in r8.
+    clobber = emit_off + 0x7A4
+    assert text[clobber - 7 : clobber] == bytes.fromhex("488b85b8fbffff"), text[
+        clobber - 7 : clobber
+    ].hex()
+    assert text[clobber : clobber + 3] == bytes.fromhex("4989c0")
+    text[clobber : clobber + 3] = bytes([0x90, 0x90, 0x90])
+    # 3) byref: force ta local = 0 (Win x64). xor %rax,%rax replaces mov %r8,%rax.
+    assert text[byref_off + 0x28 : byref_off + 0x2B] == bytes.fromhex("4c89c0")
+    text[byref_off + 0x28 : byref_off + 0x2B] = bytes.fromhex("4831c0")
+    print("ABI_PATCH emit_ta+byref_slot_nop+byref_ta0 OK")
+
     rels: list[tuple[int, str]] = []
     for line in subprocess.check_output(
         ["objdump", "-r", str(OBJ)], text=True, errors="replace"
