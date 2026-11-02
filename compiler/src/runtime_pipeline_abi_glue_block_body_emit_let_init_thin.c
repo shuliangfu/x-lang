@@ -47,6 +47,7 @@ static int32_t w1010_store_eax_rbp(uint8_t *elf_ctx, int32_t offset) {
 
 extern int32_t backend_asm_ctx_slot_offset(uint8_t *ctx, int32_t slot_idx);
 extern int32_t asm_ctx_local_find_offset(uint8_t *ctx, uint8_t *name, int32_t name_len);
+extern int32_t glue_lazy_append_block_let_local(uint8_t *arena, uint8_t *ctx, int32_t block_ref, int32_t let_idx, uint8_t *name, int32_t name_len);
 extern int32_t backend_enc_store_eax_to_rbp_arch(uint8_t *elf_ctx, int32_t offset, int32_t ta);
 extern int32_t backend_enc_store_rax_to_rbp_arch(uint8_t *elf_ctx, int32_t offset, int32_t ta);
 extern int32_t glue_array_temp_bytes_for_let_init(uint8_t *arena, int32_t let_type_ref, int32_t init_ref);
@@ -124,9 +125,18 @@ int32_t glue_block_body_emit_let_init(uint8_t *arena, uint8_t *elf_ctx, int32_t 
   int32_t slot_off = 0;
   int32_t init_f32_lit = 0;
   slot_off = backend_asm_ctx_slot_offset(ctx, slot);
-  /* Prefer-M2: name-find when llen>0 (SoftCap index may be torn). */
+  /* Prefer-M2: name-find when llen>0 (SoftCap index may be torn).
+   * Prefer-M2 SoftCap ensure+fill (10.69 DIG2): if name-find misses, lazy-
+   * append the block-let local then re-find before clamp/store.
+   * PLATFORM: SHARED freestanding emit (Win SoftCap host). */
   if (llen > 0 && lnb != 0) {
     int32_t found = asm_ctx_local_find_offset(ctx, lnb, llen);
+    if (found < 0) {
+      int32_t ap = glue_lazy_append_block_let_local(arena, ctx, block_ref, idx, lnb, llen);
+      if (ap == 0) {
+        found = asm_ctx_local_find_offset(ctx, lnb, llen);
+      }
+    }
     if (found >= 0) {
       slot_off = found;
     }

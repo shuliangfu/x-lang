@@ -11,6 +11,7 @@
 
 export extern function backend_asm_ctx_slot_offset(ctx: *u8, slot_idx: i32): i32;
 export extern function asm_ctx_local_find_offset(ctx: *u8, name: *u8, name_len: i32): i32;
+export extern function glue_lazy_append_block_let_local(arena: *u8, ctx: *u8, block_ref: i32, let_idx: i32, name: *u8, name_len: i32): i32;
 export extern function backend_enc_store_eax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
 export extern function backend_enc_store_rax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
 export extern function glue_array_temp_bytes_for_let_init(arena: *u8, let_type_ref: i32, init_ref: i32): i32;
@@ -123,8 +124,19 @@ export function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_re
     slot_off = backend_asm_ctx_slot_offset(ctx, slot);
     // Prefer-M2: when the let name is known, prefer name-table offset over
     // index slot_offset (SoftCap multi: index can be torn while find is clean).
+    // Prefer-M2 SoftCap ensure+fill (10.69 DIG2): if name-find misses, lazy-
+    // append the block-let local then re-find before clamp/store. SoftCap
+    // multi/parity can reach emit with fill_tree not yet registering the
+    // slot; index slot_offset then tears while ensure+fill yields clean home.
+    // PLATFORM: SHARED freestanding emit (Win SoftCap host).
     if (llen > 0 && lnb != 0 as *u8) {
       let found: i32 = asm_ctx_local_find_offset(ctx, lnb, llen);
+      if (found < 0) {
+        let ap: i32 = glue_lazy_append_block_let_local(arena, ctx, block_ref, idx, lnb, llen);
+        if (ap == 0) {
+          found = asm_ctx_local_find_offset(ctx, lnb, llen);
+        }
+      }
       if (found >= 0) {
         slot_off = found;
       }
