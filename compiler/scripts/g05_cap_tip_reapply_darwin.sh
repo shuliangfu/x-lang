@@ -209,10 +209,14 @@ if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
       && nm -gU build_asm/selfhost_pabi/asm_locals_thin.o 2>/dev/null \
            | grep -q ' T _backend_emit_loop_body_content_elf_sync$'; then
       # Thin also defines the rest of the asm_locals face set; Cap tip already
-      # gets those from pabi_weak — keep only the two 10.91 authorities global.
+      # gets those from pabi_weak — keep only the 10.91 authorities global,
+      # plus asm_ctx_local_set_offset_by_name (10.73): emit_let_init.o calls it
+      # and pabi_weak has no copy, so localizing it left it undefined in
+      # pure-ld (10.67a). PLATFORM: MACOS.
       if [ -n "${OC:-}" ]; then
         "$OC" --keep-global-symbol=_asm_ctx_local_find_offset_scoped \
           --keep-global-symbol=_backend_emit_loop_body_content_elf_sync \
+          --keep-global-symbol=_asm_ctx_local_set_offset_by_name \
           build_asm/selfhost_pabi/asm_locals_thin.o 2>/dev/null \
           || true
       fi
