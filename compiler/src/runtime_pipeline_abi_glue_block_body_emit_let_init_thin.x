@@ -141,15 +141,16 @@ export function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_re
         slot_off = found;
       }
     }
-    // Prefer-M2 clamp18 (10.66): SoftCap let-store smash guard — dig-egg
-    // lineage d8e2 `|off|>0x1000→0x18` elevated to tip.x true-fix.
+    // Prefer-M2 SoftCap clamp18 non-collide (10.72 block_let grain): dig-egg
+    // lineage d8e2 `|off|>0x1000→0x18` elevated to tip.x true-fix, then
+    // idx-scaled homes so N>=2 SoftCap scalar lets do not smash one slot.
     // PLATFORM: SHARED freestanding emit (Win SoftCap host).
     let abs_off: i32 = slot_off;
     if (abs_off < 0) {
       abs_off = 0 - abs_off;
     }
     if (abs_off > 4096) {
-      slot_off = 24;
+      slot_off = 24 + (idx * 8);
     }
   }
 
