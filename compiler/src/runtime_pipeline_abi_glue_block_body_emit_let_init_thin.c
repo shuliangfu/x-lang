@@ -46,6 +46,7 @@ static int32_t w1010_store_eax_rbp(uint8_t *elf_ctx, int32_t offset) {
 }
 
 extern int32_t backend_asm_ctx_slot_offset(uint8_t *ctx, int32_t slot_idx);
+extern int32_t asm_ctx_local_set_offset_by_name(uint8_t *ctx, uint8_t *name, int32_t name_len, int32_t offset);
 extern int32_t asm_ctx_local_find_offset(uint8_t *ctx, uint8_t *name, int32_t name_len);
 extern int32_t glue_lazy_append_block_let_local(uint8_t *arena, uint8_t *ctx, int32_t block_ref, int32_t let_idx, uint8_t *name, int32_t name_len);
 extern int32_t backend_enc_store_eax_to_rbp_arch(uint8_t *elf_ctx, int32_t offset, int32_t ta);
@@ -152,6 +153,10 @@ int32_t glue_block_body_emit_let_init(uint8_t *arena, uint8_t *elf_ctx, int32_t 
     }
     if (abs_off > 4096) {
       slot_off = 24 + (idx * 8);
+      /* Prefer-M2 SoftCap nested_let writeback (10.73). */
+      if (llen > 0 && lnb != NULL) {
+        (void)asm_ctx_local_set_offset_by_name(ctx, lnb, llen, slot_off);
+      }
     }
   }
   rc = pipeline_asm_try_emit_dyn_coerce_let(arena, elf_ctx, block_ref, idx, init_ref, slot_off, ctx, ta);

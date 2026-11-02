@@ -730,6 +730,54 @@ export function asm_ctx_block_slot_get(ctx: *u8, block_ref: i32): i32 {
 }
 
 /**
+ * Prefer-M2 SoftCap (10.73 nested_let grain): write back a remapped stack home
+ * for an existing local name so assign/load Prefer-find matches let-init clamp
+ * non-collide homes (`24+(idx*8)`). No-op when name missing.
+ * @return i32 — 0 updated; -1 not found / bad args
+ * PLATFORM: SHARED freestanding emit (Win SoftCap host).
+ */
+#[no_mangle]
+export function asm_ctx_local_set_offset_by_name(ctx: *u8, name: *u8, name_len: i32, offset: i32): i32 {
+  if (ctx == 0 as *u8 || name == 0 as *u8 || name_len <= 0) {
+    return 0 - 1;
+  }
+  let s: i32 = pipe_al_find(ctx, 0);
+  if (s < 0) {
+    return 0 - 1;
+  }
+  let i: i32 = g_pipe_al_n[s] - 1;
+  while (i >= 0) {
+    let ent: *u8 = pipe_al_at(s, i);
+    if (ent != 0 as *u8) {
+      let nlen: i32 = w304_load_i32(ent, pipe_al_off_name_len());
+      if (nlen == name_len) {
+        let k: i32 = 0;
+        let ok: i32 = 1;
+        while (k < name_len) {
+          let b: u8 = 0 as u8;
+          unsafe {
+            b = ent[k];
+          }
+          if (b != name[k]) {
+            ok = 0;
+            k = name_len;
+          } else {
+            k = k + 1;
+          }
+        }
+        if (ok != 0) {
+          w304_store_i32(ent, pipe_al_off_offset(), offset);
+          return 0;
+        }
+      }
+    }
+    i = i - 1;
+  }
+  return 0 - 1;
+}
+
+
+/**
  * Resolve a local name from the current emit scope, then its ancestors.
  * Scans each block's own const/let slot range [min_slot, min_slot+nconst+nlet)
  * back-to-front. On a miss, walks pipeline_block_parent_block_ref_at.

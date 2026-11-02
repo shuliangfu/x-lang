@@ -11,6 +11,7 @@
 
 export extern function backend_asm_ctx_slot_offset(ctx: *u8, slot_idx: i32): i32;
 export extern function asm_ctx_local_find_offset(ctx: *u8, name: *u8, name_len: i32): i32;
+export extern function asm_ctx_local_set_offset_by_name(ctx: *u8, name: *u8, name_len: i32, offset: i32): i32;
 export extern function glue_lazy_append_block_let_local(arena: *u8, ctx: *u8, block_ref: i32, let_idx: i32, name: *u8, name_len: i32): i32;
 export extern function backend_enc_store_eax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
 export extern function backend_enc_store_rax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
@@ -141,7 +142,7 @@ export function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_re
         slot_off = found;
       }
     }
-    // Prefer-M2 SoftCap clamp18 non-collide (10.72 block_let grain): dig-egg
+    // Prefer-M2 SoftCap clamp18 non-collide (10.72) + nested_let writeback (10.73): dig-egg
     // lineage d8e2 `|off|>0x1000→0x18` elevated to tip.x true-fix, then
     // idx-scaled homes so N>=2 SoftCap scalar lets do not smash one slot.
     // PLATFORM: SHARED freestanding emit (Win SoftCap host).
@@ -151,6 +152,12 @@ export function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_re
     }
     if (abs_off > 4096) {
       slot_off = 24 + (idx * 8);
+      // Prefer-M2 SoftCap nested_let writeback (10.73): keep assign Prefer-find
+      // on the remapped home (dig PE first-seen map tramp mirrors this).
+      if (llen > 0 && lnb != 0 as *u8) {
+        let wb: i32 = asm_ctx_local_set_offset_by_name(ctx, lnb, llen, slot_off);
+        wb = wb;
+      }
     }
   }
 
