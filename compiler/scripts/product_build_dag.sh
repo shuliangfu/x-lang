@@ -12,6 +12,8 @@
 #   PRODUCT_SCHEDULE authority (10.4 · knife 11.03): build.x export ABI
 #   (build_product_schedule_count / id_at). Bash array is derived cache only —
 #   no hardcoded schedule literal (G.7 no dual authority).
+#   REFRESH_SCHEDULE authority (10.4 · knife 11.05): build.x export ABI
+#   (build_refresh_schedule_count / id_at). Bash array derived cache only.
 #   Execution (11.1.2): this script dry-run/run invokes *existing* body scripts
 #   only — no second compile/link implementation, no dual .o lists.
 #   wave744: cold prereq *edges* → driver_seed_ensure_prereqs.sh (catalog).
@@ -152,9 +154,51 @@ if ! load_product_schedule_from_build_x; then
   exit 1
 fi
 
-REFRESH_SCHEDULE=(
-  refresh_gate
-)
+
+# 10.4 / knife 11.05: REFRESH_SCHEDULE authority = build.x export ABI.
+# Bash REFRESH_SCHEDULE is a derived runtime cache. G.7: no hardcoded
+# REFRESH_SCHEDULE=( literal that could drift from build.x.
+# ---------------------------------------------------------------------------
+
+load_refresh_schedule_from_build_x() {
+  local bx="$ROOT/build.x"
+  local _bx_ids _id
+  REFRESH_SCHEDULE=()
+  if [ ! -f "$bx" ]; then
+    echo "product_build_dag: FAIL: missing $bx (REFRESH_SCHEDULE authority)" >&2
+    return 1
+  fi
+  if ! grep -q 'export function build_refresh_schedule_count' "$bx" \
+    || ! grep -q 'export function build_refresh_schedule_id_at' "$bx"; then
+    echo "product_build_dag: FAIL: build.x missing REFRESH_SCHEDULE export ABI" >&2
+    return 1
+  fi
+  _bx_ids=$(
+    awk '
+      /export function build_refresh_schedule_id_at[[:space:]]*\(/ { in_fn=1; next }
+      in_fn && /return[[:space:]]+"/ {
+        if (match($0, /"[^"]+"/)) {
+          print substr($0, RSTART + 1, RLENGTH - 2)
+        }
+        next
+      }
+      in_fn && /^}/ { exit }
+    ' "$bx"
+  )
+  while IFS= read -r _id; do
+    [ -z "${_id:-}" ] && continue
+    REFRESH_SCHEDULE+=("${_id}")
+  done <<< "${_bx_ids}"
+  if [ "${#REFRESH_SCHEDULE[@]}" -eq 0 ]; then
+    echo "product_build_dag: FAIL: build.x REFRESH_SCHEDULE id_at parsed 0 ids" >&2
+    return 1
+  fi
+  return 0
+}
+
+if ! load_refresh_schedule_from_build_x; then
+  exit 1
+fi
 
 COLD_SCHEDULE=(
   cold_ensure_prereqs
@@ -525,6 +569,52 @@ else
   bad "missing root build.x (PRODUCT_SCHEDULE authority)"
 fi
 
+# 10.4 / knife 11.05: REFRESH_SCHEDULE authority = build.x (bash derived cache).
+# PLATFORM: SHARED — structural honesty; no tip compile.
+if [ -f build.x ]; then
+  if ! grep -q 'export function build_refresh_schedule_count' build.x; then
+    bad "build.x must export build_refresh_schedule_count (10.4 REFRESH_SCHEDULE ABI)"
+  elif ! grep -q 'export function build_refresh_schedule_id_at' build.x; then
+    bad "build.x must export build_refresh_schedule_id_at (10.4 REFRESH_SCHEDULE ABI)"
+  else
+    _bx_ref_count=$(
+      awk '
+        /export function build_refresh_schedule_count[[:space:]]*\(/ { in_fn=1; next }
+        in_fn && /return[[:space:]]+[0-9]+/ {
+          for (i = 1; i <= NF; i++) {
+            tok = $i
+            gsub(/;/, "", tok)
+            if (tok ~ /^[0-9]+$/) { print tok; exit }
+          }
+        }
+        in_fn && /^}/ { exit }
+      ' build.x
+    )
+    _bash_ref_n=${#REFRESH_SCHEDULE[@]}
+    if [ -z "${_bx_ref_count:-}" ]; then
+      bad "build.x build_refresh_schedule_count: could not parse return count"
+    elif [ "${_bx_ref_count}" -ne "${_bash_ref_n}" ]; then
+      bad "REFRESH_SCHEDULE count mismatch: build.x=${_bx_ref_count} derived=${_bash_ref_n}"
+    elif [ "${_bash_ref_n}" -eq 0 ]; then
+      bad "REFRESH_SCHEDULE derived empty (build.x authority load failed)"
+    else
+      if awk '
+        /^REFRESH_SCHEDULE=\(/ {
+          getline
+          if ($0 ~ /refresh_gate/) { found=1 }
+        }
+        END { exit found ? 0 : 1 }
+      ' "$0"; then
+        bad "hardcoded REFRESH_SCHEDULE literal still present (G.7 dual authority; demote 11.05)"
+      else
+        note "REFRESH_SCHEDULE authority=build.x (${_bash_ref_n} nodes · derived cache · 10.4/11.05)"
+      fi
+    fi
+  fi
+else
+  bad "missing root build.x (REFRESH_SCHEDULE authority)"
+fi
+
 # xbuild first-class product-dag target + 11.1.2 modes
 if grep -qE 'product-dag|build-dag|cold-dag' "$XCODE_REL" \
   && grep -q 'product_build_dag\.sh' "$XCODE_REL"; then
@@ -654,5 +744,5 @@ if [ "$fail" -ne 0 ]; then
   echo "product_build_dag: CHECK FAIL" >&2
   exit 1
 fi
-echo "product_build_dag: CHECK OK (11.1.1+11.1.2 wave743 · 11.3 prereq edges wave744 · 11.1.3/4 wave745 · 11.3.1 leaf residual wave746 · R4 mode wave747 · 10.4 PRODUCT_SCHEDULE authority=build.x 11.03)"
+echo "product_build_dag: CHECK OK (11.1.1+11.1.2 wave743 · 11.3 prereq edges wave744 · 11.1.3/4 wave745 · 11.3.1 leaf residual wave746 · R4 mode wave747 · 10.4 PRODUCT_SCHEDULE authority=build.x 11.03 · REFRESH_SCHEDULE authority=build.x 11.05)"
 exit 0

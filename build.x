@@ -24,7 +24,9 @@
 //     + PRODUCT_SCHEDULE authority (build_product_schedule_count /
 //       build_product_schedule_id_at · 10.4 knife 11.01／11.03 demote)
 //     + LINKER_POLICY inventory authority (build_linker_policy_count /
-//       build_linker_policy_entry_at · 10.4 knife 11.04 demote).
+//       build_linker_policy_entry_at · 10.4 knife 11.04 demote)
+//     + REFRESH_SCHEDULE authority (build_refresh_schedule_count /
+//       build_refresh_schedule_id_at · 10.4 knife 11.05 demote).
 //   - Product orchestration authority today is **`./xbuild` → xlang-build.sh**
 //     plus **compiler/scripts/g05_*.sh** (not Makefile recipes for daily path).
 //   - Cold-start / residual leaf .o graphs use shell catalog + compiler-make hub (Makefile deleted wave942); was
@@ -115,7 +117,12 @@
 //     Ordered ids are the live PRODUCT_SCHEDULE authority for product-dag.
 //     product_build_dag.sh loads a derived bash cache from these exports (G.7).
 //     No hardcoded bash PRODUCT_SCHEDULE literal (knife 11.03 demote).
-//   Refresh schedule: refresh_gate alone
+//   REFRESH_SCHEDULE export ABI (10.4 · knife 11.05 demote):
+//     build_refresh_schedule_count() / build_refresh_schedule_id_at(i) → *u8
+//     Ordered ids are the live REFRESH_SCHEDULE authority for product-dag.
+//     product_build_dag.sh loads a derived bash cache from these exports (G.7).
+//     No hardcoded bash REFRESH_SCHEDULE=( literal (knife 11.05 demote).
+//     Today: refresh_gate alone.
 //   Cold schedule: dry-run starts with cold_ensure_prereqs; live → outer
 //     bootstrap-driver-seed (embeds driver_seed_ensure_prereqs · wave744)
 //   wave744: DRIVER_SEED_PREREQS *edge satisfaction* is shell
@@ -319,5 +326,26 @@ export function build_linker_policy_entry_at(i: i32): *u8 {
   if (i == 24) { return "ENDGAME_G05_PURE_LD=1"; }
   if (i == 25) { return "ENDGAME_DROP_CC_FALLBACK=1"; }
   if (i == 26) { return "ENDGAME_MAKEFILE_UNAME_SWALLOWED=0"; }
+  return 0 as *u8;
+}
+
+/**
+ * Number of refresh-schedule nodes (REFRESH_SCHEDULE · 10.4 / 11.05).
+ * This export is the runner authority (bash REFRESH_SCHEDULE is a derived
+ * cache only · knife 11.05 demote).
+ * @return i32 always 1 while refresh schedule is refresh_gate alone
+ */
+export function build_refresh_schedule_count(): i32 {
+  return 1;
+}
+
+/**
+ * Map refresh-schedule index → node id string (REFRESH_SCHEDULE · 10.4 / 11.05).
+ * product_build_dag.sh loads these ids as the live refresh schedule.
+ * @param i i32 zero-based index in [0, build_refresh_schedule_count())
+ * @return *u8 node id C-string, or null if out of range
+ */
+export function build_refresh_schedule_id_at(i: i32): *u8 {
+  if (i == 0) { return "refresh_gate"; }
   return 0 as *u8;
 }
