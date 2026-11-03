@@ -28,6 +28,8 @@ export extern function backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx: *u8, k: 
 export extern function pipeline_elf_ctx_append_bytes(ctx: *u8, ptr: *u8, n: i32): i32;
 export extern function backend_enc_append_u8_c(elf_ctx: *u8, byte: i32): i32;
 export extern function backend_enc_append_u32_le_c(elf_ctx: *u8, word: u32): i32;
+export extern function xlang_i32_store(p: *i32, v: i32): void;
+export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 export extern function pipeline_asm_emit_ctx_sret_active_get(): i32;
 export extern function pipeline_asm_emit_ctx_sret_home_off_get(): i32;
 export extern function pipeline_asm_emit_ctx_sret_ret_sz_get(): i32;
@@ -2368,7 +2370,7 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                              * The loop calls helpers. Extern stays
                              * inside them. PLATFORM: MACOS|ARM64. */
                             while (walk_u127 != root_er_u120 && walk_u127 > 0 && nb_u125 < 4096) {
-                              fas_u124[nb_u125] = walk_u127;
+                              unsafe { xlang_i32_store(&fas_u124[nb_u125], walk_u127); }
                               nb_u125 = nb_u125 + 1;
                               walk_u127 = w648_rs_base(arena, walk_u127);
                             }
@@ -2631,12 +2633,17 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
   if (tj_len_u46 <= 0) {
     return 0 - 1;
   }
-  ti_u48 = 0;
-  while (ti_u48 < tj_len_u46 && ti_u48 < 128) {
-    unsafe {
-      tj_lbl_u47[ti_u48] = ly_u43[1392 + ti_u48];
+  unsafe {
+    let tj_src_u49: *u8 = ly_u43 + 1392;
+    let tj_n_u50: i32 = tj_len_u46;
+    if (tj_n_u50 > 128) {
+      tj_n_u50 = 128;
     }
-    ti_u48 = ti_u48 + 1;
+    memcpy(&tj_lbl_u47[0], tj_src_u49, tj_n_u50 as usize);
+  }
+  ti_u48 = tj_len_u46;
+  if (ti_u48 > 128) {
+    ti_u48 = 128;
   }
   unsafe {
     return backend_enc_jmp_arch(elf_ctx, &tj_lbl_u47[0], tj_len_u46, ta);
