@@ -17,7 +17,7 @@
 ## 11.5.1 `bench/**/*.c` — permanent host-cc whitelist (diff baseline)
 
 - **Ruling (wave734)**: permanent host-cc whitelist for **differential / throughput baselines only**.
-- **Count (git-tracked, 2026-11-03 · knife 11.11)**: **6** under `bench/**/*.c` (workspace may have more untracked).
+- **Count (git-tracked, 2026-11-03 · knife 11.22)**: **102** under `bench/**/*.c`（含 `bench/diff` 6 对 C／`.x` 差分基线；其余 async／scheduler 等 host 烟测）。
 - **Consumers**: bench scripts only; never g05 / product `all`.
 - **Prefer**: when a `.x` twin exists, product side compiles `.x`; bare `.c` stays host-cc baseline.
 
@@ -129,6 +129,24 @@ Wave741 hard-checks (static):
 2. Product g05 scripts do **not** reference `tests/std-*.c` / abi|leak|safe layout probes as compile inputs.
 3. Floor inventory: `tests/std-*/*.c` count ≥ 40; the four 11.5.3 probe files exist; `tests/sys/*.c` count ≥ 30 (11.5.5).
 4. `build.x` strategy map mentions tests host-cc policy (section E).
+
+
+
+## Stage 12 LOCATE snapshot (knife 11.22 · 2026-11-03)
+
+> Goal＝迁 `.x`／可批删 non-product host `.c`. **Outcome＝HARD-STOP residual HOLD**（无诚实单粒 plant）。
+
+| Class | Count (git-tracked) | Stage12 disposition this knife |
+|-------|---------------------|--------------------------------|
+| `bench/**/*.c` | **102** | Keep 11.5.1；`bench/diff` 6 对 **需要** C 基线（`run_diff.sh`）；不可删 |
+| `tests/std-*/*.c` | **51** | Keep 11.5.2；迁 `.x`＝多波；禁整表删（闸 floor≥40） |
+| `tests/sys/*.c` | **34** | Keep 11.5.5；平台 cap 需 host cc |
+| abi|leak|safe|kernel | **4** | Keep 11.5.3 |
+| Uncategorized `tests/<mod>/*.c` | **25** | 无 `.x` 孪生；烟测／金样仍可能被 gate 引用；禁盲删 |
+| `std/*/formal_surface.c` | **8** | **Out of scope** — ensure／compile_std_module 产品邻接；勿当 10.7 Stage12 删项 |
+| `editors/tree-sitter` | — | 10.6 已标明仓外（11.21）；迁 submodule 另刀 |
+
+**Not planted**: mass-delete／rewrite（假绿／毁差分／误伤产品链）。Whitelist 11.5 仍权威；Stage12 residual ⏸ until user-approved multi-wave rewrite or explicit delete batch.
 
 ## Out of scope (follow-ups)
 
