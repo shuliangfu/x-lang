@@ -53,6 +53,8 @@ export extern function pipeline_type_named_name_into(arena: *u8, type_ref: i32, 
 export extern function glue_vector_type_lanes_esz_c(arena: *u8, type_ref: i32, out_lanes: *i32, out_esz: *i32): i32;
 
 let g_w2060_emit_let_vn: u8[256] = [];
+// Prefer-M2 SoftCap A2 (10.84): bump-alloc distinct homes without idx gate.
+let g_p1084_softcap_home_bump: i32[1] = [];
 
 /**
  * Emit one let init. w2060: empty [] fixed T[N] zero-fills via fixed_array path.
@@ -142,11 +144,11 @@ export function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_re
         slot_off = found;
       }
     }
-    // Prefer-M2 SoftCap distinct-homes (10.84): dig-egg clamp18 singleton and
-    // torn |off|>4096 both smash nested_let (x,y share [rbp-0x18]). Remap to
-    // 24+(idx*8) when torn OR when SoftCap Prefer home is clamp18 (off==24)
-    // while let idx!=0 — distinct stack homes without first_wins SoftCap
-    // Prefer polarity (CG002). Always writeback remapped home for Prefer-find.
+    // Prefer-M2 SoftCap A2 (10.84): bump-alloc distinct homes WITHOUT idx!=0.
+    // Dig SoftCap Prefer passes idx/edi=0 for scalar lets, so idx*8 collapsed;
+    // BSS counter yields 24,32,40... for clamp18 singleton OR torn |off|>4096.
+    // Remapped home is written back for Prefer-find; dig SoftCap plant must
+    // also thread Cont ebp / slot_off into i64 enc_store (glue_store edx).
     // PLATFORM: SHARED freestanding emit (Win SoftCap host).
     let abs_off: i32 = slot_off;
     if (abs_off < 0) {
@@ -156,11 +158,13 @@ export function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_re
     if (abs_off > 4096) {
       need_home = 1;
     }
-    if (slot_off == 24 && idx != 0) {
+    if (slot_off == 24) {
       need_home = 1;
     }
     if (need_home != 0) {
-      slot_off = 24 + (idx * 8);
+      let bump: i32 = g_p1084_softcap_home_bump[0];
+      slot_off = 24 + (bump * 8);
+      g_p1084_softcap_home_bump[0] = bump + 1;
       if (llen > 0 && lnb != 0 as *u8) {
         let wb: i32 = asm_ctx_local_set_offset_by_name(ctx, lnb, llen, slot_off);
         wb = wb;

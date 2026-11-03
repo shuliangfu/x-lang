@@ -12,6 +12,8 @@
 #include <string.h>
 
 static uint8_t g_w1010_emit_let_vn[256];
+/* Prefer-M2 SoftCap A2 (10.84): bump-alloc distinct homes without idx gate. */
+static int32_t g_p1084_softcap_home_bump;
 
 extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *elf_ctx, uint8_t *bytes, int32_t len);
 
@@ -142,10 +144,10 @@ int32_t glue_block_body_emit_let_init(uint8_t *arena, uint8_t *elf_ctx, int32_t 
       slot_off = found;
     }
   }
-  /* Prefer-M2 SoftCap distinct-homes (10.84): remap torn |off|>4096 OR
-   * SoftCap Prefer clamp18 singleton (off==24) when let idx!=0 so nested_let
-   * x vs y get distinct stack homes; writeback remapped home. Not first_wins
-   * SoftCap Prefer polarity (CG002).
+  /* Prefer-M2 SoftCap A2 (10.84): bump-alloc distinct homes WITHOUT idx!=0.
+   * Dig SoftCap Prefer scalar lets keep idx/edi=0; BSS counter yields
+   * 24,32,40... for clamp18 or torn |off|>4096. Writeback Prefer-find.
+   * Dig SoftCap plant must thread remapped slot_off into i64 enc_store.
    * PLATFORM: SHARED freestanding emit (Win SoftCap host). */
   {
     int32_t abs_off = slot_off;
@@ -156,11 +158,12 @@ int32_t glue_block_body_emit_let_init(uint8_t *arena, uint8_t *elf_ctx, int32_t 
     if (abs_off > 4096) {
       need_home = 1;
     }
-    if (slot_off == 24 && idx != 0) {
+    if (slot_off == 24) {
       need_home = 1;
     }
     if (need_home != 0) {
-      slot_off = 24 + (idx * 8);
+      slot_off = 24 + (g_p1084_softcap_home_bump * 8);
+      g_p1084_softcap_home_bump = g_p1084_softcap_home_bump + 1;
       if (llen > 0 && lnb != NULL) {
         (void)asm_ctx_local_set_offset_by_name(ctx, lnb, llen, slot_off);
       }
