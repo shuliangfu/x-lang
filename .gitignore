@@ -364,3 +364,22 @@ tests/typeck/_idx_assign.x
 
 # DIG temporary dig notes/scripts/logs (do not commit)
 _dig/
+
+# --- cleanup knife 2026-11-03 (confirmed clear items) ---
+# dig probe scratch dirs (local; never commit)
+compiler/*_probe/
+# g05 thin scratch (expand beyond p4b.*)
+g05_pthin_*
+*.SDUQMc
+# root stray / dig drafts
+/nul
+/4
+/dig_*.py
+/dig_*.md
+/patch_isol_*.py
+/run_boundary_expect.sh
+# obsolete seed side copies (pins stay without .new/.patched)
+compiler/seeds/*.new
+compiler/seeds/*.patched
+# hand-written Cap tip alias asm under runtime (*.s would ignore them)
+!compiler/src/runtime/*.s
