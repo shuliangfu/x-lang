@@ -104,6 +104,14 @@
 //   11.5.3 abi|leak|safe|kernel/*.c — permanent host-cc whitelist (probes · wave741)
 //   11.5.4 probes/**/*.c    — tool/generated artifacts; not product residual (wave741)
 //   Never inputs to g05 / ./xbuild all / product compiler link.
+//   11.5.5 tests/sys/*.c — permanent host-cc whitelist (cap residual · knife 11.11)
+//
+// E2. editors/ tree-sitter make／第三方 .c（§6 10.6 · knife 11.21 · 仓外）
+// -----------------------------------------------------------------------------
+//   Authority: editors/HOST_CC_POLICY.md
+//   editors/tree-sitter-xlang/ Makefile + bindings .c/.cc = editor-only／not product
+//   Generated src/parser.c is gitignored; never g05 / ./xbuild all / product link.
+//   Relocate to submodule／independent release = residual follow-up (not this knife).
 //
 // -----------------------------------------------------------------------------
 // F. Orchestration DAG inventory + schedule (11.1.1 wave742 · 11.1.2 wave743

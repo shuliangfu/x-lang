@@ -1,5 +1,9 @@
 # tree-sitter-xlang
 
+> **仓外／editor-only（§6 10.6 · knife 11.21）**  
+> 本目录的 `Makefile`、bindings 第三方 `.c`／`.cc`、以及 `tree-sitter generate` 产出的 `src/parser.c`（gitignore）**不属于**编译器产品链（g05／`./xbuild all`／`xlang`／`xlang_asm`／`xlang-c`）。  
+> 权威政策：[`../HOST_CC_POLICY.md`](../HOST_CC_POLICY.md)。迁走 submodule／独立 release＝后续残项，非本刀。
+
 Xlang 语言 grammar for [tree-sitter](https://github.com/tree-sitter/tree-sitter) — 跨编辑器增量解析。
 
 ## 支持的编辑器
@@ -19,7 +23,7 @@ Xlang 语言 grammar for [tree-sitter](https://github.com/tree-sitter/tree-sitte
 npm install -g tree-sitter-cli
 
 # 生成 parser.c
-cd editors/tree-sitter
+cd editors/tree-sitter-xlang
 tree-sitter generate
 ```
 

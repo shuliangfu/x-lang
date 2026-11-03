@@ -1203,6 +1203,34 @@ else
   bad "build.x must mention tests host-cc / HOST_CC_POLICY / 11.5.2 (wave741)"
 fi
 
+# knife 11.21: §6 10.6 editors/tree-sitter 仓外／not product
+if [ ! -f editors/HOST_CC_POLICY.md ]; then
+  bad "missing editors/HOST_CC_POLICY.md (10.6 knife 11.21)"
+elif ! grep -qi 'not product' editors/HOST_CC_POLICY.md   || ! grep -qE '仓外|editor-only|out-of-tree' editors/HOST_CC_POLICY.md; then
+  bad "editors/HOST_CC_POLICY.md must state not product + 仓外/editor-only"
+else
+  note "editors/HOST_CC_POLICY.md present (10.6 knife 11.21 仓外)"
+fi
+g05_ts_hits=$(
+  grep -nE 'editors/tree-sitter|tree-sitter-xlang'     compiler/scripts/g05_*.sh 2>/dev/null     | grep -vE ':[0-9]+:[[:space:]]*#'     || true
+)
+if [ -n "$g05_ts_hits" ]; then
+  bad "g05_*.sh must not reference editors/tree-sitter (10.6 not product):"
+  echo "$g05_ts_hits" | head -20 >&2
+else
+  note "g05_*.sh: 0× editors/tree-sitter (10.6 仓外)"
+fi
+for f in   editors/tree-sitter-xlang/Makefile   editors/tree-sitter-xlang/bindings/python/tree_sitter_xlang/binding.c   editors/tree-sitter-xlang/bindings/node/binding.cc
+do
+  [ -f "$f" ] || bad "missing 10.6 editor stub $f"
+done
+[ "$fail" -eq 0 ] && note "10.6 tree-sitter Makefile＋binding stubs present"
+if grep -qE 'editors/HOST_CC_POLICY|tree-sitter|10\.6' build.x; then
+  note "build.x strategy map references editors tree-sitter／10.6 (knife 11.21)"
+else
+  bad "build.x must mention editors/HOST_CC_POLICY or tree-sitter／10.6"
+fi
+
 # wave742/743/744: 11.1.1 inventory + 11.1.2 schedule + 11.3 prereq edges
 if [ ! -f compiler/docs/BUILD_DAG.md ]; then
   bad "missing compiler/docs/BUILD_DAG.md (11.1.1 wave742)"
