@@ -38,10 +38,17 @@
 
 | Option | Ruling |
 |--------|--------|
-| **标明仓外（this plant）** | ✅ Document + gate：editor-only／not product；Makefile＋binding `.c`／`.cc` stay for editors. |
-| **迁走 submodule／独立 release** | ⏸ residual follow-up（非本刀；勿假绿整表删除 bindings） |
+| **标明仓外（knife 11.21）** | ✅ Document + gate：editor-only／not product；Makefile＋binding `.c`／`.cc` stay for editors. |
+| **迁走 submodule／独立 release** | ⏸ residual — plan registered knife **11.23**；physical split／submodule **not** done |
 
-**Plant this knife**: policy file + README banner + `build.x` strategy note + zero-make gate checks. **No** mass-delete of bindings；**no** product compiler edits.
+**Plant knife 11.21**: policy file + README banner + `build.x` strategy note + zero-make gate checks. **No** mass-delete of bindings；**no** product compiler edits.
+
+## 10.6.2 Independent release／submodule plan（knife 11.23）
+
+- **LOCATE**：no `.gitmodules`；no standalone remote；in-tree refs＝README／NOTICE／LICENSE／CONTRIBUTING／`xlang.toml`（comment）／vim note／gate stubs／package `repository`→`x-lang`；go.mod＝`github.com/shuliangfu/x-lang/editors/tree-sitter-xlang/...`；product g05／xbuild **0×** compile refs（仍仓外）.
+- **Plant this knife**：register plan at [`tree-sitter-xlang/INDEPENDENT_RELEASE.md`](tree-sitter-xlang/INDEPENDENT_RELEASE.md)（checklist only）.
+- **Not planted**：create GitHub repo／`git submodule add`／subtree split／retarget go.mod／mass-delete bindings（需用户点名独立仓 URL＋另批；禁假绿）.
+- **Residual**：physical submodule／independent release ⏸ until user-approved remote + follow-on knife.
 
 ## Gate contract (`tests/run-product-path-zero-make-gate.sh`)
 
@@ -56,6 +63,6 @@ Knife 11.21 hard-checks (static):
 
 | Item | Track |
 |------|--------|
-| Move tree-sitter to submodule／separate release | post-10.6 residual／user-approved |
+| Move tree-sitter to submodule／separate release | plan＠11.23；physical residual／user-approved remote |
 | Rewrite bindings to pure `.x` | N/A（third-party tree-sitter ABI） |
 | Touch `compiler/**` product OBJ／g05 bodies | **Banned** |
