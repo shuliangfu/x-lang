@@ -142,18 +142,25 @@ int32_t glue_block_body_emit_let_init(uint8_t *arena, uint8_t *elf_ctx, int32_t 
       slot_off = found;
     }
   }
-  /* Prefer-M2 SoftCap clamp18 non-collide (10.72 block_let grain): dig-egg
-   * lineage d8e2 |off|>0x1000→0x18 elevated to tip.x true-fix, then
-   * idx-scaled homes so N>=2 SoftCap scalar lets do not smash one slot.
+  /* Prefer-M2 SoftCap distinct-homes (10.84): remap torn |off|>4096 OR
+   * SoftCap Prefer clamp18 singleton (off==24) when let idx!=0 so nested_let
+   * x vs y get distinct stack homes; writeback remapped home. Not first_wins
+   * SoftCap Prefer polarity (CG002).
    * PLATFORM: SHARED freestanding emit (Win SoftCap host). */
   {
     int32_t abs_off = slot_off;
+    int32_t need_home = 0;
     if (abs_off < 0) {
       abs_off = 0 - abs_off;
     }
     if (abs_off > 4096) {
+      need_home = 1;
+    }
+    if (slot_off == 24 && idx != 0) {
+      need_home = 1;
+    }
+    if (need_home != 0) {
       slot_off = 24 + (idx * 8);
-      /* Prefer-M2 SoftCap nested_let writeback (10.73). */
       if (llen > 0 && lnb != NULL) {
         (void)asm_ctx_local_set_offset_by_name(ctx, lnb, llen, slot_off);
       }
