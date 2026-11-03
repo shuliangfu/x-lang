@@ -29,10 +29,17 @@ if [ -n "$DOCKER_PLATFORM" ]; then
   DOCKER_PLATFORM_ARGS="--platform $DOCKER_PLATFORM"
 fi
 
+# §6 10.5 · knife 11.10: fallback apt never defaults to gcc/make.
+# Optional residual host-cc: XLANG_DOCKER_WITH_HOST_CC=1
+WITH_HOST_CC="${XLANG_DOCKER_WITH_HOST_CC:-0}"
+DEPS_BASE='apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq liburing-dev zlib1g-dev libzstd-dev libbrotli-dev libsqlite3-dev curl xz-utils file python3 binutils >/dev/null'
+DEPS_HOST_CC='apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq gcc make liburing-dev zlib1g-dev libzstd-dev libbrotli-dev libsqlite3-dev curl xz-utils file python3 binutils >/dev/null'
+
 run_in_container() {
   local inner="$1"
   local image="${XLANG_LINUX_DEV_IMAGE:-xlang-linux-dev:22.04-amd64}"
   if docker image inspect "$image" >/dev/null 2>&1; then
+    # Prebuilt image: no apt (default image has no gcc/make · knife 11.09).
     # shellcheck disable=SC2086
     docker run --rm $DOCKER_PLATFORM_ARGS \
       -v "$(pwd):/src" \
@@ -40,11 +47,16 @@ run_in_container() {
       -e CI=1 \
       -e XLANG_CI_DOCKER=1 \
       -e XLANG_CI_NO_SKIP=1 \
+      -e "XLANG_DOCKER_WITH_HOST_CC=${WITH_HOST_CC}" \
       "$image" \
       bash -lc "$inner"
     return
   fi
-  echo "run-local-linux-docker: dev image $image missing; apt-get each run (build once: ./tests/docker/build-linux-dev-image.sh)" >&2
+  echo "run-local-linux-docker: dev image $image missing; apt-get each run without gcc/make by default (build once: ./tests/docker/build-linux-dev-image.sh; XLANG_DOCKER_WITH_HOST_CC=1 for residual host-cc)" >&2
+  local deps="$DEPS_BASE"
+  if [ "$WITH_HOST_CC" = "1" ]; then
+    deps="$DEPS_HOST_CC"
+  fi
   # shellcheck disable=SC2086
   docker run --rm $DOCKER_PLATFORM_ARGS \
     -v "$(pwd):/src" \
@@ -52,30 +64,29 @@ run_in_container() {
     -e CI=1 \
     -e XLANG_CI_DOCKER=1 \
     -e XLANG_CI_NO_SKIP=1 \
+    -e "XLANG_DOCKER_WITH_HOST_CC=${WITH_HOST_CC}" \
     ubuntu:22.04 \
-    bash -lc "$inner"
+    bash -lc "$deps && $inner"
 }
-
-DEPS='apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq gcc make liburing-dev zlib1g-dev libzstd-dev libbrotli-dev libsqlite3-dev curl xz-utils file python3 >/dev/null'
 
 BUILD='find . -name "*.o" -delete 2>/dev/null || true; xlang_compiler_make clean >/dev/null 2>&1 || true; xlang_compiler_make -j4 all'
 
 case "$MODE" in
   portable)
     echo "=== Docker local: run-portable-suite.sh (CI Tier P) ===" | tee "$LOG_DIR/portable.log"
-    run_in_container "$DEPS && $BUILD && chmod +x tests/run-portable-suite.sh tests/run-*.sh tests/lib/*.sh 2>/dev/null || true && ./tests/run-portable-suite.sh" 2>&1 | tee -a "$LOG_DIR/portable.log"
+    run_in_container "$BUILD && chmod +x tests/run-portable-suite.sh tests/run-*.sh tests/lib/*.sh 2>/dev/null || true && ./tests/run-portable-suite.sh" 2>&1 | tee -a "$LOG_DIR/portable.log"
     grep -q 'run-portable-suite OK' "$LOG_DIR/portable.log"
     echo "portable-suite OK (log: $LOG_DIR/portable.log)"
     ;;
   run-all)
     echo "=== Docker local: run-all.sh ===" | tee "$LOG_DIR/run-all.log"
-    run_in_container "$DEPS && $BUILD && chmod +x tests/run-all.sh tests/run-*.sh tests/lib/*.sh 2>/dev/null || true && ./tests/run-all.sh" 2>&1 | tee -a "$LOG_DIR/run-all.log"
+    run_in_container "$BUILD && chmod +x tests/run-all.sh tests/run-*.sh tests/lib/*.sh 2>/dev/null || true && ./tests/run-all.sh" 2>&1 | tee -a "$LOG_DIR/run-all.log"
     grep -q 'all tests OK' "$LOG_DIR/run-all.log"
     echo "run-all OK (log: $LOG_DIR/run-all.log)"
     ;;
   ci-full)
     echo "=== Docker local: run-ci-full-suite.sh ===" | tee "$LOG_DIR/ci-full.log"
-    run_in_container "$DEPS && $BUILD && chmod +x tests/run-ci-full-suite.sh tests/run-portable-suite.sh tests/run-portable-c.sh tests/run-*.sh tests/lib/*.sh 2>/dev/null || true && CI=1 XLANG_CI_NO_SKIP=1 ./tests/run-ci-full-suite.sh" 2>&1 | tee -a "$LOG_DIR/ci-full.log"
+    run_in_container "$BUILD && chmod +x tests/run-ci-full-suite.sh tests/run-portable-suite.sh tests/run-portable-c.sh tests/run-*.sh tests/lib/*.sh 2>/dev/null || true && CI=1 XLANG_CI_NO_SKIP=1 ./tests/run-ci-full-suite.sh" 2>&1 | tee -a "$LOG_DIR/ci-full.log"
     grep -q 'ci-full-suite OK' "$LOG_DIR/ci-full.log"
     echo "ci-full-suite OK (log: $LOG_DIR/ci-full.log)"
     ;;
