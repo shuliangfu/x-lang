@@ -11,7 +11,7 @@
 #       analysis/build-x-强大配置能力分析.md
 #
 # 现状裂缝（2026-07-21）：std/config 无 array-of-string / inline table；
-#   CFG_MAX_ENTRIES=64 可能装不下全文扁平键。用户模板应等 Core example，
+#   CFG_MAX_ENTRIES=256（刀 11.27；原 64）仍可能受 array-of-string／inline 限制。用户模板应等 Core example，
 #   勿把 [tool.xlang] / 自举字段抄进应用项目。
 # ============================================================================
 #

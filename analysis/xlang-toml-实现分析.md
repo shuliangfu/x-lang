@@ -11,7 +11,7 @@
 > - 解析库：[`std/config/`](../std/config/) · gate `tests/run-std-config-gate.sh`  
 > - 自举：[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md) · [`自举进度.md`](自举进度.md) · skill 产品闸门  
 >
-> **最后更新**：2026-11-03（刀 **11.26** LOCATE：实测 flat kv＝**68**／unique＝**61**；确认 `CFG_MAX`＋`CfgEntry[N]`＋`CFG_STORE_SIZE` 三处耦合；plant ⏸）。  
+> **最后更新**：2026-11-03（刀 **11.27** plant：`CFG_MAX_ENTRIES=256`＋`CfgEntry[256]`＋`CFG_STORE_SIZE=120000`；C smoke 128 OK；array／inline 仍正交）。  
 > **时序总表（何时做）**：[`自举完成后功能完善及优化时序表.md`](自举完成后功能完善及优化时序表.md) TOML-0@P1 → TOML-1/2@P2e → TOML-3@P3 → TOML-4@P4（本文保留 schema/分层细节）。
 
 ---
@@ -63,7 +63,7 @@
 
 | 限制 | 代码事实 | 对 xlang.toml 影响 |
 |------|----------|-------------------|
-| **`CFG_MAX_ENTRIES = 64`** | `std/config/config.x`（＋`CfgEntry[64]`＋`CFG_STORE_SIZE=29000`） | 刀 **11.26** 实测 `xlang.toml` 扁平 **kv=68／unique=61** → **>64** 中途 `CFG_ERR_FULL`；抬容须三处同步（建议 256／512） |
+| **`CFG_MAX_ENTRIES = 256`** | `std/config/config.x`（＋`CfgEntry[256]`＋`CFG_STORE_SIZE=120000`） | 刀 **11.27** 原子抬升；C smoke **128** keys OK；`xlang.toml` Full 仍受 array／inline 正交裂缝限制 |
 | **`CFG_KEY_MAX = 128` / `CFG_VAL_MAX = 256`** | 同 | 长 path / 多 feature 列表受限 |
 | **`CFG_FILE_MAX = 65536`** | 同 | 一般够用；超大生成 toml 需警惕 |
 | **无 array-of-string** | README 限制 | 示例 `target = ["a","b"]`、`default = ["std","async"]`、`exclude = []` **当前解析不了** |
@@ -577,7 +577,7 @@ fn main_cmd_build(argc, argv):
 - [ ] `--print-config` 含来源  
 - [ ] 无 toml 路径 bstrict/矩阵不回退  
 - [ ] 不引入 build.x 写参数  
-- [ ] `CFG_MAX_ENTRIES` 足够  
+- [x] `CFG_MAX_ENTRIES` 足够（刀 **11.27**：256；array／inline 仍欠）  
 - [ ] Core example gate 绿  
 - [ ] PLATFORM 相关键有注释（Windows TEMP 等）  
 - [ ] G.7：无第二套 merge 逻辑  
@@ -602,4 +602,5 @@ fn main_cmd_build(argc, argv):
 |------|------|
 | 2026-07-21 | 初版：4 层 4 阶段、字段映射、build_use_asm_only 冲突 |
 | 2026-07-21 | **全面重写**：现状校准；CFG_MAX/数组裂缝；Core/Full；发现路径；env 表；默认引擎 M0；阶段 0 地基；双问题域；假绿禁令；与 build-x 契约；检查清单 |
-| 2026-11-03 | 刀 **11.26** LOCATE：flat kv＝68／unique＝61；确认 `CFG_MAX_ENTRIES`／`CfgEntry[N]`／`CFG_STORE_SIZE` 原子耦合；plant HOLD |
+| 2026-11-03 | 刀 **11.26** LOCATE HOLD：flat kv＝68／unique＝61；三耦确认 |
+| 2026-11-03 | 刀 **11.27** plant：MAX＝256／`CfgEntry[256]`／STORE＝120000；C smoke 128 OK；array／inline 正交未勾 |
