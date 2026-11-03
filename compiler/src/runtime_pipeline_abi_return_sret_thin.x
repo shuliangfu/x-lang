@@ -38,6 +38,8 @@ export extern function asm_ctx_local_find_offset(ctx: *u8, name: *u8, name_len: 
 export extern function backend_enc_lea_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
 export extern function link_abi_host_is_windows(): i32;
 export extern function backend_enc_load_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
+export extern function backend_enc_load_rbp_to_rbx_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
+export extern function backend_enc_mov_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_mov_rax_to_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i32): i32;
 export extern function pipeline_asm_emit_set_call_sret_reg_shift_c(shift: i32): void;
 export extern function pipeline_asm_set_call_expected_ret_ty_c(type_ref: i32): void;
@@ -891,11 +893,11 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
               opk_u55 = pipeline_expr_kind_ord_at(arena, ret_op_u44);
             }
           }
-          /* DIG4 SoftCap: Win STRUCT_LIT(45) aggregate return — materialize
-           * like let-init into a frame temp, LEA rax, then rs_copy into the
-           * hidden *rcx home. VAR(3)/FIELD(44) keep lvalue + rs_copy.
-           * Prefer lit/fwd/_var_let use return W{…}; local uses let+return v.
-           * PLATFORM: WINDOWS. */
+          /* DIG4 SoftCap + Prefer-M2 SoftCap tip.x dest-direct (10.79):
+           * Win STRUCT_LIT(45) aggregate return writes DEST_IN_RBX via saved
+           * sret home (no temp+LEA+rs_copy). VAR(3)/FIELD(44) keep lvalue +
+           * rs_copy. Prefer lit/fwd/_var_let use return W{…}; local uses
+           * let+return v. PLATFORM: WINDOWS. */
           if (opk_u55 == 3 || opk_u55 == 44) {
             unsafe {
               rc_u45 = pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, ret_op_u44, ctx, ta);
@@ -907,8 +909,12 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
               win_forced_u56 = 1;
             }
           } else if (opk_u55 == 45) {
+            /* Prefer-M2 SoftCap tip.x dest-direct (10.79): Win STRUCT_LIT(45)
+             * aggregate return — rbx ← [rbp-home] (saved sret), emit fields
+             * via DEST_IN_RBX (-3); skip temp+LEA+rs_copy identity. Elevates
+             * SoftCap dig-egg Prefer-M2 dest-direct (p1061) into tip.x.
+             * nested_let SoftCap Prefer residual HOLD. PLATFORM: WINDOWS. */
             let rty_u45a: i32 = 0;
-            let temp_u45b: i32 = 0 - 1;
             let st_u45c: i32 = 0;
             let mod_u45d: *u8 = 0 as *u8;
             let fi_u45e: i32 = 0;
@@ -928,23 +934,20 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
             }
             if (rty_u45a > 0) {
               unsafe {
-                temp_u45b = glue_simd_alloc_vector_temp_slot_c(arena, ctx, rty_u45a);
+                rc_u45 = backend_enc_load_rbp_to_rbx_arch(elf_ctx, home_u50, ta);
               }
-            }
-            if (temp_u45b >= 0) {
-              unsafe {
-                st_u45c = glue_emit_struct_type_let_init_elf_c(
-                  arena, elf_ctx, ret_op_u44, ctx, ta, rty_u45a, temp_u45b);
-              }
-              if (st_u45c == 0) {
+              if (rc_u45 == 0) {
                 unsafe {
-                  rc_u45 = backend_enc_lea_rbp_to_rax_arch(elf_ctx, temp_u45b, ta);
+                  st_u45c = glue_emit_struct_type_let_init_elf_c(
+                    arena, elf_ctx, ret_op_u44, ctx, ta, rty_u45a, 0 - 3);
                 }
-                if (rc_u45 == 0) {
-                  if (w1521_rs_copy_x86(elf_ctx, home_u50, rsz_u51) < 0) {
-                    return 0 - 1;
+                if (st_u45c == 0) {
+                  unsafe {
+                    rc_u45 = backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
                   }
-                  win_forced_u56 = 1;
+                  if (rc_u45 == 0) {
+                    win_forced_u56 = 1;
+                  }
                 }
               }
             }
