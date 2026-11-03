@@ -52,6 +52,37 @@ restore_cap_tip_idle() {
       [ -x "$_c/bootstrap_xlangc" ] && cp -f "$_c/bootstrap_xlangc" "$COMPILER_DIR/bootstrap_xlangc" 2>/dev/null || true
       codesign -s - -f "$COMPILER_DIR/xlang" "$COMPILER_DIR/xlang_asm" "$COMPILER_DIR/xlang-c" "$COMPILER_DIR/bootstrap_xlangc" >/dev/null 2>&1 || true
       log "idle: restored Cap tip product from $_c (size=$_sz)"
+      # 10.77 leaves guardrail: cold step1 wipes formal_mod .o; FAIL before
+      # step6c leaves tip L2 opt/si red even with healthy Cap tip binary.
+      if [ -d "$_c/leaves" ]; then
+        mkdir -p "$ROOT/core/option" "$ROOT/core/result" "$ROOT/core/mem" "$ROOT/core/types" \
+          "$ROOT/std/string" "$ROOT/std/set" "$ROOT/std/queue" "$ROOT/std/fs" \
+          "$ROOT/std/compress/gzip" "$ROOT/std/net" "$ROOT/std/thread" "$ROOT/std/io"
+        for _lf in option.o result.o mem.o types.o string.o set.o queue.o fs.o gzip.o net.o thread.o driver.o; do
+          [ -f "$_c/leaves/$_lf" ] || continue
+          case "$_lf" in
+            option.o) _ld="$ROOT/core/option/option.o" ;;
+            result.o) _ld="$ROOT/core/result/result.o" ;;
+            mem.o) _ld="$ROOT/core/mem/mem.o" ;;
+            types.o) _ld="$ROOT/core/types/types.o" ;;
+            string.o) _ld="$ROOT/std/string/string.o" ;;
+            set.o) _ld="$ROOT/std/set/set.o" ;;
+            queue.o) _ld="$ROOT/std/queue/queue.o" ;;
+            fs.o) _ld="$ROOT/std/fs/fs.o" ;;
+            gzip.o) _ld="$ROOT/std/compress/gzip/gzip.o" ;;
+            net.o) _ld="$ROOT/std/net/net.o" ;;
+            thread.o) _ld="$ROOT/std/thread/thread.o" ;;
+            driver.o) _ld="$ROOT/std/io/driver.o" ;;
+            *) continue ;;
+          esac
+          cp -f "$_c/leaves/$_lf" "$_ld" 2>/dev/null || true
+        done
+        for _lf in runtime_process_argv.o runtime_thread_glue.o runtime_net_workers.o runtime_compress_zlib_glue.o; do
+          [ -f "$_c/leaves/$_lf" ] || continue
+          cp -f "$_c/leaves/$_lf" "$COMPILER_DIR/$_lf" 2>/dev/null || true
+        done
+        log "idle: restored Cap tip formal_mod leaves from $_c/leaves"
+      fi
     fi
   fi
 }
