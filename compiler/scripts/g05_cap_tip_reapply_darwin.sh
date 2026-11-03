@@ -1808,16 +1808,58 @@ _cap_tip_fill_missing_objs() {
         && echo "g05_cap_tip_reapply: re-asserted arms_div after pabi stomp (10.56)" >&2 || true
     fi
     # 10.60 isol-C: fa_array emit_return gains Darwin rs_copy_to_dest; CACHE/pabi
-    # would restore pre-isol-C body. Always tip-compile after stomp.
-    # PLATFORM: MACOS Cap tip.
+    # would restore pre-isol-C body. Tip-compile after stomp, but Cap tip host
+    # often emits undersized fa (emit_return~12KB vs REF~16.5KB) → ret_fixed_s24
+    # XT001. 10.77 Prefer-M2: accept tip only if __text >= CACHE REF; else REF.
+    # Prefer pin-egg tip-compile when Cap tip undersizes. PLATFORM: MACOS Cap tip.
     if [ -f src/runtime_pipeline_abi_fixed_array_copy_thin.x ]; then
-      XLANG_PREFER_ASM_O=1 "${_ns_xl:-./xlang}" -backend asm -c \
-        src/runtime_pipeline_abi_fixed_array_copy_thin.x \
-        -o build_asm/selfhost_pabi/fa_array_lit_a64.o 2>/dev/null \
-        && nm -u build_asm/selfhost_pabi/fa_array_lit_a64.o 2>/dev/null \
-             | grep -q '_pipeline_w1521_rs_copy_to_dest' \
-        && echo "g05_cap_tip_reapply: re-asserted fa_array (10.60 isol-C rs_copy)" >&2 \
-        || echo "g05_cap_tip_reapply: WARN fa_array isol-C re-assert failed" >&2
+      _fa_o=build_asm/selfhost_pabi/fa_array_lit_a64.o
+      _fa_ref=""
+      for _fr in \
+          "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/fa_array_lit_a64.o" \
+          /tmp/cap_tip_l4_safe_406200eef/pabi/fa_array_lit_a64.o; do
+        [ -s "$_fr" ] && _fa_ref="$_fr" && break
+      done
+      _fa_ref_tsz=0
+      if [ -n "$_fa_ref" ]; then
+        _fa_ref_tsz=$(otool -l "$_fa_ref" 2>/dev/null | awk '/sectname __text/{f=1} f&&/size/{print $2; exit}')
+        _fa_ref_tsz=$((_fa_ref_tsz))
+      fi
+      _fa_ok=0
+      # Prefer pin-egg then Cap tip REF vehicle (same order as FixC12j)
+      for _fa_xl in \
+          seeds/bootstrap_xlangc.darwin.arm64 \
+          "${_ns_xl:-}" \
+          /tmp/cap_tip_l4_safe_406200eef/xlang \
+          "${XLANG_CAP_TIP_L4_CACHE:-}/xlang" \
+          ./xlang; do
+        [ -n "$_fa_xl" ] && [ -x "$_fa_xl" ] || continue
+        if XLANG_PREFER_ASM_O=1 "$_fa_xl" -backend asm -c \
+             src/runtime_pipeline_abi_fixed_array_copy_thin.x \
+             -o "$_fa_o" 2>/dev/null \
+          && [ -s "$_fa_o" ] \
+          && nm -u "$_fa_o" 2>/dev/null | grep -q '_pipeline_w1521_rs_copy_to_dest'; then
+          _fa_tsz=$(otool -l "$_fa_o" 2>/dev/null | awk '/sectname __text/{f=1} f&&/size/{print $2; exit}')
+          _fa_tsz=$((_fa_tsz))
+          # Accept if no REF, or tip text within 512B of REF or larger
+          if [ "$_fa_ref_tsz" -le 0 ] || [ "$_fa_tsz" -ge $((_fa_ref_tsz - 512)) ]; then
+            _fa_ok=1
+            echo "g05_cap_tip_reapply: Prefer-M2 fa_array tip OK (text=$_fa_tsz via $_fa_xl; REF=$_fa_ref_tsz)" >&2
+            break
+          fi
+          echo "g05_cap_tip_reapply: Prefer-M2 reject undersized fa_array tip (text=$_fa_tsz via $_fa_xl; REF=$_fa_ref_tsz)" >&2
+        fi
+        rm -f "$_fa_o"
+      done
+      if [ "$_fa_ok" != 1 ] && [ -n "$_fa_ref" ]; then
+        cp -f "$_fa_ref" "$_fa_o"
+        echo "g05_cap_tip_reapply: Prefer-M2 restored fa_array from CACHE REF (text=$_fa_ref_tsz)" >&2
+        _fa_ok=1
+      fi
+      if [ "$_fa_ok" != 1 ]; then
+        echo "g05_cap_tip_reapply: WARN fa_array isol-C Prefer-M2 failed" >&2
+      fi
+      unset _fa_o _fa_ref _fa_ref_tsz _fa_ok _fa_xl _fa_tsz _fr
     fi
     # 10.67 FixC-follow Prefer-M2: Cap tip cache vehicle when tip-cold CG002s.
     # Re-assert outbuf_len / pipe_elf / peel helpers after CACHE/pabi stomp so
@@ -3153,40 +3195,78 @@ _1037_disp_ov=build_asm/selfhost_pabi/typeck_binop_dispatch.o
 _1037_cmp_x=src/typeck/typeck_check_expr_binop_cmp_usual_arith_thin.x
 _1037_disp_x=src/typeck/typeck_check_expr_binop_dispatch_thin.x
 if [ -f "$_1037_cmp_x" ] && [ -f "$_1037_disp_x" ]; then
-  # 10.22: NEVER tip-compile thin with live ./xlang / CACHE Cap tip — a Cap tip
-  # that already linked a broken thin host will miscompile let-init+call (no
-  # mov #0xe / no pipeline_expr_kind_ord_at), and NE/if then fail XT001.
-  # Prefer frozen safe Cap tip, then seed bootstrap only.
-  _1037_host=""
-  for _h in /tmp/cap_tip_l4_safe_406200eef/xlang \
-    seeds/bootstrap_xlangc.darwin.arm64; do
-    [ -x "$_h" ] && _1037_host="$_h" && break
+  # 10.22/10.77 Prefer-M2: Cap tip (even L2-green) tip-compiles binop_cmp thin
+  # undersized (~3048 vs REF ~3968) → NE/if XT001 on ret_fixed_s24. Prefer
+  # pin-egg first; size-gate vs CACHE REF; restore REF on undersize.
+  # PLATFORM: MACOS Cap tip.
+  _1037_cmp_ref=""
+  for _cr in \
+      "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/typeck_binop_cmp_usual_arith.o" \
+      /tmp/cap_tip_l4_safe_406200eef/pabi/typeck_binop_cmp_usual_arith.o; do
+    [ -s "$_cr" ] && _1037_cmp_ref="$_cr" && break
   done
-  if [ -z "$_1037_host" ]; then
-    echo "g05_cap_tip_reapply: ERROR 10.37 no host to compile thin" >&2
-    exit 1
+  _1037_cmp_ref_tsz=0
+  if [ -n "$_1037_cmp_ref" ]; then
+    _1037_cmp_ref_tsz=$(otool -l "$_1037_cmp_ref" 2>/dev/null | awk '/sectname __text/{f=1} f&&/size/{print $2; exit}')
+    _1037_cmp_ref_tsz=$((_1037_cmp_ref_tsz))
   fi
+  _1037_host=""
+  _1037_cmp_ok=0
   mkdir -p build_asm/selfhost_pabi
-  if ! "$_1037_host" -backend asm -c "$_1037_cmp_x" -o "$_1037_cmp_ov" \
-      >/tmp/g05_1037_thin_compile.log 2>&1 \
-    || ! nm -gU "$_1037_cmp_ov" 2>/dev/null | grep -qE 'T _typeck_check_expr_binop_cmp$'; then
-    echo "g05_cap_tip_reapply: ERROR 10.37 cmp thin compile failed" >&2
-    cat /tmp/g05_1037_thin_compile.log >&2 || true
-    exit 1
+  for _h in seeds/bootstrap_xlangc.darwin.arm64 \
+      /tmp/cap_tip_l4_safe_406200eef/xlang \
+      "${XLANG_CAP_TIP_L4_CACHE:-}/xlang"; do
+    [ -x "$_h" ] || continue
+    if "$_h" -backend asm -c "$_1037_cmp_x" -o "$_1037_cmp_ov" \
+         >/tmp/g05_1037_thin_compile.log 2>&1 \
+      && nm -gU "$_1037_cmp_ov" 2>/dev/null | grep -qE 'T _typeck_check_expr_binop_cmp$'; then
+      _tsz=$(otool -l "$_1037_cmp_ov" 2>/dev/null | awk '/sectname __text/{f=1} f&&/size/{print $2; exit}')
+      _tsz=$((_tsz))
+      if [ "$_1037_cmp_ref_tsz" -le 0 ] || [ "$_tsz" -ge $((_1037_cmp_ref_tsz - 256)) ]; then
+        _1037_host="$_h"
+        _1037_cmp_ok=1
+        echo "g05_cap_tip_reapply: Prefer-M2 binop_cmp tip OK (text=$_tsz via $_h; REF=$_1037_cmp_ref_tsz)" >&2
+        break
+      fi
+      echo "g05_cap_tip_reapply: Prefer-M2 reject undersized binop_cmp tip (text=$_tsz via $_h; REF=$_1037_cmp_ref_tsz)" >&2
+    fi
+    rm -f "$_1037_cmp_ov"
+  done
+  if [ "$_1037_cmp_ok" != 1 ]; then
+    if [ -n "$_1037_cmp_ref" ]; then
+      cp -f "$_1037_cmp_ref" "$_1037_cmp_ov"
+      _1037_cmp_ok=1
+      echo "g05_cap_tip_reapply: Prefer-M2 restored binop_cmp from CACHE REF (text=$_1037_cmp_ref_tsz)" >&2
+    else
+      echo "g05_cap_tip_reapply: ERROR 10.37 cmp thin compile failed" >&2
+      cat /tmp/g05_1037_thin_compile.log >&2 || true
+      exit 1
+    fi
   fi
-  if ! "$_1037_host" -backend asm -c "$_1037_disp_x" -o "$_1037_disp_ov" \
-      >/tmp/g05_1037_disp_compile.log 2>&1 \
-    || ! nm -gU "$_1037_disp_ov" 2>/dev/null | grep -qE 'T _typeck_check_expr_binop$'; then
+  # Dispatch: same host order; egg first. Require mov #0xe sanity.
+  _1037_disp_ok=0
+  for _h in seeds/bootstrap_xlangc.darwin.arm64 \
+      /tmp/cap_tip_l4_safe_406200eef/xlang \
+      "${XLANG_CAP_TIP_L4_CACHE:-}/xlang" \
+      "$_1037_host"; do
+    [ -n "$_h" ] && [ -x "$_h" ] || continue
+    if "$_h" -backend asm -c "$_1037_disp_x" -o "$_1037_disp_ov" \
+         >/tmp/g05_1037_disp_compile.log 2>&1 \
+      && nm -gU "$_1037_disp_ov" 2>/dev/null | grep -qE 'T _typeck_check_expr_binop$' \
+      && otool -tV "$_1037_disp_ov" 2>/dev/null | grep -q "mov\tw0, #0xe"; then
+      _1037_disp_ok=1
+      _1037_host="$_h"
+      echo "g05_cap_tip_reapply: Prefer-M2 binop_dispatch tip OK (via $_h)" >&2
+      break
+    fi
+    rm -f "$_1037_disp_ov"
+  done
+  if [ "$_1037_disp_ok" != 1 ]; then
     echo "g05_cap_tip_reapply: ERROR 10.37 dispatch thin compile failed" >&2
     cat /tmp/g05_1037_disp_compile.log >&2 || true
     exit 1
   fi
-  # Sanity: safe/seed host must emit EQ const init (mov #0xe). Broken Cap tip
-  # hosts skip let-inits and leave stack garbage → if (x!=5) not bool.
-  if ! otool -tV "$_1037_disp_ov" 2>/dev/null | grep -q "mov\tw0, #0xe"; then
-    echo "g05_cap_tip_reapply: ERROR 10.37 dispatch thin missing mov #0xe (bad host $_1037_host)" >&2
-    exit 1
-  fi
+  unset _1037_cmp_ref _1037_cmp_ref_tsz _1037_cmp_ok _1037_disp_ok _tsz _cr
   case " $G05_OBJS " in
     *" typeck_binop_cmp_usual_arith.o "*) ;;
     *)

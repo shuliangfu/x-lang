@@ -183,8 +183,31 @@ mkdir -p "$CACHE/leaves"
            compiler/runtime_net_workers.o compiler/runtime_compress_zlib_glue.o; do
     if [ -f "$f" ]; then cp -f "$f" "$CACHE/leaves/"; fi
   done
-  # Cap tip heat vehicles (for -E after binary wipe; NOT final tip)
-  cp -f compiler/xlang compiler/xlang_asm compiler/xlang-c compiler/bootstrap_xlangc "$CACHE/" 2>/dev/null || true
+  # Cap tip heat vehicles (for -E after binary wipe; NOT final tip).
+  # 10.77 Prefer-M2: only snapshot Cap tip into CACHE when ret_fixed_s24=110.
+  # Mid-fail Cap tip (undersized fa/binop) must never poison CACHE host.
+  # PLATFORM: MACOS Cap tip L4.
+  _snap_ok=0
+  if [ -x compiler/xlang_asm ] && [ -f tests/boundary/ret_fixed_s24.x ]; then
+    rm -f /tmp/cap_tip_l4_s24_snap
+    set +e
+    compiler/xlang_asm -o /tmp/cap_tip_l4_s24_snap tests/boundary/ret_fixed_s24.x >/dev/null 2>&1
+    _c_rc=$?
+    _r_rc=1
+    if [ "$_c_rc" -eq 0 ] && [ -x /tmp/cap_tip_l4_s24_snap ]; then
+      /tmp/cap_tip_l4_s24_snap >/dev/null 2>&1
+      _r_rc=$?
+    fi
+    set -e
+    [ "$_r_rc" -eq 110 ] && _snap_ok=1
+  fi
+  if [ "$_snap_ok" = 1 ]; then
+    cp -f compiler/xlang compiler/xlang_asm compiler/xlang-c compiler/bootstrap_xlangc "$CACHE/" 2>/dev/null || true
+    echo "product_l4_cap_tip: step0b CACHE Cap tip snapshotted (s24=110)" >&2
+  else
+    echo "product_l4_cap_tip: step0b KEEP prior CACHE Cap tip (product s24!=110)" >&2
+  fi
+  unset _snap_ok _c_rc _r_rc
 )
 log "step0b: leaves/vehicles snapshotted"
 
