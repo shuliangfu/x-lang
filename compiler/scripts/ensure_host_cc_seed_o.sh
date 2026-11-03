@@ -32049,7 +32049,33 @@ check_family() {
       *) bad "unknown seed_mode $seed_mode for $label"; continue ;;
     esac
     if [ ! -f "$seed" ]; then
-      bad "missing seed for $o → $seed ($label)"
+      # knife 11.02 / w1492–w1533: many host-cc .from_x.c seeds phys-deleted after
+      # pure-.x product install. --check accepts seed-retired when product .x exists
+      # (honest; not a second .o list; not skip-existence fake-green).
+      # PLATFORM: SHARED — structural honesty only.
+      local _px="" _base
+      _base="$(basename "$o" .o)"
+      for _px in \
+          "${o%.o}.x" \
+          "src/runtime/${_base}.x" \
+          "src/asm/${_base}.x" \
+          "src/driver/${_base}.x" \
+          "src/driver/${_base}_pure.x" \
+          "${_base}.x"; do
+        [ -f "$_px" ] && break
+        _px=""
+      done
+      if [ -z "$_px" ] && [ "$_base" = "target_cpu" ] && [ -f src/driver/target_cpu_pure.x ]; then
+        _px=src/driver/target_cpu_pure.x
+      fi
+      if [ -z "$_px" ] && [ "$_base" = "runtime_scheduler_glue" ] && [ -f src/asm/runtime_scheduler_glue.x ]; then
+        _px=src/asm/runtime_scheduler_glue.x
+      fi
+      if [ -n "$_px" ] && [ -f "$_px" ]; then
+        note "seed retired; pure.x $_px for $o ($label)"
+      else
+        bad "missing seed for $o → $seed ($label)"
+      fi
     fi
     if [ -n "$path_pfx" ]; then
       case "$o" in

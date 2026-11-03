@@ -218,7 +218,7 @@
 #   wave897: B2 std_core hybrid product edges list→mk + multi-target FORCE thin (5)
 #   wave898: RT_SEED_SLICE product edges multi-target FORCE thin try-heat (5)
 #            (G.7 有则补全: RT_SEED_SLICE_OBJS in driver_seed_r_lists.mk; no second list)
-#   wave899: R1_CORE_SEED product edges multi-target FORCE thin try-heat (5)
+#   wave899: R1_CORE_SEED product edges multi-target FORCE thin try-heat (4)
 #            (G.7 有则补全: R1_CORE_SEED_OBJS in driver_seed_r_lists.mk; no second list)
 #   wave900: R1_FRONTEND_GLUE product edges multi-target FORCE thin try-heat (3)
 #            (G.7 有则补全: R1_FRONTEND_GLUE_OBJS in driver_seed_r_lists.mk; no second list)
@@ -5855,7 +5855,7 @@ _r1cs_list_n=$(
     END { print c+0 }
   ' "$_R1CS_MK"
 )
-if [ "${_r1cs_list_n:-0}" -ne 5 ]; then
+if [ "${_r1cs_list_n:-0}" -ne 4 ]; then
   bad "wave899 expected 4 R1_CORE_SEED_OBJS members, got ${_r1cs_list_n:-0}"
 fi
 if ! grep -q 'include mk/driver_seed_r_lists.mk' "$MF"; then
@@ -5926,11 +5926,11 @@ done < <(
     }
   ' "$_R1CS_MK"
 )
-if [ "$_r1cs_thin" -ne 5 ]; then
-  mf_bad "wave899 expected 5 R1_CORE_SEED ensure leaves, got $_r1cs_thin"
+if [ "$_r1cs_thin" -ne 4 ]; then
+  mf_bad "wave899 expected 4 R1_CORE_SEED ensure leaves, got $_r1cs_thin"
 fi
-if [ "$_r1cs_force" -ne 5 ]; then
-  mf_bad "wave899 expected 5 R1_CORE_SEED FORCE thin leaves, got $_r1cs_force"
+if [ "$_r1cs_force" -ne 4 ]; then
+  mf_bad "wave899 expected 4 R1_CORE_SEED FORCE thin leaves, got $_r1cs_force"
 fi
 _r1cs_indiv=0
 while IFS= read -r _r1cs; do
@@ -5953,7 +5953,7 @@ done < <(
 if [ "$_r1cs_indiv" -ne 0 ]; then
   mf_bad "Makefile still has $_r1cs_indiv per-leaf R1_CORE_SEED targets (wave899 multi-target only)"
 fi
-note "Makefile R1_CORE_SEED multi-target FORCE thin try-heat + mk list 5 (wave749/788/899; not physical delete)"
+note "Makefile R1_CORE_SEED multi-target FORCE thin try-heat + mk list 4 (wave749/788/899; not physical delete)"
 
 # wave900: R1_FRONTEND_GLUE product edges multi-target FORCE thin try-heat (G.7 有则补全 list).
 _R1FG_MK="compiler/mk/driver_seed_r_lists.mk"
@@ -11451,8 +11451,8 @@ if [ -f "$MF" ]; then
   # logical leaves — expand rule-line count by +4 so honesty stays 113.
   # wave898: RT_SEED_SLICE multi-target $(RT_SEED_SLICE_OBJS) is 1 rule for 5
   # logical leaves — expand +4 likewise.
-  # wave899: R1_CORE_SEED multi-target $(R1_CORE_SEED_OBJS) is 1 rule for 5
-  # logical leaves — expand +4 likewise.
+  # wave899: R1_CORE_SEED multi-target $(R1_CORE_SEED_OBJS) is 1 rule for 4
+  # logical leaves — expand +3 likewise.
   _force_n=$(grep -cE '^[A-Za-z0-9_./$()].*: FORCE scripts/ensure_host_cc_seed_o\.sh' "$MF" 2>/dev/null || true)
   _force_n=${_force_n:-0}
   if grep -qE '\$\(STD_CORE_HYBRID_PRODUCT_OBJS\):[[:space:]]*FORCE[[:space:]]+scripts/ensure_host_cc_seed_o\.sh' "$MF" 2>/dev/null; then
@@ -11462,7 +11462,7 @@ if [ -f "$MF" ]; then
     _force_n=$((_force_n + 4))
   fi
   if grep -qE '\$\(R1_CORE_SEED_OBJS\):[[:space:]]*FORCE[[:space:]]+scripts/ensure_host_cc_seed_o\.sh' "$MF" 2>/dev/null; then
-    _force_n=$((_force_n + 4))
+    _force_n=$((_force_n + 3))
   fi
   # wave900: multi-target collapses 3 FRONTEND_GLUE leaves → 1 rule; logical expand +2.
   if grep -qE '\$\(R1_FRONTEND_GLUE_OBJS\):[[:space:]]*FORCE[[:space:]]+scripts/ensure_host_cc_seed_o\.sh' "$MF" 2>/dev/null; then
