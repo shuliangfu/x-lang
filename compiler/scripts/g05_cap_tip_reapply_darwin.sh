@@ -41,6 +41,21 @@ fi
 # Cap tip this-wave: ASM_DEBUG note path SEGVs on diag loc (ctx); keep off for reapply/L2.
 unset XLANG_ASM_DEBUG || true
 
+# 10.77 Prefer-M2: tip-cold ./xlang_asm SEGVs on Darwin tip-compile during Cap
+# reapply; prefer Cap tip L4 cache (or staged Cap tip host) as compile XLANG.
+# Final Cap tip still comes from this-wave relink. PLATFORM: MACOS Cap tip.
+_cap_tip_host_xl() {
+  _h=""
+  [ -n "${XLANG_CAP_TIP_L4_CACHE:-}" ] && [ -x "${XLANG_CAP_TIP_L4_CACHE}/xlang_asm" ] && _h="${XLANG_CAP_TIP_L4_CACHE}/xlang_asm"
+  [ -z "$_h" ] && [ -n "${XLANG_CAP_TIP_L4_CACHE:-}" ] && [ -x "${XLANG_CAP_TIP_L4_CACHE}/xlang" ] && _h="${XLANG_CAP_TIP_L4_CACHE}/xlang"
+  [ -z "$_h" ] && [ -x /tmp/cap_tip_l4_safe_406200eef/xlang_asm ] && _h=/tmp/cap_tip_l4_safe_406200eef/xlang_asm
+  [ -z "$_h" ] && [ -n "${XLANG:-}" ] && [ -x "${XLANG}" ] && _h="$XLANG"
+  [ -z "$_h" ] && [ -x ./xlang_asm ] && _h=./xlang_asm
+  [ -z "$_h" ] && [ -x ./xlang ] && _h=./xlang
+  printf '%s' "$_h"
+}
+
+
 # Recipe objects Cap tip needs (cold g05 may not match Cap tip identity)
 mkdir -p build_asm/selfhost_pabi
 if [ -f "$CACHE/dual_gp_new.o" ]; then
@@ -255,7 +270,8 @@ if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
   # modlet_float_imm.o). PLATFORM: MACOS Cap tip.
   if [ -f src/runtime_pipeline_abi_modlet_f64_imm_thin.x ]; then
     mkdir -p build_asm/selfhost_pabi
-    if ./xlang_asm -c -DXLANG_USE_X_PIPELINE \
+    _f64_xl="$(_cap_tip_host_xl)"
+    if [ -n "$_f64_xl" ] && "$_f64_xl" -c -DXLANG_USE_X_PIPELINE \
         src/runtime_pipeline_abi_modlet_f64_imm_thin.x \
         -o build_asm/selfhost_pabi/modlet_f64_imm.o 2>/dev/null \
       && [ -s build_asm/selfhost_pabi/modlet_f64_imm.o ] \
@@ -302,7 +318,8 @@ if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
   # 10.53: tip-compile f64 seed thin; demote pabi_weak seed_nonzero.
   if [ -f src/runtime_pipeline_abi_modlet_f64_seed_thin.x.DISABLED ]; then
     mkdir -p build_asm/selfhost_pabi
-    if ./xlang_asm -c -DXLANG_USE_X_PIPELINE \
+    _f64s_xl="$(_cap_tip_host_xl)"
+    if [ -n "$_f64s_xl" ] && "$_f64s_xl" -c -DXLANG_USE_X_PIPELINE \
         src/runtime_pipeline_abi_modlet_f64_seed_thin.x \
         -o build_asm/selfhost_pabi/modlet_f64_seed.o 2>/dev/null \
       && [ -s build_asm/selfhost_pabi/modlet_f64_seed.o ] \

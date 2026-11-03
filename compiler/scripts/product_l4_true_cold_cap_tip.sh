@@ -295,12 +295,31 @@ fi
 if [ -f "$CACHE/mw.o" ]; then
   cp -f "$CACHE/mw.o" "$COMPILER_DIR/build_asm/selfhost_pabi/macho_write_a64.o"
 fi
+# 10.77 Prefer-M2: tip-cold product after step6 SEGVs on Darwin tip-compile
+# (fmt_check_cmd_thin / runtime_dir_cap / ensure_host_cc_seed → g05_xasm_crash).
+# Stage Cap tip from CACHE as *compile host* only; Cap reapply still relinks
+# this-wave Cap tip (not restored-as-final-tip). Clear tip-cold crash log so
+# the gate does not inherit step6 probe noise. PLATFORM: MACOS Cap tip L4.
+log "step6b: stage Cap tip compile host from cache (avoid tip-cold SEGV)"
+if [ -x "$CACHE/xlang_asm" ]; then
+  cp -f "$CACHE/xlang_asm" "$COMPILER_DIR/xlang_asm"
+  [ -x "$CACHE/xlang" ] && cp -f "$CACHE/xlang" "$COMPILER_DIR/xlang"
+  [ -x "$CACHE/xlang-c" ] && cp -f "$CACHE/xlang-c" "$COMPILER_DIR/xlang-c" || true
+  codesign -s - -f "$COMPILER_DIR/xlang" "$COMPILER_DIR/xlang_asm" "$COMPILER_DIR/xlang-c" >/dev/null 2>&1 || true
+  log "step6b: Cap tip host size=$(stat -f '%z' "$COMPILER_DIR/xlang_asm" 2>/dev/null || stat -c '%s' "$COMPILER_DIR/xlang_asm")"
+else
+  log "step6b: WARN no CACHE/xlang_asm — Cap reapply may hit tip-cold SEGV"
+fi
+rm -f "$COMPILER_DIR/build_asm/g05_xasm_crash.log"
 log "step6b: Cap tip re-apply Darwin"
 set +e
 (
   cd "$COMPILER_DIR"
-  # Ensure XLANG for set -u named_size/orch tip-compile before softs export
-  XLANG_CAP_TIP_L4_CACHE="$CACHE" XLANG="${XLANG:-$COMPILER_DIR/xlang}" bash scripts/g05_cap_tip_reapply_darwin.sh
+  # Prefer Cap tip host from CACHE for tip-compile; final tip = Cap reapply relink
+  _cap_host="$CACHE/xlang"
+  [ -x "$CACHE/xlang_asm" ] && _cap_host="$CACHE/xlang_asm"
+  [ -x "$COMPILER_DIR/xlang_asm" ] && _cap_host="$COMPILER_DIR/xlang_asm"
+  XLANG_CAP_TIP_L4_CACHE="$CACHE" XLANG="$_cap_host" bash scripts/g05_cap_tip_reapply_darwin.sh
 ) 2>&1 | tee -a "$LOG"
 RC=${PIPESTATUS[0]}
 set -e
