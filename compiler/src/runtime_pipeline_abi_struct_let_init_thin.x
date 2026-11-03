@@ -55,6 +55,7 @@ export extern function pipeline_expr_if_else_ref_at(arena: *u8, expr_ref: i32): 
 export extern function pipeline_expr_if_then_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_kind_ord_at(a: *u8, er: i32): i32;
 export extern function pipeline_expr_block_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_asm_emit_block_prefix_elf(arena: *u8, elf_ctx: *u8, block_ref: i32, ctx: *u8, ta: i32): i32;
 export extern function ast_ast_block_num_lets(arena: *u8, block_ref: i32): i32;
 export extern function ast_ast_block_num_loops(arena: *u8, block_ref: i32): i32;
 export extern function ast_ast_block_final_expr_ref(arena: *u8, block_ref: i32): i32;
@@ -285,6 +286,9 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   let copy_arm: i32 = 0;
   let slot_cur: i32 = 0;
   let slot_io: i32[1] = [];
+  let blk_br: i32 = 0;
+  let blk_fin: i32 = 0;
+  let blk_pref: i32 = 0;
   if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || init_ref <= 0) {
     return 0 - 2;
   }
@@ -316,6 +320,34 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
     if (inl < 0) {
       return 0 - 1;
     }
+  }
+  /* EXPR_BLOCK (26) as struct let-init: emit block prefix (lets/stmts),
+   * then dest-slot let-init the final value. emit_expr+store_retval of a
+   * block whose final is STRUCT_LIT parks a temp and stores a pointer into
+   * the let home while field loads expect value layout (block_pt run=1 on
+   * SoftCap Prefer / Cap tip). G.7: same dest authority as bare STRUCT_LIT.
+   * Prefer-M2 SoftCap tip.x grain (10.89). PLATFORM: SHARED. */
+  if (ko == 26) {
+    unsafe {
+      blk_br = pipeline_expr_block_ref_at(arena, init_ref);
+    }
+    if (blk_br <= 0) {
+      return 0 - 2;
+    }
+    unsafe {
+      blk_fin = ast_ast_block_final_expr_ref(arena, blk_br);
+    }
+    if (blk_fin <= 0) {
+      return 0 - 2;
+    }
+    unsafe {
+      blk_pref = pipeline_asm_emit_block_prefix_elf(arena, elf_ctx, blk_br, ctx, ta);
+    }
+    if (blk_pref != 0) {
+      return 0 - 1;
+    }
+    return glue_emit_struct_type_let_init_elf_c(
+        arena, elf_ctx, blk_fin, ctx, ta, let_ty_ref, stack_slot_off);
   }
   // STRUCT_LIT → field write into slot
   if (ko == 45) {
