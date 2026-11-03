@@ -26,6 +26,8 @@ export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 export extern function backend_enc_jmp_arch(elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32;
 export extern function backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i32): i32;
 export extern function pipeline_elf_ctx_append_bytes(ctx: *u8, ptr: *u8, n: i32): i32;
+export extern function backend_enc_append_u8_c(elf_ctx: *u8, byte: i32): i32;
+export extern function backend_enc_append_u32_le_c(elf_ctx: *u8, word: u32): i32;
 export extern function pipeline_asm_emit_ctx_sret_active_get(): i32;
 export extern function pipeline_asm_emit_ctx_sret_home_off_get(): i32;
 export extern function pipeline_asm_emit_ctx_sret_ret_sz_get(): i32;
@@ -130,27 +132,22 @@ function w1521_rs_fwd_call_x86(arena: *u8, elf_ctx: *u8, op: i32, ctx: *u8, ta: 
   return 0;
 }
 
-/** Append one byte. PLATFORM: LINUX x86_64. */
+/** Append one byte. PLATFORM: LINUX x86_64.
+ * Prefer SoftCap live CG002 grain (10.82): avoid u8[1] stack local —
+ * Soft Cap Prefer of tip.x with let b:u8[1]=[] → CG002 code_len=890.
+ * Use backend_enc_append_u8_c (Soft Caps OK; Darwin Cap tip OK). */
 function w1521_rs_b(elf_ctx: *u8, v: i32): i32 {
-  let b1_u3: u8[1] = [];
-  b1_u3[0] = (v & 255) as u8;
   unsafe {
-    return pipeline_elf_ctx_append_bytes(elf_ctx, &b1_u3[0], 1);
+    return backend_enc_append_u8_c(elf_ctx, v & 255);
   }
-  return 0 - 1;
 }
 
-/** Append a little-endian disp32. PLATFORM: LINUX x86_64. */
+/** Append a little-endian disp32. PLATFORM: LINUX x86_64.
+ * Prefer SoftCap live CG002 grain (10.82): avoid u8[4] stack local. */
 function w1521_rs_d32(elf_ctx: *u8, v: i32): i32 {
-  let b2_u4: u8[4] = [];
-  b2_u4[0] = (v & 255) as u8;
-  b2_u4[1] = ((v >> 8) & 255) as u8;
-  b2_u4[2] = ((v >> 16) & 255) as u8;
-  b2_u4[3] = ((v >> 24) & 255) as u8;
   unsafe {
-    return pipeline_elf_ctx_append_bytes(elf_ctx, &b2_u4[0], 4);
+    return backend_enc_append_u32_le_c(elf_ctx, v as u32);
   }
-  return 0 - 1;
 }
 
 /**
@@ -255,17 +252,12 @@ function w1521_rs_copy_x86_off(elf_ctx: *u8, home: i32, dest_off: i32, width: i3
   return 0;
 }
 
-/** Append one little-endian arm64 instruction word. PLATFORM: MACOS|ARM64. */
+/** Append one little-endian arm64 instruction word. PLATFORM: MACOS|ARM64.
+ * Prefer SoftCap live CG002 grain (10.82): avoid u8[4] stack local. */
 function w1521_rs_a64(elf_ctx: *u8, word: i64): i32 {
-  let b3_u11: u8[4] = [];
-  b3_u11[0] = (word & 255) as u8;
-  b3_u11[1] = ((word >> 8) & 255) as u8;
-  b3_u11[2] = ((word >> 16) & 255) as u8;
-  b3_u11[3] = ((word >> 24) & 255) as u8;
   unsafe {
-    return pipeline_elf_ctx_append_bytes(elf_ctx, &b3_u11[0], 4);
+    return backend_enc_append_u32_le_c(elf_ctx, (word & 4294967295) as u32);
   }
-  return 0 - 1;
 }
 
 /**
