@@ -17,9 +17,9 @@ TIPHEAD = Path(r"C:\xlang_tmp\p1060\cave\lab_CapSoftWin_tiphead.exe")
 OUT = Path(r"C:\xlang_tmp\dig_logs\p1070_softcap_dig_only_gate")
 WORK = Path(r"C:\xlang_tmp\p1060\capsoft_win_rebuild")
 CAVE = Path(r"C:\xlang_tmp\p1060\cave")
-EXPECTED_PROD = "d8e2d409a140"
+EXPECTED_PROD = "74d0bd9c9fbf"  # Soft Cap PROD after 10.70 raise; dig-only HOLD
 EXPECTED_TIP = "9ecd26ea44ab"
-BANNED_HOST = {"a1491a74c08b", "d8e2d409a140", "9ecd26ea44ab", "07eadd3fe8bf"}
+BANNED_HOST = {"a1491a74c08b", "d8e2d409a140", "9ecd26ea44ab", "07eadd3fe8bf", "74d0bd9c9fbf", "1f78def393fc", "5dff12e7772e", "1e59c5261663"}
 
 PARITY = {
     "lit": (
