@@ -1149,14 +1149,15 @@ if [ ! -f tests/HOST_CC_POLICY.md ]; then
   bad "missing tests/HOST_CC_POLICY.md (11.5.2–4 wave741)"
 elif ! grep -q '11\.5\.2' tests/HOST_CC_POLICY.md \
   || ! grep -q '11\.5\.3' tests/HOST_CC_POLICY.md \
-  || ! grep -q '11\.5\.4' tests/HOST_CC_POLICY.md; then
-  bad "HOST_CC_POLICY.md must document 11.5.2 / 11.5.3 / 11.5.4"
+  || ! grep -q '11\.5\.4' tests/HOST_CC_POLICY.md \
+  || ! grep -q '11\.5\.5' tests/HOST_CC_POLICY.md; then
+  bad "HOST_CC_POLICY.md must document 11.5.2 / 11.5.3 / 11.5.4 / 11.5.5"
 elif ! grep -qi 'permanent host-cc whitelist' tests/HOST_CC_POLICY.md; then
   bad "HOST_CC_POLICY.md must state permanent host-cc whitelist ruling"
 elif ! grep -qi 'not product' tests/HOST_CC_POLICY.md; then
   bad "HOST_CC_POLICY.md must state these .c files are not product"
 else
-  note "tests/HOST_CC_POLICY.md present (11.5.2–4 wave741)"
+  note "tests/HOST_CC_POLICY.md present (11.5.2–5 wave741/knife 11.11)"
 fi
 
 # Product g05 chain must not compile tests/std-* or abi/leak/safe C harnesses
@@ -1178,6 +1179,12 @@ if [ "${std_c_n:-0}" -ge 40 ]; then
   note "tests/std-*/*.c inventory floor ok (n=${std_c_n} ≥ 40; 11.5.2)"
 else
   bad "tests/std-*/*.c inventory collapsed (n=${std_c_n}; expect ≥40 for 11.5.2)"
+fi
+sys_c_n=$(find tests/sys -name '*.c' -type f 2>/dev/null | wc -l | tr -d ' ')
+if [ "${sys_c_n:-0}" -ge 30 ]; then
+  note "tests/sys/*.c inventory floor ok (n=${sys_c_n} ≥ 30; 11.5.5)"
+else
+  bad "tests/sys/*.c inventory collapsed (n=${sys_c_n}; expect ≥30 for 11.5.5)"
 fi
 
 for f in \

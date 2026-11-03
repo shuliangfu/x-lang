@@ -17,14 +17,14 @@
 ## 11.5.1 `bench/**/*.c` — permanent host-cc whitelist (diff baseline)
 
 - **Ruling (wave734)**: permanent host-cc whitelist for **differential / throughput baselines only**.
-- **Count (workspace, 2026-07-29)**: ~50–60 `.c` under `bench/` (many untracked local); git-tracked subset is smaller.
+- **Count (git-tracked, 2026-11-03 · knife 11.11)**: **6** under `bench/**/*.c` (workspace may have more untracked).
 - **Consumers**: bench scripts only; never g05 / product `all`.
 - **Prefer**: when a `.x` twin exists, product side compiles `.x`; bare `.c` stays host-cc baseline.
 
 ## 11.5.2 `tests/std-*/*.c` — permanent host-cc whitelist (C smoke harness)
 
 - **Ruling (wave741)**: permanent host-cc whitelist for **module smoke drivers** that `tests/lib/std-*.sh` links with host `cc` against product-built `std/**/*.o`.
-- **Count (workspace, 2026-07-29)**: **50** tracked files under `tests/std-*/*.c`.
+- **Count (git-tracked, 2026-11-03 · knife 11.11)**: **51** under `tests/std-*/*.c`.
 - **Why not rewrite this wave**: MG Track focus is Makefile/xbuild de-make; rewriting ~50 C harnesses is a separate std-test migration and does not unblock 11.3.
 - **Product acceptance**: bstrict / `.x` gates where they exist remain the product green signal; C harness is **extra** std-module smoke, not a substitute for the product matrix.
 - **Inventory (authoritative list for gate floor count ≥40)**:
@@ -99,13 +99,35 @@ tests/std-uuid/uuid_smoke_ok.c
 - **Tracked examples (small)**: `tests/probes/bootstrap-parser/*_gen_probe*.c`.
 - **Workspace local**: large `seed_optional/**` and `prove_x_o/**` trees may exist untracked — still **not product**.
 
+## 11.5.5 `tests/sys/*.c` — permanent host-cc whitelist (Stage 9 cap residual smokes)
+
+- **Ruling (knife 11.11 · §6 10.7 LOCATE)**: permanent host-cc whitelist for **platform cap residual smokes** (`*_cap_*_smoke.c`).
+- **Not product**: never g05 / `./xbuild all` / product OBJ lists / compiler link of `xlang`/`xlang_asm`/`xlang-c`.
+- **Count (git-tracked, 2026-11-03)**: **34** files under `tests/sys/*.c`.
+- **Why keep**: Darwin/Windows/raw syscall cap probes need host `cc` + platform headers; rewriting to `.x` is Stage 12 follow-up, not this knife.
+- **Inventory floor**: count ≥ 30 (gate).
+
+## §6 10.7 LOCATE snapshot (knife 11.11 · 2026-11-03)
+
+| Class | Path | Product chain? | Disposition |
+|-------|------|----------------|-------------|
+| Bench diff baselines | `bench/**/*.c` | **No** | Keep whitelist 11.5.1 (do not mass-delete) |
+| std module C harness | `tests/std-*/*.c` | **No** | Keep whitelist 11.5.2 |
+| ABI/leak/safe/kernel | `tests/abi|leak|safe|kernel/*.c` | **No** | Keep whitelist 11.5.3 |
+| prove/tool generated | `tests/probes/**` (esp. `prove_x_o/**`) | **No** | 11.5.4; prefer untracked/local |
+| Cap residual smokes | `tests/sys/*.c` | **No** | **Whitelist 11.5.5 (this plant)** |
+| Workspace sanitize out | `tests/.out/*.c` | **No** | Already gitignored (`*.out`); do not track |
+| Compiler product | `compiler/**`, seeds product path | **Yes** | **Out of scope — do not touch** |
+
+**Plant this knife**: classify `tests/sys` into HOST_CC_POLICY + gate floor; **no** mass delete of bench/std harnesses (would fake-green 10.7 / break diff baselines).
+
 ## Gate contract (`tests/run-product-path-zero-make-gate.sh`)
 
 Wave741 hard-checks (static):
 
-1. This file exists and names 11.5.1–4 + permanent whitelist language.
+1. This file exists and names 11.5.1–5 + permanent whitelist language.
 2. Product g05 scripts do **not** reference `tests/std-*.c` / abi|leak|safe layout probes as compile inputs.
-3. Floor inventory: `tests/std-*/*.c` count ≥ 40; the four 11.5.3 probe files exist.
+3. Floor inventory: `tests/std-*/*.c` count ≥ 40; the four 11.5.3 probe files exist; `tests/sys/*.c` count ≥ 30 (11.5.5).
 4. `build.x` strategy map mentions tests host-cc policy (section E).
 
 ## Out of scope (follow-ups)
@@ -113,6 +135,7 @@ Wave741 hard-checks (static):
 | Item | Track |
 |------|--------|
 | Rewrite std C harness → `.x` | post-11.3 / stage 12 re-review |
+| Mass-delete / rewrite bench＋sys host `.c` (§6 10.7 residual) | stage 12 / user-approved |
 | Drop bench host-cc entirely | stage 12 |
 | 11.1.1–4 DAG-as-data | Track MG next after policy close |
 | Seed prereq Makefile residual | 11.3 |
