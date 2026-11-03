@@ -16,6 +16,8 @@
 #   (build_refresh_schedule_count / id_at). Bash array derived cache only.
 #   COLD_SCHEDULE authority (10.4 · knife 11.06): build.x export ABI
 #   (build_cold_schedule_count / id_at). Bash array derived cache only.
+#   PRODUCT_NODES／COLD_NODES inventory (10.4 · knife 11.07): build.x export ABI
+#   (build_*_node_count / entry_at). Bash arrays derived cache only.
 #   Execution (11.1.2): this script dry-run/run invokes *existing* body scripts
 #   only — no second compile/link implementation, no dual .o lists.
 #   wave744: cold prereq *edges* → driver_seed_ensure_prereqs.sh (catalog).
@@ -64,41 +66,71 @@ case "$MODE" in
     ;;
 esac
 
-# ---------------------------------------------------------------------------
-# Product daily orchestration nodes (inventory · wave742).
-# Fields: id|xbuild_target|body_relpath_from_compiler
-# body path empty means multi-body or hub-only (validated separately).
-# ---------------------------------------------------------------------------
-PRODUCT_NODES=(
-  "ensure_migrate_gen|migrate-gen|scripts/ensure_migrate_gen.sh"
-  "ensure_driver_gen|driver-gen|scripts/ensure_driver_gen.sh"
-  "ensure_lsp_pipeline_gen|lsp-pipeline-gen|scripts/ensure_lsp_pipeline_gen.sh"
-  "ensure_archaeology_gen|archaeology-gen|scripts/ensure_archaeology_gen.sh"
-  "migrate_x_objs|migrate|scripts/migrate_x_objs.sh"
-  "g05_ensure|ensure|scripts/g05_ensure_relink_prereqs.sh"
-  "g05_link_env|link-env|scripts/g05_relink_env.sh"
-  "g05_prepare_and_relink|link-product|scripts/g05_prepare_and_relink.sh"
-  "refresh_gate|refresh-gate|scripts/refresh_xlang_asm_gate.sh"
-)
 
-# Cold-start shell orchestration (wave744: prereq edges first via catalog ensure).
-# id|make_or_shell_leaf|body (compiler-relative; "-" = pure make leaf export)
-COLD_NODES=(
-  "cold_ensure_prereqs|driver-seed-prereqs|scripts/driver_seed_ensure_prereqs.sh"
-  "cold_check_i64_abi|check-pipeline-gen-expr-i64-abi|scripts/check_pipeline_gen_expr_i64_abi.sh"
-  "cold_pipeline_x|bootstrap-driver-seed-pipeline-x|scripts/bootstrap_driver_seed_rebuild_leaves.sh"
-  "cold_sat|bootstrap-driver-seed-sat-rebuild|scripts/bootstrap_driver_seed_rebuild_leaves.sh"
-  "cold_lsp|bootstrap-driver-seed-lsp-x-objs|scripts/bootstrap_driver_seed_rebuild_leaves.sh"
-  "cold_bridge|bootstrap-driver-seed-bridge|scripts/bootstrap_driver_seed_rebuild_leaves.sh"
-  "cold_user_asm|bootstrap-driver-seed-user-asm-seed-objs|scripts/bootstrap_driver_seed_rebuild_leaves.sh"
-  "cold_asm_glue|bootstrap-driver-seed-asm-glue-standalone|scripts/bootstrap_driver_seed_rebuild_leaves.sh"
-  "cold_asm_host|bootstrap-driver-seed-asm-host|scripts/build_seed_asm_host.sh"
-  "cold_host_stubs|bootstrap-driver-seed-host-stubs|scripts/bootstrap_driver_seed_host_stubs.sh"
-  "cold_phase1_link|bootstrap-driver-seed-phase1-link|scripts/bootstrap_driver_seed_link.sh"
-  "cold_final_link|bootstrap-driver-seed-final-link|scripts/bootstrap_driver_seed_link.sh"
-  "cold_panic|bootstrap-driver-seed-panic|scripts/bootstrap_driver_seed_rebuild_leaves.sh"
-  "cold_orchestrator|bootstrap-driver-seed|scripts/bootstrap_driver_seed.sh"
-)
+# ---------------------------------------------------------------------------
+# 10.4 / knife 11.07: PRODUCT_NODES／COLD_NODES inventory authority = build.x.
+# Bash arrays are derived runtime caches. G.7: no hardcoded inventory literals.
+# Fields remain id|xcode_or_leaf|body_relpath_from_compiler.
+# ---------------------------------------------------------------------------
+PRODUCT_NODES=()
+COLD_NODES=()
+
+load_nodes_from_build_x() {
+  local bx="$ROOT/build.x"
+  local which="$1"  # product|cold
+  local fn_count fn_entry arr_name
+  local _bx_entries _ent
+  if [ "$which" = product ]; then
+    fn_count=build_product_node_count
+    fn_entry=build_product_node_entry_at
+    arr_name=PRODUCT_NODES
+  else
+    fn_count=build_cold_node_count
+    fn_entry=build_cold_node_entry_at
+    arr_name=COLD_NODES
+  fi
+  eval "${arr_name}=()"
+  if [ ! -f "$bx" ]; then
+    echo "product_build_dag: FAIL: missing $bx (${arr_name} authority)" >&2
+    return 1
+  fi
+  if ! grep -q "export function ${fn_count}" "$bx" \
+    || ! grep -q "export function ${fn_entry}" "$bx"; then
+    echo "product_build_dag: FAIL: build.x missing ${arr_name} export ABI" >&2
+    return 1
+  fi
+  _bx_entries=$(
+    awk -v fn="$fn_entry" '
+      index($0, "export function " fn) { in_fn=1; next }
+      in_fn && /return[[:space:]]+"/ {
+        if (match($0, /"[^"]+"/)) {
+          print substr($0, RSTART + 1, RLENGTH - 2)
+        }
+        next
+      }
+      in_fn && /^}/ { exit }
+    ' "$bx"
+  )
+  while IFS= read -r _ent; do
+    [ -z "${_ent:-}" ] && continue
+    eval "${arr_name}+=(\"\${_ent}\")"
+  done <<< "${_bx_entries}"
+  local _n
+  eval "_n=\${#${arr_name}[@]}"
+  if [ "${_n}" -eq 0 ]; then
+    echo "product_build_dag: FAIL: build.x ${arr_name} entry_at parsed 0" >&2
+    return 1
+  fi
+  return 0
+}
+
+if ! load_nodes_from_build_x product; then
+  exit 1
+fi
+if ! load_nodes_from_build_x cold; then
+  exit 1
+fi
+
 
 # ---------------------------------------------------------------------------
 # 11.1.2 schedules (ordered node ids · wave743)
@@ -692,6 +724,72 @@ else
   bad "missing root build.x (COLD_SCHEDULE authority)"
 fi
 
+# 10.4 / knife 11.07: PRODUCT_NODES／COLD_NODES inventory authority = build.x.
+# PLATFORM: SHARED — structural honesty; no tip compile; no g05 body rewrite.
+if [ -f build.x ]; then
+  if ! grep -q 'export function build_product_node_count' build.x     || ! grep -q 'export function build_product_node_entry_at' build.x; then
+    bad "build.x must export build_product_node_count / entry_at (10.4 / 11.07)"
+  elif ! grep -q 'export function build_cold_node_count' build.x     || ! grep -q 'export function build_cold_node_entry_at' build.x; then
+    bad "build.x must export build_cold_node_count / entry_at (10.4 / 11.07)"
+  else
+    _bx_pn=$(
+      awk '
+        /export function build_product_node_count[[:space:]]*\(/ { in_fn=1; next }
+        in_fn && /return[[:space:]]+[0-9]+/ {
+          for (i = 1; i <= NF; i++) {
+            tok = $i; gsub(/;/, "", tok)
+            if (tok ~ /^[0-9]+$/) { print tok; exit }
+          }
+        }
+        in_fn && /^}/ { exit }
+      ' build.x
+    )
+    _bx_cn=$(
+      awk '
+        /export function build_cold_node_count[[:space:]]*\(/ { in_fn=1; next }
+        in_fn && /return[[:space:]]+[0-9]+/ {
+          for (i = 1; i <= NF; i++) {
+            tok = $i; gsub(/;/, "", tok)
+            if (tok ~ /^[0-9]+$/) { print tok; exit }
+          }
+        }
+        in_fn && /^}/ { exit }
+      ' build.x
+    )
+    _bash_pn=${#PRODUCT_NODES[@]}
+    _bash_cn=${#COLD_NODES[@]}
+    if [ -z "${_bx_pn:-}" ] || [ -z "${_bx_cn:-}" ]; then
+      bad "build.x node inventory counts: could not parse return"
+    elif [ "${_bx_pn}" -ne "${_bash_pn}" ] || [ "${_bx_cn}" -ne "${_bash_cn}" ]; then
+      bad "node inventory count mismatch: product build.x=${_bx_pn}/derived=${_bash_pn} cold build.x=${_bx_cn}/derived=${_bash_cn}"
+    elif [ "${_bash_pn}" -eq 0 ] || [ "${_bash_cn}" -eq 0 ]; then
+      bad "PRODUCT_NODES／COLD_NODES derived empty (build.x authority load failed)"
+    else
+      if awk '
+        /^PRODUCT_NODES=\(/ {
+          getline
+          if ($0 ~ /ensure_migrate_gen\|/) { found=1 }
+        }
+        END { exit found ? 0 : 1 }
+      ' "$0"; then
+        bad "hardcoded PRODUCT_NODES literal still present (G.7 dual authority; demote 11.07)"
+      elif awk '
+        /^COLD_NODES=\(/ {
+          getline
+          if ($0 ~ /cold_ensure_prereqs\|/) { found=1 }
+        }
+        END { exit found ? 0 : 1 }
+      ' "$0"; then
+        bad "hardcoded COLD_NODES literal still present (G.7 dual authority; demote 11.07)"
+      else
+        note "PRODUCT_NODES／COLD_NODES authority=build.x (${_bash_pn}+${_bash_cn} entries · derived cache · 10.4/11.07)"
+      fi
+    fi
+  fi
+else
+  bad "missing root build.x (PRODUCT_NODES／COLD_NODES authority)"
+fi
+
 # xbuild first-class product-dag target + 11.1.2 modes
 if grep -qE 'product-dag|build-dag|cold-dag' "$XCODE_REL" \
   && grep -q 'product_build_dag\.sh' "$XCODE_REL"; then
@@ -821,5 +919,5 @@ if [ "$fail" -ne 0 ]; then
   echo "product_build_dag: CHECK FAIL" >&2
   exit 1
 fi
-echo "product_build_dag: CHECK OK (11.1.1+11.1.2 wave743 · 11.3 prereq edges wave744 · 11.1.3/4 wave745 · 11.3.1 leaf residual wave746 · R4 mode wave747 · 10.4 PRODUCT_SCHEDULE authority=build.x 11.03 · REFRESH_SCHEDULE authority=build.x 11.05 · COLD_SCHEDULE authority=build.x 11.06)"
+echo "product_build_dag: CHECK OK (11.1.1+11.1.2 wave743 · 11.3 prereq edges wave744 · 11.1.3/4 wave745 · 11.3.1 leaf residual wave746 · R4 mode wave747 · 10.4 PRODUCT_SCHEDULE authority=build.x 11.03 · REFRESH_SCHEDULE authority=build.x 11.05 · COLD_SCHEDULE authority=build.x 11.06 · PRODUCT_NODES／COLD_NODES authority=build.x 11.07)"
 exit 0

@@ -28,7 +28,10 @@
 //     + REFRESH_SCHEDULE authority (build_refresh_schedule_count /
 //       build_refresh_schedule_id_at · 10.4 knife 11.05 demote)
 //     + COLD_SCHEDULE authority (build_cold_schedule_count /
-//       build_cold_schedule_id_at · 10.4 knife 11.06 demote).
+//       build_cold_schedule_id_at · 10.4 knife 11.06 demote)
+//     + PRODUCT_NODES／COLD_NODES inventory authority
+//       (build_product_node_count／entry_at · build_cold_node_count／entry_at ·
+//        10.4 knife 11.07 demote).
 //   - Product orchestration authority today is **`./xbuild` → xlang-build.sh**
 //     plus **compiler/scripts/g05_*.sh** (not Makefile recipes for daily path).
 //   - Cold-start / residual leaf .o graphs use shell catalog + compiler-make hub (Makefile deleted wave942); was
@@ -108,6 +111,10 @@
 // -----------------------------------------------------------------------------
 //   Authority map: compiler/docs/BUILD_DAG.md
 //   Machine check: compiler/scripts/product_build_dag.sh
+//   PRODUCT_NODES／COLD_NODES inventory ABI (10.4 · knife 11.07 demote):
+//     build_product_node_count／entry_at · build_cold_node_count／entry_at
+//     entry format id|xcode_or_leaf|body_relpath (same as former bash arrays).
+//     product_build_dag.sh loads derived bash caches (G.7 no dual literals).
 //   ./xbuild product-dag | build-dag | cold-dag
 //   ./xbuild product-dag --check
 //   ./xbuild product-dag --dry-run [product|refresh|cold]
@@ -388,5 +395,64 @@ export function build_cold_schedule_id_at(i: i32): *u8 {
   if (i == 11) { return "cold_final_link"; }
   if (i == 12) { return "cold_panic"; }
   if (i == 13) { return "cold_orchestrator"; }
+  return 0 as *u8;
+}
+
+/**
+ * Number of PRODUCT_NODES inventory entries (10.4 / 11.07).
+ * KEY format id|leaf_or_xcode|body; bash holds derived cache only.
+ * @return i32 entry count
+ */
+export function build_product_node_count(): i32 {
+  return 9;
+}
+
+/**
+ * Map PRODUCT_NODES index → id|leaf_or_xcode|body C-string (10.4 / 11.07).
+ * @param i i32 zero-based index in [0, build_product_node_count())
+ * @return *u8 entry C-string, or null if out of range
+ */
+export function build_product_node_entry_at(i: i32): *u8 {
+  if (i == 0) { return "ensure_migrate_gen|migrate-gen|scripts/ensure_migrate_gen.sh"; }
+  if (i == 1) { return "ensure_driver_gen|driver-gen|scripts/ensure_driver_gen.sh"; }
+  if (i == 2) { return "ensure_lsp_pipeline_gen|lsp-pipeline-gen|scripts/ensure_lsp_pipeline_gen.sh"; }
+  if (i == 3) { return "ensure_archaeology_gen|archaeology-gen|scripts/ensure_archaeology_gen.sh"; }
+  if (i == 4) { return "migrate_x_objs|migrate|scripts/migrate_x_objs.sh"; }
+  if (i == 5) { return "g05_ensure|ensure|scripts/g05_ensure_relink_prereqs.sh"; }
+  if (i == 6) { return "g05_link_env|link-env|scripts/g05_relink_env.sh"; }
+  if (i == 7) { return "g05_prepare_and_relink|link-product|scripts/g05_prepare_and_relink.sh"; }
+  if (i == 8) { return "refresh_gate|refresh-gate|scripts/refresh_xlang_asm_gate.sh"; }
+  return 0 as *u8;
+}
+
+/**
+ * Number of COLD_NODES inventory entries (10.4 / 11.07).
+ * KEY format id|leaf_or_xcode|body; bash holds derived cache only.
+ * @return i32 entry count
+ */
+export function build_cold_node_count(): i32 {
+  return 14;
+}
+
+/**
+ * Map COLD_NODES index → id|leaf_or_xcode|body C-string (10.4 / 11.07).
+ * @param i i32 zero-based index in [0, build_cold_node_count())
+ * @return *u8 entry C-string, or null if out of range
+ */
+export function build_cold_node_entry_at(i: i32): *u8 {
+  if (i == 0) { return "cold_ensure_prereqs|driver-seed-prereqs|scripts/driver_seed_ensure_prereqs.sh"; }
+  if (i == 1) { return "cold_check_i64_abi|check-pipeline-gen-expr-i64-abi|scripts/check_pipeline_gen_expr_i64_abi.sh"; }
+  if (i == 2) { return "cold_pipeline_x|bootstrap-driver-seed-pipeline-x|scripts/bootstrap_driver_seed_rebuild_leaves.sh"; }
+  if (i == 3) { return "cold_sat|bootstrap-driver-seed-sat-rebuild|scripts/bootstrap_driver_seed_rebuild_leaves.sh"; }
+  if (i == 4) { return "cold_lsp|bootstrap-driver-seed-lsp-x-objs|scripts/bootstrap_driver_seed_rebuild_leaves.sh"; }
+  if (i == 5) { return "cold_bridge|bootstrap-driver-seed-bridge|scripts/bootstrap_driver_seed_rebuild_leaves.sh"; }
+  if (i == 6) { return "cold_user_asm|bootstrap-driver-seed-user-asm-seed-objs|scripts/bootstrap_driver_seed_rebuild_leaves.sh"; }
+  if (i == 7) { return "cold_asm_glue|bootstrap-driver-seed-asm-glue-standalone|scripts/bootstrap_driver_seed_rebuild_leaves.sh"; }
+  if (i == 8) { return "cold_asm_host|bootstrap-driver-seed-asm-host|scripts/build_seed_asm_host.sh"; }
+  if (i == 9) { return "cold_host_stubs|bootstrap-driver-seed-host-stubs|scripts/bootstrap_driver_seed_host_stubs.sh"; }
+  if (i == 10) { return "cold_phase1_link|bootstrap-driver-seed-phase1-link|scripts/bootstrap_driver_seed_link.sh"; }
+  if (i == 11) { return "cold_final_link|bootstrap-driver-seed-final-link|scripts/bootstrap_driver_seed_link.sh"; }
+  if (i == 12) { return "cold_panic|bootstrap-driver-seed-panic|scripts/bootstrap_driver_seed_rebuild_leaves.sh"; }
+  if (i == 13) { return "cold_orchestrator|bootstrap-driver-seed|scripts/bootstrap_driver_seed.sh"; }
   return 0 as *u8;
 }
