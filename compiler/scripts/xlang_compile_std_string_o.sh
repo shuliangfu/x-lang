@@ -49,9 +49,37 @@ case "$(uname -s 2>/dev/null)" in
       mod_asm=1
       echo "xlang_compile_std_string_o: mod.o <- mod.x (pure-asm)"
     else
-      echo "xlang_compile_std_string_o: pure-asm mod.x failed" >&2
-      cat "$tmp/mod_asm.log" >&2
-      exit 1
+      # 10.77 Prefer-M2b: Cap tip tip-compile CG002s on string/mod.x (known).
+      # Prefer LEGACY bak then Soft Cap Prefer as leaf compile vehicle only
+      # (Soft Cap Prefer NOT raised as tip). Same Cap tip→LEGACY cascade as fs.
+      # PLATFORM: MACOS Cap tip.
+      echo "xlang_compile_std_string_o: pure-asm mod.x failed (primary XLANG)" >&2
+      cat "$tmp/mod_asm.log" >&2 || true
+      case "$(uname -s 2>/dev/null)" in
+        Darwin)
+          for _str_xl in \
+              "$COMP/xlang.product_legacy_bak" \
+              "$COMP/xlang_asm.g05_soft"; do
+            [ -x "$_str_xl" ] || continue
+            [ "$_str_xl" = "$XLANG" ] && continue
+            echo "xlang_compile_std_string_o: Cap tip asm miss; Prefer-M2 $(basename "$_str_xl")" >&2
+            if ( cd "$ROOT" && "$_str_xl" -backend asm -c -L "$ROOT" \
+                   -o "$tmp/mod.o" "$ROOT/std/string/mod.x" ) \
+                 >"$tmp/mod_asm.log" 2>&1 \
+              && [ -s "$tmp/mod.o" ] \
+              && nm "$tmp/mod.o" 2>/dev/null | grep -qE ' T _?std_string_new$'; then
+              mod_asm=1
+              echo "xlang_compile_std_string_o: mod.o <- mod.x (Prefer-M2 $(basename "$_str_xl"))"
+              break
+            fi
+          done
+          ;;
+      esac
+      if [ "$mod_asm" != "1" ]; then
+        echo "xlang_compile_std_string_o: pure-asm mod.x failed" >&2
+        cat "$tmp/mod_asm.log" >&2 || true
+        exit 1
+      fi
     fi
     ;;
 esac
