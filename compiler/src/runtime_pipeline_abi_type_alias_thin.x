@@ -59,7 +59,7 @@ let g_pipe_ta_cap: i32[128] = [];
 let g_pipe_ta_entries: u8[1024] = [];
 
 /**
- * Byte size of one TypeAliasEntry (name[128] + name_len + target_type_ref).
+ * Byte size of one TypeAliasEntry (name[256] + name_len + target_type_ref).
  * @return i32 - 264
  * PLATFORM: SHARED LP64 - must match C sizeof(TypeAliasEntry).
  */
@@ -387,9 +387,9 @@ export function pipeline_module_type_alias_name_len(module: *u8, idx: i32): i32 
  * Read type-alias name byte at off; OOB -> 0.
  * @param module *u8 - module
  * @param idx i32 - alias index
- * @param off i32 - byte offset in name[128]
+ * @param off i32 - byte offset in name[256]
  * @return u8 - name byte or 0
- * wave582: off bound 128. PLATFORM: SHARED.
+ * wave582 / Cap 4.2.8: off bound 256. PLATFORM: SHARED.
  */
 #[no_mangle]
 export function pipeline_module_type_alias_name_byte_at(module: *u8, idx: i32, off: i32): u8 {
@@ -399,7 +399,7 @@ export function pipeline_module_type_alias_name_byte_at(module: *u8, idx: i32, o
   if (off < 0) {
     return 0 as u8;
   }
-  if (off >= 128) {
+  if (off >= 256) {
     return 0 as u8;
   }
   let s: i32 = pipe_ta_find_slot(module);

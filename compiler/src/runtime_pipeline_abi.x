@@ -81953,7 +81953,7 @@ let g_pipe_ta_cap: i32[128] = [];
 let g_pipe_ta_entries: u8[1024] = [];
 
 /**
- * Byte size of one TypeAliasEntry (name[128] + name_len + target_type_ref).
+ * Byte size of one TypeAliasEntry (name[256] + name_len + target_type_ref).
  * @return i32 - 264
  * PLATFORM: SHARED LP64 - must match C sizeof(TypeAliasEntry).
  */
@@ -82290,7 +82290,7 @@ export function pipeline_module_type_alias_name_byte_at(module: *u8, idx: i32, o
   if (off < 0) {
     return 0 as u8;
   }
-  if (off >= 128) {
+  if (off >= 256) {
     return 0 as u8;
   }
   let s: i32 = pipe_ta_find_slot(module);
@@ -83094,7 +83094,7 @@ export function pipeline_module_enum_name_byte_at(module: *u8, idx: i32, off: i3
   if (off < 0) {
     return 0 as u8;
   }
-  if (off >= 128) {
+  if (off >= 256) {
     return 0 as u8;
   }
   pipe_en_soft_sync(module);
@@ -83194,7 +83194,7 @@ export function pipeline_module_enum_variant_name_byte_at(module: *u8, idx: i32,
   if (off < 0) {
     return 0 as u8;
   }
-  if (off >= 128) {
+  if (off >= 256) {
     return 0 as u8;
   }
   pipe_en_soft_sync(module);
@@ -83938,7 +83938,7 @@ export function pipeline_module_top_level_let_name_byte_at(module: *u8, idx: i32
   if (off < 0) {
     return 0;
   }
-  if (off >= 127) {
+  if (off >= 255) {
     return 0;
   }
   pipe_tl_soft_sync(module);
@@ -85265,7 +85265,7 @@ export function pipeline_module_struct_layout_name_byte_at(module: *u8, idx: i32
   if (off < 0) {
     return 0;
   }
-  if (off >= 128) {
+  if (off >= 256) {
     return 0;
   }
   pipe_sl_soft_sync(module);
@@ -86305,7 +86305,7 @@ export function asm_ctx_local_count(ctx: *u8): i32 {
  * Append one local slot (name + stack offset); returns index or -1.
  * @param ctx *u8 - AsmFuncCtx* key; null -> -1
  * @param name *u8 - local name bytes; null -> -1
- * @param name_len i32 - full name length stored; bytes clamped to 127 into name[128]
+ * @param name_len i32 - full name length stored; bytes clamped to 255 into name[256]
  * @param offset i32 - stack offset (typically negative from rbp)
  * @return i32 - new index >=0, or -1 on fail
  * wave267 pure: G.7 single product authority (historical asm_ctx_local_append).
@@ -86396,8 +86396,8 @@ export function asm_ctx_local_name_byte_at(ctx: *u8, idx: i32, off: i32): u8 {
   if (off >= nlen) {
     return 0 as u8;
   }
-  // Bytes only stored up to 127; beyond is zero from memset.
-  if (off >= 127) {
+  // Bytes only stored up to 255; beyond is zero from memset.
+  if (off >= 255) {
     return 0 as u8;
   }
   let b: u8 = 0 as u8;
@@ -86411,9 +86411,9 @@ export function asm_ctx_local_name_byte_at(ctx: *u8, idx: i32, off: i32): u8 {
  * Copy local name into dst (128 bytes, zero-padded). Historical ABI *copy64 name.
  * @param ctx *u8 - AsmFuncCtx* key
  * @param idx i32 - local index
- * @param dst *u8 - destination; null -> no-op; writes 128 bytes
+ * @param dst *u8 - destination; null -> no-op; writes 256 bytes
  * @return void
- * wave267 pure: G.7 single product authority (wave581: name[128] surface).
+ * wave267 pure: G.7 single product authority (Cap 4.2.8: name[256] surface).
  * PLATFORM: SHARED.
  */
 #[no_mangle]
@@ -86496,7 +86496,7 @@ export function asm_ctx_local_find_offset(ctx: *u8, name: *u8, name_len: i32): i
         while (k < name_len) {
           // Compare against stored bytes (clamp 255); beyond clamp must be zero names only if name_len>255 rare.
           let eb: u8 = 0 as u8;
-          if (k < 127) {
+          if (k < 255) {
             unsafe { eb = ent[k]; }
           }
           let nb: u8 = 0 as u8;

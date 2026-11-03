@@ -914,9 +914,9 @@ export function pipeline_module_enum_name_len(module: *u8, idx: i32): i32 {
  * Read enum type name byte at off; OOB -> 0.
  * @param module *u8 - module
  * @param idx i32 - enum index
- * @param off i32 - byte offset in name[128]
+ * @param off i32 - byte offset in name[256]
  * @return u8 - name byte or 0
- * wave582: off bound 128. PLATFORM: SHARED.
+ * wave582 / Cap 4.2.8: off bound 256. PLATFORM: SHARED.
  */
 #[no_mangle]
 export function pipeline_module_enum_name_byte_at(module: *u8, idx: i32, off: i32): u8 {
@@ -926,7 +926,7 @@ export function pipeline_module_enum_name_byte_at(module: *u8, idx: i32, off: i3
   if (off < 0) {
     return 0 as u8;
   }
-  if (off >= 128) {
+  if (off >= 256) {
     return 0 as u8;
   }
   pipe_en_soft_sync(module);
@@ -1013,7 +1013,7 @@ export function pipeline_module_enum_variant_name_len(module: *u8, idx: i32, var
  * @param variant_idx i32 - variant tag
  * @param off i32 - byte offset in variant_name row
  * @return u8 - byte or 0
- * wave582: off bound 128. PLATFORM: SHARED.
+ * wave582 / Cap 4.2.8: off bound 256. PLATFORM: SHARED.
  */
 #[no_mangle]
 export function pipeline_module_enum_variant_name_byte_at(module: *u8, idx: i32, variant_idx: i32, off: i32): u8 {
@@ -1026,7 +1026,7 @@ export function pipeline_module_enum_variant_name_byte_at(module: *u8, idx: i32,
   if (off < 0) {
     return 0 as u8;
   }
-  if (off >= 128) {
+  if (off >= 256) {
     return 0 as u8;
   }
   pipe_en_soft_sync(module);
