@@ -21,8 +21,8 @@
 // Role (G.7 single authority for *policy*; execution still multi-layer):
 //   - This file is the **strategy facade** consumed by the legacy build_tool
 //     step table (build_get_step_count / build_get_step_at / build_use_asm_only)
-//     + PRODUCT_SCHEDULE export (build_product_schedule_count /
-//       build_product_schedule_id_at · 10.4 knife 11.01).
+//     + PRODUCT_SCHEDULE authority (build_product_schedule_count /
+//       build_product_schedule_id_at · 10.4 knife 11.01／11.03 demote).
 //   - Product orchestration authority today is **`./xbuild` → xlang-build.sh**
 //     plus **compiler/scripts/g05_*.sh** (not Makefile recipes for daily path).
 //   - Cold-start / residual leaf .o graphs use shell catalog + compiler-make hub (Makefile deleted wave942); was
@@ -108,11 +108,11 @@
 //   ./xbuild product-dag --run product|refresh|cold
 //   Product schedule (11.1.2): ensure_*_gen → migrate → g05_prepare_and_relink
 //     (prepare embeds ensure+link_env; archaeology off product)
-//   PRODUCT_SCHEDULE export ABI (10.4 · knife 11.01):
+//   PRODUCT_SCHEDULE export ABI (10.4 · knife 11.01／11.03 demote):
 //     build_product_schedule_count() / build_product_schedule_id_at(i) → *u8
-//     Ordered ids mirror bash PRODUCT_SCHEDULE in product_build_dag.sh.
-//     product_build_dag.sh --check cross-checks bash ↔ build.x (FAIL mismatch).
-//     Bash array remains live runner authority this grain; demote after green.
+//     Ordered ids are the live PRODUCT_SCHEDULE authority for product-dag.
+//     product_build_dag.sh loads a derived bash cache from these exports (G.7).
+//     No hardcoded bash PRODUCT_SCHEDULE literal (knife 11.03 demote).
 //   Refresh schedule: refresh_gate alone
 //   Cold schedule: dry-run starts with cold_ensure_prereqs; live → outer
 //     bootstrap-driver-seed (embeds driver_seed_ensure_prereqs · wave744)
@@ -245,9 +245,9 @@ export function build_get_step_count(): i32 {
 }
 
 /**
- * Number of product-daily schedule nodes (PRODUCT_SCHEDULE · 10.4 / 11.01).
- * Order is load-bearing for product-dag dry-run/run; keep in lockstep with
- * bash PRODUCT_SCHEDULE in product_build_dag.sh until that array is demoted.
+ * Number of product-daily schedule nodes (PRODUCT_SCHEDULE · 10.4 / 11.03).
+ * Order is load-bearing for product-dag dry-run/run; this export is the runner
+ * authority (bash PRODUCT_SCHEDULE is a derived cache only · knife 11.03).
  * @return i32 always 5 while product schedule is gen×3 → migrate → prepare
  */
 export function build_product_schedule_count(): i32 {
@@ -255,8 +255,9 @@ export function build_product_schedule_count(): i32 {
 }
 
 /**
- * Map schedule index → product node id string (PRODUCT_SCHEDULE · 10.4 / 11.01).
+ * Map schedule index → product node id string (PRODUCT_SCHEDULE · 10.4 / 11.03).
  * Parallel to build_get_step_at for the orchestration schedule (not step table).
+ * product_build_dag.sh loads these ids as the live product schedule.
  * @param i i32 zero-based index in [0, build_product_schedule_count())
  * @return *u8 node id C-string, or null if out of range
  */
