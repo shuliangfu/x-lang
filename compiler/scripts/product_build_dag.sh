@@ -432,6 +432,71 @@ else
   bad "missing root build.x"
 fi
 
+# 10.4 / knife 11.01: PRODUCT_SCHEDULE export ABI cross-check (build.x ↔ bash)
+# Source-parse build.x exports (no tip compile). FAIL on count/order/id mismatch.
+# Bash PRODUCT_SCHEDULE remains live runner authority this grain; demote later.
+if [ -f build.x ]; then
+  if ! grep -q 'export function build_product_schedule_count' build.x; then
+    bad "build.x must export build_product_schedule_count (10.4 PRODUCT_SCHEDULE ABI)"
+  elif ! grep -q 'export function build_product_schedule_id_at' build.x; then
+    bad "build.x must export build_product_schedule_id_at (10.4 PRODUCT_SCHEDULE ABI)"
+  else
+    _bx_sched_count=$(
+      awk '
+        /export function build_product_schedule_count[[:space:]]*\(/ { in_fn=1; next }
+        in_fn && /return[[:space:]]+[0-9]+/ {
+          for (i = 1; i <= NF; i++) {
+            tok = $i
+            gsub(/;/, "", tok)
+            if (tok ~ /^[0-9]+$/) { print tok; exit }
+          }
+        }
+        in_fn && /^}/ { exit }
+      ' build.x
+    )
+    _bash_sched_n=${#PRODUCT_SCHEDULE[@]}
+    if [ -z "${_bx_sched_count:-}" ]; then
+      bad "build.x build_product_schedule_count: could not parse return count"
+    elif [ "${_bx_sched_count}" -ne "${_bash_sched_n}" ]; then
+      bad "PRODUCT_SCHEDULE count mismatch: build.x=${_bx_sched_count} bash=${_bash_sched_n}"
+    else
+      _bx_ids=$(
+        awk '
+          /export function build_product_schedule_id_at[[:space:]]*\(/ { in_fn=1; next }
+          in_fn && /return[[:space:]]+"/ {
+            if (match($0, /"[^"]+"/)) {
+              print substr($0, RSTART + 1, RLENGTH - 2)
+            }
+            next
+          }
+          in_fn && /^}/ { exit }
+        ' build.x
+      )
+      _bx_n=0
+      _bx_arr=()
+      while IFS= read -r _id; do
+        [ -z "${_id:-}" ] && continue
+        _bx_arr[_bx_n]="${_id}"
+        _bx_n=$((_bx_n + 1))
+      done <<< "${_bx_ids}"
+      if [ "${_bx_n}" -ne "${_bash_sched_n}" ]; then
+        bad "PRODUCT_SCHEDULE id_at rows=${_bx_n} != bash len=${_bash_sched_n}"
+      else
+        _sched_mismatch=0
+        for ((_si = 0; _si < _bash_sched_n; _si++)); do
+          if [ "${_bx_arr[_si]}" != "${PRODUCT_SCHEDULE[_si]}" ]; then
+            bad "PRODUCT_SCHEDULE[${_si}] mismatch: build.x=${_bx_arr[_si]} bash=${PRODUCT_SCHEDULE[_si]}"
+            _sched_mismatch=1
+          fi
+        done
+        if [ "${_sched_mismatch}" -eq 0 ]; then
+          note "build.x PRODUCT_SCHEDULE ABI matches bash (${_bash_sched_n} nodes · 10.4/11.01)"
+        fi
+      fi
+    fi
+  fi
+fi
+
 # xbuild first-class product-dag target + 11.1.2 modes
 if grep -qE 'product-dag|build-dag|cold-dag' "$XCODE_REL" \
   && grep -q 'product_build_dag\.sh' "$XCODE_REL"; then
@@ -561,5 +626,5 @@ if [ "$fail" -ne 0 ]; then
   echo "product_build_dag: CHECK FAIL" >&2
   exit 1
 fi
-echo "product_build_dag: CHECK OK (11.1.1+11.1.2 wave743 · 11.3 prereq edges wave744 · 11.1.3/4 wave745 · 11.3.1 leaf residual wave746 · R4 mode wave747)"
+echo "product_build_dag: CHECK OK (11.1.1+11.1.2 wave743 · 11.3 prereq edges wave744 · 11.1.3/4 wave745 · 11.3.1 leaf residual wave746 · R4 mode wave747 · 10.4 PRODUCT_SCHEDULE ABI 11.01)"
 exit 0

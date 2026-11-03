@@ -20,7 +20,9 @@
 //
 // Role (G.7 single authority for *policy*; execution still multi-layer):
 //   - This file is the **strategy facade** consumed by the legacy build_tool
-//     step table (build_get_step_count / build_get_step_at / build_use_asm_only).
+//     step table (build_get_step_count / build_get_step_at / build_use_asm_only)
+//     + PRODUCT_SCHEDULE export (build_product_schedule_count /
+//       build_product_schedule_id_at · 10.4 knife 11.01).
 //   - Product orchestration authority today is **`./xbuild` → xlang-build.sh**
 //     plus **compiler/scripts/g05_*.sh** (not Makefile recipes for daily path).
 //   - Cold-start / residual leaf .o graphs use shell catalog + compiler-make hub (Makefile deleted wave942); was
@@ -106,6 +108,11 @@
 //   ./xbuild product-dag --run product|refresh|cold
 //   Product schedule (11.1.2): ensure_*_gen → migrate → g05_prepare_and_relink
 //     (prepare embeds ensure+link_env; archaeology off product)
+//   PRODUCT_SCHEDULE export ABI (10.4 · knife 11.01):
+//     build_product_schedule_count() / build_product_schedule_id_at(i) → *u8
+//     Ordered ids mirror bash PRODUCT_SCHEDULE in product_build_dag.sh.
+//     product_build_dag.sh --check cross-checks bash ↔ build.x (FAIL mismatch).
+//     Bash array remains live runner authority this grain; demote after green.
 //   Refresh schedule: refresh_gate alone
 //   Cold schedule: dry-run starts with cold_ensure_prereqs; live → outer
 //     bootstrap-driver-seed (embeds driver_seed_ensure_prereqs · wave744)
@@ -235,4 +242,29 @@ export function build_get_step_at(i: i32): i32 {
  */
 export function build_get_step_count(): i32 {
   return 7;
+}
+
+/**
+ * Number of product-daily schedule nodes (PRODUCT_SCHEDULE · 10.4 / 11.01).
+ * Order is load-bearing for product-dag dry-run/run; keep in lockstep with
+ * bash PRODUCT_SCHEDULE in product_build_dag.sh until that array is demoted.
+ * @return i32 always 5 while product schedule is gen×3 → migrate → prepare
+ */
+export function build_product_schedule_count(): i32 {
+  return 5;
+}
+
+/**
+ * Map schedule index → product node id string (PRODUCT_SCHEDULE · 10.4 / 11.01).
+ * Parallel to build_get_step_at for the orchestration schedule (not step table).
+ * @param i i32 zero-based index in [0, build_product_schedule_count())
+ * @return *u8 node id C-string, or null if out of range
+ */
+export function build_product_schedule_id_at(i: i32): *u8 {
+  if (i == 0) { return "ensure_migrate_gen"; }
+  if (i == 1) { return "ensure_driver_gen"; }
+  if (i == 2) { return "ensure_lsp_pipeline_gen"; }
+  if (i == 3) { return "migrate_x_objs"; }
+  if (i == 4) { return "g05_prepare_and_relink"; }
+  return 0 as *u8;
 }
