@@ -14,6 +14,8 @@
 #   no hardcoded schedule literal (G.7 no dual authority).
 #   REFRESH_SCHEDULE authority (10.4 · knife 11.05): build.x export ABI
 #   (build_refresh_schedule_count / id_at). Bash array derived cache only.
+#   COLD_SCHEDULE authority (10.4 · knife 11.06): build.x export ABI
+#   (build_cold_schedule_count / id_at). Bash array derived cache only.
 #   Execution (11.1.2): this script dry-run/run invokes *existing* body scripts
 #   only — no second compile/link implementation, no dual .o lists.
 #   wave744: cold prereq *edges* → driver_seed_ensure_prereqs.sh (catalog).
@@ -200,22 +202,51 @@ if ! load_refresh_schedule_from_build_x; then
   exit 1
 fi
 
-COLD_SCHEDULE=(
-  cold_ensure_prereqs
-  cold_check_i64_abi
-  cold_pipeline_x
-  cold_sat
-  cold_lsp
-  cold_bridge
-  cold_user_asm
-  cold_asm_glue
-  cold_asm_host
-  cold_host_stubs
-  cold_phase1_link
-  cold_final_link
-  cold_panic
-  cold_orchestrator
-)
+
+# 10.4 / knife 11.06: COLD_SCHEDULE authority = build.x export ABI.
+# Bash COLD_SCHEDULE is a derived runtime cache. G.7: no hardcoded
+# COLD_SCHEDULE=( literal that could drift from build.x.
+# ---------------------------------------------------------------------------
+
+load_cold_schedule_from_build_x() {
+  local bx="$ROOT/build.x"
+  local _bx_ids _id
+  COLD_SCHEDULE=()
+  if [ ! -f "$bx" ]; then
+    echo "product_build_dag: FAIL: missing $bx (COLD_SCHEDULE authority)" >&2
+    return 1
+  fi
+  if ! grep -q 'export function build_cold_schedule_count' "$bx" \
+    || ! grep -q 'export function build_cold_schedule_id_at' "$bx"; then
+    echo "product_build_dag: FAIL: build.x missing COLD_SCHEDULE export ABI" >&2
+    return 1
+  fi
+  _bx_ids=$(
+    awk '
+      /export function build_cold_schedule_id_at[[:space:]]*\(/ { in_fn=1; next }
+      in_fn && /return[[:space:]]+"/ {
+        if (match($0, /"[^"]+"/)) {
+          print substr($0, RSTART + 1, RLENGTH - 2)
+        }
+        next
+      }
+      in_fn && /^}/ { exit }
+    ' "$bx"
+  )
+  while IFS= read -r _id; do
+    [ -z "${_id:-}" ] && continue
+    COLD_SCHEDULE+=("${_id}")
+  done <<< "${_bx_ids}"
+  if [ "${#COLD_SCHEDULE[@]}" -eq 0 ]; then
+    echo "product_build_dag: FAIL: build.x COLD_SCHEDULE id_at parsed 0 ids" >&2
+    return 1
+  fi
+  return 0
+}
+
+if ! load_cold_schedule_from_build_x; then
+  exit 1
+fi
 
 DOC_REL="compiler/docs/BUILD_DAG.md"
 CATALOG_REL="compiler/scripts/driver_seed_obj_catalog.sh"
@@ -615,6 +646,52 @@ else
   bad "missing root build.x (REFRESH_SCHEDULE authority)"
 fi
 
+# 10.4 / knife 11.06: COLD_SCHEDULE authority = build.x (bash derived cache).
+# PLATFORM: SHARED — structural honesty; no tip compile.
+if [ -f build.x ]; then
+  if ! grep -q 'export function build_cold_schedule_count' build.x; then
+    bad "build.x must export build_cold_schedule_count (10.4 COLD_SCHEDULE ABI)"
+  elif ! grep -q 'export function build_cold_schedule_id_at' build.x; then
+    bad "build.x must export build_cold_schedule_id_at (10.4 COLD_SCHEDULE ABI)"
+  else
+    _bx_cold_count=$(
+      awk '
+        /export function build_cold_schedule_count[[:space:]]*\(/ { in_fn=1; next }
+        in_fn && /return[[:space:]]+[0-9]+/ {
+          for (i = 1; i <= NF; i++) {
+            tok = $i
+            gsub(/;/, "", tok)
+            if (tok ~ /^[0-9]+$/) { print tok; exit }
+          }
+        }
+        in_fn && /^}/ { exit }
+      ' build.x
+    )
+    _bash_cold_n=${#COLD_SCHEDULE[@]}
+    if [ -z "${_bx_cold_count:-}" ]; then
+      bad "build.x build_cold_schedule_count: could not parse return count"
+    elif [ "${_bx_cold_count}" -ne "${_bash_cold_n}" ]; then
+      bad "COLD_SCHEDULE count mismatch: build.x=${_bx_cold_count} derived=${_bash_cold_n}"
+    elif [ "${_bash_cold_n}" -eq 0 ]; then
+      bad "COLD_SCHEDULE derived empty (build.x authority load failed)"
+    else
+      if awk '
+        /^COLD_SCHEDULE=\(/ {
+          getline
+          if ($0 ~ /cold_ensure_prereqs/) { found=1 }
+        }
+        END { exit found ? 0 : 1 }
+      ' "$0"; then
+        bad "hardcoded COLD_SCHEDULE literal still present (G.7 dual authority; demote 11.06)"
+      else
+        note "COLD_SCHEDULE authority=build.x (${_bash_cold_n} nodes · derived cache · 10.4/11.06)"
+      fi
+    fi
+  fi
+else
+  bad "missing root build.x (COLD_SCHEDULE authority)"
+fi
+
 # xbuild first-class product-dag target + 11.1.2 modes
 if grep -qE 'product-dag|build-dag|cold-dag' "$XCODE_REL" \
   && grep -q 'product_build_dag\.sh' "$XCODE_REL"; then
@@ -744,5 +821,5 @@ if [ "$fail" -ne 0 ]; then
   echo "product_build_dag: CHECK FAIL" >&2
   exit 1
 fi
-echo "product_build_dag: CHECK OK (11.1.1+11.1.2 wave743 · 11.3 prereq edges wave744 · 11.1.3/4 wave745 · 11.3.1 leaf residual wave746 · R4 mode wave747 · 10.4 PRODUCT_SCHEDULE authority=build.x 11.03 · REFRESH_SCHEDULE authority=build.x 11.05)"
+echo "product_build_dag: CHECK OK (11.1.1+11.1.2 wave743 · 11.3 prereq edges wave744 · 11.1.3/4 wave745 · 11.3.1 leaf residual wave746 · R4 mode wave747 · 10.4 PRODUCT_SCHEDULE authority=build.x 11.03 · REFRESH_SCHEDULE authority=build.x 11.05 · COLD_SCHEDULE authority=build.x 11.06)"
 exit 0

@@ -26,7 +26,9 @@
 //     + LINKER_POLICY inventory authority (build_linker_policy_count /
 //       build_linker_policy_entry_at · 10.4 knife 11.04 demote)
 //     + REFRESH_SCHEDULE authority (build_refresh_schedule_count /
-//       build_refresh_schedule_id_at · 10.4 knife 11.05 demote).
+//       build_refresh_schedule_id_at · 10.4 knife 11.05 demote)
+//     + COLD_SCHEDULE authority (build_cold_schedule_count /
+//       build_cold_schedule_id_at · 10.4 knife 11.06 demote).
 //   - Product orchestration authority today is **`./xbuild` → xlang-build.sh**
 //     plus **compiler/scripts/g05_*.sh** (not Makefile recipes for daily path).
 //   - Cold-start / residual leaf .o graphs use shell catalog + compiler-make hub (Makefile deleted wave942); was
@@ -123,8 +125,13 @@
 //     product_build_dag.sh loads a derived bash cache from these exports (G.7).
 //     No hardcoded bash REFRESH_SCHEDULE=( literal (knife 11.05 demote).
 //     Today: refresh_gate alone.
-//   Cold schedule: dry-run starts with cold_ensure_prereqs; live → outer
-//     bootstrap-driver-seed (embeds driver_seed_ensure_prereqs · wave744)
+//   COLD_SCHEDULE export ABI (10.4 · knife 11.06 demote):
+//     build_cold_schedule_count() / build_cold_schedule_id_at(i) → *u8
+//     Ordered ids are the live COLD_SCHEDULE authority for product-dag.
+//     product_build_dag.sh loads a derived bash cache from these exports (G.7).
+//     No hardcoded bash COLD_SCHEDULE=( literal (knife 11.06 demote).
+//     Dry-run starts with cold_ensure_prereqs; live → outer
+//     bootstrap-driver-seed (embeds driver_seed_ensure_prereqs · wave744).
 //   wave744: DRIVER_SEED_PREREQS *edge satisfaction* is shell
 //     (driver_seed_ensure_prereqs.sh via catalog); Makefile bootstrap-driver-seed
 //     is thin phony (no make-graph $(DRIVER_SEED_PREREQS) deps). List authority
@@ -347,5 +354,39 @@ export function build_refresh_schedule_count(): i32 {
  */
 export function build_refresh_schedule_id_at(i: i32): *u8 {
   if (i == 0) { return "refresh_gate"; }
+  return 0 as *u8;
+}
+
+/**
+ * Number of cold-bootstrap schedule nodes (COLD_SCHEDULE · 10.4 / 11.06).
+ * This export is the runner authority (bash COLD_SCHEDULE is a derived
+ * cache only · knife 11.06 demote).
+ * @return i32 always 14 while cold schedule matches dry-run inventory
+ */
+export function build_cold_schedule_count(): i32 {
+  return 14;
+}
+
+/**
+ * Map cold-schedule index → node id string (COLD_SCHEDULE · 10.4 / 11.06).
+ * product_build_dag.sh loads these ids as the live cold schedule.
+ * @param i i32 zero-based index in [0, build_cold_schedule_count())
+ * @return *u8 node id C-string, or null if out of range
+ */
+export function build_cold_schedule_id_at(i: i32): *u8 {
+  if (i == 0) { return "cold_ensure_prereqs"; }
+  if (i == 1) { return "cold_check_i64_abi"; }
+  if (i == 2) { return "cold_pipeline_x"; }
+  if (i == 3) { return "cold_sat"; }
+  if (i == 4) { return "cold_lsp"; }
+  if (i == 5) { return "cold_bridge"; }
+  if (i == 6) { return "cold_user_asm"; }
+  if (i == 7) { return "cold_asm_glue"; }
+  if (i == 8) { return "cold_asm_host"; }
+  if (i == 9) { return "cold_host_stubs"; }
+  if (i == 10) { return "cold_phase1_link"; }
+  if (i == 11) { return "cold_final_link"; }
+  if (i == 12) { return "cold_panic"; }
+  if (i == 13) { return "cold_orchestrator"; }
   return 0 as *u8;
 }
