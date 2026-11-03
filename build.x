@@ -22,7 +22,9 @@
 //   - This file is the **strategy facade** consumed by the legacy build_tool
 //     step table (build_get_step_count / build_get_step_at / build_use_asm_only)
 //     + PRODUCT_SCHEDULE authority (build_product_schedule_count /
-//       build_product_schedule_id_at · 10.4 knife 11.01／11.03 demote).
+//       build_product_schedule_id_at · 10.4 knife 11.01／11.03 demote)
+//     + LINKER_POLICY inventory authority (build_linker_policy_count /
+//       build_linker_policy_entry_at · 10.4 knife 11.04 demote).
 //   - Product orchestration authority today is **`./xbuild` → xlang-build.sh**
 //     plus **compiler/scripts/g05_*.sh** (not Makefile recipes for daily path).
 //   - Cold-start / residual leaf .o graphs use shell catalog + compiler-make hub (Makefile deleted wave942); was
@@ -125,19 +127,22 @@
 //   G.7: DAG lists orchestration edges/owners only; .o inventories stay in
 //   compiler/mk/*.mk + driver_seed_obj_catalog.sh (no dual lists).
 //
-//   11.1.3 host platform (wave745):
+//   11.1.3 host platform (wave745 · 10.4 knife 11.04 demote):
 //     Authority map: compiler/docs/PLATFORM_LINKER.md
-//     Machine: compiler/scripts/host_platform_linker.sh
+//     Machine: compiler/scripts/host_platform_linker.sh (derived cache)
 //     ./xbuild host-platform [--export|--check]
-//     Single shell host OS/arch facts (XLANG_HOST_OS / ARCH / PLATFORM_TAG);
-//     product seed pin = *.linux.x86_64.c (host-portable). Makefile UNAME for
-//     leaf pattern rules residual until 11.3.1 (lists stay mk — G.7).
+//     Live OS/arch detect stays bash (uname facts). Policy inventory ABI
+//     lives in build.x (below). Product seed pin = *.linux.x86_64.c
+//     (host-portable). Makefile UNAME for leaf pattern residual until
+//     11.3.1 (lists stay mk — G.7).
 //
-//   11.1.4 linker policy (wave745):
+//   11.1.4 linker policy (wave745 · 10.4 knife 11.04 demote):
 //     Prefer product xlang_asm_invoke_ld_platform + direct ld|lld|link.exe.
 //     Named residual: bootstrap_driver_seed_link.sh SEED_LINK_CC -o (cold
-//     phase1/final; list still Makefile export). Forbidden: silent default
-//     $(CC) -o as linker without inventory. Pure-ld cold endgame later.
+//     phase1/final). Forbidden: silent default $(CC) -o without inventory.
+//     LINKER_POLICY KEY=VALUE inventory authority = build.x export ABI
+//     (build_linker_policy_count / build_linker_policy_entry_at).
+//     host_platform_linker.sh loads a derived bash cache (G.7 no dual).
 //     ./xbuild linker-policy [--check]
 //
 //   11.3.1 leaf pattern residual path (wave746 inventory · wave747 R4 mode ·
@@ -267,5 +272,52 @@ export function build_product_schedule_id_at(i: i32): *u8 {
   if (i == 2) { return "ensure_lsp_pipeline_gen"; }
   if (i == 3) { return "migrate_x_objs"; }
   if (i == 4) { return "g05_prepare_and_relink"; }
+  return 0 as *u8;
+}
+
+/**
+ * Number of linker-policy inventory entries (11.1.4 · 10.4 / 11.04).
+ * KEY=VALUE strings are the runner authority; bash host_platform_linker.sh
+ * holds a derived cache only (knife 11.04 demote). Host uname facts stay bash.
+ * @return i32 entry count
+ */
+export function build_linker_policy_count(): i32 {
+  return 27;
+}
+
+/**
+ * Map inventory index → KEY=VALUE C-string (linker policy · 10.4 / 11.04).
+ * host_platform_linker.sh source-parses these as the live linker inventory.
+ * @param i i32 zero-based index in [0, build_linker_policy_count())
+ * @return *u8 KEY=VALUE C-string, or null if out of range
+ */
+export function build_linker_policy_entry_at(i: i32): *u8 {
+  if (i == 0) { return "LINKER_POLICY=prefer_direct_ld_then_named_cc_residual"; }
+  if (i == 1) { return "LINKER_FORBIDDEN_DEFAULT=silent_cc_as_linker_without_inventory"; }
+  if (i == 2) { return "LINKER_FORBIDDEN_SILENT_CC_AFTER_PURE_FAIL=1"; }
+  if (i == 3) { return "COLD_SEED_LINK_BODY=scripts/bootstrap_driver_seed_link.sh"; }
+  if (i == 4) { return "COLD_SEED_LINK_PURE_LD=1"; }
+  if (i == 5) { return "COLD_SEED_LINK_PURE_LD_VIA=SEED_LINK_LD+MULTIDEF+ENTRY+LD_TAIL_export+pure_ld_shared"; }
+  if (i == 6) { return "COLD_SEED_LINK_CC_RESIDUAL=SEED_LINK_CC_-o_when_PURE_OK_0_or_FORCE_CC_only"; }
+  if (i == 7) { return "COLD_SEED_LINK_DROP_SILENT_FALLBACK=1"; }
+  if (i == 8) { return "RESIDUAL_CC_LINK_SITE=scripts/bootstrap_driver_seed_link.sh"; }
+  if (i == 9) { return "RESIDUAL_CC_LINK_ROLE=cold_phase1_final_SEED_LINK_CC_named_residual_only"; }
+  if (i == 10) { return "RESIDUAL_CC_LINK_LIST_AUTHORITY=Makefile_export_bootstrap-driver-seed-export-phase1/final-link"; }
+  if (i == 11) { return "G05_RELINK_BODY=scripts/g05_relink_xlang.sh"; }
+  if (i == 12) { return "G05_RELINK_PURE_LD=1"; }
+  if (i == 13) { return "G05_RELINK_PURE_LD_VIA=pure_ld_shared.sh"; }
+  if (i == 14) { return "G05_RELINK_CC_RESIDUAL=G05_CC_-o_when_FORCE_CC_or_ineligible_only"; }
+  if (i == 15) { return "G05_RELINK_DROP_SILENT_FALLBACK=1"; }
+  if (i == 16) { return "G05_RELINK_LIST_AUTHORITY=g05_relink_env.sh"; }
+  if (i == 17) { return "PURE_LD_SHARED=scripts/pure_ld_shared.sh"; }
+  if (i == 18) { return "PREFERRED_LD_PARTIAL=scripts/filter_bootstrap_seed_pipeline_o.sh"; }
+  if (i == 19) { return "PREFERRED_PRODUCT_LD=xlang_asm_invoke_ld_platform"; }
+  if (i == 20) { return "PREFERRED_G05_RELINK=scripts/g05_relink_xlang.sh"; }
+  if (i == 21) { return "PREFERRED_COLD_PURE_LD=scripts/bootstrap_driver_seed_link.sh"; }
+  if (i == 22) { return "PREFERRED_PURE_LD_SHARED=scripts/pure_ld_shared.sh"; }
+  if (i == 23) { return "ENDGAME_COLD_LINK_WITHOUT_CC=1"; }
+  if (i == 24) { return "ENDGAME_G05_PURE_LD=1"; }
+  if (i == 25) { return "ENDGAME_DROP_CC_FALLBACK=1"; }
+  if (i == 26) { return "ENDGAME_MAKEFILE_UNAME_SWALLOWED=0"; }
   return 0 as *u8;
 }

@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # host_platform_linker.sh — 11.1.3 host platform facts + 11.1.4 linker policy inventory
 #
-# Authority (G.7):
-#   Single shell authority for *host OS/arch facts* and *named linker residual*
-#   inventory under Track MG. Does NOT own .o lists (compiler/mk/*.mk) and does
-#   NOT re-implement cold/product link (bootstrap_driver_seed_link / g05 /
-#   xlang_asm_invoke_ld_* remain the body authorities).
+# Authority (G.7 · 10.4 knife 11.04 demote):
+#   Live *host OS/arch facts* (uname) stay in this shell. *Named linker-policy*
+#   KEY=VALUE inventory authority = root build.x export ABI
+#   (build_linker_policy_count / build_linker_policy_entry_at); this script
+#   holds a derived bash cache only. Does NOT own .o lists (compiler/mk/*.mk)
+#   and does NOT re-implement cold/product link bodies.
 #
 # Human map: compiler/docs/PLATFORM_LINKER.md
 #
@@ -47,6 +48,57 @@ esac
 fail=0
 note() { echo "host_platform_linker: $*" >&2; }
 bad() { echo "host_platform_linker: FAIL: $*" >&2; fail=1; }
+
+
+# ---------------------------------------------------------------------------
+# 10.4 / knife 11.04: LINKER_POLICY inventory authority = build.x export ABI.
+# Bash LINKER_POLICY_ENTRIES is a derived runtime cache. G.7: no hardcoded
+# KEY=VALUE inventory literal that could drift from build.x.
+# Live uname host detect stays below (facts, not policy dual).
+# ---------------------------------------------------------------------------
+LINKER_POLICY_ENTRIES=()
+
+# Load linker-policy KEY=VALUE entries from root build.x (source-parse; no tip).
+# PLATFORM: SHARED — paths via $ROOT; dual-end L2.
+load_linker_policy_from_build_x() {
+  local bx="$ROOT/build.x"
+  local _bx_entries _ent
+  LINKER_POLICY_ENTRIES=()
+  if [ ! -f "$bx" ]; then
+    echo "host_platform_linker: FAIL: missing $bx (LINKER_POLICY authority)" >&2
+    return 1
+  fi
+  if ! grep -q 'export function build_linker_policy_count' "$bx" \
+    || ! grep -q 'export function build_linker_policy_entry_at' "$bx"; then
+    echo "host_platform_linker: FAIL: build.x missing LINKER_POLICY export ABI" >&2
+    return 1
+  fi
+  _bx_entries=$(
+    awk '
+      /export function build_linker_policy_entry_at[[:space:]]*\(/ { in_fn=1; next }
+      in_fn && /return[[:space:]]+"/ {
+        if (match($0, /"[^"]+"/)) {
+          print substr($0, RSTART + 1, RLENGTH - 2)
+        }
+        next
+      }
+      in_fn && /^}/ { exit }
+    ' "$bx"
+  )
+  while IFS= read -r _ent; do
+    [ -z "${_ent:-}" ] && continue
+    LINKER_POLICY_ENTRIES+=("${_ent}")
+  done <<< "${_bx_entries}"
+  if [ "${#LINKER_POLICY_ENTRIES[@]}" -eq 0 ]; then
+    echo "host_platform_linker: FAIL: build.x linker_policy entry_at parsed 0" >&2
+    return 1
+  fi
+  return 0
+}
+
+if ! load_linker_policy_from_build_x; then
+  exit 1
+fi
 
 # ---------------------------------------------------------------------------
 # 11.1.3 detect host (single authority for shell consumers)
@@ -176,56 +228,25 @@ EOF
 }
 
 print_linker() {
+  local _ent
   detect_host
   cat <<EOF
-# linker policy inventory (11.1.4 · wave745 · 772 cold · 773 g05 · 774 drop silent fallback)
+# linker policy inventory (11.1.4 · wave745 · 10.4 knife 11.04 demote)
+# Authority: build.x build_linker_policy_* (derived cache below). Host probes only.
 # Prefer: product xlang_asm_invoke_ld_platform / direct ld|lld|link.exe
-# Cold phase1/final: pure-ld required when SEED_LINK_PURE_OK=1 (wave774 hard fail on miss)
-# g05 product relink: pure-ld required when freestanding (wave774); named CC residual only
-# Named CC residual: FORCE_CC=1 or pure-ld ineligible host (not silent after pure fail)
+EOF
+  for _ent in "${LINKER_POLICY_ENTRIES[@]}"; do
+    printf '%s
+' "$_ent"
+  done
+  cat <<EOF
 
-LINKER_POLICY=prefer_direct_ld_then_named_cc_residual
-LINKER_FORBIDDEN_DEFAULT=silent_cc_as_linker_without_inventory
-LINKER_FORBIDDEN_SILENT_CC_AFTER_PURE_FAIL=1
-
-# Cold seed link body (G.7 single authority)
-COLD_SEED_LINK_BODY=scripts/bootstrap_driver_seed_link.sh
-COLD_SEED_LINK_PURE_LD=1
-COLD_SEED_LINK_PURE_LD_VIA=SEED_LINK_LD+MULTIDEF+ENTRY+LD_TAIL_export+pure_ld_shared
-COLD_SEED_LINK_CC_RESIDUAL=SEED_LINK_CC_-o_when_PURE_OK_0_or_FORCE_CC_only
-COLD_SEED_LINK_DROP_SILENT_FALLBACK=1
-RESIDUAL_CC_LINK_SITE=scripts/bootstrap_driver_seed_link.sh
-RESIDUAL_CC_LINK_ROLE=cold_phase1_final_SEED_LINK_CC_named_residual_only
-RESIDUAL_CC_LINK_LIST_AUTHORITY=Makefile_export_bootstrap-driver-seed-export-phase1/final-link
-
-# g05 product final link (wave773 pure-ld; wave774 no silent fallback; G.7 pure_ld_shared)
-G05_RELINK_BODY=scripts/g05_relink_xlang.sh
-G05_RELINK_PURE_LD=1
-G05_RELINK_PURE_LD_VIA=pure_ld_shared.sh
-G05_RELINK_CC_RESIDUAL=G05_CC_-o_when_FORCE_CC_or_ineligible_only
-G05_RELINK_DROP_SILENT_FALLBACK=1
-G05_RELINK_LIST_AUTHORITY=g05_relink_env.sh
-PURE_LD_SHARED=scripts/pure_ld_shared.sh
-
-# Preferred direct-ld / product paths (do not reimplement)
-PREFERRED_LD_PARTIAL=scripts/filter_bootstrap_seed_pipeline_o.sh
-PREFERRED_PRODUCT_LD=xlang_asm_invoke_ld_platform
-PREFERRED_G05_RELINK=scripts/g05_relink_xlang.sh
-PREFERRED_COLD_PURE_LD=scripts/bootstrap_driver_seed_link.sh
-PREFERRED_PURE_LD_SHARED=scripts/pure_ld_shared.sh
-
-# Host tool presence (probe only)
+# Host tool presence (probe only · not build.x policy inventory)
 HOST_LD_PRESENT=$([ -n "$XLANG_HOST_LD_BIN" ] && echo 1 || echo 0)
 HOST_LLD_PRESENT=$([ -n "$XLANG_HOST_LLD_BIN" ] && echo 1 || echo 0)
 HOST_CC_PRESENT=$([ -n "$XLANG_HOST_CC_BIN" ] && echo 1 || echo 0)
 HOST_LD_BIN=$XLANG_HOST_LD_BIN
 HOST_CC_BIN=$XLANG_HOST_CC_BIN
-
-# Endgame markers (wave772/773 pure-ld + wave774 drop silent fallback; residual physical delete)
-ENDGAME_COLD_LINK_WITHOUT_CC=1
-ENDGAME_G05_PURE_LD=1
-ENDGAME_DROP_CC_FALLBACK=1
-ENDGAME_MAKEFILE_UNAME_SWALLOWED=0
 EOF
 }
 
@@ -387,13 +408,40 @@ else
   note "xbuild host-platform / linker-policy wired"
 fi
 
-# build.x strategy map
+# build.x strategy map + 11.04 LINKER_POLICY authority
 if [ -f build.x ]; then
   if ! grep -qE '11\.1\.3|host.platform|PLATFORM_LINKER' build.x; then
     bad "build.x must mention 11.1.3 / host platform / PLATFORM_LINKER"
   fi
   if ! grep -qE '11\.1\.4|linker.policy|direct.*ld|SEED_LINK_CC' build.x; then
     bad "build.x must mention 11.1.4 / linker policy"
+  fi
+  if ! grep -q 'export function build_linker_policy_count' build.x     || ! grep -q 'export function build_linker_policy_entry_at' build.x; then
+    bad "build.x must export build_linker_policy_count / entry_at (10.4 / 11.04)"
+  else
+    _bx_lp_count=$(awk '
+      /export function build_linker_policy_count[[:space:]]*\(/ { in_fn=1; next }
+      in_fn && /return[[:space:]]+[0-9]+/ {
+        if (match($0, /[0-9]+/)) { print substr($0, RSTART, RLENGTH); exit }
+      }
+      in_fn && /^}/ { exit }
+    ' build.x)
+    _bash_lp_n=${#LINKER_POLICY_ENTRIES[@]}
+    if [ -z "${_bx_lp_count:-}" ]; then
+      bad "build.x build_linker_policy_count return not parsed"
+    elif [ "$_bx_lp_count" -ne "$_bash_lp_n" ]; then
+      bad "LINKER_POLICY count mismatch: build.x=${_bx_lp_count} derived=${_bash_lp_n}"
+    elif [ "$_bash_lp_n" -eq 0 ]; then
+      bad "LINKER_POLICY derived empty (build.x authority load failed)"
+    else
+      # G.7: no second hardcoded LINKER_POLICY=prefer_direct… literal inventory in this script.
+      if grep -nE '^LINKER_POLICY=prefer_direct' "$0" 2>/dev/null         | grep -vqE 'load_linker_policy|derived|authority|build\.x|11\.04'; then
+        bad "hardcoded LINKER_POLICY literal still present (G.7 dual authority; demote 11.04)"
+      else
+        note "LINKER_POLICY authority=build.x (${_bash_lp_n} entries · derived cache · 10.4/11.04)"
+      fi
+    fi
+    unset _bx_lp_count _bash_lp_n
   fi
   note "build.x references 11.1.3/4"
 else
@@ -433,5 +481,5 @@ if [ "$fail" -ne 0 ]; then
   echo "host_platform_linker: CHECK FAIL" >&2
   exit 1
 fi
-echo "host_platform_linker: CHECK OK (11.1.3 platform + 11.1.4 linker policy · wave745)"
+echo "host_platform_linker: CHECK OK (11.1.3 platform + 11.1.4 linker policy · wave745 · 10.4 LINKER_POLICY authority=build.x 11.04)"
 exit 0
