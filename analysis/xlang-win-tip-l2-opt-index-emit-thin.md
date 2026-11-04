@@ -53,3 +53,10 @@ python3 compiler/scripts/win_tip_pe_inject_emit_index_elf_override.py \
 ## 非目标／禁
 
 - Soft Cap 体拷；假绿改 option 测试／`return 102` 顶替真式；CloudAgent；`_dig` 入 git；升钉；自 CLOSE。
+
+## store_retval dual-GP band（`.c79srvp`）· WIP
+
+- Soft Cap mega `glue_store_retval_pair_to_rbp_elf_c`＠`0x14012ae98` for named size 9–16 called a 2-arg helper instead of `backend_enc_store_rdx_to_rbp_arch(elf, half2, ta)` → caller dropped value@+8.
+- tip-only inject `.c79srvp`: size=`max(size_simple,dual_gp)`; if 9..16 store rax@slot + rdx@slot−8 (x86); else trampoline Soft Cap mega.
+- PE `aa906979afb141af`→`173da296e3783371`. Matrix **4/5** (si green; full-body store_retval override without trampoline SEGV'd si — kept band-only).
+- Residual unchanged for opt: (1) tip SEGV compiling `return a+b+c+…` (byte-index `movzbl (%rax)` rax=0x40; `let s=…; return s` builds, run −3) (2) `or_i32` callee return still rax-only (emit_expr VAR interceptor does not hit param return path).
