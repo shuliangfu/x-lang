@@ -1,9 +1,9 @@
-# Win tip L2 hello XP008 struct lit parse（刀 11.72）· **ACCEPT-ready**
+# Win tip L2 hello XP008 struct lit parse（刀 11.72）· **CLOSE ACCEPT**
 
 > Gate：`tests/run-win-tip-l2-hello-xp008-struct-lit-parse-gate.sh`（OK exit0）。
 > Beat：`win_tip_l2_hello_xp008_struct_lit_parse`。
 > 基线：Win tip L2 **1/5**＠`58e34910f` **勿 regress**；保绿 gate71＋67／63–55 族。
-> tip PE **`6a0f73a8656f…`→`2e92a66da052…`**（.c72lbr lbrace inject）；等经理 CLOSE ACCEPT。
+> tip PE **`6a0f73a8656f…`→`2e92a66da052…`**（.c72lbr lbrace inject）；**正式 CLOSE ACCEPT**＠docs `2b398e1b7`。
 > 禁 Soft Cap G05 混 tip；禁假绿／CloudAgent／回滚 11.67 wrap／升钉。
 
 ## DIG（诚实根因）
@@ -27,11 +27,11 @@
 - gate72 OK exit0（struct lit＋field-assign＋A_val＋nested＋context.x）。
 - 保绿：gate71／67／63／62／61／60／59／56／55 OK。
 - 附：`std/context/mod.x` `check` 现 EXIT0；`return { a: 0 }` OK。
-- L2 1/5＠`58e34910f` 未抬分宣称；**勿自 CLOSE**。
+- L2 1/5＠`58e34910f` 未抬分宣称；经理已 CLOSE ACCEPT；移交 11.73。
 
 ## Residual
 
-- `examples/hello.x` tip `check` 仍 **SEGV／XP008 包装残**（非本刀 gate 靶；struct-lit 路径已绿）。
+- `examples/hello.x` tip `check` 仍 **SEGV／XP008 包装残**（非本刀 gate 靶；struct-lit 路径已绿）→移交 **11.73** `after_struct_lit`。
 - L2 1/5＠`58e34910f`。
 
 ## 非目标／禁
