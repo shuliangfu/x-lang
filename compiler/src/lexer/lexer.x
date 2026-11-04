@@ -3611,7 +3611,7 @@ export function lexer_try_cfg_attr_into(out: *LexerResult, l: Lexer, data: u8[])
   };
   write_next_lex_into(out, l2);
   write_tok_into(out, tok);
-  out.token_start = (0 as usize);
+  lexer_park_token_start(out, (0 as usize));
   return 1;
 }
 
@@ -3649,7 +3649,7 @@ export function lexer_try_repr_c_attr_into(out: *LexerResult, l: Lexer, data: u8
   };
   write_next_lex_into(out, l2);
   write_tok_into(out, tok);
-  out.token_start = (0 as usize);
+  lexer_park_token_start(out, (0 as usize));
   return 1;
 }
 
@@ -3694,7 +3694,7 @@ export function lexer_try_repr_compatible_attr_into(out: *LexerResult, l: Lexer,
   };
   write_next_lex_into(out, l2);
   write_tok_into(out, tok);
-  out.token_start = (0 as usize);
+  lexer_park_token_start(out, (0 as usize));
   return 1;
 }
 
@@ -3732,7 +3732,7 @@ export function lexer_try_soa_attr_into(out: *LexerResult, l: Lexer, data: u8[])
   };
   write_next_lex_into(out, l2);
   write_tok_into(out, tok);
-  out.token_start = (0 as usize);
+  lexer_park_token_start(out, (0 as usize));
   return 1;
 }
 
@@ -3772,7 +3772,7 @@ export function lexer_try_alloc_attr_into(out: *LexerResult, l: Lexer, data: u8[
   };
   write_next_lex_into(out, l2);
   write_tok_into(out, tok);
-  out.token_start = (0 as usize);
+  lexer_park_token_start(out, (0 as usize));
   return 1;
 }
 
@@ -3811,7 +3811,7 @@ export function lexer_try_used_attr_into(out: *LexerResult, l: Lexer, data: u8[]
   };
   write_next_lex_into(out, l2);
   write_tok_into(out, tok);
-  out.token_start = (0 as usize);
+  lexer_park_token_start(out, (0 as usize));
   return 1;
 }
 
@@ -3829,7 +3829,7 @@ export function lexer_try_naked_attr_into(out: *LexerResult, l: Lexer, data: u8[
   advance_one(&l2, 100); advance_one(&l2, 93);
   write_next_lex_into(out, l2);
   write_tok_into(out, { kind: (29 as TokenKind), line: line0, col: col0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 });
-  out.token_start = (0 as usize); return 1;
+  lexer_park_token_start(out, (0 as usize)); return 1;
 }
 
 /**
@@ -3846,7 +3846,7 @@ export function lexer_try_entry_attr_into(out: *LexerResult, l: Lexer, data: u8[
   advance_one(&l2, 101); advance_one(&l2, 93);
   write_next_lex_into(out, l2);
   write_tok_into(out, { kind: (30 as TokenKind), line: line0, col: col0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 });
-  out.token_start = (0 as usize); return 1;
+  lexer_park_token_start(out, (0 as usize)); return 1;
 }
 
 /**
@@ -3865,7 +3865,7 @@ export function lexer_try_no_mangle_attr_into(out: *LexerResult, l: Lexer, data:
   advance_one(&l2, 108); advance_one(&l2, 101); advance_one(&l2, 93);
   write_next_lex_into(out, l2);
   write_tok_into(out, { kind: (32 as TokenKind), line: line0, col: col0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 });
-  out.token_start = (0 as usize); return 1;
+  lexer_park_token_start(out, (0 as usize)); return 1;
 }
 
 /**
@@ -3884,7 +3884,7 @@ export function lexer_try_interrupt_attr_into(out: *LexerResult, l: Lexer, data:
   advance_one(&l2, 112); advance_one(&l2, 116); advance_one(&l2, 93);
   write_next_lex_into(out, l2);
   write_tok_into(out, { kind: (35 as TokenKind), line: line0, col: col0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 });
-  out.token_start = (0 as usize); return 1;
+  lexer_park_token_start(out, (0 as usize)); return 1;
 }
 
 /**
@@ -3901,7 +3901,7 @@ export function lexer_try_send_attr_into(out: *LexerResult, l: Lexer, data: u8[]
   advance_one(&l2, 93);
   write_next_lex_into(out, l2);
   write_tok_into(out, { kind: (36 as TokenKind), line: line0, col: col0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 });
-  out.token_start = (0 as usize); return 1;
+  lexer_park_token_start(out, (0 as usize)); return 1;
 }
 
 /**
@@ -3918,7 +3918,7 @@ export function lexer_try_sync_attr_into(out: *LexerResult, l: Lexer, data: u8[]
   advance_one(&l2, 93);
   write_next_lex_into(out, l2);
   write_tok_into(out, { kind: (37 as TokenKind), line: line0, col: col0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 });
-  out.token_start = (0 as usize); return 1;
+  lexer_park_token_start(out, (0 as usize)); return 1;
 }
 
 /**
@@ -4413,11 +4413,20 @@ export function lexer_apply_optional_exponent(l: Lexer, data: u8[], fval: f64, o
  * *LexerResult. Separate functions force store-then-load sequencing for the
  * ident start parked in out.token_start. PLATFORM: SHARED.
  */
+// tip PE Win XT001: out.token_start field assign fails check_block.
+// token_start @64 after Lexer(16)+Token(48). PLATFORM: SHARED.
 function lexer_park_token_start(out: *LexerResult, pos: usize): void {
-  out.token_start = pos;
+  unsafe {
+    let p: usize = pos;
+    memcpy((out as *u8) + (64 as usize), (&p as *u8), (8 as usize));
+  }
 }
 function lexer_parked_token_start(out: *LexerResult): usize {
-  return out.token_start;
+  let p: usize = 0;
+  unsafe {
+    memcpy((&p as *u8), (out as *u8) + (64 as usize), (8 as usize));
+  }
+  return p;
 }
 
 export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): void {
@@ -4428,20 +4437,21 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
   // option[0..16] → L003 @ attributed :21:2. Only rewrite the fat header when
   // the data pointer itself looks smashed (< page). PLATFORM: SHARED.
   {
+    // tip PE Win XT001: `let fixed: LexerBuf = …` in this fn fails check_block.
+    // Rebuild smashed fat header with two usizes + memcpy (no LexerBuf local).
+    // PLATFORM: SHARED.
     let sp: *u8 = (0 as *u8);
     let slen: usize = 0;
     let fat_addr: *u8 = (0 as *u8);
     let data_ptr: usize = 0;
-    let fixed: LexerBuf = LexerBuf { data: (0 as *u8), length: (0 as usize) };
     unsafe {
       fat_addr = (&data as *u8);
       memcpy((&data_ptr as *u8), fat_addr, (8 as usize));
       lexer_src_data_store((&sp as *u8));
       lexer_src_len_store((&slen as *u8));
-      fixed.data = sp;
-      fixed.length = slen;
       if ((data_ptr < (4096 as usize)) && (sp != (0 as *u8))) {
-        memcpy(fat_addr, (&fixed as *u8), (16 as usize));
+        memcpy(fat_addr, (&sp as *u8), (8 as usize));
+        memcpy(fat_addr + (8 as usize), (&slen as *u8), (8 as usize));
       }
     }
   }
@@ -4521,7 +4531,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
             float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
           write_next_lex_into(out, l);
           write_tok_into(out, tok_eof_hex);
-          out.token_start = start;
+          lexer_park_token_start(out, start);
           return;
         }
         lexer_note_invalid_escape(esc_line, esc_col);
@@ -4529,7 +4539,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_esc);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
       }
       advance_one(&l, data[l.pos]);
@@ -4541,7 +4551,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
         float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
       write_next_lex_into(out, l);
       write_tok_into(out, tok_eof);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     let slen: i32 = (l.pos - start) as i32;
@@ -4550,7 +4560,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       float_val: 0.0, ident: (0 as *u8), ident_len: slen };
     write_next_lex_into(out, l);
     write_tok_into(out, tok_str);
-    out.token_start = start;
+    lexer_park_token_start(out, start);
     return;
   }
   if ((is_alpha(c) != 0)) {
@@ -4611,7 +4621,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sep);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
       }
       if (hex_digits == 0) {
@@ -4620,7 +4630,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
       }
       // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
@@ -4630,14 +4640,14 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sfx);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
       }
       let tok: Token = { kind: (80 as TokenKind), line: line0, col: col0, int_val: hval as i64,
         float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     // wave276 Cap residual: `0b`/`0B` binary integer (mirror hex L004 path).
@@ -4666,7 +4676,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sep);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
       }
       if (bin_digits == 0) {
@@ -4675,7 +4685,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
       }
       // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
@@ -4685,14 +4695,14 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sfx);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
       }
       let tok_b: Token = { kind: (80 as TokenKind), line: line0, col: col0, int_val: bval as i64,
         float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
       write_next_lex_into(out, l);
       write_tok_into(out, tok_b);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     // wave276 Cap residual: `0o`/`0O` octal integer (mirror hex L004 path).
@@ -4721,7 +4731,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sep);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
       }
       if (oct_digits == 0) {
@@ -4730,7 +4740,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
       }
       // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
@@ -4740,14 +4750,14 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sfx);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
       }
       let tok_o: Token = { kind: (80 as TokenKind), line: line0, col: col0, int_val: oval as i64,
         float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
       write_next_lex_into(out, l);
       write_tok_into(out, tok_o);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     ival = ival * 10 + (c - 48);
@@ -4770,7 +4780,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sep);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
     }
     // wave275 Cap residual: C-style empty fraction after `.` (`1.`, `1.e2`) → TOKEN_FLOAT.
@@ -4803,7 +4813,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sep);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
       }
       let pi: i32 = 0;
@@ -4818,7 +4828,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
       }
       // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
@@ -4828,14 +4838,14 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sfx);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
       }
       let tok: Token = { kind: (81 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
         float_val: fval, ident: (0 as *u8), ident_len: 0 };
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     if (l.pos < data.length && (data[l.pos] == 101 || data[l.pos] == 69)) {
@@ -4872,7 +4882,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sep);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
       }
       if (exp_digits == 0) {
@@ -4881,7 +4891,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
       }
       exp = exp * exp_sign;
@@ -4907,14 +4917,14 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sfx);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
       }
       let tok: Token = { kind: (81 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
         float_val: fval, ident: (0 as *u8), ident_len: 0 };
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
@@ -4924,7 +4934,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
         float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
       write_next_lex_into(out, l);
       write_tok_into(out, tok_eof_sfx);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     let tok: Token = { kind: (80 as TokenKind), line: line0, col: col0, int_val: ival,
@@ -4932,7 +4942,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
     /* See implementation. */
-    out.token_start = start;
+    lexer_park_token_start(out, start);
     return;
   }
   if (c == 46 && l.pos + (1 as usize) < data.length && (is_digit(data[l.pos + (1 as usize)]) != 0)) {
@@ -4963,7 +4973,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sep);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
     }
     let ld_pi: i32 = 0;
@@ -4977,7 +4987,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
         float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
       write_next_lex_into(out, l);
       write_tok_into(out, tok_eof);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
@@ -4987,14 +4997,14 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
         float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
       write_next_lex_into(out, l);
       write_tok_into(out, tok_eof_sfx);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     let tok: Token = { kind: (81 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: fval, ident: (0 as *u8), ident_len: 0 };
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
-    out.token_start = start;
+    lexer_park_token_start(out, start);
     return;
   }
   // Punctuation/operators: dedicated helper keeps body_into under typeck limits.
@@ -5020,21 +5030,21 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
   let tok: Token = { kind: (0 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
     float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
   if (c == 40) { lexer_tok_with_kind(&tok, (82 as TokenKind)); write_next_lex_into(out, l);
-    write_tok_into(out, tok); out.token_start = start; return; }
+    write_tok_into(out, tok); lexer_park_token_start(out, start); return; }
   if (c == 41) { lexer_tok_with_kind(&tok, (83 as TokenKind)); write_next_lex_into(out, l);
-    write_tok_into(out, tok); out.token_start = start; return; }
+    write_tok_into(out, tok); lexer_park_token_start(out, start); return; }
   if (c == 123) { lexer_tok_with_kind(&tok, (84 as TokenKind)); write_next_lex_into(out, l);
-    write_tok_into(out, tok); out.token_start = start; return; }
+    write_tok_into(out, tok); lexer_park_token_start(out, start); return; }
   if (c == 125) { lexer_tok_with_kind(&tok, (85 as TokenKind)); write_next_lex_into(out, l);
-    write_tok_into(out, tok); out.token_start = start; return; }
+    write_tok_into(out, tok); lexer_park_token_start(out, start); return; }
   if (c == 91) { lexer_tok_with_kind(&tok, (86 as TokenKind)); write_next_lex_into(out, l);
-    write_tok_into(out, tok); out.token_start = start; return; }
+    write_tok_into(out, tok); lexer_park_token_start(out, start); return; }
   if (c == 93) { lexer_tok_with_kind(&tok, (87 as TokenKind)); write_next_lex_into(out, l);
-    write_tok_into(out, tok); out.token_start = start; return; }
+    write_tok_into(out, tok); lexer_park_token_start(out, start); return; }
   if (c == 44) { lexer_tok_with_kind(&tok, (90 as TokenKind)); write_next_lex_into(out, l); write_tok_into(out,
-    tok); out.token_start = start; return; }
+    tok); lexer_park_token_start(out, start); return; }
   if (c == 58) { lexer_tok_with_kind(&tok, (91 as TokenKind)); write_next_lex_into(out, l); write_tok_into(out,
-    tok); out.token_start = start; return; }
+    tok); lexer_park_token_start(out, start); return; }
   if (c == 46) {
     /* See implementation. */
     if (l.pos + (1 as usize) < data.length && data[l.pos] == 46 && data[l.pos + (1 as usize)] == 46) {
@@ -5045,9 +5055,9 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
       lexer_tok_with_kind(&tok, (92 as TokenKind));
     }
     write_next_lex_into(out, l); write_tok_into(out,
-    tok); out.token_start = start; return; }
+    tok); lexer_park_token_start(out, start); return; }
   if (c == 59) { lexer_tok_with_kind(&tok, (95 as TokenKind)); write_next_lex_into(out, l);
-    write_tok_into(out, tok); out.token_start = start; return; }
+    write_tok_into(out, tok); lexer_park_token_start(out, start); return; }
   if (c == 43) {
     /* See implementation. */
     if (l.pos < data.length && data[l.pos] == 61) {
@@ -5058,7 +5068,7 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
     }
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
-    out.token_start = start;
+    lexer_park_token_start(out, start);
     return;
   }
   if (c == 45) {
@@ -5067,7 +5077,7 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
       lexer_tok_with_kind(&tok, (88 as TokenKind));
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     if (l.pos < data.length && data[l.pos] == 61) {
@@ -5075,13 +5085,13 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
       lexer_tok_with_kind(&tok, (107 as TokenKind));
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     lexer_tok_with_kind(&tok, (97 as TokenKind));
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
-    out.token_start = start;
+    lexer_park_token_start(out, start);
     return;
   }
   if (c == 42) {
@@ -5093,7 +5103,7 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
     }
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
-    out.token_start = start;
+    lexer_park_token_start(out, start);
     return;
   }
   if (c == 47) {
@@ -5105,7 +5115,7 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
     }
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
-    out.token_start = start;
+    lexer_park_token_start(out, start);
     return;
   }
   if (c == 37) {
@@ -5117,7 +5127,7 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
     }
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
-    out.token_start = start;
+    lexer_park_token_start(out, start);
     return;
   }
   if (c == 94) {
@@ -5129,18 +5139,18 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
     }
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
-    out.token_start = start;
+    lexer_park_token_start(out, start);
     return;
   }
   if (c == 126) { lexer_tok_with_kind(&tok, (116 as TokenKind)); write_next_lex_into(out, l);
-    write_tok_into(out, tok); out.token_start = start; return; }
+    write_tok_into(out, tok); lexer_park_token_start(out, start); return; }
   if (c == 38) {
     if (l.pos < data.length && data[l.pos] == 38) {
       advance_one(&l, 38);
       lexer_tok_with_kind(&tok, (124 as TokenKind));
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     if (l.pos < data.length && data[l.pos] == 61) {
@@ -5148,13 +5158,13 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
       lexer_tok_with_kind(&tok, (111 as TokenKind));
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     lexer_tok_with_kind(&tok, (101 as TokenKind));
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
-    out.token_start = start;
+    lexer_park_token_start(out, start);
     return;
   }
   if (c == 124) {
@@ -5163,7 +5173,7 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
       lexer_tok_with_kind(&tok, (125 as TokenKind));
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     if (l.pos < data.length && data[l.pos] == 61) {
@@ -5171,13 +5181,13 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
       lexer_tok_with_kind(&tok, (112 as TokenKind));
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     lexer_tok_with_kind(&tok, (102 as TokenKind));
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
-    out.token_start = start;
+    lexer_park_token_start(out, start);
     return;
   }
   if (c == 60) {
@@ -5186,7 +5196,7 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
       lexer_tok_with_kind(&tok, (122 as TokenKind));
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     if (l.pos < data.length && data[l.pos] == 60) {
@@ -5199,13 +5209,13 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
       }
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     lexer_tok_with_kind(&tok, (120 as TokenKind));
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
-    out.token_start = start;
+    lexer_park_token_start(out, start);
     return;
   }
   if (c == 62) {
@@ -5214,7 +5224,7 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
       lexer_tok_with_kind(&tok, (123 as TokenKind));
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     if (l.pos < data.length && data[l.pos] == 62) {
@@ -5227,13 +5237,13 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
       }
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     lexer_tok_with_kind(&tok, (121 as TokenKind));
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
-    out.token_start = start;
+    lexer_park_token_start(out, start);
     return;
   }
   if (c == 33) {
@@ -5242,26 +5252,26 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
       lexer_tok_with_kind(&tok, (119 as TokenKind));
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     lexer_tok_with_kind(&tok, (126 as TokenKind));
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
-    out.token_start = start;
+    lexer_park_token_start(out, start);
     return;
   }
   if (c == 63) { lexer_tok_with_kind(&tok, (127 as TokenKind)); write_next_lex_into(out, l);
-    write_tok_into(out, tok); out.token_start = start; return; }
+    write_tok_into(out, tok); lexer_park_token_start(out, start); return; }
   if (c == 64) { lexer_tok_with_kind(&tok, (129 as TokenKind)); write_next_lex_into(out, l);
-    write_tok_into(out, tok); out.token_start = start; return; }
+    write_tok_into(out, tok); lexer_park_token_start(out, start); return; }
   if (c == 61) {
     if (l.pos < data.length && data[l.pos] == 62) {
       advance_one(&l, 62);
       lexer_tok_with_kind(&tok, (89 as TokenKind));
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     if (l.pos < data.length && data[l.pos] == 61) {
@@ -5269,13 +5279,13 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
       lexer_tok_with_kind(&tok, (118 as TokenKind));
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     lexer_tok_with_kind(&tok, (117 as TokenKind));
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
-    out.token_start = start;
+    lexer_park_token_start(out, start);
     return;
   }
   // wave272 Cap residual: unknown byte was silent TOKEN_EOF → soft P001 / BLD001.
@@ -5300,7 +5310,7 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
   };
   write_next_lex_into(out, l);
   write_tok_into(out, unk);
-  out.token_start = ill_start;
+  lexer_park_token_start(out, ill_start);
 }
 
 /** Exported function `write_next_lex_into`.
@@ -5310,13 +5320,15 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
  * @return void
  */
 export function write_next_lex_into(out: *LexerResult, l: Lexer): void {
-  // Cap tip 10.2: widened i32 field stores smash neighbors. PLATFORM: SHARED.
-  out.next_lex.pos = l.pos;
+  // Cap tip 10.2: i32 field stores smash neighbors; tip PE Win XT001 on
+  // usize field assign — memcpy all Lexer + token_start. PLATFORM: SHARED.
   unsafe {
+    let z: usize = 0;
+    memcpy((out as *u8) + 0, &l.pos as *u8, 8);
     memcpy((out as *u8) + 8, &l.line as *u8, 4);
     memcpy((out as *u8) + 12, &l.col as *u8, 4);
+    memcpy((out as *u8) + (64 as usize), (&z as *u8), (8 as usize));
   }
-  out.token_start = (0 as usize);
 }
 /** Exported function `write_tok_into`.
  * Write path helper `write_tok_into`.
@@ -5388,12 +5400,14 @@ export function lexer_next_buf_into(out: *LexerResult, lex: Lexer, data: *u8, le
   unsafe {
     let n: i32 = len;
     let sl: u8[] = [];
-    let b: LexerBuf = LexerBuf { data: (0 as *u8), length: (0 as usize) };
     if (n < 0) { n = 0; }
     /* Cap tip: omit lexer_src_park (tip-image L003 on dep prerun). */
-    b.data = data;
-    b.length = (n as usize);
-    memcpy((&sl as *u8), (&b as *u8), (16 as usize));
+    // tip PE Win XT001: no LexerBuf local — poke fat words into sl. PLATFORM: SHARED.
+    memcpy((&sl as *u8), (&data as *u8), (8 as usize));
+    {
+      let nl: usize = (n as usize);
+      memcpy((&sl as *u8) + (8 as usize), (&nl as *u8), (8 as usize));
+    }
     lexer_next_into(out, lex, sl);
   }
 }
@@ -5415,12 +5429,14 @@ export function lexer_next_buf(out: *LexerResult, lex: Lexer, data: *u8, len: i3
   unsafe {
     let n: i32 = len;
     let sl: u8[] = [];
-    let b: LexerBuf = LexerBuf { data: (0 as *u8), length: (0 as usize) };
     if (n < 0) { n = 0; }
     /* Cap tip: omit lexer_src_park (tip-image L003 on dep prerun). */
-    b.data = data;
-    b.length = (n as usize);
-    memcpy((&sl as *u8), (&b as *u8), (16 as usize));
+    // tip PE Win XT001: no LexerBuf local — poke fat words into sl. PLATFORM: SHARED.
+    memcpy((&sl as *u8), (&data as *u8), (8 as usize));
+    {
+      let nl: usize = (n as usize);
+      memcpy((&sl as *u8) + (8 as usize), (&nl as *u8), (8 as usize));
+    }
     lexer_next_slice(out, lex, sl);
   }
 }
