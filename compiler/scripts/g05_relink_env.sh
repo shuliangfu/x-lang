@@ -1393,48 +1393,56 @@ case "$UNAME_S" in
       # lexer_init is out-ptr and smashes source when rdi==parked data
       # (num_funcs=0 / P001 / no main). Ret-by-value dual-ABI shim + demote
       # tip lexer_x.o::lexer_init (keep next_* tip). PLATFORM: LINUX tip cold.
-      _shim_s=src/asm/lexer_init_ret_by_value_shim_x86_64.s
-      _shim_o=build_asm/selfhost_pabi/lexer_init_ret_by_value_shim.o
-      mkdir -p build_asm/selfhost_pabi
-      if [ ! -f "$_shim_s" ]; then
-        echo "g05_relink_env: ERROR missing $_shim_s (note743y.4)" >&2
-        exit 1
-      fi
-      if ! as -o "$_shim_o" "$_shim_s" 2>/tmp/g05_lexer_init_shim_as.err; then
-        echo "g05_relink_env: ERROR as failed for $_shim_s" >&2
-        cat /tmp/g05_lexer_init_shim_as.err >&2 || true
-        exit 1
-      fi
-      if ! nm "$_shim_o" 2>/dev/null | grep -qE ' T lexer_init$'; then
-        echo "g05_relink_env: ERROR shim missing T lexer_init" >&2
-        exit 1
-      fi
-      _PABI_TIP_PEEL="$_shim_o $_PABI_TIP_PEEL"
-      _G05_LEXER_X_O=""
-      if [ -f lexer_x.o ]; then
-        _lex_f=build_asm/selfhost_pabi/lexer_x_tip_peel.o
-        _exp=build_asm/selfhost_pabi/lexer_x_tip_peel_exports.txt
-        nm -g --defined-only lexer_x.o 2>/dev/null | awk '/ [Tt] /{print $3}' \
-          | grep -v '^lexer_init$' | grep -v '^_lexer_init$' >"$_exp" \
-          || true
-        if [ ! -s "$_exp" ]; then
-          echo "g05_relink_env: ERROR empty lexer_x tip-peel export list" >&2
+      # Track L parser_x (no *.pure_asm): calls out-ptr lexer_init(&Lex) —
+      # nop ret-by-value shim leaves Lexer uninit → P001 no functions / no main.
+      # Skip shim and keep full tip lexer_x.o::lexer_init when Track L.
+      if [ -f parser_x.pure_asm ]; then
+        _shim_s=src/asm/lexer_init_ret_by_value_shim_x86_64.s
+        _shim_o=build_asm/selfhost_pabi/lexer_init_ret_by_value_shim.o
+        mkdir -p build_asm/selfhost_pabi
+        if [ ! -f "$_shim_s" ]; then
+          echo "g05_relink_env: ERROR missing $_shim_s (note743y.4)" >&2
           exit 1
         fi
-        if ! ld -r -o "$_lex_f" --retain-symbols-file="$_exp" lexer_x.o 2>/tmp/g05_lexer_x_tip_peel.err; then
-          echo "g05_relink_env: ERROR ld -r filter lexer_init failed" >&2
-          cat /tmp/g05_lexer_x_tip_peel.err >&2 || true
+        if ! as -o "$_shim_o" "$_shim_s" 2>/tmp/g05_lexer_init_shim_as.err; then
+          echo "g05_relink_env: ERROR as failed for $_shim_s" >&2
+          cat /tmp/g05_lexer_init_shim_as.err >&2 || true
           exit 1
         fi
-        if nm "$_lex_f" 2>/dev/null | grep -qE ' T lexer_init$'; then
-          echo "g05_relink_env: ERROR lexer_x tip-peel still exports T lexer_init" >&2
+        if ! nm "$_shim_o" 2>/dev/null | grep -qE ' T lexer_init$'; then
+          echo "g05_relink_env: ERROR shim missing T lexer_init" >&2
           exit 1
         fi
-        _G05_LEXER_X_O="$_lex_f"
-        echo "g05_relink_env: note743y.4 lexer_init ret-by-value shim + demoted tip lexer_x" >&2
+        _PABI_TIP_PEEL="$_shim_o $_PABI_TIP_PEEL"
+        _G05_LEXER_X_O=""
+        if [ -f lexer_x.o ]; then
+          _lex_f=build_asm/selfhost_pabi/lexer_x_tip_peel.o
+          _exp=build_asm/selfhost_pabi/lexer_x_tip_peel_exports.txt
+          nm -g --defined-only lexer_x.o 2>/dev/null | awk '/ [Tt] /{print $3}' \
+            | grep -v '^lexer_init$' | grep -v '^_lexer_init$' >"$_exp" \
+            || true
+          if [ ! -s "$_exp" ]; then
+            echo "g05_relink_env: ERROR empty lexer_x tip-peel export list" >&2
+            exit 1
+          fi
+          if ! ld -r -o "$_lex_f" --retain-symbols-file="$_exp" lexer_x.o 2>/tmp/g05_lexer_x_tip_peel.err; then
+            echo "g05_relink_env: ERROR ld -r filter lexer_init failed" >&2
+            cat /tmp/g05_lexer_x_tip_peel.err >&2 || true
+            exit 1
+          fi
+          if nm "$_lex_f" 2>/dev/null | grep -qE ' T lexer_init$'; then
+            echo "g05_relink_env: ERROR lexer_x tip-peel still exports T lexer_init" >&2
+            exit 1
+          fi
+          _G05_LEXER_X_O="$_lex_f"
+          echo "g05_relink_env: note743y.4 lexer_init ret-by-value shim + demoted tip lexer_x" >&2
+        else
+          echo "g05_relink_env: ERROR lexer_x.o missing for note743y.4 demote" >&2
+          exit 1
+        fi
       else
-        echo "g05_relink_env: ERROR lexer_x.o missing for note743y.4 demote" >&2
-        exit 1
+        _G05_LEXER_X_O=""
+        echo "g05_relink_env: note743y.4 SKIP ret-by-value shim (Track L parser_x; keep out-ptr lexer_init)" >&2
       fi
       # note743y.6.10: emptied cold rt_fmt_one seed → hollow ret0 wins;
       # tip-compile .x and prepend so first-wins beats phase1 hollow
@@ -7260,44 +7268,50 @@ case "$UNAME_S" in
     # note743y.6.22: restore note743y.6.21/a89 ret-by-value shim + demote tip
     # lexer_init (Linux twin). tip Soft Cap-only init → P001 no _main; probe
     # SEGV under lldb next. PLATFORM: MACOS tip cold.
-    _shim_s=src/asm/lexer_init_ret_by_value_shim_arm64.s
-    _shim_o=build_asm/selfhost_pabi/lexer_init_ret_by_value_shim.o
-    if [ ! -f "$_shim_s" ]; then
-      echo "g05_relink_env: ERROR missing $_shim_s (note743y.6.22)" >&2
-      exit 1
-    fi
-    if ! as -o "$_shim_o" "$_shim_s" 2>/tmp/g05_lexer_init_shim_as.err; then
-      echo "g05_relink_env: ERROR as failed for $_shim_s" >&2
-      cat /tmp/g05_lexer_init_shim_as.err >&2 || true
-      exit 1
-    fi
-    if ! nm -gU "$_shim_o" 2>/dev/null | grep -q 'T _lexer_init$'; then
-      echo "g05_relink_env: ERROR shim missing T _lexer_init" >&2
-      exit 1
-    fi
-    case " $_CAP_TIP_FRONT " in
-      *" lexer_init_ret_by_value_shim.o "*) ;;
-      *)
-        _CAP_TIP_FRONT="$_shim_o $_CAP_TIP_FRONT"
-        echo "g05_relink_env: note743y.6.22 lexer_init ret-by-value shim" >&2
-        ;;
-    esac
-    if [ -f lexer_x.o ] && [ -n "${_oc:-}" ]; then
-      _lex_f=build_asm/selfhost_pabi/lexer_x_tip_peel.o
-      cp -f lexer_x.o "$_lex_f"
-      if nm -gU "$_lex_f" 2>/dev/null | awk '{print $3}' | grep -qxF '_lexer_init'; then
-        "$_oc" --redefine-sym=_lexer_init=_lexer_init__tip_outptr_dead "$_lex_f" 2>/dev/null \
-          || { echo "g05_relink_env: ERROR demote tip lexer_init failed" >&2; exit 1; }
-      fi
-      if nm -gU "$_lex_f" 2>/dev/null | grep -qE ' T _lexer_init$'; then
-        echo "g05_relink_env: ERROR lexer_x tip-peel still exports T _lexer_init" >&2
+    # Track L parser_x (no *.pure_asm): out-ptr lexer_init — skip nop shim.
+    if [ -f parser_x.pure_asm ]; then
+      _shim_s=src/asm/lexer_init_ret_by_value_shim_arm64.s
+      _shim_o=build_asm/selfhost_pabi/lexer_init_ret_by_value_shim.o
+      if [ ! -f "$_shim_s" ]; then
+        echo "g05_relink_env: ERROR missing $_shim_s (note743y.6.22)" >&2
         exit 1
       fi
-      _G05_LEXER_X_O="$_lex_f"
-      echo "g05_relink_env: note743y.6.22 demoted tip lexer_x::_lexer_init (shim wins)" >&2
-    elif [ -f lexer_x.o ]; then
-      echo "g05_relink_env: ERROR llvm-objcopy required to demote tip lexer_init" >&2
-      exit 1
+      if ! as -o "$_shim_o" "$_shim_s" 2>/tmp/g05_lexer_init_shim_as.err; then
+        echo "g05_relink_env: ERROR as failed for $_shim_s" >&2
+        cat /tmp/g05_lexer_init_shim_as.err >&2 || true
+        exit 1
+      fi
+      if ! nm -gU "$_shim_o" 2>/dev/null | grep -q 'T _lexer_init$'; then
+        echo "g05_relink_env: ERROR shim missing T _lexer_init" >&2
+        exit 1
+      fi
+      case " $_CAP_TIP_FRONT " in
+        *" lexer_init_ret_by_value_shim.o "*) ;;
+        *)
+          _CAP_TIP_FRONT="$_shim_o $_CAP_TIP_FRONT"
+          echo "g05_relink_env: note743y.6.22 lexer_init ret-by-value shim" >&2
+          ;;
+      esac
+      if [ -f lexer_x.o ] && [ -n "${_oc:-}" ]; then
+        _lex_f=build_asm/selfhost_pabi/lexer_x_tip_peel.o
+        cp -f lexer_x.o "$_lex_f"
+        if nm -gU "$_lex_f" 2>/dev/null | awk '{print $3}' | grep -qxF '_lexer_init'; then
+          "$_oc" --redefine-sym=_lexer_init=_lexer_init__tip_outptr_dead "$_lex_f" 2>/dev/null \
+            || { echo "g05_relink_env: ERROR demote tip lexer_init failed" >&2; exit 1; }
+        fi
+        if nm -gU "$_lex_f" 2>/dev/null | grep -qE ' T _lexer_init$'; then
+          echo "g05_relink_env: ERROR lexer_x tip-peel still exports T _lexer_init" >&2
+          exit 1
+        fi
+        _G05_LEXER_X_O="$_lex_f"
+        echo "g05_relink_env: note743y.6.22 demoted tip lexer_x::_lexer_init (shim wins)" >&2
+      elif [ -f lexer_x.o ]; then
+        echo "g05_relink_env: ERROR llvm-objcopy required to demote tip lexer_init" >&2
+        exit 1
+      fi
+    else
+      _G05_LEXER_X_O=""
+      echo "g05_relink_env: note743y.6.22 SKIP ret-by-value shim (Track L parser_x; keep out-ptr lexer_init)" >&2
     fi
     # note743y.6.22: Apple clang packs consecutive stack i32s; tip Soft Cap
     # into_c expects 8-byte slots → bound_scan gets len as data (FAR=0x72).
