@@ -13,7 +13,8 @@ PRIOR=analysis/xlang-win-tip-l2-hello-xp008-std-context-ctx-ptr.md
 [ -f "$PRIOR" ] || die "missing 11.68 DIG $PRIOR"
 grep -qE 'typeck|named_eq|type_refs_equal|\*Named|UserStruct' "$DOC" || die "diagnose missing named-eq locus"
 grep -q 'CLOSE residual HOLD' "$PRIOR" || die "11.68 DIG must be CLOSE residual HOLD"
-grep -qE 'Residual|DIG|修靶' "$DOC" || die "diagnose missing DIG/Residual"
+grep -q 'CLOSE residual HOLD' "$DOC" || die "11.69 DIG must be CLOSE residual HOLD"
+grep -qE 'Residual|DIG|修靶|name_into' "$DOC" || die "diagnose missing DIG/Residual"
 
 uname_s="$(uname -s 2>/dev/null || echo unknown)"
 case "$uname_s" in
