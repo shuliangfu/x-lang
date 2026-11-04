@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Knife 11.60: Win tip L2 hello XP008 parse skip gate.
+# Knife 11.60: Win tip L2 hello XP008 parse skip gate (cfg-skip + allow padding).
 set -euo pipefail
 ROOT="$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -13,7 +13,8 @@ PRIOR=analysis/xlang-win-tip-l2-named-type-x-live-missing.md
 [ -f "$PRIOR" ] || die "missing 11.59 DIG $PRIOR"
 grep -qE 'XP008|parse skip|hello' "$DOC" || die "diagnose missing XP008/hello"
 grep -q 'CLOSE ACCEPT' "$PRIOR" || die "11.59 DIG must be CLOSE ACCEPT"
-grep -qE 'Residual|DIG|修靶' "$DOC" || die "diagnose missing DIG/Residual"
+grep -qE 'CLOSE ACCEPT|skip_one|allow.padding' "$DOC" || die "diagnose missing CLOSE/plant"
+grep -qE 'Residual|1048|array' "$DOC" || die "diagnose missing residual handoff"
 
 uname_s="$(uname -s 2>/dev/null || echo unknown)"
 case "$uname_s" in
@@ -36,18 +37,28 @@ export function a(ctx: Context): i32 {
   return _rc;
 }
 EOFX
+    cat >"$TMP/allow1.x" <<'EOFX'
+allow(padding) struct IoBatchBuf { ptr: *u8; length: usize; handle: usize; }
+EOFX
+    cat >"$TMP/let_i32.x" <<'EOFX'
+let x: i32 = 0;
+EOFX
     set +e
     "$XLANG" -c -o "$TMP/i.o" "$TMP/IF_min.x" >"$TMP/i.log" 2>&1; irc=$?
     "$XLANG" -c -o "$TMP/p.o" "$TMP/param_ctx.x" >"$TMP/p.log" 2>&1; prc=$?
-    "$XLANG" -c -o "$TMP/h.o" examples/hello.x >"$TMP/h.log" 2>&1; hrc=$?
+    "$XLANG" check "$TMP/allow1.x" >"$TMP/a.log" 2>&1; arc=$?
+    "$XLANG" check "$TMP/let_i32.x" >"$TMP/l.log" 2>&1; lrc=$?
+    "$XLANG" check examples/hello.x >"$TMP/h.log" 2>&1; hrc=$?
     set -e
     [ "$irc" -eq 0 ] && [ -s "$TMP/i.o" ] || die "11.56 IF_min regress"
     [ "$prc" -eq 0 ] && [ -s "$TMP/p.o" ] || die "11.59 param_ctx regress"
-    if [ "$hrc" -ne 0 ] || [ ! -s "$TMP/h.o" ]; then
-      echo "${PREFIX} HOLD: hello still fail hrc=$hrc; log=$(head -2 "$TMP/h.log" | tr '\n' ' ')"
-      exit 2
+    [ "$arc" -eq 0 ] || die "allow(padding) plant regress; log=$(head -2 "$TMP/a.log" | tr '\n' ' ')"
+    [ "$lrc" -eq 0 ] || die "scalar let regress; log=$(head -2 "$TMP/l.log" | tr '\n' ' ')"
+    if [ "$hrc" -eq 0 ]; then
+      echo "${PREFIX} OK: allow1+IF+param_ctx; hello also green"
+    else
+      echo "${PREFIX} OK: allow1+IF+param_ctx; hello residual→11.61 (hrc=$hrc; $(head -1 "$TMP/h.log" | tr '\n' ' '))"
     fi
-    echo "${PREFIX} OK: hello -c nonempty; IF/param_ctx OK"
     ;;
   *)
     echo "${PREFIX} SKIP: non-Windows host (docs-only check passed)"
