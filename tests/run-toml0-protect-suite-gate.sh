@@ -18,6 +18,7 @@ GATES=(
   tests/run-toml0-load-hold-protect-gate.sh
   tests/run-toml0-host-c-obs-io-stubs-gate.sh
   tests/run-toml0-cfg-trim-epilogue-protect-gate.sh
+  tests/run-toml0-yaml-host-c-obs-io-stubs-gate.sh
 )
 for g in "${GATES[@]}"; do
   [ -f "$g" ] || die "missing $g"

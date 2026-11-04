@@ -46,19 +46,23 @@ std_config_yaml_symbols_ok() {
 # Same short-name fs_* + link_abi_getenv surface as STD-086; do NOT also link
 # std/process/process.o + runtime_process_os_glue.o (Ubuntu GNU ld multiple def).
 std_config_yaml_run_c_smoke() {
+  # Knife 11.40: Darwin ld needs runtime_asm_io_stubs.o for xlang_sys_read/write
+  # (same class as 11.37 config host-C obs). Refuse soft auto-make of that .o.
+  # Product honesty remains yaml_smoke.x -o; host-C is archaeology only.
   local cfg_o="std/config/config.o"
   local env_o="std/env/env.o"
   local rpav_o="compiler/runtime_process_argv.o"
   local rio_o="compiler/src/runtime_io_abi.o"
   local getenv_o="compiler/runtime_link_abi_user_env.o"
   local renv_o="compiler/runtime_env_os.o"
+  local stubs_o="compiler/runtime_asm_io_stubs.o"
   local src="tests/std-config/yaml_smoke_ok.c"
   local out="/tmp/xlang_std_config_yaml_c_$$"
-  for o in "$cfg_o" "$env_o" "$rpav_o" "$rio_o" "$getenv_o" "$renv_o"; do
+  for o in "$cfg_o" "$env_o" "$rpav_o" "$rio_o" "$getenv_o" "$renv_o" "$stubs_o"; do
     [ -f "$o" ] || return 1
   done
   if ! cc -std=c11 -O1 -o "$out" "$src" \
-    "$cfg_o" "$env_o" "$rpav_o" "$rio_o" "$getenv_o" "$renv_o" 2>/dev/null; then
+    "$cfg_o" "$env_o" "$rpav_o" "$rio_o" "$getenv_o" "$renv_o" "$stubs_o" 2>/dev/null; then
     return 1
   fi
   set +e
@@ -66,7 +70,13 @@ std_config_yaml_run_c_smoke() {
   local ec=$?
   set -e
   rm -f "$out"
-  [ "$ec" -eq 0 ]
+  # Linked with stubs is the 11.40 delta. Non-zero smoke (often 11.31 residual
+  # shape) stays OBS archaeology — do not claim product yaml green.
+  if [ "$ec" -ne 0 ]; then
+    echo "std-config-yaml OBS host-C residual smoke exit=$ec (linked with io stubs; not green)" >&2
+    return 1
+  fi
+  return 0
 }
 
 # Structured report line (honesty: run=/obs=/skip=).
