@@ -408,6 +408,7 @@ fn main_cmd_build(argc, argv):
 | 评估并提高 `CFG_MAX_ENTRIES` | 单测装入 ≥128 键 |
 | ✅ 冻结 **Core schema** 文 + `xlang.toml.core.example`（刀 **11.30**） | 静态 gate；runtime load ⏸ |
 | ✅ Layer2 **ProjectConfig Core 字段表**（刀 **11.32** plant） | `analysis/xlang-toml-project-config-schema.md`；静态 gate；不接线 load／CLI |
+| ✅ **`--print-config` 设计稿**（刀 **11.33** plant） | `analysis/xlang-toml-print-config-design.md`；静态 gate；CLI 未接线 |
 | golden：core example **必须**被 `std/config` 加载成功 | 新 gate 或并入 config gate |
 | 标记 Full 示例中 unsupported 语法 | CI 注释或 `parse_full` expected-fail |
 | env 命名表进本文 §3.5 | 已写 |
@@ -605,6 +606,7 @@ fn main_cmd_build(argc, argv):
 | 2026-07-21 | 初版：4 层 4 阶段、字段映射、build_use_asm_only 冲突 |
 | 2026-07-21 | **全面重写**：现状校准；CFG_MAX/数组裂缝；Core/Full；发现路径；env 表；默认引擎 M0；阶段 0 地基；双问题域；假绿禁令；与 build-x 契约；检查清单 |
 | 2026-11-03 | 刀 **11.26** LOCATE HOLD：flat kv＝68／unique＝61；三耦确认 |
+| 2026-11-04 | 刀 **11.33** plant：`--print-config` 设计稿＋static gate；CLI 未接线 |
 | 2026-11-04 | 刀 **11.32** plant：ProjectConfig Layer2 Core schema 文档＋static gate；不升 Soft Cap |
 | 2026-11-04 | 刀 **11.31** CLOSE residual HOLD：cfg_trim out_len codegen 残；tip rebuild CG002；runtime load ⏸ |
 | 2026-11-03 | 刀 **11.27** plant：MAX＝256／`CfgEntry[256]`／STORE＝120000；C smoke 128 OK；array／inline 正交未勾 |
