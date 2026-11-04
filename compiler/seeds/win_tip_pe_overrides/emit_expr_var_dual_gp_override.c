@@ -53,7 +53,7 @@ int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_re
         if (rc != 0) {
           return -1;
         }
-        rc = backend_enc_load_rbp_to_rdx_arch(elf_ctx, off - 8, ta);
+        rc = backend_enc_load_rbp_to_rdx_arch(elf_ctx, off + 8, ta);
         if (rc != 0) {
           return -1;
         }
