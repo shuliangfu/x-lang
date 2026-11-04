@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """PLATFORM: WINDOWS tip PE only — tip.x-faithful store_retval 9–16 dual-GP.
 
-Inject .c79srvp. Soft Cap mega drops rdx for named 9..16; other sizes trampoline
+Inject .c79srvp. Soft Cap mega drops rdx for named 9..16; other sizes trampoline.
+Compile seed with gcc -O2 (NOT -O0): -O0 rbp-frame object yields PE that SEGVs si.
 to Soft Cap. Ban Soft Cap Prefer body copy.
 """
 from __future__ import annotations

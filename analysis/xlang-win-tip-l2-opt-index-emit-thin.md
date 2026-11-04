@@ -60,3 +60,9 @@ python3 compiler/scripts/win_tip_pe_inject_emit_index_elf_override.py \
 - tip-only inject `.c79srvp`: size=`max(size_simple,dual_gp)`; if 9..16 store rax@slot + rdx@slot−8 (x86); else trampoline Soft Cap mega.
 - PE `aa906979afb141af`→`173da296e3783371`. Matrix **4/5** (si green; full-body store_retval override without trampoline SEGV'd si — kept band-only).
 - Residual unchanged for opt: (1) tip SEGV compiling `return a+b+c+…` (byte-index `movzbl (%rax)` rax=0x40; `let s=…; return s` builds, run −3) (2) `or_i32` callee return still rax-only (emit_expr VAR interceptor does not hit param return path).
+
+## reinject lock（`.c79srvp`）· 2026-11-05
+
+- Seed polarity：tip.x x86 high-end `half2 = slot_off - 8`（`+8` Soft Cap Win 实验＠`8287b41b6`→matrix **3/5** si+opt SEGV；revert＠`2365ca4de`）。
+- **Inject MUST compile seed `-O2`**（or reuse `/c/xlang_tmp/srvp.o`）：`-O0 -fno-omit-frame-pointer` → PE `8c2c29e8389ac20e` breaks **si** (tip SEGV on compile). `-O2` → PE **`173da296e3783371`** matrix **4/5**.
+- Live：tip `2365ca4de`／PE `173da296e378…`／pass=4 fail=1（opt return-binop SEGV；`or_i32` still rax-only — Soft Cap return VAR fast-path bypasses `glue_load_var`／emit_expr；peel attempts regress expect）.
