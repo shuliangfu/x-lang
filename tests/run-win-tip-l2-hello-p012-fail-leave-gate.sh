@@ -12,7 +12,8 @@ PRIOR=analysis/xlang-win-tip-l2-vlet-win64-manyarg-abi.md
 [ -f "$DOC" ] || die "missing $DOC"
 [ -f "$PRIOR" ] || die "missing 11.48 DIG $PRIOR"
 grep -q 'P012' "$DOC" || die "diagnose missing P012"
-grep -q 'Residual\|DIG 靶\|fail-leave' "$DOC" || die "diagnose missing DIG/Residual"
+grep -q 'CLOSE residual HOLD' "$DOC" || die "11.49 DIG must be CLOSE residual HOLD"
+grep -q 'if_stmt_x\|fail-leave\|Z10' "$DOC" || die "diagnose missing if_stmt_x/fail-leave evidence"
 grep -q 'CLOSE ACCEPT' "$PRIOR" || die "11.48 DIG must be CLOSE ACCEPT"
 
 uname_s="$(uname -s 2>/dev/null || echo unknown)"
