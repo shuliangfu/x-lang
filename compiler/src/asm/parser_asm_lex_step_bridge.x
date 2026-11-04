@@ -210,7 +210,26 @@ extern function parser_asm_skip_imports_slice_c(lex: ParserAsmLexLexer, source: 
 #[cfg(target_os = "windows")]
 function parser_asm_lex_bridge_next(out: *ParserAsmLexResult, lex: *ParserAsmLexLexer, data: *u8): void {
   unsafe {
-    lexer_next_into(out, lex, data);
+    // Peel opaque fat → buf_into (same smash as SysV if passed as u8[]).
+    // PLATFORM: WINDOWS x64.
+    let s: *ParserAsmLexSlice = data as *ParserAsmLexSlice;
+    let d: *u8 = s.data;
+    let n: i32 = (s.length as i32);
+    if (d == (0 as *u8)) {
+      let parked: *u8 = (0 as *u8);
+      let plen: usize = 0;
+      lexer_src_data_store((&parked as *u8));
+      lexer_src_len_store((&plen as *u8));
+      d = parked;
+      n = (plen as i32);
+    }
+    if (d == (0 as *u8)) {
+      return;
+    }
+    if (n < 0) {
+      n = 0;
+    }
+    lexer_next_buf_into(out, *lex, d, n);
   }
 }
 
@@ -229,7 +248,29 @@ function parser_asm_lex_bridge_next(out: *ParserAsmLexResult, lex: *ParserAsmLex
   let frame_pad: u8[32] = [];
   frame_pad[0] = 0;
   unsafe {
-    lexer_next_into(out, *lex, data);
+    // knife256 / 10.2: opaque slice is *ParserAsmLexSlice (fat), NOT raw bytes.
+    // Passing it to lexer_next_into as u8[] makes tip treat source bytes as a
+    // fat header → data[l.pos] loads ASCII as a pointer → SEGV (Ubuntu product).
+    // Peel fat → lexer_next_buf_into. Prefer park if fat.data is null.
+    // PLATFORM: SHARED.
+    let s: *ParserAsmLexSlice = data as *ParserAsmLexSlice;
+    let d: *u8 = s.data;
+    let n: i32 = (s.length as i32);
+    if (d == (0 as *u8)) {
+      let parked: *u8 = (0 as *u8);
+      let plen: usize = 0;
+      lexer_src_data_store((&parked as *u8));
+      lexer_src_len_store((&plen as *u8));
+      d = parked;
+      n = (plen as i32);
+    }
+    if (d == (0 as *u8)) {
+      return;
+    }
+    if (n < 0) {
+      n = 0;
+    }
+    lexer_next_buf_into(out, *lex, d, n);
   }
 }
 
@@ -245,14 +286,34 @@ function parser_asm_lex_bridge_next(out: *ParserAsmLexResult, lex: *ParserAsmLex
  */
 #[cfg(target_os = "macos")]
 function parser_asm_lex_bridge_next(out: *ParserAsmLexResult, lex: *ParserAsmLexLexer, data: *u8): void {
-  // knife256 / 10.2 Cap tip: peel fat → lexer_next_buf_into. Passing the
-  // opaque slice *u8 into lexer_next_into as u8[] smashes Cap tip ABI
-  // Cap tip (10.2): aside gold — next_into(out, *lex, data) unpeeled.
+  // knife256 / 10.2 Cap tip: peel fat → lexer_next_buf_into (Ubuntu SEGV twin).
   // PLATFORM: MACOS.
   let frame_pad: u8[32] = [];
   frame_pad[0] = 0;
   unsafe {
-    lexer_next_into(out, *lex, data);
+    // knife256 / 10.2: opaque slice is *ParserAsmLexSlice (fat), NOT raw bytes.
+    // Passing it to lexer_next_into as u8[] makes tip treat source bytes as a
+    // fat header → data[l.pos] loads ASCII as a pointer → SEGV (Ubuntu product).
+    // Peel fat → lexer_next_buf_into. Prefer park if fat.data is null.
+    // PLATFORM: SHARED.
+    let s: *ParserAsmLexSlice = data as *ParserAsmLexSlice;
+    let d: *u8 = s.data;
+    let n: i32 = (s.length as i32);
+    if (d == (0 as *u8)) {
+      let parked: *u8 = (0 as *u8);
+      let plen: usize = 0;
+      lexer_src_data_store((&parked as *u8));
+      lexer_src_len_store((&plen as *u8));
+      d = parked;
+      n = (plen as i32);
+    }
+    if (d == (0 as *u8)) {
+      return;
+    }
+    if (n < 0) {
+      n = 0;
+    }
+    lexer_next_buf_into(out, *lex, d, n);
   }
 }
 
@@ -271,7 +332,29 @@ function parser_asm_lex_bridge_next(out: *ParserAsmLexResult, lex: *ParserAsmLex
   let frame_pad: u8[32] = [];
   frame_pad[0] = 0;
   unsafe {
-    lexer_next_into(out, *lex, data);
+    // knife256 / 10.2: opaque slice is *ParserAsmLexSlice (fat), NOT raw bytes.
+    // Passing it to lexer_next_into as u8[] makes tip treat source bytes as a
+    // fat header → data[l.pos] loads ASCII as a pointer → SEGV (Ubuntu product).
+    // Peel fat → lexer_next_buf_into. Prefer park if fat.data is null.
+    // PLATFORM: SHARED.
+    let s: *ParserAsmLexSlice = data as *ParserAsmLexSlice;
+    let d: *u8 = s.data;
+    let n: i32 = (s.length as i32);
+    if (d == (0 as *u8)) {
+      let parked: *u8 = (0 as *u8);
+      let plen: usize = 0;
+      lexer_src_data_store((&parked as *u8));
+      lexer_src_len_store((&plen as *u8));
+      d = parked;
+      n = (plen as i32);
+    }
+    if (d == (0 as *u8)) {
+      return;
+    }
+    if (n < 0) {
+      n = 0;
+    }
+    lexer_next_buf_into(out, *lex, d, n);
   }
 }
 
