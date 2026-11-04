@@ -1,4 +1,4 @@
-# Win tip L2 import_module_enum_dot T001（刀 11.75）· **ACCEPT-ready**
+# Win tip L2 import_module_enum_dot T001（刀 11.75）· **CLOSE ACCEPT**
 
 > Gate：`tests/run-win-tip-l2-import-module-enum-dot-t001-gate.sh`（OK exit0）。
 > Beat：`win_tip_l2_import_module_enum_dot_t001`
@@ -29,7 +29,7 @@
 - 保绿：gate74（随绿可改）／gate73／72／71／67／63–55 OK。
 - hello tip `check` 仍 EXIT0（不 regress 11.73）。
 - 附：`std/io/mod.x` tip `check` **EXIT0**（submit_read 表象清）。
-- L2 1/5＠`58e34910f` 未抬分宣称；**勿自 CLOSE**。
+- L2 1/5＠`58e34910f` 未抬分宣称；经理已 CLOSE ACCEPT；移交 11.76。
 
 ## Residual
 
@@ -37,4 +37,4 @@
 
 ## 非目标／禁
 
-- Soft Cap G05 混 tip；回滚 11.67 wrap；假绿（删 enum／改 std 源）；CloudAgent；`_dig` 入 git；勿自 CLOSE；勿开 11.76。
+- Soft Cap G05 混 tip；回滚 11.67 wrap；假绿（删 enum／改 std 源）；CloudAgent；`_dig` 入 git；已 CLOSE；11.76 另开。
