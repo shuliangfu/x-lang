@@ -90,7 +90,7 @@ export function write_u8_at(buf: *u8, idx: usize, v: u8): void {
  * 64-bit seek on an open fd (w1525).
  * @param fd i32 — open descriptor
  * @param offset i64 — byte offset
- * @param whence i32 — RIO_SEEK_SET or RIO_SEEK_END
+ * @param whence i32 — 0 or 2
  * @return i64 — new position, or -1 on error
  * PLATFORM: LINUX | MACOS lseek.
  */
@@ -105,7 +105,7 @@ function rio_lseek64(fd: i32, offset: i64, whence: i32): i64 {
  * 64-bit seek on an open fd (w1525).
  * @param fd i32 — open descriptor
  * @param offset i64 — byte offset
- * @param whence i32 — RIO_SEEK_SET or RIO_SEEK_END
+ * @param whence i32 — 0 or 2
  * @return i64 — new position, or -1 on error
  * PLATFORM: WINDOWS _lseeki64.
  */
@@ -150,6 +150,21 @@ function rio_munmap(addr: *u8, len: usize): i32 {
  * Track-L: #[no_mangle] short surface name for thin gate + rest consumers.
  * PLATFORM: SHARED contract / LINUX|MACOS flag values (see RIO_O_*).
  */
+// tip PE Win CG002: export-const OR / const return in this TU patches .Lf*
+// badly (code_len≈280). Use cfg literals (same numeric sources as RIO_O_*).
+// POSIX keeps the OR form (Mac/Linux tip PE OK). PLATFORM: SHARED.
+#[cfg(target_os = "windows")]
+#[no_mangle]
+export function xlang_fs_open_write_flags_impl(): i32 {
+  // 1|_O_CREAT(256)|_O_TRUNC(512)|_O_BINARY(32768)
+  return 33537;
+}
+#[cfg(target_os = "linux")]
+#[no_mangle]
+export function xlang_fs_open_write_flags_impl(): i32 {
+  return RIO_O_WRONLY | RIO_O_CREAT | RIO_O_TRUNC | RIO_O_BINARY;
+}
+#[cfg(target_os = "macos")]
 #[no_mangle]
 export function xlang_fs_open_write_flags_impl(): i32 {
   return RIO_O_WRONLY | RIO_O_CREAT | RIO_O_TRUNC | RIO_O_BINARY;
@@ -262,14 +277,14 @@ export function runtime_read_file_view_impl(path: *u8, out: *u8): i32 {
   v.needs_munmap = 0;
   let fd: i32 = 0;
   unsafe {
-    fd = open(path, RIO_O_RDONLY | RIO_O_BINARY, 0);
+    fd = open(path, 32768, 0);
   }
   if (fd < 0) {
     return -1;
   }
   let size_i: i64 = 0;
   unsafe {
-    size_i = rio_lseek64(fd, 0 as i64, RIO_SEEK_END);
+    size_i = rio_lseek64(fd, 0 as i64, 2);
   }
   if (size_i < 0) {
     unsafe {
@@ -285,7 +300,7 @@ export function runtime_read_file_view_impl(path: *u8, out: *u8): i32 {
     return 0;
   }
   unsafe {
-    let back: i64 = rio_lseek64(fd, 0 as i64, RIO_SEEK_SET);
+    let back: i64 = rio_lseek64(fd, 0 as i64, 0);
     if (back < 0) {
       close(fd);
       return -1;
@@ -747,7 +762,7 @@ export function xlang_read_file_into_path_impl(path: *u8, buf: *u8, cap: i64): i
   let fd: i32 = 0;
   unsafe {
     // O_RDONLY|O_BINARY (0 on POSIX, _O_BINARY on Windows)
-    fd = open(path, RIO_O_RDONLY | RIO_O_BINARY, 0);
+    fd = open(path, 32768, 0);
   }
   if (fd < 0) {
     return -1;
@@ -780,7 +795,7 @@ export function std_sys_os_read_file_into_impl(path: *u8, buf: *u8, cap: i32): i
   let fd: i32 = 0;
   unsafe {
     // O_RDONLY|O_BINARY (0 on POSIX, _O_BINARY on Windows)
-    fd = open(path, RIO_O_RDONLY | RIO_O_BINARY, 0);
+    fd = open(path, 32768, 0);
   }
   if (fd < 0) {
     return -1;
