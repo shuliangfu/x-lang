@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Knife 11.73: Win tip L2 hello XP008 after struct lit (trait header stale e9) gate.
+# Knife 11.73: Win tip L2 hello XP008 trait header stale e9 gate.
 set -euo pipefail
 ROOT="$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-PREFIX="xlang: [WIN_TIP_L2_HELLO_XP008_AFTER_STRUCT_LIT]"
+PREFIX="xlang: [WIN_TIP_L2_HELLO_XP008_TRAIT_HEADER_STALE_E9]"
 
 die() { echo "${PREFIX} FAIL: $*" >&2; exit 1; }
 
-DOC=analysis/xlang-win-tip-l2-hello-xp008-after-struct-lit.md
+DOC=analysis/xlang-win-tip-l2-hello-xp008-trait-header-stale-e9.md
 PRIOR=analysis/xlang-win-tip-l2-hello-xp008-struct-lit-parse.md
 [ -f "$DOC" ] || die "missing $DOC"
 [ -f "$PRIOR" ] || die "missing 11.72 DIG $PRIOR"
@@ -21,7 +21,7 @@ case "$uname_s" in
     if [ -x ./compiler/xlang_asm.exe ]; then XLANG=./compiler/xlang_asm.exe
     elif [ -x ./compiler/xlang.exe ]; then XLANG=./compiler/xlang.exe
     else die "missing tip PE"; fi
-    TMP="${XLANG_MATRIX_TMP:-/tmp/xlang_win_hello_after_struct_$$}"
+    TMP="${XLANG_MATRIX_TMP:-/tmp/xlang_win_hello_trait_hdr_$$}"
     mkdir -p "$TMP"
     set +e
     python3 - "$XLANG" <<'PY'
