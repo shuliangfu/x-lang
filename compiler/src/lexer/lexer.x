@@ -3487,27 +3487,26 @@ i32): void {
  */
 // PLATFORM: SHARED — result is written through out. Link name is unchanged.
 export function skip_repr_c_attr_if_present(out: *Lexer, lex: Lexer, data: u8[]): void {
-  let cur_repr: Lexer = lex;
   if (out == 0) { return; }
-  if (cur_repr.pos + (10 as usize) > data.length) {
-    unsafe { *out = cur_repr; }
+  if (lex.pos + (10 as usize) > data.length) {
+    unsafe { *out = lex; }
     return;
   }
-  if (data[cur_repr.pos] != 35 || data[cur_repr.pos + (1 as usize)] != 91) {
-    unsafe { *out = cur_repr; }
+  if (data[lex.pos] != 35 || data[lex.pos + (1 as usize)] != 91) {
+    unsafe { *out = lex; }
     return;
   }
-  if (data[cur_repr.pos + (2 as usize)] != 114 || data[cur_repr.pos + (3 as usize)] != 101 || data[cur_repr.pos + (4 as usize)] != 112 ||
-      data[cur_repr.pos + (5 as usize)] != 114) {
-    unsafe { *out = cur_repr; }
+  if (data[lex.pos + (2 as usize)] != 114 || data[lex.pos + (3 as usize)] != 101 || data[lex.pos + (4 as usize)] != 112 ||
+      data[lex.pos + (5 as usize)] != 114) {
+    unsafe { *out = lex; }
     return;
   }
-  if (data[cur_repr.pos + (6 as usize)] != 40 || data[cur_repr.pos + (7 as usize)] != 67 || data[cur_repr.pos + (8 as usize)] != 41 ||
-      data[cur_repr.pos + (9 as usize)] != 93) {
-    unsafe { *out = cur_repr; }
+  if (data[lex.pos + (6 as usize)] != 40 || data[lex.pos + (7 as usize)] != 67 || data[lex.pos + (8 as usize)] != 41 ||
+      data[lex.pos + (9 as usize)] != 93) {
+    unsafe { *out = lex; }
     return;
   }
-  let nxt: Lexer = Lexer { pos: cur_repr.pos + (10 as usize), line: cur_repr.line, col: cur_repr.col };
+  let nxt: Lexer = Lexer { pos: lex.pos + (10 as usize), line: lex.line, col: lex.col };
   unsafe { *out = nxt; }
 }
 
@@ -3516,27 +3515,26 @@ export function skip_repr_c_attr_if_present(out: *Lexer, lex: Lexer, data: u8[])
  * See implementation.
  */
 export function skip_cfg_attr_if_present(out: *Lexer, lex: Lexer, data: u8[]): void {
-  let cur_cfg: Lexer = lex;
   let p: usize = 0;
   let depth: i32 = 0;
   if (out == 0) { return; }
-  if (cur_cfg.pos + (6 as usize) > data.length) {
-    unsafe { *out = cur_cfg; }
+  if (lex.pos + (6 as usize) > data.length) {
+    unsafe { *out = lex; }
     return;
   }
-  if (data[cur_cfg.pos] != 35 || data[cur_cfg.pos + (1 as usize)] != 91) {
-    unsafe { *out = cur_cfg; }
+  if (data[lex.pos] != 35 || data[lex.pos + (1 as usize)] != 91) {
+    unsafe { *out = lex; }
     return;
   }
-  if (data[cur_cfg.pos + (2 as usize)] != 99 || data[cur_cfg.pos + (3 as usize)] != 102 || data[cur_cfg.pos + (4 as usize)] != 103) {
-    unsafe { *out = cur_cfg; }
+  if (data[lex.pos + (2 as usize)] != 99 || data[lex.pos + (3 as usize)] != 102 || data[lex.pos + (4 as usize)] != 103) {
+    unsafe { *out = lex; }
     return;
   }
-  if (data[cur_cfg.pos + (5 as usize)] != 40) {
-    unsafe { *out = cur_cfg; }
+  if (data[lex.pos + (5 as usize)] != 40) {
+    unsafe { *out = lex; }
     return;
   }
-  p = cur_cfg.pos + (6 as usize);
+  p = lex.pos + (6 as usize);
   depth = 1;
   while (p < data.length && depth > 0) {
     if (data[p] == 40) {
@@ -3551,7 +3549,7 @@ export function skip_cfg_attr_if_present(out: *Lexer, lex: Lexer, data: u8[]): v
     return;
   }
   p = p + (1 as usize);
-  let nxt: Lexer = Lexer { pos: p, line: cur_cfg.line, col: cur_cfg.col };
+  let nxt: Lexer = Lexer { pos: p, line: lex.line, col: lex.col };
   unsafe { *out = nxt; }
 }
 
@@ -4017,51 +4015,56 @@ export function skip_whitespace_and_comments(out: *Lexer, lex: Lexer, data: u8[]
   // 10.2 Cap tip: use u8[] .length / [] like the rest of lexer.x. The
   // knife256 peel→park→buf path SEGV'd in dep prerun (core.option) when
   // fat_hdr indirection / PAGEZERO park left a bad sp. PLATFORM: SHARED.
-  let cur_ws: Lexer = lex;
+  if (out == 0) { return; }
+  unsafe {
+    out.pos = lex.pos;
+    out.line = lex.line;
+    out.col = lex.col;
+  }
   let depth: i32 = 0;
-  while (cur_ws.pos < data.length) {
-    let c: u8 = data[cur_ws.pos];
+  while (out.pos < data.length) {
+    let c: u8 = data[out.pos];
     if (c == 32 || c == 9 || c == 10 || c == 13) {
-      advance_one(&cur_ws, c);
-    } else if (c == 47 && cur_ws.pos + (1 as usize) < data.length && data[cur_ws.pos + (1 as usize)] == 47) {
-      while (cur_ws.pos < data.length && data[cur_ws.pos] != 10) {
-        advance_one(&cur_ws, data[cur_ws.pos]);
+      advance_one(out, c);
+    } else if (c == 47 && out.pos + (1 as usize) < data.length && data[out.pos + (1 as usize)] == 47) {
+      while (out.pos < data.length && data[out.pos] != 10) {
+        advance_one(out, data[out.pos]);
       }
-    } else if (c == 47 && cur_ws.pos + (1 as usize) < data.length && data[cur_ws.pos + (1 as usize)] == 42) {
-      let open_line: i32 = cur_ws.line;
-      let open_col: i32 = cur_ws.col;
-      advance_one(&cur_ws, 47);
-      advance_one(&cur_ws, 42);
+    } else if (c == 47 && out.pos + (1 as usize) < data.length && data[out.pos + (1 as usize)] == 42) {
+      let open_line: i32 = out.line;
+      let open_col: i32 = out.col;
+      advance_one(out, 47);
+      advance_one(out, 42);
       depth = 1;
-      while (cur_ws.pos < data.length && depth > 0) {
-        if (cur_ws.pos + (1 as usize) < data.length && data[cur_ws.pos] == 47 && data[cur_ws.pos + (1 as usize)] == 42) {
+      while (out.pos < data.length && depth > 0) {
+        if (out.pos + (1 as usize) < data.length && data[out.pos] == 47 && data[out.pos + (1 as usize)] == 42) {
           let nest_ok: i32 = 1;
-          if (cur_ws.pos > (0 as usize)) {
-            let prev: u8 = data[cur_ws.pos - (1 as usize)];
+          if (out.pos > (0 as usize)) {
+            let prev: u8 = data[out.pos - (1 as usize)];
             if (lexer_block_comment_prev_is_path_like(prev) != 0) {
               nest_ok = 0;
             }
           }
           if (nest_ok != 0) {
-            if (cur_ws.pos + (2 as usize) < data.length) {
-              if (data[cur_ws.pos + (2 as usize)] == 46) {
+            if (out.pos + (2 as usize) < data.length) {
+              if (data[out.pos + (2 as usize)] == 46) {
                 nest_ok = 0;
               }
             }
           }
           if (nest_ok != 0) {
-            advance_one(&cur_ws, 47);
-            advance_one(&cur_ws, 42);
+            advance_one(out, 47);
+            advance_one(out, 42);
             depth = depth + 1;
           } else {
-            advance_one(&cur_ws, data[cur_ws.pos]);
+            advance_one(out, data[out.pos]);
           }
-        } else if (cur_ws.pos + (1 as usize) < data.length && data[cur_ws.pos] == 42 && data[cur_ws.pos + (1 as usize)] == 47) {
-          advance_one(&cur_ws, 42);
-          advance_one(&cur_ws, 47);
+        } else if (out.pos + (1 as usize) < data.length && data[out.pos] == 42 && data[out.pos + (1 as usize)] == 47) {
+          advance_one(out, 42);
+          advance_one(out, 47);
           depth = depth - 1;
         } else {
-          advance_one(&cur_ws, data[cur_ws.pos]);
+          advance_one(out, data[out.pos]);
         }
       }
       if (depth > 0) {
@@ -4069,31 +4072,31 @@ export function skip_whitespace_and_comments(out: *Lexer, lex: Lexer, data: u8[]
       }
       depth = 0;
     } else if (c == 35) {
-      if (cur_ws.pos + (1 as usize) < data.length && data[cur_ws.pos + (1 as usize)] == 91) {
+      if (out.pos + (1 as usize) < data.length && data[out.pos + (1 as usize)] == 91) {
         unsafe {
-          out.pos = cur_ws.pos;
-          out.line = cur_ws.line;
-          out.col = cur_ws.col;
+          out.pos = out.pos;
+          out.line = out.line;
+          out.col = out.col;
         }
         return;
       } else {
-        while (cur_ws.pos < data.length && data[cur_ws.pos] != 10) {
-          advance_one(&cur_ws, data[cur_ws.pos]);
+        while (out.pos < data.length && data[out.pos] != 10) {
+          advance_one(out, data[out.pos]);
         }
       }
     } else {
       unsafe {
-        out.pos = cur_ws.pos;
-        out.line = cur_ws.line;
-        out.col = cur_ws.col;
+        out.pos = out.pos;
+        out.line = out.line;
+        out.col = out.col;
       }
       return;
     }
   }
   unsafe {
-    out.pos = cur_ws.pos;
-    out.line = cur_ws.line;
-    out.col = cur_ws.col;
+    out.pos = out.pos;
+    out.line = out.line;
+    out.col = out.col;
   }
   return;
 }
@@ -4121,59 +4124,63 @@ export function skip_whitespace_and_comments_buf(out: *Lexer, lex: Lexer, data: 
   let sp: *u8 = data;
   let slen: usize = n as usize;
 
-  let cur_wsb: Lexer = lex;
+  unsafe {
+    out.pos = lex.pos;
+    out.line = lex.line;
+    out.col = lex.col;
+  }
   // Nesting depth for block comments; 0 means not inside a block comment.
   let depth: i32 = 0;
-  while (cur_wsb.pos < slen) {
-    let c: u8 = sp[cur_wsb.pos];
+  while (out.pos < slen) {
+    let c: u8 = sp[out.pos];
     if (c == 32 || c == 9 || c == 10 || c == 13) {
-      advance_one(&cur_wsb, c);
-    } else if (c == 47 && cur_wsb.pos + (1 as usize) < slen && sp[cur_wsb.pos + (1 as usize)] == 47) {
+      advance_one(out, c);
+    } else if (c == 47 && out.pos + (1 as usize) < slen && sp[out.pos + (1 as usize)] == 47) {
       // Line comment // ...
-      while (cur_wsb.pos < slen && sp[cur_wsb.pos] != 10) {
-        advance_one(&cur_wsb, sp[cur_wsb.pos]);
+      while (out.pos < slen && sp[out.pos] != 10) {
+        advance_one(out, sp[out.pos]);
       }
-    } else if (c == 47 && cur_wsb.pos + (1 as usize) < slen && sp[cur_wsb.pos + (1 as usize)] == 42) {
+    } else if (c == 47 && out.pos + (1 as usize) < slen && sp[out.pos + (1 as usize)] == 42) {
       // Block comment /* ... */ with nesting (depth counter).
       // Capture open caret before consuming the slash-star pair.
-      let open_line: i32 = cur_wsb.line;
-      let open_col: i32 = cur_wsb.col;
-      advance_one(&cur_wsb, 47);
-      advance_one(&cur_wsb, 42);
+      let open_line: i32 = out.line;
+      let open_col: i32 = out.col;
+      advance_one(out, 47);
+      advance_one(out, 42);
       depth = 1;
-      while (cur_wsb.pos < slen && depth > 0) {
+      while (out.pos < slen && depth > 0) {
         // Prefer path-safe /* nest-open before */ nest-close when both could match.
-        if (cur_wsb.pos + (1 as usize) < slen && sp[cur_wsb.pos] == 47 && sp[cur_wsb.pos + (1 as usize)] == 42) {
+        if (out.pos + (1 as usize) < slen && sp[out.pos] == 47 && sp[out.pos + (1 as usize)] == 42) {
           // Decide whether this interior /* is a true nest or a path glob.
           let nest_ok: i32 = 1;
-          if (cur_wsb.pos > (0 as usize)) {
-            let prev: u8 = sp[cur_wsb.pos - (1 as usize)];
+          if (out.pos > (0 as usize)) {
+            let prev: u8 = sp[out.pos - (1 as usize)];
             if (lexer_block_comment_prev_is_path_like(prev) != 0) {
               nest_ok = 0;
             }
           }
           // /*.ext path globs after newline / outer open (prev not path-like).
           if (nest_ok != 0) {
-            if (cur_wsb.pos + (2 as usize) < slen) {
-              if (sp[cur_wsb.pos + (2 as usize)] == 46) {
+            if (out.pos + (2 as usize) < slen) {
+              if (sp[out.pos + (2 as usize)] == 46) {
                 nest_ok = 0;
               }
             }
           }
           if (nest_ok != 0) {
-            advance_one(&cur_wsb, 47);
-            advance_one(&cur_wsb, 42);
+            advance_one(out, 47);
+            advance_one(out, 42);
             depth = depth + 1;
           } else {
             // Path glob or non-nest: consume only '/' so '*' is ordinary body text.
-            advance_one(&cur_wsb, sp[cur_wsb.pos]);
+            advance_one(out, sp[out.pos]);
           }
-        } else if (cur_wsb.pos + (1 as usize) < slen && sp[cur_wsb.pos] == 42 && sp[cur_wsb.pos + (1 as usize)] == 47) {
-          advance_one(&cur_wsb, 42);
-          advance_one(&cur_wsb, 47);
+        } else if (out.pos + (1 as usize) < slen && sp[out.pos] == 42 && sp[out.pos + (1 as usize)] == 47) {
+          advance_one(out, 42);
+          advance_one(out, 47);
           depth = depth - 1;
         } else {
-          advance_one(&cur_wsb, sp[cur_wsb.pos]);
+          advance_one(out, sp[out.pos]);
         }
       }
       // EOF with depth > 0: unclosed block comment (body swallowed to EOF).
@@ -4184,31 +4191,31 @@ export function skip_whitespace_and_comments_buf(out: *Lexer, lex: Lexer, data: 
       depth = 0;
     } else if (c == 35) {
       // Bare # line comment; leave #[cfg]/attrs to the token scanner.
-      if (cur_wsb.pos + (1 as usize) < slen && sp[cur_wsb.pos + (1 as usize)] == 91) {
+      if (out.pos + (1 as usize) < slen && sp[out.pos + (1 as usize)] == 91) {
         unsafe {
-          out.pos = cur_wsb.pos;
-          out.line = cur_wsb.line;
-          out.col = cur_wsb.col;
+          out.pos = out.pos;
+          out.line = out.line;
+          out.col = out.col;
         }
         return;
       } else {
-        while (cur_wsb.pos < slen && sp[cur_wsb.pos] != 10) {
-          advance_one(&cur_wsb, sp[cur_wsb.pos]);
+        while (out.pos < slen && sp[out.pos] != 10) {
+          advance_one(out, sp[out.pos]);
         }
       }
     } else {
       unsafe {
-        out.pos = cur_wsb.pos;
-        out.line = cur_wsb.line;
-        out.col = cur_wsb.col;
+        out.pos = out.pos;
+        out.line = out.line;
+        out.col = out.col;
       }
       return;
     }
   }
   unsafe {
-    out.pos = cur_wsb.pos;
-    out.line = cur_wsb.line;
-    out.col = cur_wsb.col;
+    out.pos = out.pos;
+    out.line = out.line;
+    out.col = out.col;
   }
   return;
 
@@ -4227,90 +4234,92 @@ export function skip_whitespace_and_comments_buf(out: *Lexer, lex: Lexer, data: 
  */
 // PLATFORM: SHARED — LexerResult is written through out. Link name is unchanged.
 export function lexer_next_slice(out: *LexerResult, lex: Lexer, data: u8[]): void {
-  let cur_nsl: Lexer = lex;
-  skip_whitespace_and_comments(&cur_nsl, lex, data);
-  if (cur_nsl.pos >= data.length) {
+  unsafe {
+    out.next_lex = lex;
+  }
+  skip_whitespace_and_comments(&out.next_lex, lex, data);
+  if (out.next_lex.pos >= data.length) {
     let t: Token = {
       kind: (0 as TokenKind),
-      line: cur_nsl.line,
-      col: cur_nsl.col,
+      line: out.next_lex.line,
+      col: out.next_lex.col,
       int_val: (0 as i64),
       float_val: 0.0,
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = ({ next_lex: cur_nsl, tok: t, token_start: (0 as usize) }); }
+    unsafe { *out = ({ next_lex: out.next_lex, tok: t, token_start: (0 as usize) }); }
     return;
   }
-  if (data[cur_nsl.pos] == 0) {
+  if (data[out.next_lex.pos] == 0) {
     let t: Token = {
       kind: (0 as TokenKind),
-      line: cur_nsl.line,
-      col: cur_nsl.col,
+      line: out.next_lex.line,
+      col: out.next_lex.col,
       int_val: (0 as i64),
       float_val: 0.0,
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = ({ next_lex: cur_nsl, tok: t, token_start: (0 as usize) }); }
+    unsafe { *out = ({ next_lex: out.next_lex, tok: t, token_start: (0 as usize) }); }
     return;
   }
   /* See implementation. */
   let attr_out: LexerResult = {
-    next_lex: cur_nsl,
-    tok: { kind: (0 as TokenKind), line: cur_nsl.line, col: cur_nsl.col, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 },
+    next_lex: out.next_lex,
+    tok: { kind: (0 as TokenKind), line: out.next_lex.line, col: out.next_lex.col, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 },
     token_start: (0 as usize)
   };
-  if (lexer_try_cfg_attr_into(&attr_out, cur_nsl, data) != 0) {
+  if (lexer_try_cfg_attr_into(&attr_out, out.next_lex, data) != 0) {
     unsafe { *out = (attr_out); }
     return;
   }
-  if (lexer_try_repr_c_attr_into(&attr_out, cur_nsl, data) != 0) {
+  if (lexer_try_repr_c_attr_into(&attr_out, out.next_lex, data) != 0) {
     unsafe { *out = (attr_out); }
     return;
   }
-  if (lexer_try_repr_compatible_attr_into(&attr_out, cur_nsl, data) != 0) {
+  if (lexer_try_repr_compatible_attr_into(&attr_out, out.next_lex, data) != 0) {
     unsafe { *out = (attr_out); }
     return;
   }
-  if (lexer_try_soa_attr_into(&attr_out, cur_nsl, data) != 0) {
+  if (lexer_try_soa_attr_into(&attr_out, out.next_lex, data) != 0) {
     unsafe { *out = (attr_out); }
     return;
   }
-  if (lexer_try_alloc_attr_into(&attr_out, cur_nsl, data) != 0) {
+  if (lexer_try_alloc_attr_into(&attr_out, out.next_lex, data) != 0) {
     unsafe { *out = (attr_out); }
     return;
   }
-  if (lexer_try_used_attr_into(&attr_out, cur_nsl, data) != 0) {
+  if (lexer_try_used_attr_into(&attr_out, out.next_lex, data) != 0) {
     unsafe { *out = (attr_out); }
     return;
   }
-  if (lexer_try_naked_attr_into(&attr_out, cur_nsl, data) != 0) {
+  if (lexer_try_naked_attr_into(&attr_out, out.next_lex, data) != 0) {
     unsafe { *out = (attr_out); }
     return;
   }
-  if (lexer_try_entry_attr_into(&attr_out, cur_nsl, data) != 0) {
+  if (lexer_try_entry_attr_into(&attr_out, out.next_lex, data) != 0) {
     unsafe { *out = (attr_out); }
     return;
   }
-  if (lexer_try_no_mangle_attr_into(&attr_out, cur_nsl, data) != 0) {
+  if (lexer_try_no_mangle_attr_into(&attr_out, out.next_lex, data) != 0) {
     unsafe { *out = (attr_out); }
     return;
   }
-  if (lexer_try_interrupt_attr_into(&attr_out, cur_nsl, data) != 0) {
+  if (lexer_try_interrupt_attr_into(&attr_out, out.next_lex, data) != 0) {
     unsafe { *out = (attr_out); }
     return;
   }
-  if (lexer_try_send_attr_into(&attr_out, cur_nsl, data) != 0) {
+  if (lexer_try_send_attr_into(&attr_out, out.next_lex, data) != 0) {
     unsafe { *out = (attr_out); }
     return;
   }
-  if (lexer_try_sync_attr_into(&attr_out, cur_nsl, data) != 0) {
+  if (lexer_try_sync_attr_into(&attr_out, out.next_lex, data) != 0) {
     unsafe { *out = (attr_out); }
     return;
   }
   /* See implementation. */
-  lexer_next_body_into(&attr_out, cur_nsl, data);
+  lexer_next_body_into(&attr_out, out.next_lex, data);
   unsafe { *out = (attr_out); }
   return;
 }
@@ -5335,25 +5344,27 @@ export function write_tok_into(out: *LexerResult, t: Token): void {
  * @return void
  */
 export function lexer_next_impl(out: *LexerResult, lex: Lexer, data: u8[]): void {
-  let cur_nim: Lexer = lex;
+  unsafe {
+    out.next_lex = lex;
+  }
   // 10.2 Cap tip: direct u8[] — no peel/park (PAGEZERO/image SEGV in dep prerun).
   // PLATFORM: SHARED.
-  skip_whitespace_and_comments(&cur_nim, lex, data);
-  if (cur_nim.pos >= data.length) {
-    let t: Token = { kind: (0 as TokenKind), line: cur_nim.line, col: cur_nim.col, int_val: (0 as i64),
+  skip_whitespace_and_comments(&out.next_lex, lex, data);
+  if (out.next_lex.pos >= data.length) {
+    let t: Token = { kind: (0 as TokenKind), line: out.next_lex.line, col: out.next_lex.col, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    write_next_lex_into(out, cur_nim);
+    write_next_lex_into(out, out.next_lex);
     write_tok_into(out, t);
     return;
   }
-  if (data[cur_nim.pos] == 0) {
-    let t: Token = { kind: (0 as TokenKind), line: cur_nim.line, col: cur_nim.col, int_val: (0 as i64),
+  if (data[out.next_lex.pos] == 0) {
+    let t: Token = { kind: (0 as TokenKind), line: out.next_lex.line, col: out.next_lex.col, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    write_next_lex_into(out, cur_nim);
+    write_next_lex_into(out, out.next_lex);
     write_tok_into(out, t);
     return;
   }
-  lexer_next_body_into(out, cur_nim, data);
+  lexer_next_body_into(out, out.next_lex, data);
 }
 
 /** Exported function `lexer_next_into`.
