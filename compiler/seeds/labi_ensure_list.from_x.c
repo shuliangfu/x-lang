@@ -338,10 +338,10 @@ int labi_ensure_catalog_step_at(int i, const char **stem_out, const char **out_b
  * PLATFORM: SHARED orch.
  */
 int link_abi_ensure_from_catalog(const char *argv0, int catalog_idx, const char *product_path) {
-  char comp[4096];
-  char out_o[4096];
-  char src_c[4096];
-  char inc0[4096], inc1[4096], inc2[4096];
+  char comp[2048];
+  char out_o[2048];
+  char src_c[2048];
+  char inc0[2048], inc1[2048], inc2[2048];
   const char *stem;
   const char *out_base;
   const char *seed_base;
@@ -382,7 +382,7 @@ int link_abi_ensure_from_catalog(const char *argv0, int catalog_idx, const char 
   ln_o = 0;
   while (out_base[ln_o] != 0)
     ln_o++;
-  if (dn + 1 + ln_o >= 4096)
+  if (dn + 1 + ln_o >= 2048)
     return -1;
   for (i = 0; i < dn; i++)
     out_o[i] = comp[i];
@@ -395,7 +395,7 @@ int link_abi_ensure_from_catalog(const char *argv0, int catalog_idx, const char 
   ln_seed = 0;
   while (seed_base[ln_seed] != 0)
     ln_seed++;
-  if (dn + 1 + ln_pfx + ln_seed >= 4096)
+  if (dn + 1 + ln_pfx + ln_seed >= 2048)
     return -1;
   for (i = 0; i < dn; i++)
     src_c[i] = comp[i];
@@ -414,7 +414,7 @@ int link_abi_ensure_from_catalog(const char *argv0, int catalog_idx, const char 
   ln_inc = 0;
   while (leaf_inc[ln_inc] != 0)
     ln_inc++;
-  if (dn + 1 + ln_inc >= 4096)
+  if (dn + 1 + ln_inc >= 2048)
     return -1;
   for (i = 0; i < dn; i++)
     inc1[i] = comp[i];
@@ -424,7 +424,7 @@ int link_abi_ensure_from_catalog(const char *argv0, int catalog_idx, const char 
   ln_src = 0;
   while (leaf_src[ln_src] != 0)
     ln_src++;
-  if (dn + 1 + ln_src >= 4096)
+  if (dn + 1 + ln_src >= 2048)
     return -1;
   for (i = 0; i < dn; i++)
     inc2[i] = comp[i];
@@ -440,14 +440,14 @@ int link_abi_ensure_from_catalog(const char *argv0, int catalog_idx, const char 
     if (crc != 0)
       crc = xlang_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
   } else if (flags == 3) {
-    char http_inc[4096];
-    char flag_I[4096];
+    char http_inc[2048];
+    char flag_I[2048];
     const char *http_leaf = "seeds/http";
     int ln_http = 0;
     int ln_http_abs;
     while (http_leaf[ln_http] != 0)
       ln_http++;
-    if (dn + 1 + ln_http >= 4096)
+    if (dn + 1 + ln_http >= 2048)
       return -1;
     for (i = 0; i < dn; i++)
       http_inc[i] = comp[i];
@@ -455,7 +455,7 @@ int link_abi_ensure_from_catalog(const char *argv0, int catalog_idx, const char 
     for (k = 0; k <= ln_http; k++)
       http_inc[dn + 1 + k] = http_leaf[k];
     ln_http_abs = dn + 1 + ln_http;
-    if (2 + ln_http_abs >= 4096)
+    if (2 + ln_http_abs >= 2048)
       return -1;
     flag_I[0] = '-';
     flag_I[1] = 'I';
@@ -482,14 +482,14 @@ int link_abi_ensure_from_catalog(const char *argv0, int catalog_idx, const char 
  * Pure byte join (no snprintf). PLATFORM: SHARED orch; LINUX x86_64 asm; POSIX aarch64 seed.
  */
 int xlang_ensure_runtime_panic_o(const char *argv0) {
-  char comp[4096];
-  char out_o[4096];
-  char src_s[4096];
-  char src_arm[4096];
-  char src_c[4096];
-  char inc0[4096];
-  char inc1[4096];
-  char inc2[4096];
+  char comp[2048];
+  char out_o[2048];
+  char src_s[2048];
+  char src_arm[2048];
+  char src_c[2048];
+  char inc0[2048];
+  char inc1[2048];
+  char inc2[2048];
   const char *o_path;
   const char *have;
   const char *src = NULL;
@@ -510,7 +510,7 @@ int xlang_ensure_runtime_panic_o(const char *argv0) {
   ln_o = 0;
   while (leaf_o[ln_o] != 0)
     ln_o++;
-  if (dn + 1 + ln_o >= 4096)
+  if (dn + 1 + ln_o >= 2048)
     return -1;
   for (i = 0; i < dn; i++)
     out_o[i] = comp[i];
@@ -554,7 +554,7 @@ int xlang_ensure_runtime_panic_o(const char *argv0) {
     int ln_c = 0;
     while (leaf_c[ln_c] != 0)
       ln_c++;
-    if (dn + 1 + ln_c >= 4096)
+    if (dn + 1 + ln_c >= 2048)
       return -1;
     for (i = 0; i < dn; i++)
       src_c[i] = comp[i];
@@ -574,7 +574,7 @@ int xlang_ensure_runtime_panic_o(const char *argv0) {
     int ln_inc = 0;
     while (leaf_inc[ln_inc] != 0)
       ln_inc++;
-    if (dn + 1 + ln_inc >= 4096)
+    if (dn + 1 + ln_inc >= 2048)
       return -1;
     for (i = 0; i < dn; i++)
       inc1[i] = comp[i];
@@ -587,7 +587,7 @@ int xlang_ensure_runtime_panic_o(const char *argv0) {
     int ln_src = 0;
     while (leaf_src[ln_src] != 0)
       ln_src++;
-    if (dn + 1 + ln_src >= 4096)
+    if (dn + 1 + ln_src >= 2048)
       return -1;
     for (i = 0; i < dn; i++)
       inc2[i] = comp[i];
@@ -618,10 +618,10 @@ int xlang_ensure_runtime_panic_o(const char *argv0) {
  * heap_arena_init_c. Spawn this product on src/runtime_heap_user.x.
  * PLATFORM: SHARED. */
 int xlang_ensure_runtime_heap_user_o(const char *argv0) {
-  char comp[4096];
-  char out_o[4096];
-  char src_x[4096];
-  char lib[4096];
+  char comp[2048];
+  char out_o[2048];
+  char src_x[2048];
+  char lib[2048];
   const char *existing;
   const char *have;
   const char *leaf_o = "runtime_heap_user.o";
@@ -646,7 +646,7 @@ int xlang_ensure_runtime_heap_user_o(const char *argv0) {
   ln_o = 0;
   while (leaf_o[ln_o] != 0)
     ln_o++;
-  if (dn + 1 + ln_o >= 4096)
+  if (dn + 1 + ln_o >= 2048)
     return -1;
   for (i = 0; i < dn; i++)
     out_o[i] = comp[i];
@@ -656,7 +656,7 @@ int xlang_ensure_runtime_heap_user_o(const char *argv0) {
   ln_x = 0;
   while (leaf_x[ln_x] != 0)
     ln_x++;
-  if (dn + 1 + ln_x >= 4096)
+  if (dn + 1 + ln_x >= 2048)
     return -1;
   for (i = 0; i < dn; i++)
     src_x[i] = comp[i];
@@ -705,12 +705,12 @@ int xlang_ensure_runtime_heap_user_o(const char *argv0) {
  * PLATFORM: SHARED orch.
  */
 int xlang_ensure_runtime_test_fn_invoke_o(const char *argv0) {
-  char comp[4096];
-  char out_o[4096];
-  char src_c[4096];
-  char inc0[4096];
-  char inc1[4096];
-  char inc2[4096];
+  char comp[2048];
+  char out_o[2048];
+  char src_c[2048];
+  char inc0[2048];
+  char inc1[2048];
+  char inc2[2048];
   const char *existing;
   const char *have;
   const char *o_path;
@@ -733,7 +733,7 @@ int xlang_ensure_runtime_test_fn_invoke_o(const char *argv0) {
   ln_o = 0;
   while (leaf_o[ln_o] != 0)
     ln_o++;
-  if (dn + 1 + ln_o >= 4096)
+  if (dn + 1 + ln_o >= 2048)
     return -1;
   for (i = 0; i < dn; i++)
     out_o[i] = comp[i];
@@ -743,7 +743,7 @@ int xlang_ensure_runtime_test_fn_invoke_o(const char *argv0) {
   ln_c = 0;
   while (leaf_c[ln_c] != 0)
     ln_c++;
-  if (dn + 1 + ln_c >= 4096)
+  if (dn + 1 + ln_c >= 2048)
     return -1;
   for (i = 0; i < dn; i++)
     src_c[i] = comp[i];
@@ -761,7 +761,7 @@ int xlang_ensure_runtime_test_fn_invoke_o(const char *argv0) {
     int ln_inc = 0;
     while (leaf_inc[ln_inc] != 0)
       ln_inc++;
-    if (dn + 1 + ln_inc >= 4096)
+    if (dn + 1 + ln_inc >= 2048)
       return -1;
     for (i = 0; i < dn; i++)
       inc1[i] = comp[i];
@@ -774,7 +774,7 @@ int xlang_ensure_runtime_test_fn_invoke_o(const char *argv0) {
     int ln_src = 0;
     while (leaf_src[ln_src] != 0)
       ln_src++;
-    if (dn + 1 + ln_src >= 4096)
+    if (dn + 1 + ln_src >= 2048)
       return -1;
     for (i = 0; i < dn; i++)
       inc2[i] = comp[i];
@@ -802,12 +802,12 @@ int xlang_ensure_runtime_test_fn_invoke_o(const char *argv0) {
  * PLATFORM: SHARED orch; MACOS homebrew -I always best-effort.
  */
 int xlang_ensure_runtime_tls_mbedtls_bio_o(const char *argv0) {
-  char comp[4096];
-  char out_o[4096];
-  char src_c[4096];
-  char inc0[4096];
-  char inc1[4096];
-  char inc2[4096];
+  char comp[2048];
+  char out_o[2048];
+  char src_c[2048];
+  char inc0[2048];
+  char inc1[2048];
+  char inc2[2048];
   const char *existing;
   const char *have;
   const char *o_path;
@@ -830,7 +830,7 @@ int xlang_ensure_runtime_tls_mbedtls_bio_o(const char *argv0) {
   ln_o = 0;
   while (leaf_o[ln_o] != 0)
     ln_o++;
-  if (dn + 1 + ln_o >= 4096)
+  if (dn + 1 + ln_o >= 2048)
     return -1;
   for (i = 0; i < dn; i++)
     out_o[i] = comp[i];
@@ -840,7 +840,7 @@ int xlang_ensure_runtime_tls_mbedtls_bio_o(const char *argv0) {
   ln_c = 0;
   while (leaf_c[ln_c] != 0)
     ln_c++;
-  if (dn + 1 + ln_c >= 4096)
+  if (dn + 1 + ln_c >= 2048)
     return -1;
   for (i = 0; i < dn; i++)
     src_c[i] = comp[i];
@@ -858,7 +858,7 @@ int xlang_ensure_runtime_tls_mbedtls_bio_o(const char *argv0) {
     int ln_inc = 0;
     while (leaf_inc[ln_inc] != 0)
       ln_inc++;
-    if (dn + 1 + ln_inc >= 4096)
+    if (dn + 1 + ln_inc >= 2048)
       return -1;
     for (i = 0; i < dn; i++)
       inc1[i] = comp[i];
@@ -871,7 +871,7 @@ int xlang_ensure_runtime_tls_mbedtls_bio_o(const char *argv0) {
     int ln_src = 0;
     while (leaf_src[ln_src] != 0)
       ln_src++;
-    if (dn + 1 + ln_src >= 4096)
+    if (dn + 1 + ln_src >= 2048)
       return -1;
     for (i = 0; i < dn; i++)
       inc2[i] = comp[i];
@@ -899,12 +899,12 @@ int xlang_ensure_runtime_tls_mbedtls_bio_o(const char *argv0) {
  * PLATFORM: SHARED orch / LINUX freestanding consumers primary.
  */
 int xlang_ensure_bootstrap_nostdlib_stubs_o(const char *argv0) {
-  char comp[4096];
-  char out_o[4096];
-  char src_c[4096];
-  char inc0[4096];
-  char inc1[4096];
-  char inc2[4096];
+  char comp[2048];
+  char out_o[2048];
+  char src_c[2048];
+  char inc0[2048];
+  char inc1[2048];
+  char inc2[2048];
   const char *existing;
   const char *have;
   const char *o_path;
@@ -929,7 +929,7 @@ int xlang_ensure_bootstrap_nostdlib_stubs_o(const char *argv0) {
   ln_o = 0;
   while (leaf_o[ln_o] != 0)
     ln_o++;
-  if (dn + 1 + ln_o >= 4096)
+  if (dn + 1 + ln_o >= 2048)
     return -1;
   for (i = 0; i < dn; i++)
     out_o[i] = comp[i];
@@ -939,7 +939,7 @@ int xlang_ensure_bootstrap_nostdlib_stubs_o(const char *argv0) {
   ln_c = 0;
   while (leaf_c[ln_c] != 0)
     ln_c++;
-  if (dn + 1 + ln_c >= 4096)
+  if (dn + 1 + ln_c >= 2048)
     return -1;
   for (i = 0; i < dn; i++)
     src_c[i] = comp[i];
@@ -958,7 +958,7 @@ int xlang_ensure_bootstrap_nostdlib_stubs_o(const char *argv0) {
     int ln_inc = 0;
     while (leaf_inc[ln_inc] != 0)
       ln_inc++;
-    if (dn + 1 + ln_inc >= 4096)
+    if (dn + 1 + ln_inc >= 2048)
       return -1;
     for (i = 0; i < dn; i++)
       inc1[i] = comp[i];
@@ -971,7 +971,7 @@ int xlang_ensure_bootstrap_nostdlib_stubs_o(const char *argv0) {
     int ln_src = 0;
     while (leaf_src[ln_src] != 0)
       ln_src++;
-    if (dn + 1 + ln_src >= 4096)
+    if (dn + 1 + ln_src >= 2048)
       return -1;
     for (i = 0; i < dn; i++)
       inc2[i] = comp[i];
@@ -1044,8 +1044,8 @@ int xlang_ensure_runtime_time_os_o(const char *argv0) {
  */
 int xlang_ensure_runtime_queue_contention_o(const char *argv0) {
   const char *p;
-  char comp[4096];
-  char script[4096];
+  char comp[2048];
+  char script[2048];
   char chk[64];
   char rev[16];
   const char *cp_argv[4];
@@ -1230,8 +1230,8 @@ int xlang_ensure_runtime_sync_lock_diag_tls_o(const char *argv0) {
  */
 int xlang_ensure_runtime_thread_glue_o(const char *argv0) {
   const char *p;
-  char comp[4096];
-  char script[4096];
+  char comp[2048];
+  char script[2048];
   char chk[64];
   char rev[16];
   const char *cp_argv[4];

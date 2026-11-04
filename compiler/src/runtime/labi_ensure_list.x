@@ -615,11 +615,11 @@ export function link_abi_ensure_from_catalog(argv0: *u8, catalog_idx: i32, produ
   if (have != 0 as *u8) {
     return 0;
   }
-  // Cap residual: platform compiler-dir resolve into 4096 stack (PATH_MAX upper).
-  let comp: u8[4096] = [];
+  // Cap residual: platform compiler-dir resolve into 2048 stack (tip probe-offset safe; path joins).
+  let comp: u8[2048] = [];
   let rc: i32 = 0;
   unsafe {
-    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 4096);
+    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 2048);
   }
   if (rc != 0) {
     // Hints only for catalog 0/1 (≡ mega step_at / thin historic make tips).
@@ -646,10 +646,10 @@ export function link_abi_ensure_from_catalog(argv0: *u8, catalog_idx: i32, produ
   while (out_base[ln_o] != 0) {
     ln_o = ln_o + 1;
   }
-  if (dn + 1 + ln_o >= 4096) {
+  if (dn + 1 + ln_o >= 2048) {
     return -1;
   }
-  let out_o: u8[4096] = [];
+  let out_o: u8[2048] = [];
   let i: i32 = 0;
   while (i < dn) {
     out_o[i] = comp[i];
@@ -671,10 +671,10 @@ export function link_abi_ensure_from_catalog(argv0: *u8, catalog_idx: i32, produ
   while (seed_base[ln_seed] != 0) {
     ln_seed = ln_seed + 1;
   }
-  if (dn + 1 + ln_pfx + ln_seed >= 4096) {
+  if (dn + 1 + ln_pfx + ln_seed >= 2048) {
     return -1;
   }
-  let src_c: u8[4096] = [];
+  let src_c: u8[2048] = [];
   i = 0;
   while (i < dn) {
     src_c[i] = comp[i];
@@ -703,7 +703,7 @@ export function link_abi_ensure_from_catalog(argv0: *u8, catalog_idx: i32, produ
     return -1;
   }
   // Pure join include paths: inc0=comp, inc1=comp/include, inc2=comp/src (≡ mega).
-  let inc0: u8[4096] = [];
+  let inc0: u8[2048] = [];
   i = 0;
   while (i <= dn) {
     inc0[i] = comp[i];
@@ -714,10 +714,10 @@ export function link_abi_ensure_from_catalog(argv0: *u8, catalog_idx: i32, produ
   while (leaf_inc[ln_inc] != 0) {
     ln_inc = ln_inc + 1;
   }
-  if (dn + 1 + ln_inc >= 4096) {
+  if (dn + 1 + ln_inc >= 2048) {
     return -1;
   }
-  let inc1: u8[4096] = [];
+  let inc1: u8[2048] = [];
   i = 0;
   while (i < dn) {
     inc1[i] = comp[i];
@@ -734,10 +734,10 @@ export function link_abi_ensure_from_catalog(argv0: *u8, catalog_idx: i32, produ
   while (leaf_src[ln_src] != 0) {
     ln_src = ln_src + 1;
   }
-  if (dn + 1 + ln_src >= 4096) {
+  if (dn + 1 + ln_src >= 2048) {
     return -1;
   }
-  let inc2: u8[4096] = [];
+  let inc2: u8[2048] = [];
   i = 0;
   while (i < dn) {
     inc2[i] = comp[i];
@@ -781,10 +781,10 @@ export function link_abi_ensure_from_catalog(argv0: *u8, catalog_idx: i32, produ
         while (http_leaf[ln_http] != 0) {
           ln_http = ln_http + 1;
         }
-        if (dn + 1 + ln_http >= 4096) {
+        if (dn + 1 + ln_http >= 2048) {
           return -1;
         }
-        let http_inc: u8[4096] = [];
+        let http_inc: u8[2048] = [];
         i = 0;
         while (i < dn) {
           http_inc[i] = comp[i];
@@ -800,10 +800,10 @@ export function link_abi_ensure_from_catalog(argv0: *u8, catalog_idx: i32, produ
         let dash_I: *u8 = "-I";
         let ln_I: i32 = 2;
         let ln_http_abs: i32 = dn + 1 + ln_http;
-        if (ln_I + ln_http_abs >= 4096) {
+        if (ln_I + ln_http_abs >= 2048) {
           return -1;
         }
-        let flag_I: u8[4096] = [];
+        let flag_I: u8[2048] = [];
         flag_I[0] = 45; // '-'
         flag_I[1] = 73; // 'I'
         k = 0;
@@ -871,11 +871,11 @@ export function xlang_ensure_runtime_panic_o(argv0: *u8): i32 {
   if (have != 0 as *u8) {
     return 0;
   }
-  // Cap residual: platform compiler-dir resolve into 4096 stack (PATH_MAX upper).
-  let comp: u8[4096] = [];
+  // Cap residual: platform compiler-dir resolve into 2048 stack (tip probe-offset safe; path joins).
+  let comp: u8[2048] = [];
   let rc: i32 = 0;
   unsafe {
-    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 4096);
+    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 2048);
   }
   if (rc != 0) {
     let hint: *u8 = "try: ./xbuild compiler-make runtime_panic.o";
@@ -895,10 +895,10 @@ export function xlang_ensure_runtime_panic_o(argv0: *u8): i32 {
   while (leaf_o[ln_o] != 0) {
     ln_o = ln_o + 1;
   }
-  if (dn + 1 + ln_o >= 4096) {
+  if (dn + 1 + ln_o >= 2048) {
     return -1;
   }
-  let out_o: u8[4096] = [];
+  let out_o: u8[2048] = [];
   let i: i32 = 0;
   while (i < dn) {
     out_o[i] = comp[i];
@@ -913,9 +913,9 @@ export function xlang_ensure_runtime_panic_o(argv0: *u8): i32 {
   // Source selection ≡ mega: prefer .s on linux x86_64; arm64 seed on posix aarch64; else default C.
   let src: *u8 = 0 as *u8;
   let from_asm_s: i32 = 0;
-  let src_s: u8[4096] = [];
-  let src_arm: u8[4096] = [];
-  let src_c: u8[4096] = [];
+  let src_s: u8[2048] = [];
+  let src_arm: u8[2048] = [];
+  let src_c: u8[2048] = [];
   let is_linux_x86: i32 = 0;
   unsafe {
     is_linux_x86 = link_abi_host_is_linux_x86_64();
@@ -987,7 +987,7 @@ export function xlang_ensure_runtime_panic_o(argv0: *u8): i32 {
     while (leaf_c[ln_c] != 0) {
       ln_c = ln_c + 1;
     }
-    if (dn + 1 + ln_c >= 4096) {
+    if (dn + 1 + ln_c >= 2048) {
       return -1;
     }
     i = 0;
@@ -1015,7 +1015,7 @@ export function xlang_ensure_runtime_panic_o(argv0: *u8): i32 {
     src = &src_c[0];
   }
   // Pure join include paths: inc0=comp, inc1=comp/include, inc2=comp/src (≡ mega).
-  let inc0: u8[4096] = [];
+  let inc0: u8[2048] = [];
   i = 0;
   while (i <= dn) {
     inc0[i] = comp[i];
@@ -1026,10 +1026,10 @@ export function xlang_ensure_runtime_panic_o(argv0: *u8): i32 {
   while (leaf_inc[ln_inc] != 0) {
     ln_inc = ln_inc + 1;
   }
-  if (dn + 1 + ln_inc >= 4096) {
+  if (dn + 1 + ln_inc >= 2048) {
     return -1;
   }
-  let inc1: u8[4096] = [];
+  let inc1: u8[2048] = [];
   i = 0;
   while (i < dn) {
     inc1[i] = comp[i];
@@ -1046,10 +1046,10 @@ export function xlang_ensure_runtime_panic_o(argv0: *u8): i32 {
   while (leaf_src[ln_src] != 0) {
     ln_src = ln_src + 1;
   }
-  if (dn + 1 + ln_src >= 4096) {
+  if (dn + 1 + ln_src >= 2048) {
     return -1;
   }
-  let inc2: u8[4096] = [];
+  let inc2: u8[2048] = [];
   i = 0;
   while (i < dn) {
     inc2[i] = comp[i];
@@ -1127,11 +1127,11 @@ export function xlang_ensure_runtime_heap_user_o(argv0: *u8): i32 {
       unlink(existing);
     }
   }
-  // Cap residual: platform compiler-dir resolve into 4096 stack (PATH_MAX upper).
-  let comp: u8[4096] = [];
+  // Cap residual: platform compiler-dir resolve into 2048 stack (tip probe-offset safe; path joins).
+  let comp: u8[2048] = [];
   let rc: i32 = 0;
   unsafe {
-    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 4096);
+    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 2048);
   }
   if (rc != 0) {
     // Match mega: resolve_fail with null hint for heap_user.
@@ -1151,10 +1151,10 @@ export function xlang_ensure_runtime_heap_user_o(argv0: *u8): i32 {
   while (leaf_o[ln_o] != 0) {
     ln_o = ln_o + 1;
   }
-  if (dn + 1 + ln_o >= 4096) {
+  if (dn + 1 + ln_o >= 2048) {
     return -1;
   }
-  let out_o: u8[4096] = [];
+  let out_o: u8[2048] = [];
   let i: i32 = 0;
   while (i < dn) {
     out_o[i] = comp[i];
@@ -1173,10 +1173,10 @@ export function xlang_ensure_runtime_heap_user_o(argv0: *u8): i32 {
   while (leaf_x[ln_x] != 0) {
     ln_x = ln_x + 1;
   }
-  if (dn + 1 + ln_x >= 4096) {
+  if (dn + 1 + ln_x >= 2048) {
     return -1;
   }
-  let src_x: u8[4096] = [];
+  let src_x: u8[2048] = [];
   i = 0;
   while (i < dn) {
     src_x[i] = comp[i];
@@ -1217,7 +1217,7 @@ export function xlang_ensure_runtime_heap_user_o(argv0: *u8): i32 {
   if (slash <= 0) {
     return -1;
   }
-  let lib: u8[4096] = [];
+  let lib: u8[2048] = [];
   let p: i32 = 0;
   while (p < slash) {
     lib[p] = comp[p];
@@ -1292,11 +1292,11 @@ export function xlang_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32 {
   if (have != 0 as *u8) {
     return 0;
   }
-  // Cap residual: platform compiler-dir resolve into 4096 stack (PATH_MAX upper).
-  let comp: u8[4096] = [];
+  // Cap residual: platform compiler-dir resolve into 2048 stack (tip probe-offset safe; path joins).
+  let comp: u8[2048] = [];
   let rc: i32 = 0;
   unsafe {
-    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 4096);
+    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 2048);
   }
   if (rc != 0) {
     // Match mega: resolve_fail with make hint for test_fn_invoke.
@@ -1316,10 +1316,10 @@ export function xlang_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32 {
   while (leaf_o[ln_o] != 0) {
     ln_o = ln_o + 1;
   }
-  if (dn + 1 + ln_o >= 4096) {
+  if (dn + 1 + ln_o >= 2048) {
     return -1;
   }
-  let out_o: u8[4096] = [];
+  let out_o: u8[2048] = [];
   let i: i32 = 0;
   while (i < dn) {
     out_o[i] = comp[i];
@@ -1337,10 +1337,10 @@ export function xlang_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32 {
   while (leaf_c[ln_c] != 0) {
     ln_c = ln_c + 1;
   }
-  if (dn + 1 + ln_c >= 4096) {
+  if (dn + 1 + ln_c >= 2048) {
     return -1;
   }
-  let src_c: u8[4096] = [];
+  let src_c: u8[2048] = [];
   i = 0;
   while (i < dn) {
     src_c[i] = comp[i];
@@ -1364,7 +1364,7 @@ export function xlang_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32 {
     return -1;
   }
   // Pure join include paths: inc0=comp, inc1=comp/include, inc2=comp/src (≡ mega).
-  let inc0: u8[4096] = [];
+  let inc0: u8[2048] = [];
   i = 0;
   while (i <= dn) {
     inc0[i] = comp[i];
@@ -1375,10 +1375,10 @@ export function xlang_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32 {
   while (leaf_inc[ln_inc] != 0) {
     ln_inc = ln_inc + 1;
   }
-  if (dn + 1 + ln_inc >= 4096) {
+  if (dn + 1 + ln_inc >= 2048) {
     return -1;
   }
-  let inc1: u8[4096] = [];
+  let inc1: u8[2048] = [];
   i = 0;
   while (i < dn) {
     inc1[i] = comp[i];
@@ -1395,10 +1395,10 @@ export function xlang_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32 {
   while (leaf_src[ln_src] != 0) {
     ln_src = ln_src + 1;
   }
-  if (dn + 1 + ln_src >= 4096) {
+  if (dn + 1 + ln_src >= 2048) {
     return -1;
   }
-  let inc2: u8[4096] = [];
+  let inc2: u8[2048] = [];
   i = 0;
   while (i < dn) {
     inc2[i] = comp[i];
@@ -1464,11 +1464,11 @@ export function xlang_ensure_runtime_tls_mbedtls_bio_o(argv0: *u8): i32 {
   if (have != 0 as *u8) {
     return 0;
   }
-  // Cap residual: platform compiler-dir resolve into 4096 stack (PATH_MAX upper).
-  let comp: u8[4096] = [];
+  // Cap residual: platform compiler-dir resolve into 2048 stack (tip probe-offset safe; path joins).
+  let comp: u8[2048] = [];
   let rc: i32 = 0;
   unsafe {
-    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 4096);
+    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 2048);
   }
   if (rc != 0) {
     // Match mega: resolve_fail with null hint (Makefile best-effort fallback elsewhere).
@@ -1488,10 +1488,10 @@ export function xlang_ensure_runtime_tls_mbedtls_bio_o(argv0: *u8): i32 {
   while (leaf_o[ln_o] != 0) {
     ln_o = ln_o + 1;
   }
-  if (dn + 1 + ln_o >= 4096) {
+  if (dn + 1 + ln_o >= 2048) {
     return -1;
   }
-  let out_o: u8[4096] = [];
+  let out_o: u8[2048] = [];
   let i: i32 = 0;
   while (i < dn) {
     out_o[i] = comp[i];
@@ -1509,10 +1509,10 @@ export function xlang_ensure_runtime_tls_mbedtls_bio_o(argv0: *u8): i32 {
   while (leaf_c[ln_c] != 0) {
     ln_c = ln_c + 1;
   }
-  if (dn + 1 + ln_c >= 4096) {
+  if (dn + 1 + ln_c >= 2048) {
     return -1;
   }
-  let src_c: u8[4096] = [];
+  let src_c: u8[2048] = [];
   i = 0;
   while (i < dn) {
     src_c[i] = comp[i];
@@ -1535,7 +1535,7 @@ export function xlang_ensure_runtime_tls_mbedtls_bio_o(argv0: *u8): i32 {
     return -1;
   }
   // Pure join include paths: inc0=comp, inc1=comp/include, inc2=comp/src (≡ mega).
-  let inc0: u8[4096] = [];
+  let inc0: u8[2048] = [];
   i = 0;
   while (i <= dn) {
     inc0[i] = comp[i];
@@ -1546,10 +1546,10 @@ export function xlang_ensure_runtime_tls_mbedtls_bio_o(argv0: *u8): i32 {
   while (leaf_inc[ln_inc] != 0) {
     ln_inc = ln_inc + 1;
   }
-  if (dn + 1 + ln_inc >= 4096) {
+  if (dn + 1 + ln_inc >= 2048) {
     return -1;
   }
-  let inc1: u8[4096] = [];
+  let inc1: u8[2048] = [];
   i = 0;
   while (i < dn) {
     inc1[i] = comp[i];
@@ -1566,10 +1566,10 @@ export function xlang_ensure_runtime_tls_mbedtls_bio_o(argv0: *u8): i32 {
   while (leaf_src[ln_src] != 0) {
     ln_src = ln_src + 1;
   }
-  if (dn + 1 + ln_src >= 4096) {
+  if (dn + 1 + ln_src >= 2048) {
     return -1;
   }
-  let inc2: u8[4096] = [];
+  let inc2: u8[2048] = [];
   i = 0;
   while (i < dn) {
     inc2[i] = comp[i];
@@ -1647,11 +1647,11 @@ export function xlang_ensure_bootstrap_nostdlib_stubs_o(argv0: *u8): i32 {
       }
     }
   }
-  // Cap residual: platform compiler-dir resolve into 4096 stack (PATH_MAX upper).
-  let comp: u8[4096] = [];
+  // Cap residual: platform compiler-dir resolve into 2048 stack (tip probe-offset safe; path joins).
+  let comp: u8[2048] = [];
   let rc: i32 = 0;
   unsafe {
-    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 4096);
+    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 2048);
   }
   if (rc != 0) {
     unsafe {
@@ -1670,10 +1670,10 @@ export function xlang_ensure_bootstrap_nostdlib_stubs_o(argv0: *u8): i32 {
   while (leaf_o[ln_o] != 0) {
     ln_o = ln_o + 1;
   }
-  if (dn + 1 + ln_o >= 4096) {
+  if (dn + 1 + ln_o >= 2048) {
     return -1;
   }
-  let out_o: u8[4096] = [];
+  let out_o: u8[2048] = [];
   let i: i32 = 0;
   while (i < dn) {
     out_o[i] = comp[i];
@@ -1691,10 +1691,10 @@ export function xlang_ensure_bootstrap_nostdlib_stubs_o(argv0: *u8): i32 {
   while (leaf_c[ln_c] != 0) {
     ln_c = ln_c + 1;
   }
-  if (dn + 1 + ln_c >= 4096) {
+  if (dn + 1 + ln_c >= 2048) {
     return -1;
   }
-  let src_c: u8[4096] = [];
+  let src_c: u8[2048] = [];
   i = 0;
   while (i < dn) {
     src_c[i] = comp[i];
@@ -1718,7 +1718,7 @@ export function xlang_ensure_bootstrap_nostdlib_stubs_o(argv0: *u8): i32 {
     return -1;
   }
   // Pure join include paths: inc0=comp, inc1=comp/include, inc2=comp/src (≡ mega -I triple).
-  let inc0: u8[4096] = [];
+  let inc0: u8[2048] = [];
   i = 0;
   while (i <= dn) {
     inc0[i] = comp[i];
@@ -1729,10 +1729,10 @@ export function xlang_ensure_bootstrap_nostdlib_stubs_o(argv0: *u8): i32 {
   while (leaf_inc[ln_inc] != 0) {
     ln_inc = ln_inc + 1;
   }
-  if (dn + 1 + ln_inc >= 4096) {
+  if (dn + 1 + ln_inc >= 2048) {
     return -1;
   }
-  let inc1: u8[4096] = [];
+  let inc1: u8[2048] = [];
   i = 0;
   while (i < dn) {
     inc1[i] = comp[i];
@@ -1749,10 +1749,10 @@ export function xlang_ensure_bootstrap_nostdlib_stubs_o(argv0: *u8): i32 {
   while (leaf_src[ln_src] != 0) {
     ln_src = ln_src + 1;
   }
-  if (dn + 1 + ln_src >= 4096) {
+  if (dn + 1 + ln_src >= 2048) {
     return -1;
   }
-  let inc2: u8[4096] = [];
+  let inc2: u8[2048] = [];
   i = 0;
   while (i < dn) {
     inc2[i] = comp[i];
@@ -2038,10 +2038,10 @@ export function xlang_ensure_runtime_queue_contention_o(argv0: *u8): i32 {
   if (defines != 0) {
     return 0;
   }
-  let comp: u8[4096] = [];
+  let comp: u8[2048] = [];
   let rc: i32 = 0;
   unsafe {
-    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 4096);
+    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 2048);
   }
   if (rc != 0) {
     return 0 - 1;
@@ -2051,9 +2051,9 @@ export function xlang_ensure_runtime_queue_contention_o(argv0: *u8): i32 {
     dn = dn + 1;
   }
   let leaf: *u8 = "/scripts/ensure_host_cc_seed_o.sh";
-  let script: u8[4096] = [];
+  let script: u8[2048] = [];
   let j: i32 = 0;
-  if (dn + 40 >= 4096) {
+  if (dn + 40 >= 2048) {
     return 0 - 1;
   }
   while (j < dn) {
@@ -2470,10 +2470,10 @@ export function xlang_ensure_runtime_thread_glue_o(argv0: *u8): i32 {
   if (defines != 0) {
     return 0;
   }
-  let comp: u8[4096] = [];
+  let comp: u8[2048] = [];
   let rc: i32 = 0;
   unsafe {
-    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 4096);
+    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 2048);
   }
   if (rc != 0) {
     return 0 - 1;
@@ -2483,9 +2483,9 @@ export function xlang_ensure_runtime_thread_glue_o(argv0: *u8): i32 {
     dn = dn + 1;
   }
   let leaf: *u8 = "/scripts/ensure_host_cc_seed_o.sh";
-  let script: u8[4096] = [];
+  let script: u8[2048] = [];
   let j: i32 = 0;
-  if (dn + 40 >= 4096) {
+  if (dn + 40 >= 2048) {
     return 0 - 1;
   }
   while (j < dn) {
