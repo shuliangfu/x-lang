@@ -405,7 +405,7 @@ fn main_cmd_build(argc, argv):
 | 动作 | 验收 |
 |------|------|
 | 评估并提高 `CFG_MAX_ENTRIES` | 单测装入 ≥128 键 |
-| 冻结 **Core schema** 文 + `xlang.toml.core.example` | 文档审阅 |
+| ✅ 冻结 **Core schema** 文 + `xlang.toml.core.example`（刀 **11.30**） | 静态 gate；runtime load ⏸ |
 | golden：core example **必须**被 `std/config` 加载成功 | 新 gate 或并入 config gate |
 | 标记 Full 示例中 unsupported 语法 | CI 注释或 `parse_full` expected-fail |
 | env 命名表进本文 §3.5 | 已写 |
@@ -559,7 +559,7 @@ fn main_cmd_build(argc, argv):
 | 路径 | 角色 |
 |------|------|
 | [`xlang.toml`](../xlang.toml) | Full 设计示例（未接线） |
-| **待增** `xlang.toml.core.example` | 用户/MVP 权威模板 |
+| ✅ `xlang.toml.core.example`（刀 **11.30** 静态 gate） | 用户/MVP 权威模板；runtime load ⏸ |
 | [`std/config/`](../std/config/) | Layer1 |
 | [`build.x`](../build.x) · build-x 分析文 | 策略；参数禁入 |
 | [`compiler/src/main.x`](../compiler/src/main.x) | Layer3 入口 |
