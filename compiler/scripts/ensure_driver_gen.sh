@@ -329,6 +329,8 @@ emit_driver_x_o() {
         if [ -f "$_seed" ]; then
           log "emit-o: tip -E missing markers; Win fallback seed $_seed"
           cp -f "$_seed" "$tmp"
+          # MinGW already declares ftruncate/lseek; drop seed freestanding decls.
+          grep -v -E "[[:space:]]ftruncate\(|[[:space:]]lseek\(" "$tmp" >"$tmp.nosys" && mv -f "$tmp.nosys" "$tmp"
         else
           log "emit-o: -E output missing main.x markers (no seed)"
           rm -rf "$td"

@@ -8547,7 +8547,7 @@ dynlib_text_retry_pure() {
 rt_stack_retry_pure() {
   local o="${1:-}"
   local xsrc="src/runtime/rt_stack.x"
-  local try n c
+  local try n c _xl
   if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
     return 1
   fi
@@ -8566,6 +8566,19 @@ rt_stack_retry_pure() {
     fi
     rm -f "$o"
   done
+  # tip xlang_asm CG002s on this TU; product xlang-c -backend asm emits the
+  # three T symbols (w1496). Still pure-asm — no host-cc seed.
+  if [ ! -s "$o" ]; then
+    for _xl in ./xlang-c ./xlang ./bootstrap_xlangc; do
+      if [ -x "$_xl" ] \
+        && g05_xasm "$_xl" -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 \
+        && [ -s "$o" ]; then
+        log "rt-stack-retry: pure-asm via $_xl (xlang_asm CG002 fallback)"
+        break
+      fi
+      rm -f "$o"
+    done
+  fi
   if [ ! -s "$o" ]; then
     return 1
   fi
