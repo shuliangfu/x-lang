@@ -5828,12 +5828,12 @@ export extern "C" function driver_argv0_basename_is(argv0: *u8, base: *u8): i32;
  * PLATFORM: SHARED path bytes; always emits '/' before "xlang-c" (cold strcat same).
  */
 #[no_mangle]
-export function driver_sibling_path_from_self(self: *u8, out: *u8, cap: i32): i32 {
+export function driver_sibling_path_from_self(argv0_path: *u8, out: *u8, cap: i32): i32 {
   let i: i32 = 0;
   let last: i32 = 0 - 1;
   let j: i32 = 0;
   let c: u8 = 0;
-  if (self == 0 as *u8) {
+  if (argv0_path == 0 as *u8) {
     return 0 - 1;
   }
   if (out == 0 as *u8) {
@@ -5844,7 +5844,7 @@ export function driver_sibling_path_from_self(self: *u8, out: *u8, cap: i32): i3
   }
   // Find last path separator (POSIX / or Windows \\), cap scan 4096.
   while (i < 4096) {
-    c = self[i];
+    c = argv0_path[i];
     if (c == 0) {
       break;
     }
@@ -5868,7 +5868,7 @@ export function driver_sibling_path_from_self(self: *u8, out: *u8, cap: i32): i3
   // Copy dirname excluding trailing separator, then append "/xlang-c".
   j = 0;
   while (j < last) {
-    out[j] = self[j];
+    out[j] = argv0_path[j];
     j = j + 1;
   }
   out[j] = 0;
@@ -5888,8 +5888,9 @@ export function driver_sibling_path_from_self(self: *u8, out: *u8, cap: i32): i3
  */
 #[no_mangle]
 export function driver_dispatch_sibling_try_spawn(argc: i32, argv_opaque: *u8): i32 {
-  let self: *u8 = 0 as *u8;
-  let path: *u8 = 0 as *u8;
+  // tip PE Win: `let self` is P014 keyword — use self_argv0. PLATFORM: SHARED.
+  let self_argv0: *u8 = 0 as *u8;
+  let sib_path: *u8 = 0 as *u8;
   let pr: i32 = 0;
   if (argv_opaque == 0 as *u8) {
     return 0 - 1;
@@ -5897,26 +5898,22 @@ export function driver_dispatch_sibling_try_spawn(argc: i32, argv_opaque: *u8): 
   if (argc < 2) {
     return 0 - 1;
   }
-  // Cap residual: *u8→char** cast + av[0]; G.7 basename; OS access+spawn.
-  // Extern surfaces require unsafe (T001).
   unsafe {
-    self = xlang_driver_sibling_argv0_get(argv_opaque);
-    if (self == 0 as *u8) {
+    self_argv0 = xlang_driver_sibling_argv0_get(argv_opaque);
+    if (self_argv0 == 0 as *u8) {
       return 0 - 1;
     }
-    // G.7: single authority for argv0 basename (rt_util pure).
-    if (driver_argv0_basename_is(self, "xlang-c") != 0) {
+    if (driver_argv0_basename_is(self_argv0, "xlang-c") != 0) {
       return 0 - 1;
     }
   }
-  path = &g_driver_sibling_path_buf[0];
-  pr = driver_sibling_path_from_self(self, path, 512);
+  sib_path = &g_driver_sibling_path_buf[0];
+  pr = driver_sibling_path_from_self(self_argv0, sib_path, 512);
   if (pr != 0) {
     return 0 - 1;
   }
   unsafe {
-    // Cap residual: access X_OK + fork/exec or Windows spawnvp + wait.
-    return xlang_driver_sibling_access_spawn(path, argc, argv_opaque);
+    return xlang_driver_sibling_access_spawn(sib_path, argc, argv_opaque);
   }
   return 0 - 1;
 }

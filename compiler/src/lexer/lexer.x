@@ -4449,7 +4449,11 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       memcpy((&data_ptr as *u8), fat_addr, (8 as usize));
       lexer_src_data_store((&sp as *u8));
       lexer_src_len_store((&slen as *u8));
-      if ((data_ptr < (4096 as usize)) && (sp != (0 as *u8))) {
+      // Track L + tip u8[] ABI: prefer parked source whenever present.
+      // Old guard (data_ptr < 4096) skipped rewrite when Track L left a
+      // plausible-looking pointer in the fat slot → P001 no functions.
+      // PLATFORM: SHARED.
+      if (sp != (0 as *u8)) {
         memcpy(fat_addr, (&sp as *u8), (8 as usize));
         memcpy(fat_addr + (8 as usize), (&slen as *u8), (8 as usize));
       }
