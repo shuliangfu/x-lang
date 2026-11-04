@@ -64,6 +64,7 @@
 | 限制 | 代码事实 | 对 xlang.toml 影响 |
 |------|----------|-------------------|
 | **`CFG_MAX_ENTRIES = 256`** | `std/config/config.x`（＋`CfgEntry[256]`＋`CFG_STORE_SIZE=120000`） | 刀 **11.27** 原子抬升；C smoke **128** keys OK；`xlang.toml` Full 仍受 array／inline 正交裂缝限制 |
+| **`load_toml_buf` C-link 无写入** | 刀 **11.31** LOCATE：`config.o` 上 `load_toml_buf`→`CFG_OK` 但 `get_*`＝`NOT_FOUND`；`set_string` 同柄仍绿；nested／array／smoke_c 均 return 3；rebuild 触 Soft Cap CG002 HOLD | Core example（11.30）仅静态 gate；**勿假绿 runtime load** |
 | **`CFG_KEY_MAX = 128` / `CFG_VAL_MAX = 256`** | 同 | 长 path / 多 feature 列表受限 |
 | **`CFG_FILE_MAX = 65536`** | 同 | 一般够用；超大生成 toml 需警惕 |
 | **无 array-of-string** | README 限制 | 示例 `target = ["a","b"]`、`default = ["std","async"]`、`exclude = []` **当前解析不了** |

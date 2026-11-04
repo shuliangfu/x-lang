@@ -31,3 +31,8 @@ TOML 扁平 + `[section]` 子集、ENV 前缀、多源 merge、类型化读取�
 
 - TOML：扁平键、`[section]` 一级前缀、**`[a.b]` 嵌套 section**（键为 `a.b.*`）、**`[[array]]` array-of-tables**（键为 `array.0.*`）、字符串/整数/bool  
 - YAML：嵌套 section（`db.url`）、**`-` 标量序列**（`items.0`）、**`-` object 序列**（`servers.0.host`）
+
+## Known host-C caveat（刀 11.31 LOCATE）
+
+Current tree `std/config/config.o`：`config_load_toml_buf_c` may return `CFG_OK` while subsequent `get_*` see `CFG_ERR_NOT_FOUND` under minimal C-link stubs. `config_set_string_c` on the same handle still round-trips. Built-in `config_*_smoke_c` return 3 on this `.o`. Do **not** treat Core-example static gate（刀 11.30）as runtime load green. Rebuild of `config.x` historically hits Soft Cap CG002（HOLD；tiphead Prefer §7 勿升）.
+
