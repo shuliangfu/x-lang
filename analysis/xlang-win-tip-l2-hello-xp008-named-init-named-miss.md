@@ -1,29 +1,40 @@
-# Win tip L2 hello XP008 named init_named miss（刀 11.71）
+# Win tip L2 hello XP008 named init_named miss（刀 11.71）· **ACCEPT-ready**
 
-> Gate：`tests/run-win-tip-l2-hello-xp008-named-init-named-miss-gate.sh`。
+> Gate：`tests/run-win-tip-l2-hello-xp008-named-init-named-miss-gate.sh`（OK exit0）。
 > Beat：`win_tip_l2_hello_xp008_named_init_named_miss`。
 > 基线：Win tip L2 **1/5**＠`58e34910f` **勿 regress**；11.59–**11.70** 绿族／HOLD 勿 regress。
-> 闸位 HOLD；禁 Soft Cap G05 混 tip；禁假绿／CloudAgent。
-> tip PE 起点 **`059417e5772c…`**（post-11.67；11.68–11.70 无修）。
+> tip PE **`26ec339d5388…`→`6a0f73a8656f…`**（at_end subtract stub）；闸位等经理 CLOSE ACCEPT。
+> 禁 Soft Cap G05 混 tip；禁假绿／CloudAgent。
 
-## 从 11.70 继承
+## DIG（诚实根因）
 
-- 真残钉＝type-ref 以 kind ARG＝8 进 `equal_named`，但 type-table slot **未** `init_named_at`（slot kind＠0＝0；L84＝1；name＝`)`／` `）→ diag `expected  , found )`；A_val／`*A`／ctx_ptr／cast；field T001 级联。
-- Prefer name_into／init_named／same_kind／equal_named 与 Soft Cap **结构对齐**；无 tip-peel e9。
-- 11.70 订正：本 fixture **非**经典 len＠0x84≤0；name_into 忠实读未初始化／错 kind 槽。
-- 11.67 wrap 保留；勿回滚；force name／always-eq 假绿禁入 tip。
+- Fixture `min_A_val.x`：tip `check` 曾红 `expected  , found )`；SC Prefer `check` 绿。
+- Live dig（ASLR-safe；hook `init_named_at`＠`0x1402A9CA1`；dig-only 未入 tip 产品／未入 git）：
+  - tip：4× init_named，名＝`)`／` `，RA_pref＝`0x140647a6c`（＝11.59 live `named_type_x` 内 call＠`0x140647a67` 返回；**非**另路 path-builder）。
+  - SC Prefer：4× init_named，名＝`A`，RA_pref＝`0x1406531eb`（`parse_named_type_x`＠`0x140652d78`）。
+- 订正 11.70「跳过 init_named」：tip **有**调 init_named，但 name 字节错。
+- 根因＝tip `parser_asm_copy_slice_to_name64_at_end_buf`＠`0x1405c1cec` 为 **裸 E9→start-pos `*_buf_c`＠`0x1405c1b68`**，丢掉 `start = end_pos - nlen`（与 `pthin_lex_skip.x` Prefer-M2 注释／`parser.x` 权威一致）。step 后 `lex_pos` 作 end 时，复制的是 IDENT **之后**的 `)`／空格。
+- same_kind 仍靠 kind-arg8；slot 被错名 init 后 equal_named 对 `)` vs ` ` → diag。
+- 无 Soft Cap 字节混 tip；11.67 wrap＠`0x140647bb0` 未动。
 
-## 本刀 DIG／修靶
+## 修
 
-1. DIG tip-local：**为何** struct `A`／NAMED 注册跳过 `init_named_at`＠`0x1402A9CA1`（调用点 `0x1405c9040`／`0x1405ca62a`／`0x1405cb803`／`0x1405d6a57` 等未命中；仅 path-builder `0x140647a67` 见）。
-2. 对照 Soft Cap Prefer 只读：同 fixture 下 init_named 调用序／IDENT type-ref 何时写 kind8＋name。
-3. 诚实 tip-only 小修若证据够（e9／live／单点 writer）；否则 residual HOLD＋OPEN 下一粒。
-4. 验收：A_val／`*A`／ctx_ptr 进一格或诚实新残；保 11.67 nested／slice／`*IoBatchBuf`／array-let／IF greens。
+- tip-only stub＠`0x140647fb0`：`movsxd rax,r9d; sub r8,rax; jmp 0x1405c1b68`；`0x1405c1cec`→stub。
+- 脚本：`compiler/scripts/win_tip_pe_patch_copy_slice_at_end_subtract.py`。
+- Gate71 OK；nested／slice／`*IoBatchBuf`／array-let／named_type／IF／parse-skip gates OK。
+- 复验 dig：tip init_named 4× 名＝`A`（对齐 SC）。
 
-## Residual（开刀时）
+## 验收
 
-- init_named miss → kind-arg8／slot-kind0 → equal_named 垃圾名；L2 1/5＠`58e34910f`；PE `059417e5…`；P012 未新开。
+- gate71 OK exit0（A_val／`*A`／context／nested／ptr）。
+- 保绿：gate67／63／62／61／59／56／60 OK。
+- L2 1/5＠`58e34910f` 未抬分宣称；P012／hello XP008 未本刀宣称清。
+- **ACCEPT-ready**（勿自 CLOSE；等经理裁定）。
+
+## Residual（若有）
+
+- hello／L2 仍 XP008／P012 族（非本刀）；L2 1/5＠`58e34910f`。
 
 ## 非目标／禁
 
-- Soft Cap G05 混 tip；回滚 11.67 wrap；force equal／force name 假绿；CloudAgent；CheckSubscriptionUsage 空转；`_dig` 入 git。
+- Soft Cap G05 混 tip；回滚 11.67 wrap；force equal／force name；CloudAgent；`_dig` 入 git。
