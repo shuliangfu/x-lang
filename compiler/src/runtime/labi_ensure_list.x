@@ -119,6 +119,13 @@ export extern "C" function xlang_debug_hello_stage1_report(hypothesis_id: *u8, l
  * @return i32
  */
 #[no_mangle]
+// tip PE labi path scratch (module-level; avoid >3 large stack arrays per fn)
+let labi_inc1_buf: u8[256] = [];
+let labi_inc2_buf: u8[256] = [];
+let labi_http_buf: u8[256] = [];
+let labi_flag_buf: u8[256] = [];
+
+
 export function labi_ensure_catalog_count(): i32 {
   return 27;
 }
@@ -615,11 +622,11 @@ export function link_abi_ensure_from_catalog(argv0: *u8, catalog_idx: i32, produ
   if (have != 0 as *u8) {
     return 0;
   }
-  // Cap residual: platform compiler-dir resolve into 1024 stack (tip probe-offset safe; 8x2048 still SEGV).
-  let comp: u8[1024] = [];
+  // Cap residual: platform compiler-dir resolve into 512 stack (tip PE places only 3 large arrays; 8x1024 smashed FP).
+  let comp: u8[512] = [];
   let rc: i32 = 0;
   unsafe {
-    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 1024);
+    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 512);
   }
   if (rc != 0) {
     // Hints only for catalog 0/1 (≡ mega step_at / thin historic make tips).
@@ -646,10 +653,10 @@ export function link_abi_ensure_from_catalog(argv0: *u8, catalog_idx: i32, produ
   while (out_base[ln_o] != 0) {
     ln_o = ln_o + 1;
   }
-  if (dn + 1 + ln_o >= 1024) {
+  if (dn + 1 + ln_o >= 512) {
     return -1;
   }
-  let out_o: u8[1024] = [];
+  let out_o: u8[512] = [];
   let i: i32 = 0;
   while (i < dn) {
     out_o[i] = comp[i];
@@ -671,10 +678,10 @@ export function link_abi_ensure_from_catalog(argv0: *u8, catalog_idx: i32, produ
   while (seed_base[ln_seed] != 0) {
     ln_seed = ln_seed + 1;
   }
-  if (dn + 1 + ln_pfx + ln_seed >= 1024) {
+  if (dn + 1 + ln_pfx + ln_seed >= 512) {
     return -1;
   }
-  let src_c: u8[1024] = [];
+  let src_c: u8[512] = [];
   i = 0;
   while (i < dn) {
     src_c[i] = comp[i];
@@ -702,31 +709,25 @@ export function link_abi_ensure_from_catalog(argv0: *u8, catalog_idx: i32, produ
     }
     return -1;
   }
-  // Pure join include paths: inc0=comp, inc1=comp/include, inc2=comp/src (≡ mega).
-  let inc0: u8[1024] = [];
-  i = 0;
-  while (i <= dn) {
-    inc0[i] = comp[i];
-    i = i + 1;
-  }
+  // Include paths: inc0=&comp[0]; tip PE ≤3 large arrays (comp/out/src).
   let leaf_inc: *u8 = "include";
   let ln_inc: i32 = 0;
   while (leaf_inc[ln_inc] != 0) {
     ln_inc = ln_inc + 1;
   }
-  if (dn + 1 + ln_inc >= 1024) {
+  if (dn + 1 + ln_inc >= 256) {
     return -1;
   }
-  let inc1: u8[1024] = [];
+  /* inc1 → labi_inc1_buf */
   i = 0;
   while (i < dn) {
-    inc1[i] = comp[i];
+    labi_inc1_buf[i] = comp[i];
     i = i + 1;
   }
-  inc1[dn] = 47;
+  labi_inc1_buf[dn] = 47;
   k = 0;
   while (k <= ln_inc) {
-    inc1[dn + 1 + k] = leaf_inc[k];
+    labi_inc1_buf[dn + 1 + k] = leaf_inc[k];
     k = k + 1;
   }
   let leaf_src: *u8 = "src";
@@ -734,19 +735,19 @@ export function link_abi_ensure_from_catalog(argv0: *u8, catalog_idx: i32, produ
   while (leaf_src[ln_src] != 0) {
     ln_src = ln_src + 1;
   }
-  if (dn + 1 + ln_src >= 1024) {
+  if (dn + 1 + ln_src >= 256) {
     return -1;
   }
-  let inc2: u8[1024] = [];
+  /* inc2 → labi_inc2_buf */
   i = 0;
   while (i < dn) {
-    inc2[i] = comp[i];
+    labi_inc2_buf[i] = comp[i];
     i = i + 1;
   }
-  inc2[dn] = 47;
+  labi_inc2_buf[dn] = 47;
   k = 0;
   while (k <= ln_src) {
-    inc2[dn + 1 + k] = leaf_src[k];
+    labi_inc2_buf[dn + 1 + k] = leaf_src[k];
     k = k + 1;
   }
   // Cap residual: cc -c with catalog flag family (PIE / SQLITE / HTTP -I pack / none).
@@ -755,7 +756,7 @@ export function link_abi_ensure_from_catalog(argv0: *u8, catalog_idx: i32, produ
     // LABI_ENS_FLAG_PIE
     let flag_pie: *u8 = "-fPIE";
     unsafe {
-      crc = xlang_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &inc0[0], &inc1[0], &inc2[0], 0, flag_pie);
+      crc = xlang_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &comp[0], &labi_inc1_buf[0], &labi_inc2_buf[0], 0, flag_pie);
     }
   } else {
     if (flags == 2) {
@@ -766,11 +767,11 @@ export function link_abi_ensure_from_catalog(argv0: *u8, catalog_idx: i32, produ
       // G.7 complete SQLITE ensure; product -o must not hard-fail missing header.
       let flag_sql: *u8 = "-DXLANG_DB_USE_SQLITE3";
       unsafe {
-        crc = xlang_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &inc0[0], &inc1[0], &inc2[0], 0, flag_sql);
+        crc = xlang_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &comp[0], &labi_inc1_buf[0], &labi_inc2_buf[0], 0, flag_sql);
       }
       if (crc != 0) {
         unsafe {
-          crc = xlang_cc_compile_sync(&src_c[0], &out_o[0], &inc0[0], &inc1[0], &inc2[0], 0);
+          crc = xlang_cc_compile_sync(&src_c[0], &out_o[0], &comp[0], &labi_inc1_buf[0], &labi_inc2_buf[0], 0);
         }
       }
     } else {
@@ -781,43 +782,43 @@ export function link_abi_ensure_from_catalog(argv0: *u8, catalog_idx: i32, produ
         while (http_leaf[ln_http] != 0) {
           ln_http = ln_http + 1;
         }
-        if (dn + 1 + ln_http >= 1024) {
+        if (dn + 1 + ln_http >= 256) {
           return -1;
         }
-        let http_inc: u8[1024] = [];
+        /* http → labi_http_buf */
         i = 0;
         while (i < dn) {
-          http_inc[i] = comp[i];
+          labi_http_buf[i] = comp[i];
           i = i + 1;
         }
-        http_inc[dn] = 47;
+        labi_http_buf[dn] = 47;
         k = 0;
         while (k <= ln_http) {
-          http_inc[dn + 1 + k] = http_leaf[k];
+          labi_http_buf[dn + 1 + k] = http_leaf[k];
           k = k + 1;
         }
         // flag_I = "-I" + http_inc + NUL (single extra string for one_extra Cap).
         let dash_I: *u8 = "-I";
         let ln_I: i32 = 2;
         let ln_http_abs: i32 = dn + 1 + ln_http;
-        if (ln_I + ln_http_abs >= 1024) {
+        if (ln_I + ln_http_abs >= 256) {
           return -1;
         }
-        let flag_I: u8[1024] = [];
-        flag_I[0] = 45; // '-'
-        flag_I[1] = 73; // 'I'
+        /* flag → labi_flag_buf */
+        labi_flag_buf[0] = 45; // '-'
+        labi_flag_buf[1] = 73; // 'I'
         k = 0;
         while (k <= ln_http_abs) {
-          flag_I[ln_I + k] = http_inc[k];
+          labi_flag_buf[ln_I + k] = labi_http_buf[k];
           k = k + 1;
         }
         unsafe {
-          crc = xlang_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &inc0[0], &inc1[0], &inc2[0], 0, &flag_I[0]);
+          crc = xlang_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &comp[0], &labi_inc1_buf[0], &labi_inc2_buf[0], 0, &labi_flag_buf[0]);
         }
       } else {
         // LABI_ENS_FLAG_NONE
         unsafe {
-          crc = xlang_cc_compile_sync(&src_c[0], &out_o[0], &inc0[0], &inc1[0], &inc2[0], 0);
+          crc = xlang_cc_compile_sync(&src_c[0], &out_o[0], &comp[0], &labi_inc1_buf[0], &labi_inc2_buf[0], 0);
         }
       }
     }
@@ -871,11 +872,11 @@ export function xlang_ensure_runtime_panic_o(argv0: *u8): i32 {
   if (have != 0 as *u8) {
     return 0;
   }
-  // Cap residual: platform compiler-dir resolve into 1024 stack (tip probe-offset safe; 8x2048 still SEGV).
-  let comp: u8[1024] = [];
+  // Cap residual: platform compiler-dir resolve into 512 stack (tip PE places only 3 large arrays; 8x1024 smashed FP).
+  let comp: u8[512] = [];
   let rc: i32 = 0;
   unsafe {
-    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 1024);
+    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 512);
   }
   if (rc != 0) {
     let hint: *u8 = "try: ./xbuild compiler-make runtime_panic.o";
@@ -895,10 +896,10 @@ export function xlang_ensure_runtime_panic_o(argv0: *u8): i32 {
   while (leaf_o[ln_o] != 0) {
     ln_o = ln_o + 1;
   }
-  if (dn + 1 + ln_o >= 1024) {
+  if (dn + 1 + ln_o >= 512) {
     return -1;
   }
-  let out_o: u8[1024] = [];
+  let out_o: u8[512] = [];
   let i: i32 = 0;
   while (i < dn) {
     out_o[i] = comp[i];
@@ -913,9 +914,7 @@ export function xlang_ensure_runtime_panic_o(argv0: *u8): i32 {
   // Source selection ≡ mega: prefer .s on linux x86_64; arm64 seed on posix aarch64; else default C.
   let src: *u8 = 0 as *u8;
   let from_asm_s: i32 = 0;
-  let src_s: u8[1024] = [];
-  let src_arm: u8[1024] = [];
-  let src_c: u8[1024] = [];
+  let src_buf: u8[512] = [];
   let is_linux_x86: i32 = 0;
   unsafe {
     is_linux_x86 = link_abi_host_is_linux_x86_64();
@@ -926,24 +925,24 @@ export function xlang_ensure_runtime_panic_o(argv0: *u8): i32 {
     while (leaf_s[ln_s] != 0) {
       ln_s = ln_s + 1;
     }
-    if (dn + 1 + ln_s < 1024) {
+    if (dn + 1 + ln_s < 512) {
       i = 0;
       while (i < dn) {
-        src_s[i] = comp[i];
+        src_buf[i] = comp[i];
         i = i + 1;
       }
-      src_s[dn] = 47;
+      src_buf[dn] = 47;
       k = 0;
       while (k <= ln_s) {
-        src_s[dn + 1 + k] = leaf_s[k];
+        src_buf[dn + 1 + k] = leaf_s[k];
         k = k + 1;
       }
       let readable: i32 = 0;
       unsafe {
-        readable = link_abi_path_readable(&src_s[0]);
+        readable = link_abi_path_readable(&src_buf[0]);
       }
       if (readable != 0) {
-        src = &src_s[0];
+        src = &src_buf[0];
         from_asm_s = 1;
       }
     }
@@ -959,24 +958,24 @@ export function xlang_ensure_runtime_panic_o(argv0: *u8): i32 {
       while (leaf_a[ln_a] != 0) {
         ln_a = ln_a + 1;
       }
-      if (dn + 1 + ln_a < 1024) {
+      if (dn + 1 + ln_a < 512) {
         i = 0;
         while (i < dn) {
-          src_arm[i] = comp[i];
+          src_buf[i] = comp[i];
           i = i + 1;
         }
-        src_arm[dn] = 47;
+        src_buf[dn] = 47;
         k = 0;
         while (k <= ln_a) {
-          src_arm[dn + 1 + k] = leaf_a[k];
+          src_buf[dn + 1 + k] = leaf_a[k];
           k = k + 1;
         }
         let readable2: i32 = 0;
         unsafe {
-          readable2 = link_abi_path_readable(&src_arm[0]);
+          readable2 = link_abi_path_readable(&src_buf[0]);
         }
         if (readable2 != 0) {
-          src = &src_arm[0];
+          src = &src_buf[0];
         }
       }
     }
@@ -987,23 +986,23 @@ export function xlang_ensure_runtime_panic_o(argv0: *u8): i32 {
     while (leaf_c[ln_c] != 0) {
       ln_c = ln_c + 1;
     }
-    if (dn + 1 + ln_c >= 1024) {
+    if (dn + 1 + ln_c >= 512) {
       return -1;
     }
     i = 0;
     while (i < dn) {
-      src_c[i] = comp[i];
+      src_buf[i] = comp[i];
       i = i + 1;
     }
-    src_c[dn] = 47;
+    src_buf[dn] = 47;
     k = 0;
     while (k <= ln_c) {
-      src_c[dn + 1 + k] = leaf_c[k];
+      src_buf[dn + 1 + k] = leaf_c[k];
       k = k + 1;
     }
     let readable3: i32 = 0;
     unsafe {
-      readable3 = link_abi_path_readable(&src_c[0]);
+      readable3 = link_abi_path_readable(&src_buf[0]);
     }
     if (readable3 == 0) {
       // Match mega: missing_under(stem, comp, "/seeds/") when default C absent.
@@ -1012,59 +1011,12 @@ export function xlang_ensure_runtime_panic_o(argv0: *u8): i32 {
       }
       return -1;
     }
-    src = &src_c[0];
+    src = &src_buf[0];
   }
-  // Pure join include paths: inc0=comp, inc1=comp/include, inc2=comp/src (≡ mega).
-  let inc0: u8[1024] = [];
-  i = 0;
-  while (i <= dn) {
-    inc0[i] = comp[i];
-    i = i + 1;
-  }
-  let leaf_inc: *u8 = "include";
-  let ln_inc: i32 = 0;
-  while (leaf_inc[ln_inc] != 0) {
-    ln_inc = ln_inc + 1;
-  }
-  if (dn + 1 + ln_inc >= 1024) {
-    return -1;
-  }
-  let inc1: u8[1024] = [];
-  i = 0;
-  while (i < dn) {
-    inc1[i] = comp[i];
-    i = i + 1;
-  }
-  inc1[dn] = 47;
-  k = 0;
-  while (k <= ln_inc) {
-    inc1[dn + 1 + k] = leaf_inc[k];
-    k = k + 1;
-  }
-  let leaf_src: *u8 = "src";
-  let ln_src: i32 = 0;
-  while (leaf_src[ln_src] != 0) {
-    ln_src = ln_src + 1;
-  }
-  if (dn + 1 + ln_src >= 1024) {
-    return -1;
-  }
-  let inc2: u8[1024] = [];
-  i = 0;
-  while (i < dn) {
-    inc2[i] = comp[i];
-    i = i + 1;
-  }
-  inc2[dn] = 47;
-  k = 0;
-  while (k <= ln_src) {
-    inc2[dn + 1 + k] = leaf_src[k];
-    k = k + 1;
-  }
-  // Cap residual: cc -c src → out_o (from_asm_s when Linux x86_64 .s selected).
+  // tip PE: exactly 3 large stack arrays (comp/out_o/src_buf). Linux x86_64 uses .s (from_asm_s); pass &comp[0] for all -I slots.
   let crc: i32 = 0;
   unsafe {
-    crc = xlang_cc_compile_sync(src, &out_o[0], &inc0[0], &inc1[0], &inc2[0], from_asm_s);
+    crc = xlang_cc_compile_sync(src, &out_o[0], &comp[0], &comp[0], &comp[0], from_asm_s);
   }
   if (crc != 0) {
     unsafe {
@@ -1127,11 +1079,11 @@ export function xlang_ensure_runtime_heap_user_o(argv0: *u8): i32 {
       unlink(existing);
     }
   }
-  // Cap residual: platform compiler-dir resolve into 1024 stack (tip probe-offset safe; 8x2048 still SEGV).
-  let comp: u8[1024] = [];
+  // Cap residual: platform compiler-dir resolve into 512 stack (tip PE places only 3 large arrays; 8x1024 smashed FP).
+  let comp: u8[512] = [];
   let rc: i32 = 0;
   unsafe {
-    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 1024);
+    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 512);
   }
   if (rc != 0) {
     // Match mega: resolve_fail with null hint for heap_user.
@@ -1151,10 +1103,10 @@ export function xlang_ensure_runtime_heap_user_o(argv0: *u8): i32 {
   while (leaf_o[ln_o] != 0) {
     ln_o = ln_o + 1;
   }
-  if (dn + 1 + ln_o >= 1024) {
+  if (dn + 1 + ln_o >= 512) {
     return -1;
   }
-  let out_o: u8[1024] = [];
+  let out_o: u8[512] = [];
   let i: i32 = 0;
   while (i < dn) {
     out_o[i] = comp[i];
@@ -1173,10 +1125,10 @@ export function xlang_ensure_runtime_heap_user_o(argv0: *u8): i32 {
   while (leaf_x[ln_x] != 0) {
     ln_x = ln_x + 1;
   }
-  if (dn + 1 + ln_x >= 1024) {
+  if (dn + 1 + ln_x >= 512) {
     return -1;
   }
-  let src_x: u8[1024] = [];
+  let src_x: u8[512] = [];
   i = 0;
   while (i < dn) {
     src_x[i] = comp[i];
@@ -1217,7 +1169,7 @@ export function xlang_ensure_runtime_heap_user_o(argv0: *u8): i32 {
   if (slash <= 0) {
     return -1;
   }
-  let lib: u8[1024] = [];
+  let lib: u8[256] = [];
   let p: i32 = 0;
   while (p < slash) {
     lib[p] = comp[p];
@@ -1292,11 +1244,11 @@ export function xlang_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32 {
   if (have != 0 as *u8) {
     return 0;
   }
-  // Cap residual: platform compiler-dir resolve into 1024 stack (tip probe-offset safe; 8x2048 still SEGV).
-  let comp: u8[1024] = [];
+  // Cap residual: platform compiler-dir resolve into 512 stack (tip PE places only 3 large arrays; 8x1024 smashed FP).
+  let comp: u8[512] = [];
   let rc: i32 = 0;
   unsafe {
-    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 1024);
+    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 512);
   }
   if (rc != 0) {
     // Match mega: resolve_fail with make hint for test_fn_invoke.
@@ -1316,10 +1268,10 @@ export function xlang_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32 {
   while (leaf_o[ln_o] != 0) {
     ln_o = ln_o + 1;
   }
-  if (dn + 1 + ln_o >= 1024) {
+  if (dn + 1 + ln_o >= 512) {
     return -1;
   }
-  let out_o: u8[1024] = [];
+  let out_o: u8[512] = [];
   let i: i32 = 0;
   while (i < dn) {
     out_o[i] = comp[i];
@@ -1337,10 +1289,10 @@ export function xlang_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32 {
   while (leaf_c[ln_c] != 0) {
     ln_c = ln_c + 1;
   }
-  if (dn + 1 + ln_c >= 1024) {
+  if (dn + 1 + ln_c >= 512) {
     return -1;
   }
-  let src_c: u8[1024] = [];
+  let src_c: u8[512] = [];
   i = 0;
   while (i < dn) {
     src_c[i] = comp[i];
@@ -1363,31 +1315,25 @@ export function xlang_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32 {
     }
     return -1;
   }
-  // Pure join include paths: inc0=comp, inc1=comp/include, inc2=comp/src (≡ mega).
-  let inc0: u8[1024] = [];
-  i = 0;
-  while (i <= dn) {
-    inc0[i] = comp[i];
-    i = i + 1;
-  }
+  // Include paths: inc0=&comp[0]; tip PE ≤3 large arrays (comp/out/src).
   let leaf_inc: *u8 = "include";
   let ln_inc: i32 = 0;
   while (leaf_inc[ln_inc] != 0) {
     ln_inc = ln_inc + 1;
   }
-  if (dn + 1 + ln_inc >= 1024) {
+  if (dn + 1 + ln_inc >= 256) {
     return -1;
   }
-  let inc1: u8[1024] = [];
+  /* inc1 → labi_inc1_buf */
   i = 0;
   while (i < dn) {
-    inc1[i] = comp[i];
+    labi_inc1_buf[i] = comp[i];
     i = i + 1;
   }
-  inc1[dn] = 47;
+  labi_inc1_buf[dn] = 47;
   k = 0;
   while (k <= ln_inc) {
-    inc1[dn + 1 + k] = leaf_inc[k];
+    labi_inc1_buf[dn + 1 + k] = leaf_inc[k];
     k = k + 1;
   }
   let leaf_src: *u8 = "src";
@@ -1395,25 +1341,25 @@ export function xlang_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32 {
   while (leaf_src[ln_src] != 0) {
     ln_src = ln_src + 1;
   }
-  if (dn + 1 + ln_src >= 1024) {
+  if (dn + 1 + ln_src >= 256) {
     return -1;
   }
-  let inc2: u8[1024] = [];
+  /* inc2 → labi_inc2_buf */
   i = 0;
   while (i < dn) {
-    inc2[i] = comp[i];
+    labi_inc2_buf[i] = comp[i];
     i = i + 1;
   }
-  inc2[dn] = 47;
+  labi_inc2_buf[dn] = 47;
   k = 0;
   while (k <= ln_src) {
-    inc2[dn + 1 + k] = leaf_src[k];
+    labi_inc2_buf[dn + 1 + k] = leaf_src[k];
     k = k + 1;
   }
   // Cap residual: cc -c seed → out_o (from_asm_s=0; C seed only).
   let crc: i32 = 0;
   unsafe {
-    crc = xlang_cc_compile_sync(&src_c[0], &out_o[0], &inc0[0], &inc1[0], &inc2[0], 0);
+    crc = xlang_cc_compile_sync(&src_c[0], &out_o[0], &comp[0], &labi_inc1_buf[0], &labi_inc2_buf[0], 0);
   }
   if (crc != 0) {
     unsafe {
@@ -1464,11 +1410,11 @@ export function xlang_ensure_runtime_tls_mbedtls_bio_o(argv0: *u8): i32 {
   if (have != 0 as *u8) {
     return 0;
   }
-  // Cap residual: platform compiler-dir resolve into 1024 stack (tip probe-offset safe; 8x2048 still SEGV).
-  let comp: u8[1024] = [];
+  // Cap residual: platform compiler-dir resolve into 512 stack (tip PE places only 3 large arrays; 8x1024 smashed FP).
+  let comp: u8[512] = [];
   let rc: i32 = 0;
   unsafe {
-    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 1024);
+    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 512);
   }
   if (rc != 0) {
     // Match mega: resolve_fail with null hint (Makefile best-effort fallback elsewhere).
@@ -1488,10 +1434,10 @@ export function xlang_ensure_runtime_tls_mbedtls_bio_o(argv0: *u8): i32 {
   while (leaf_o[ln_o] != 0) {
     ln_o = ln_o + 1;
   }
-  if (dn + 1 + ln_o >= 1024) {
+  if (dn + 1 + ln_o >= 512) {
     return -1;
   }
-  let out_o: u8[1024] = [];
+  let out_o: u8[512] = [];
   let i: i32 = 0;
   while (i < dn) {
     out_o[i] = comp[i];
@@ -1509,10 +1455,10 @@ export function xlang_ensure_runtime_tls_mbedtls_bio_o(argv0: *u8): i32 {
   while (leaf_c[ln_c] != 0) {
     ln_c = ln_c + 1;
   }
-  if (dn + 1 + ln_c >= 1024) {
+  if (dn + 1 + ln_c >= 512) {
     return -1;
   }
-  let src_c: u8[1024] = [];
+  let src_c: u8[512] = [];
   i = 0;
   while (i < dn) {
     src_c[i] = comp[i];
@@ -1534,31 +1480,25 @@ export function xlang_ensure_runtime_tls_mbedtls_bio_o(argv0: *u8): i32 {
     }
     return -1;
   }
-  // Pure join include paths: inc0=comp, inc1=comp/include, inc2=comp/src (≡ mega).
-  let inc0: u8[1024] = [];
-  i = 0;
-  while (i <= dn) {
-    inc0[i] = comp[i];
-    i = i + 1;
-  }
+  // Include paths: inc0=&comp[0]; tip PE ≤3 large arrays (comp/out/src).
   let leaf_inc: *u8 = "include";
   let ln_inc: i32 = 0;
   while (leaf_inc[ln_inc] != 0) {
     ln_inc = ln_inc + 1;
   }
-  if (dn + 1 + ln_inc >= 1024) {
+  if (dn + 1 + ln_inc >= 256) {
     return -1;
   }
-  let inc1: u8[1024] = [];
+  /* inc1 → labi_inc1_buf */
   i = 0;
   while (i < dn) {
-    inc1[i] = comp[i];
+    labi_inc1_buf[i] = comp[i];
     i = i + 1;
   }
-  inc1[dn] = 47;
+  labi_inc1_buf[dn] = 47;
   k = 0;
   while (k <= ln_inc) {
-    inc1[dn + 1 + k] = leaf_inc[k];
+    labi_inc1_buf[dn + 1 + k] = leaf_inc[k];
     k = k + 1;
   }
   let leaf_src: *u8 = "src";
@@ -1566,19 +1506,19 @@ export function xlang_ensure_runtime_tls_mbedtls_bio_o(argv0: *u8): i32 {
   while (leaf_src[ln_src] != 0) {
     ln_src = ln_src + 1;
   }
-  if (dn + 1 + ln_src >= 1024) {
+  if (dn + 1 + ln_src >= 256) {
     return -1;
   }
-  let inc2: u8[1024] = [];
+  /* inc2 → labi_inc2_buf */
   i = 0;
   while (i < dn) {
-    inc2[i] = comp[i];
+    labi_inc2_buf[i] = comp[i];
     i = i + 1;
   }
-  inc2[dn] = 47;
+  labi_inc2_buf[dn] = 47;
   k = 0;
   while (k <= ln_src) {
-    inc2[dn + 1 + k] = leaf_src[k];
+    labi_inc2_buf[dn + 1 + k] = leaf_src[k];
     k = k + 1;
   }
   // Cap residual: cc -c seed with homebrew mbedTLS -I (best-effort; ≡ mega extra_flags).
@@ -1586,7 +1526,7 @@ export function xlang_ensure_runtime_tls_mbedtls_bio_o(argv0: *u8): i32 {
   let flag_I: *u8 = "-I/opt/homebrew/opt/mbedtls/include";
   let crc: i32 = 0;
   unsafe {
-    crc = xlang_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &inc0[0], &inc1[0], &inc2[0], 0, flag_I);
+    crc = xlang_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &comp[0], &labi_inc1_buf[0], &labi_inc2_buf[0], 0, flag_I);
   }
   if (crc != 0) {
     // Match mega: build_status on failure; Makefile may still build offline.
@@ -1647,11 +1587,11 @@ export function xlang_ensure_bootstrap_nostdlib_stubs_o(argv0: *u8): i32 {
       }
     }
   }
-  // Cap residual: platform compiler-dir resolve into 1024 stack (tip probe-offset safe; 8x2048 still SEGV).
-  let comp: u8[1024] = [];
+  // Cap residual: platform compiler-dir resolve into 512 stack (tip PE places only 3 large arrays; 8x1024 smashed FP).
+  let comp: u8[512] = [];
   let rc: i32 = 0;
   unsafe {
-    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 1024);
+    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 512);
   }
   if (rc != 0) {
     unsafe {
@@ -1670,10 +1610,10 @@ export function xlang_ensure_bootstrap_nostdlib_stubs_o(argv0: *u8): i32 {
   while (leaf_o[ln_o] != 0) {
     ln_o = ln_o + 1;
   }
-  if (dn + 1 + ln_o >= 1024) {
+  if (dn + 1 + ln_o >= 512) {
     return -1;
   }
-  let out_o: u8[1024] = [];
+  let out_o: u8[512] = [];
   let i: i32 = 0;
   while (i < dn) {
     out_o[i] = comp[i];
@@ -1691,10 +1631,10 @@ export function xlang_ensure_bootstrap_nostdlib_stubs_o(argv0: *u8): i32 {
   while (leaf_c[ln_c] != 0) {
     ln_c = ln_c + 1;
   }
-  if (dn + 1 + ln_c >= 1024) {
+  if (dn + 1 + ln_c >= 512) {
     return -1;
   }
-  let src_c: u8[1024] = [];
+  let src_c: u8[512] = [];
   i = 0;
   while (i < dn) {
     src_c[i] = comp[i];
@@ -1717,31 +1657,25 @@ export function xlang_ensure_bootstrap_nostdlib_stubs_o(argv0: *u8): i32 {
     }
     return -1;
   }
-  // Pure join include paths: inc0=comp, inc1=comp/include, inc2=comp/src (≡ mega -I triple).
-  let inc0: u8[1024] = [];
-  i = 0;
-  while (i <= dn) {
-    inc0[i] = comp[i];
-    i = i + 1;
-  }
+  // Include paths: inc0=&comp[0]; tip PE ≤3 large (comp/out_o/src_c).
   let leaf_inc: *u8 = "include";
   let ln_inc: i32 = 0;
   while (leaf_inc[ln_inc] != 0) {
     ln_inc = ln_inc + 1;
   }
-  if (dn + 1 + ln_inc >= 1024) {
+  if (dn + 1 + ln_inc >= 256) {
     return -1;
   }
-  let inc1: u8[1024] = [];
+  /* inc1 → labi_inc1_buf */
   i = 0;
   while (i < dn) {
-    inc1[i] = comp[i];
+    labi_inc1_buf[i] = comp[i];
     i = i + 1;
   }
-  inc1[dn] = 47;
+  labi_inc1_buf[dn] = 47;
   k = 0;
   while (k <= ln_inc) {
-    inc1[dn + 1 + k] = leaf_inc[k];
+    labi_inc1_buf[dn + 1 + k] = leaf_inc[k];
     k = k + 1;
   }
   let leaf_src: *u8 = "src";
@@ -1749,19 +1683,19 @@ export function xlang_ensure_bootstrap_nostdlib_stubs_o(argv0: *u8): i32 {
   while (leaf_src[ln_src] != 0) {
     ln_src = ln_src + 1;
   }
-  if (dn + 1 + ln_src >= 1024) {
+  if (dn + 1 + ln_src >= 256) {
     return -1;
   }
-  let inc2: u8[1024] = [];
+  /* inc2 → labi_inc2_buf */
   i = 0;
   while (i < dn) {
-    inc2[i] = comp[i];
+    labi_inc2_buf[i] = comp[i];
     i = i + 1;
   }
-  inc2[dn] = 47;
+  labi_inc2_buf[dn] = 47;
   k = 0;
   while (k <= ln_src) {
-    inc2[dn + 1 + k] = leaf_src[k];
+    labi_inc2_buf[dn + 1 + k] = leaf_src[k];
     k = k + 1;
   }
   // Cap residual: cc -c seed with -fno-builtin (malloc/free face must not call libc builtins).
@@ -1769,7 +1703,7 @@ export function xlang_ensure_bootstrap_nostdlib_stubs_o(argv0: *u8): i32 {
   let flag_nb: *u8 = "-fno-builtin";
   let crc: i32 = 0;
   unsafe {
-    crc = xlang_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &inc0[0], &inc1[0], &inc2[0], 0, flag_nb);
+    crc = xlang_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &comp[0], &labi_inc1_buf[0], &labi_inc2_buf[0], 0, flag_nb);
   }
   if (crc != 0) {
     unsafe {
