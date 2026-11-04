@@ -1,9 +1,9 @@
-# Win tip L2 hello XP008 named init_named miss（刀 11.71）· **ACCEPT-ready**
+# Win tip L2 hello XP008 named init_named miss（刀 11.71）· **CLOSE ACCEPT**
 
 > Gate：`tests/run-win-tip-l2-hello-xp008-named-init-named-miss-gate.sh`（OK exit0）。
 > Beat：`win_tip_l2_hello_xp008_named_init_named_miss`。
 > 基线：Win tip L2 **1/5**＠`58e34910f` **勿 regress**；11.59–**11.70** 绿族／HOLD 勿 regress。
-> tip PE **`26ec339d5388…`→`6a0f73a8656f…`**（at_end subtract stub）；闸位等经理 CLOSE ACCEPT。
+> tip PE **`26ec339d5388…`→`6a0f73a8656f…`**（at_end subtract stub）；经理 CLOSE ACCEPT＠`0ab799e4a`。
 > 禁 Soft Cap G05 混 tip；禁假绿／CloudAgent。
 
 ## DIG（诚实根因）
@@ -29,11 +29,11 @@
 - gate71 OK exit0（A_val／`*A`／context／nested／ptr）。
 - 保绿：gate67／63／62／61／59／56／60 OK。
 - L2 1/5＠`58e34910f` 未抬分宣称；P012／hello XP008 未本刀宣称清。
-- **ACCEPT-ready**（勿自 CLOSE；等经理裁定）。
+- **正式 CLOSE ACCEPT**（经理裁定＠`0ab799e4a`／PE `6a0f73a8656f…`）。
 
 ## Residual（若有）
 
-- hello／L2 仍 XP008／P012 族（非本刀）；L2 1/5＠`58e34910f`。
+- hello／`std.context/mod.x` 仍 XP008／P001＝**struct lit** `{ handle: … }`（移交 11.72）；L2 1/5＠`58e34910f`。
 
 ## 非目标／禁
 
