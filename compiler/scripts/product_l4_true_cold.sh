@@ -112,6 +112,28 @@ _l4_restore_tip_aside() {
       cp -f "$COMPILER_DIR/xlang" "$COMPILER_DIR/xlang_asm"
     fi
     chmod +x "$COMPILER_DIR/xlang_asm" 2>/dev/null || true
+    # PLATFORM: WINDOWS — true-cold wipe removes xlang-c.exe. driver_leaf
+    # special leaves (fmt/check/test/build/run/compile/emit/lsp_io_std_heap/
+    # preprocess) require ./xlang-c.exe -E; linux cold seeds are not Win
+    # build inputs. Install the same tip PE as xlang-c.exe or pick_xlang
+    # returns 1 → " -E failed; no cold seed on Windows" cascade (ok=16/fail=36).
+    case "$(uname -s 2>/dev/null)" in
+      Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+        cp -f "$COMPILER_DIR/xlang" "$COMPILER_DIR/xlang-c.exe"
+        cp -f "$COMPILER_DIR/xlang" "$COMPILER_DIR/xlang.exe" 2>/dev/null || true
+        cp -f "$COMPILER_DIR/xlang_asm" "$COMPILER_DIR/xlang_asm.exe" 2>/dev/null || true
+        cp -f "$COMPILER_DIR/xlang" "$COMPILER_DIR/xlang-c" 2>/dev/null || true
+        chmod +x "$COMPILER_DIR/xlang-c.exe" "$COMPILER_DIR/xlang.exe" \
+          "$COMPILER_DIR/xlang_asm.exe" "$COMPILER_DIR/xlang-c" 2>/dev/null || true
+        log "step2b: Win tip aside also installed xlang-c.exe for driver_leaf -E"
+        # Dual-GP option.o (Win tip L2) lives beside the PE aside when present.
+        if [ -f "${cand%/*}/option.o" ]; then
+          mkdir -p "$ROOT/core/option"
+          cp -f "${cand%/*}/option.o" "$ROOT/core/option/option.o"
+          log "step2b: restored aside option.o (dual-GP) → core/option/option.o"
+        fi
+        ;;
+    esac
     log "step2b: restored tip aside for hybrid pabi ($cand)"
     # note743y.6.23: refuse hollow Cap tip (ec=0 but 0-byte .o on
     # runtime_asm_io_stubs.x). That aside left tip-cold failing try-heat
@@ -351,6 +373,16 @@ fi
 log "step3: remaining_o=0 OK (xlang_asm absent)"
 _l4_step_end
 _l4_restore_tip_aside
+
+
+# PLATFORM: WINDOWS — tip L4 without a tip PE cannot -E driver leaves.
+case "$(uname -s 2>/dev/null)" in
+  Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+    if [ ! -x compiler/xlang-c.exe ] && [ ! -x compiler/xlang.exe ]; then
+      fail "Win tip L4 needs tip PE for driver_leaf -E: set XLANG_L4_TIP_ASIDE=dir (with xlang[/xlang_asm]) or place compiler/xlang.pre_l4_aside"
+    fi
+    ;;
+esac
 
 # --- 4) Frontend *_gen.c: tip assemble authority (knife 254 / 9.2) ---
 # Default: do NOT pin-first from seeds/*_gen.linux.x86_64.c.
