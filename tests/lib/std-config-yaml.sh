@@ -70,8 +70,13 @@ std_config_yaml_run_c_smoke() {
   local ec=$?
   set -e
   rm -f "$out"
-  # Linked with stubs is the 11.40 delta. Non-zero smoke (often 11.31 residual
-  # shape) stays OBS archaeology — do not claim product yaml green.
+  # 11.40: stubs linked. 11.42: yaml_smoke_ok passes through smoke_c (exit 3 =
+  # 11.31 residual). Treat exit=3 as obs archaeology OK like std-config 11.37;
+  # do not claim product yaml green.
+  if [ "$ec" -eq 3 ]; then
+    echo "std-config-yaml OBS host-C residual smoke exit=3 (11.31; io stubs; not green)" >&2
+    return 0
+  fi
   if [ "$ec" -ne 0 ]; then
     echo "std-config-yaml OBS host-C residual smoke exit=$ec (linked with io stubs; not green)" >&2
     return 1

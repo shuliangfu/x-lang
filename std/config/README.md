@@ -40,3 +40,10 @@ Current tree `std/config/config.o`：`config_load_toml_buf_c` may return `CFG_OK
 
 Do **not** treat Core-example static gate（刀 11.30）as runtime load green. Rebuild `config.x` via tip `xlang_asm` → Soft Cap **CG002**（本刀复验）；tiphead Prefer §7 / DIG07 SoftCap 0/4 → **勿升**。Ban glue_tail C shim / `.o` binary patch.
 
+## Host-C obs link（刀 11.37／11.40／11.42）
+
+Darwin host-C archaeology for TOML／YAML smokes must link `compiler/runtime_asm_io_stubs.o`
+(with `runtime_io_abi.o`) — see `tests/lib/std-config.sh`／`tests/lib/std-config-yaml.sh`.
+`tests/std-config/yaml_smoke_ok.c` passes through `config_yaml_smoke_c()` (exit 3 under
+11.31 residual; do not collapse to 1). Protect suite: `tests/run-toml0-protect-suite-gate.sh`.
+

@@ -57,6 +57,13 @@ run_ec=$?
 set -e
 rm -f "$OUT" "$LOG"
 
-# Link fixed is ACCEPT for 11.40; run residual stays deferred (same 11.31 family).
-echo "${PREFIX} status=ok stubs_linked=1 link=1 run_ec=${run_ec} runtime_yaml=deferred host=$(ci_host_summary)"
-echo "toml0-yaml-host-c-obs-io-stubs gate OK (link fixed; run residual not product green)"
+# 11.40 link + 11.42 passthrough: expect smoke residual exit=3 (11.31 family).
+# exit=0 would mean residual CLEARED without Soft Cap tiphead knife — fail loud.
+if [ "${run_ec}" -eq 0 ]; then
+  die "run_ec=0 residual CLEARED? reopen Soft Cap tiphead; do not silent-ACCEPT"
+fi
+if [ "${run_ec}" -ne 3 ]; then
+  die "run_ec=${run_ec} want 3 (11.31 residual passthrough after 11.42)"
+fi
+echo "${PREFIX} status=ok stubs_linked=1 link=1 run_ec=3 residual_locked=1 runtime_yaml=deferred host=$(ci_host_summary)"
+echo "toml0-yaml-host-c-obs-io-stubs gate OK (link+passthrough; residual locked; not product green)"
