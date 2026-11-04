@@ -68,3 +68,15 @@ Unique-rename 清 P012 但 hollow → **假绿禁**。
 - 不升 Soft Cap Prefer／tiphead／钉／Cap tip。
 - Soft Cap Prefer f32=0 **≠** tip L2 抬分。
 - 不改 `core/fmt` 唯一化假绿。
+
+## Formal CLOSE residual HOLD（2026-11-04 ≈15:35 Asia/Shanghai）
+
+**Verdict：CLOSE residual HOLD** — tip product chain unchanged (bak PE restored).
+
+| step | result |
+|------|--------|
+| dig_slim tip-only + override.o + W→T | empty/rv **OK**；one_arr **CG002**；e_fmtstyle **P012 digits@7** |
+| Soft Cap G05 mix | **banned**／reverted |
+| Root cause upgrade | dual-fn **scope／local table** (not stub-only) → knife **11.46** |
+
+Do not claim ACCEPT. Do not raise Soft Cap／tiphead／nail.
