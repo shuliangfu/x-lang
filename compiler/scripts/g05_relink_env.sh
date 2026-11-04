@@ -1389,14 +1389,29 @@ case "$UNAME_S" in
         fi
         unset _ufcs_soft _ufcs_cand
       fi
-      # note743y.4: tip parser still calls struct-returning lexer_init; tip
-      # lexer_init is out-ptr and smashes source when rdi==parked data
-      # (num_funcs=0 / P001 / no main). Ret-by-value dual-ABI shim + demote
-      # tip lexer_x.o::lexer_init (keep next_* tip). PLATFORM: LINUX tip cold.
-      # Track L parser_x (no *.pure_asm): calls out-ptr lexer_init(&Lex) —
-      # nop ret-by-value shim leaves Lexer uninit → P001 no functions / no main.
-      # Skip shim and keep full tip lexer_x.o::lexer_init when Track L.
+      # note743y.4: tip lexer_init is out-ptr; tip/archaeology parser often
+      # still expects Lexer in rax+rdx. Shim + demote tip lexer_init.
+      # Do NOT key only on parser_x.pure_asm: Track L cold seed (no marker)
+      # can still be ret-by-value (P001 when SKIP). Detect ABI from .o:
+      # call site followed by mov %rax / mov %rdx → need shim; else out-ptr.
+      # PLATFORM: LINUX tip cold.
+      _need_lex_shim=0
       if [ -f parser_x.pure_asm ]; then
+        _need_lex_shim=1
+      elif [ -f parser_x.o ] && command -v objdump >/dev/null 2>&1; then
+        # Sample parser_parse / parse_into: ret-by-value stores rax+rdx after call.
+        if objdump -d parser_x.o 2>/dev/null | awk '
+          /call/ { c=1; next }
+          c && /mov[a-z]*[ \t]+%rax,/ { a=1 }
+          c && /mov[a-z]*[ \t]+%rdx,/ { d=1 }
+          c && a && d { found=1; exit }
+          c && /^[0-9a-f]+ </ { c=0; a=0; d=0 }
+          END { exit found?0:1 }
+        '; then
+          _need_lex_shim=1
+        fi
+      fi
+      if [ "$_need_lex_shim" = "1" ]; then
         _shim_s=src/asm/lexer_init_ret_by_value_shim_x86_64.s
         _shim_o=build_asm/selfhost_pabi/lexer_init_ret_by_value_shim.o
         mkdir -p build_asm/selfhost_pabi
@@ -1442,7 +1457,7 @@ case "$UNAME_S" in
         fi
       else
         _G05_LEXER_X_O=""
-        echo "g05_relink_env: note743y.4 SKIP ret-by-value shim (Track L parser_x; keep out-ptr lexer_init)" >&2
+        echo "g05_relink_env: note743y.4 SKIP ret-by-value shim (parser out-ptr lexer_init ABI)" >&2
       fi
       # note743y.6.10: emptied cold rt_fmt_one seed → hollow ret0 wins;
       # tip-compile .x and prepend so first-wins beats phase1 hollow
@@ -7265,11 +7280,27 @@ case "$UNAME_S" in
       echo "g05_relink_env: ERROR note743y.6.21 missing $_nopark_o" >&2
       exit 1
     fi
-    # note743y.6.22: restore note743y.6.21/a89 ret-by-value shim + demote tip
-    # lexer_init (Linux twin). tip Soft Cap-only init → P001 no _main; probe
-    # SEGV under lldb next. PLATFORM: MACOS tip cold.
-    # Track L parser_x (no *.pure_asm): out-ptr lexer_init — skip nop shim.
+    # note743y.6.22: ret-by-value shim + demote tip lexer_init (Linux twin).
+    # tip Soft Cap-only init → P001 no _main. ABI detect like note743y.4 —
+    # Track L cold seed may still be ret-by-value without pure_asm marker.
+    # PLATFORM: MACOS tip cold.
+    _need_lex_shim=0
     if [ -f parser_x.pure_asm ]; then
+      _need_lex_shim=1
+    elif [ -f parser_x.o ] && command -v objdump >/dev/null 2>&1; then
+      if objdump -d parser_x.o 2>/dev/null | awk '
+        /bl[ \t]/ { c=1; next }
+        /call/ { c=1; next }
+        c && /mov[a-z]*[ \t]+%rax,/ { a=1 }
+        c && /mov[a-z]*[ \t]+%rdx,/ { d=1 }
+        c && a && d { found=1; exit }
+        c && /^[0-9a-f]+ </ { c=0; a=0; d=0 }
+        END { exit found?0:1 }
+      '; then
+        _need_lex_shim=1
+      fi
+    fi
+    if [ "$_need_lex_shim" = "1" ]; then
       _shim_s=src/asm/lexer_init_ret_by_value_shim_arm64.s
       _shim_o=build_asm/selfhost_pabi/lexer_init_ret_by_value_shim.o
       if [ ! -f "$_shim_s" ]; then
@@ -7311,7 +7342,7 @@ case "$UNAME_S" in
       fi
     else
       _G05_LEXER_X_O=""
-      echo "g05_relink_env: note743y.6.22 SKIP ret-by-value shim (Track L parser_x; keep out-ptr lexer_init)" >&2
+      echo "g05_relink_env: note743y.6.22 SKIP ret-by-value shim (parser out-ptr lexer_init ABI)" >&2
     fi
     # note743y.6.22: Apple clang packs consecutive stack i32s; tip Soft Cap
     # into_c expects 8-byte slots → bound_scan gets len as data (FAR=0x72).
