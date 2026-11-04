@@ -15384,16 +15384,23 @@ ensure_diag_prefer() {
     elif [ -x ./bootstrap_xlangc ]; then xlang_bin=./bootstrap_xlangc
     fi
     if [ -n "$xlang_bin" ]; then
-      local e_c
-      e_c="$(mktemp "${TMPDIR:-/tmp}/diag_thin_e.XXXXXX.c")" || true
-      if [ -n "$e_c" ] \
-        && "$xlang_bin" -E -L .. "$thin_x" >"$e_c" 2>/dev/null \
-        && [ -s "$e_c" ] \
-        && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$thin_o" "$e_c" 2>/dev/null \
+      # Linux tip/Cap tip: -backend asm of diag_thin OK; -E may SEGV/fail (w1140
+      # twin). Prefer pure asm before Track L -E→cc. PLATFORM: SHARED.
+      if "$xlang_bin" -backend asm -o "$thin_o" "$thin_x" 2>/dev/null \
         && [ -s "$thin_o" ]; then
         thin_ok=1
+      else
+        local e_c
+        e_c="$(mktemp "${TMPDIR:-/tmp}/diag_thin_e.XXXXXX.c")" || true
+        if [ -n "$e_c" ] \
+          && "$xlang_bin" -E -L .. "$thin_x" >"$e_c" 2>/dev/null \
+          && [ -s "$e_c" ] \
+          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$thin_o" "$e_c" 2>/dev/null \
+          && [ -s "$thin_o" ]; then
+          thin_ok=1
+        fi
+        rm -f "$e_c"
       fi
-      rm -f "$e_c"
     fi
   fi
   if [ "$thin_ok" != "1" ]; then
