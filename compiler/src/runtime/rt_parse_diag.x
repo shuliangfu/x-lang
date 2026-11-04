@@ -45,7 +45,7 @@ export function runtime_report_precise_parse_failure_if_known(
   unsafe {
     fail_tok = parser_diag_fail_at_token_kind_buf(src, n);
   }
-  if (fail_tok != RT_PARSE_TOKEN_STRING) {
+  if (fail_tok != 130) {
     return 0;
   }
   /* "parse error" */
@@ -354,31 +354,31 @@ export function rt_rec_kw_eq(p: *u8, n: i32, lit: *u8, ln: i32): i32 {
   return 1;
 }
 
-/** Keyword code for an identifier, or RT_REC_IDENT. */
+/** Keyword code for an identifier, or 22. */
 #[no_mangle]
 export function rt_rec_classify_ident(p: *u8, n: i32): i32 {
-  if (rt_rec_kw_eq(p, n, "let", 3) != 0) { return RT_REC_LET; }
-  if (rt_rec_kw_eq(p, n, "const", 5) != 0) { return RT_REC_CONST; }
-  if (rt_rec_kw_eq(p, n, "if", 2) != 0) { return RT_REC_IF; }
-  if (rt_rec_kw_eq(p, n, "else", 4) != 0) { return RT_REC_ELSE; }
-  if (rt_rec_kw_eq(p, n, "while", 5) != 0) { return RT_REC_WHILE; }
-  if (rt_rec_kw_eq(p, n, "for", 3) != 0) { return RT_REC_FOR; }
-  if (rt_rec_kw_eq(p, n, "loop", 4) != 0) { return RT_REC_LOOP; }
-  if (rt_rec_kw_eq(p, n, "return", 6) != 0) { return RT_REC_RETURN; }
-  if (rt_rec_kw_eq(p, n, "defer", 5) != 0) { return RT_REC_DEFER; }
-  if (rt_rec_kw_eq(p, n, "region", 6) != 0) { return RT_REC_REGION; }
-  if (rt_rec_kw_eq(p, n, "unsafe", 6) != 0) { return RT_REC_UNSAFE; }
-  if (rt_rec_kw_eq(p, n, "function", 8) != 0) { return RT_REC_FUNCTION; }
-  if (rt_rec_kw_eq(p, n, "struct", 6) != 0) { return RT_REC_STRUCT; }
-  if (rt_rec_kw_eq(p, n, "enum", 4) != 0) { return RT_REC_ENUM; }
-  if (rt_rec_kw_eq(p, n, "import", 6) != 0) { return RT_REC_IMPORT; }
-  if (rt_rec_kw_eq(p, n, "extern", 6) != 0) { return RT_REC_EXTERN; }
-  if (rt_rec_kw_eq(p, n, "match", 5) != 0) { return RT_REC_MATCH; }
-  if (rt_rec_kw_eq(p, n, "break", 5) != 0) { return RT_REC_BREAK; }
-  if (rt_rec_kw_eq(p, n, "continue", 8) != 0) { return RT_REC_CONTINUE; }
-  if (rt_rec_kw_eq(p, n, "true", 4) != 0) { return RT_REC_TRUE; }
-  if (rt_rec_kw_eq(p, n, "false", 5) != 0) { return RT_REC_TRUE; }
-  return RT_REC_IDENT;
+  if (rt_rec_kw_eq(p, n, "let", 3) != 0) { return 1; }
+  if (rt_rec_kw_eq(p, n, "const", 5) != 0) { return 2; }
+  if (rt_rec_kw_eq(p, n, "if", 2) != 0) { return 3; }
+  if (rt_rec_kw_eq(p, n, "else", 4) != 0) { return 4; }
+  if (rt_rec_kw_eq(p, n, "while", 5) != 0) { return 5; }
+  if (rt_rec_kw_eq(p, n, "for", 3) != 0) { return 6; }
+  if (rt_rec_kw_eq(p, n, "loop", 4) != 0) { return 7; }
+  if (rt_rec_kw_eq(p, n, "return", 6) != 0) { return 8; }
+  if (rt_rec_kw_eq(p, n, "defer", 5) != 0) { return 9; }
+  if (rt_rec_kw_eq(p, n, "region", 6) != 0) { return 10; }
+  if (rt_rec_kw_eq(p, n, "unsafe", 6) != 0) { return 11; }
+  if (rt_rec_kw_eq(p, n, "function", 8) != 0) { return 12; }
+  if (rt_rec_kw_eq(p, n, "struct", 6) != 0) { return 13; }
+  if (rt_rec_kw_eq(p, n, "enum", 4) != 0) { return 14; }
+  if (rt_rec_kw_eq(p, n, "import", 6) != 0) { return 15; }
+  if (rt_rec_kw_eq(p, n, "extern", 6) != 0) { return 16; }
+  if (rt_rec_kw_eq(p, n, "match", 5) != 0) { return 17; }
+  if (rt_rec_kw_eq(p, n, "break", 5) != 0) { return 18; }
+  if (rt_rec_kw_eq(p, n, "continue", 8) != 0) { return 19; }
+  if (rt_rec_kw_eq(p, n, "true", 4) != 0) { return 20; }
+  if (rt_rec_kw_eq(p, n, "false", 5) != 0) { return 20; }
+  return 22;
 }
 
 /** C-locale isalpha. */
@@ -411,7 +411,7 @@ export function rt_rec_next_tok(src: *u8, s: *i32, t: *i32): i32 {
   let nd: i32 = 0;
   rt_rec_skip_ws_comment(src, s);
   if (s[0] >= s[3]) {
-    t[0] = RT_REC_NONE;
+    t[0] = 0;
     t[1] = 0;
     t[2] = s[1];
     t[3] = s[2];
@@ -442,7 +442,7 @@ export function rt_rec_next_tok(src: *u8, s: *i32, t: *i32): i32 {
       nd = rt_rec_get(src, s);
     }
     t[5] = s[0];
-    t[0] = RT_REC_INT;
+    t[0] = 23;
     t[1] = 0;
     return 1;
   }
@@ -458,11 +458,11 @@ export function rt_rec_next_tok(src: *u8, s: *i32, t: *i32): i32 {
       }
     }
     t[5] = s[0];
-    t[0] = RT_REC_STRING;
+    t[0] = 24;
     t[1] = 0;
     return 1;
   }
-  t[0] = RT_REC_PUNCT;
+  t[0] = 25;
   t[1] = nc;
   t[5] = s[0];
   return 1;
@@ -479,7 +479,7 @@ export function rt_rec_rewind(s: *i32, t: *i32): void {
 /** 1 when t is the punct character ch. */
 #[no_mangle]
 export function rt_rec_is_punct(t: *i32, ch: i32): i32 {
-  if (t[0] == RT_REC_PUNCT && t[1] == ch) {
+  if (t[0] == 25 && t[1] == ch) {
     return 1;
   }
   return 0;
@@ -512,16 +512,16 @@ export function rt_rec_fail(line: i32, col: i32, msg: *u8): void {
 #[no_mangle]
 export function rt_rec_is_stmt_start(t: *i32): i32 {
   let sk: i32 = t[0];
-  if (sk == RT_REC_NONE) {
+  if (sk == 0) {
     return 0;
   }
-  if (sk == RT_REC_LET || sk == RT_REC_CONST || sk == RT_REC_IF || sk == RT_REC_WHILE
-      || sk == RT_REC_FOR || sk == RT_REC_LOOP || sk == RT_REC_RETURN || sk == RT_REC_DEFER
-      || sk == RT_REC_REGION || sk == RT_REC_UNSAFE || sk == RT_REC_BREAK
-      || sk == RT_REC_CONTINUE || sk == RT_REC_MATCH || sk == RT_REC_FUNCTION) {
+  if (sk == 1 || sk == 2 || sk == 3 || sk == 5
+      || sk == 6 || sk == 7 || sk == 8 || sk == 9
+      || sk == 10 || sk == 11 || sk == 18
+      || sk == 19 || sk == 17 || sk == 12) {
     return 1;
   }
-  if (sk == RT_REC_PUNCT && (t[1] == 125 || t[1] == 123)) {
+  if (sk == 25 && (t[1] == 125 || t[1] == 123)) {
     return 1;
   }
   return 0;
@@ -531,8 +531,8 @@ export function rt_rec_is_stmt_start(t: *i32): i32 {
 #[no_mangle]
 export function rt_rec_is_top_start(t: *i32): i32 {
   let tk: i32 = t[0];
-  if (tk == RT_REC_FUNCTION || tk == RT_REC_CONST || tk == RT_REC_STRUCT || tk == RT_REC_ENUM
-      || tk == RT_REC_IMPORT || tk == RT_REC_EXTERN || tk == RT_REC_LET) {
+  if (tk == 12 || tk == 2 || tk == 13 || tk == 14
+      || tk == 15 || tk == 16 || tk == 1) {
     return 1;
   }
   return 0;
@@ -563,7 +563,7 @@ export function rt_rec_top_const(src: *u8, s: *i32, depth: *i32): i32 {
   if (rt_rec_next_tok(src, s, &cn[0]) == 0) {
     return -1;
   }
-  if (cn[0] == RT_REC_IDENT) {
+  if (cn[0] == 22) {
     if (rt_rec_next_tok(src, s, &ce[0]) == 0) {
       return -1;
     }
@@ -571,7 +571,7 @@ export function rt_rec_top_const(src: *u8, s: *i32, depth: *i32): i32 {
       if (rt_rec_next_tok(src, s, &cr[0]) == 0) {
         return -1;
       }
-      if (cr[0] != RT_REC_IMPORT) {
+      if (cr[0] != 15) {
         rt_rec_fail(cr[2], cr[3], "expected const x = import(\"path\")");
         rt_rec_rewind(s, &cr[0]);
         rt_rec_recover_to_top_start(src, s);
@@ -637,7 +637,7 @@ export function rt_rec_top_function(src: *u8, s: *i32, depth: *i32): i32 {
       rt_rec_rewind(s, &fx[0]);
       return 1;
     }
-    if (fx[0] == RT_REC_NONE) {
+    if (fx[0] == 0) {
       break;
     }
   }
@@ -656,14 +656,14 @@ export function rt_rec_body_let(src: *u8, s: *i32): i32 {
   while (rt_rec_next_tok(src, s, &lx[0]) != 0) {
     lk = lx[0];
     lch = lx[1];
-    if (lk == RT_REC_PUNCT && lch == 59 && nest == 0) {
+    if (lk == 25 && lch == 59 && nest == 0) {
       break;
     }
-    if (lk == RT_REC_PUNCT && (lch == 40 || lch == 91 || lch == 123)) {
+    if (lk == 25 && (lch == 40 || lch == 91 || lch == 123)) {
       nest = nest + 1;
       continue;
     }
-    if (lk == RT_REC_PUNCT && (lch == 41 || lch == 93 || lch == 125)) {
+    if (lk == 25 && (lch == 41 || lch == 93 || lch == 125)) {
       if (nest > 0) {
         nest = nest - 1;
         continue;
@@ -675,22 +675,22 @@ export function rt_rec_body_let(src: *u8, s: *i32): i32 {
       }
       continue;
     }
-    if (lk == RT_REC_PUNCT && lch == 61 && nest == 0) {
+    if (lk == 25 && lch == 61 && nest == 0) {
       saw_eq = 1;
       continue;
     }
-    if (nest == 0 && rt_rec_is_stmt_start(&lx[0]) != 0 && lk != RT_REC_LET) {
+    if (nest == 0 && rt_rec_is_stmt_start(&lx[0]) != 0 && lk != 1) {
       if (saw_eq != 0
-          && (lk == RT_REC_IF || lk == RT_REC_MATCH || lk == RT_REC_UNSAFE
-              || lk == RT_REC_REGION || lk == RT_REC_LOOP || lk == RT_REC_FOR
-              || lk == RT_REC_WHILE || (lk == RT_REC_PUNCT && lch == 123))) {
+          && (lk == 3 || lk == 17 || lk == 11
+              || lk == 10 || lk == 7 || lk == 6
+              || lk == 5 || (lk == 25 && lch == 123))) {
         continue;
       }
       rt_rec_fail(lx[2], lx[3], "expected ';' after let");
       rt_rec_rewind(s, &lx[0]);
       return 1;
     }
-    if (lk == RT_REC_NONE) {
+    if (lk == 0) {
       break;
     }
   }
@@ -740,7 +740,7 @@ export function runtime_report_parse_recovery_diagnostics(input_path: *u8, src: 
       }
       continue;
     }
-    if (dp[0] == 0 && k == RT_REC_CONST) {
+    if (dp[0] == 0 && k == 2) {
       r = rt_rec_top_const(src, &st[0], &dp[0]);
       if (r < 0) {
         break;
@@ -748,18 +748,18 @@ export function runtime_report_parse_recovery_diagnostics(input_path: *u8, src: 
       errors = errors + r;
       continue;
     }
-    if (dp[0] == 0 && k == RT_REC_FUNCTION) {
+    if (dp[0] == 0 && k == 12) {
       errors = errors + rt_rec_top_function(src, &st[0], &dp[0]);
       continue;
     }
     if (dp[0] == 0) {
       continue;
     }
-    if (k == RT_REC_LET) {
+    if (k == 1) {
       errors = errors + rt_rec_body_let(src, &st[0]);
       continue;
     }
-    if (k == RT_REC_IF) {
+    if (k == 3) {
       /* `if cond {` without parentheses is valid (main parser parity):
        * rewind onto a condition start, never report here. */
       if (rt_rec_next_tok(src, &st[0], &nx[0]) == 0) {
@@ -767,19 +767,19 @@ export function runtime_report_parse_recovery_diagnostics(input_path: *u8, src: 
       }
       if (rt_rec_is_punct(&nx[0], 40) == 0) {
         if (rt_rec_is_stmt_start(&nx[0]) != 0 || rt_rec_is_punct(&nx[0], 123) != 0
-            || nx[0] == RT_REC_IDENT || nx[0] == RT_REC_INT || nx[0] == RT_REC_STRING
-            || nx[0] == RT_REC_TRUE) {
+            || nx[0] == 22 || nx[0] == 23 || nx[0] == 24
+            || nx[0] == 20) {
           rt_rec_rewind(&st[0], &nx[0]);
         }
       }
       continue;
     }
-    if (k == RT_REC_DEFER || k == RT_REC_UNSAFE) {
+    if (k == 9 || k == 11) {
       if (rt_rec_next_tok(src, &st[0], &nx[0]) == 0) {
         break;
       }
       if (rt_rec_is_punct(&nx[0], 123) == 0) {
-        if (k == RT_REC_DEFER) {
+        if (k == 9) {
           rt_rec_fail(nx[2], nx[3], "expected '{' after defer");
         } else {
           rt_rec_fail(nx[2], nx[3], "expected '{' after unsafe");
@@ -793,11 +793,11 @@ export function runtime_report_parse_recovery_diagnostics(input_path: *u8, src: 
       }
       continue;
     }
-    if (k == RT_REC_REGION) {
+    if (k == 10) {
       if (rt_rec_next_tok(src, &st[0], &nx[0]) == 0) {
         break;
       }
-      if (nx[0] != RT_REC_IDENT) {
+      if (nx[0] != 22) {
         rt_rec_fail(nx[2], nx[3], "expected region label after region");
         errors = errors + 1;
         if (rt_rec_is_stmt_start(&nx[0]) != 0) {
