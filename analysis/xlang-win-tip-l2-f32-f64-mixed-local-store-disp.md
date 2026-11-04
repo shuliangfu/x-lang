@@ -1,6 +1,7 @@
 # Win tip L2 f32+f64 mixed local store disp（刀 11.77）· **DIG WIP · PAUSED**
 
-> **用户当面令（2026-11-05）**：暂停 11.77 DIG／自举刀；本文件仅 WIP 线索落盘。**未 gate／未 plant／未 CLOSE**。续办改：Windows L2 全绿 → 三端 L4 全绿 → 再续自举。
+> **用户当面令（2026-11-05）**：暂停 11.77 DIG／自举刀；本文件仅 WIP 线索落盘。**未 gate／未 plant／未 CLOSE**。
+> **续（同日）**：经理 ACTIVE＝`win_tip_l2_product_matrix_5_5`；f32 SEGV 已由另粒 **store_retval slot_off** tip-only patch 抬绿（见 `xlang-win-tip-l2-f32-store-retval-slot-off.md`／PE `fe82d4a49235…`）。本刀仍 residual HOLD／pause；勿 tip-peel 空转。
 
 > Gate：**未入仓**（暂停令禁 gate）；续开刀时再补。
 > Beat（更准名）：`win_tip_l2_f32_f64_mixed_local_store_disp`（OPEN 暂名 `win_tip_l2_*_t001` 已弃）。
