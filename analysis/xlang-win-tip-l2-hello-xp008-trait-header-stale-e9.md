@@ -1,9 +1,9 @@
-# Win tip L2 hello XP008 trait header stale e9（刀 11.73）· **ACCEPT-ready**
+# Win tip L2 hello XP008 trait header stale e9（刀 11.73）· **CLOSE ACCEPT**
 
 > Gate：`tests/run-win-tip-l2-hello-xp008-trait-header-stale-e9-gate.sh`（OK exit0）。
 > Beat：`win_tip_l2_hello_xp008_trait_header_stale_e9`
 > 基线：Win tip L2 **1/5**＠`58e34910f` **勿 regress**；保绿 gate72＋71／67／63–55。
-> tip PE **`2e92a66da052…`→`3dd483308a46…`**（.c73thdr header inject）；等经理 CLOSE ACCEPT。
+> tip PE **`2e92a66da052…`→`3dd483308a46…`**（.c73thdr header inject）；**正式 CLOSE ACCEPT**＠docs `84614efe7`。
 > 禁 Soft Cap G05 混 tip；禁假绿／CloudAgent／回滚 11.67 wrap／升钉。
 
 ## DIG（诚实根因）
@@ -29,7 +29,7 @@
 
 ## Residual
 
-- 直接 `check std/io/mod.x` 仍 T001 `no impl for type with method submit_read`（hello 路径绿；非本刀 gate 靶／非 SEGV）。
+- 直接 `check std/io/mod.x` 仍 T001 `no impl for type with method submit_read`（hello 路径绿）→ **移交 11.74** DIG residual HOLD（真残＝import 模块 enum→module.dot）。
 - L2 1/5＠`58e34910f`。
 
 ## 非目标／禁
