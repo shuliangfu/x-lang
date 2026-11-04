@@ -227,8 +227,45 @@ if [ "$_NEED_ASSIGN_CLUSTER" = "1" ]; then
   mkdir -p build_asm/selfhost_pabi
   _CAP="${XLANG_CAP_TIP_L4_CACHE:-}"
   if [ -z "$_CAP" ] || [ ! -d "$_CAP/pabi" ]; then
-    for _c in /tmp/cap_tip_l4_safe_406200eef /tmp/cap_tip_l4_safe_* "$HOME/.cache/xlang_cap_tip_l4" .cap_tip_l4_cache; do
+    for _c in /tmp/cap_tip_l4_safe_local /tmp/cap_tip_l4_safe_406200eef /tmp/cap_tip_l4_safe_* "$HOME/.cache/xlang_cap_tip_l4" .cap_tip_l4_cache; do
       if [ -d "$_c/pabi" ]; then _CAP="$_c"; break; fi
+    done
+  fi
+  # tip cold: Cap cache may be absent — assemble missing av_assign_*.o from
+  # thin .x via tip aside (pure-asm; no Soft Cap Prefer / no host-cc).
+  # PLATFORM: SHARED (Darwin tip-cold phase1 U refs).
+  _ASIDE_XL=""
+  if [ -n "${XLANG_L4_TIP_ASIDE:-}" ] && [ -x "${XLANG_L4_TIP_ASIDE}/xlang" ]; then
+    _ASIDE_XL="${XLANG_L4_TIP_ASIDE}/xlang"
+  elif [ -x /tmp/xlang_l4_tip_aside_ba6c900ec/xlang ]; then
+    _ASIDE_XL=/tmp/xlang_l4_tip_aside_ba6c900ec/xlang
+  fi
+  _THIN_MAP="\
+    av_assign_var_try_let.o:src/runtime_pipeline_abi_assign_var_try_let_thin.x \
+    av_assign_var_finish.o:src/runtime_pipeline_abi_assign_var_finish_thin.x \
+    av_assign_var_store.o:src/runtime_pipeline_abi_assign_var_store_thin.x \
+    av_assign_var_store_pair.o:src/runtime_pipeline_abi_assign_var_store_pair_thin.x \
+    av_assign_var_store_f32.o:src/runtime_pipeline_abi_assign_var_store_f32_thin.x \
+    av_assign_var_store_slice.o:src/runtime_pipeline_abi_assign_var_store_slice_thin.x \
+    av_assign_rhsrax_to_rax.o:src/runtime_pipeline_abi_assign_rhsrax_to_rax_thin.x \
+    av_assign_rhsrax_arms_simple.o:src/runtime_pipeline_abi_assign_rhsrax_arms_simple_thin.x \
+    av_assign_rhsrax_arms_div.o:src/runtime_pipeline_abi_assign_rhsrax_arms_div_thin.x \
+    av_assign_rhsrax_arms_div_float.o:src/runtime_pipeline_abi_assign_rhsrax_arms_div_float_thin.x \
+    av_assign_rhsrax_arms_shl.o:src/runtime_pipeline_abi_assign_rhsrax_arms_shl_thin.x \
+    av_assign_rhsrax_arms_shr.o:src/runtime_pipeline_abi_assign_rhsrax_arms_shr_thin.x"
+  if [ -n "$_ASIDE_XL" ]; then
+    for _pair in $_THIN_MAP; do
+      _bn="${_pair%%:*}"
+      _src="${_pair#*:}"
+      _o="build_asm/selfhost_pabi/$_bn"
+      if [ ! -s "$_o" ] && [ -f "$_src" ]; then
+        if "$_ASIDE_XL" -backend asm -c -o "$_o" "$_src" 2>/dev/null; then
+          note "phase1 tip-aside assembled $_bn from thin"
+          if [ -n "$_CAP" ] && [ -d "$_CAP/pabi" ]; then
+            cp -f "$_o" "$_CAP/pabi/$_bn" 2>/dev/null || true
+          fi
+        fi
+      fi
     done
   fi
   _ASSIGN_CLUSTER="\
