@@ -1,9 +1,10 @@
-/* knife256 / 10.2 + note743y.4 + note743y.5: lexer_init return-by-value only.
- * Tip parser_parse_into_buf (entry + dep) passes source in rdi under the
- * mistaken leftover ABI and expects Lexer in rax+rdx. Writing through rdi
- * smashes any source that is not the single parked g_lex_src_data (deps),
- * leaving num_funcs=0 → import method T001. Out-ptr tip faces stay demoted;
- * this shim is the sole lexer_init. PLATFORM: LINUX/MACOS x86_64
+/* knife256 / 10.2 + note743y.4 + note743y.5 + dual-ABI:
+ * - Ret-by-value callers (parser_parse archaeology): expect Lexer in rax+rdx.
+ * - Out-ptr callers (pipeline_source_slice tip peel): pass &Lex in rdi and
+ *   read the stack slot after the call (ignore rax).
+ * Tip out-ptr-only init smashed rdi==source; nop ret-only left out-ptr
+ * slots uninit. Dual: always return empty Lexer in rax+rdx; if rdi!=0
+ * also memcpy 16 bytes to *rdi. PLATFORM: LINUX/MACOS x86_64
  */
 #if defined(__APPLE__)
 	.globl	_lexer_init
@@ -12,6 +13,12 @@ _lexer_init:
 	.globl	lexer_init
 lexer_init:
 #endif
+	/* empty Lexer: pos=0 (rax), line=1|col=1 packed in rdx low 32+32 */
 	xorq	%rax, %rax
 	movq	$0x100000001, %rdx
+	testq	%rdi, %rdi
+	jz	1f
+	movq	%rax, (%rdi)
+	movq	%rdx, 8(%rdi)
+1:
 	ret
