@@ -80,14 +80,9 @@ EOFX
     if grep -q 'P012' "$TMP/e.log"; then
       die "e_fmtstyle regress to P012; log=$(head -4 "$TMP/e.log" | tr '\n' ' ')"
     fi
-    # match10 may still be CG002 until ABI patch lands
-    if [ "$mrc" -ne 0 ]; then
-      grep -q 'CG002' "$TMP/m.log" || die "match10 fail without CG002; log=$(head -3 "$TMP/m.log" | tr '\n' ' ')"
-    fi
-    if [ "$erc" -ne 0 ]; then
-      grep -q 'CG002' "$TMP/e.log" || die "e_fmtstyle fail without CG002; log=$(head -4 "$TMP/e.log" | tr '\n' ' ')"
-    fi
-    echo "${PREFIX} status=ok empty_ok=1 dual_ptr_empty_ok=1 e_fmtstyle_no_p012=1 match10_locked=1 host=windows"
+    [ "$mrc" -eq 0 ] || die "match10 must be OK after 11.48 ABI fix; log=$(head -3 "$TMP/m.log" | tr '\n' ' ')"
+    [ "$erc" -eq 0 ] || die "e_fmtstyle must be OK after 11.48; log=$(head -4 "$TMP/e.log" | tr '\n' ' ')"
+    echo "${PREFIX} status=ok empty_ok=1 dual_ptr_empty_ok=1 e_fmtstyle_ok=1 match10_ok=1 host=windows"
     ;;
   *)
     echo "${PREFIX} status=ok static_only host=${uname_s} (Win PE probe skipped)"

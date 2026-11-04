@@ -4,7 +4,7 @@
 > Beat：`win_tip_l2_cg002_nonempty_array`。
 > 基线：Win tip L2 **1/5**＠`58e34910f` **勿 regress**；空数组／dual_ptr_empty OK；e_fmtstyle **勿退回 P012**。
 > 闸位 HOLD：Soft Cap／钉／tiphead／Cap tip **不升**；禁 Soft Cap G05 混 tip；禁假绿／CloudAgent。
-> 只 LAN `windows-server`；tip PE＝`compiler/xlang_asm.exe` md5 **`e1b269dc…`**（is_pointee-patched bak）。
+> 只 LAN `windows-server`；tip PE 基线 `e1b269dc…`；**11.48 ACCEPT** 后 tip PE **`cb03960b…`**（vlet override inject）已消 nonempty CG002。
 
 ## 从 11.46 继承
 
