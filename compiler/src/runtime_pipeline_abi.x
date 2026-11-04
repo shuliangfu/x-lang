@@ -42566,8 +42566,16 @@ export function pipeline_asm_fill_local_slots(ctx: *u8, arena: *u8, block_ref: i
   unsafe {
     prev = asm_ctx_block_slot_get(ctx, block_ref);
   }
+  // Stale block_slot after cross-func ctx reuse: only skip when locals exist.
+  // Empty sidecar + leftover block_slot made call-init lets share one rbp slot
+  // (fmt-wrap wrap_cases 6≠16). PLATFORM: SHARED.
   if (prev >= 0) {
-    return;
+    unsafe {
+      nloc = asm_ctx_local_count(ctx);
+    }
+    if (nloc > 0) {
+      return;
+    }
   }
   unsafe {
     slot_base = asm_ctx_local_count(ctx);
@@ -86277,13 +86285,22 @@ export function asm_ctx_block_slot_reset(ctx: *u8): void {
  */
 #[no_mangle]
 export function asm_ctx_local_reset(ctx: *u8): void {
-  let s: i32 = pipe_al_find(ctx, 0);
-  if (s < 0) {
-    return;
+  // create=1: after memset of a reused stack AsmFuncCtx the sidecar may be
+  // missing; still clear frame cursors so a prior function's lets cannot
+  // poison call-init slots in the next function (wrap_cases x+y→y+y).
+  let s: i32 = pipe_al_find(ctx, 1);
+  if (s >= 0) {
+    g_pipe_al_n[s] = 0;
+    g_pipe_al_bn[s] = 0;
   }
-  g_pipe_al_n[s] = 0;
-  g_pipe_al_bn[s] = 0;
+  if (ctx != 0 as *u8) {
+    unsafe {
+      pipe_store_i32_le(ctx, pipe_asm_ctx_off_num_locals(), 0);
+      pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), 0);
+    }
+  }
 }
+
 
 /**
  * Local slot count for ctx (0 if unknown/null).

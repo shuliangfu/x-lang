@@ -7660,6 +7660,20 @@ net_ipv6_os_retry_pure() {
     fi
     rm -f "$o"
   done
+  # tip xlang_asm may CG002 on rt_stack.x while product xlang-c -backend asm
+  # emits the three T symbols (w1496). Prefer that before giving up — still
+  # pure-asm object, no host-cc seed. PLATFORM: MACOS|DARWIN arm64.
+  if [ ! -s "$o" ]; then
+    for _xl in ./xlang-c ./xlang ./bootstrap_xlangc; do
+      if [ -x "$_xl" ] \
+        && g05_xasm "$_xl" -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 \
+        && [ -s "$o" ]; then
+        log "rt-stack-retry: pure-asm via $_xl (xlang_asm CG002 fallback)"
+        break
+      fi
+      rm -f "$o"
+    done
+  fi
   if [ ! -s "$o" ]; then
     return 1
   fi

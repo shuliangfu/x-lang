@@ -318,9 +318,29 @@ emit_driver_x_o() {
   run_with_timeout "$prod" -x -E -lib-name main "${MAIN_X_E_DIRS[@]}" src/main.x >"$tmp" 2>"$td/e.err" || true
   if ! { [ -s "$tmp" ] && grep -q 'argc < 3' "$tmp" \
       && grep -q 'main_eq_minus_E(arg_buf, len) !=0' "$tmp"; }; then
-    log "emit-o: -E output missing main.x markers"
-    rm -rf "$td"
-    return 1
+    # PLATFORM: WINDOWS — tip PE -E of src/main.x typecks std/sys win32_write
+    # and fails (T001); seed egg likewise yields empty -E. Fall back to the
+    # pinned linux.x86_64 driver_gen seed (same strip/fixup/cc lane as
+    # ensure_driver_gen) so true-cold L4 can still produce driver_x.o.
+    # Darwin/Linux keep hard fail (they -E successfully).
+    case "$(uname -s 2>/dev/null)" in
+      Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+        _seed="seeds/driver_gen.linux.x86_64.c"
+        if [ -f "$_seed" ]; then
+          log "emit-o: tip -E missing markers; Win fallback seed $_seed"
+          cp -f "$_seed" "$tmp"
+        else
+          log "emit-o: -E output missing main.x markers (no seed)"
+          rm -rf "$td"
+          return 1
+        fi
+        ;;
+      *)
+        log "emit-o: -E output missing main.x markers"
+        rm -rf "$td"
+        return 1
+        ;;
+    esac
   fi
   if ! python3 scripts/gen_strip_dep_bodies.py main "$tmp" "$stripped" \
       || ! python3 scripts/post_E_fixup.py "$stripped" "$fixed"; then

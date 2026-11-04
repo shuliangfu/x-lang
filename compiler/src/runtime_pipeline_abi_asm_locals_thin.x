@@ -349,6 +349,11 @@ export function pipe_al_bbases_slot(s: i32): *u8 {
  * wave267 pure: G.7 single product authority (historical asm_ctx_block_slot_reset).
  * PLATFORM: SHARED - sole provider after asm_locals leave.
  */
+/** LP64 offsetof(AsmFuncCtx, next_offset). PLATFORM: SHARED. */
+function pipe_asm_ctx_off_next_offset(): i32 { return 4; }
+/** LP64 offsetof(AsmFuncCtx, num_locals). PLATFORM: SHARED. */
+function pipe_asm_ctx_off_num_locals(): i32 { return 8; }
+
 #[no_mangle]
 export function asm_ctx_block_slot_reset(ctx: *u8): void {
   let s: i32 = pipe_al_find(ctx, 0);
@@ -367,12 +372,20 @@ export function asm_ctx_block_slot_reset(ctx: *u8): void {
  */
 #[no_mangle]
 export function asm_ctx_local_reset(ctx: *u8): void {
-  let s: i32 = pipe_al_find(ctx, 0);
-  if (s < 0) {
-    return;
+  // create=1: after memset of a reused stack AsmFuncCtx the sidecar may be
+  // missing; still clear frame cursors so a prior function's lets cannot
+  // poison call-init slots in the next function (wrap_cases x+y→y+y).
+  let s: i32 = pipe_al_find(ctx, 1);
+  if (s >= 0) {
+    g_pipe_al_n[s] = 0;
+    g_pipe_al_bn[s] = 0;
   }
-  g_pipe_al_n[s] = 0;
-  g_pipe_al_bn[s] = 0;
+  if (ctx != 0 as *u8) {
+    unsafe {
+      pipe_store_i32_le(ctx, pipe_asm_ctx_off_num_locals(), 0);
+      pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), 0);
+    }
+  }
 }
 
 /**
