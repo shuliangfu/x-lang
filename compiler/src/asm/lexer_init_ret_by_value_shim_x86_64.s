@@ -2,13 +2,12 @@
  * - Ret-by-value callers (parser_parse archaeology): expect Lexer in rax+rdx.
  * - Out-ptr callers (pipeline_source_slice tip peel): pass &Lex in rdi and
  *   read the stack slot after the call (ignore rax).
- * Tip out-ptr-only init smashed rdi==source; nop ret-only left out-ptr
- * slots uninit. Dual: always return empty Lexer in rax+rdx; if rdi!=0
- * AND rdi looks like a stack out-ptr (rdi >= rsp), also store 16 bytes to
- * *rdi. Skip when rdi is a heap/mmap source pointer left in rdi by
- * ret-by-value callers (parser_parse_into_buf) — that smash zeroed the
- * first 16 source bytes ("export function ") → P001 / missing main.
- * PLATFORM: LINUX/MACOS x86_64
+ * Always return empty Lexer in rax+rdx. If rdi!=0, also store 16 bytes to
+ * *rdi — EXCEPT when rdi equals g_lex_src_data (parked source). Ret-by-value
+ * callers leave the source pointer in rdi; storing empty Lexer there smashed
+ * the first 16 source bytes ("export function ") → P001 / missing main.
+ * A prior rsp-only guard skipped legitimate stack out-ptrs and SEGV'd in
+ * lexer_next_body_into. PLATFORM: LINUX/MACOS x86_64
  */
 #if defined(__APPLE__)
 	.globl	_lexer_init
@@ -17,14 +16,12 @@ _lexer_init:
 	.globl	lexer_init
 lexer_init:
 #endif
-	/* empty Lexer: pos=0 (rax), line=1|col=1 packed in rdx low 32+32 */
 	xorq	%rax, %rax
 	movq	$0x100000001, %rdx
 	testq	%rdi, %rdi
 	jz	1f
-	/* stack grows down: out-ptr locals have rdi >= rsp; source buffers do not */
-	cmpq	%rsp, %rdi
-	jb	1f
+	cmpq	g_lex_src_data(%rip), %rdi
+	je	1f
 	movq	%rax, (%rdi)
 	movq	%rdx, 8(%rdi)
 1:
