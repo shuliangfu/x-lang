@@ -5401,13 +5401,25 @@ export function lexer_next_buf_into(out: *LexerResult, lex: Lexer, data: *u8, le
   // byte 1024 (e.g. second /** in runtime_io_abi.x) became L001 unclosed.
   // Store the {data,len} fat into a local empty slice instead (parser twin:
   // parser_slice_view_store). PLATFORM: SHARED.
+  // Ubuntu product -c P001: Track L calls this path (not body_into). Prefer
+  // lexer_src_park when set — same honesty as body_into park-prefer.
+  // PLATFORM: SHARED.
   unsafe {
     let n: i32 = len;
+    let d: *u8 = data;
+    let sp: *u8 = (0 as *u8);
+    let slen: usize = 0;
+    lexer_src_data_store((&sp as *u8));
+    lexer_src_len_store((&slen as *u8));
+    if (sp != (0 as *u8)) {
+      d = sp;
+      n = (slen as i32);
+    }
     let sl: u8[] = [];
     if (n < 0) { n = 0; }
     /* Cap tip: omit lexer_src_park (tip-image L003 on dep prerun). */
     // tip PE Win XT001: no LexerBuf local — poke fat words into sl. PLATFORM: SHARED.
-    memcpy((&sl as *u8), (&data as *u8), (8 as usize));
+    memcpy((&sl as *u8), (&d as *u8), (8 as usize));
     {
       let nl: usize = (n as usize);
       memcpy((&sl as *u8) + (8 as usize), (&nl as *u8), (8 as usize));
@@ -5429,14 +5441,23 @@ export function lexer_next_buf_into(out: *LexerResult, lex: Lexer, data: *u8, le
 // PLATFORM: SHARED — LexerResult is written through out. The slice path is unchanged.
 export function lexer_next_buf(out: *LexerResult, lex: Lexer, data: *u8, len: i32): void {
   // knife256 / 10.2: same store-not-return as lexer_next_buf_into (1024 cap).
-  // PLATFORM: SHARED.
+  // Prefer park when set (twin of lexer_next_buf_into). PLATFORM: SHARED.
   unsafe {
     let n: i32 = len;
+    let d: *u8 = data;
+    let sp: *u8 = (0 as *u8);
+    let slen: usize = 0;
+    lexer_src_data_store((&sp as *u8));
+    lexer_src_len_store((&slen as *u8));
+    if (sp != (0 as *u8)) {
+      d = sp;
+      n = (slen as i32);
+    }
     let sl: u8[] = [];
     if (n < 0) { n = 0; }
     /* Cap tip: omit lexer_src_park (tip-image L003 on dep prerun). */
     // tip PE Win XT001: no LexerBuf local — poke fat words into sl. PLATFORM: SHARED.
-    memcpy((&sl as *u8), (&data as *u8), (8 as usize));
+    memcpy((&sl as *u8), (&d as *u8), (8 as usize));
     {
       let nl: usize = (n as usize);
       memcpy((&sl as *u8) + (8 as usize), (&nl as *u8), (8 as usize));
