@@ -117,6 +117,12 @@ let g_labi_bootstrap_nostdlib_stubs_o_path_resolved: u8[4096] = [];
 // wave183: durable thin runtime_*_o_path BSS (≡ mega static PATH_MAX per leaf; 29 leaves).
 // wave184: durable empty C string (≡ mega static char buf[1] for xlang_empty_cstr).
 let g_labi_empty_cstr_buf: u8[1] = [];
+// tip PE: ensure-list inc/http/flag scratch (module BSS; ensure_list must not use >3 stack large arrays)
+let g_labi_ensure_inc1_buf: u8[512] = [];
+let g_labi_ensure_inc2_buf: u8[512] = [];
+let g_labi_ensure_http_buf: u8[512] = [];
+let g_labi_ensure_flag_buf: u8[512] = [];
+
 let g_labi_asm_io_stubs_o_path_buf: u8[4096] = [];
 let g_labi_process_argv_o_path_buf: u8[4096] = [];
 let g_labi_process_os_glue_o_path_buf: u8[4096] = [];
