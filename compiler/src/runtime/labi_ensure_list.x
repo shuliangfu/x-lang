@@ -926,7 +926,7 @@ export function xlang_ensure_runtime_panic_o(argv0: *u8): i32 {
     while (leaf_s[ln_s] != 0) {
       ln_s = ln_s + 1;
     }
-    if (dn + 1 + ln_s < 4096) {
+    if (dn + 1 + ln_s < 1024) {
       i = 0;
       while (i < dn) {
         src_s[i] = comp[i];
@@ -959,7 +959,7 @@ export function xlang_ensure_runtime_panic_o(argv0: *u8): i32 {
       while (leaf_a[ln_a] != 0) {
         ln_a = ln_a + 1;
       }
-      if (dn + 1 + ln_a < 4096) {
+      if (dn + 1 + ln_a < 1024) {
         i = 0;
         while (i < dn) {
           src_arm[i] = comp[i];

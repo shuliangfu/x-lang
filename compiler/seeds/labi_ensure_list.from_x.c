@@ -522,7 +522,7 @@ int xlang_ensure_runtime_panic_o(const char *argv0) {
     int ln_s = 0;
     while (leaf_s[ln_s] != 0)
       ln_s++;
-    if (dn + 1 + ln_s < 4096) {
+    if (dn + 1 + ln_s < 1024) {
       for (i = 0; i < dn; i++)
         src_s[i] = comp[i];
       src_s[dn] = '/';
@@ -539,7 +539,7 @@ int xlang_ensure_runtime_panic_o(const char *argv0) {
     int ln_a = 0;
     while (leaf_a[ln_a] != 0)
       ln_a++;
-    if (dn + 1 + ln_a < 4096) {
+    if (dn + 1 + ln_a < 1024) {
       for (i = 0; i < dn; i++)
         src_arm[i] = comp[i];
       src_arm[dn] = '/';
