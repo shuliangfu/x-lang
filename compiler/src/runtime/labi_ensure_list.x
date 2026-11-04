@@ -121,6 +121,13 @@ export extern "C" function xlang_debug_hello_stage1_report(hypothesis_id: *u8, l
 #[no_mangle]
 
 
+// tip PE: module BSS scratch (same TU). Stack may hold ≤3 large arrays per fn.
+let labi_ensure_inc1_buf: u8[512] = [];
+let labi_ensure_inc2_buf: u8[512] = [];
+let labi_ensure_http_buf: u8[512] = [];
+let labi_ensure_flag_buf: u8[512] = [];
+
+
 export function labi_ensure_catalog_count(): i32 {
   return 27;
 }
@@ -713,16 +720,16 @@ export function link_abi_ensure_from_catalog(argv0: *u8, catalog_idx: i32, produ
   if (dn + 1 + ln_inc >= 512) {
     return -1;
   }
-  /* inc1 → g_labi_ensure_inc1_buf */
+  /* inc1 → labi_ensure_inc1_buf */
   i = 0;
   while (i < dn) {
-    g_labi_ensure_inc1_buf[i] = comp[i];
+    labi_ensure_inc1_buf[i] = comp[i];
     i = i + 1;
   }
-  g_labi_ensure_inc1_buf[dn] = 47;
+  labi_ensure_inc1_buf[dn] = 47;
   k = 0;
   while (k <= ln_inc) {
-    g_labi_ensure_inc1_buf[dn + 1 + k] = leaf_inc[k];
+    labi_ensure_inc1_buf[dn + 1 + k] = leaf_inc[k];
     k = k + 1;
   }
   let leaf_src: *u8 = "src";
@@ -733,16 +740,16 @@ export function link_abi_ensure_from_catalog(argv0: *u8, catalog_idx: i32, produ
   if (dn + 1 + ln_src >= 512) {
     return -1;
   }
-  /* inc2 → g_labi_ensure_inc2_buf */
+  /* inc2 → labi_ensure_inc2_buf */
   i = 0;
   while (i < dn) {
-    g_labi_ensure_inc2_buf[i] = comp[i];
+    labi_ensure_inc2_buf[i] = comp[i];
     i = i + 1;
   }
-  g_labi_ensure_inc2_buf[dn] = 47;
+  labi_ensure_inc2_buf[dn] = 47;
   k = 0;
   while (k <= ln_src) {
-    g_labi_ensure_inc2_buf[dn + 1 + k] = leaf_src[k];
+    labi_ensure_inc2_buf[dn + 1 + k] = leaf_src[k];
     k = k + 1;
   }
   // Cap residual: cc -c with catalog flag family (PIE / SQLITE / HTTP -I pack / none).
@@ -751,7 +758,7 @@ export function link_abi_ensure_from_catalog(argv0: *u8, catalog_idx: i32, produ
     // LABI_ENS_FLAG_PIE
     let flag_pie: *u8 = "-fPIE";
     unsafe {
-      crc = xlang_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &comp[0], &g_labi_ensure_inc1_buf[0], &g_labi_ensure_inc2_buf[0], 0, flag_pie);
+      crc = xlang_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &comp[0], &labi_ensure_inc1_buf[0], &labi_ensure_inc2_buf[0], 0, flag_pie);
     }
   } else {
     if (flags == 2) {
@@ -762,11 +769,11 @@ export function link_abi_ensure_from_catalog(argv0: *u8, catalog_idx: i32, produ
       // G.7 complete SQLITE ensure; product -o must not hard-fail missing header.
       let flag_sql: *u8 = "-DXLANG_DB_USE_SQLITE3";
       unsafe {
-        crc = xlang_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &comp[0], &g_labi_ensure_inc1_buf[0], &g_labi_ensure_inc2_buf[0], 0, flag_sql);
+        crc = xlang_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &comp[0], &labi_ensure_inc1_buf[0], &labi_ensure_inc2_buf[0], 0, flag_sql);
       }
       if (crc != 0) {
         unsafe {
-          crc = xlang_cc_compile_sync(&src_c[0], &out_o[0], &comp[0], &g_labi_ensure_inc1_buf[0], &g_labi_ensure_inc2_buf[0], 0);
+          crc = xlang_cc_compile_sync(&src_c[0], &out_o[0], &comp[0], &labi_ensure_inc1_buf[0], &labi_ensure_inc2_buf[0], 0);
         }
       }
     } else {
@@ -780,16 +787,16 @@ export function link_abi_ensure_from_catalog(argv0: *u8, catalog_idx: i32, produ
         if (dn + 1 + ln_http >= 512) {
           return -1;
         }
-        /* http → g_labi_ensure_http_buf */
+        /* http → labi_ensure_http_buf */
         i = 0;
         while (i < dn) {
-          g_labi_ensure_http_buf[i] = comp[i];
+          labi_ensure_http_buf[i] = comp[i];
           i = i + 1;
         }
-        g_labi_ensure_http_buf[dn] = 47;
+        labi_ensure_http_buf[dn] = 47;
         k = 0;
         while (k <= ln_http) {
-          g_labi_ensure_http_buf[dn + 1 + k] = http_leaf[k];
+          labi_ensure_http_buf[dn + 1 + k] = http_leaf[k];
           k = k + 1;
         }
         // flag_I = "-I" + http_inc + NUL (single extra string for one_extra Cap).
@@ -799,21 +806,21 @@ export function link_abi_ensure_from_catalog(argv0: *u8, catalog_idx: i32, produ
         if (ln_I + ln_http_abs >= 512) {
           return -1;
         }
-        /* flag → g_labi_ensure_flag_buf */
-        g_labi_ensure_flag_buf[0] = 45; // '-'
-        g_labi_ensure_flag_buf[1] = 73; // 'I'
+        /* flag → labi_ensure_flag_buf */
+        labi_ensure_flag_buf[0] = 45; // '-'
+        labi_ensure_flag_buf[1] = 73; // 'I'
         k = 0;
         while (k <= ln_http_abs) {
-          g_labi_ensure_flag_buf[ln_I + k] = g_labi_ensure_http_buf[k];
+          labi_ensure_flag_buf[ln_I + k] = labi_ensure_http_buf[k];
           k = k + 1;
         }
         unsafe {
-          crc = xlang_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &comp[0], &g_labi_ensure_inc1_buf[0], &g_labi_ensure_inc2_buf[0], 0, &g_labi_ensure_flag_buf[0]);
+          crc = xlang_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &comp[0], &labi_ensure_inc1_buf[0], &labi_ensure_inc2_buf[0], 0, &labi_ensure_flag_buf[0]);
         }
       } else {
         // LABI_ENS_FLAG_NONE
         unsafe {
-          crc = xlang_cc_compile_sync(&src_c[0], &out_o[0], &comp[0], &g_labi_ensure_inc1_buf[0], &g_labi_ensure_inc2_buf[0], 0);
+          crc = xlang_cc_compile_sync(&src_c[0], &out_o[0], &comp[0], &labi_ensure_inc1_buf[0], &labi_ensure_inc2_buf[0], 0);
         }
       }
     }
@@ -1319,16 +1326,16 @@ export function xlang_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32 {
   if (dn + 1 + ln_inc >= 512) {
     return -1;
   }
-  /* inc1 → g_labi_ensure_inc1_buf */
+  /* inc1 → labi_ensure_inc1_buf */
   i = 0;
   while (i < dn) {
-    g_labi_ensure_inc1_buf[i] = comp[i];
+    labi_ensure_inc1_buf[i] = comp[i];
     i = i + 1;
   }
-  g_labi_ensure_inc1_buf[dn] = 47;
+  labi_ensure_inc1_buf[dn] = 47;
   k = 0;
   while (k <= ln_inc) {
-    g_labi_ensure_inc1_buf[dn + 1 + k] = leaf_inc[k];
+    labi_ensure_inc1_buf[dn + 1 + k] = leaf_inc[k];
     k = k + 1;
   }
   let leaf_src: *u8 = "src";
@@ -1339,22 +1346,22 @@ export function xlang_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32 {
   if (dn + 1 + ln_src >= 512) {
     return -1;
   }
-  /* inc2 → g_labi_ensure_inc2_buf */
+  /* inc2 → labi_ensure_inc2_buf */
   i = 0;
   while (i < dn) {
-    g_labi_ensure_inc2_buf[i] = comp[i];
+    labi_ensure_inc2_buf[i] = comp[i];
     i = i + 1;
   }
-  g_labi_ensure_inc2_buf[dn] = 47;
+  labi_ensure_inc2_buf[dn] = 47;
   k = 0;
   while (k <= ln_src) {
-    g_labi_ensure_inc2_buf[dn + 1 + k] = leaf_src[k];
+    labi_ensure_inc2_buf[dn + 1 + k] = leaf_src[k];
     k = k + 1;
   }
   // Cap residual: cc -c seed → out_o (from_asm_s=0; C seed only).
   let crc: i32 = 0;
   unsafe {
-    crc = xlang_cc_compile_sync(&src_c[0], &out_o[0], &comp[0], &g_labi_ensure_inc1_buf[0], &g_labi_ensure_inc2_buf[0], 0);
+    crc = xlang_cc_compile_sync(&src_c[0], &out_o[0], &comp[0], &labi_ensure_inc1_buf[0], &labi_ensure_inc2_buf[0], 0);
   }
   if (crc != 0) {
     unsafe {
@@ -1484,16 +1491,16 @@ export function xlang_ensure_runtime_tls_mbedtls_bio_o(argv0: *u8): i32 {
   if (dn + 1 + ln_inc >= 512) {
     return -1;
   }
-  /* inc1 → g_labi_ensure_inc1_buf */
+  /* inc1 → labi_ensure_inc1_buf */
   i = 0;
   while (i < dn) {
-    g_labi_ensure_inc1_buf[i] = comp[i];
+    labi_ensure_inc1_buf[i] = comp[i];
     i = i + 1;
   }
-  g_labi_ensure_inc1_buf[dn] = 47;
+  labi_ensure_inc1_buf[dn] = 47;
   k = 0;
   while (k <= ln_inc) {
-    g_labi_ensure_inc1_buf[dn + 1 + k] = leaf_inc[k];
+    labi_ensure_inc1_buf[dn + 1 + k] = leaf_inc[k];
     k = k + 1;
   }
   let leaf_src: *u8 = "src";
@@ -1504,16 +1511,16 @@ export function xlang_ensure_runtime_tls_mbedtls_bio_o(argv0: *u8): i32 {
   if (dn + 1 + ln_src >= 512) {
     return -1;
   }
-  /* inc2 → g_labi_ensure_inc2_buf */
+  /* inc2 → labi_ensure_inc2_buf */
   i = 0;
   while (i < dn) {
-    g_labi_ensure_inc2_buf[i] = comp[i];
+    labi_ensure_inc2_buf[i] = comp[i];
     i = i + 1;
   }
-  g_labi_ensure_inc2_buf[dn] = 47;
+  labi_ensure_inc2_buf[dn] = 47;
   k = 0;
   while (k <= ln_src) {
-    g_labi_ensure_inc2_buf[dn + 1 + k] = leaf_src[k];
+    labi_ensure_inc2_buf[dn + 1 + k] = leaf_src[k];
     k = k + 1;
   }
   // Cap residual: cc -c seed with homebrew mbedTLS -I (best-effort; ≡ mega extra_flags).
@@ -1521,7 +1528,7 @@ export function xlang_ensure_runtime_tls_mbedtls_bio_o(argv0: *u8): i32 {
   let flag_I: *u8 = "-I/opt/homebrew/opt/mbedtls/include";
   let crc: i32 = 0;
   unsafe {
-    crc = xlang_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &comp[0], &g_labi_ensure_inc1_buf[0], &g_labi_ensure_inc2_buf[0], 0, flag_I);
+    crc = xlang_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &comp[0], &labi_ensure_inc1_buf[0], &labi_ensure_inc2_buf[0], 0, flag_I);
   }
   if (crc != 0) {
     // Match mega: build_status on failure; Makefile may still build offline.
@@ -1661,16 +1668,16 @@ export function xlang_ensure_bootstrap_nostdlib_stubs_o(argv0: *u8): i32 {
   if (dn + 1 + ln_inc >= 512) {
     return -1;
   }
-  /* inc1 → g_labi_ensure_inc1_buf */
+  /* inc1 → labi_ensure_inc1_buf */
   i = 0;
   while (i < dn) {
-    g_labi_ensure_inc1_buf[i] = comp[i];
+    labi_ensure_inc1_buf[i] = comp[i];
     i = i + 1;
   }
-  g_labi_ensure_inc1_buf[dn] = 47;
+  labi_ensure_inc1_buf[dn] = 47;
   k = 0;
   while (k <= ln_inc) {
-    g_labi_ensure_inc1_buf[dn + 1 + k] = leaf_inc[k];
+    labi_ensure_inc1_buf[dn + 1 + k] = leaf_inc[k];
     k = k + 1;
   }
   let leaf_src: *u8 = "src";
@@ -1681,16 +1688,16 @@ export function xlang_ensure_bootstrap_nostdlib_stubs_o(argv0: *u8): i32 {
   if (dn + 1 + ln_src >= 512) {
     return -1;
   }
-  /* inc2 → g_labi_ensure_inc2_buf */
+  /* inc2 → labi_ensure_inc2_buf */
   i = 0;
   while (i < dn) {
-    g_labi_ensure_inc2_buf[i] = comp[i];
+    labi_ensure_inc2_buf[i] = comp[i];
     i = i + 1;
   }
-  g_labi_ensure_inc2_buf[dn] = 47;
+  labi_ensure_inc2_buf[dn] = 47;
   k = 0;
   while (k <= ln_src) {
-    g_labi_ensure_inc2_buf[dn + 1 + k] = leaf_src[k];
+    labi_ensure_inc2_buf[dn + 1 + k] = leaf_src[k];
     k = k + 1;
   }
   // Cap residual: cc -c seed with -fno-builtin (malloc/free face must not call libc builtins).
@@ -1698,7 +1705,7 @@ export function xlang_ensure_bootstrap_nostdlib_stubs_o(argv0: *u8): i32 {
   let flag_nb: *u8 = "-fno-builtin";
   let crc: i32 = 0;
   unsafe {
-    crc = xlang_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &comp[0], &g_labi_ensure_inc1_buf[0], &g_labi_ensure_inc2_buf[0], 0, flag_nb);
+    crc = xlang_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &comp[0], &labi_ensure_inc1_buf[0], &labi_ensure_inc2_buf[0], 0, flag_nb);
   }
   if (crc != 0) {
     unsafe {
