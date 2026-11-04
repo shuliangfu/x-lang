@@ -3,7 +3,7 @@
 > Gate：`tests/run-win-tip-l2-hello-xp008-struct-lit-parse-gate.sh`（docs OK；Win HOLD exit2 until struct-lit green）。
 > Beat：`win_tip_l2_hello_xp008_struct_lit_parse`。
 > 基线：Win tip L2 **1/5**＠`58e34910f` **勿 regress**；保绿 gate71＋67／63–55 族。
-> tip PE **`6a0f73a8656f…`**（11.71 后；本刀未修）；docs tip **`69564cefa`**。
+> tip PE **`6a0f73a8656f…`**（11.71 后；本刀未修）；docs tip **`e202b5ed8`**。
 > 禁 Soft Cap G05 混 tip；禁假绿／CloudAgent／回滚 11.67 wrap／升钉。
 
 ## 靶
