@@ -182,6 +182,33 @@ if [ -s "$_AOC" ]; then
   fi
 fi
 
+# 10.22 follow: Linux tip-cold phase1 pure-ld of parser_asm_thin_glue.o UNDEFs
+# parser_asm_stretch_* (is_type_start / skip_balanced / skip_type_suffix /
+# skip_one_param). Those T live in stretch_product_keep_faces.o (g05 tip-peel
+# only). Prepend when thin_glue is on the phase1 catalog. PLATFORM: LINUX.
+_STFACES=build_asm/selfhost_pabi/stretch_product_keep_faces.o
+case " $SEED_LINK_OBJS " in
+  *" parser_asm_thin_glue.o "*|*"parser_asm_thin_glue.o "*)
+    case "$(uname -s 2>/dev/null)" in
+      Linux)
+        if [ ! -s "$_STFACES" ] && [ -f seeds/stretch_product_keep_faces.c ]; then
+          mkdir -p build_asm/selfhost_pabi
+          ${CC:-cc} -Wall -O2 -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm             -c -o "$_STFACES" seeds/stretch_product_keep_faces.c             2>/tmp/phase1_stfaces.err || true
+        fi
+        if [ -s "$_STFACES" ]           && nm "$_STFACES" 2>/dev/null | grep -qE 'T _*parser_asm_stretch_is_type_start_kind_c$'; then
+          case " $SEED_LINK_OBJS " in
+            *" $_STFACES "*|*" stretch_product_keep_faces.o "*|*"build_asm/selfhost_pabi/stretch_product_keep_faces.o "*) ;;
+            *)
+              SEED_LINK_OBJS="$_STFACES $SEED_LINK_OBJS"
+              note "phase1 prepended stretch_product_keep_faces.o (parser_asm_stretch_* for thin_glue)"
+              ;;
+          esac
+        fi
+        ;;
+    esac
+    ;;
+esac
+
 # 10.67 FixC-follow: Cap tip Darwin phase1 pure-ld misses
 # glue_emit_assign_rhs_to_rax_elf_c / var_finish / var_store / var_try_let_elf_c
 # referenced from pipeline_struct_lit_store_match_bind_field in hybrid pabi.
