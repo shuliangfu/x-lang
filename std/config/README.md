@@ -32,7 +32,11 @@ TOML 扁平 + `[section]` 子集、ENV 前缀、多源 merge、类型化读取�
 - TOML：扁平键、`[section]` 一级前缀、**`[a.b]` 嵌套 section**（键为 `a.b.*`）、**`[[array]]` array-of-tables**（键为 `array.0.*`）、字符串/整数/bool  
 - YAML：嵌套 section（`db.url`）、**`-` 标量序列**（`items.0`）、**`-` object 序列**（`servers.0.host`）
 
-## Known host-C caveat（刀 11.31 LOCATE）
+## Known host-C caveat（刀 11.31 CLOSE residual HOLD）
 
-Current tree `std/config/config.o`：`config_load_toml_buf_c` may return `CFG_OK` while subsequent `get_*` see `CFG_ERR_NOT_FOUND` under minimal C-link stubs. `config_set_string_c` on the same handle still round-trips. Built-in `config_*_smoke_c` return 3 on this `.o`. Do **not** treat Core-example static gate（刀 11.30）as runtime load green. Rebuild of `config.x` historically hits Soft Cap CG002（HOLD；tiphead Prefer §7 勿升）.
+Current tree `std/config/config.o`：`config_load_toml_buf_c` may return `CFG_OK` while subsequent `get_*` see `CFG_ERR_NOT_FOUND`. `config_set_string_c` on the same handle still round-trips. Built-in `config_*_smoke_c` return 3.
+
+**Root cause（LOCATE2）**：`_cfg_trim` in this `.o` never stores through `out_len` (disasm both-branch empty epilogue; source still has `*out_len = end`). Load line loop sees `sl==0` → skips all lines → OK + count 0. Not a C-link wrapper ABI bug.
+
+Do **not** treat Core-example static gate（刀 11.30）as runtime load green. Rebuild `config.x` via tip `xlang_asm` → Soft Cap **CG002**（本刀复验）；tiphead Prefer §7 / DIG07 SoftCap 0/4 → **勿升**。Ban glue_tail C shim / `.o` binary patch.
 
