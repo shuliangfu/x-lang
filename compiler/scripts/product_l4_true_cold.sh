@@ -326,17 +326,27 @@ rm -f \
   compiler/xlang-seed-phase1 \
   compiler/xlang-no-c-frontend \
   compiler/bootstrap_xlang \
+  compiler/xlang.exe \
+  compiler/xlang_asm.exe \
+  compiler/xlang_asm2.exe \
+  compiler/xlang-c.exe \
+  compiler/bootstrap_xlangc.exe \
   2>/dev/null || true
 _l4_step_end
 
 # --- 3) remaining_o must be 0 ---
 _l4_step_begin "3_check_clean"
-REMAINING_O="$(find compiler std core -name '*.o' -type f 2>/dev/null | wc -l | tr -d ' ')"
+# PLATFORM: WINDOWS tip — BusyBox find can exit 1 on reserved names (compiler/nul)
+# while still listing; pipefail would abort L4 with no fail() line. Tolerate status.
+REMAINING_O="$(find compiler std core -name '*.o' -type f 2>/dev/null | wc -l | tr -d ' ' || true)"
 if [ "$REMAINING_O" != "0" ]; then
   fail "remaining_o=$REMAINING_O after wipe (expected 0)"
 fi
 if [ -e compiler/xlang_asm ]; then
   fail "compiler/xlang_asm still exists after wipe"
+fi
+if [ -e compiler/xlang_asm.exe ]; then
+  fail "compiler/xlang_asm.exe still exists after wipe"
 fi
 log "step3: remaining_o=0 OK (xlang_asm absent)"
 _l4_step_end
