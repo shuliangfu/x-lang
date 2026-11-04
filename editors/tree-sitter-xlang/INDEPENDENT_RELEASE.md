@@ -1,10 +1,10 @@
 # tree-sitter-xlang — independent release plan（§6 10.6 residual · knife 11.23）
 
-> **Status**: plan registered（knife **11.23**）；knife **11.28** reaffirm LOCATE — **still no user-named standalone URL**；**physical submodule／split not done**.  
+> **Status**: plan registered（knife **11.23**）；**CLOSE 11.28**＝**(1) HARD-STOP residual HOLD** — **still no user-named standalone URL**；**physical submodule／split not done**.  
 > **Authority**: [`../HOST_CC_POLICY.md`](../HOST_CC_POLICY.md) §10.6.2.  
 > Product chain already treats this tree as **仓外**（knife 11.21）.
 >
-> **11.28 disposition**: HARD-STOP residual HOLD（等经理裁定／用户点名独立仓 URL）；未自创 remote；未整表删 bindings；未自 CLOSE。
+> **11.28 CLOSE**：阻断＝无用户点名独立仓 URL；未自创 remote；未整表删 bindings；物理迁⏸。
 
 ## Why not migrate this knife
 
