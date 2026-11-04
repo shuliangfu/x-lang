@@ -4,7 +4,11 @@
  *   read the stack slot after the call (ignore rax).
  * Tip out-ptr-only init smashed rdi==source; nop ret-only left out-ptr
  * slots uninit. Dual: always return empty Lexer in rax+rdx; if rdi!=0
- * also memcpy 16 bytes to *rdi. PLATFORM: LINUX/MACOS x86_64
+ * AND rdi looks like a stack out-ptr (rdi >= rsp), also store 16 bytes to
+ * *rdi. Skip when rdi is a heap/mmap source pointer left in rdi by
+ * ret-by-value callers (parser_parse_into_buf) — that smash zeroed the
+ * first 16 source bytes ("export function ") → P001 / missing main.
+ * PLATFORM: LINUX/MACOS x86_64
  */
 #if defined(__APPLE__)
 	.globl	_lexer_init
@@ -18,6 +22,9 @@ lexer_init:
 	movq	$0x100000001, %rdx
 	testq	%rdi, %rdi
 	jz	1f
+	/* stack grows down: out-ptr locals have rdi >= rsp; source buffers do not */
+	cmpq	%rsp, %rdi
+	jb	1f
 	movq	%rax, (%rdi)
 	movq	%rdx, 8(%rdi)
 1:
