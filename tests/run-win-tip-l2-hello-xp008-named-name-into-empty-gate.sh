@@ -13,7 +13,8 @@ PRIOR=analysis/xlang-win-tip-l2-hello-xp008-typeck-named-eq.md
 [ -f "$PRIOR" ] || die "missing 11.69 DIG $PRIOR"
 grep -qE 'name_into|0x84|empty|NAMED|name_len' "$DOC" || die "diagnose missing name_into empty locus"
 grep -q 'CLOSE residual HOLD' "$PRIOR" || die "11.69 DIG must be CLOSE residual HOLD"
-grep -qE 'Residual|DIG|修靶' "$DOC" || die "diagnose missing DIG/Residual"
+grep -q 'CLOSE residual HOLD' "$DOC" || die "11.70 DIG must be CLOSE residual HOLD"
+grep -qE 'Residual|DIG|修靶|init_named' "$DOC" || die "diagnose missing DIG/Residual"
 
 uname_s="$(uname -s 2>/dev/null || echo unknown)"
 case "$uname_s" in
