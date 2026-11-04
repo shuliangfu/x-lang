@@ -71,13 +71,13 @@ int32_t glue_load_var_as_value_to_rax_rdx_elf_c(void *elf_ctx, void *arena, void
     }
   }
   if (sz > 8 && sz <= 16 && arena != 0 && ctx != 0) {
-    /* Soft Cap Win PE ta==0: low→rax, high→rdx (low-end contiguous off+8). */
+    /* Soft Cap Win PE ta==0: low→rax, high→rdx (high-end magnitude off-8). */
     if (ta == 0) {
       rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, off, ta);
       if (rc != 0) {
         return -1;
       }
-      rc = backend_enc_load_rbp_to_rdx_arch(elf_ctx, off + 8, ta);
+      rc = backend_enc_load_rbp_to_rdx_arch(elf_ctx, off - 8, ta);
       if (rc != 0) {
         return -1;
       }

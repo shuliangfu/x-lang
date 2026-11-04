@@ -2,9 +2,8 @@
  * PLATFORM: WINDOWS tip PE only — tip.x-faithful 9–16B dual-GP store.
  *
  * Soft Cap mega glue_store_retval_pair drops rdx for named size 9..16.
- * Soft Cap Win PE param_home/fields use low-end contiguous (high@slot+8);
- * tip.x high-end (slot-8) mismatches this PE. Band: rax@slot + rdx@slot+8.
- * Other sizes trampoline Soft Cap mega. Ban Soft Cap Prefer body copy.
+ * Band: rax@slot + rdx@slot-8 (tip.x x86 high-end). Soft Cap mega else.
+ * Ban Soft Cap Prefer body copy.
  */
 #include <stdint.h>
 
@@ -41,7 +40,7 @@ int32_t glue_store_retval_pair_to_rbp_elf_c(void *m, void *arena, void *elf_ctx,
   if (rc != 0) {
     return -1;
   }
-  half2 = slot_off + 8;
+  half2 = slot_off - 8;
   rc = backend_enc_store_rdx_to_rbp_arch(elf_ctx, half2, ta);
   if (rc != 0) {
     return -1;
