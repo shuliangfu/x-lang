@@ -49,7 +49,8 @@
 - **Plant 11.23**：register plan at [`tree-sitter-xlang/INDEPENDENT_RELEASE.md`](tree-sitter-xlang/INDEPENDENT_RELEASE.md)（checklist only）.
 - **CLOSE 11.28**＝**(1) HARD-STOP residual HOLD**：阻断＝无用户点名独立仓 URL；未自创 remote；未整表删 bindings；物理迁⏸；docs／plan reaffirm only（LOCATE＠`f25a36b47`）.
 - **Not planted**：create GitHub repo／`git submodule add`／subtree split／retarget go.mod／mass-delete bindings（需用户点名独立仓 URL＋另批；禁假绿）.
-- **Residual**：physical submodule／independent release ⏸ until user-named remote + follow-on knife（tools dry-run may land separately；≠ physical migrate）.
+- **Residual**：physical submodule／independent release ⏸ until user-named remote + follow-on knife.
+- **Tools 11.29**：[`tree-sitter-xlang/scripts/prepare_independent_release.sh`](tree-sitter-xlang/scripts/prepare_independent_release.sh) dry-run／`--check` in-tree（≠ physical migrate；`--apply-submodule` refuses without user-named remote）.
 
 ## Gate contract (`tests/run-product-path-zero-make-gate.sh`)
 

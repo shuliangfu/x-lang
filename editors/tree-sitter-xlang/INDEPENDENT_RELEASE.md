@@ -29,3 +29,20 @@
 - Deleting bindings to “look migrated”
 - Publishing npm／crates without user release approval
 - Touching `compiler/**` product OBJ／g05 bodies
+
+## Tools dry-run（knife **11.29**）
+
+In-tree helper（**not** a physical migrate）:
+
+```bash
+bash editors/tree-sitter-xlang/scripts/prepare_independent_release.sh          # inventory
+bash editors/tree-sitter-xlang/scripts/prepare_independent_release.sh --check  # stubs＋g05 0×＋refs
+XLANG_TREE_SITTER_REMOTE=https://github.com/OWNER/tree-sitter-xlang \
+  bash editors/tree-sitter-xlang/scripts/prepare_independent_release.sh --print-retarget
+```
+
+- Default／`--check`：dry-run only；EXIT0＝inventory＋gate stubs＋product g05 0× tree-sitter.
+- `--print-retarget` without `XLANG_TREE_SITTER_REMOTE`：EXIT2 refuse（honest）.
+- `--apply-submodule`：always EXIT2 refuse until user-named remote flow.
+- **Does not** create a GitHub repo, submodule, or delete bindings.
+
