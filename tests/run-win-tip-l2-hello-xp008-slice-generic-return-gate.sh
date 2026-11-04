@@ -33,7 +33,8 @@ EOFX
     cat >"$TMP/slice_ret.x" <<'EOFX'
 type io_read_ptr = *u8;
 export function io_read_ptr_slice(handle: usize, timeout_ms: u32): u8[]<io_read_ptr> {
-  return 0;
+  let out: u8[]<io_read_ptr>;
+  return out;
 }
 EOFX
     set +e
