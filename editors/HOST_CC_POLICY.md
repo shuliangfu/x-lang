@@ -43,10 +43,11 @@
 
 **Plant knife 11.21**: policy file + README banner + `build.x` strategy note + zero-make gate checks. **No** mass-delete of bindings；**no** product compiler edits.
 
-## 10.6.2 Independent release／submodule plan（knife 11.23）
+## 10.6.2 Independent release／submodule plan（knife 11.23／**11.28** reaffirm）
 
-- **LOCATE**：no `.gitmodules`；no standalone remote；in-tree refs＝README／NOTICE／LICENSE／CONTRIBUTING／`xlang.toml`（comment）／vim note／gate stubs／package `repository`→`x-lang`；go.mod＝`github.com/shuliangfu/x-lang/editors/tree-sitter-xlang/...`；product g05／xbuild **0×** compile refs（仍仓外）.
-- **Plant this knife**：register plan at [`tree-sitter-xlang/INDEPENDENT_RELEASE.md`](tree-sitter-xlang/INDEPENDENT_RELEASE.md)（checklist only）.
+- **LOCATE**（11.23＋**11.28**）：no `.gitmodules`；no standalone remote；**no user-named independent URL**；in-tree refs＝README／NOTICE／LICENSE／CONTRIBUTING／`xlang.toml`（comment）／vim note／gate stubs／package `repository`→`x-lang`；go.mod＝`github.com/shuliangfu/x-lang/editors/tree-sitter-xlang/...`；product g05／xbuild **0×** compile refs（仍仓外）.
+- **Plant 11.23**：register plan at [`tree-sitter-xlang/INDEPENDENT_RELEASE.md`](tree-sitter-xlang/INDEPENDENT_RELEASE.md)（checklist only）.
+- **Plant 11.28**：docs／plan reaffirm only；**HARD-STOP residual HOLD**（等经理裁定／用户点名独立仓 URL）；未自创 remote／未 submodule add／未整表删 bindings／未自 CLOSE.
 - **Not planted**：create GitHub repo／`git submodule add`／subtree split／retarget go.mod／mass-delete bindings（需用户点名独立仓 URL＋另批；禁假绿）.
 - **Residual**：physical submodule／independent release ⏸ until user-approved remote + follow-on knife.
 
