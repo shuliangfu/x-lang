@@ -48,6 +48,21 @@ Unique-rename 清 P012 但 hollow → **假绿禁**。
 
 **下一步诚实粒**（勿假绿）：tip-only G05_OBJS（剥离 Soft Cap emit_let_init／mega 漂移）+ strong override 盖 stub，或等价 retarget stale array call → 真 `primary_array`／`parse_array_lit`（ABI 对齐）；复跑 e_fmtstyle＋hello＋全 L2，**勿 regress 1/5**。
 
+
+## Tip-only plant attempt（11.45 cont；未收）
+
+| 步骤 | 结果 |
+|------|------|
+| dig_slim G05_OBJS（softcap=0）+ override `.o` FIRST + `asm_ctx_local_set_offset_by_name` stub + 4× named_narrow tip-missing glue stubs | CC residual link **OK**；PE 双符号 `T`+`W` `__stale_prim_…primary_array…` |
+| win_patch 式 W→T（stub `jmp`→override `T`） | 写入成功；W 现 `jmp` 至 `0x140001490` T |
+| `t_empty` 双 fn `= []` | **OK**（空数组保留） |
+| `return-value` rv | **42**（1/5 基线未 regress） |
+| `one_arr` 单 fn nonempty | **CG002** `code_len=22`（与 bak 同形；parse 已过） |
+| `e_fmtstyle` 双 fn nonempty | 仍 **P012**；locus 漂移为 f2 **`digits`@7**（bak 为 **`num_digits`@8**）→ dig_slim tip-only 链仍非 bak tip 行为 |
+| `examples/hello.x` | 仍 **P012**（core.fmt） |
+
+**结论（residual HOLD）**：stale primary_array 5B jmp 是必要吸烟点，但 **仅 tip-only override 盖 stub 不足以清双 fn P012**；单 fn 本已 CG002。P012 另涉 Win tip **local／module scope 表**（或 dig_slim 混链漂移）。禁 Soft Cap G05 整链塞 tip；禁假绿／unique-rename。下一诚实粒＝tip 侧 scope／local table DIG（对照 Darwin tip OK），或可复现的 tip-obj 全集冷链（非 SoftCap-parity）。
+
 ## 非目标
 
 - 不升 Soft Cap Prefer／tiphead／钉／Cap tip。
