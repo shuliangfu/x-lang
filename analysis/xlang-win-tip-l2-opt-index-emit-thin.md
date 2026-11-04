@@ -66,3 +66,14 @@ python3 compiler/scripts/win_tip_pe_inject_emit_index_elf_override.py \
 - Seed polarity：tip.x x86 high-end `half2 = slot_off - 8`（`+8` Soft Cap Win 实验＠`8287b41b6`→matrix **3/5** si+opt SEGV；revert＠`2365ca4de`）。
 - **Inject MUST compile seed `-O2`**（or reuse `/c/xlang_tmp/srvp.o`）：`-O0 -fno-omit-frame-pointer` → PE `8c2c29e8389ac20e` breaks **si** (tip SEGV on compile). `-O2` → PE **`173da296e3783371`** matrix **4/5**.
 - Live：tip `2365ca4de`／PE `173da296e378…`／pass=4 fail=1（opt return-binop SEGV；`or_i32` still rax-only — Soft Cap return VAR fast-path bypasses `glue_load_var`／emit_expr；peel attempts regress expect）.
+
+## ACCEPT grain · 2026-11-05 · matrix **5/5**
+
+- **opt BUILD139 root**: Soft Cap mega ADD/SUB `glue_binop_maybe_sxt_i32_result_elf_c` Win64 ABI
+  (r8/r9 overwrite elf/ta; no stack 5th/6th) → `pipe_load` base=0x40. Patch script
+  `compiler/scripts/win_tip_pe_patch_binop_maybe_sxt_win64_abi.py` (sites `0x14012FD0C` / `0x14013015E`).
+  PE `173da296e3783371` → `21a68016c53a90cb`. Ban Soft Cap +8.
+- **or_i32 rax-only root**: tip-built `core/option/option.o` returns named Option 9–16 as rax-only.
+  Patch script `compiler/scripts/win_tip_pe_patch_option_o_dual_gp_return.py` (or/and/map/and_then).
+  `.c79srvp` caller store already dual-GP. Long-term: tip PE return/load_var dual-GP then tip-rebuild.
+- Matrix: **pass=5** rv42／opt102／hello0／si0／f32 @ tip `1bc5c23f8`／PE `21a68016c53a90cb`.
