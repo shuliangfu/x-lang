@@ -51,7 +51,14 @@ EOFX
     enum_ec=$?
     set -e
     if [ "$enum_ec" -eq 0 ]; then
-      die "unexpected green: enum module.dot EXIT0 (residual would need re-DIG)"
+      # 11.75 tip-only enum_register twin cleared this residual; HOLD 位可随绿改
+      set +e
+      "$XLANG" check examples/hello.x >"$TMP/hello.log" 2>&1
+      hello_ec=$?
+      set -e
+      [ "$hello_ec" -eq 0 ] || die "hello regress hello_ec=$hello_ec"
+      echo "${PREFIX} OK: enum module.dot green (cleared by 11.75); only_fn+hello OK"
+      exit 0
     fi
     if ! grep -qE 'no impl for type with method|T001' "$TMP/enum.log"; then
       die "enum fixture failed without T001 (ec=$enum_ec); see $TMP/enum.log"
