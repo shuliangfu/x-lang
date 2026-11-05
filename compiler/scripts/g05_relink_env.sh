@@ -7654,6 +7654,106 @@ for i,(a,n) in enumerate(syms):
         fi
       fi
     fi
+    # tip_l4_tip_pe_toplevel_let_const_p014: tip selfhost
+    # parser_asm_parse_one_top_level_let_x_into_c drops every bl to
+    # lex_peek_* → kind=0 → false P014 on valid `const x` / product hello
+    # `const fmt = import(...)`, then diag SEGV. Cap keeps peeks. Tip-local
+    # host-cc twin + redefine hollow tip archive MEMBER to __hollow_dead
+    # (same member owns pack_* the twin U-refs → pulled; plain weaken on
+    # .a / weak+strong still dups under Apple ld). Soft Cap Prefer / Cap
+    # aside / Win banned. PLATFORM: MACOS|DARWIN arm64 tip cold.
+    _let_ovr_c=seeds/darwin_tip_pe_overrides/parser_asm_parse_one_top_level_let_x_into_override.c
+    _let_ovr_o=build_asm/selfhost_pabi/parser_asm_parse_one_top_level_let_x_into_override.o
+    if [ -f "$_let_ovr_c" ] && [ -s parser_asm_thin_glue.o ]; then
+      if nm -gU parser_asm_thin_glue.o 2>/dev/null | awk '{print $3}' | grep -qE '^_parser_asm_parse_one_top_level_let_x_into_c(__hollow_dead)?$'; then
+        mkdir -p build_asm/selfhost_pabi
+        if [ ! -s "$_let_ovr_o" ] || [ "$_let_ovr_c" -nt "$_let_ovr_o" ]; then
+          if ! ${CC:-cc} -c -O2 -o "$_let_ovr_o" "$_let_ovr_c" 2>/tmp/g05_let_ovr_cc.err; then
+            echo "g05_relink_env: ERROR top_level_let_x_into override cc failed" >&2
+            cat /tmp/g05_let_ovr_cc.err >&2 || true
+            exit 1
+          fi
+        fi
+        if ! nm -gU "$_let_ovr_o" 2>/dev/null | awk '{print $3}' | grep -qxF '_parser_asm_parse_one_top_level_let_x_into_c'; then
+          echo "g05_relink_env: ERROR top_level_let_x_into override missing T _parser_asm_parse_one_top_level_let_x_into_c" >&2
+          exit 1
+        fi
+        case " $_CAP_TIP_FRONT " in
+          *" parser_asm_parse_one_top_level_let_x_into_override.o "*) ;;
+          *)
+            _CAP_TIP_FRONT="$_let_ovr_o $_CAP_TIP_FRONT"
+            echo "g05_relink_env: tip_l4 p014 prepended parser_asm_parse_one_top_level_let_x_into_override.o" >&2
+            ;;
+        esac
+        if [ -z "${_oc:-}" ]; then
+          if command -v llvm-objcopy >/dev/null 2>&1; then _oc=llvm-objcopy
+          elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+          elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+          elif command -v objcopy >/dev/null 2>&1; then _oc=objcopy
+          fi
+        fi
+        if [ -z "${_oc:-}" ]; then
+          echo "g05_relink_env: ERROR tip_l4 p014 needs llvm-objcopy to demote tip x_into member" >&2
+          exit 1
+        fi
+        _let_ar_st=$(mktemp -d "${TMPDIR:-/tmp}/g05_let_p014_ar.XXXXXX")
+        (
+          set -e
+          cd "$_let_ar_st"
+          ar x "$OLDPWD/parser_asm_thin_glue.o"
+          rm -f __.SYMDEF
+          _let_mem=
+          for _m in g05_pthin*; do
+            [ -f "$_m" ] || continue
+            if nm "$_m" 2>/dev/null | awk '$2=="T" && $3==s{f=1} END{exit f?0:1}' s="_parser_asm_parse_one_top_level_let_x_into_c"; then
+              _let_mem=$_m
+              break
+            fi
+          done
+          if [ -z "$_let_mem" ]; then
+            # Already demoted from a prior g05 pass in this process; keep.
+            if nm "$OLDPWD/parser_asm_thin_glue.o" 2>/dev/null | awk '$3==s{f=1} END{exit f?0:1}' s="_parser_asm_parse_one_top_level_let_x_into_c__hollow_dead"; then
+              echo "g05_relink_env: tip_l4 p014 thin_glue x_into already __hollow_dead" >&2
+              exit 0
+            fi
+            # Check members for hollow_dead
+            for _m in g05_pthin*; do
+              [ -f "$_m" ] || continue
+              if nm "$_m" 2>/dev/null | awk '$3==s{f=1} END{exit f?0:1}' s="_parser_asm_parse_one_top_level_let_x_into_c__hollow_dead"; then
+                echo "g05_relink_env: tip_l4 p014 thin_glue member already __hollow_dead" >&2
+                exit 0
+              fi
+            done
+            echo "g05_relink_env: ERROR tip_l4 p014 no thin_glue member owns x_into T" >&2
+            exit 1
+          fi
+          "$_oc" --redefine-sym=_parser_asm_parse_one_top_level_let_x_into_c=_parser_asm_parse_one_top_level_let_x_into_c__hollow_dead "$_let_mem"
+          if nm "$_let_mem" 2>/dev/null | awk '$2=="T" && $3==s{f=1} END{exit f?0:1}' s="_parser_asm_parse_one_top_level_let_x_into_c"; then
+            echo "g05_relink_env: ERROR tip_l4 p014 redefine member $_let_mem failed" >&2
+            exit 1
+          fi
+          if ! nm "$_let_mem" 2>/dev/null | awk '$2=="T" && $3==s{f=1} END{exit f?0:1}' s="_parser_asm_parse_one_top_level_let_x_into_c__hollow_dead"; then
+            echo "g05_relink_env: ERROR tip_l4 p014 redefine missing __hollow_dead in $_let_mem" >&2
+            exit 1
+          fi
+          _mems=
+          for _m in g05_pthin*; do
+            [ -f "$_m" ] || continue
+            file "$_m" | grep -q Mach-O || continue
+            _mems="$_mems $_m"
+          done
+          # shellcheck disable=SC2086
+          ar rcs "$OLDPWD/parser_asm_thin_glue.o" $_mems
+        )
+        _let_ar_rc=$?
+        rm -rf "$_let_ar_st"
+        if [ "$_let_ar_rc" -ne 0 ]; then
+          echo "g05_relink_env: ERROR tip_l4 p014 archive member demote failed" >&2
+          exit 1
+        fi
+        echo "g05_relink_env: tip_l4 p014 demote thin_glue member x_into → __hollow_dead (override wins)" >&2
+      fi
+    fi
     # note743y.6.22: Apple clang packs consecutive stack i32s; tip Soft Cap
     # into_c expects 8-byte slots → bound_scan gets len as data (FAR=0x72).
     # Cap tip twin: strong noop complete_c; demote typeck/thin_glue bodies.
