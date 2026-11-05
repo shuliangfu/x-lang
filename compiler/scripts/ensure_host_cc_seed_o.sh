@@ -10797,14 +10797,43 @@ rt_fmt_one_darwin_pure() {
 rt_compile_darwin_pure() {
   local o="${1:-}"
   local xsrc="src/runtime/rt_compile.x"
-  local try n c
+  local try n c _egg
   if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
     return 1
   fi
   if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
     return 1
   fi
-  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+  if [ -z "$o" ] || [ ! -f "$xsrc" ]; then
+    return 1
+  fi
+  # tip_l4 pe_asm_backend_hollow blast: Cap tip / PE tip -c of rt_compile.x
+  # hits CG002; pin-egg emits Cap-good 32 T incl parse_argv_impl. Prefer egg
+  # via g05_xasm (non-.o mktemp staging). Ban park. PLATFORM: MACOS arm64.
+  _egg="seeds/bootstrap_xlangc.darwin.arm64"
+  if [ -x "$_egg" ]; then
+    rm -f "$o"
+    if g05_xasm "$_egg" -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 \
+      && [ -s "$o" ]; then
+      n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+      if [ "$n" = "32" ]; then
+        local _ok=1
+        for c in _rt_cmp_eq _rt_help_token_is \
+          _driver_compile_state_alloc_c _driver_deps_are_std_core_closure_only; do
+          if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+            _ok=0
+            break
+          fi
+        done
+        if [ "$_ok" = "1" ]; then
+          echo "rt-compile: pure-asm via pin-egg $_egg (32 T)" >&2
+          return 0
+        fi
+      fi
+    fi
+    rm -f "$o"
+  fi
+  if [ ! -x ./xlang_asm ]; then
     return 1
   fi
   try=0
@@ -11096,7 +11125,7 @@ rt_run_asm_backend_darwin_pure() {
 # of those. Leading underscores are stripped (Mach-O vs ELF/COFF).
 # PLATFORM: SHARED.
 rt_abk_authority_check() {
-  local o="${1:-}" syms c
+  local o="${1:-}" syms c _rel
   [ -s "$o" ] || return 1
   syms="$(nm "$o" 2>/dev/null | awk 'NF>=2 { t=$(NF-1); n=$NF; sub(/^_/, "", n); print t, n }')" || return 1
   for c in driver_run_asm_backend ap_path; do
@@ -11111,6 +11140,15 @@ rt_abk_authority_check() {
   # the cold seed body lacks. Accept either local shape so L4 bootstrap
   # (egg-only) can pure-asm this leaf. PLATFORM: SHARED.
   printf '%s\n' "$syms" | awk '$2 ~ /^rt_run_asm_backend_rt_ab_/ || $2 ~ /^rt_ab_/ { f=1 } END { exit f ? 0 : 1 }' || return 1
+  # tip_l4 pe_asm_backend_hollow: Cap tip / PE tip -c of this TU can emit
+  # authority-shaped T symbols while driver_run_asm_backend is hollow (no
+  # step bls into rt_ab_step_read_pp / load_deps; PE ~1276B vs Cap-good
+  # ~1552B). Require CALL/BRANCH relocs to those steps. PLATFORM: SHARED.
+  _rel="$(objdump -r "$o" 2>/dev/null || true)"
+  # Single-grep (no grep -q pipeline): pipefail+SIGPIPE otherwise false-fails
+  # when BRANCH lines exist but upstream grep -E is SIGPIPEd. PLATFORM: SHARED.
+  printf '%s\n' "$_rel" | grep -Eq 'BRANCH26.*rt_ab_step_read_pp|CALL26.*rt_ab_step_read_pp|ARM64_RELOC_BRANCH26.*rt_ab_step_read_pp|R_AARCH64_CALL26.*rt_ab_step_read_pp|R_X86_64_PLT32.*rt_ab_step_read_pp|R_X86_64_PC32.*rt_ab_step_read_pp|PLT32.*rt_ab_step_read_pp|PC32.*rt_ab_step_read_pp' || return 1
+  printf '%s\n' "$_rel" | grep -Eq 'BRANCH26.*rt_ab_step_load_deps|CALL26.*rt_ab_step_load_deps|ARM64_RELOC_BRANCH26.*rt_ab_step_load_deps|R_AARCH64_CALL26.*rt_ab_step_load_deps|R_X86_64_PLT32.*rt_ab_step_load_deps|R_X86_64_PC32.*rt_ab_step_load_deps|PLT32.*rt_ab_step_load_deps|PC32.*rt_ab_step_load_deps' || return 1
   return 0
 }
 
@@ -11120,7 +11158,31 @@ rt_abk_authority_check() {
 rt_run_asm_backend_pure_any() {
   local o="${1:-}"
   local xsrc="src/runtime/rt_run_asm_backend.x"
+  local _egg_os _egg_arch _egg
   [ -n "$o" ] && [ -f "$xsrc" ] || return 1
+  # tip_l4 pe_asm_backend_hollow: Cap tip / PE tip -c of this TU hollows
+  # driver_run_asm_backend (no step bls). Pin-egg preserves Cap-good body
+  # with BRANCH relocs into rt_ab_step_read_pp / load_deps. Prefer egg;
+  # tip darwin_pure only as fallback. Ban park as main knife. PLATFORM: SHARED.
+  _egg_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
+  _egg_arch="$(uname -m 2>/dev/null)"
+  case "$_egg_os" in darwin) _egg_os=darwin ;; linux) _egg_os=linux ;; *) _egg_os="" ;; esac
+  case "$_egg_arch" in x86_64|amd64) _egg_arch=x86_64 ;; arm64|aarch64) _egg_arch=arm64 ;; *) _egg_arch="" ;; esac
+  if [ -n "$_egg_os" ] && [ -n "$_egg_arch" ]; then
+    _egg="seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}"
+    if [ -x "$_egg" ]; then
+      rm -f "$o"
+      # g05_xasm: product -c only emits relocatable .o when -o ends in .o;
+      # prefer mktemps are rtpref_*.XXXXXX (no .o) and otherwise egg tries to
+      # link (BLD001) — same class as note at g05_xasm. PLATFORM: SHARED.
+      if g05_xasm "$_egg" -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 \
+        && [ -s "$o" ] && rt_abk_authority_check "$o"; then
+        echo "rt-abk: pure-asm via pin-egg $_egg (non-hollow step bls)" >&2
+        return 0
+      fi
+      rm -f "$o"
+    fi
+  fi
   # knife 256 / 10.2: Darwin tip path wants ./xlang_asm (darwin_pure).
   # L4 true-cold wipes xlang_asm before bootstrap; fall through to egg
   # pure_asm_x_to_o (bootstrap_xlangc / xlang-c) with the same authority
@@ -11143,6 +11205,38 @@ rt_run_asm_backend_pure_any() {
     return 1
   fi
   return 0
+}
+
+
+# tip_l4 pe_asm_backend_hollow blast: Cap tip / PE tip -c of rt_dispatch_impl.x
+# hollows driver_run_compiler_full_x_impl_c (drops BRANCH to state_alloc /
+# post_parse; early-return RC=0). Pin-egg preserves Cap-good body. PLATFORM: SHARED.
+rt_dispatch_impl_authority_check() {
+  local o="${1:-}" _rel
+  [ -s "$o" ] || return 1
+  nm "$o" 2>/dev/null | awk '$2=="T" && ($3=="_driver_run_compiler_full_x_impl_c" || $3=="driver_run_compiler_full_x_impl_c") { f=1 } END { exit f ? 0 : 1 }' || return 1
+  _rel="$(objdump -r "$o" 2>/dev/null || true)"
+  printf '%s\n' "$_rel" | grep -Eq 'BRANCH26.*driver_compile_state_alloc_c|CALL26.*driver_compile_state_alloc_c|ARM64_RELOC_BRANCH26.*driver_compile_state_alloc_c|R_AARCH64_CALL26.*driver_compile_state_alloc_c|R_X86_64_PLT32.*driver_compile_state_alloc_c|PLT32.*driver_compile_state_alloc_c' || return 1
+  printf '%s\n' "$_rel" | grep -Eq 'BRANCH26.*driver_run_compiler_full_x_post_parse_impl_c|CALL26.*driver_run_compiler_full_x_post_parse_impl_c|ARM64_RELOC_BRANCH26.*driver_run_compiler_full_x_post_parse_impl_c|R_AARCH64_CALL26.*driver_run_compiler_full_x_post_parse_impl_c|R_X86_64_PLT32.*driver_run_compiler_full_x_post_parse_impl_c|PLT32.*driver_run_compiler_full_x_post_parse_impl_c' || return 1
+  return 0
+}
+
+rt_dispatch_impl_pure_any() {
+  local o="${1:-}" xsrc="src/runtime/rt_dispatch_impl.x" _egg
+  [ -n "$o" ] && [ -f "$xsrc" ] || return 1
+  _egg="seeds/bootstrap_xlangc.darwin.arm64"
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+    && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+    && [ -x "$_egg" ]; then
+    rm -f "$o"
+    if g05_xasm "$_egg" -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 \
+      && [ -s "$o" ] && rt_dispatch_impl_authority_check "$o"; then
+      echo "rt-di: pure-asm via pin-egg $_egg (non-hollow state_alloc/post_parse)" >&2
+      return 0
+    fi
+    rm -f "$o"
+  fi
+  return 1
 }
 
 # w2060: whole-TU pure-asm for a Darwin pthin .x before the per-function
@@ -18676,13 +18770,25 @@ ensure_rt_prefer_one() {
             if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_dispatch_impl_x" ]; then
               _rt_di_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_dispatch_impl_thin.XXXXXX") || true
               _rt_di_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_dispatch_impl_rest.XXXXXX") || true
+              # tip_l4: Cap/PE -c hollows full_x_impl_c; egg-first + authority.
+              _rt_di_pure=0
+              if [ -n "$_rt_di_thin_o" ] && rt_dispatch_impl_pure_any "$_rt_di_thin_o"; then
+                _rt_di_pure=1
+              fi
               if [ -n "$_rt_di_thin_o" ] && [ -n "$_rt_di_rest_o" ] \
-                && rt_prefer_try_x_to_o "$_rt_dispatch_impl_x" "$_rt_di_thin_o" \
+                && { [ "$_rt_di_pure" = "1" ] \
+                  || { rt_prefer_try_x_to_o "$_rt_dispatch_impl_x" "$_rt_di_thin_o" \
+                       && rt_dispatch_impl_authority_check "$_rt_di_thin_o"; }; } \
                 && $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_DISPATCH_IMPL_FROM_X \
                      -c -o "$_rt_di_rest_o" "$_rt_dispatch_impl_seed" \
-                && pure_ld_partial_merge "$_rt_di_o" "$_rt_di_thin_o" "$_rt_di_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_di_o" "$_rt_di_thin_o" "$_rt_di_rest_o" 2>/dev/null \
+                && rt_dispatch_impl_authority_check "$_rt_di_o"; then
                 _rt_di_ok=1
-                echo "rt-prefer: rest dispatch_impl ← full .x + rest marker (R2 H=0)"
+                if [ "$_rt_di_pure" = "1" ]; then
+                  echo "rt-prefer: rest dispatch_impl ← pure-asm egg (authority state_alloc/post_parse)"
+                else
+                  echo "rt-prefer: rest dispatch_impl ← full .x + rest marker (R2 H=0; authority)"
+                fi
               fi
               rm -f "$_rt_di_thin_o" "$_rt_di_rest_o"
             fi
