@@ -4573,10 +4573,20 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _diag_o=src/diag.o
   if [ -f "$_diag" ]; then
     # 记250／8.7: also src/diag.x (basename surface; thin is diag_thin.x).
+    # tip_l4 pe_diagthin_cstr_len_hang: also rebuild when cstr_len n++ authority
+    # fails (tip hang body can look up-to-date vs .x). PLATFORM: SHARED.
+    _diag_need=0
     if [ ! -f "$_diag_o" ] || [ "$_diag" -nt "$_diag_o" ] \
       || { [ -f "$_diag_thin_x" ] && [ "$_diag_thin_x" -nt "$_diag_o" ]; } \
       || { [ -f "$_diag_reportf_x" ] && [ "$_diag_reportf_x" -nt "$_diag_o" ]; } \
       || { [ -f src/diag.x ] && [ src/diag.x -nt "$_diag_o" ]; }; then
+      _diag_need=1
+    elif [ -f scripts/ensure_host_cc_seed_o.sh ] \
+      && ! bash scripts/ensure_host_cc_seed_o.sh diagthin-cstr-len-ok "$_diag_o"; then
+      _diag_need=1
+      echo "g05_ensure: $_diag_o fails cstr_len n++ authority; rebuild (tip_l4)"
+    fi
+    if [ "$_diag_need" = "1" ]; then
       _diag_done=0
       if [ -f "$_diag_thin_x" ]; then
         _diag_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_diag_thin.XXXXXX") || true
@@ -4643,11 +4653,20 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           fi
         fi
         if [ "$_diag_merge_ok" = "1" ]; then
+          # tip_l4: refuse hang body in final hybrid. PLATFORM: SHARED.
+          if [ -f scripts/ensure_host_cc_seed_o.sh ] \
+            && ! bash scripts/ensure_host_cc_seed_o.sh diagthin-cstr-len-ok "$_diag_o"; then
+            echo "g05_ensure: $_diag_o merge lacks cstr_len n++; discard" >&2
+            rm -f "$_diag_o"
+            _diag_merge_ok=0
+          fi
+        fi
+        if [ "$_diag_merge_ok" = "1" ]; then
           if [ "$_diag_pure" = "1" ]; then
             if [ -n "$_diag_reportf_o" ] && [ -f "$_diag_reportf_o" ]; then
-              echo "g05_ensure: $_diag_o ← pure-asm eight .x pieces (w1140) + diag_reportf.x + seed rest"
+              echo "g05_ensure: $_diag_o ← pure-asm egg-first/eight (w1140 tip_l4 cstr_len n++) + diag_reportf.x + seed rest"
             else
-              echo "g05_ensure: $_diag_o ← pure-asm eight .x pieces (w1140) + seed rest"
+              echo "g05_ensure: $_diag_o ← pure-asm egg-first/eight (w1140 tip_l4 cstr_len n++) + seed rest"
             fi
           else
             if [ -n "$_diag_reportf_o" ] && [ -f "$_diag_reportf_o" ]; then

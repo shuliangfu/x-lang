@@ -14843,6 +14843,69 @@ PY
   return 0
 }
 
+# tip_l4 pe_diagthin_cstr_len_hang: Cap tip / PE tip eight-piece (or tip
+# whole-file) of diag_thin.x can omit while (n < 4096) n = n + 1 inside
+# diag_cstr_len_bounded (n never advances → hang when rt_ab_diag runs).
+# Pin-egg emits Cap-good body with mov w1,#0x1 ; add w0,w1,w0 ; str n.
+# Authority scopes the check to the cstr_len symbol (plain or diagthin_p0_
+# prefixed) so other adds in the TU cannot false-pass. PLATFORM: SHARED.
+diagthin_cstr_len_n_inc_ok() {
+  local o="${1:-}" dump="" sym
+  [ -s "$o" ] || return 1
+  for sym in _diag_cstr_len_bounded diag_cstr_len_bounded \
+    _diagthin_p0_diag_cstr_len_bounded diagthin_p0_diag_cstr_len_bounded; do
+    dump="$(objdump -d --disassemble-symbols=$sym "$o" 2>/dev/null || true)"
+    if [ -n "$dump" ]; then
+      break
+    fi
+  done
+  if [ -z "$dump" ]; then
+    return 1
+  fi
+  # Bound 4096 must appear.
+  printf '%s\n' "$dump" | grep -Eq 'mov[[:space:]]+w0,[[:space:]]+#0x1000' || return 1
+  # n+=1: mov w1,#0x1 then add w0,w1,w0 (egg). Hang tip body omits both.
+  printf '%s\n' "$dump" | grep -Eq 'mov[[:space:]]+w1,[[:space:]]+#0x1' || return 1
+  printf '%s\n' "$dump" | grep -Eq 'add[[:space:]]+w0,[[:space:]]+w1,[[:space:]]+w0' || return 1
+  return 0
+}
+
+# tip_l4 pe_diagthin_cstr_len_hang: egg-first pure-asm for diag_thin.
+# Tip eight-piece "succeeds" with the hang body; pin-egg-on-failure never
+# fires. Prefer seeds/bootstrap_xlangc.$os.$arch whole-file via g05_xasm
+# (egg handles the full TU; w1140 tip SEGV was tip-only). Tip eight-piece
+# only as fallback when it still passes n++ authority. Ban park / Cap
+# aside prefer. PLATFORM: SHARED (Darwin arm64 eight-piece retained as
+# tip fallback; egg whole-file is host-agnostic when egg exists).
+diag_thin_egg_whole_any() {
+  local o="${1:-}"
+  local xsrc="src/diag_thin.x"
+  local _egg_os _egg_arch _egg n
+  [ -n "$o" ] && [ -f "$xsrc" ] || return 1
+  _egg_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
+  _egg_arch="$(uname -m 2>/dev/null)"
+  case "$_egg_os" in darwin) _egg_os=darwin ;; linux) _egg_os=linux ;; *) _egg_os="" ;; esac
+  case "$_egg_arch" in x86_64|amd64) _egg_arch=x86_64 ;; arm64|aarch64) _egg_arch=arm64 ;; *) _egg_arch="" ;; esac
+  if [ -n "$_egg_os" ] && [ -n "$_egg_arch" ]; then
+    _egg="seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}"
+    if [ -x "$_egg" ]; then
+      rm -f "$o"
+      if g05_xasm "$_egg" -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 \
+        && [ -s "$o" ] && diagthin_cstr_len_n_inc_ok "$o"; then
+        n="$(nm "$o" 2>/dev/null | awk '$2=="T"' | wc -l | tr -d ' ')"
+        if [ "$n" = "78" ] \
+          && nm "$o" 2>/dev/null | awk '$2=="T" && ($3=="_diag_line_digits" || $3=="diag_line_digits") { found=1 } END { exit found ? 0 : 1 }' \
+          && ! nm "$o" 2>/dev/null | awk '$2=="T" && ($3=="_xlang_panic_" || $3=="xlang_panic_") { found=1 } END { exit found ? 0 : 1 }'; then
+          echo "diag_thin: pure-asm via pin-egg $_egg (cstr_len n++ authority)" >&2
+          return 0
+        fi
+      fi
+      rm -f "$o"
+    fi
+  fi
+  return 1
+}
+
 # w1140: src/diag_thin.x is one translation unit that exits 139.
 # Split it into eight pieces, compile each with xlang_asm, then ld -r.
 # Do not use pure_asm_x_to_o: the pieces reference xlang_panic_ and that
@@ -14851,14 +14914,23 @@ PY
 diag_thin_darwin_pure() {
   local o="${1:-}"
   local xsrc="src/diag_thin.x"
-  local dir c try src obj objs n
+  local dir c try src obj objs n _egg_os _egg_arch _egg _xl
   if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
     return 1
   fi
   if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
     return 1
   fi
-  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+  if [ -z "$o" ] || [ ! -f "$xsrc" ]; then
+    return 1
+  fi
+  # tip_l4 pe_diagthin_cstr_len_hang: egg-first whole-file before eight-piece.
+  # Tip pieces omit n++ in diag_cstr_len_bounded → PE hello hang in rt_ab_diag.
+  # PLATFORM: SHARED egg; Darwin arm64 eight-piece remains tip fallback.
+  if diag_thin_egg_whole_any "$o"; then
+    return 0
+  fi
+  if [ ! -x ./xlang_asm ]; then
     return 1
   fi
   dir="$(mktemp -d "${TMPDIR:-/tmp}/diagthin.XXXXXX")" || return 1
@@ -14912,12 +14984,28 @@ PY
     return 1
   fi
   objs=""
+  _egg_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
+  _egg_arch="$(uname -m 2>/dev/null)"
+  case "$_egg_os" in darwin) _egg_os=darwin ;; linux) _egg_os=linux ;; *) _egg_os="" ;; esac
+  case "$_egg_arch" in x86_64|amd64) _egg_arch=x86_64 ;; arm64|aarch64) _egg_arch=arm64 ;; *) _egg_arch="" ;; esac
+  _egg=""
+  if [ -n "$_egg_os" ] && [ -n "$_egg_arch" ] && [ -x "seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}" ]; then
+    _egg="seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}"
+  fi
   for c in 0 1 2 3 4 5 6 7; do
     src="$dir/diagthin_p$c.x"
     obj="$dir/diagthin_p$c.o"
     try=0
     while [ "$try" -lt 8 ]; do
       try=$((try + 1))
+      rm -f "$obj"
+      # tip_l4: prefer pin-egg per piece; tip xlang_asm only as fallback.
+      # PLATFORM: SHARED.
+      if [ -n "$_egg" ] \
+        && g05_xasm "$_egg" -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 \
+        && [ -s "$obj" ]; then
+        break
+      fi
       rm -f "$obj"
       if g05_xasm ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
         break
@@ -14948,6 +15036,13 @@ PY
     return 1
   fi
   if nm "$o" | awk '$2=="T" && $3=="_xlang_panic_" { found=1 } END { exit found ? 0 : 1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  # tip_l4 pe_diagthin_cstr_len_hang: reject omit-n++ hang body.
+  # PLATFORM: SHARED.
+  if ! diagthin_cstr_len_n_inc_ok "$o"; then
+    echo "diag_thin_darwin_pure: cstr_len n++ authority failed (hang body)" >&2
     rm -f "$o"
     return 1
   fi
@@ -15617,21 +15712,26 @@ ensure_diag_prefer() {
     echo "ensure_diag_prefer: missing $thin_x" >&2
     return 1
   fi
+  # tip_l4 pe_diagthin_cstr_len_hang: also require cstr_len n++ authority
+  # before skip (stale tip hang body looks up-to-date vs .x). PLATFORM: SHARED.
   if [ "${FORCE:-0}" != "1" ] && [ -s "$o" ] && [ ! "$seed" -nt "$o" ] \
     && [ ! "$thin_x" -nt "$o" ] \
     && { [ ! -f src/diag.x ] || [ ! src/diag.x -nt "$o" ]; } \
-    && nm "$o" 2>/dev/null | grep -qE " T _?diag_"; then
-    log "skip up-to-date $o (diag thin+FROM_X rest)"
+    && nm "$o" 2>/dev/null | grep -qE " T _?diag_" \
+    && diagthin_cstr_len_n_inc_ok "$o"; then
+    log "skip up-to-date $o (diag thin+FROM_X rest; cstr_len n++ ok)"
     return 0
   fi
   mkdir -p "$(dirname "$o")"
   thin_o="$(mktemp "${TMPDIR:-/tmp}/diag_thin.XXXXXX.o")" || return 1
   rest_o="$(mktemp "${TMPDIR:-/tmp}/diag_rest.XXXXXX.o")" || { rm -f "$thin_o"; return 1; }
   # 1) thin
+  # tip_l4: Darwin arm64 uses diag_thin_darwin_pure (egg-first whole-file /
+  # eight-piece with cstr_len n++ authority). No longer require tip
+  # ./xlang_asm up front — egg path does not need it. PLATFORM: SHARED.
   local thin_ok=0
   if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
     && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
-    && [ -x ./xlang_asm ] \
     && diag_thin_darwin_pure "$thin_o"; then
     thin_ok=1
   fi
@@ -15662,6 +15762,13 @@ ensure_diag_prefer() {
   fi
   if [ "$thin_ok" != "1" ]; then
     echo "ensure_diag_prefer: thin failed for $thin_x" >&2
+    rm -f "$thin_o" "$rest_o"
+    return 1
+  fi
+  # tip_l4 pe_diagthin_cstr_len_hang: reject omit-n++ hang thin before merge.
+  # PLATFORM: SHARED.
+  if ! diagthin_cstr_len_n_inc_ok "$thin_o"; then
+    echo "ensure_diag_prefer: thin cstr_len n++ authority failed" >&2
     rm -f "$thin_o" "$rest_o"
     return 1
   fi
@@ -35135,10 +35242,31 @@ case "$MODE" in
     pthin_expr_ternary_darwin_pure "$1"
     exit $?
     ;;
+  diagthin-cstr-len-ok|diagthin_cstr_len_n_inc_ok)
+    # tip_l4 pe_diagthin_cstr_len_hang: authority for cstr_len while-n++.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o diagthin-cstr-len-ok: need <obj>" >&2
+      exit 2
+    fi
+    diagthin_cstr_len_n_inc_ok "$1"
+    exit $?
+    ;;
+  diag-thin-egg-pure|diag_thin_egg_whole_any)
+    # tip_l4 pe_diagthin_cstr_len_hang: egg-first whole-file pure for diag_thin.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o diag-thin-egg-pure: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    diag_thin_egg_whole_any "$1"
+    _dte_rc=$?
+    set -e
+    exit "$_dte_rc"
+    ;;
   diag-thin-pure|diag_thin_darwin_pure)
-    # w1140: eight pure-asm pieces of src/diag_thin.x. Does not compile the
-    # C rest and does not write src/diag.o unless that path is passed.
-    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    # w1140 + tip_l4: egg-first whole-file (cstr_len n++), else eight pieces.
+    # Does not compile the C rest and does not write src/diag.o unless that
+    # path is passed. PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o diag-thin-pure: need <out.o>" >&2
       exit 2
