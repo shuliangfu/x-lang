@@ -334,17 +334,52 @@ build_lexer_x() {
   # egg, then overwrite ./xlang+bootstrap with a tip that SEGV on lexer.x.
   # Do not delete a good same-session object until a new emit lands; try the
   # archived pin egg (seeds/bootstrap_xlangc.<os>.<arch>) after product xl.
-  # PLATFORM: SHARED.
+  # tip_l4_tip_pe_undefined_main: Cap tip / tip_cap-host -c often emits a
+  # stack-probe lexer_next_body_into (~0x19e8) that mis-peels u8[] index on
+  # tip PE → P001 → hollow .o → BLD001 undefined main. Pin-egg / large-frame
+  # peels (~0x44e8 / 0x5088) clear rv. Reject probe-shaped objects so the
+  # cascade reaches the archived pin egg. PLATFORM: SHARED (Linux tip PE).
   local _lex_keep="" _lex_xl _lex_os _lex_arch _lex_egg="" _lex_ok=0
   if [ ! -f scripts/pure_ld_shared.sh ] || [ ! -f src/lexer/lexer.x ]; then
     log "lexer_x.o: pure_ld_shared.sh or src/lexer/lexer.x missing"
     return 1
   fi
+  # Accept body_into peels with a large sub $imm,%rsp frame (pin-egg ~0x5088,
+  # tip_cap product ~0x44e8). Cap tip stack-probe prologues (mov $0x19xx,%eax
+  # + page loop) leave tip PE BLD001 — treat as emit miss.
+  _lexer_body_into_ok() {
+    # pipefail+SIGPIPE: do not early-exit awk while objdump still writes.
+    [ -s lexer_x.o ] || return 1
+    if ! command -v objdump >/dev/null 2>&1; then
+      return 0
+    fi
+    local _bi_dump
+    _bi_dump="$(mktemp "${TMPDIR:-/tmp}/lexer_body_into.XXXXXX")"
+    objdump -d --disassemble=lexer_next_body_into lexer_x.o >"$_bi_dump" 2>/dev/null || true
+    awk '
+      /sub[lq]?[ \t]+\$0x[0-9a-fA-F]+,%rsp/ {
+        hex=$0
+        sub(/.*\$0x/, "", hex)
+        sub(/,.*/, "", hex)
+        n = strtonum("0x" hex)
+        if (n >= 0x4000) ok=1
+      }
+      END { exit ok ? 0 : 1 }
+    ' "$_bi_dump"
+    local _bi_rc=$?
+    rm -f "$_bi_dump"
+    return "$_bi_rc"
+  }
   # note743k: keep-seed skip when .x not newer and object non-empty.
+  # tip_l4: also require large-frame body_into (do not keep Cap tip probe).
   if [ "${XLANG_HOST_CC_SEED_FORCE:-0}" != "1" ] && [ -s lexer_x.o ] \
-    && [ ! src/lexer/lexer.x -nt lexer_x.o ]; then
+    && [ ! src/lexer/lexer.x -nt lexer_x.o ] \
+    && _lexer_body_into_ok; then
     log "lexer_x.o skip up-to-date (w1546; note743k keep seed)"
     return 0
+  fi
+  if [ -s lexer_x.o ] && ! _lexer_body_into_ok; then
+    log "lexer_x.o reject Cap tip stack-probe body_into (tip_l4; force re-emit)"
   fi
   if [ -s lexer_x.o ]; then
     _lex_keep="$(mktemp "${TMPDIR:-/tmp}/lexer_x_keep.XXXXXX")"
@@ -362,7 +397,7 @@ build_lexer_x() {
       unset G05_X_O_WEAK G05_X_O_SYM_RENAME
       export G05_X_O_WEAK_FUNCS=xlang_panic_
       pure_asm_x_to_o lexer_x.o src/lexer/lexer.x
-    ) && [ -s lexer_x.o ]
+    ) && [ -s lexer_x.o ] && _lexer_body_into_ok
   }
   # tip first (product path), then product eggs, then archived pin egg.
   _lex_ok=0
@@ -404,10 +439,15 @@ build_lexer_x() {
     return 0
   fi
   # note743k: restore same-session seed object when tip re-emit SEGV.
+  # tip_l4: only restore when body_into is large-frame (never Cap tip probe).
   if [ -n "$_lex_keep" ] && [ -s "$_lex_keep" ]; then
     mv -f "$_lex_keep" lexer_x.o
-    log "lexer_x.o keep seed (note743k; tip/pin re-emit failed)"
-    return 0
+    if _lexer_body_into_ok; then
+      log "lexer_x.o keep seed (note743k; tip/pin re-emit failed)"
+      return 0
+    fi
+    log "lexer_x.o drop Cap tip probe keep seed (tip_l4)"
+    rm -f lexer_x.o
   fi
   rm -f lexer_x.o "$_lex_keep"
   log "lexer_x.o pure-asm failed (w1546; no cc fallback)"
