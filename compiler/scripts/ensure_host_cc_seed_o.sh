@@ -6092,6 +6092,75 @@ ensure_deleted_seed_leaf_pure_rt_emit_bss() {
 # knife 256 / 10.2: pure-asm leaf when C seed was deleted (5.11 / w1533).
 # Mirrors g05_ensure whole-object pure asm; used by bootstrap try-heat.
 # PLATFORM: SHARED. Fail closed — no host-cc fallback.
+# tip_l4 pe_codegen_elf_o_hang: Cap tip / PE tip -c of user_asm_seed_bridge.x
+# can omit the while (ln < 62) ln++ in asm_asm_codegen_elf_o (lib name never
+# advances → hang on non-empty out_lib). Pin-egg emits Cap-good body with
+# add w0,w1,w0 after mov #0x3e in that symbol. Authority scopes the check to
+# _asm_asm_codegen_elf_o so other adds in the TU cannot false-pass.
+# PLATFORM: SHARED.
+uasb_codegen_elf_o_ln_inc_ok() {
+  local o="${1:-}" dump
+  [ -s "$o" ] || return 1
+  # Prefer symbol-scoped disassembly (llvm-objdump / GNU).
+  dump="$(objdump -d --disassemble-symbols=_asm_asm_codegen_elf_o "$o" 2>/dev/null || true)"
+  if [ -z "$dump" ]; then
+    dump="$(objdump -d --disassemble-symbols=asm_asm_codegen_elf_o "$o" 2>/dev/null || true)"
+  fi
+  if [ -z "$dump" ]; then
+    return 1
+  fi
+  # Bound 62 must appear, and ln+=1 (add w0, w1, w0) must appear in the same
+  # symbol body. Whole-object grep is insufficient: tip bodies have other adds.
+  printf '%s\n' "$dump" | grep -Eq 'mov[[:space:]]+w0,[[:space:]]+#0x3e' || return 1
+  printf '%s\n' "$dump" | grep -Eq 'add[[:space:]]+w0,[[:space:]]+w1,[[:space:]]+w0' || return 1
+  return 0
+}
+
+# tip_l4 pe_codegen_elf_o_hang: egg-first pure-asm for the whole uasb TU.
+# Tip pure_asm_x_to_o "succeeds" with the hang body; pin-egg-on-failure never
+# fires. Prefer seeds/bootstrap_xlangc.$os.$arch via g05_xasm; tip pure only
+# as fallback when it still passes ln++ authority. Ban park. PLATFORM: SHARED.
+uasb_pure_any() {
+  local o="${1:-}"
+  local xsrc="src/asm/user_asm_seed_bridge.x"
+  local _egg_os _egg_arch _egg
+  [ -n "$o" ] && [ -f "$xsrc" ] || return 1
+  _egg_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
+  _egg_arch="$(uname -m 2>/dev/null)"
+  case "$_egg_os" in darwin) _egg_os=darwin ;; linux) _egg_os=linux ;; *) _egg_os="" ;; esac
+  case "$_egg_arch" in x86_64|amd64) _egg_arch=x86_64 ;; arm64|aarch64) _egg_arch=arm64 ;; *) _egg_arch="" ;; esac
+  if [ -n "$_egg_os" ] && [ -n "$_egg_arch" ]; then
+    _egg="seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}"
+    if [ -x "$_egg" ]; then
+      rm -f "$o"
+      # g05_xasm: -o must end in .o or product links (BLD001). PLATFORM: SHARED.
+      if g05_xasm "$_egg" -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 \
+        && [ -s "$o" ] && uasb_codegen_elf_o_ln_inc_ok "$o"; then
+        echo "uasb: pure-asm via pin-egg $_egg (codegen_elf_o ln++)" >&2
+        return 0
+      fi
+      rm -f "$o"
+    fi
+  fi
+  # Tip fallback: only accept if authority passes (rejects hang body).
+  mkdir -p "$(dirname "$o")"
+  local try=0
+  while [ "$try" -lt 3 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+      pure_asm_x_to_o "$o" "$xsrc"
+    ) && [ -s "$o" ] && uasb_codegen_elf_o_ln_inc_ok "$o"; then
+      echo "uasb: pure-asm via tip (codegen_elf_o ln++ ok)" >&2
+      return 0
+    fi
+    rm -f "$o"
+  done
+  return 1
+}
+
 ensure_deleted_seed_leaf_pure() {
   local o="$1"
   local x=""
@@ -6123,6 +6192,21 @@ ensure_deleted_seed_leaf_pure() {
   esac
   if [ ! -f "$x" ]; then
     echo "ensure_host_cc_seed_o: missing $x for $o" >&2
+    return 1
+  fi
+  # tip_l4 pe_codegen_elf_o_hang: uasb needs egg-first + ln++ authority.
+  # Stale tip bodies look up-to-date vs .x but hang in asm_asm_codegen_elf_o.
+  # PLATFORM: SHARED.
+  if [ "$o" = "src/asm/user_asm_seed_bridge.o" ]; then
+    if [ "${FORCE:-0}" != "1" ] && [ -s "$o" ] && [ ! "$x" -nt "$o" ]       && uasb_codegen_elf_o_ln_inc_ok "$o"; then
+      log "skip $o (up-to-date vs $x; uasb ln++ authority ok)"
+      return 0
+    fi
+    if uasb_pure_any "$o"; then
+      log "pure-asm $x → $o (tip_l4 uasb egg-first; codegen_elf_o ln++)"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o: uasb egg-first/tip pure failed for $x → $o" >&2
     return 1
   fi
   if [ "${FORCE:-0}" != "1" ] && [ -s "$o" ] && [ ! "$x" -nt "$o" ]; then
@@ -34648,6 +34732,35 @@ case "$MODE" in
     fi
     rt_abk_authority_check "$1"
     exit $?
+    ;;
+  uasb-ln-inc-ok|uasb_ln_inc_ok)
+    # tip_l4 pe_codegen_elf_o_hang: authority for codegen_elf_o while-ln++.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o uasb-ln-inc-ok: need <obj>" >&2
+      exit 2
+    fi
+    uasb_codegen_elf_o_ln_inc_ok "$1"
+    exit $?
+    ;;
+  uasb-pure|uasb_pure)
+    # tip_l4 pe_codegen_elf_o_hang: egg-first whole-object pure for uasb.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o uasb-pure: need <out.o>" >&2
+      exit 2
+    fi
+    _uasb_out="$1"
+    case "$_uasb_out" in
+      src/asm/user_asm_seed_bridge.o|*/user_asm_seed_bridge.o|user_asm_seed_bridge.o) ;;
+      *)
+        echo "ensure_host_cc_seed_o uasb-pure: not user_asm_seed_bridge.o" >&2
+        exit 3
+        ;;
+    esac
+    set +e
+    uasb_pure_any "$_uasb_out"
+    _uasb_rc=$?
+    set -e
+    exit "$_uasb_rc"
     ;;
   pthin-let-alias-pure|pthin_let_alias_darwin_pure)
     # w1163: four pure-asm symbols of src/asm/pthin_let_alias.x.

@@ -1580,42 +1580,49 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _uab_x=src/asm/user_asm_seed_bridge.x
   _uab_o=src/asm/user_asm_seed_bridge.o
   if [ -f "$_uab_x" ]; then
+    # tip_l4 pe_codegen_elf_o_hang: also rebuild when asm_asm_codegen_elf_o
+    # lacks while-ln++ (tip hang body). Egg-first via ensure uasb-pure.
+    # PLATFORM: SHARED.
+    _uab_need=0
     if [ ! -f "$_uab_o" ] || [ "$_uab_x" -nt "$_uab_o" ] \
       || ! nm "$_uab_o" 2>/dev/null | tr -d '\r' | grep -q " T _*uasb_rd32\$"; then
+      _uab_need=1
+    elif ! bash scripts/ensure_host_cc_seed_o.sh uasb-ln-inc-ok "$_uab_o"; then
+      _uab_need=1
+      echo "g05_ensure: $_uab_o fails codegen_elf_o ln++ authority; rebuild (tip_l4)"
+    fi
+    if [ "$_uab_need" = "1" ]; then
       _uab_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_uab_os" in MINGW*|MSYS*|CYGWIN*) _uab_os=Windows ;; esac
-      _uab_done=0
-      for _uab_try in 1 2 3; do
-        rm -f "$_uab_o.x.tmp.o"
-        if (
-          export XLANG_PREFER_ASM_O=1
-          unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
-          pure_asm_x_to_o "$_uab_o.x.tmp.o" "$_uab_x"
-        ) && [ -s "$_uab_o.x.tmp.o" ]; then
-          _uab_nm=$(nm "$_uab_o.x.tmp.o" 2>/dev/null | tr -d '\r')
-          if printf '%s\n' "$_uab_nm" | grep -q " T _*asm_asm_codegen_elf_o\$" \
-            && printf '%s\n' "$_uab_nm" | grep -q " T _*asm_asm_codegen_ast\$" \
-            && printf '%s\n' "$_uab_nm" | grep -q " T _*seed_platform_coff_write_coff_o_to_buf\$" \
-            && printf '%s\n' "$_uab_nm" | grep -q " T _*user_asm_seed_bridge_x_doc_anchor\$"; then
-            _uab_done=1
-            break
-          fi
+      rm -f "$_uab_o.x.tmp.o" "$_uab_o"
+      if bash scripts/ensure_host_cc_seed_o.sh uasb-pure "$_uab_o" \
+        && [ -s "$_uab_o" ] \
+        && bash scripts/ensure_host_cc_seed_o.sh uasb-ln-inc-ok "$_uab_o"; then
+        _uab_nm=$(nm "$_uab_o" 2>/dev/null | tr -d '\r')
+        if printf '%s\n' "$_uab_nm" | grep -q " T _*asm_asm_codegen_elf_o\$" \
+          && printf '%s\n' "$_uab_nm" | grep -q " T _*asm_asm_codegen_ast\$" \
+          && printf '%s\n' "$_uab_nm" | grep -q " T _*seed_platform_coff_write_coff_o_to_buf\$" \
+          && printf '%s\n' "$_uab_nm" | grep -q " T _*user_asm_seed_bridge_x_doc_anchor\$"; then
+          echo "g05_ensure: $_uab_o ← $_uab_x (w1518 egg-first uasb-pure, ln++ authority)"
+        else
+          rm -f "$_uab_o"
+          mkdir -p build_asm
+          echo "$_uab_os $_uab_x" >>build_asm/g05_cc_fallback.log 2>/dev/null || true
+          echo "g05_ensure: ERROR $_uab_x uasb-pure missing required T symbols (w1518)" >&2
+          exit 1
         fi
-        printf '%s try=%s g05_ensure: pure asm %s failed\n' \
-          "$(date +%H:%M:%S)" "$_uab_try" "$_uab_x" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
-      done
-      if [ "$_uab_done" = "1" ]; then
-        mv -f "$_uab_o.x.tmp.o" "$_uab_o"
-        echo "g05_ensure: $_uab_o ← $_uab_x (w1518 pure asm, whole object, no cc)"
       else
         rm -f "$_uab_o.x.tmp.o" "$_uab_o"
         mkdir -p build_asm
         echo "$_uab_os $_uab_x" >>build_asm/g05_cc_fallback.log 2>/dev/null || true
-        echo "g05_ensure: ERROR $_uab_x pure asm failed 3x; no cc fallback (w1518)" >&2
+        printf '%s try=egg-first g05_ensure: pure asm %s failed\n' \
+          "$(date +%H:%M:%S)" "$_uab_x" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
+        echo "g05_ensure: ERROR $_uab_x uasb-pure failed; no cc fallback (w1518 tip_l4)" >&2
         exit 1
       fi
     fi
   fi
+
   # w1519 (5.8b): src/asm/asm_backend_compat_stubs.o is the whole
   # src/asm/asm_backend_compat_stubs.x built by product pure asm on all three
   # hosts (format helpers, CodegenOutBuf line append, ELF u32 helpers, block
