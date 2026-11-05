@@ -7461,6 +7461,149 @@ for i,(a,n) in enumerate(syms):
         exit 1
       fi
     fi
+    # tip_l4_tip_pe_cg002_asm_codegen: tip selfhost backend_call_dispatch.o
+    # glue_asm_build_func_export_sym_c drops non-bare else → dep_export (and
+    # bare copy omits pos++/cj++). Cap keeps else. Entry main bare=0 → tip
+    # pos=0 → -1 → mega +872 → CG002 → tip_after.o 0B / no `_main`. Tip-local
+    # host-cc twin + weaken tip T. Soft Cap Prefer / Cap aside / Win banned.
+    # PLATFORM: MACOS|DARWIN arm64 tip cold.
+    _ex_ovr_c=seeds/darwin_tip_pe_overrides/glue_asm_build_func_export_sym_override.c
+    _ex_ovr_o=build_asm/selfhost_pabi/glue_asm_build_func_export_sym_override.o
+    _ex_tip_o=src/asm/backend_call_dispatch.o
+    if [ -f "$_ex_ovr_c" ] && [ -s "$_ex_tip_o" ]; then
+      if nm -gU "$_ex_tip_o" 2>/dev/null | awk '{print $3}' | grep -qxF '_glue_asm_build_func_export_sym_c'; then
+        mkdir -p build_asm/selfhost_pabi
+        if [ ! -s "$_ex_ovr_o" ] || [ "$_ex_ovr_c" -nt "$_ex_ovr_o" ]; then
+          if ! ${CC:-cc} -c -O2 -o "$_ex_ovr_o" "$_ex_ovr_c" 2>/tmp/g05_ex_ovr_cc.err; then
+            echo "g05_relink_env: ERROR export_sym override cc failed" >&2
+            cat /tmp/g05_ex_ovr_cc.err >&2 || true
+            exit 1
+          fi
+        fi
+        if ! nm -gU "$_ex_ovr_o" 2>/dev/null | awk '{print $3}' | grep -qxF '_glue_asm_build_func_export_sym_c'; then
+          echo "g05_relink_env: ERROR export_sym override missing T _glue_asm_build_func_export_sym_c" >&2
+          exit 1
+        fi
+        case " $_CAP_TIP_FRONT " in
+          *" glue_asm_build_func_export_sym_override.o "*) ;;
+          *)
+            _CAP_TIP_FRONT="$_ex_ovr_o $_CAP_TIP_FRONT"
+            echo "g05_relink_env: tip_l4 cg002 prepended glue_asm_build_func_export_sym_override.o" >&2
+            ;;
+        esac
+        if [ -z "${_oc:-}" ]; then
+          if command -v llvm-objcopy >/dev/null 2>&1; then _oc=llvm-objcopy
+          elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+          elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+          elif command -v objcopy >/dev/null 2>&1; then _oc=objcopy
+          fi
+        fi
+        if [ -n "${_oc:-}" ]; then
+          if nm "$_ex_tip_o" 2>/dev/null | awk '$2=="T" && $3==s{f=1} END{exit f?0:1}' s="_glue_asm_build_func_export_sym_c"; then
+            "$_oc" --weaken-symbol=_glue_asm_build_func_export_sym_c "$_ex_tip_o" 2>/dev/null               && echo "g05_relink_env: tip_l4 cg002 weaken $_ex_tip_o _glue_asm_build_func_export_sym_c (override wins)" >&2               || true
+          fi
+        else
+          echo "g05_relink_env: ERROR tip_l4 cg002 needs llvm-objcopy to weaken tip export_sym" >&2
+          exit 1
+        fi
+      fi
+    fi
+    # tip_l4_tip_pe_cg002_asm_codegen (cont): tip dep_export selfhost drops
+    # i++/pos++ after prefix/name copy stores → busy-loop once export_sym twin
+    # restores non-bare else. Cap keeps increments. Tip-local host-cc twin +
+    # weaken tip T. Soft Cap Prefer / Cap aside / Win banned.
+    # PLATFORM: MACOS|DARWIN arm64 tip cold.
+    _dep_ovr_c=seeds/darwin_tip_pe_overrides/glue_asm_build_dep_export_sym_override.c
+    _dep_ovr_o=build_asm/selfhost_pabi/glue_asm_build_dep_export_sym_override.o
+    _dep_tip_o=src/asm/backend_call_dispatch.o
+    if [ -f "$_dep_ovr_c" ] && [ -s "$_dep_tip_o" ]; then
+      if nm -gU "$_dep_tip_o" 2>/dev/null | awk '{print $3}' | grep -qxF '_glue_asm_build_dep_export_sym_c'; then
+        mkdir -p build_asm/selfhost_pabi
+        if [ ! -s "$_dep_ovr_o" ] || [ "$_dep_ovr_c" -nt "$_dep_ovr_o" ]; then
+          if ! ${CC:-cc} -c -O2 -o "$_dep_ovr_o" "$_dep_ovr_c" 2>/tmp/g05_dep_ovr_cc.err; then
+            echo "g05_relink_env: ERROR dep_export override cc failed" >&2
+            cat /tmp/g05_dep_ovr_cc.err >&2 || true
+            exit 1
+          fi
+        fi
+        if ! nm -gU "$_dep_ovr_o" 2>/dev/null | awk '{print $3}' | grep -qxF '_glue_asm_build_dep_export_sym_c'; then
+          echo "g05_relink_env: ERROR dep_export override missing T _glue_asm_build_dep_export_sym_c" >&2
+          exit 1
+        fi
+        case " $_CAP_TIP_FRONT " in
+          *" glue_asm_build_dep_export_sym_override.o "*) ;;
+          *)
+            _CAP_TIP_FRONT="$_dep_ovr_o $_CAP_TIP_FRONT"
+            echo "g05_relink_env: tip_l4 cg002 prepended glue_asm_build_dep_export_sym_override.o" >&2
+            ;;
+        esac
+        if [ -z "${_oc:-}" ]; then
+          if command -v llvm-objcopy >/dev/null 2>&1; then _oc=llvm-objcopy
+          elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+          elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+          elif command -v objcopy >/dev/null 2>&1; then _oc=objcopy
+          fi
+        fi
+        if [ -n "${_oc:-}" ]; then
+          if nm "$_dep_tip_o" 2>/dev/null | awk '$2=="T" && $3==s{f=1} END{exit f?0:1}' s="_glue_asm_build_dep_export_sym_c"; then
+            "$_oc" --weaken-symbol=_glue_asm_build_dep_export_sym_c "$_dep_tip_o" 2>/dev/null \
+              && echo "g05_relink_env: tip_l4 cg002 weaken $_dep_tip_o _glue_asm_build_dep_export_sym_c (override wins)" >&2 \
+              || true
+          fi
+        else
+          echo "g05_relink_env: ERROR tip_l4 cg002 needs llvm-objcopy to weaken tip dep_export" >&2
+          exit 1
+        fi
+      fi
+    fi
+    # tip_l4_tip_pe_cg002_asm_codegen (cont): tip overload_count selfhost drops
+    # i++ and c++ in the scan loop → busy-loop once export_sym/dep_export twins
+    # restore the non-bare path. Cap keeps increments. Tip-local host-cc twin +
+    # weaken tip T. Soft Cap Prefer / Cap aside / Win banned.
+    # PLATFORM: MACOS|DARWIN arm64 tip cold.
+    _ocnt_ovr_c=seeds/darwin_tip_pe_overrides/glue_module_func_overload_count_override.c
+    _ocnt_ovr_o=build_asm/selfhost_pabi/glue_module_func_overload_count_override.o
+    _ocnt_tip_o=src/asm/backend_call_dispatch.o
+    if [ -f "$_ocnt_ovr_c" ] && [ -s "$_ocnt_tip_o" ]; then
+      if nm -gU "$_ocnt_tip_o" 2>/dev/null | awk '{print $3}' | grep -qxF '_glue_module_func_overload_count_c'; then
+        mkdir -p build_asm/selfhost_pabi
+        if [ ! -s "$_ocnt_ovr_o" ] || [ "$_ocnt_ovr_c" -nt "$_ocnt_ovr_o" ]; then
+          if ! ${CC:-cc} -c -O2 -o "$_ocnt_ovr_o" "$_ocnt_ovr_c" 2>/tmp/g05_ocnt_ovr_cc.err; then
+            echo "g05_relink_env: ERROR overload_count override cc failed" >&2
+            cat /tmp/g05_ocnt_ovr_cc.err >&2 || true
+            exit 1
+          fi
+        fi
+        if ! nm -gU "$_ocnt_ovr_o" 2>/dev/null | awk '{print $3}' | grep -qxF '_glue_module_func_overload_count_c'; then
+          echo "g05_relink_env: ERROR overload_count override missing T" >&2
+          exit 1
+        fi
+        case " $_CAP_TIP_FRONT " in
+          *" glue_module_func_overload_count_override.o "*) ;;
+          *)
+            _CAP_TIP_FRONT="$_ocnt_ovr_o $_CAP_TIP_FRONT"
+            echo "g05_relink_env: tip_l4 cg002 prepended glue_module_func_overload_count_override.o" >&2
+            ;;
+        esac
+        if [ -z "${_oc:-}" ]; then
+          if command -v llvm-objcopy >/dev/null 2>&1; then _oc=llvm-objcopy
+          elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+          elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+          elif command -v objcopy >/dev/null 2>&1; then _oc=objcopy
+          fi
+        fi
+        if [ -n "${_oc:-}" ]; then
+          if nm "$_ocnt_tip_o" 2>/dev/null | awk '$2=="T" && $3==s{f=1} END{exit f?0:1}' s="_glue_module_func_overload_count_c"; then
+            "$_oc" --weaken-symbol=_glue_module_func_overload_count_c "$_ocnt_tip_o" 2>/dev/null \
+              && echo "g05_relink_env: tip_l4 cg002 weaken $_ocnt_tip_o _glue_module_func_overload_count_c (override wins)" >&2 \
+              || true
+          fi
+        else
+          echo "g05_relink_env: ERROR tip_l4 cg002 needs llvm-objcopy to weaken tip overload_count" >&2
+          exit 1
+        fi
+      fi
+    fi
     # note743y.6.22: Apple clang packs consecutive stack i32s; tip Soft Cap
     # into_c expects 8-byte slots → bound_scan gets len as data (FAR=0x72).
     # Cap tip twin: strong noop complete_c; demote typeck/thin_glue bodies.
