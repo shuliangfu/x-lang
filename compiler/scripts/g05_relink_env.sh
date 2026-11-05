@@ -7283,21 +7283,42 @@ case "$UNAME_S" in
     # note743y.6.22: ret-by-value shim + demote tip lexer_init (Linux twin).
     # tip Soft Cap-only init → P001 no _main. ABI detect like note743y.4 —
     # Track L cold seed may still be ret-by-value without pure_asm marker.
+    # Darwin arm64: Xcode objdump has no %rax/%rdx — false SKIP left PE
+    # lexer_init smash first 16B of source ("function main():") → P001/BLD001.
+    # Authority: bootstrap twin size gate (parser_x.o <400k = Track L thin).
     # PLATFORM: MACOS tip cold.
     _need_lex_shim=0
     if [ -f parser_x.pure_asm ]; then
       _need_lex_shim=1
-    elif [ -f parser_x.o ] && command -v objdump >/dev/null 2>&1; then
-      if objdump -d parser_x.o 2>/dev/null | awk '
-        /bl[ \t]/ { c=1; next }
-        /call/ { c=1; next }
-        c && /mov[a-z]*[ \t]+%rax,/ { a=1 }
-        c && /mov[a-z]*[ \t]+%rdx,/ { d=1 }
-        c && a && d { found=1; exit }
-        c && /^[0-9a-f]+ </ { c=0; a=0; d=0 }
-        END { exit found?0:1 }
-      '; then
+    elif [ -f parser_x.o ]; then
+      _psz=$(wc -c <parser_x.o | tr -d ' ')
+      if [ "$_psz" -lt 400000 ]; then
         _need_lex_shim=1
+      elif command -v objdump >/dev/null 2>&1; then
+        if objdump -d parser_x.o 2>/dev/null | awk '
+          /bl[ \t]/ { c=1; next }
+          /call/ { c=1; next }
+          c && /mov[a-z]*[ \t]+%rax,/ { a=1 }
+          c && /mov[a-z]*[ \t]+%rdx,/ { d=1 }
+          c && a && d { found=1; exit }
+          c && /^[0-9a-f]+ </ { c=0; a=0; d=0 }
+          END { exit found?0:1 }
+        '; then
+          _need_lex_shim=1
+        fi
+      fi
+      # arm64 ret-by-value: bl lexer_init then str x0 / str x1 (consume pair).
+      if [ "$_need_lex_shim" = "0" ] && command -v otool >/dev/null 2>&1; then
+        if otool -tv parser_x.o 2>/dev/null | awk '
+          /bl[ \t].*lexer_init/ { c=1; next }
+          c && /str[ \t]+x0,/ { a=1 }
+          c && /str[ \t]+x1,/ { d=1 }
+          c && a && d { found=1; exit }
+          c && /^[A-Za-z_][A-Za-z0-9_]*:/ { c=0; a=0; d=0 }
+          END { exit found?0:1 }
+        '; then
+          _need_lex_shim=1
+        fi
       fi
     fi
     if [ "$_need_lex_shim" = "1" ]; then
@@ -7323,12 +7344,34 @@ case "$UNAME_S" in
           echo "g05_relink_env: note743y.6.22 lexer_init ret-by-value shim" >&2
           ;;
       esac
-      if [ -f lexer_x.o ] && [ -n "${_oc:-}" ]; then
+      if [ -f lexer_x.o ]; then
         _lex_f=build_asm/selfhost_pabi/lexer_x_tip_peel.o
-        cp -f lexer_x.o "$_lex_f"
-        if nm -gU "$_lex_f" 2>/dev/null | awk '{print $3}' | grep -qxF '_lexer_init'; then
-          "$_oc" --redefine-sym=_lexer_init=_lexer_init__tip_outptr_dead "$_lex_f" 2>/dev/null \
-            || { echo "g05_relink_env: ERROR demote tip lexer_init failed" >&2; exit 1; }
+        _demoted=0
+        if [ -n "${_oc:-}" ]; then
+          cp -f lexer_x.o "$_lex_f"
+          if nm -gU "$_lex_f" 2>/dev/null | awk '{print $3}' | grep -qxF '_lexer_init'; then
+            if "$_oc" --redefine-sym=_lexer_init=_lexer_init__tip_outptr_dead "$_lex_f" 2>/dev/null; then
+              _demoted=1
+            fi
+          else
+            _demoted=1
+          fi
+        fi
+        # Darwin twin of bootstrap_driver_seed_link: ld -r filter when no objcopy.
+        if [ "$_demoted" != "1" ]; then
+          _exp=build_asm/selfhost_pabi/lexer_x_tip_peel_exports.txt
+          nm -gU lexer_x.o 2>/dev/null | awk '/ [Tt] /{print $3}' \
+            | grep -v '^_lexer_init$' | grep -v '^lexer_init$' >"$_exp" || true
+          if [ ! -s "$_exp" ]; then
+            echo "g05_relink_env: ERROR empty lexer_x tip-peel export list" >&2
+            exit 1
+          fi
+          if ! ld -r -o "$_lex_f" -exported_symbols_list "$_exp" lexer_x.o 2>/tmp/g05_lexer_x_tip_peel.err; then
+            echo "g05_relink_env: ERROR ld -r filter lexer_init failed" >&2
+            cat /tmp/g05_lexer_x_tip_peel.err >&2 || true
+            exit 1
+          fi
+          _demoted=1
         fi
         if nm -gU "$_lex_f" 2>/dev/null | grep -qE ' T _lexer_init$'; then
           echo "g05_relink_env: ERROR lexer_x tip-peel still exports T _lexer_init" >&2
@@ -7336,9 +7379,6 @@ case "$UNAME_S" in
         fi
         _G05_LEXER_X_O="$_lex_f"
         echo "g05_relink_env: note743y.6.22 demoted tip lexer_x::_lexer_init (shim wins)" >&2
-      elif [ -f lexer_x.o ]; then
-        echo "g05_relink_env: ERROR llvm-objcopy required to demote tip lexer_init" >&2
-        exit 1
       fi
     else
       _G05_LEXER_X_O=""

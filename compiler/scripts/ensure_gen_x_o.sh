@@ -356,6 +356,34 @@ build_lexer_x() {
     local _bi_dump
     _bi_dump="$(mktemp "${TMPDIR:-/tmp}/lexer_body_into.XXXXXX")"
     objdump -d --disassemble=lexer_next_body_into lexer_x.o >"$_bi_dump" 2>/dev/null || true
+    # Darwin Xcode objdump: --disassemble=SYM unsupported → empty dump.
+    # tip_l4 BLD001 knife: empty dump must NOT drop a good pin-egg peel
+    # (false Cap-probe reject → ensure deletes lexer_x.o → shim gate never
+    # lands). otool large-frame twin; if still unauditable, keep like no-objdump.
+    if [ ! -s "$_bi_dump" ]; then
+      rm -f "$_bi_dump"
+      if command -v otool >/dev/null 2>&1; then
+        if otool -tv -p _lexer_next_body_into lexer_x.o 2>/dev/null | awk '
+          /sub[ \t]+sp, sp, #0x[0-9a-fA-F]+/ {
+            hex=$0
+            sub(/.*#0x/, "", hex)
+            sub(/[^0-9a-fA-F].*/, "", hex)
+            n = strtonum("0x" hex)
+            if (n >= 0x4000) ok=1
+          }
+          /sub[ \t]+sp, sp, #([0-9]+)/ {
+            n = $0
+            sub(/.*#/, "", n)
+            sub(/[^0-9].*/, "", n)
+            if (n+0 >= 16384) ok=1
+          }
+          END { exit ok ? 0 : 1 }
+        '; then
+          return 0
+        fi
+      fi
+      return 0
+    fi
     awk '
       /sub[lq]?[ \t]+\$0x[0-9a-fA-F]+,%rsp/ {
         hex=$0
