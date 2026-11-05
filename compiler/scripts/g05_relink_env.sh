@@ -7384,6 +7384,83 @@ case "$UNAME_S" in
       _G05_LEXER_X_O=""
       echo "g05_relink_env: note743y.6.22 SKIP ret-by-value shim (parser out-ptr lexer_init ABI)" >&2
     fi
+    # tip_l4_tip_pe_onefunc_impl: Darwin tip PE hollow type_ref impl/scalar/peel
+    # + builtin_vec false-steps on non-vec (void→brace). Cap 0x48c/0x1d8/vec
+    # no-step on elem_ord<0. FROM_X presence-only → hollow wins → no `_main`
+    # (BLD001). Tip-local host-cc twins + weaken thin_glue. Soft Cap Prefer /
+    # Cap aside / Win banned. PLATFORM: MACOS|DARWIN arm64 tip cold.
+    _ty_ovr_c=seeds/darwin_tip_pe_overrides/type_ref_impl_scalar_override.c
+    _ty_ovr_o=build_asm/selfhost_pabi/type_ref_impl_scalar_override.o
+    _ty_need=0
+    if [ -f "$_ty_ovr_c" ] && [ -s parser_asm_thin_glue.o ]; then
+      # Hollow gate: tip impl text size < 0x450 (Cap 0x48c; bak 0x5d0).
+      # Accept T or W (after prior weaken the hollow body stays W).
+      _ty_impl_sz="$(python3 -c '
+import subprocess
+out=subprocess.check_output(["nm","-n","parser_asm_thin_glue.o"], text=True, errors="replace")
+syms=[]
+for line in out.splitlines():
+    p=line.split()
+    if len(p)>=3 and p[1] in ("T","t","W","w"):
+        syms.append((int(p[0],16), p[2]))
+for i,(a,n) in enumerate(syms):
+    if n=="_parser_asm_parse_type_ref_impl_x_into_c":
+        e=syms[i+1][0] if i+1<len(syms) else a
+        print(e-a)
+        break
+')"
+      if [ -n "$_ty_impl_sz" ] && [ "$_ty_impl_sz" -gt 0 ] && [ "$_ty_impl_sz" -lt 1104 ]; then
+        _ty_need=1
+      fi
+    fi
+    if [ "$_ty_need" = "1" ]; then
+      mkdir -p build_asm/selfhost_pabi
+      if [ ! -s "$_ty_ovr_o" ] || [ "$_ty_ovr_c" -nt "$_ty_ovr_o" ]; then
+        if ! ${CC:-cc} -c -O2 -o "$_ty_ovr_o" "$_ty_ovr_c" 2>/tmp/g05_ty_ovr_cc.err; then
+          echo "g05_relink_env: ERROR type_ref override cc failed" >&2
+          cat /tmp/g05_ty_ovr_cc.err >&2 || true
+          exit 1
+        fi
+      fi
+      for _ts in _parser_asm_parse_type_ref_impl_x_into_c \
+        _parser_asm_parse_builtin_scalar_type_x_into_c \
+        _parser_asm_peel_dyn_impl_prefix_x_into_c \
+        _parser_asm_parse_builtin_vec_type_x_into_c; do
+        if ! nm -gU "$_ty_ovr_o" 2>/dev/null | awk '{print $3}' | grep -qxF "$_ts"; then
+          echo "g05_relink_env: ERROR type_ref override missing T $_ts" >&2
+          exit 1
+        fi
+      done
+      case " $_CAP_TIP_FRONT " in
+        *" type_ref_impl_scalar_override.o "*) ;;
+        *)
+          _CAP_TIP_FRONT="$_ty_ovr_o $_CAP_TIP_FRONT"
+          echo "g05_relink_env: tip_l4 onefunc prepended type_ref_impl_scalar_override.o (hollow tip impl sz=$_ty_impl_sz)" >&2
+          ;;
+      esac
+      if [ -z "${_oc:-}" ]; then
+        if command -v llvm-objcopy >/dev/null 2>&1; then _oc=llvm-objcopy
+        elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+        elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+        elif command -v objcopy >/dev/null 2>&1; then _oc=objcopy
+        fi
+      fi
+      if [ -n "${_oc:-}" ] && [ -s parser_asm_thin_glue.o ]; then
+        for _ts in _parser_asm_parse_type_ref_impl_x_into_c \
+          _parser_asm_parse_builtin_scalar_type_x_into_c \
+          _parser_asm_peel_dyn_impl_prefix_x_into_c \
+          _parser_asm_parse_builtin_vec_type_x_into_c; do
+          if nm parser_asm_thin_glue.o 2>/dev/null | awk '$2=="T" && $3==s{f=1} END{exit f?0:1}' s="$_ts"; then
+            "$_oc" --weaken-symbol="$_ts" parser_asm_thin_glue.o 2>/dev/null \
+              && echo "g05_relink_env: tip_l4 onefunc weaken thin_glue $_ts (override wins)" >&2 \
+              || true
+          fi
+        done
+      else
+        echo "g05_relink_env: ERROR tip_l4 onefunc needs llvm-objcopy to weaken hollow type_ref" >&2
+        exit 1
+      fi
+    fi
     # note743y.6.22: Apple clang packs consecutive stack i32s; tip Soft Cap
     # into_c expects 8-byte slots → bound_scan gets len as data (FAR=0x72).
     # Cap tip twin: strong noop complete_c; demote typeck/thin_glue bodies.
