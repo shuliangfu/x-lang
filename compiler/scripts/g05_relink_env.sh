@@ -7604,6 +7604,56 @@ for i,(a,n) in enumerate(syms):
         fi
       fi
     fi
+    # tip_l4_tip_pe_cg002_prologue_arch: tip selfhost backend_arm64_enc_c.o
+    # arm64_enc_addsub_sp_imm_chunks drops if-body stores and loop-tail
+    # left-=chunk → while never shrinks → append fails → addsub -1 →
+    # prologue_arch -1 → CG002 → tip_after.o 0B / no `_main`. Cap keeps
+    # stores. Tip-local host-cc twin + weaken tip T. Soft Cap Prefer /
+    # Cap aside / Win banned.
+    # PLATFORM: MACOS|DARWIN arm64 tip cold.
+    _as_ovr_c=seeds/darwin_tip_pe_overrides/arm64_enc_addsub_sp_imm_chunks_override.c
+    _as_ovr_o=build_asm/selfhost_pabi/arm64_enc_addsub_sp_imm_chunks_override.o
+    _as_tip_o=src/asm/backend_arm64_enc_c.o
+    if [ -f "$_as_ovr_c" ] && [ -s "$_as_tip_o" ]; then
+      if nm -gU "$_as_tip_o" 2>/dev/null | awk '{print $3}' | grep -qxF '_arm64_enc_addsub_sp_imm_chunks'; then
+        mkdir -p build_asm/selfhost_pabi
+        if [ ! -s "$_as_ovr_o" ] || [ "$_as_ovr_c" -nt "$_as_ovr_o" ]; then
+          if ! ${CC:-cc} -c -O2 -o "$_as_ovr_o" "$_as_ovr_c" 2>/tmp/g05_as_ovr_cc.err; then
+            echo "g05_relink_env: ERROR addsub_sp override cc failed" >&2
+            cat /tmp/g05_as_ovr_cc.err >&2 || true
+            exit 1
+          fi
+        fi
+        if ! nm -gU "$_as_ovr_o" 2>/dev/null | awk '{print $3}' | grep -qxF '_arm64_enc_addsub_sp_imm_chunks'; then
+          echo "g05_relink_env: ERROR addsub_sp override missing T _arm64_enc_addsub_sp_imm_chunks" >&2
+          exit 1
+        fi
+        case " $_CAP_TIP_FRONT " in
+          *" arm64_enc_addsub_sp_imm_chunks_override.o "*) ;;
+          *)
+            _CAP_TIP_FRONT="$_as_ovr_o $_CAP_TIP_FRONT"
+            echo "g05_relink_env: tip_l4 cg002 prepended arm64_enc_addsub_sp_imm_chunks_override.o" >&2
+            ;;
+        esac
+        if [ -z "${_oc:-}" ]; then
+          if command -v llvm-objcopy >/dev/null 2>&1; then _oc=llvm-objcopy
+          elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+          elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+          elif command -v objcopy >/dev/null 2>&1; then _oc=objcopy
+          fi
+        fi
+        if [ -n "${_oc:-}" ]; then
+          if nm "$_as_tip_o" 2>/dev/null | awk '$2=="T" && $3==s{f=1} END{exit f?0:1}' s="_arm64_enc_addsub_sp_imm_chunks"; then
+            "$_oc" --weaken-symbol=_arm64_enc_addsub_sp_imm_chunks "$_as_tip_o" 2>/dev/null \
+              && echo "g05_relink_env: tip_l4 cg002 weaken $_as_tip_o _arm64_enc_addsub_sp_imm_chunks (override wins)" >&2 \
+              || true
+          fi
+        else
+          echo "g05_relink_env: ERROR tip_l4 cg002 needs llvm-objcopy to weaken tip addsub_sp" >&2
+          exit 1
+        fi
+      fi
+    fi
     # note743y.6.22: Apple clang packs consecutive stack i32s; tip Soft Cap
     # into_c expects 8-byte slots → bound_scan gets len as data (FAR=0x72).
     # Cap tip twin: strong noop complete_c; demote typeck/thin_glue bodies.
