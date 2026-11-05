@@ -7321,6 +7321,78 @@ ensure_catalog_family() {
   log "$label OK ($n objs via catalog $key)"
 }
 
+# tip_l4 pe_pctx_entry_lib_prefix_segv: Cap tip / PE tip -c of
+# rt_emit_state.x can omit the four pfx/imp/plen/ilen = ctx + off_*()
+# inits in xlang_pipeline_pctx_set_entry_lib_prefix (pfx stays 0 →
+# null strb SEGV on PE hello -c). Pin-egg emits Cap-good body with
+# bl to rt_emit_pctx_off_* before the copy loop. Authority scopes the
+# check to _xlang_pipeline_pctx_set_entry_lib_prefix so other bls in
+# the TU cannot false-pass. Broken tip body (len≈772) has zero bl.
+# PLATFORM: SHARED.
+rt_emit_pctx_set_entry_inits_ok() {
+  local o="${1:-}" dump
+  [ -s "$o" ] || return 1
+  dump="$(objdump -d --disassemble-symbols=_xlang_pipeline_pctx_set_entry_lib_prefix "$o" 2>/dev/null || true)"
+  if [ -z "$dump" ]; then
+    dump="$(objdump -d --disassemble-symbols=xlang_pipeline_pctx_set_entry_lib_prefix "$o" 2>/dev/null || true)"
+  fi
+  if [ -z "$dump" ]; then
+    return 1
+  fi
+  # At least one bl (call off_*); broken omit-body has none.
+  printf '%s\n' "$dump" | grep -Eq '[[:space:]]bl[[:space:]]' || return 1
+  # And ctx+off store: add x0, x0, x1 then str to a frame slot.
+  printf '%s\n' "$dump" | grep -Eq 'add[[:space:]]+x0,[[:space:]]+x0,[[:space:]]+x1' || return 1
+  printf '%s\n' "$dump" | grep -Eq 'str[[:space:]]+x0,[[:space:]]+\[x29,' || return 1
+  return 0
+}
+
+# tip_l4 pe_pctx_entry_lib_prefix_segv: egg-first pure-asm for the whole
+# rt_emit_state TU. Tip pure_asm / tip -c may SEGV or "succeed" with the
+# omit-init body; pin-egg-on-failure never fires. Prefer
+# seeds/bootstrap_xlangc.$os.$arch via g05_xasm; tip pure only as
+# fallback when it still passes set-entry inits authority. Ban park /
+# Cap aside prefer. PLATFORM: SHARED.
+rt_emit_state_pure_any() {
+  local o="${1:-}"
+  local xsrc="src/runtime/rt_emit_state.x"
+  local _egg_os _egg_arch _egg
+  [ -n "$o" ] && [ -f "$xsrc" ] || return 1
+  _egg_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
+  _egg_arch="$(uname -m 2>/dev/null)"
+  case "$_egg_os" in darwin) _egg_os=darwin ;; linux) _egg_os=linux ;; *) _egg_os="" ;; esac
+  case "$_egg_arch" in x86_64|amd64) _egg_arch=x86_64 ;; arm64|aarch64) _egg_arch=arm64 ;; *) _egg_arch="" ;; esac
+  if [ -n "$_egg_os" ] && [ -n "$_egg_arch" ]; then
+    _egg="seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}"
+    if [ -x "$_egg" ]; then
+      rm -f "$o"
+      if g05_xasm "$_egg" -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 \
+        && [ -s "$o" ] && rt_emit_pctx_set_entry_inits_ok "$o"; then
+        echo "rt_emit_state: pure-asm via pin-egg $_egg (pctx set-entry inits)" >&2
+        return 0
+      fi
+      rm -f "$o"
+    fi
+  fi
+  # Tip fallback: only accept if authority passes (rejects omit-init body).
+  mkdir -p "$(dirname "$o")"
+  local try=0
+  while [ "$try" -lt 3 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+      pure_asm_x_to_o "$o" "$xsrc"
+    ) && [ -s "$o" ] && rt_emit_pctx_set_entry_inits_ok "$o"; then
+      echo "rt_emit_state: pure-asm via tip (pctx set-entry inits ok)" >&2
+      return 0
+    fi
+    rm -f "$o"
+  done
+  return 1
+}
+
 # Product install of src/runtime/rt_emit_state.o: pure-asm
 # src/runtime/rt_emit_state.x only. w1493 (终局待办 5.4) deleted
 # seeds/rt_emit_state.from_x.c. The .x now holds the ten shared emit
@@ -7346,8 +7418,12 @@ ensure_rt_emit_state_prefer() {
     return 1
   fi
 
-  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
-    log "skip up-to-date $o (rt-emit-state)"
+  # tip_l4 pe_pctx_entry_lib_prefix_segv: stale tip omit-init body looks
+  # up-to-date vs .x but SEGV on PE hello -c (null strb). Require set-entry
+  # inits authority before skip. PLATFORM: SHARED.
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ] \
+    && rt_emit_pctx_set_entry_inits_ok "$o"; then
+    log "skip up-to-date $o (rt-emit-state; pctx set-entry inits ok)"
     return 0
   fi
 
@@ -7358,15 +7434,17 @@ ensure_rt_emit_state_prefer() {
   fi
   rm -f "$bare_thin"
   thin="${bare_thin}.o"
-  # pure_asm only. Do not fall through to gcc -E of this TU.
-  # w1173: a later pure-asm try can segfault. Darwin retries the whole
-  # translation unit. Other hosts keep the one-shot pure_asm path.
-  # PLATFORM: MACOS|DARWIN arm64 for the retry.
+  # tip_l4: egg-first pure (pin-egg via g05_xasm) before tip/w1173 retry.
+  # Tip -c of this TU currently SEGV (same pctx omit) or emits omit-init.
+  # PLATFORM: SHARED.
   _es_pure=0
-  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+  if rt_emit_state_pure_any "$thin"; then
+    _es_pure=1
+  elif [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
     && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
     && [ -f scripts/ensure_host_cc_seed_o.sh ] \
-    && bash scripts/ensure_host_cc_seed_o.sh rt-emit-state-pure "$thin"; then
+    && bash scripts/ensure_host_cc_seed_o.sh rt-emit-state-pure "$thin" \
+    && rt_emit_pctx_set_entry_inits_ok "$thin"; then
     _es_pure=1
   fi
   if { [ "$_es_pure" = "1" ] || (
@@ -7377,7 +7455,8 @@ ensure_rt_emit_state_prefer() {
     fi
     unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS
     pure_asm_x_to_o "$thin" "$xsrc"
-  ); } && rt_emit_state_rename_bss "$thin"; then
+  ); } && rt_emit_pctx_set_entry_inits_ok "$thin" \
+    && rt_emit_state_rename_bss "$thin"; then
     for s in driver_run_x_emit_c_set_path driver_run_x_emit_c_set_lib \
       driver_run_x_emit_c_set_n_lib_roots driver_run_x_emit_c_set_emit_extern \
       driver_argv_parse_x_emit_c labi_rt_emit_state_slice_marker \
@@ -7392,7 +7471,7 @@ ensure_rt_emit_state_prefer() {
     done
     mv -f "$thin" "$o"
     if [ "$_es_pure" = "1" ]; then
-      log "rt-emit-state $o <- pure-asm $xsrc (w1173 retry) + BSS rename (w1493)"
+      log "rt-emit-state $o <- egg-first/pure-asm $xsrc (tip_l4 pctx inits) + BSS rename (w1493)"
     else
       log "rt-emit-state $o <- pure-asm $xsrc + BSS rename (w1493)"
     fi
@@ -34761,6 +34840,35 @@ case "$MODE" in
     _uasb_rc=$?
     set -e
     exit "$_uasb_rc"
+    ;;
+  rt-emit-pctx-inits-ok|rt_emit_pctx_set_entry_inits_ok)
+    # tip_l4 pe_pctx_entry_lib_prefix_segv: authority for set-entry inits.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o rt-emit-pctx-inits-ok: need <obj>" >&2
+      exit 2
+    fi
+    rt_emit_pctx_set_entry_inits_ok "$1"
+    exit $?
+    ;;
+  rt-emit-state-egg-pure|rt_emit_state_egg_pure)
+    # tip_l4 pe_pctx_entry_lib_prefix_segv: egg-first whole-object pure.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o rt-emit-state-egg-pure: need <out.o>" >&2
+      exit 2
+    fi
+    _rte_out="$1"
+    case "$_rte_out" in
+      src/runtime/rt_emit_state.o|*/rt_emit_state.o|rt_emit_state.o) ;;
+      *)
+        echo "ensure_host_cc_seed_o rt-emit-state-egg-pure: not rt_emit_state.o" >&2
+        exit 3
+        ;;
+    esac
+    set +e
+    rt_emit_state_pure_any "$_rte_out"
+    _rte_rc=$?
+    set -e
+    exit "$_rte_rc"
     ;;
   pthin-let-alias-pure|pthin_let_alias_darwin_pure)
     # w1163: four pure-asm symbols of src/asm/pthin_let_alias.x.
