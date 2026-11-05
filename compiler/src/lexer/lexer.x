@@ -287,6 +287,9 @@ let g_lexer_incomplete_oct_line: i32 = 0;
 let g_lexer_incomplete_oct_col: i32 = 0;
 let g_lexer_incomplete_oct_reported: i32 = 0;
 
+// tip PE Ubuntu: body_into park redirect re-entry guard (see lexer_next_body_into).
+let g_lexer_body_into_park_depth: i32 = 0;
+
 
 /**
  * wave278 Cap residual: sticky invalid digit-separator state for the current parse.
@@ -4430,32 +4433,25 @@ function lexer_parked_token_start(out: *LexerResult): usize {
 }
 
 export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): void {
-  // knife256 / 10.2 Cap tip: prior block loaded the fat's *data pointer* into
-  // fat_hdr then memcpy(fat_hdr, park, 16) — that wrote the park fat *over the
-  // source bytes* (dest was the file buffer, not the fat header). After
-  // resolve_read parked core.option, collect_imports/dep prerun corrupted
-  // option[0..16] → L003 @ attributed :21:2. Only rewrite the fat header when
-  // the data pointer itself looks smashed (< page). PLATFORM: SHARED.
+  // tip PE (Ubuntu product): `(&data as *u8)` on this u8[] param poisons later
+  // `data[i]` into a *Fat double-deref → first load reads source ASCII as a
+  // pointer (SEGV @ body_into+565; rax looked like "Copyr…"). Cap tip ecdb has
+  // no park block here and indexes cleanly. Prefer park via buf_into redirect:
+  // re-entry sees depth>0 and uses the clean by-value sl buf_into built (no
+  // &data in this frame). Track L P001 honesty kept. PLATFORM: SHARED.
   {
-    // tip PE Win XT001: `let fixed: LexerBuf = …` in this fn fails check_block.
-    // Rebuild smashed fat header with two usizes + memcpy (no LexerBuf local).
-    // PLATFORM: SHARED.
     let sp: *u8 = (0 as *u8);
     let slen: usize = 0;
-    let fat_addr: *u8 = (0 as *u8);
-    let data_ptr: usize = 0;
     unsafe {
-      fat_addr = (&data as *u8);
-      memcpy((&data_ptr as *u8), fat_addr, (8 as usize));
       lexer_src_data_store((&sp as *u8));
       lexer_src_len_store((&slen as *u8));
-      // Track L + tip u8[] ABI: prefer parked source whenever present.
-      // Old guard (data_ptr < 4096) skipped rewrite when Track L left a
-      // plausible-looking pointer in the fat slot → P001 no functions.
-      // PLATFORM: SHARED.
-      if (sp != (0 as *u8)) {
-        memcpy(fat_addr, (&sp as *u8), (8 as usize));
-        memcpy(fat_addr + (8 as usize), (&slen as *u8), (8 as usize));
+    }
+    if (sp != (0 as *u8)) {
+      if (g_lexer_body_into_park_depth == 0) {
+        g_lexer_body_into_park_depth = 1;
+        lexer_next_buf_into(out, l, sp, (slen as i32));
+        g_lexer_body_into_park_depth = 0;
+        return;
       }
     }
   }
