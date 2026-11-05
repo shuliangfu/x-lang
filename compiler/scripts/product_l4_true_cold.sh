@@ -70,6 +70,21 @@ ROOT="$(CDPATH= cd -- "$COMPILER_DIR/.." && pwd)"
 cd "$ROOT"
 
 
+# tip_l4_mac_aside_user_env_seed: tip-aside hosts resolve compiler_dir via
+# dirname(exe). Without seeding <aside>/seeds/runtime_link_abi_user_env.from_x.c
+# Mac tip_aside L2 is 0/5 BLD001. Shared helper owns the copy; do NOT raise Soft
+# Cap / Cap tip Prefer. PLATFORM: SHARED (Darwin tip-aside primary).
+_l4_seed_tip_aside_ensure_companions() {
+  local aside_dir="$1"
+  if [ -z "$aside_dir" ] || [ ! -d "$aside_dir" ]; then
+    return 0
+  fi
+  # Subprocess (not source) so helper set -eu cannot leak into L4.
+  bash "$SCRIPT_DIR/seed_tip_aside_ensure_companions.sh" "$aside_dir" || true
+  log "step2b: tip-aside ensure companions seed pass → $aside_dir"
+}
+
+
 # knife256/10.2 Cap tip-aware: wipe deletes tip xlang needed by try-pipeline-abi-prefer
 # hybrid thin+rest (记248/8.5 bans cold full seed). Restore a same-host aside if set.
 # XLANG_L4_TIP_ASIDE=dir containing xlang[/xlang_asm]; else compiler/xlang.pre_l4_aside*.
@@ -96,6 +111,14 @@ _l4_restore_tip_aside() {
     cand="$COMPILER_DIR/xlang.pre_l4_aside"
   elif [ -x "$COMPILER_DIR/xlang.pre_result_soft.bak" ]; then
     cand="$COMPILER_DIR/xlang.pre_result_soft.bak"
+  fi
+  # Always seed the aside *directory* (exe dirname = compiler_dir for ensure).
+  # When L2 / DIG sets XLANG=$aside/xlang_asm, resolve looks under aside/seeds.
+  if [ -n "$aside" ]; then
+    _l4_seed_tip_aside_ensure_companions "$aside"
+  fi
+  if [ -n "$cand" ]; then
+    _l4_seed_tip_aside_ensure_companions "$(dirname "$cand")"
   fi
   if [ -n "$cand" ] && [ ! -x "$COMPILER_DIR/xlang" ]; then
     cp -f "$cand" "$COMPILER_DIR/xlang"

@@ -240,6 +240,11 @@ if [ "$_NEED_ASSIGN_CLUSTER" = "1" ]; then
   elif [ -x /tmp/xlang_l4_tip_aside_ba6c900ec/xlang ]; then
     _ASIDE_XL=/tmp/xlang_l4_tip_aside_ba6c900ec/xlang
   fi
+  # tip_l4_mac_aside_user_env_seed: seed ensure companions into tip-aside
+  # before any tip-aside -c / link. PLATFORM: SHARED.
+  if [ -n "$_ASIDE_XL" ]; then
+    bash "$(dirname "$0")/seed_tip_aside_ensure_companions.sh" "$(dirname "$_ASIDE_XL")" 2>/dev/null || true
+  fi
   _THIN_MAP="\
     av_assign_var_try_let.o:src/runtime_pipeline_abi_assign_var_try_let_thin.x \
     av_assign_var_finish.o:src/runtime_pipeline_abi_assign_var_finish_thin.x \
