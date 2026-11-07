@@ -221,8 +221,8 @@ if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
            | grep -qE " T _glue_struct_layout_compute_field_offset_c$"; then
       _lo_tsz=$(otool -l build_asm/selfhost_pabi/struct_layout_offset.o 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
       case "$_lo_tsz" in 0x*|0X*) _lo_tsz=$((_lo_tsz)) ;; esac
-      if [ -n "$_lo_tsz" ] && [ "$_lo_tsz" -ge 3000 ] 2>/dev/null; then
-        echo "g05_cap_tip_reapply: tip-compiled struct_layout_offset.o (10.44 text=$_lo_tsz)" >&2
+      if [ -n "$_lo_tsz" ] && [ "$_lo_tsz" -ge 3344 ] 2>/dev/null; then
+        echo "g05_cap_tip_reapply: tip-compiled struct_layout_offset.o (10.44/FixC12j text=$_lo_tsz)" >&2
         _lo_ok=1
       else
         echo "g05_cap_tip_reapply: Prefer-M2 reject undersized struct_layout_offset tip (text=${_lo_tsz:-?})" >&2
@@ -231,16 +231,25 @@ if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
       echo "g05_cap_tip_reapply: WARN struct_layout_offset tip-compile failed" >&2
     fi
     if [ "$_lo_ok" != "1" ]; then
+      # FixC12j: ban undersized pabi_pre_swap (text=0xc80=3200) — Cap tip Prefer
+      # s24 CG002. Prefer CACHE then bak Cap tip good_2105 (text>=3344=0xd10).
       for _lr in \
-        "${HOME:-}/xlang_bak_1066/pabi_pre_swap/struct_layout_offset.o" \
-        "${HOME:-}/xlang_bak_1066/cap_cache_good_2105/pabi/struct_layout_offset.o" \
-        "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/struct_layout_offset.o"
+        "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/struct_layout_offset.o" \
+        /tmp/cap_tip_l4_safe_406200eef/pabi/struct_layout_offset.o \
+        "${HOME:-}/xlang_bak_1066/cap_cache_good_2105/pabi/struct_layout_offset.o"
       do
         [ -s "$_lr" ] || continue
+        _lr_tsz=$(otool -l "$_lr" 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
+        case "$_lr_tsz" in 0x*|0X*) _lr_tsz=$((_lr_tsz)) ;; esac
+        if [ -z "$_lr_tsz" ] || [ "$_lr_tsz" -lt 3344 ] 2>/dev/null; then
+          echo "g05_cap_tip_reapply: FixC12j Prefer-M2 skip undersized layout REF (text=${_lr_tsz:-?} <3344) $_lr" >&2
+          continue
+        fi
         cp -f "$_lr" build_asm/selfhost_pabi/struct_layout_offset.o
-        echo "g05_cap_tip_reapply: Prefer-M2 restored struct_layout_offset REF ($_lr)" >&2
+        echo "g05_cap_tip_reapply: FixC12j Prefer-M2 restored struct_layout_offset REF (text=$_lr_tsz $_lr)" >&2
         break
       done
+      unset _lr_tsz
     fi
     unset _lo_ok _lo_tsz _lr
   fi
@@ -1974,22 +1983,31 @@ _cap_tip_fill_missing_objs() {
              | grep -qE " T _glue_struct_layout_compute_field_offset_c$"; then
         _lo_tsz=$(otool -l build_asm/selfhost_pabi/struct_layout_offset.o 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
         case "$_lo_tsz" in 0x*|0X*) _lo_tsz=$((_lo_tsz)) ;; esac
-        if [ -n "$_lo_tsz" ] && [ "$_lo_tsz" -ge 3000 ] 2>/dev/null; then
-          echo "g05_cap_tip_reapply: re-asserted struct_layout_offset after pabi stomp (text=$_lo_tsz)" >&2
+        if [ -n "$_lo_tsz" ] && [ "$_lo_tsz" -ge 3344 ] 2>/dev/null; then
+          echo "g05_cap_tip_reapply: re-asserted struct_layout_offset after pabi stomp (FixC12j text=$_lo_tsz)" >&2
           _lo_stomp_ok=1
         fi
       fi
       if [ "$_lo_stomp_ok" != "1" ]; then
+        # FixC12j: ban undersized pabi_pre_swap (text=0xc80=3200) — Cap tip Prefer
+        # s24 CG002. Prefer CACHE then bak Cap tip good_2105 (text>=3344=0xd10).
         for _lr in \
-          "${HOME:-}/xlang_bak_1066/pabi_pre_swap/struct_layout_offset.o" \
-          "${HOME:-}/xlang_bak_1066/cap_cache_good_2105/pabi/struct_layout_offset.o" \
-          "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/struct_layout_offset.o"
+          "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/struct_layout_offset.o" \
+          /tmp/cap_tip_l4_safe_406200eef/pabi/struct_layout_offset.o \
+          "${HOME:-}/xlang_bak_1066/cap_cache_good_2105/pabi/struct_layout_offset.o"
         do
           [ -s "$_lr" ] || continue
+          _lr_tsz=$(otool -l "$_lr" 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
+          case "$_lr_tsz" in 0x*|0X*) _lr_tsz=$((_lr_tsz)) ;; esac
+          if [ -z "$_lr_tsz" ] || [ "$_lr_tsz" -lt 3344 ] 2>/dev/null; then
+            echo "g05_cap_tip_reapply: FixC12j Prefer-M2 skip undersized layout REF after stomp (text=${_lr_tsz:-?} <3344) $_lr" >&2
+            continue
+          fi
           cp -f "$_lr" build_asm/selfhost_pabi/struct_layout_offset.o
-          echo "g05_cap_tip_reapply: Prefer-M2 restored struct_layout_offset REF after stomp ($_lr)" >&2
+          echo "g05_cap_tip_reapply: FixC12j Prefer-M2 restored struct_layout_offset REF after stomp (text=$_lr_tsz $_lr)" >&2
           break
         done
+        unset _lr_tsz
       fi
       unset _lo_stomp_ok _lo_tsz _lr
     fi
