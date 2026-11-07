@@ -14892,29 +14892,48 @@ PY
 # tip_l4 pe_diagthin_cstr_len_hang: Cap tip / PE tip eight-piece (or tip
 # whole-file) of diag_thin.x can omit while (n < 4096) n = n + 1 inside
 # diag_cstr_len_bounded (n never advances → hang when rt_ab_diag runs).
-# Pin-egg emits Cap-good body with mov w1,#0x1 ; add w0,w1,w0 ; str n.
-# Authority scopes the check to the cstr_len symbol (plain or diagthin_p0_
-# prefixed) so other adds in the TU cannot false-pass. PLATFORM: SHARED.
+# Pin-egg Cap-good bodies:
+#   Darwin arm64: mov w0,#0x1000 ; mov w1,#0x1 ; add w0,w1,w0
+#   Linux/Win x86_64: mov $0x1000,%eax ; mov $0x1,%e[ab]x ; add
+# File-backed dump (GNU --disassemble= / llvm --disassemble-symbols=);
+# reject empty section headers. PLATFORM: SHARED.
 diagthin_cstr_len_n_inc_ok() {
-  local o="${1:-}" dump="" sym
+  local o="${1:-}" dumpfile="" sym rc=1
   [ -s "$o" ] || return 1
+  dumpfile="$(mktemp "${TMPDIR:-/tmp}/diagthin_ln.XXXXXX")" || return 1
   for sym in _diag_cstr_len_bounded diag_cstr_len_bounded \
     _diagthin_p0_diag_cstr_len_bounded diagthin_p0_diag_cstr_len_bounded; do
-    dump="$(objdump -d --disassemble-symbols=$sym "$o" 2>/dev/null || true)"
-    if [ -n "$dump" ]; then
+    : >"$dumpfile"
+    objdump -d --disassemble-symbols="$sym" "$o" >"$dumpfile" 2>/dev/null || true
+    if grep -Fq "<$sym>:" "$dumpfile" 2>/dev/null; then
       break
     fi
+    : >"$dumpfile"
+    objdump -d --disassemble="$sym" "$o" >"$dumpfile" 2>/dev/null || true
+    if grep -Fq "<$sym>:" "$dumpfile" 2>/dev/null; then
+      break
+    fi
+    : >"$dumpfile"
   done
-  if [ -z "$dump" ]; then
+  if ! grep -Eq '<_?(diagthin_p0_)?diag_cstr_len_bounded>:' "$dumpfile" 2>/dev/null; then
+    rm -f "$dumpfile"
     return 1
   fi
-  # Bound 4096 must appear.
-  printf '%s\n' "$dump" | grep -Eq 'mov[[:space:]]+w0,[[:space:]]+#0x1000' || return 1
-  # n+=1: mov w1,#0x1 then add w0,w1,w0 (egg). Hang tip body omits both.
-  printf '%s\n' "$dump" | grep -Eq 'mov[[:space:]]+w1,[[:space:]]+#0x1' || return 1
-  printf '%s\n' "$dump" | grep -Eq 'add[[:space:]]+w0,[[:space:]]+w1,[[:space:]]+w0' || return 1
-  return 0
+  # Darwin arm64 Cap-good.
+  if grep -Eq 'mov[[:space:]]+w0,[[:space:]]+#0x1000' "$dumpfile" \
+    && grep -Eq 'mov[[:space:]]+w1,[[:space:]]+#0x1' "$dumpfile" \
+    && grep -Eq 'add[[:space:]]+w0,[[:space:]]+w1,[[:space:]]+w0' "$dumpfile"; then
+    rc=0
+  # Linux / Win x86_64 Cap-good (bound 4096 + n+=1).
+  elif grep -Eq 'mov[[:space:]]+\$0x1000,%eax' "$dumpfile" \
+    && grep -Eq 'mov[[:space:]]+\$0x1,%e[ab]x' "$dumpfile" \
+    && grep -Eq 'add[[:space:]]+%(rax,%rax|eax,%eax|rbx,%rax|ebx,%eax|eax,%ebx)' "$dumpfile"; then
+    rc=0
+  fi
+  rm -f "$dumpfile"
+  return "$rc"
 }
+
 
 # tip_l4 pe_diagthin_cstr_len_hang: egg-first pure-asm for diag_thin.
 # Tip eight-piece "succeeds" with the hang body; pin-egg-on-failure never
