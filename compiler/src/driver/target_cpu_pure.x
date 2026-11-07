@@ -45,8 +45,8 @@ extern "C" function _write(fd: i32, buf: *u8, n: u32): i32;
  */
 #[no_mangle]
 export function driver_set_pending_target_cpu_features(features: u32): void {
-  let slot: *u32 = &g_driver_pending_target_cpu_features;
-  slot[0] = features;
+  /* DIG tip_l4 Win: PE tip/bi/egg XT001 on let *u32=&g; Cap tip OK. Direct store. */
+  g_driver_pending_target_cpu_features = features;
 }
 
 /** Exported function `driver_get_pending_target_cpu_features`.
@@ -55,8 +55,7 @@ export function driver_set_pending_target_cpu_features(features: u32): void {
  */
 #[no_mangle]
 export function driver_get_pending_target_cpu_features(): u32 {
-  let slot: *u32 = &g_driver_pending_target_cpu_features;
-  return slot[0];
+  return g_driver_pending_target_cpu_features;
 }
 
 /* See implementation. */
@@ -89,19 +88,18 @@ export function tcp_tolower(c: u8): u8 {
  * PLATFORM: SHARED. */
 #[no_mangle]
 export function tcp_eq_at(name: *u8, base: usize, n: usize, lits: *u8): i32 {
-  let s: *u8 = name;
-  let w: *u8 = lits;
+  /* DIG tip_l4 Win egg: avoid let *u8 copies + i32 compound index (T001). */
   let i: i32 = 0;
   let lim: i32 = n as i32;
   let b: i32 = base as i32;
+  let nb: u8 = 0;
+  let wb: u8 = 0;
+  if (name == 0 as *u8) { return 0; }
+  if (lits == 0 as *u8) { return 0; }
   while (i < lim) {
-    let k: i32 = i;
-    let bk: i32 = b + k;
-    let nb: u8 = tcp_tolower(s[bk]);
-    let wb: u8 = w[k];
-    if (nb != wb) {
-      return 0;
-    }
+    nb = tcp_tolower(name[b + i]);
+    wb = lits[i];
+    if (nb != wb) { return 0; }
     i = i + 1;
   }
   return 1;

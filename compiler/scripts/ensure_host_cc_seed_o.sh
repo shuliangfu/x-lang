@@ -29099,13 +29099,23 @@ try_ensure_ldpc_prefer_one() {
 ensure_target_cpu_full_x() {
   # w1528 (5.9): one pure-asm shot of the full .x. Reuses the w1525 helper
   # (G.7: do not open a second pure-asm body). PLATFORM: SHARED.
+  # DIG tip_l4 Win: PE tip P012/T001 on multi-OS target_cpu_pure.x — use
+  # target_cpu_pure_win.x (windows x86_64 bodies only) when present.
   local o="$1"
-  if ensure_r3_full_x_pure_w1525 "$o" src/driver/target_cpu_pure.x \
+  local x_src="src/driver/target_cpu_pure.x"
+  case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*|CYGWIN*|Windows_NT)
+      if [ -f src/driver/target_cpu_pure_win.x ]; then
+        x_src="src/driver/target_cpu_pure_win.x"
+      fi
+      ;;
+  esac
+  if ensure_r3_full_x_pure_w1525 "$o" "$x_src" \
     target_cpu_pure_x_w1528_anchor target_cpu_pure_slice_marker \
     xlang_target_cpu_detect_host xlang_target_cpu_print \
     xlang_target_cpu_generic_for_host xlang_target_cpu_resolve \
     driver_set_pending_target_cpu_features append_feat_name flags_has_token; then
-    log "target_cpu full .x $o (w1528)"
+    log "target_cpu full .x $o (w1528; src=$x_src)"
     return 0
   fi
   return 1

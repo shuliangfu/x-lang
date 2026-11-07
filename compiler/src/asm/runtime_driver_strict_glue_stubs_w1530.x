@@ -39,23 +39,24 @@ export extern "C" function _write(fd: i32, buf: *u8, n: u32): i32;
 let g_defines: u8[8192] = [];
 // Count of names in g_defines. Stored as one i32 so the slot is an index store.
 // PLATFORM: SHARED.
-let g_ndefines: i32[1] = [0];
+let g_ndefines: i32[1] = [];
 // 16 slots of 128 bytes. Slot s starts at s * 128.
 // PLATFORM: SHARED.
 let g_scratch: u8[2048] = [];
 // Layout metric scalars. al starts at 1, matching the C initializer.
 // PLATFORM: SHARED.
-let g_sz_slot: i32[1] = [0];
-let g_al_slot: i32[1] = [1];
+let g_sz_slot: i32[1] = [];
+/* DIG tip_l4 Win: PE tip CG002 on i32[1]=[1]; zero BSS then anchor sets 1. */
+let g_al_slot: i32[1] = [];
 let g_sz_depth: i32[64] = [];
 let g_al_depth: i32[64] = [];
-let g_dep_idx: i32[1] = [0];
-let g_func_idx: i32[1] = [0];
-let g_over_ret: i32[1] = [0];
+let g_dep_idx: i32[1] = [];
+let g_func_idx: i32[1] = [];
+let g_over_ret: i32[1] = [];
 // Import path staged between the copy and the dep-ctx set.
 // PLATFORM: SHARED.
 let g_fill_path: u8[128] = [];
-let g_fill_len: i32[1] = [0];
+let g_fill_len: i32[1] = [];
 
 /**
  * Anchor the ensure checks before it links this object. Always 0.
@@ -64,6 +65,8 @@ let g_fill_len: i32[1] = [0];
  */
 #[no_mangle]
 export function runtime_driver_strict_glue_stubs_x_w1530_anchor(): i32 {
+  /* DIG tip_l4 Win: restore g_al_slot default 1 after [] BSS init. */
+  g_al_slot[0] = 1;
   return 0;
 }
 
