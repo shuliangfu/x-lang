@@ -14888,6 +14888,15 @@ diag_thin_egg_whole_any() {
   case "$_egg_arch" in x86_64|amd64) _egg_arch=x86_64 ;; arm64|aarch64) _egg_arch=arm64 ;; *) _egg_arch="" ;; esac
   if [ -n "$_egg_os" ] && [ -n "$_egg_arch" ]; then
     _egg="seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}"
+    # Cap tip L4 hides pin → .cap_tip_l4_aside; egg-first must still find it.
+    # LEGACY bak also emits correct cstr_len n++ when pin is absent.
+    # PLATFORM: SHARED (Darwin Cap tip L4 primary).
+    if [ ! -x "$_egg" ] && [ -x "${_egg}.cap_tip_l4_aside" ]; then
+      _egg="${_egg}.cap_tip_l4_aside"
+    fi
+    if [ ! -x "$_egg" ] && [ -x ./xlang.product_legacy_bak ]; then
+      _egg="./xlang.product_legacy_bak"
+    fi
     if [ -x "$_egg" ]; then
       rm -f "$o"
       if g05_xasm "$_egg" -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 \
@@ -14989,8 +14998,14 @@ PY
   case "$_egg_os" in darwin) _egg_os=darwin ;; linux) _egg_os=linux ;; *) _egg_os="" ;; esac
   case "$_egg_arch" in x86_64|amd64) _egg_arch=x86_64 ;; arm64|aarch64) _egg_arch=arm64 ;; *) _egg_arch="" ;; esac
   _egg=""
-  if [ -n "$_egg_os" ] && [ -n "$_egg_arch" ] && [ -x "seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}" ]; then
-    _egg="seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}"
+  if [ -n "$_egg_os" ] && [ -n "$_egg_arch" ]; then
+    if [ -x "seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}" ]; then
+      _egg="seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}"
+    elif [ -x "seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}.cap_tip_l4_aside" ]; then
+      _egg="seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}.cap_tip_l4_aside"
+    elif [ -x ./xlang.product_legacy_bak ]; then
+      _egg="./xlang.product_legacy_bak"
+    fi
   fi
   for c in 0 1 2 3 4 5 6 7; do
     src="$dir/diagthin_p$c.x"
