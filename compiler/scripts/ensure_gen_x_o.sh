@@ -364,12 +364,22 @@ build_lexer_x() {
       rm -f "$_bi_dump"
       if command -v otool >/dev/null 2>&1; then
         if otool -tv -p _lexer_next_body_into lexer_x.o 2>/dev/null | awk '
+          function hex2dec(h,   i,c,v,d) {
+            h = tolower(h); v = 0
+            for (i = 1; i <= length(h); i++) {
+              c = substr(h, i, 1)
+              d = index("0123456789abcdef", c) - 1
+              if (d < 0) return -1
+              v = v * 16 + d
+            }
+            return v
+          }
           /sub[ \t]+sp, sp, #0x[0-9a-fA-F]+/ {
             hex=$0
             sub(/.*#0x/, "", hex)
             sub(/[^0-9a-fA-F].*/, "", hex)
-            n = strtonum("0x" hex)
-            if (n >= 0x4000) ok=1
+            n = hex2dec(hex)
+            if (n >= 16384) ok=1
           }
           /sub[ \t]+sp, sp, #([0-9]+)/ {
             n = $0
@@ -384,14 +394,36 @@ build_lexer_x() {
       fi
       return 0
     fi
+    # tip_l4 Win: BusyBox awk has no strtonum — portable hex2dec.
+    # Also accept Cap tip / tip_aside page-probe peels that load a large
+    # frame into %eax/%rax then sub $0x1000,%rsp in a loop (total >=0x4000),
+    # not only a single large sub $imm,%rsp. PLATFORM: SHARED.
     awk '
+      function hex2dec(h,   i,c,v,d) {
+        h = tolower(h); v = 0
+        for (i = 1; i <= length(h); i++) {
+          c = substr(h, i, 1)
+          d = index("0123456789abcdef", c) - 1
+          if (d < 0) return -1
+          v = v * 16 + d
+        }
+        return v
+      }
       /sub[lq]?[ \t]+\$0x[0-9a-fA-F]+,%rsp/ {
         hex=$0
         sub(/.*\$0x/, "", hex)
         sub(/,.*/, "", hex)
-        n = strtonum("0x" hex)
-        if (n >= 0x4000) ok=1
+        n = hex2dec(hex)
+        if (n >= 16384) ok=1
       }
+      /mov[lq]?[ \t]+\$0x[0-9a-fA-F]+,%(e|r)ax/ {
+        hex=$0
+        sub(/.*\$0x/, "", hex)
+        sub(/,.*/, "", hex)
+        n = hex2dec(hex)
+        if (n >= 16384) probe=1
+      }
+      probe && /sub[lq]?[ \t]+\$0x1000,%rsp/ { ok=1 }
       END { exit ok ? 0 : 1 }
     ' "$_bi_dump"
     local _bi_rc=$?
