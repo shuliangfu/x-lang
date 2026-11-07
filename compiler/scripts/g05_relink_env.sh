@@ -8436,22 +8436,52 @@ if [ -n "$_k8h_ref" ]; then
   mkdir -p build_asm/selfhost_pabi
   _k8h_peel=build_asm/selfhost_pabi/lexer_x_tip_peel.o
   cp -f "$_k8h_ref" "$_k8h_peel"
-  # Restore lexer_init if a prior demote renamed it; only demote when shim is fronted.
+  # FixC12k8i: after bak peel cp, demote _lexer_init whenever shim is in
+  # _CAP_TIP_FRONT / G05_OBJS / on disk. Prior k8h matched " shim.o " with a
+  # leading space — full path build_asm/.../shim.o never matched → peel kept
+  # T _lexer_init beside shim → Cap tip L4 pure-ld duplicate (18:49 FAIL).
+  # PLATFORM: MACOS Cap tip Prefer.
   _k8h_oc=""
   if command -v llvm-objcopy >/dev/null 2>&1; then _k8h_oc=llvm-objcopy
   elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then _k8h_oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
   elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then _k8h_oc=/usr/local/opt/llvm/bin/llvm-objcopy
   elif command -v objcopy >/dev/null 2>&1; then _k8h_oc=objcopy
   fi
-  if [ -n "$_k8h_oc" ] && nm -gU "$_k8h_peel" 2>/dev/null | awk '{print $3}' | grep -qxF '_lexer_init__tip_outptr_dead'; then
-    "$_k8h_oc" --redefine-sym=_lexer_init__tip_outptr_dead=_lexer_init "$_k8h_peel" 2>/dev/null || true
-  fi
-  # Shim present (fronted or on disk) → demote peel init so shim wins.
   _k8h_shim=build_asm/selfhost_pabi/lexer_init_ret_by_value_shim.o
-  case " ${_CAP_TIP_FRONT:-} " in *" lexer_init_ret_by_value_shim.o "*) _k8h_have_shim=1 ;; *) _k8h_have_shim=0 ;; esac
+  _k8h_have_shim=0
+  case " ${_CAP_TIP_FRONT:-} ${G05_OBJS:-} " in
+    *lexer_init_ret_by_value_shim.o*) _k8h_have_shim=1 ;;
+  esac
   if [ "$_k8h_have_shim" != "1" ] && [ -s "$_k8h_shim" ]; then _k8h_have_shim=1; fi
-  if [ "$_k8h_have_shim" = "1" ] && [ -n "$_k8h_oc" ] && nm -gU "$_k8h_peel" 2>/dev/null | awk '{print $3}' | grep -qxF '_lexer_init'; then
-    "$_k8h_oc" --redefine-sym=_lexer_init=_lexer_init__tip_outptr_dead "$_k8h_peel" 2>/dev/null       && echo "g05_relink_env: FixC12k8h demote peel _lexer_init (shim wins)" >&2 || true
+  if [ "$_k8h_have_shim" = "1" ]; then
+    _k8h_demoted=0
+    if [ -n "$_k8h_oc" ] && nm -gU "$_k8h_peel" 2>/dev/null | awk '{print $3}' | grep -qxF '_lexer_init'; then
+      if "$_k8h_oc" --redefine-sym=_lexer_init=_lexer_init__tip_outptr_dead "$_k8h_peel" 2>/dev/null; then
+        _k8h_demoted=1
+        echo "g05_relink_env: FixC12k8i demote peel _lexer_init (shim wins)" >&2
+      fi
+    elif ! nm -gU "$_k8h_peel" 2>/dev/null | awk '{print $3}' | grep -qxF '_lexer_init'; then
+      _k8h_demoted=1
+    fi
+    if [ "$_k8h_demoted" != "1" ]; then
+      _k8h_exp=build_asm/selfhost_pabi/lexer_x_tip_peel_exports_k8i.txt
+      nm -gU "$_k8h_peel" 2>/dev/null | awk '/ [Tt] /{print $3}' \
+        | grep -v '^_lexer_init$' | grep -v '^lexer_init$' >"$_k8h_exp" || true
+      if [ -s "$_k8h_exp" ] && ld -r -o "$_k8h_peel.tmp" -exported_symbols_list "$_k8h_exp" "$_k8h_peel" 2>/tmp/g05_k8i_peel.err; then
+        mv -f "$_k8h_peel.tmp" "$_k8h_peel"
+        _k8h_demoted=1
+        echo "g05_relink_env: FixC12k8i ld -r strip peel _lexer_init (shim wins)" >&2
+      else
+        echo "g05_relink_env: ERROR FixC12k8i cannot demote peel _lexer_init (shim present)" >&2
+        cat /tmp/g05_k8i_peel.err >&2 || true
+        exit 1
+      fi
+    fi
+    if nm -gU "$_k8h_peel" 2>/dev/null | grep -qE ' T _lexer_init$'; then
+      echo "g05_relink_env: ERROR FixC12k8i peel still exports T _lexer_init" >&2
+      exit 1
+    fi
+    unset _k8h_demoted _k8h_exp
   fi
   unset _k8h_shim _k8h_have_shim
   _G05_LEXER_X_O="$_k8h_peel"
