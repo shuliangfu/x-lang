@@ -498,6 +498,7 @@ g05_unary_set_pure() {
 g05_unary_tramp_pure() {
   local _bo="$1"
   local _bx="src/asm/pthin_expr_unary_tramp.x"
+  local _os _xl
   if [ ! -f "$_bx" ]; then
     echo "g05_ensure: P4 unary trampoline .x missing" >&2
     return 1
@@ -507,14 +508,31 @@ g05_unary_tramp_pure() {
     return 1
   fi
   rm -f "$_bo"
-  if ! (
-    export XLANG_PREFER_ASM_O=1
-    unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
-    pure_asm_x_to_o_or_pin_egg "$_bo" "$_bx"
-  ) || [ ! -s "$_bo" ]; then
-    echo "g05_ensure: P4 unary trampoline pure-asm failed" >&2
-    rm -f "$_bo"
-    return 1
+  # DIG tip_l4 Win: PE tip P012 on multi-cfg tramp; pin_egg may skip bi when
+  # uname/path odd under g05 — try xlang_bi.exe first. PLATFORM: WINDOWS.
+  _os="$(uname -s 2>/dev/null || echo Unknown)"
+  case "$_os" in
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+      for _xl in ./xlang_bi.exe ./xlang_bi; do
+        [ -x "$_xl" ] || continue
+        if "$_xl" -backend asm -c "$_bx" -o "$_bo" >/dev/null 2>&1 && [ -s "$_bo" ]; then
+          echo "g05_ensure: P4 unary trampoline via $_xl (Win bi; tip P012)" >&2
+          break
+        fi
+        rm -f "$_bo"
+      done
+      ;;
+  esac
+  if [ ! -s "$_bo" ]; then
+    if ! (
+      export XLANG_PREFER_ASM_O=1
+      unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+      pure_asm_x_to_o_or_pin_egg "$_bo" "$_bx"
+    ) || [ ! -s "$_bo" ]; then
+      echo "g05_ensure: P4 unary trampoline pure-asm failed" >&2
+      rm -f "$_bo"
+      return 1
+    fi
   fi
   if ! g05_obj_defines "$_bo" "parser_asm_parse_unary_into_slice_c" \
     || ! g05_obj_defines "$_bo" "parser_parse_primary_ptr_into_c" \
