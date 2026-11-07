@@ -3724,6 +3724,7 @@ if [ -f "$_1037_cmp_x" ] && [ -f "$_1037_disp_x" ]; then
   # Band [REF-256, REF+1024]; else CACHE REF. PLATFORM: MACOS Cap tip.
   _1037_cmp_ref=""
   for _cr in \
+      "${HOME:-}/xlang_bak_1066/cap_cache_good_2105/pabi/typeck_binop_cmp_usual_arith.o" \
       "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/typeck_binop_cmp_usual_arith.o" \
       /tmp/cap_tip_l4_safe_406200eef/pabi/typeck_binop_cmp_usual_arith.o; do
     [ -s "$_cr" ] && _1037_cmp_ref="$_cr" && break
@@ -3777,6 +3778,7 @@ if [ -f "$_1037_cmp_x" ] && [ -f "$_1037_disp_x" ]; then
   # PLATFORM: MACOS Cap tip.
   _1037_disp_ref=""
   for _dr in \
+      "${HOME:-}/xlang_bak_1066/cap_cache_good_2105/pabi/typeck_binop_dispatch.o" \
       "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/typeck_binop_dispatch.o" \
       /tmp/cap_tip_l4_safe_406200eef/pabi/typeck_binop_dispatch.o; do
     [ -s "$_dr" ] && _1037_disp_ref="$_dr" && break
@@ -4688,63 +4690,49 @@ done
 echo "g05_cap_tip_reapply: FixC12k5 Prefer-M2 restored bak good_2105 slice/lvalue/let_init n=$_k5_n" >&2
 unset _k5_bak _k5_n _k5f
 
-# FixC12k7: Cap tip Prefer s24=110 needs LONG rais/panic *names* matching green
-# Cap tip binary. Tip-compile from .x emits LONG names but UNDERSIZED bodies
-# (rais_cstr text≈176 vs green≈216) → still CG002. Prefer CACHE/bak stubs.o
-# (text=5368 SHORT _rais_*) and objcopy-rename to LONG
-# _runtime_asm_io_stubs_rais_*. Panic: tip-compile LONG then weaken (green-like).
-# Ban tip-stomp stubs body. PLATFORM: MACOS Cap tip Prefer. No Soft Cap.
+# FixC12k8c: Prefer green Cap tip rais/panic thin bodies (216/240) only
+# (demote tip undersize; keep tip io_*). FixC12k8d: binop_cmp REF=good_2105
+# text=3968 (CACHE usual_arith 5716 → Prefer s24 CG002). Ban tip-stomp.
+# PLATFORM: MACOS Cap tip Prefer.
 _k4_oc="${LLVM_OBJCOPY:-${OC:-}}"
 [ -n "$_k4_oc" ] || { [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ] && _k4_oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy; }
-_k4_stubs_ok=0
-_k4_src=""
-for _k4s in \
-  "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/runtime_asm_io_stubs.o" \
-  "${HOME:-}/xlang_bak_1066/cap_cache_good_2105/runtime_asm_io_stubs.o"
+_k8_stubs=""
+for _k8s in \
+  "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/runtime_asm_io_stubs.green_k8c.o" \
+  "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/runtime_asm_io_stubs.green_k8b.o" \
+  "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/runtime_asm_io_stubs.green_k8.o" \
+  "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/runtime_asm_io_stubs.green_extract.o"
 do
-  [ -s "$_k4s" ] || continue
-  if nm -gU "$_k4s" 2>/dev/null | grep -q 'T _rais_cstr_len_cap$'; then
-    _k4_src="$_k4s"
+  [ -s "$_k8s" ] || continue
+  if nm -gU "$_k8s" 2>/dev/null | grep -q 'T _runtime_asm_io_stubs_rais_cstr_len_cap$'; then
+    _k8_stubs="$_k8s"
     break
   fi
 done
-if [ -n "$_k4_oc" ] && [ -n "$_k4_src" ]; then
-  cp -f "$_k4_src" runtime_asm_io_stubs.o
-  _k4_n=0
-  for _k4sym in $(nm -gU runtime_asm_io_stubs.o 2>/dev/null | awk '/ T _rais_/{print $3}'); do
-    _k4news="_runtime_asm_io_stubs_${_k4sym#_}"
-    "$_k4_oc" --redefine-sym="${_k4sym}=${_k4news}" runtime_asm_io_stubs.o 2>/dev/null && _k4_n=$((_k4_n+1)) || true
-  done
-  if nm -gU runtime_asm_io_stubs.o 2>/dev/null | grep -q 'T _runtime_asm_io_stubs_rais_cstr_len_cap$'; then
-    _k4_stubs_ok=1
-    echo "g05_cap_tip_reapply: FixC12k7 Prefer-M2 renamed SHORT→LONG stubs n=$_k4_n from $_k4_src" >&2
-  else
-    echo "g05_cap_tip_reapply: FixC12k7 Prefer-M2 WARN stubs rename missing LONG rais" >&2
-  fi
-  unset _k4sym _k4news _k4_n
+_k4_stubs_ok=0
+if [ -n "$_k8_stubs" ]; then
+  cp -f "$_k8_stubs" runtime_asm_io_stubs.o
+  _k4_stubs_ok=1
+  echo "g05_cap_tip_reapply: FixC12k8 Prefer-M2 green Cap tip stubs extract ($_k8_stubs)" >&2
 fi
-# Panic LONG via tip-compile (names required); body head matches green Cap tip.
-_k4_xl=""
-for _k4b in \
-  "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/xlang_asm" \
-  "${XLANG_CAP_TIP_L4_CACHE:-}/xlang_asm" \
-  "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/xlang" \
-  ./xlang_asm \
-  ./xlang
+_k8_panic=""
+for _k8p in \
+  "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/runtime_panic.green_k8c.o" \
+  "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/runtime_panic.green_k8b.o" \
+  "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/runtime_panic.green_k8.o" \
+  "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/runtime_panic.green_extract.o"
 do
-  [ -n "$_k4b" ] && [ -x "$_k4b" ] && _k4_xl="$_k4b" && break
+  [ -s "$_k8p" ] || continue
+  if nm -gU "$_k8p" 2>/dev/null | grep -q 'T _runtime_panic_arm64_panic_cstr_len$'; then
+    _k8_panic="$_k8p"
+    break
+  fi
 done
 _k4_panic_ok=0
-if [ -n "$_k4_xl" ] && [ -f src/asm/runtime_panic_arm64.x ]; then
-  # No XLANG_PREFER_ASM_O — Prefer would keep SHORT/wrong panic.o.
-  if "$_k4_xl" -backend asm -c src/asm/runtime_panic_arm64.x \
-      -o runtime_panic.o 2>/dev/null \
-    && nm -gU runtime_panic.o 2>/dev/null | grep -q 'T _runtime_panic_arm64_panic_cstr_len$'; then
-    _k4_panic_ok=1
-    echo "g05_cap_tip_reapply: FixC12k7 Prefer-M2 tip-compiled LONG runtime_panic.o (via $_k4_xl; no Prefer)" >&2
-  else
-    echo "g05_cap_tip_reapply: FixC12k7 Prefer-M2 WARN panic tip-compile missing LONG panic_arm64" >&2
-  fi
+if [ -n "$_k8_panic" ]; then
+  cp -f "$_k8_panic" runtime_panic.o
+  _k4_panic_ok=1
+  echo "g05_cap_tip_reapply: FixC12k8 Prefer-M2 green Cap tip panic extract ($_k8_panic)" >&2
 fi
 if [ -n "$_k4_oc" ] && [ "$_k4_stubs_ok" = "1" ] && [ -s runtime_asm_io_stubs.o ]; then
   _k4_w=0
@@ -4761,20 +4749,20 @@ if [ -n "$_k4_oc" ] && [ "$_k4_stubs_ok" = "1" ] && [ -s runtime_asm_io_stubs.o 
       "$_k4_oc" --weaken-symbol="$_k4s" runtime_asm_io_stubs.o 2>/dev/null && _k4_w=$((_k4_w+1)) || true
     fi
   done
-  echo "g05_cap_tip_reapply: FixC12k7 Prefer-M2 weakened $_k4_w stubs io/driver faces (seed_bridge wins)" >&2
+  echo "g05_cap_tip_reapply: FixC12k8 Prefer-M2 weakened $_k4_w stubs io/driver faces" >&2
   unset _k4s _k4_w
 fi
 if [ -n "$_k4_oc" ] && [ "$_k4_panic_ok" = "1" ] && [ -s runtime_panic.o ]; then
   if [ -s src/runtime_link_abi.o ]; then
     "$_k4_oc" --weaken-symbol=_link_abi_getenv --weaken-symbol=_link_abi_getenv_impl \
       runtime_panic.o 2>/dev/null \
-      && echo "g05_cap_tip_reapply: FixC12k7 Prefer-M2 weakened panic getenv (link_abi wins)" >&2 || true
+      && echo "g05_cap_tip_reapply: FixC12k8 Prefer-M2 weakened panic getenv" >&2 || true
   fi
   if nm -u runtime_panic.o 2>/dev/null | awk '$NF=="_NSGetEnviron" { f=1 } END { exit f?0:1 }'; then
     "$_k4_oc" --redefine-sym '_NSGetEnviron=__NSGetEnviron' runtime_panic.o 2>/dev/null || true
   fi
 fi
-unset _k4_xl _k4b _k4_stubs_ok _k4_panic_ok _k4_oc _k4_src
+unset _k4_oc _k4_stubs_ok _k4_panic_ok _k8_stubs _k8_panic _k8s _k8p
 # FixC12k7: Cap tip Prefer product hang-rebuilds formal_mod leaves (mem.o).
 # Allow stale leaf keep so s24 probe still runs; restore CACHE leaves after.
 export XLANG_G05_ALLOW_STALE_LEAF=1

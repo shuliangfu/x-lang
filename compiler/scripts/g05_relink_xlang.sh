@@ -1410,7 +1410,7 @@ case "$(uname -s 2>/dev/null)" in
             # FORCE=1 must rebuild; an untouched leaf is a skipped rebuild.
             _erc=nochange
           fi
-          mv -f "$_leaf.w2055bak" "$_leaf"
+          mv -f "$_leaf.w2055bak" "$_leaf" 2>/dev/null || rm -f "$_leaf.w2055bak"
           echo "g05_relink_xlang: FAIL cc-vehicle rebuild of $_leaf rc=$_erc (old leaf restored)" >&2
           rm -rf "$_ccv_dir" "$_nocc_dir"
           if [ -n "$_G05_STAGE_DIR" ]; then rm -rf "$_G05_STAGE_DIR"; fi
@@ -1453,7 +1453,7 @@ case "$(uname -s 2>/dev/null)" in
           echo "g05_relink_xlang: refreshed stale $_leaf"
         fi
       else
-        mv -f "$_leaf.w2055bak" "$_leaf"
+        mv -f "$_leaf.w2055bak" "$_leaf" 2>/dev/null || rm -f "$_leaf.w2055bak"
         _kept_stale="$_kept_stale $_leaf"
         echo "g05_relink_xlang: !!!!! STALE LEAF KEPT: $_leaf (asm rebuild failed; programs linking it get the OLD object) !!!!!" >&2
       fi
