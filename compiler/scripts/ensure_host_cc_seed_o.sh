@@ -11559,9 +11559,10 @@ rt_abk_authority_check() {
   # ~1552B). Require CALL/BRANCH relocs to those steps. PLATFORM: SHARED.
   _rel="$(objdump -r "$o" 2>/dev/null || true)"
   # Single-grep (no grep -q pipeline): pipefail+SIGPIPE otherwise false-fails
-  # when BRANCH lines exist but upstream grep -E is SIGPIPEd. PLATFORM: SHARED.
-  printf '%s\n' "$_rel" | grep -Eq 'BRANCH26.*rt_ab_step_read_pp|CALL26.*rt_ab_step_read_pp|ARM64_RELOC_BRANCH26.*rt_ab_step_read_pp|R_AARCH64_CALL26.*rt_ab_step_read_pp|R_X86_64_PLT32.*rt_ab_step_read_pp|R_X86_64_PC32.*rt_ab_step_read_pp|PLT32.*rt_ab_step_read_pp|PC32.*rt_ab_step_read_pp' || return 1
-  printf '%s\n' "$_rel" | grep -Eq 'BRANCH26.*rt_ab_step_load_deps|CALL26.*rt_ab_step_load_deps|ARM64_RELOC_BRANCH26.*rt_ab_step_load_deps|R_AARCH64_CALL26.*rt_ab_step_load_deps|R_X86_64_PLT32.*rt_ab_step_load_deps|R_X86_64_PC32.*rt_ab_step_load_deps|PLT32.*rt_ab_step_load_deps|PC32.*rt_ab_step_load_deps' || return 1
+  # when BRANCH lines exist but upstream grep -E is SIGPIPEd.
+  # tip_l4 Win PE: also IMAGE_REL_AMD64_REL32 / REL32. PLATFORM: SHARED.
+  printf '%s\n' "$_rel" | grep -Eq 'BRANCH26.*rt_ab_step_read_pp|CALL26.*rt_ab_step_read_pp|ARM64_RELOC_BRANCH26.*rt_ab_step_read_pp|R_AARCH64_CALL26.*rt_ab_step_read_pp|R_X86_64_PLT32.*rt_ab_step_read_pp|R_X86_64_PC32.*rt_ab_step_read_pp|PLT32.*rt_ab_step_read_pp|PC32.*rt_ab_step_read_pp|IMAGE_REL_AMD64_REL32.*rt_ab_step_read_pp|REL32.*rt_ab_step_read_pp' || return 1
+  printf '%s\n' "$_rel" | grep -Eq 'BRANCH26.*rt_ab_step_load_deps|CALL26.*rt_ab_step_load_deps|ARM64_RELOC_BRANCH26.*rt_ab_step_load_deps|R_AARCH64_CALL26.*rt_ab_step_load_deps|R_X86_64_PLT32.*rt_ab_step_load_deps|R_X86_64_PC32.*rt_ab_step_load_deps|PLT32.*rt_ab_step_load_deps|PC32.*rt_ab_step_load_deps|IMAGE_REL_AMD64_REL32.*rt_ab_step_load_deps|REL32.*rt_ab_step_load_deps' || return 1
   return 0
 }
 
