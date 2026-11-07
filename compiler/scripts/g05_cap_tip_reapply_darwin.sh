@@ -4185,6 +4185,33 @@ do
   [ -n "$_b" ] && [ -x "$_b" ] && _ri_xl="$_b" && break
 done
 _ri_keep=""
+# FixC12k8g: Cap tip Prefer L2 parse (P010/P014) — Prefer good_2105
+# lexer_x_tip_peel (text≈170772; CACHE 208844). idle lexer_next_body_into=25864
+# matches bak peel; CACHE peel undersizes skip_ws / mismatches body. Ban bulk.
+# PLATFORM: MACOS Cap tip Prefer.
+_k8g_peel=build_asm/selfhost_pabi/lexer_x_tip_peel.o
+_k8g_ref=""
+for _pr in   "${HOME:-}/xlang_bak_1066/cap_cache_good_2105/pabi/lexer_x_tip_peel.o"   "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/lexer_x_tip_peel.o"
+do
+  [ -s "$_pr" ] || continue
+  _pt=$(otool -l "$_pr" 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
+  case "$_pt" in 0x*|0X*) _pt=$((_pt)) ;; esac
+  # bak≈170772; reject CACHE 208844
+  if [ -n "$_pt" ] && [ "$_pt" -ge 165000 ] 2>/dev/null && [ "$_pt" -le 185000 ] 2>/dev/null; then
+    _k8g_ref="$_pr"; break
+  fi
+done
+if [ -n "$_k8g_ref" ]; then
+  mkdir -p build_asm/selfhost_pabi
+  cp -f "$_k8g_ref" "$_k8g_peel"
+  mkdir -p "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi"
+  cp -f "$_k8g_ref" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/lexer_x_tip_peel.o" 2>/dev/null || true
+  echo "g05_cap_tip_reapply: FixC12k8g Prefer-M2 lexer_x_tip_peel REF ($_k8g_ref text band 165k-185k)" >&2
+else
+  echo "g05_cap_tip_reapply: WARN FixC12k8g no lexer peel REF in band" >&2
+fi
+unset _k8g_peel _k8g_ref _pr _pt
+
 # FixC12k8f: Cap tip Prefer s24=110 matches good_2105 reverse_infer text=7280.
 # CACHE polluted text=6088. Prefer bak FIRST; size-gate ≥7000.
 for _ri_ref in   "${HOME:-}/xlang_bak_1066/cap_cache_good_2105/pabi/typeck_field_reverse_infer_soft.o"   "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/typeck_field_reverse_infer_soft.o"   "$_ri_o"
@@ -4860,6 +4887,76 @@ unset _k4_oc _k4_stubs_ok _k4_panic_ok _k8_stubs _k8_panic _k8s _k8p
 # FixC12k7: Cap tip Prefer product hang-rebuilds formal_mod leaves (mem.o).
 # Allow stale leaf keep so s24 probe still runs; restore CACHE leaves after.
 export XLANG_G05_ALLOW_STALE_LEAF=1
+# FixC12k8g final: re-assert bak lexer peel after any env/tip stomp.
+_k8g_peel=build_asm/selfhost_pabi/lexer_x_tip_peel.o
+_k8g_ref=""
+for _pr in \
+  "${HOME:-}/xlang_bak_1066/cap_cache_good_2105/pabi/lexer_x_tip_peel.o" \
+  "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/lexer_x_tip_peel.o"
+do
+  [ -s "$_pr" ] || continue
+  _pt=$(otool -l "$_pr" 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
+  case "$_pt" in 0x*|0X*) _pt=$((_pt)) ;; esac
+  if [ -n "$_pt" ] && [ "$_pt" -ge 165000 ] 2>/dev/null && [ "$_pt" -le 185000 ] 2>/dev/null; then
+    _k8g_ref="$_pr"; break
+  fi
+done
+if [ -n "$_k8g_ref" ]; then
+  mkdir -p build_asm/selfhost_pabi
+  cp -f "$_k8g_ref" "$_k8g_peel"
+  _k8g_oc=""
+  if [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then _k8g_oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+  elif command -v llvm-objcopy >/dev/null 2>&1; then _k8g_oc=llvm-objcopy
+  fi
+  if [ -n "$_k8g_oc" ] && nm -gU "$_k8g_peel" 2>/dev/null | awk '{print $3}' | grep -qxF '_lexer_init__tip_outptr_dead'; then
+    "$_k8g_oc" --redefine-sym=_lexer_init__tip_outptr_dead=_lexer_init "$_k8g_peel" 2>/dev/null || true
+  fi
+  unset _k8g_oc
+  echo "g05_cap_tip_reapply: FixC12k8g final peel re-assert ($_k8g_ref)" >&2
+fi
+unset _k8g_peel _k8g_ref _pr _pt
+
+# FixC12k8h: Cap tip Prefer L2 parse — final relink uses pre-exported G05_OBJS
+# (does not re-eval g05_relink_env). lexer_x.o in that bag wins body_into≈25024
+# → P010/P014. Swap to bak peel (k8g just re-asserted) and demote lexer_init.
+# PLATFORM: MACOS Cap tip Prefer.
+_k8h_peel=build_asm/selfhost_pabi/lexer_x_tip_peel.o
+if [ -s "$_k8h_peel" ]; then
+  # Keep peel _lexer_init: Cap tip Prefer final bag often lacks the
+  # note743y.6.22 ret-by-value shim; demoting here → UNDEF _lexer_init.
+  _k8h_new=""
+  _k8h_swapped=0
+  for _k8h_o in ${G05_OBJS:-}; do
+    if [ "$_k8h_o" = "lexer_x.o" ]; then
+      _k8h_new="$_k8h_new $_k8h_peel"
+      _k8h_swapped=1
+    else
+      _k8h_new="$_k8h_new $_k8h_o"
+    fi
+  done
+  G05_OBJS=$(echo $_k8h_new)
+  export G05_OBJS
+  if [ "$_k8h_swapped" = "1" ]; then
+    echo "g05_cap_tip_reapply: FixC12k8h G05_OBJS lexer_x → peel" >&2
+  else
+    echo "g05_cap_tip_reapply: FixC12k8h WARN lexer_x.o not in G05_OBJS (n=$(echo ${G05_OBJS:-} | wc -w | tr -d ' '))" >&2
+  fi
+  # Thin a64 overlays first-win; bak peel also defines these → Darwin ld dup.
+  _k8h_oc=""
+  if [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then _k8h_oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+  elif command -v llvm-objcopy >/dev/null 2>&1; then _k8h_oc=llvm-objcopy
+  fi
+  if [ -n "$_k8h_oc" ]; then
+    for _k8h_sym in _lexer_store_token _lexer_write_next_lex_into; do
+      if nm -gU "$_k8h_peel" 2>/dev/null | awk '{print $3}' | grep -qxF "$_k8h_sym"; then
+        "$_k8h_oc" --weaken-symbol="$_k8h_sym" "$_k8h_peel" 2>/dev/null           && echo "g05_cap_tip_reapply: FixC12k8h weaken peel $_k8h_sym (thin a64 wins)" >&2 || true
+      fi
+    done
+  fi
+  unset _k8h_oc _k8h_sym
+fi
+unset _k8h_peel _k8h_new _k8h_swapped _k8h_o
+
 bash scripts/g05_relink_xlang.sh
 _relink_rc=$?
 set -e

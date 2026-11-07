@@ -7347,32 +7347,62 @@ case "$UNAME_S" in
       if [ -f lexer_x.o ]; then
         _lex_f=build_asm/selfhost_pabi/lexer_x_tip_peel.o
         _demoted=0
-        if [ -n "${_oc:-}" ]; then
+        # FixC12k8h: Cap tip Prefer L2 parse — do NOT rebuild peel from live
+        # lexer_x.o (body_into≈25024 → P010/P014). Prefer good_2105/CACHE peel
+        # in text band 165k-185k (idle body_into=25864), then demote lexer_init
+        # on that REF (objcopy or ld -r). PLATFORM: MACOS Cap tip Prefer.
+        _oc=""
+        if command -v llvm-objcopy >/dev/null 2>&1; then _oc=llvm-objcopy
+        elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+        elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+        elif command -v objcopy >/dev/null 2>&1; then _oc=objcopy
+        fi
+        _k8h_ref=""
+        for _k8h_pr in \
+          "${HOME:-}/xlang_bak_1066/cap_cache_good_2105/pabi/lexer_x_tip_peel.o" \
+          "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/lexer_x_tip_peel.o" \
+          "$_lex_f"
+        do
+          [ -s "$_k8h_pr" ] || continue
+          _k8h_pt=$(otool -l "$_k8h_pr" 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
+          case "$_k8h_pt" in 0x*|0X*) _k8h_pt=$((_k8h_pt)) ;; esac
+          if [ -n "$_k8h_pt" ] && [ "$_k8h_pt" -ge 165000 ] 2>/dev/null && [ "$_k8h_pt" -le 185000 ] 2>/dev/null; then
+            _k8h_ref="$_k8h_pr"; break
+          fi
+        done
+        if [ -n "$_k8h_ref" ]; then
+          cp -f "$_k8h_ref" "$_lex_f"
+          echo "g05_relink_env: FixC12k8h Prefer lexer peel REF ($_k8h_ref)" >&2
+        else
           cp -f lexer_x.o "$_lex_f"
-          if nm -gU "$_lex_f" 2>/dev/null | awk '{print $3}' | grep -qxF '_lexer_init'; then
-            if "$_oc" --redefine-sym=_lexer_init=_lexer_init__tip_outptr_dead "$_lex_f" 2>/dev/null; then
-              _demoted=1
-            fi
-          else
+          echo "g05_relink_env: FixC12k8h WARN no bak peel band; peel <- lexer_x.o" >&2
+        fi
+        if [ -n "$_oc" ] && nm -gU "$_lex_f" 2>/dev/null | awk '{print $3}' | grep -qxF '_lexer_init'; then
+          if "$_oc" --redefine-sym=_lexer_init=_lexer_init__tip_outptr_dead "$_lex_f" 2>/dev/null; then
             _demoted=1
           fi
+        elif ! nm -gU "$_lex_f" 2>/dev/null | awk '{print $3}' | grep -qxF '_lexer_init'; then
+          _demoted=1
         fi
-        # Darwin twin of bootstrap_driver_seed_link: ld -r filter when no objcopy.
+        # Darwin twin: ld -r filter when objcopy miss — filter FROM current peel
+        # (bak REF or lexer_x), never force lexer_x.o over a good bak peel.
         if [ "$_demoted" != "1" ]; then
           _exp=build_asm/selfhost_pabi/lexer_x_tip_peel_exports.txt
-          nm -gU lexer_x.o 2>/dev/null | awk '/ [Tt] /{print $3}' \
+          nm -gU "$_lex_f" 2>/dev/null | awk '/ [Tt] /{print $3}' \
             | grep -v '^_lexer_init$' | grep -v '^lexer_init$' >"$_exp" || true
           if [ ! -s "$_exp" ]; then
             echo "g05_relink_env: ERROR empty lexer_x tip-peel export list" >&2
             exit 1
           fi
-          if ! ld -r -o "$_lex_f" -exported_symbols_list "$_exp" lexer_x.o 2>/tmp/g05_lexer_x_tip_peel.err; then
+          if ! ld -r -o "$_lex_f.tmp" -exported_symbols_list "$_exp" "$_lex_f" 2>/tmp/g05_lexer_x_tip_peel.err; then
             echo "g05_relink_env: ERROR ld -r filter lexer_init failed" >&2
             cat /tmp/g05_lexer_x_tip_peel.err >&2 || true
             exit 1
           fi
+          mv -f "$_lex_f.tmp" "$_lex_f"
           _demoted=1
         fi
+        unset _k8h_ref _k8h_pr _k8h_pt
         if nm -gU "$_lex_f" 2>/dev/null | grep -qE ' T _lexer_init$'; then
           echo "g05_relink_env: ERROR lexer_x tip-peel still exports T _lexer_init" >&2
           exit 1
@@ -8384,6 +8414,50 @@ unset _dal_partial _dal_tramp_s _dal_tramp_o _dal_cap_host _dal_ok_cap _dal_h _d
 
 
 G05_OBJS="$_PABI_TIP_PEEL $_CAP_TIP_FRONT $_PABI_M8_RELOC_STUBS $_DRIVER_SEED_OBJS driver_x.o $_PIPELINE_LINK_O lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $_DRIVER_SUBCMD src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $_USER_ASM_LINK $_GLUE_SUFFIX $_AST_GEN2 $_PABI_ARCHIVE_LEAF"
+# FixC12k8h: Cap tip Prefer L2 parse — force bak/CACHE lexer peel into
+# G05_OBJS even when note743y.6.22 shim path skipped (_G05_LEXER_X_O empty
+# left lexer_x.o linked → body_into≈25024 → P010/P014). Prefer text band
+# 165k-185k (idle body_into=25864). Demote _lexer_init so shim/front wins.
+# PLATFORM: MACOS Cap tip Prefer.
+_k8h_ref=""
+for _k8h_pr in \
+  "${HOME:-}/xlang_bak_1066/cap_cache_good_2105/pabi/lexer_x_tip_peel.o" \
+  "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/lexer_x_tip_peel.o" \
+  build_asm/selfhost_pabi/lexer_x_tip_peel.o
+do
+  [ -s "$_k8h_pr" ] || continue
+  _k8h_pt=$(otool -l "$_k8h_pr" 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
+  case "$_k8h_pt" in 0x*|0X*) _k8h_pt=$((_k8h_pt)) ;; esac
+  if [ -n "$_k8h_pt" ] && [ "$_k8h_pt" -ge 165000 ] 2>/dev/null && [ "$_k8h_pt" -le 185000 ] 2>/dev/null; then
+    _k8h_ref="$_k8h_pr"; break
+  fi
+done
+if [ -n "$_k8h_ref" ]; then
+  mkdir -p build_asm/selfhost_pabi
+  _k8h_peel=build_asm/selfhost_pabi/lexer_x_tip_peel.o
+  cp -f "$_k8h_ref" "$_k8h_peel"
+  # Restore lexer_init if a prior demote renamed it; only demote when shim is fronted.
+  _k8h_oc=""
+  if command -v llvm-objcopy >/dev/null 2>&1; then _k8h_oc=llvm-objcopy
+  elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then _k8h_oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+  elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then _k8h_oc=/usr/local/opt/llvm/bin/llvm-objcopy
+  elif command -v objcopy >/dev/null 2>&1; then _k8h_oc=objcopy
+  fi
+  if [ -n "$_k8h_oc" ] && nm -gU "$_k8h_peel" 2>/dev/null | awk '{print $3}' | grep -qxF '_lexer_init__tip_outptr_dead'; then
+    "$_k8h_oc" --redefine-sym=_lexer_init__tip_outptr_dead=_lexer_init "$_k8h_peel" 2>/dev/null || true
+  fi
+  # Shim present (fronted or on disk) → demote peel init so shim wins.
+  _k8h_shim=build_asm/selfhost_pabi/lexer_init_ret_by_value_shim.o
+  case " ${_CAP_TIP_FRONT:-} " in *" lexer_init_ret_by_value_shim.o "*) _k8h_have_shim=1 ;; *) _k8h_have_shim=0 ;; esac
+  if [ "$_k8h_have_shim" != "1" ] && [ -s "$_k8h_shim" ]; then _k8h_have_shim=1; fi
+  if [ "$_k8h_have_shim" = "1" ] && [ -n "$_k8h_oc" ] && nm -gU "$_k8h_peel" 2>/dev/null | awk '{print $3}' | grep -qxF '_lexer_init'; then
+    "$_k8h_oc" --redefine-sym=_lexer_init=_lexer_init__tip_outptr_dead "$_k8h_peel" 2>/dev/null       && echo "g05_relink_env: FixC12k8h demote peel _lexer_init (shim wins)" >&2 || true
+  fi
+  unset _k8h_shim _k8h_have_shim
+  _G05_LEXER_X_O="$_k8h_peel"
+  echo "g05_relink_env: FixC12k8h force G05 lexer peel REF ($_k8h_ref)" >&2
+fi
+unset _k8h_ref _k8h_pr _k8h_pt _k8h_peel _k8h_oc
 # note743y.6.21: Darwin Cap tip block sets _G05_LEXER_X_O after _X_FRONTEND
 # was already baked into _DRIVER_SEED_OBJS — swap lexer_x.o → peel here.
 if [ -n "${_G05_LEXER_X_O:-}" ]; then
