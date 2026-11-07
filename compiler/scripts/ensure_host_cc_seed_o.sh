@@ -6105,26 +6105,61 @@ ensure_deleted_seed_leaf_pure_rt_emit_bss() {
 # PLATFORM: SHARED. Fail closed — no host-cc fallback.
 # tip_l4 pe_codegen_elf_o_hang: Cap tip / PE tip -c of user_asm_seed_bridge.x
 # can omit the while (ln < 62) ln++ in asm_asm_codegen_elf_o (lib name never
-# advances → hang on non-empty out_lib). Pin-egg emits Cap-good body with
-# add w0,w1,w0 after mov #0x3e in that symbol. Authority scopes the check to
-# _asm_asm_codegen_elf_o so other adds in the TU cannot false-pass.
-# PLATFORM: SHARED.
+# advances → hang on non-empty out_lib). Pin-egg emits Cap-good body:
+#   Darwin arm64: mov w0,#0x3e ; add w0,w1,w0
+#   Linux/Win x86_64: mov $0x3e,%eax ; mov $0x1,%ebx ; add %rbx,%rax / %ebx,%eax
+# Authority scopes the check to asm_asm_codegen_elf_o so other adds in the
+# TU cannot false-pass. GNU binutils lacks --disassemble-symbols (llvm only);
+# try GNU --disassemble=SYM then nm+address window. PLATFORM: SHARED.
 uasb_codegen_elf_o_ln_inc_ok() {
-  local o="${1:-}" dump
+  local o="${1:-}" dumpfile sym addr next rc=1
   [ -s "$o" ] || return 1
-  # Prefer symbol-scoped disassembly (llvm-objdump / GNU).
-  dump="$(objdump -d --disassemble-symbols=_asm_asm_codegen_elf_o "$o" 2>/dev/null || true)"
-  if [ -z "$dump" ]; then
-    dump="$(objdump -d --disassemble-symbols=asm_asm_codegen_elf_o "$o" 2>/dev/null || true)"
+  # File-backed dump: avoid bash `[ -n "$huge" ]` / printf-argv of a full
+  # objdump body (GNU Linux tip L4 false-failed the gate with empty follow-up).
+  # Prefer unprefixed ELF/PE name; require "<sym>:" (GNU --disassemble=MISSING
+  # still prints a non-empty section header). PLATFORM: SHARED.
+  dumpfile="$(mktemp "${TMPDIR:-/tmp}/uasb_ln.XXXXXX")" || return 1
+  for sym in asm_asm_codegen_elf_o _asm_asm_codegen_elf_o; do
+    : >"$dumpfile"
+    objdump -d --disassemble-symbols="$sym" "$o" >"$dumpfile" 2>/dev/null || true
+    if grep -Fq "<$sym>:" "$dumpfile" 2>/dev/null; then
+      break
+    fi
+    : >"$dumpfile"
+    objdump -d --disassemble="$sym" "$o" >"$dumpfile" 2>/dev/null || true
+    if grep -Fq "<$sym>:" "$dumpfile" 2>/dev/null; then
+      break
+    fi
+    : >"$dumpfile"
+  done
+  if ! grep -Eq '<_?asm_asm_codegen_elf_o>:' "$dumpfile" 2>/dev/null; then
+    # Address window fallback; pick next T by ascending address (nm order ≠ addr).
+    addr="$(nm "$o" 2>/dev/null | tr -d '\r' | awk '$3=="asm_asm_codegen_elf_o" || $3=="_asm_asm_codegen_elf_o" { print $1; exit }')"
+    if [ -n "$addr" ]; then
+      next="$(nm "$o" 2>/dev/null | tr -d '\r' | awk '$2 ~ /^[Tt]$/ { printf "%s %s\n", $1, $3 }' | sort | awk -v a="$addr" '{ if (seen) { print $1; exit } if ($1==a) seen=1 }')"
+      if [ -n "$next" ]; then
+        objdump -d --start-address=0x$addr --stop-address=0x$next "$o" >"$dumpfile" 2>/dev/null || true
+      else
+        objdump -d --start-address=0x$addr "$o" >"$dumpfile" 2>/dev/null || true
+      fi
+    fi
   fi
-  if [ -z "$dump" ]; then
+  if [ ! -s "$dumpfile" ]; then
+    rm -f "$dumpfile"
     return 1
   fi
-  # Bound 62 must appear, and ln+=1 (add w0, w1, w0) must appear in the same
-  # symbol body. Whole-object grep is insufficient: tip bodies have other adds.
-  printf '%s\n' "$dump" | grep -Eq 'mov[[:space:]]+w0,[[:space:]]+#0x3e' || return 1
-  printf '%s\n' "$dump" | grep -Eq 'add[[:space:]]+w0,[[:space:]]+w1,[[:space:]]+w0' || return 1
-  return 0
+  # Darwin arm64 Cap-good.
+  if grep -Eq 'mov[[:space:]]+w0,[[:space:]]+#0x3e' "$dumpfile" \
+    && grep -Eq 'add[[:space:]]+w0,[[:space:]]+w1,[[:space:]]+w0' "$dumpfile"; then
+    rc=0
+  # Linux / Win x86_64 Cap-good (egg or tip-aside).
+  elif grep -Eq 'mov[[:space:]]+\$0x3e,%eax' "$dumpfile" \
+    && grep -Eq 'mov[[:space:]]+\$0x1,%eb[x]' "$dumpfile" \
+    && grep -Eq 'add[[:space:]]+%(rbx,%rax|ebx,%eax)' "$dumpfile"; then
+    rc=0
+  fi
+  rm -f "$dumpfile"
+  return "$rc"
 }
 
 # tip_l4 pe_codegen_elf_o_hang: egg-first pure-asm for the whole uasb TU.
