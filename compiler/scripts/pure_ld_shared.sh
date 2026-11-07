@@ -846,14 +846,39 @@ pure_asm_x_to_o() {
 pure_asm_x_to_o_or_pin_egg() {
   local out="$1"
   local src="$2"
-  local _egg_os _egg_arch _egg
+  local _egg_os _egg_arch _egg _aside
   if pure_asm_x_to_o "$out" "$src"; then
     return 0
   fi
   _egg_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
   _egg_arch="$(uname -m 2>/dev/null)"
-  case "$_egg_os" in darwin) _egg_os=darwin ;; linux) _egg_os=linux ;; *) return 1 ;; esac
+  case "$_egg_os" in
+    darwin) _egg_os=darwin ;;
+    linux) _egg_os=linux ;;
+    # tip_l4 Win: tip CG002 hollow; try tip_aside/xlang_bi then windows egg.
+    # Measured: xlang_bi emits Cap-good rt_run_exec (T driver_run_test).
+    # PLATFORM: WINDOWS|MSYS|MINGW|CYGWIN.
+    mingw*|msys*|cygwin*|windows_nt|windows) _egg_os=windows ;;
+    *) return 1 ;;
+  esac
   case "$_egg_arch" in x86_64|amd64) _egg_arch=x86_64 ;; arm64|aarch64) _egg_arch=arm64 ;; *) return 1 ;; esac
+  if [ "$_egg_os" = "windows" ]; then
+    for _aside in \
+        ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang.exe"} \
+        ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang"} \
+        ./xlang_bi.exe ./xlang_bi \
+        ./xlang.pre_l4_aside.exe ./xlang.pre_l4_aside; do
+      if [ -n "$_aside" ] && [ -x "$_aside" ]; then
+        rm -f "$out"
+        if "$_aside" -backend asm -c "$src" -o "$out" >/dev/null 2>&1 \
+          && [ -s "$out" ]; then
+          echo "pure_asm_x_to_o_or_pin_egg: via $_aside (Win tip_aside/bi)" >&2
+          return 0
+        fi
+        rm -f "$out"
+      fi
+    done
+  fi
   _egg="seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}"
   if [ ! -x "$_egg" ]; then
     return 1
