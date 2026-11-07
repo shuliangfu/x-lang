@@ -5021,7 +5021,7 @@ ensure_strict_glue_w1530() {
           for _aside in \
               ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang.exe"} \
               ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang"} \
-              ./xlang.pre_l4_aside ./xlang.pre_l4_aside.exe; do
+              ./xlang.pre_l4_aside ./xlang.pre_l4_aside.exe ./xlang_bi ./xlang_bi.exe; do
             if [ -n "$_aside" ] && [ -x "$_aside" ]; then
               rm -f "$tmp_o"
               if g05_xasm "$_aside" -backend asm -c "$_sg_strip_x" -o "$tmp_o" >/dev/null 2>&1 \
@@ -6251,7 +6251,7 @@ uasb_pure_any() {
   # still passes ln++ authority is the tip-cold last resort (not Soft Cap).
   # Also try tip_aside binary when present (helps other hosts). PLATFORM: SHARED.
   local _aside _bak
-  for _aside in       ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang.exe"}       ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang"}       ./xlang.pre_l4_aside ./xlang.pre_l4_aside.exe; do
+  for _aside in       ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang.exe"}       ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang"}       ./xlang.pre_l4_aside ./xlang.pre_l4_aside.exe ./xlang_bi ./xlang_bi.exe; do
     if [ -n "$_aside" ] && [ -x "$_aside" ]; then
       rm -f "$o"
       if g05_xasm "$_aside" -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1         && [ -s "$o" ] && uasb_codegen_elf_o_ln_inc_ok "$o"; then
@@ -6383,7 +6383,7 @@ ensure_deleted_seed_leaf_pure() {
   for _aside in \
       ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang.exe"} \
       ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang"} \
-      ./xlang.pre_l4_aside ./xlang.pre_l4_aside.exe; do
+      ./xlang.pre_l4_aside ./xlang.pre_l4_aside.exe ./xlang_bi ./xlang_bi.exe; do
     if [ -n "$_aside" ] && [ -x "$_aside" ]; then
       rm -f "$o"
       if g05_xasm "$_aside" -backend asm -c "$x" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
@@ -6405,7 +6405,7 @@ ensure_deleted_seed_leaf_pure() {
           for _aside in \
               ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang.exe"} \
               ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang"} \
-              ./xlang.pre_l4_aside ./xlang.pre_l4_aside.exe; do
+              ./xlang.pre_l4_aside ./xlang.pre_l4_aside.exe ./xlang_bi ./xlang_bi.exe; do
             if [ -n "$_aside" ] && [ -x "$_aside" ]; then
               rm -f "$o"
               if g05_xasm "$_aside" -backend asm -c "$_strip_x" -o "$o" >/dev/null 2>&1 \
@@ -11603,7 +11603,7 @@ rt_run_asm_backend_pure_any() {
   for _aside in \
       ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang.exe"} \
       ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang"} \
-      ./xlang.pre_l4_aside ./xlang.pre_l4_aside.exe; do
+      ./xlang.pre_l4_aside ./xlang.pre_l4_aside.exe ./xlang_bi ./xlang_bi.exe; do
     if [ -n "$_aside" ] && [ -x "$_aside" ]; then
       rm -f "$o"
       if g05_xasm "$_aside" -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 \
@@ -18338,7 +18338,7 @@ rt_prefer_try_x_to_o() {
   fi
   # tip_l4 Win: egg often XT001; tip_aside can emit Cap-good bodies (e.g.
   # rt_run_asm_backend.x). Try pre_l4_aside before -E+$CC. PLATFORM: SHARED.
-  for _aside in       ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang.exe"}       ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang"}       ./xlang.pre_l4_aside ./xlang.pre_l4_aside.exe; do
+  for _aside in       ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang.exe"}       ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang"}       ./xlang.pre_l4_aside ./xlang.pre_l4_aside.exe ./xlang_bi ./xlang_bi.exe; do
     if [ -n "$_aside" ] && [ -x "$_aside" ]; then
       rm -f "$_xout"
       if g05_xasm "$_aside" -backend asm -c "$_xsrc" -o "$_xout" >/dev/null 2>&1         && [ -s "$_xout" ]; then

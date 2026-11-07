@@ -504,7 +504,7 @@ build_lexer_x() {
   for _lex_aside in \
       ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang.exe"} \
       ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang"} \
-      ./xlang.pre_l4_aside ./xlang.pre_l4_aside.exe; do
+      ./xlang.pre_l4_aside ./xlang.pre_l4_aside.exe ./xlang_bi ./xlang_bi.exe; do
     if [ -n "$_lex_aside" ] && [ -x "$_lex_aside" ] && _lexer_try_xl "$_lex_aside"; then
       log "lexer_x.o <- pure-asm src/lexer/lexer.x via tip_aside $_lex_aside (w1546)"
       rm -f "$_lex_keep"
