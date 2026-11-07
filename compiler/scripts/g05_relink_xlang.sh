@@ -1412,6 +1412,13 @@ case "$(uname -s 2>/dev/null)" in
           fi
           mv -f "$_leaf.w2055bak" "$_leaf" 2>/dev/null || rm -f "$_leaf.w2055bak"
           echo "g05_relink_xlang: FAIL cc-vehicle rebuild of $_leaf rc=$_erc (old leaf restored)" >&2
+          # FixC12k8e: Cap tip Prefer DIG — under ALLOW_STALE keep LEGACY leaf and
+          # continue (same as STALE LEAF KEPT). Product pure-ld already OK.
+          if [ "${XLANG_G05_ALLOW_STALE_LEAF:-0}" = "1" ]; then
+            _kept_stale="$_kept_stale $_leaf"
+            echo "g05_relink_xlang: !!!!! STALE LEAF KEPT: $_leaf (cc-vehicle fail; ALLOW_STALE) !!!!!" >&2
+            continue
+          fi
           rm -rf "$_ccv_dir" "$_nocc_dir"
           if [ -n "$_G05_STAGE_DIR" ]; then rm -rf "$_G05_STAGE_DIR"; fi
           exit 1

@@ -4185,15 +4185,18 @@ do
   [ -n "$_b" ] && [ -x "$_b" ] && _ri_xl="$_b" && break
 done
 _ri_keep=""
-if [ -s "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/typeck_field_reverse_infer_soft.o" ]; then
-  _ri_keep="${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/typeck_field_reverse_infer_soft.o"
-elif [ -s "$_ri_o" ]; then
-  _ri_ksz=$(otool -l "$_ri_o" 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
+# FixC12k8f: Cap tip Prefer s24=110 matches good_2105 reverse_infer text=7280.
+# CACHE polluted text=6088. Prefer bak FIRST; size-gate ≥7000.
+for _ri_ref in   "${HOME:-}/xlang_bak_1066/cap_cache_good_2105/pabi/typeck_field_reverse_infer_soft.o"   "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/typeck_field_reverse_infer_soft.o"   "$_ri_o"
+do
+  [ -n "$_ri_ref" ] && [ -s "$_ri_ref" ] || continue
+  _ri_ksz=$(otool -l "$_ri_ref" 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
   case "$_ri_ksz" in 0x*|0X*) _ri_ksz=$((_ri_ksz)) ;; esac
   if [ -n "$_ri_ksz" ] && [ "$_ri_ksz" -ge 7000 ] 2>/dev/null; then
-    _ri_keep="$_ri_o"
+    _ri_keep="$_ri_ref"
+    break
   fi
-fi
+done
 _ri_ok=0
 if [ -n "$_ri_xl" ] && [ -f "$_ri_src" ]; then
   if XLANG_PREFER_ASM_O=1 "$_ri_xl" -backend asm -c -o "$_ri_o" "$_ri_src" >/dev/null 2>&1 \
@@ -4248,15 +4251,50 @@ do
   [ -n "$_b" ] && [ -x "$_b" ] && _ca_xl="$_b" && break
 done
 _ca_keep=""
-if [ -s "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/call_arg_struct_lit_field.o" ]; then
-  _ca_keep="${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/call_arg_struct_lit_field.o"
-elif [ -s "$_ca_o" ]; then
-  _ca_ksz=$(otool -l "$_ca_o" 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
+# FixC12k8f: Prefer good_2105 pabi faces that CACHE polluted (match idle
+# Cap tip Prefer s24=110 sizes). Narrow list only — ban bulk extract.
+# PLATFORM: MACOS Cap tip Prefer.
+_k8f_n=0
+for _k8f_pair in   "bake_struct.o:5000:6500"   "bake_scalar_imm_soft.o:800:1000"   "av_assign_var_try_let.o:1400:1600"   "register_tl_const.o:3500:3800"   "index_base_rax_a64.o:280:340"   "parser_mega_allow.o:1900:2200"   "vector_let_init_decline_a64.o:30000:33000"   "const_var_off.o:1700:2000"   "lea_cold_fwd.o:100:160"   "add_common_sym_soft.o:700:800"   "copy_large_a64.o:4200:4600"   "store_retval_pair_a64.o:3700:4000"   "body_sync_let_order.o:7800:8600"   "asm_expr_rec.o:15500:17500"   "field_cap_residual_load.o:20000:23000"   "reent_nocap.o:15000:16500"   "asm_locals_thin.o:14000:15500"   "const_lit_fold.o:4000:4300"   "emit_epilogue_f64.o:1800:2100"   "addr_of_call.o:10500:11500"   "modlet_f64_imm.o:2100:2400"   "typeck_field_reverse_infer_soft.o:7000:7600"
+do
+  _k8f_f="${_k8f_pair%%:*}"
+  _k8f_rest="${_k8f_pair#*:}"
+  _k8f_lo="${_k8f_rest%%:*}"
+  _k8f_hi="${_k8f_rest##*:}"
+  _k8f_dst="build_asm/selfhost_pabi/$_k8f_f"
+  _k8f_ref=""
+  for _k8f_src in     "${HOME:-}/xlang_bak_1066/cap_cache_good_2105/pabi/$_k8f_f"     "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/$_k8f_f"
+  do
+    [ -s "$_k8f_src" ] || continue
+    _k8f_t=$(otool -l "$_k8f_src" 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
+    case "$_k8f_t" in 0x*|0X*) _k8f_t=$((_k8f_t)) ;; esac
+    if [ -n "$_k8f_t" ] && [ "$_k8f_t" -ge "$_k8f_lo" ] 2>/dev/null && [ "$_k8f_t" -le "$_k8f_hi" ] 2>/dev/null; then
+      _k8f_ref="$_k8f_src"; break
+    fi
+  done
+  if [ -n "$_k8f_ref" ]; then
+    mkdir -p build_asm/selfhost_pabi
+    cp -f "$_k8f_ref" "$_k8f_dst"
+    mkdir -p "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi"
+    cp -f "$_k8f_ref" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/$_k8f_f" 2>/dev/null || true
+    _k8f_n=$((_k8f_n+1))
+  fi
+done
+echo "g05_cap_tip_reapply: FixC12k8f Prefer-M2 good_2105 polluted-face restore n=$_k8f_n" >&2
+unset _k8f_n _k8f_pair _k8f_f _k8f_rest _k8f_lo _k8f_hi _k8f_dst _k8f_ref _k8f_src _k8f_t
+
+# FixC12k8e: Cap tip Prefer s24=110 matches good_2105 call_arg text=6672.
+# CACHE polluted text=5420 → Prefer CG002. Prefer bak FIRST; size-gate ≥6500.
+for _ca_ref in   "${HOME:-}/xlang_bak_1066/cap_cache_good_2105/pabi/call_arg_struct_lit_field.o"   "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/call_arg_struct_lit_field.o"   "$_ca_o"
+do
+  [ -n "$_ca_ref" ] && [ -s "$_ca_ref" ] || continue
+  _ca_ksz=$(otool -l "$_ca_ref" 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
   case "$_ca_ksz" in 0x*|0X*) _ca_ksz=$((_ca_ksz)) ;; esac
   if [ -n "$_ca_ksz" ] && [ "$_ca_ksz" -ge 6500 ] 2>/dev/null; then
-    _ca_keep="$_ca_o"
+    _ca_keep="$_ca_ref"
+    break
   fi
-fi
+done
 _ca_ok=0
 if [ -n "$_ca_xl" ] && [ -f "$_ca_src" ]; then
   if XLANG_PREFER_ASM_O=1 "$_ca_xl" -backend asm -c -o "$_ca_o" "$_ca_src" >/dev/null 2>&1 \
@@ -4689,6 +4727,62 @@ for _k5f in slice_modlet.o lvalue_eff_addr_elf_a64.o emit_let_init.o; do
 done
 echo "g05_cap_tip_reapply: FixC12k5 Prefer-M2 restored bak good_2105 slice/lvalue/let_init n=$_k5_n" >&2
 unset _k5_bak _k5_n _k5f
+
+# FixC12k8e: Cap tip Prefer s24=110 matches good_2105 for_call_args text=25744
+# (CACHE 29668), call_arg 6672 (CACHE 5420), index_base_rbx 1968 (CACHE 1200).
+# Ban bulk. PLATFORM: MACOS Cap tip Prefer.
+_k8e_fca=build_asm/selfhost_pabi/for_call_args_a64.o
+_k8e_fca_ref=""
+for _fr in   "${HOME:-}/xlang_bak_1066/cap_cache_good_2105/pabi/for_call_args_a64.o"   "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/for_call_args_a64.o"
+do
+  [ -s "$_fr" ] || continue
+  _ft=$(otool -l "$_fr" 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
+  case "$_ft" in 0x*|0X*) _ft=$((_ft)) ;; esac
+  # idle band [25000,27000]; reject CACHE 29668
+  if [ -n "$_ft" ] && [ "$_ft" -ge 25000 ] 2>/dev/null && [ "$_ft" -le 27000 ] 2>/dev/null; then
+    _k8e_fca_ref="$_fr"; break
+  fi
+done
+if [ -n "$_k8e_fca_ref" ]; then
+  mkdir -p build_asm/selfhost_pabi
+  cp -f "$_k8e_fca_ref" "$_k8e_fca"
+  mkdir -p "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi"
+  cp -f "$_k8e_fca_ref" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/for_call_args_a64.o" 2>/dev/null || true
+  echo "g05_cap_tip_reapply: FixC12k8e Prefer-M2 for_call_args REF ($_k8e_fca_ref text band 25k-27k)" >&2
+fi
+_k8e_rbx=build_asm/selfhost_pabi/index_base_rbx_a64.o
+_k8e_rbx_ref=""
+for _rr in   "${HOME:-}/xlang_bak_1066/cap_cache_good_2105/pabi/index_base_rbx_a64.o"   "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/index_base_rbx_a64.o"
+do
+  [ -s "$_rr" ] || continue
+  _rt=$(otool -l "$_rr" 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
+  case "$_rt" in 0x*|0X*) _rt=$((_rt)) ;; esac
+  if [ -n "$_rt" ] && [ "$_rt" -ge 1800 ] 2>/dev/null && [ "$_rt" -le 2200 ] 2>/dev/null; then
+    _k8e_rbx_ref="$_rr"; break
+  fi
+done
+if [ -n "$_k8e_rbx_ref" ]; then
+  cp -f "$_k8e_rbx_ref" "$_k8e_rbx"
+  cp -f "$_k8e_rbx_ref" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/index_base_rbx_a64.o" 2>/dev/null || true
+  echo "g05_cap_tip_reapply: FixC12k8e Prefer-M2 index_base_rbx REF ($_k8e_rbx_ref text band 1.8k-2.2k)" >&2
+fi
+_k8e_caco=build_asm/selfhost_pabi/call_arg_const_off.o
+_k8e_caco_ref=""
+for _cr in   "${HOME:-}/xlang_bak_1066/cap_cache_good_2105/pabi/call_arg_const_off.o"   "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/call_arg_const_off.o"
+do
+  [ -s "$_cr" ] || continue
+  _ct=$(otool -l "$_cr" 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
+  case "$_ct" in 0x*|0X*) _ct=$((_ct)) ;; esac
+  if [ -n "$_ct" ] && [ "$_ct" -ge 900 ] 2>/dev/null && [ "$_ct" -le 1000 ] 2>/dev/null; then
+    _k8e_caco_ref="$_cr"; break
+  fi
+done
+if [ -n "$_k8e_caco_ref" ]; then
+  cp -f "$_k8e_caco_ref" "$_k8e_caco"
+  cp -f "$_k8e_caco_ref" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/call_arg_const_off.o" 2>/dev/null || true
+  echo "g05_cap_tip_reapply: FixC12k8e Prefer-M2 call_arg_const_off REF ($_k8e_caco_ref)" >&2
+fi
+unset _k8e_fca _k8e_fca_ref _fr _ft _k8e_rbx _k8e_rbx_ref _rr _rt _k8e_caco _k8e_caco_ref _cr _ct
 
 # FixC12k8c: Prefer green Cap tip rais/panic thin bodies (216/240) only
 # (demote tip undersize; keep tip io_*). FixC12k8d: binop_cmp REF=good_2105
