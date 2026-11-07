@@ -2717,6 +2717,73 @@ ASM
       fi
     fi
   fi
+  # 10.67 FixC12i Prefer-M2: Cap tip G05_OBJS needs nop9b + pthin_primary_*.
+  # True-cold wipe + incomplete CACHE/pabi left them missing → skip → mass UNDEF
+  # (trait_reg_reset / lex peels / glue). Prefer CACHE/pabi then bak_1066 Cap tip REF.
+  # No FORCE_CC / host-cc .c. PLATFORM: MACOS Cap tip Prefer.
+  _fix_cap_tip_core() {
+    local dst="$1"; shift
+    local src
+    [ -s "$dst" ] && return 0
+    for src in "$@"; do
+      [ -n "$src" ] && [ -s "$src" ] || continue
+      mkdir -p "$(dirname "$dst")"
+      cp -f "$src" "$dst" && echo "g05_cap_tip_reapply: FixC12i Prefer restored $(basename "$dst") from $src" >&2 && return 0
+    done
+    return 1
+  }
+  _bak_pabi="${HOME:-}/xlang_bak_1066/cap_cache_good_2105/pabi"
+  _cache_pabi="${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi"
+  _fix_cap_tip_core build_asm/selfhost_pabi/parser_asm_thin_glue.nop9b.o \
+    "$_cache_pabi/parser_asm_thin_glue.nop9b.o" \
+    "$_bak_pabi/parser_asm_thin_glue.nop9b.o" \
+    /tmp/cap_tip_l4_safe_406200eef/pabi/parser_asm_thin_glue.nop9b.o || true
+  # Last-resort: live thin_glue archive (may be tip_l4-hollowed — overrides below).
+  if [ ! -s build_asm/selfhost_pabi/parser_asm_thin_glue.nop9b.o ] \
+    && [ -s parser_asm_thin_glue.o ]; then
+    cp -f parser_asm_thin_glue.o build_asm/selfhost_pabi/parser_asm_thin_glue.nop9b.o
+    echo "g05_cap_tip_reapply: FixC12i Prefer nop9b <- live thin_glue.o (last-resort)" >&2
+  fi
+  _fix_cap_tip_core build_asm/selfhost_pabi/pthin_primary_body_a64.o \
+    "$_cache_pabi/pthin_primary_body_a64.o" \
+    "$_bak_pabi/pthin_primary_body_a64.o" \
+    /tmp/cap_tip_l4_safe_406200eef/pabi/pthin_primary_body_a64.o || true
+  _fix_cap_tip_core build_asm/selfhost_pabi/pthin_primary_tramp_a64.o \
+    "$_cache_pabi/pthin_primary_tramp_a64.o" \
+    "$_bak_pabi/pthin_primary_tramp_a64.o" \
+    /tmp/cap_tip_l4_safe_406200eef/pabi/pthin_primary_tramp_a64.o || true
+  # tip_l4 Darwin PE may hollow thin_glue faces; Cap tip Prefer uses nop9b, but
+  # if last-resort copied hollowed thin_glue, prepend existing tip_l4 overrides.
+  for _ov in \
+    build_asm/selfhost_pabi/parser_asm_parse_one_top_level_let_x_into_override.o \
+    build_asm/selfhost_pabi/pthin_expr_primary_x_into_override.o \
+    build_asm/selfhost_pabi/pthin_expr_primary_ident_x_into_override.o \
+    build_asm/selfhost_pabi/pthin_expr_primary_suffix_loop_override.o \
+    build_asm/selfhost_pabi/pthin_expr_unary_x_into_override.o \
+    build_asm/selfhost_pabi/pthin_expr_binop_level_override.o \
+    build_asm/selfhost_pabi/pthin_expr_ternary_tramp_face_override.o \
+    build_asm/selfhost_pabi/pthin_imports_collect_override.o \
+    build_asm/selfhost_pabi/pthin_lex_skip_advance_past_stmt_semicolon_override.o \
+    build_asm/selfhost_pabi/pthin_stretch_import_path_finalize_override.o \
+    build_asm/selfhost_pabi/pthin_stretch_import_path_normalize_override.o \
+    build_asm/selfhost_pabi/glue_asm_build_dep_export_sym_override.o \
+    build_asm/selfhost_pabi/glue_asm_build_func_export_sym_override.o \
+    build_asm/selfhost_pabi/glue_module_func_overload_count_override.o \
+    build_asm/selfhost_pabi/type_ref_impl_scalar_override.o \
+    build_asm/selfhost_pabi/arm64_enc_addsub_sp_imm_chunks_override.o
+  do
+    [ -s "$_ov" ] || continue
+    case " $G05_OBJS " in
+      *" $_ov "*) ;;
+      *)
+        G05_OBJS="$_ov $G05_OBJS"
+        export G05_OBJS
+        echo "g05_cap_tip_reapply: FixC12i Prefer prepended tip_l4 override $(basename "$_ov")" >&2
+        ;;
+    esac
+  done
+  unset _ov _bak_pabi _cache_pabi
+
   # Drop still-missing paths from G05_OBJS (avoid ld errno=2)
   local kept="" miss=0
   for o in $G05_OBJS; do
