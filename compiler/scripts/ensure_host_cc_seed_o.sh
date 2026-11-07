@@ -4703,9 +4703,38 @@ ensure_process_argv_w1529() {
     unset G05_X_O_SYM_RENAME
     pure_asm_x_to_o "$tmp_o" "$xsrc"
   ) || [ ! -s "$tmp_o" ]; then
-    rm -f "$tmp_o"
-    echo "ensure: $o pure asm of $xsrc failed; no retry, no host cc" >&2
-    return 1
+    # DIG tip_l4 Win: PE tip XT001 arity on process_xlang_argv_get(i) in
+    # process_arg_c; xlang_bi.exe emits the TU. Retry bi/aside then weaken.
+    # PLATFORM: WINDOWS.
+    _argv_ok=0
+    case "$os_s" in
+      Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+        for _xl in ./xlang_bi.exe ./xlang_bi \
+            ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang.exe"} \
+            ./xlang.pre_l4_aside.exe ./xlang.pre_l4_aside; do
+          [ -n "$_xl" ] && [ -x "$_xl" ] || continue
+          rm -f "$tmp_o"
+          if (
+            export XLANG="$_xl"
+            export XLANG_PREFER_ASM_O=1
+            export G05_X_O_WEAK_FUNCS=process_args_count_c,process_arg_c
+            unset G05_X_O_WEAK
+            unset G05_X_O_SYM_RENAME
+            pure_asm_x_to_o "$tmp_o" "$xsrc"
+          ) && [ -s "$tmp_o" ]; then
+            _argv_ok=1
+            echo "ensure: $o via $_xl (Win w1529 bi/aside; tip XT001)" >&2
+            break
+          fi
+          rm -f "$tmp_o"
+        done
+        ;;
+    esac
+    if [ "$_argv_ok" != "1" ]; then
+      rm -f "$tmp_o"
+      echo "ensure: $o pure asm of $xsrc failed; no retry, no host cc" >&2
+      return 1
+    fi
   fi
   if ! process_argv_rename_lxml_w1529 "$tmp_o"; then
     rm -f "$tmp_o"
