@@ -320,6 +320,14 @@ pure_ld_partial_merge() {
     return 1
   fi
   os="$(uname -s 2>/dev/null || echo Unknown)"
+  # tip_l4 Win: MinGW gcc -r often fails on COFF partial link; ld -r works
+  # (fmt thin+rest measured). Prefer ld -r on Windows hosts.
+  # PLATFORM: WINDOWS|MSYS|MINGW|CYGWIN.
+  case "$os" in
+    MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+      XLANG_ZERO_CC_LD="${XLANG_ZERO_CC_LD:-1}"
+      ;;
+  esac
   if [ "${XLANG_ZERO_CC_LD:-0}" = "1" ]; then
     ld_bin="$(pure_ld_resolve_ld)" || {
       echo "pure_ld_shared: ld not found for partial_merge" >&2

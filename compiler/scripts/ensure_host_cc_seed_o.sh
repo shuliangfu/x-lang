@@ -6296,10 +6296,11 @@ x_strip_not_windows_cfg() {
       if ($0 ~ /^#\[/) next
       if ($0 ~ /export function/ || $0 ~ /export extern/ || $0 ~ /^function / || $0 ~ /^extern /) started=1
       # one-line extern decl
-      if (started && $0 ~ /extern/ && $0 !~ /{/ && $0 ~ /;/) {
+      if (started && $0 ~ /extern/ && $0 !~ /[{]/ && $0 ~ /;/) {
         skip=0; started=0; depth=0; next
       }
-      depth += gsub(/{/, "{") - gsub(/}/, "}")
+      # BusyBox awk: /{/ is invalid; use character class.
+      depth += gsub(/[{]/, "{") - gsub(/[}]/, "}")
       if (started && depth <= 0) { skip=0; started=0; depth=0 }
       next
     }
@@ -18321,6 +18322,102 @@ rt_prefer_no_c_cflags() {
   fi
 }
 
+# tip_l4 Win: tip -E of large TUs (rdabi thin) corrupts float inits —
+# `name = 0.000000` becomes `name.000000` + NUL padding, and index digits
+# on g_compile_phase_* collapse to _0. Strip NULs, restore statics from
+# the preceding #undef, renumber init assigns, drop dead `ret0.000000`
+# leftovers. PLATFORM: WINDOWS|MSYS|MINGW|CYGWIN.
+rt_prefer_win_sanitize_e_c() {
+  local f="$1" tmp os_s
+  [ -n "$f" ] && [ -f "$f" ] || return 0
+  os_s="$(uname -s 2>/dev/null || echo Unknown)"
+  case "$os_s" in
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*) ;;
+    *) return 0 ;;
+  esac
+  # Only NUL-corrupted -E dumps need sanitize. BusyBox grep -q $'\0'
+  # is not a reliable NUL probe (false positive → rewriter breaks healthy
+  # fmt thin). Compare byte counts with/without NUL. PLATFORM: WINDOWS.
+  _sz="$(wc -c <"$f" | tr -d "[:space:]")"
+  _sz2="$(tr -d "\000" <"$f" | wc -c | tr -d "[:space:]")"
+  if [ -n "$_sz" ] && [ "$_sz" = "$_sz2" ]; then
+    return 0
+  fi
+  tmp="${f}.win_e_sanitize"
+  if command -v python.exe >/dev/null 2>&1; then
+    python.exe - "$f" "$tmp" <<'PY'
+import re, sys
+src, dst = sys.argv[1], sys.argv[2]
+raw = open(src, 'rb').read().replace(b'\x00', b'')
+text = raw.decode('utf-8', 'replace')
+text = re.sub(r'\.0+\s*;', '.000000;', text)
+text = re.sub(r'\.0+\s*\)\)', '.000000))', text)
+lines = text.splitlines(True)
+out = []
+i = 0
+acc_i = 0
+sec_i = 0
+void_acc = 0
+void_sec = 0
+while i < len(lines):
+    ln = lines[i]
+    m = re.match(r'^#undef\s+(g_compile_phase_(?:acc_ms|start_sec)_\d+)\s*$', ln.strip())
+    if m:
+        name = m.group(1)
+        out.append(ln)
+        i += 1
+        while i < len(lines) and lines[i].strip() == '':
+            i += 1
+        if i < len(lines) and re.search(r'static\s+double\s+', lines[i]):
+            out.append('static double %s = 0.0;\n' % name)
+            i += 1
+            while i < len(lines) and lines[i].strip() in ('', ';'):
+                i += 1
+            continue
+        continue
+    if re.match(r'^\s*ret0?\.0+\s*;\s*$', ln) or re.match(r'^\s*ret\s*=\s*0\.0+\s*;\s*$', ln):
+        i += 1
+        continue
+    m2 = re.match(r'^(\s*)g_compile_phase_acc_ms_0\.0+\s*;\s*$', ln)
+    if m2 and 'static' not in ln:
+        out.append('%sg_compile_phase_acc_ms_%d = 0.0;\n' % (m2.group(1), acc_i)); acc_i += 1; i += 1; continue
+    m3 = re.match(r'^(\s*)g_compile_phase_start_sec_0\.0+\s*;\s*$', ln)
+    if m3 and 'static' not in ln:
+        out.append('%sg_compile_phase_start_sec_%d = 0.0;\n' % (m3.group(1), sec_i)); sec_i += 1; i += 1; continue
+    mv = re.match(r'^(\s*)\(void\)\(\(g_compile_phase_acc_ms_0\.0+\s*\)\)\s*;\s*$', ln) or re.match(r'^(\s*)\(void\)\(\(g_compile_phase_acc_ms_0\.0+\s*$', ln)
+    if mv:
+        out.append('%s(void)((g_compile_phase_acc_ms_%d = 0.0));\n' % (mv.group(1), void_acc)); void_acc += 1
+        i += 1
+        while i < len(lines) and lines[i].strip() in ('', ';', '));', ')'):
+            i += 1
+        continue
+    mv2 = re.match(r'^(\s*)\(void\)\(\(g_compile_phase_start_sec_0\.0+\s*\)\)\s*;\s*$', ln) or re.match(r'^(\s*)\(void\)\(\(g_compile_phase_start_sec_0\.0+\s*$', ln)
+    if mv2:
+        out.append('%s(void)((g_compile_phase_start_sec_%d = 0.0));\n' % (mv2.group(1), void_sec)); void_sec += 1
+        i += 1
+        while i < len(lines) and lines[i].strip() in ('', ';', '));', ')'):
+            i += 1
+        continue
+    ln2 = re.sub(r'\b([A-Za-z_][A-Za-z0-9_]*)\.(0+\.?0*)\b', r'\1 = 0.000000', ln)
+    ln2 = re.sub(r'\b([A-Za-z_][A-Za-z0-9_]*[A-Za-z_])0\.(0+\.?0*)\b', r'\1 = 0.000000', ln2)
+    out.append(ln2)
+    i += 1
+open(dst, 'w', encoding='utf-8', newline='\n').write(''.join(out))
+PY
+    if [ -s "$tmp" ]; then
+      mv -f "$tmp" "$f"
+      echo "rt_prefer: Win -E float sanitize $f (NUL/phase floats)" >&2
+      return 0
+    fi
+    rm -f "$tmp"
+  fi
+  if command -v perl >/dev/null 2>&1; then
+    perl -0pi -e 's/\0//g; s/\b([A-Za-z_][A-Za-z0-9_]*)\.(0+\.?0*)\b/$1 = 0.000000/g; s/^\s*ret0?\.0+\s*;\s*$//mg' "$f" 2>/dev/null || true
+    echo "rt_prefer: Win -E float sanitize (perl) $f" >&2
+  fi
+  return 0
+}
+
 rt_prefer_try_x_to_o() {
   _xsrc="$1"
   _xout="$2"
@@ -18339,6 +18436,31 @@ rt_prefer_try_x_to_o() {
     return 1
   fi
   mkdir -p "$(dirname "$_xout")"
+  # tip_l4 Win: tip/egg/tip_aside hollow rt_emit_flags.x (object emits but
+  # no T driver_argv_has_emit_c_flag). xlang_bi supplies Cap-good T; prefer
+  # it first on Windows so R2 thin+rest does not green-lie into no_c.
+  # PLATFORM: WINDOWS|MSYS|MINGW|CYGWIN.
+  case "$_xsrc" in
+    */rt_emit_flags.x|rt_emit_flags.x|*/src/runtime/rt_emit_flags.x|src/runtime/rt_emit_flags.x)
+      _ef_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
+      case "$_ef_os" in
+        mingw*|msys*|cygwin*|windows*)
+          for _ef_bi in ./xlang_bi.exe ./xlang_bi; do
+            if [ -x "$_ef_bi" ]; then
+              rm -f "$_xout"
+              if g05_xasm "$_ef_bi" -backend asm -c "$_xsrc" -o "$_xout" >/dev/null 2>&1 \
+                && [ -s "$_xout" ] \
+                && nm "$_xout" 2>/dev/null | grep -qE " T _?driver_argv_has_emit_c_flag$"; then
+                echo "rt_prefer: emit_flags via xlang_bi $_ef_bi (Win T argv_has_emit)" >&2
+                return 0
+              fi
+              rm -f "$_xout"
+            fi
+          done
+          ;;
+      esac
+      ;;
+  esac
   # Stage 12.0.5 prefer-family pure-asm product default (authorized 2026-08-12):
   #   · XLANG_PREFER_ASM_O_RT defaults to 1 → scoped XLANG_PREFER_ASM_O=1 for
   #     pure_asm_x_to_o only (subshell; does NOT leak tree-level PREFER_ASM_O).
@@ -18361,7 +18483,16 @@ rt_prefer_try_x_to_o() {
     fi
     pure_asm_x_to_o "$_xout" "$_xsrc"
   ); then
-    return 0
+    # tip_l4 Win: reject hollow emit_flags (no T argv_has_emit). PLATFORM: SHARED.
+    case "$_xsrc" in
+      *rt_emit_flags.x)
+        if nm "$_xout" 2>/dev/null | grep -qE " T _?driver_argv_has_emit_c_flag$"; then
+          return 0
+        fi
+        rm -f "$_xout"
+        ;;
+      *) return 0 ;;
+    esac
   fi
   # tip_l4 Linux/Win: tip/bootstrap pure of many rt_*.x fails (hollow SEGV /
   # missing T); pin-egg still emits Cap-good bodies (argv/fmt_one/dispatch/…).
@@ -18377,7 +18508,15 @@ rt_prefer_try_x_to_o() {
     if [ -x "$_egg" ]; then
       rm -f "$_xout"
       if g05_xasm "$_egg" -backend asm -c "$_xsrc" -o "$_xout" >/dev/null 2>&1         && [ -s "$_xout" ]; then
-        return 0
+        case "$_xsrc" in
+          *rt_emit_flags.x)
+            if nm "$_xout" 2>/dev/null | grep -qE " T _?driver_argv_has_emit_c_flag$"; then
+              return 0
+            fi
+            rm -f "$_xout"
+            ;;
+          *) return 0 ;;
+        esac
       fi
       rm -f "$_xout"
     fi
@@ -18388,7 +18527,16 @@ rt_prefer_try_x_to_o() {
     if [ -n "$_aside" ] && [ -x "$_aside" ]; then
       rm -f "$_xout"
       if g05_xasm "$_aside" -backend asm -c "$_xsrc" -o "$_xout" >/dev/null 2>&1         && [ -s "$_xout" ]; then
-        return 0
+        case "$_xsrc" in
+          *rt_emit_flags.x)
+            if nm "$_xout" 2>/dev/null | grep -qE " T _?driver_argv_has_emit_c_flag$"; then
+              return 0
+            fi
+            rm -f "$_xout"
+            continue
+            ;;
+          *) return 0 ;;
+        esac
       fi
       rm -f "$_xout"
     fi
@@ -18448,6 +18596,8 @@ rt_prefer_try_x_to_o() {
     return 1
   fi
   fi
+  # tip_l4 Win: sanitize tip -E float NUL / phase-index collapse before prologue.
+  rt_prefer_win_sanitize_e_c "$_xtmp"
   if [ -n "${G05_X_O_WEAK_FUNCS:-}" ]; then
     # Named weak only (G.7 有则补全 on rt_prefer harness).
     # wave771 seed_link_compat: 6 stubs must stay weak so lsp_diag_x /
@@ -18504,7 +18654,25 @@ rt_prefer_try_x_to_o() {
     echo '#ifdef _WIN32'
     # PLATFORM: WINDOWS — -E dumps call POSIX read/write/rmdir; MinGW CRT is
     # _read/_write/_rmdir. win32_compat.h is the alias authority (access too).
+    # tip_l4 Win: fmt thin -E needs xlang_fmt_* walk helpers (same as POSIX
+    # branch); xlang_dir_cap.h supplies Win _findfirst bodies (G.7).
     echo '#include "win32_compat.h"'
+    echo '#include <xlang_dir_cap.h>'
+    echo 'static inline uint8_t *xlang_fmt_opendir(uint8_t *name) {'
+    echo '  return name ? (uint8_t *)xlang_dir_open((const char *)(void *)name) : (uint8_t *)0;'
+    echo '}'
+    echo 'static inline int32_t xlang_fmt_closedir(uint8_t *dirp) {'
+    echo '  return dirp ? (int32_t)xlang_dir_close((void *)dirp) : (int32_t)-1;'
+    echo '}'
+    echo 'static inline int32_t xlang_fmt_access(uint8_t *path, int32_t mode) {'
+    echo '  return path ? (int32_t)access((const char *)path, (int)mode) : (int32_t)-1;'
+    echo '}'
+    echo 'static inline uint8_t *xlang_fmt_readdir_name(uint8_t *dirp) {'
+    echo '  char *n;'
+    echo '  if (!dirp) return (uint8_t *)0;'
+    echo '  n = xlang_dir_readdir_name((void *)dirp);'
+    echo '  return (uint8_t *)(void *)n;'
+    echo '}'
     echo '#else'
     echo '#include <unistd.h>'
     echo '#include <fcntl.h>'
@@ -18621,73 +18789,77 @@ rt_prefer_try_x_to_o() {
     # mkstemp/rename are in that predicate; sed lines below stay as defense for
     # cold/old xlang -E, opendir opaque (intentionally NOT in product skip), and
     # xlang_fmt_*/xlang_driver_* harness helpers defined as static inline above.
-    sed -e '/^#include /d' \
-        -e '/^extern ssize_t read(/d' \
-        -e '/^extern ssize_t write(/d' \
-        -e '/^extern int32_t open(/d' \
-        -e '/^extern int open(/d' \
-        -e '/^extern int32_t fcntl(/d' \
-        -e '/^extern int fcntl(/d' \
-        -e '/^extern int32_t close(/d' \
-        -e '/^extern int close(/d' \
-        -e '/^extern uint8_t \* calloc(/d' \
-        -e '/^extern uint8_t \* malloc(/d' \
-        -e '/^extern void free(/d' \
-        -e '/^extern uint8_t \* memcpy(/d' \
-        -e '/^extern void \* memcpy(/d' \
-        -e '/^extern int32_t memcmp(/d' \
-        -e '/^extern int memcmp(/d' \
-        -e '/^extern char \* getenv(/d' \
-        -e '/^extern uint8_t \* getenv(/d' \
-        -e '/^extern char \* getcwd(/d' \
-        -e '/^extern uint8_t \* getcwd(/d' \
-        -e '/^extern int32_t unlink(/d' \
-        -e '/^extern int unlink(/d' \
-        -e '/^extern size_t strlen(/d' \
-        -e '/^extern int32_t strcmp(/d' \
-        -e '/^extern int strcmp(/d' \
-        -e '/^extern int32_t strncmp(/d' \
-        -e '/^extern int strncmp(/d' \
-        -e '/^extern uint8_t \* strstr(/d' \
-        -e '/^extern char \* strstr(/d' \
-        -e '/^extern uint8_t \* memset(/d' \
-        -e '/^extern void \* memset(/d' \
-        -e '/^extern int32_t setenv(/d' \
-        -e '/^extern int setenv(/d' \
-        -e '/^extern uint8_t \* strerror(/d' \
-        -e '/^extern char \* strerror(/d' \
-        -e '/^extern int32_t system(/d' \
-        -e '/^extern int system(/d' \
-        -e '/^extern int32_t fputs(/d' \
-        -e '/^extern int fputs(/d' \
-        -e '/^extern uint8_t \* opendir(/d' \
-        -e '/^extern void \* opendir(/d' \
-        -e '/^extern DIR \* opendir(/d' \
-        -e '/^extern int32_t closedir(/d' \
-        -e '/^extern int closedir(/d' \
-        -e '/^extern int32_t access(/d' \
-        -e '/^extern int access(/d' \
-        -e '/^extern uint8_t \* xlang_fmt_opendir(/d' \
-        -e '/^extern int32_t xlang_fmt_closedir(/d' \
-        -e '/^extern int32_t xlang_fmt_access(/d' \
-        -e '/^extern uint8_t \* xlang_fmt_readdir_name(/d' \
-        -e '/^extern int32_t xlang_driver_fputs_opaque(/d' \
-        -e '/^extern uint8_t \* xlang_driver_stdout_ptr(/d' \
-        -e '/^extern int32_t xlang_driver_fclose_opaque(/d' \
-        -e '/^extern int32_t xlang_driver_fwrite_opaque(/d' \
-        -e '/^extern uint8_t \* xlang_driver_fopen_write_opaque(/d' \
-        -e '/^extern uint8_t \* xlang_driver_stderr_ptr(/d' \
-        -e '/^extern void xlang_driver_fflush_stdout(/d' \
-        -e '/^extern uint8_t \* xlang_driver_fopen_wb_opaque(/d' \
-        -e '/^extern uint8_t \* xlang_driver_fdopen_wb_opaque(/d' \
-        -e '/^extern uint8_t \* xlang_driver_realpath_opaque(/d' \
-        -e '/^extern uint8_t \* xlang_driver_pipeline_run_x_thread_fn_ptr(/d' \
-        -e '/^extern uint8_t \* xlang_driver_asm_elf_o_thread_fn_ptr(/d' \
-        -e '/^extern int32_t mkstemp(/d' \
-        -e '/^extern int mkstemp(/d' \
-        -e '/^extern int32_t rename(/d' \
-        -e '/^extern int rename(/d' \
-        "$_xtmp"
+    # tip_l4 Win: w64devkit/BusyBox sed treats # as comment inside
+    # /.../; use [#] so -E body is not dropped (fmt thin). PLATFORM: WINDOWS.
+    sed -e '/^[#]include /d' \
+        -e '/^extern ssize_t read[(]/d' \
+        -e '/^extern ssize_t write[(]/d' \
+        -e '/^extern int32_t open[(]/d' \
+        -e '/^extern int open[(]/d' \
+        -e '/^extern int32_t fcntl[(]/d' \
+        -e '/^extern int fcntl[(]/d' \
+        -e '/^extern int32_t close[(]/d' \
+        -e '/^extern int close[(]/d' \
+        -e '/^extern uint8_t \* calloc[(]/d' \
+        -e '/^extern uint8_t \* malloc[(]/d' \
+        -e '/^extern void free[(]/d' \
+        -e '/^extern uint8_t \* memcpy[(]/d' \
+        -e '/^extern void \* memcpy[(]/d' \
+        -e '/^extern int32_t memcmp[(]/d' \
+        -e '/^extern int memcmp[(]/d' \
+        -e '/^extern char \* getenv[(]/d' \
+        -e '/^extern uint8_t \* getenv[(]/d' \
+        -e '/^extern char \* getcwd[(]/d' \
+        -e '/^extern uint8_t \* getcwd[(]/d' \
+        -e '/^extern int32_t unlink[(]/d' \
+        -e '/^extern int unlink[(]/d' \
+        -e '/^extern size_t strlen[(]/d' \
+        -e '/^extern int32_t strcmp[(]/d' \
+        -e '/^extern int strcmp[(]/d' \
+        -e '/^extern int32_t strncmp[(]/d' \
+        -e '/^extern int strncmp[(]/d' \
+        -e '/^extern uint8_t \* strstr[(]/d' \
+        -e '/^extern char \* strstr[(]/d' \
+        -e '/^extern uint8_t \* memset[(]/d' \
+        -e '/^extern void \* memset[(]/d' \
+        -e '/^extern int32_t setenv[(]/d' \
+        -e '/^extern int setenv[(]/d' \
+        -e '/^extern uint8_t \* strerror[(]/d' \
+        -e '/^extern char \* strerror[(]/d' \
+        -e '/^extern int32_t system[(]/d' \
+        -e '/^extern int system[(]/d' \
+        -e '/^extern int32_t fputs[(]/d' \
+        -e '/^extern int fputs[(]/d' \
+        -e '/^extern uint8_t \* opendir[(]/d' \
+        -e '/^extern void \* opendir[(]/d' \
+        -e '/^extern DIR \* opendir[(]/d' \
+        -e '/^extern int32_t closedir[(]/d' \
+        -e '/^extern int closedir[(]/d' \
+        -e '/^extern int32_t access[(]/d' \
+        -e '/^extern int access[(]/d' \
+        -e '/^extern uint8_t \* xlang_fmt_opendir[(]/d' \
+        -e '/^extern int32_t xlang_fmt_closedir[(]/d' \
+        -e '/^extern int32_t xlang_fmt_access[(]/d' \
+        -e '/^extern uint8_t \* xlang_fmt_readdir_name[(]/d' \
+        -e '/^extern int32_t xlang_driver_fputs_opaque[(]/d' \
+        -e '/^extern uint8_t \* xlang_driver_stdout_ptr[(]/d' \
+        -e '/^extern int32_t xlang_driver_fclose_opaque[(]/d' \
+        -e '/^extern int32_t xlang_driver_fwrite_opaque[(]/d' \
+        -e '/^extern uint8_t \* xlang_driver_fopen_write_opaque[(]/d' \
+        -e '/^extern uint8_t \* xlang_driver_stderr_ptr[(]/d' \
+        -e '/^extern void xlang_driver_fflush_stdout[(]/d' \
+        -e '/^extern uint8_t \* xlang_driver_fopen_wb_opaque[(]/d' \
+        -e '/^extern uint8_t \* xlang_driver_fdopen_wb_opaque[(]/d' \
+        -e '/^extern uint8_t \* xlang_driver_realpath_opaque[(]/d' \
+        -e '/^extern uint8_t \* xlang_driver_pipeline_run_x_thread_fn_ptr[(]/d' \
+        -e '/^extern uint8_t \* xlang_driver_asm_elf_o_thread_fn_ptr[(]/d' \
+        -e '/^extern int32_t mkstemp[(]/d' \
+        -e '/^extern int mkstemp[(]/d' \
+        -e '/^extern int32_t rename[(]/d' \
+        -e '/^extern int rename[(]/d' \
+        < "$_xtmp"
+  # tip_l4 Win: BusyBox/w64devkit sed treats argv C:/path as command "C".
+  # Feed body on stdin. PLATFORM: WINDOWS|MSYS|MINGW|CYGWIN.
   } >"${_xtmp}.full" && mv "${_xtmp}.full" "$_xtmp"
   # shellcheck disable=SC2086
   # -x c：mktemp 无扩展名时 clang 否则不当作 C 源
@@ -18981,13 +19153,19 @@ ensure_rt_prefer_one() {
                   || rt_prefer_try_x_to_o "$_rt_ef_x" "$_rt_ef_thin_o"; } \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_EMIT_FLAGS_FROM_X \
                      -c -o "$_rt_ef_rest_o" "$_rt_ef_seed" \
-                && pure_ld_partial_merge "$_rt_e_o" "$_rt_ef_thin_o" "$_rt_ef_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_e_o" "$_rt_ef_thin_o" "$_rt_ef_rest_o" 2>/dev/null \
+                && nm "$_rt_e_o" 2>/dev/null | grep -qE " T _?driver_argv_has_emit_c_flag$"; then
                 _rt_ef_ok=1
                 if [ "$_rt_ef_pure" = "1" ]; then
                   echo "rt-prefer: R2 emit_flags ← pure-asm six symbols (w1166)"
                 else
                   echo "rt-prefer: R2 emit_flags ← full .x + rest (G-02f R2 prefer .x; FROM_X rest H=0)"
                 fi
+              else
+                # tip_l4 Win: tip_aside thin can green without T argv_has_emit;
+                # drop hollow merge so R5/bi can supply Cap-good body.
+                rm -f "$_rt_e_o"
+                echo "rt-prefer: R2 emit_flags merge lacks T driver_argv_has_emit_c_flag → retry" >&2
               fi
               rm -f "$_rt_ef_thin_o" "$_rt_ef_rest_o"
             fi
@@ -29496,10 +29674,19 @@ ensure_other_l2_prefer_one() {
         ;;
     esac
     # shellcheck disable=SC2086
-    if [ "$_thin_ok" = "1" ] \
-      && $CC $BASE_CFLAGS -I. -Iinclude -Isrc $rest_extra -D"$from_x_def" \
-           -c -o "$rest_o" "$seed" \
-      && pure_ld_partial_merge "$o" "$thin_o" "$rest_o" 2>/dev/null; then
+    # tip_l4 Win DIG: surface which hybrid step fails (thin/rest/merge).
+    _ol2_hyb=0
+    if [ "$_thin_ok" != "1" ]; then
+      echo "ensure-host-cc-seed: other-l2 thin failed for $o ($leaf_kind)" >&2
+    elif ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc $rest_extra -D"$from_x_def" \
+           -c -o "$rest_o" "$seed"; then
+      echo "ensure-host-cc-seed: other-l2 rest cc failed for $o ($leaf_kind)" >&2
+    elif ! pure_ld_partial_merge "$o" "$thin_o" "$rest_o"; then
+      echo "ensure-host-cc-seed: other-l2 merge failed for $o ($leaf_kind) thin=$(wc -c <"$thin_o" 2>/dev/null || echo 0) rest=$(wc -c <"$rest_o" 2>/dev/null || echo 0)" >&2
+    else
+      _ol2_hyb=1
+    fi
+    if [ "$_ol2_hyb" = "1" ]; then
       if [ "$_fmt_pure" = "1" ]; then
         log "prefer fmt check ← pure-asm sixty-six symbols (w1182)"
       elif [ "$_lsp_pure" = "1" ]; then
