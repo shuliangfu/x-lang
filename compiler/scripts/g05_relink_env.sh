@@ -349,6 +349,7 @@ _g05_win_asm_c() {
   # xlang_live.exe still Soft Caps mega_emit_* (Pair >=16 latch). Try live
   # before product. PLATFORM: WINDOWS.
   for _wa_bin in ./xlang_live.exe ./xlang_live ./xlang.exe ./xlang \
+      ./xlang_bi.exe ./xlang_bi \
       ./xlang_asm.exe ./xlang_asm ./xlang_asm_thinT.exe; do
     [ -x "$_wa_bin" ] || continue
     if XLANG_PREFER_ASM_O=1 "$_wa_bin" -backend asm -c "$_wa_x" -o "$_wa_o" >/dev/null 2>&1 \

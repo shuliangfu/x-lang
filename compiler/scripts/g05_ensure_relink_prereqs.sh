@@ -1539,11 +1539,40 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         mv -f "$_xenc_o.x.tmp.o" "$_xenc_o"
         echo "g05_ensure: $_xenc_o ← $_xenc_x (w1522 pure asm, whole object, no cc)"
       else
-        rm -f "$_xenc_o.x.tmp.o" "$_xenc_o"
-        mkdir -p build_asm
-        echo "$_xenc_os $_xenc_x" >>build_asm/g05_cc_fallback.log 2>/dev/null || true
-        echo "g05_ensure: ERROR $_xenc_x pure asm failed 3x; no cc fallback (w1522)" >&2
-        exit 1
+        # DIG tip_l4 Win: PE tip P012 on multi-cfg enc_c; xlang_bi.exe emits.
+        # PLATFORM: WINDOWS.
+        if [ "$_xenc_os" = "Windows" ]; then
+          for _xenc_xl in ./xlang_bi.exe ./xlang_bi \
+              ./xlang.pre_l4_aside.exe ./xlang.pre_l4_aside; do
+            [ -x "$_xenc_xl" ] || continue
+            rm -f "$_xenc_o.x.tmp.o"
+            if (
+              export XLANG="$_xenc_xl"
+              export XLANG_PREFER_ASM_O=1
+              unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+              pure_asm_x_to_o "$_xenc_o.x.tmp.o" "$_xenc_x"
+            ) && [ -s "$_xenc_o.x.tmp.o" ]; then
+              _xenc_nm=$(nm "$_xenc_o.x.tmp.o" 2>/dev/null | tr -d '\r')
+              if printf '%s\n' "$_xenc_nm" | grep -q " [TW] _*backend_x86_64_enc_c_x_doc_anchor\$" \
+                && printf '%s\n' "$_xenc_nm" | grep -q " [TW] _*arch_x86_64_enc_enc_mov_arg_reg_to_rax\$" \
+                && printf '%s\n' "$_xenc_nm" | grep -q " [TW] _*arch_x86_64_enc_enc_mov_rax_to_arg_reg\$" \
+                && printf '%s\n' "$_xenc_nm" | grep -q " [TW] _*x86_enc_jcc_rel32\$"; then
+                mv -f "$_xenc_o.x.tmp.o" "$_xenc_o"
+                echo "g05_ensure: $_xenc_o ← $_xenc_x via $_xenc_xl (w1522 Win bi; tip P012)"
+                _xenc_done=1
+                break
+              fi
+            fi
+            rm -f "$_xenc_o.x.tmp.o"
+          done
+        fi
+        if [ "$_xenc_done" != "1" ]; then
+          rm -f "$_xenc_o.x.tmp.o" "$_xenc_o"
+          mkdir -p build_asm
+          echo "$_xenc_os $_xenc_x" >>build_asm/g05_cc_fallback.log 2>/dev/null || true
+          echo "g05_ensure: ERROR $_xenc_x pure asm failed 3x; no cc fallback (w1522)" >&2
+          exit 1
+        fi
       fi
     fi
   fi
