@@ -2717,9 +2717,11 @@ ASM
       fi
     fi
   fi
-  # 10.67 FixC12i Prefer-M2: Cap tip G05_OBJS needs nop9b + pthin_primary_*.
-  # True-cold wipe + incomplete CACHE/pabi left them missing → skip → mass UNDEF
-  # (trait_reg_reset / lex peels / glue). Prefer CACHE/pabi then bak_1066 Cap tip REF.
+  # 10.67 FixC12i Prefer-M2: Cap tip G05_OBJS needs nop9b + pthin_primary_* +
+  # Cap tip Prefer overlays that true-cold incomplete CACHE/pabi often omits.
+  # 1247: nop9b restored OK, but tip_l4 Darwin PE overrides were always prepended
+  # and pulled tip_l4-only peels (pthin_lex_skip_*) → UNDEF. Only prepend overrides
+  # when nop9b is last-resort hollowed thin_glue. Prefer CACHE/pabi then bak_1066.
   # No FORCE_CC / host-cc .c. PLATFORM: MACOS Cap tip Prefer.
   _fix_cap_tip_core() {
     local dst="$1"; shift
@@ -2734,15 +2736,20 @@ ASM
   }
   _bak_pabi="${HOME:-}/xlang_bak_1066/cap_cache_good_2105/pabi"
   _cache_pabi="${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi"
-  _fix_cap_tip_core build_asm/selfhost_pabi/parser_asm_thin_glue.nop9b.o \
+  _cache_root="${CACHE:-/tmp/cap_tip_l4_safe_406200eef}"
+  _nop9b_from_prefer=0
+  _nop9b_last_resort=0
+  if [ -s build_asm/selfhost_pabi/parser_asm_thin_glue.nop9b.o ]; then
+    _nop9b_from_prefer=1
+  elif _fix_cap_tip_core build_asm/selfhost_pabi/parser_asm_thin_glue.nop9b.o \
     "$_cache_pabi/parser_asm_thin_glue.nop9b.o" \
     "$_bak_pabi/parser_asm_thin_glue.nop9b.o" \
-    /tmp/cap_tip_l4_safe_406200eef/pabi/parser_asm_thin_glue.nop9b.o || true
-  # Last-resort: live thin_glue archive (may be tip_l4-hollowed — overrides below).
-  if [ ! -s build_asm/selfhost_pabi/parser_asm_thin_glue.nop9b.o ] \
-    && [ -s parser_asm_thin_glue.o ]; then
+    /tmp/cap_tip_l4_safe_406200eef/pabi/parser_asm_thin_glue.nop9b.o; then
+    _nop9b_from_prefer=1
+  elif [ -s parser_asm_thin_glue.o ]; then
     cp -f parser_asm_thin_glue.o build_asm/selfhost_pabi/parser_asm_thin_glue.nop9b.o
-    echo "g05_cap_tip_reapply: FixC12i Prefer nop9b <- live thin_glue.o (last-resort)" >&2
+    _nop9b_last_resort=1
+    echo "g05_cap_tip_reapply: FixC12i Prefer nop9b <- live thin_glue.o (last-resort hollow risk)" >&2
   fi
   _fix_cap_tip_core build_asm/selfhost_pabi/pthin_primary_body_a64.o \
     "$_cache_pabi/pthin_primary_body_a64.o" \
@@ -2752,37 +2759,63 @@ ASM
     "$_cache_pabi/pthin_primary_tramp_a64.o" \
     "$_bak_pabi/pthin_primary_tramp_a64.o" \
     /tmp/cap_tip_l4_safe_406200eef/pabi/pthin_primary_tramp_a64.o || true
-  # tip_l4 Darwin PE may hollow thin_glue faces; Cap tip Prefer uses nop9b, but
-  # if last-resort copied hollowed thin_glue, prepend existing tip_l4 overrides.
-  for _ov in \
-    build_asm/selfhost_pabi/parser_asm_parse_one_top_level_let_x_into_override.o \
-    build_asm/selfhost_pabi/pthin_expr_primary_x_into_override.o \
-    build_asm/selfhost_pabi/pthin_expr_primary_ident_x_into_override.o \
-    build_asm/selfhost_pabi/pthin_expr_primary_suffix_loop_override.o \
-    build_asm/selfhost_pabi/pthin_expr_unary_x_into_override.o \
-    build_asm/selfhost_pabi/pthin_expr_binop_level_override.o \
-    build_asm/selfhost_pabi/pthin_expr_ternary_tramp_face_override.o \
-    build_asm/selfhost_pabi/pthin_imports_collect_override.o \
-    build_asm/selfhost_pabi/pthin_lex_skip_advance_past_stmt_semicolon_override.o \
-    build_asm/selfhost_pabi/pthin_stretch_import_path_finalize_override.o \
-    build_asm/selfhost_pabi/pthin_stretch_import_path_normalize_override.o \
-    build_asm/selfhost_pabi/glue_asm_build_dep_export_sym_override.o \
-    build_asm/selfhost_pabi/glue_asm_build_func_export_sym_override.o \
-    build_asm/selfhost_pabi/glue_module_func_overload_count_override.o \
-    build_asm/selfhost_pabi/type_ref_impl_scalar_override.o \
-    build_asm/selfhost_pabi/arm64_enc_addsub_sp_imm_chunks_override.o
+  # Cap tip Prefer overlays commonly wiped by true-cold incomplete CACHE.
+  for _core in \
+    p9a_lex_bridge_peel.o \
+    assign_var_compound.o \
+    binop_wide.o \
+    call_spill.o \
+    struct_let_init_a64.o \
+    macho_write_a64.o \
+    dep_prerun_skip_typeck_a64.o \
+    typeck_ctfe.o \
+    archive_leaf_extract.o
   do
-    [ -s "$_ov" ] || continue
-    case " $G05_OBJS " in
-      *" $_ov "*) ;;
-      *)
-        G05_OBJS="$_ov $G05_OBJS"
-        export G05_OBJS
-        echo "g05_cap_tip_reapply: FixC12i Prefer prepended tip_l4 override $(basename "$_ov")" >&2
-        ;;
-    esac
+    _fix_cap_tip_core "build_asm/selfhost_pabi/$_core" \
+      "$_cache_pabi/$_core" \
+      "$_bak_pabi/$_core" \
+      /tmp/cap_tip_l4_safe_406200eef/pabi/"$_core" || true
   done
-  unset _ov _bak_pabi _cache_pabi
+  # mw.o twin for macho_write (product_l4 cache root)
+  if [ ! -s build_asm/selfhost_pabi/macho_write_a64.o ]; then
+    _fix_cap_tip_core build_asm/selfhost_pabi/macho_write_a64.o \
+      "$_cache_root/mw.o" \
+      "${HOME:-}/xlang_bak_1066/cap_cache_good_2105/mw.o" || true
+  fi
+  # tip_l4 overrides ONLY if nop9b is last-resort hollowed thin_glue.
+  if [ "$_nop9b_last_resort" = 1 ]; then
+    for _ov in \
+      build_asm/selfhost_pabi/parser_asm_parse_one_top_level_let_x_into_override.o \
+      build_asm/selfhost_pabi/pthin_expr_primary_x_into_override.o \
+      build_asm/selfhost_pabi/pthin_expr_primary_ident_x_into_override.o \
+      build_asm/selfhost_pabi/pthin_expr_primary_suffix_loop_override.o \
+      build_asm/selfhost_pabi/pthin_expr_unary_x_into_override.o \
+      build_asm/selfhost_pabi/pthin_expr_binop_level_override.o \
+      build_asm/selfhost_pabi/pthin_expr_ternary_tramp_face_override.o \
+      build_asm/selfhost_pabi/pthin_imports_collect_override.o \
+      build_asm/selfhost_pabi/pthin_lex_skip_advance_past_stmt_semicolon_override.o \
+      build_asm/selfhost_pabi/pthin_stretch_import_path_finalize_override.o \
+      build_asm/selfhost_pabi/pthin_stretch_import_path_normalize_override.o \
+      build_asm/selfhost_pabi/glue_asm_build_dep_export_sym_override.o \
+      build_asm/selfhost_pabi/glue_asm_build_func_export_sym_override.o \
+      build_asm/selfhost_pabi/glue_module_func_overload_count_override.o \
+      build_asm/selfhost_pabi/type_ref_impl_scalar_override.o \
+      build_asm/selfhost_pabi/arm64_enc_addsub_sp_imm_chunks_override.o
+    do
+      [ -s "$_ov" ] || continue
+      case " $G05_OBJS " in
+        *" $_ov "*) ;;
+        *)
+          G05_OBJS="$_ov $G05_OBJS"
+          export G05_OBJS
+          echo "g05_cap_tip_reapply: FixC12i Prefer prepended tip_l4 override $(basename "$_ov") (last-resort nop9b)" >&2
+          ;;
+      esac
+    done
+  else
+    echo "g05_cap_tip_reapply: FixC12i Prefer skip tip_l4 overrides (nop9b from Cap tip REF prefer=$_nop9b_from_prefer)" >&2
+  fi
+  unset _ov _core _bak_pabi _cache_pabi _cache_root _nop9b_from_prefer _nop9b_last_resort
 
   # Drop still-missing paths from G05_OBJS (avoid ld errno=2)
   local kept="" miss=0
