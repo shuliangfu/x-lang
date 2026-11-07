@@ -2432,45 +2432,68 @@ if [ -f src/runtime_pipeline_abi_emit_index_thin.x ]; then
     [ -n "$_b" ] && [ -x "$_b" ] && _ix_xl="$_b" && break
   done
   _ix_keep=""
-  if [ -s "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/emit_index_thin_a64.o" ]; then
-    _ix_keep="${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/emit_index_thin_a64.o"
-  elif [ -s "$_ix_o" ]; then
-    _ix_ksz=$(otool -l "$_ix_o" 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
-    case "$_ix_ksz" in 0x*|0X*) _ix_ksz=$((_ix_ksz)) ;; esac
-    if [ -n "$_ix_ksz" ] && [ "$_ix_ksz" -ge 6800 ] 2>/dev/null; then
-      _ix_keep="$_ix_o"
+  # Prefer-M2 REF ladder: CACHE pabi → known-good bak → sized in-tree (never tip-stomp path).
+  # Cap tip L4 cold often has empty CACHE/pabi/emit_index*; tip Cap host emits __text=6604
+  # (<6800) → reject. Restoring keep==_ix_o after tip stomp is identical-cp FAIL on Darwin.
+  # PLATFORM: MACOS Cap tip.
+  for _ix_cand in \
+    "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/emit_index_thin_a64.o" \
+    /tmp/cap_tip_l4_safe_406200eef/pabi/emit_index_thin_a64.o \
+    "$HOME/xlang_bak_1066/cap_cache_good_2105/pabi/emit_index_thin_a64.o" \
+    "$HOME/xlang_bak_1066/cap_cache_pre1067a/pabi/emit_index_thin_a64.o"
+  do
+    if [ -s "$_ix_cand" ]; then
+      _ix_ksz=$(otool -l "$_ix_cand" 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
+      case "$_ix_ksz" in 0x*|0X*) _ix_ksz=$((_ix_ksz)) ;; esac
+      if [ -n "$_ix_ksz" ] && [ "$_ix_ksz" -ge 6800 ] 2>/dev/null; then
+        _ix_keep="$_ix_cand"
+        break
+      fi
     fi
-  fi
+  done
   _ix_ok=0
   _ix_via=""
+  _ix_tmp=""
   if [ -n "$_ix_xl" ] && [ -f "$_ix_src" ]; then
-    if env -u XLANG -u XLANG_FORCE -u FORCE -u PREFER -u G05 -u RUN_ALL_USE_C \
+    _ix_tmp=$(mktemp "${TMPDIR:-/tmp}/emit_index_tip.XXXXXX.o") || _ix_tmp=""
+    if [ -n "$_ix_tmp" ] \
+      && env -u XLANG -u XLANG_FORCE -u FORCE -u PREFER -u G05 -u RUN_ALL_USE_C \
          XLANG_PREFER_ASM_O=1 "$_ix_xl" -backend asm -c \
-         "$_ix_src" -o "$_ix_o" 2>/dev/null \
-       && [ -s "$_ix_o" ] \
-       && nm -gU "$_ix_o" 2>/dev/null | grep -q 'T _pipeline_asm_emit_index_elf_c$'; then
-      _ix_tsz=$(otool -l "$_ix_o" 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
+         "$_ix_src" -o "$_ix_tmp" 2>/dev/null \
+       && [ -s "$_ix_tmp" ] \
+       && nm -gU "$_ix_tmp" 2>/dev/null | grep -q 'T _pipeline_asm_emit_index_elf_c$'; then
+      _ix_tsz=$(otool -l "$_ix_tmp" 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
       case "$_ix_tsz" in 0x*|0X*) _ix_tsz=$((_ix_tsz)) ;; esac
       _ix_min=6800
       if [ -n "$_ix_tsz" ] && [ "$_ix_tsz" -ge "$_ix_min" ] 2>/dev/null; then
+        mv -f "$_ix_tmp" "$_ix_o"
         echo "g05_cap_tip_reapply: tip-compiled emit_index_thin_a64.o (via $_ix_xl text=$_ix_tsz)" >&2
         mkdir -p "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi"
         cp -f "$_ix_o" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/emit_index_thin_a64.o" 2>/dev/null || true
         _ix_ok=1
         _ix_via="$_ix_xl"
+        _ix_tmp=""
       else
         echo "g05_cap_tip_reapply: FixC12h Prefer-M2 reject undersized emit_index tip (text=${_ix_tsz:-?} via $_ix_xl); keep REF" >&2
+        rm -f "$_ix_tmp"
+        _ix_tmp=""
       fi
     else
-      rm -f "$_ix_o"
+      rm -f "$_ix_tmp"
+      _ix_tmp=""
       echo "g05_cap_tip_reapply: emit_index_thin compile failed (via ${_ix_xl:-none})" >&2
     fi
   fi
   if [ "$_ix_ok" != "1" ] && [ -n "$_ix_keep" ] && [ -s "$_ix_keep" ]; then
-    cp -f "$_ix_keep" "$_ix_o"
+    # Skip identical-path cp (Darwin cp same→same exits 1 under set -e).
+    if [ "$_ix_keep" != "$_ix_o" ]; then
+      cp -f "$_ix_keep" "$_ix_o"
+    fi
     mkdir -p "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi"
-    cp -f "$_ix_keep" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/emit_index_thin_a64.o" 2>/dev/null || true
-    echo "g05_cap_tip_reapply: FixC12h Prefer-M2 restored emit_index_thin (REF keep)" >&2
+    if [ "$_ix_keep" != "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/emit_index_thin_a64.o" ]; then
+      cp -f "$_ix_keep" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/emit_index_thin_a64.o" 2>/dev/null || true
+    fi
+    echo "g05_cap_tip_reapply: FixC12h Prefer-M2 restored emit_index_thin (REF keep=$_ix_keep)" >&2
     _ix_ok=1
     _ix_via="REF"
   fi
@@ -2483,7 +2506,7 @@ if [ -f src/runtime_pipeline_abi_emit_index_thin.x ]; then
     *) G05_OBJS="$_ix_o $G05_OBJS"; export G05_OBJS
        echo "g05_cap_tip_reapply: prepended emit_index_thin_a64.o" >&2 ;;
   esac
-  unset _ix_ok _ix_via _ix_xl _ix_keep _ix_tsz _ix_min _ix_ksz _ix_src _b
+  unset _ix_ok _ix_via _ix_xl _ix_keep _ix_tsz _ix_min _ix_ksz _ix_src _ix_tmp _ix_cand _b
 fi
 
 # 10.22: Cap tip archive_leaf ast_to_elf always reset_data — wipes dep Lxml
