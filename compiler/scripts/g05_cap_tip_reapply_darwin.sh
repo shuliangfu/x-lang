@@ -2992,6 +2992,16 @@ ASM
     "$OC" --redefine-sym '_NSGetEnviron=__NSGetEnviron' runtime_panic.o       && echo "g05_cap_tip_reapply: post-fill Darwin NSGetEnviron → libSystem mangling" >&2       || echo "g05_cap_tip_reapply: WARN NSGetEnviron mangling failed" >&2
   fi
 
+  # FixC12k8j: tip-pure user_env may leave U _NSGetEnviron; libSystem wants
+  # __NSGetEnviron (Cap tip L4 s24 probe BLD001 @6aa0fe9b2). PLATFORM: MACOS.
+  if [ -n "${OC:-}" ] && [ -s runtime_link_abi_user_env.o ] \
+    && nm -u runtime_link_abi_user_env.o 2>/dev/null \
+         | awk '$NF=="_NSGetEnviron" { f=1 } END { exit f?0:1 }'; then
+    "$OC" --redefine-sym '_NSGetEnviron=__NSGetEnviron' runtime_link_abi_user_env.o \
+      && echo "g05_cap_tip_reapply: FixC12k8j user_env NSGetEnviron mangling" >&2 \
+      || true
+  fi
+
   # knife256/10.2: CACHE/pabi bulk restore above stomps Cap tip weakens done
   # earlier in this script (pabi_weak / return_sret). Re-apply so fa_array /
   # thin first-wins. Also drop typeck_ctfe when cap_repr_weak covers its T
@@ -4982,6 +4992,34 @@ fi
 # knife256/10.2: do not replace the product when the wide-array return
 # probe is not 110. Exit 110 is the program's status, so set -e must
 # not treat it as a script failure. PLATFORM: MACOS Cap tip.
+# FixC12k8j: Cap tip L4 s24 probe — Prefer mangled user_env REF before probe.
+_k8j_ue=runtime_link_abi_user_env.o
+_k8j_ref=""
+for _k8j_pr in \
+  "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/runtime_link_abi_user_env.o" \
+  "${HOME:-}/xlang_bak_1066/cap_cache_good_2105/runtime_link_abi_user_env.o"
+do
+  [ -s "$_k8j_pr" ] || continue
+  if nm -u "$_k8j_pr" 2>/dev/null | awk '$NF=="_NSGetEnviron" { f=1 } END { exit f?0:1 }'; then
+    continue
+  fi
+  _k8j_ref="$_k8j_pr"; break
+done
+if [ -n "$_k8j_ref" ]; then
+  cp -f "$_k8j_ref" "$_k8j_ue"
+  echo "g05_cap_tip_reapply: FixC12k8j Prefer user_env REF ($_k8j_ref)" >&2
+fi
+_k8j_oc=""
+if [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then _k8j_oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+elif command -v llvm-objcopy >/dev/null 2>&1; then _k8j_oc=llvm-objcopy
+fi
+if [ -n "$_k8j_oc" ] && [ -s "$_k8j_ue" ] \
+  && nm -u "$_k8j_ue" 2>/dev/null | awk '$NF=="_NSGetEnviron" { f=1 } END { exit f?0:1 }'; then
+  "$_k8j_oc" --redefine-sym '_NSGetEnviron=__NSGetEnviron' "$_k8j_ue" 2>/dev/null \
+    && echo "g05_cap_tip_reapply: FixC12k8j pre-s24 user_env mangling" >&2 || true
+fi
+unset _k8j_ue _k8j_ref _k8j_pr _k8j_oc
+
 if [ -f ../tests/boundary/ret_fixed_s24.x ]; then
   rm -f build_asm/cap_tip_s24_probe
   _s24_rc=1

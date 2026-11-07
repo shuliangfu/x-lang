@@ -608,11 +608,11 @@ ensure_user_env_darwin_pure() {
   if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
     # note743y.6.23: egg pure-asm left U _NSGetArgc (need __NSGetArgc). Do not
     # skip a stale object that still has the egg-shaped undef.
-    if ! nm -u "$o" 2>/dev/null | awk '$NF=="_NSGetArgc" { f=1 } END { exit f?0:1 }'; then
+    if ! nm -u "$o" 2>/dev/null | awk '$NF=="_NSGetArgc" || $NF=="_NSGetEnviron" { f=1 } END { exit f?0:1 }'; then
       log "skip $o (up-to-date vs $xsrc)"
       return 0
     fi
-    log "refresh $o (stale U _NSGetArgc; Darwin libSystem needs __NSGetArgc)"
+    log "refresh $o (stale U _NSGetArgc/_NSGetEnviron; Darwin libSystem needs __ mangling)"
   fi
   log "pure-asm $xsrc → $o"
   if ! (
@@ -627,6 +627,17 @@ ensure_user_env_darwin_pure() {
       $CC ${CFLAGS:-} -I. -Iinclude -Isrc -c "$seed" -o "$o" || return 1
     fi
   fi
+  # FixC12k8j: tip-pure may leave U _NSGetEnviron; libSystem wants __NSGetEnviron.
+  _k8j_oc=""
+  if command -v llvm-objcopy >/dev/null 2>&1; then _k8j_oc=llvm-objcopy
+  elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then _k8j_oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+  fi
+  if [ -n "$_k8j_oc" ] && [ -s "$o" ] \
+    && nm -u "$o" 2>/dev/null | awk '$NF=="_NSGetEnviron" { f=1 } END { exit f?0:1 }'; then
+    "$_k8j_oc" --redefine-sym '_NSGetEnviron=__NSGetEnviron' "$o" 2>/dev/null \
+      && log "FixC12k8j user_env NSGetEnviron mangling" || true
+  fi
+  unset _k8j_oc
   return 0
 }
 
