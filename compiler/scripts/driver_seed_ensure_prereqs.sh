@@ -70,14 +70,29 @@ if [ ! -f scripts/driver_seed_obj_catalog.sh ]; then
   exit 1
 fi
 
-catalog_out="$(bash scripts/driver_seed_obj_catalog.sh)"
-prereqs="$(printf '%s\n' "$catalog_out" | sed -n 's|^DRIVER_SEED_PREREQS=||p' | head -1)"
+# tip_l4 Win: bootstrap warms XLANG_CATALOG_CACHE_FILE; a second live
+# catalog expand can race/return empty DRIVER_SEED_PREREQS under MSYS
+# (L4@dc78e4e27 16s FAIL). Prefer parent cache when it carries the key;
+# strip CR; retry live once if still empty. PLATFORM: SHARED.
+if [ -n "${XLANG_CATALOG_CACHE_FILE:-}" ] && [ -s "${XLANG_CATALOG_CACHE_FILE}" ] \
+  && grep -q '^DRIVER_SEED_PREREQS=.' "${XLANG_CATALOG_CACHE_FILE}" 2>/dev/null; then
+  catalog_out="$(tr -d '\r' < "${XLANG_CATALOG_CACHE_FILE}")"
+  echo "driver_seed_ensure_prereqs: PREREQS from catalog cache (${XLANG_CATALOG_CACHE_FILE})" >&2
+else
+  catalog_out="$(bash scripts/driver_seed_obj_catalog.sh)"
+fi
+prereqs="$(printf '%s\n' "$catalog_out" | tr -d '\r' | sed -n 's|^DRIVER_SEED_PREREQS=||p' | head -1)"
 
 # wave304 G.7 8.3.6: historical extra_glue companion
 #   build_asm/pipeline_glue_strict_minimal.o
 # retired (0 residual T after wave303 overload leave; product g05 unlinked).
 # Do not force-append a missing host-cc leaf. PLATFORM: SHARED shell retire.
 
+if [ -z "${prereqs// /}" ]; then
+  echo "driver_seed_ensure_prereqs: empty DRIVER_SEED_PREREQS; retry live catalog" >&2
+  catalog_out="$(bash scripts/driver_seed_obj_catalog.sh)"
+  prereqs="$(printf '%s\n' "$catalog_out" | tr -d '\r' | sed -n 's|^DRIVER_SEED_PREREQS=||p' | head -1)"
+fi
 if [ -z "${prereqs// /}" ]; then
   echo "driver_seed_ensure_prereqs: empty DRIVER_SEED_PREREQS from catalog" >&2
   exit 1
