@@ -220,6 +220,19 @@ if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
       build_asm/selfhost_pabi/runtime_pipeline_abi_widen_mixed_thin.o
     echo "g05_cap_tip_reapply: FixC12k2 Prefer-M2 restored PIPE widen_mixed REF" >&2
   fi
+  # FixC12k3: narrow Prefer bak PIPE objs (SHORT→PIPE mismatch vs Cap tip Prefer
+  # s24=110). Ban bulk. Skip named_size/align/widen_mixed (FixC12k2) + layout (FixC12j).
+  _k3_bak="${HOME:-}/xlang_bak_1066/cap_cache_good_2105/pabi"
+  _k3_n=0
+  for _k3o in asm_expr_rec.o body_sync_let_order.o const_lit_fold.o copy_large_a64.o emit_epilogue_f64.o field_cap_residual_load.o modlet_f64_imm.o modlet_seed_signed.o reent_nocap.o store_retval_pair_a64.o tail_jmp_off.o; do
+    if [ -s "$_k3_bak/$_k3o" ]; then
+      cp -f "$_k3_bak/$_k3o" "build_asm/selfhost_pabi/$_k3o"
+      _k3_n=$((_k3_n+1))
+    fi
+  done
+  echo "g05_cap_tip_reapply: FixC12k3 Prefer-M2 restored $_k3_n narrow bak PIPE objs" >&2
+  unset _k3_bak _k3_n _k3o
+
   # 10.44: layout offset thin must exist for Cap tip G05_OBJS
   # Prefer-M2b 10.77: tip __text≈1900 undersizes vs REF 3344 → s24 CG002.
   if [ -f src/runtime_pipeline_abi_struct_layout_offset_thin.x ]; then
@@ -1989,6 +2002,23 @@ _cap_tip_fill_missing_objs() {
         :
       fi
       unset _na_stomp_ok _na_tsz _nr
+    # FixC12k3 after stomp: same narrow PIPE Prefer (ban bulk).
+    _k3_bak="${HOME:-}/xlang_bak_1066/cap_cache_good_2105/pabi"
+    _k3_n=0
+    for _k3o in asm_expr_rec.o body_sync_let_order.o const_lit_fold.o copy_large_a64.o emit_epilogue_f64.o field_cap_residual_load.o modlet_f64_imm.o modlet_seed_signed.o reent_nocap.o store_retval_pair_a64.o tail_jmp_off.o; do
+      if [ -s "$_k3_bak/$_k3o" ]; then
+        cp -f "$_k3_bak/$_k3o" "build_asm/selfhost_pabi/$_k3o"
+        _k3_n=$((_k3_n+1))
+      fi
+    done
+    echo "g05_cap_tip_reapply: FixC12k3 Prefer-M2 restored $_k3_n narrow bak PIPE objs after stomp" >&2
+    unset _k3_bak _k3_n _k3o
+    # FixC12k3b: pabi stomp overwrote FixC12k2 PIPE widen_mixed with CACHE SHORT.
+    if [ -s "${HOME:-}/xlang_bak_1066/cap_cache_good_2105/pabi/runtime_pipeline_abi_widen_mixed_thin.o" ]; then
+      cp -f "${HOME:-}/xlang_bak_1066/cap_cache_good_2105/pabi/runtime_pipeline_abi_widen_mixed_thin.o" \
+        build_asm/selfhost_pabi/runtime_pipeline_abi_widen_mixed_thin.o
+      echo "g05_cap_tip_reapply: FixC12k3b Prefer-M2 restored PIPE widen_mixed REF after stomp" >&2
+    fi
     fi
     if [ -x "$_ns_xl" ] && [ -f src/runtime_pipeline_abi_struct_layout_offset_thin.x ]; then
       _lo_stomp_ok=0
@@ -4229,15 +4259,25 @@ do
   [ -n "$_b" ] && [ -x "$_b" ] && _ss_xl="$_b" && break
 done
 _ss_keep=""
-if [ -s "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/modlet_seed_signed.o" ]; then
-  _ss_keep="${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/modlet_seed_signed.o"
-elif [ -s /tmp/modlet_seed_REF.o ]; then
-  _ss_keep=/tmp/modlet_seed_REF.o
-elif [ -s build_asm/selfhost_pabi/modlet_seed_signed.o ]; then
-  # only keep if already REF-sized
+# FixC12k3b: Cap tip Prefer s24=110 needs bak PIPE modlet_seed
+# (_pipeline_seed_tab_at / _pipeline_pipe_modlet_seed_imm_hi); CACHE SHORT CG002s.
+for _ss_cand in \
+  "${HOME:-}/xlang_bak_1066/cap_cache_good_2105/pabi/modlet_seed_signed.o" \
+  "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/modlet_seed_signed.o" \
+  /tmp/modlet_seed_REF.o
+do
+  [ -s "$_ss_cand" ] || continue
+  if nm -gU "$_ss_cand" 2>/dev/null | grep -q 'T _pipeline_seed_tab_at$'; then
+    _ss_keep="$_ss_cand"
+    break
+  fi
+done
+unset _ss_cand
+if [ -z "$_ss_keep" ] && [ -s build_asm/selfhost_pabi/modlet_seed_signed.o ]; then
   _ss_ksz=$(otool -l build_asm/selfhost_pabi/modlet_seed_signed.o 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
   case "$_ss_ksz" in 0x*|0X*) _ss_ksz=$((_ss_ksz)) ;; esac
-  if [ -n "$_ss_ksz" ] && [ "$_ss_ksz" -ge 6000 ] 2>/dev/null; then
+  if nm -gU build_asm/selfhost_pabi/modlet_seed_signed.o 2>/dev/null | grep -q 'T _pipeline_seed_tab_at$' \
+    && [ -n "$_ss_ksz" ] && [ "$_ss_ksz" -ge 6000 ] 2>/dev/null; then
     _ss_keep=build_asm/selfhost_pabi/modlet_seed_signed.o
   fi
 fi
@@ -4248,13 +4288,14 @@ if [ -n "$_ss_xl" ] && [ -f "$_ss_src" ]; then
     _ss_tsz=$(otool -l "$_ss_o" 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
     case "$_ss_tsz" in 0x*|0X*) _ss_tsz=$((_ss_tsz)) ;; esac
     _ss_min=6000
-    if [ -n "$_ss_tsz" ] && [ "$_ss_tsz" -ge "$_ss_min" ] 2>/dev/null; then
-      echo "g05_cap_tip_reapply: 10.52 tip-compiled modlet_seed_signed.o (via $_ss_xl text=$_ss_tsz)" >&2
+    if [ -n "$_ss_tsz" ] && [ "$_ss_tsz" -ge "$_ss_min" ] 2>/dev/null \
+      && nm -gU "$_ss_o" 2>/dev/null | grep -q 'T _pipeline_seed_tab_at$'; then
+      echo "g05_cap_tip_reapply: 10.52 tip-compiled modlet_seed_signed.o (via $_ss_xl text=$_ss_tsz PIPE)" >&2
       mkdir -p "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi"
       cp -f "$_ss_o" "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/modlet_seed_signed.o" 2>/dev/null || true
       _ss_ok=1
     else
-      echo "g05_cap_tip_reapply: FixC12e Prefer-M2 reject undersized modlet_seed tip (text=${_ss_tsz:-?} via $_ss_xl); keep REF" >&2
+      echo "g05_cap_tip_reapply: FixC12k3b Prefer-M2 reject modlet_seed tip (text=${_ss_tsz:-?} via $_ss_xl; need PIPE seed_tab); keep REF" >&2
     fi
   else
     rm -f "$_ss_o"
@@ -4552,6 +4593,35 @@ unset _fs_stage_xl _c _sz _cur_sz
 # FAIL leaf refresh (string CG002) — restore _cap_prev so product never stays
 # poisoned. PLATFORM: MACOS Cap tip.
 set +e
+# FixC12k3b: final Prefer bak PIPE faces right before relink (ban tip-stomp / CACHE SHORT).
+_k3f_bak="${HOME:-}/xlang_bak_1066/cap_cache_good_2105/pabi"
+if [ -s "$_k3f_bak/runtime_pipeline_abi_widen_mixed_thin.o" ]; then
+  cp -f "$_k3f_bak/runtime_pipeline_abi_widen_mixed_thin.o" build_asm/selfhost_pabi/runtime_pipeline_abi_widen_mixed_thin.o
+fi
+if [ -s "$_k3f_bak/modlet_seed_signed.o" ] \
+  && nm -gU "$_k3f_bak/modlet_seed_signed.o" 2>/dev/null | grep -q 'T _pipeline_seed_tab_at$'; then
+  cp -f "$_k3f_bak/modlet_seed_signed.o" build_asm/selfhost_pabi/modlet_seed_signed.o
+fi
+_k3f_n=0
+for _k3fo in asm_expr_rec.o body_sync_let_order.o const_lit_fold.o copy_large_a64.o emit_epilogue_f64.o field_cap_residual_load.o modlet_f64_imm.o modlet_seed_signed.o reent_nocap.o store_retval_pair_a64.o tail_jmp_off.o; do
+  if [ -s "$_k3f_bak/$_k3fo" ]; then
+    cp -f "$_k3f_bak/$_k3fo" "build_asm/selfhost_pabi/$_k3fo"
+    _k3f_n=$((_k3f_n+1))
+  fi
+done
+# Cap tip Prefer long rais/panic names (CACHE Cap tip s24=110)
+if [ -s "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/runtime_asm_io_stubs.o" ]; then
+  cp -f "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/runtime_asm_io_stubs.o" build_asm/selfhost_pabi/runtime_asm_io_stubs.o 2>/dev/null \
+    || cp -f "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/runtime_asm_io_stubs.o" src/asm/runtime_asm_io_stubs.o 2>/dev/null \
+    || true
+fi
+if [ -s "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/runtime_panic.o" ]; then
+  cp -f "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/runtime_panic.o" build_asm/selfhost_pabi/runtime_panic.o 2>/dev/null \
+    || cp -f "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/runtime_panic.o" src/asm/runtime_panic.o 2>/dev/null \
+    || true
+fi
+echo "g05_cap_tip_reapply: FixC12k3b Prefer-M2 final PIPE restore n=$_k3f_n +widen+modlet before relink" >&2
+unset _k3f_bak _k3f_n _k3fo
 bash scripts/g05_relink_xlang.sh
 _relink_rc=$?
 set -e
