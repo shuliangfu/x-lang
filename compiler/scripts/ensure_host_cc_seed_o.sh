@@ -11557,12 +11557,24 @@ rt_abk_authority_check() {
   # authority-shaped T symbols while driver_run_asm_backend is hollow (no
   # step bls into rt_ab_step_read_pp / load_deps; PE ~1276B vs Cap-good
   # ~1552B). Require CALL/BRANCH relocs to those steps. PLATFORM: SHARED.
-  _rel="$(objdump -r "$o" 2>/dev/null || true)"
+  # tip_l4 Win: mega no_c.o objdump -r is huge/slow; prefer nm T bodies
+  # when object is large (internalized steps after ld -r). PLATFORM: SHARED.
+  _rel=""
+  _osz=$(wc -c <"$o" 2>/dev/null | tr -d " " || echo 0)
+  if [ "${_osz:-0}" -lt 100000 ]; then
+    _rel="$(objdump -r "$o" 2>/dev/null || true)"
+  fi
   # Single-grep (no grep -q pipeline): pipefail+SIGPIPE otherwise false-fails
   # when BRANCH lines exist but upstream grep -E is SIGPIPEd.
-  # tip_l4 Win PE: also IMAGE_REL_AMD64_REL32 / REL32. PLATFORM: SHARED.
-  printf '%s\n' "$_rel" | grep -Eq 'BRANCH26.*rt_ab_step_read_pp|CALL26.*rt_ab_step_read_pp|ARM64_RELOC_BRANCH26.*rt_ab_step_read_pp|R_AARCH64_CALL26.*rt_ab_step_read_pp|R_X86_64_PLT32.*rt_ab_step_read_pp|R_X86_64_PC32.*rt_ab_step_read_pp|PLT32.*rt_ab_step_read_pp|PC32.*rt_ab_step_read_pp|IMAGE_REL_AMD64_REL32.*rt_ab_step_read_pp|REL32.*rt_ab_step_read_pp' || return 1
-  printf '%s\n' "$_rel" | grep -Eq 'BRANCH26.*rt_ab_step_load_deps|CALL26.*rt_ab_step_load_deps|ARM64_RELOC_BRANCH26.*rt_ab_step_load_deps|R_AARCH64_CALL26.*rt_ab_step_load_deps|R_X86_64_PLT32.*rt_ab_step_load_deps|R_X86_64_PC32.*rt_ab_step_load_deps|PLT32.*rt_ab_step_load_deps|PC32.*rt_ab_step_load_deps|IMAGE_REL_AMD64_REL32.*rt_ab_step_load_deps|REL32.*rt_ab_step_load_deps' || return 1
+  # tip_l4 Win PE: IMAGE_REL_AMD64_REL32 / REL32. After ld -r into
+  # runtime_driver_no_c.o, step calls may be internalized (no external
+  # reloc) — then require T bodies for the two steps. PLATFORM: SHARED.
+  if ! printf '%s\n' "$_rel" | grep -Eq 'BRANCH26.*rt_ab_step_read_pp|CALL26.*rt_ab_step_read_pp|ARM64_RELOC_BRANCH26.*rt_ab_step_read_pp|R_AARCH64_CALL26.*rt_ab_step_read_pp|R_X86_64_PLT32.*rt_ab_step_read_pp|R_X86_64_PC32.*rt_ab_step_read_pp|PLT32.*rt_ab_step_read_pp|PC32.*rt_ab_step_read_pp|IMAGE_REL_AMD64_REL32.*rt_ab_step_read_pp|REL32.*rt_ab_step_read_pp'; then
+    printf '%s\n' "$syms" | awk '$1=="T" && $2=="rt_ab_step_read_pp" { f=1 } END { exit f ? 0 : 1 }' || return 1
+  fi
+  if ! printf '%s\n' "$_rel" | grep -Eq 'BRANCH26.*rt_ab_step_load_deps|CALL26.*rt_ab_step_load_deps|ARM64_RELOC_BRANCH26.*rt_ab_step_load_deps|R_AARCH64_CALL26.*rt_ab_step_load_deps|R_X86_64_PLT32.*rt_ab_step_load_deps|R_X86_64_PC32.*rt_ab_step_load_deps|PLT32.*rt_ab_step_load_deps|PC32.*rt_ab_step_load_deps|IMAGE_REL_AMD64_REL32.*rt_ab_step_load_deps|REL32.*rt_ab_step_load_deps'; then
+    printf '%s\n' "$syms" | awk '$1=="T" && $2=="rt_ab_step_load_deps" { f=1 } END { exit f ? 0 : 1 }' || return 1
+  fi
   return 0
 }
 
