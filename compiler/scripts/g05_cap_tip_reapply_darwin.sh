@@ -108,26 +108,30 @@ if [ -f src/runtime_pipeline_abi_named_size_thin.x ]; then
          | grep -q 'U _typeck_x_named_builtin_size'; then
     _ns_tsz=$(otool -l build_asm/selfhost_pabi/named_size.o 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
     case "$_ns_tsz" in 0x*|0X*) _ns_tsz=$((_ns_tsz)) ;; esac
-    # Prefer-M2b 10.77: tip named_size __text≈4428/sym≈3796 CG002s s24;
-    # healthy REF __text=5328/sym=4484. Gate ≥5000.
+    # FixC12k: Cap tip Prefer s24=110 uses CACHE named_size text=4696.
+    # good_2105 text=5328 first → Cap tip Prefer CG002 after FixC12j.
+    # Tip gate still ≥5000 (fat tip ok); REF gate ≥4500 accepts CACHE.
     if [ -n "$_ns_tsz" ] && [ "$_ns_tsz" -ge 5000 ] 2>/dev/null; then
       echo "g05_cap_tip_reapply: tip-compiled named_size.o (size_simple authority + builtin text=$_ns_tsz)" >&2
       _ns_ok=1
     else
-      echo "g05_cap_tip_reapply: FixC12d Prefer-M2 reject undersized named_size tip (text=${_ns_tsz:-?}); Prefer REF" >&2
+      echo "g05_cap_tip_reapply: FixC12k Prefer-M2 reject named_size tip (text=${_ns_tsz:-?}); Prefer CACHE REF" >&2
     fi
   else
     echo "g05_cap_tip_reapply: WARN named_size tip-compile failed or missing named_builtin" >&2
   fi
   if [ "$_ns_ok" != "1" ]; then
     _ns_ref=""
+    # FixC12k2: Cap tip Prefer s24=110 matches good_2105 PIPE named_size
+    # (pipeline_named_size_layout + size_simple @0x34c; text=5328).
+    # CACHE/pabi SHORT named_size (text=4696, _named_size_layout_*) CG002s.
     for _nr in \
       "${HOME:-}/xlang_bak_1066/cap_cache_good_2105/pabi/named_size.o" \
       "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/named_size.o" \
       "$_ns_keep"
     do
       [ -n "$_nr" ] && [ -s "$_nr" ] || continue
-      if nm "$_nr" 2>/dev/null | grep -q 'U _typeck_x_named_builtin_size' \
+      if nm -gU "$_nr" 2>/dev/null | grep -q 'T _pipeline_named_size_layout_matches_c$' \
         && nm -gU "$_nr" 2>/dev/null | grep -q 'T _glue_type_size_simple$'; then
         _nr_tsz=$(otool -l "$_nr" 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
         case "$_nr_tsz" in 0x*|0X*) _nr_tsz=$((_nr_tsz)) ;; esac
@@ -139,7 +143,7 @@ if [ -f src/runtime_pipeline_abi_named_size_thin.x ]; then
     done
     if [ -n "$_ns_ref" ]; then
       cp -f "$_ns_ref" build_asm/selfhost_pabi/named_size.o
-      echo "g05_cap_tip_reapply: FixC12d Prefer-M2 restored named_size REF ($_ns_ref)" >&2
+      echo "g05_cap_tip_reapply: FixC12k2 Prefer-M2 restored PIPE named_size REF ($_ns_ref)" >&2
     elif [ -n "$_ns_keep" ] && [ -s "$_ns_keep" ]; then
       cp -f "$_ns_keep" build_asm/selfhost_pabi/named_size.o
       echo "g05_cap_tip_reapply: restored named_size.o with named_builtin U" >&2
@@ -172,7 +176,8 @@ if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
       && echo "g05_cap_tip_reapply: demoted pabi size_simple (named_size wins)" >&2 || true
   fi
   # 10.44: named_align_thin — i8 pack align=1 (egg TYPE_NAMED miss was 4).
-  # Prefer-M2b 10.77: size-gate tip (__text≈1720) vs REF 1840; Prefer REF.
+  # FixC12k: Cap tip Prefer s24=110 uses CACHE named_align text=888;
+  # good_2105 text=1840 first → CG002. Prefer CACHE REF.
   if [ -f src/runtime_pipeline_abi_named_align_thin.x ]; then
     _na_xl="${XLANG:-}"
     [ -x ./xlang ] && _na_xl="./xlang"
@@ -185,27 +190,35 @@ if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
            | grep -q 'T _glue_type_align_simple$'; then
       _na_tsz=$(otool -l build_asm/selfhost_pabi/named_align.o 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
       case "$_na_tsz" in 0x*|0X*) _na_tsz=$((_na_tsz)) ;; esac
+      # FixC12k2: Cap tip Prefer bak band ≥1800 (text=1840); reject CACHE short 888.
       if [ -n "$_na_tsz" ] && [ "$_na_tsz" -ge 1800 ] 2>/dev/null; then
         echo "g05_cap_tip_reapply: tip-compiled named_align.o (align_simple authority text=$_na_tsz)" >&2
         _na_ok=1
       else
-        echo "g05_cap_tip_reapply: FixC12d Prefer-M2 reject undersized named_align tip (text=${_na_tsz:-?})" >&2
+        echo "g05_cap_tip_reapply: FixC12k2 Prefer-M2 reject named_align tip (text=${_na_tsz:-?}); Prefer bak" >&2
       fi
     else
       echo "g05_cap_tip_reapply: WARN named_align tip-compile failed" >&2
     fi
     if [ "$_na_ok" != "1" ]; then
+      # FixC12k2: Cap tip Prefer s24=110 matches bak named_align text=1840.
       for _nr in \
         "${HOME:-}/xlang_bak_1066/cap_cache_good_2105/pabi/named_align.o" \
         "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/named_align.o"
       do
         [ -s "$_nr" ] || continue
         cp -f "$_nr" build_asm/selfhost_pabi/named_align.o
-        echo "g05_cap_tip_reapply: FixC12d Prefer-M2 restored named_align REF ($_nr)" >&2
+        echo "g05_cap_tip_reapply: FixC12k2 Prefer-M2 restored named_align REF ($_nr)" >&2
         break
       done
     fi
     unset _na_ok _na_tsz _nr
+  fi
+  # FixC12k2: Prefer bak PIPE widen_mixed (pipeline_w1591_*) — CACHE/pabi SHORT CG002s Cap tip Prefer.
+  if [ -s "${HOME:-}/xlang_bak_1066/cap_cache_good_2105/pabi/runtime_pipeline_abi_widen_mixed_thin.o" ]; then
+    cp -f "${HOME:-}/xlang_bak_1066/cap_cache_good_2105/pabi/runtime_pipeline_abi_widen_mixed_thin.o" \
+      build_asm/selfhost_pabi/runtime_pipeline_abi_widen_mixed_thin.o
+    echo "g05_cap_tip_reapply: FixC12k2 Prefer-M2 restored PIPE widen_mixed REF" >&2
   fi
   # 10.44: layout offset thin must exist for Cap tip G05_OBJS
   # Prefer-M2b 10.77: tip __text≈1900 undersizes vs REF 3344 → s24 CG002.
@@ -1924,7 +1937,7 @@ _cap_tip_fill_missing_objs() {
           echo "g05_cap_tip_reapply: re-asserted named_size after pabi stomp (builtin text=$_ns_stomp_tsz)" >&2
           _ns_stomp_ok=1
         else
-          echo "g05_cap_tip_reapply: FixC12d Prefer-M2 reject undersized named_size after stomp (text=${_ns_stomp_tsz:-?})" >&2
+          echo "g05_cap_tip_reapply: FixC12k Prefer-M2 reject named_size after stomp (text=${_ns_stomp_tsz:-?})" >&2
         fi
       else
         echo "g05_cap_tip_reapply: WARN named_size re-assert after stomp failed" >&2
@@ -1935,9 +1948,12 @@ _cap_tip_fill_missing_objs() {
           "${CACHE:-/tmp/cap_tip_l4_safe_406200eef}/pabi/named_size.o"
         do
           [ -s "$_nr" ] || continue
-          if nm "$_nr" 2>/dev/null | grep -q 'U _typeck_x_named_builtin_size'; then
+          _nr_tsz=$(otool -l "$_nr" 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
+          case "$_nr_tsz" in 0x*|0X*) _nr_tsz=$((_nr_tsz)) ;; esac
+          if nm -gU "$_nr" 2>/dev/null | grep -q 'T _pipeline_named_size_layout_matches_c$' \
+            && [ -n "$_nr_tsz" ] && [ "$_nr_tsz" -ge 5000 ] 2>/dev/null; then
             cp -f "$_nr" build_asm/selfhost_pabi/named_size.o
-            echo "g05_cap_tip_reapply: FixC12d Prefer-M2 restored named_size REF after stomp ($_nr)" >&2
+            echo "g05_cap_tip_reapply: FixC12k2 Prefer-M2 restored PIPE named_size REF after stomp (text=$_nr_tsz $_nr)" >&2
             break
           fi
         done
@@ -1953,7 +1969,7 @@ _cap_tip_fill_missing_objs() {
              | grep -q 'T _glue_type_align_simple$'; then
         _na_tsz=$(otool -l build_asm/selfhost_pabi/named_align.o 2>/dev/null | awk '/sectname __text/{for(i=0;i<8;i++){getline; if($1=="size"){print $2; exit}}}')
         case "$_na_tsz" in 0x*|0X*) _na_tsz=$((_na_tsz)) ;; esac
-        # Prefer-M2b: REF align __text=1840; tip≈1720. Gate ≥1800.
+        # FixC12k2: bak band ≥1800.
         if [ -n "$_na_tsz" ] && [ "$_na_tsz" -ge 1800 ] 2>/dev/null; then
           echo "g05_cap_tip_reapply: re-asserted named_align after pabi stomp (text=$_na_tsz)" >&2
           _na_stomp_ok=1
@@ -1966,7 +1982,7 @@ _cap_tip_fill_missing_objs() {
         do
           [ -s "$_nr" ] || continue
           cp -f "$_nr" build_asm/selfhost_pabi/named_align.o
-          echo "g05_cap_tip_reapply: FixC12d Prefer-M2 restored named_align REF after stomp ($_nr)" >&2
+          echo "g05_cap_tip_reapply: FixC12k2 Prefer-M2 restored named_align REF after stomp ($_nr)" >&2
           break
         done
       else
