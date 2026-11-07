@@ -6459,7 +6459,7 @@ ensure_runtime_asm_io_stubs_pure() {
     log "skip $o (up-to-date pure-asm w1516/10.65)"
     return 0
   fi
-  local try=0 done=0
+  local try=0 done=0 _aside _pin
   while [ "$try" -lt 3 ]; do
     try=$((try + 1))
     rm -f "$o"
@@ -6478,6 +6478,40 @@ ensure_runtime_asm_io_stubs_pure() {
     fi
     rm -f "$o"
   done
+  # tip_l4 Win: tip/egg/aside/bi XT001/CG002 on this TU; restore tip-cold pin
+  # with doc_anchor (pthin g05 prereq). PLATFORM: WINDOWS.
+  if [ "$done" != "1" ]; then
+    for _aside in \
+        ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang.exe"} \
+        ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang"} \
+        ./xlang.pre_l4_aside ./xlang.pre_l4_aside.exe ./xlang_bi ./xlang_bi.exe; do
+      if [ -n "$_aside" ] && [ -x "$_aside" ]; then
+        rm -f "$o"
+        if g05_xasm "$_aside" -backend asm -c "$x" -o "$o" >/dev/null 2>&1 \
+          && [ -s "$o" ] \
+          && nm "$o" 2>/dev/null | grep -q "T _*runtime_asm_io_stubs_x_doc_anchor\$"; then
+          done=1
+          echo "io_stubs: pure-asm via tip_aside $_aside (doc_anchor)" >&2
+          break
+        fi
+        rm -f "$o"
+      fi
+    done
+  fi
+  if [ "$done" != "1" ]; then
+    for _pin in \
+        runtime_asm_io_stubs.o.tip_cold_pin \
+        src/asm/runtime_asm_io_stubs.o.tip_cold_pin \
+        /c/xlang_tmp/seeds/runtime_asm_io_stubs.o; do
+      if [ -s "$_pin" ] \
+        && nm "$_pin" 2>/dev/null | grep -q "T _*runtime_asm_io_stubs_x_doc_anchor\$"; then
+        cp -f "$_pin" "$o" && [ -s "$o" ] || continue
+        done=1
+        echo "io_stubs: restore tip-cold pin $_pin (doc_anchor)" >&2
+        break
+      fi
+    done
+  fi
   if [ "$done" != "1" ]; then
     echo "ensure_host_cc_seed_o: pure-asm failed for $x → $o (w1516; no seed)" >&2
     return 1

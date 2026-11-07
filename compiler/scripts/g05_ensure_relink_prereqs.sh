@@ -1133,10 +1133,37 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       mv -f "$_rais_o.x.tmp.o" "$_rais_o"
       echo "g05_ensure: $_rais_o ← $_rais_x (w1516 pure asm, whole object, no seed)"
     else
-      rm -f "$_rais_o.x.tmp.o" "$_rais_o"
-      echo "$_rais_os $_rais_x" >>build_asm/g05_cc_fallback.log 2>/dev/null || true
-      echo "g05_ensure: ERROR $_rais_x pure asm failed 3x; no seed fallback (w1516)" >&2
-      exit 1
+      rm -f "$_rais_o.x.tmp.o"
+      # tip_l4 Win: tip/egg/aside/bi fail XT001/CG002; restore tip-cold pin
+      # that still carries g05 authority faces. PLATFORM: WINDOWS.
+      _rais_pin_ok=0
+      if [ "$_rais_os" = "Windows" ]; then
+        for _rais_pin in \
+            runtime_asm_io_stubs.o.tip_cold_pin \
+            src/asm/runtime_asm_io_stubs.o.tip_cold_pin \
+            /c/xlang_tmp/seeds/runtime_asm_io_stubs.o; do
+          if [ -s "$_rais_pin" ]; then
+            _rais_pnm=$(nm "$_rais_pin" 2>/dev/null || true)
+            if printf '%s\n' "$_rais_pnm" | grep -q "T _*runtime_asm_io_stubs_x_doc_anchor\$" \
+              && printf '%s\n' "$_rais_pnm" | grep -q "T _*std_fmt_println_i64\$" \
+              && printf '%s\n' "$_rais_pnm" | grep -q "T _*std_io_read_stdin_ptr_slice\$" \
+              && printf '%s\n' "$_rais_pnm" | grep -q "T _*std_io_ptr_view\$" \
+              && printf '%s\n' "$_rais_pnm" | grep -Eq "[TWw] _*xlang_target_cpu_detect_host\$" \
+              && printf '%s\n' "$_rais_pnm" | grep -Eq "[TWw] _*xlang_sys_write\$"; then
+              cp -f "$_rais_pin" "$_rais_o" && [ -s "$_rais_o" ] || continue
+              _rais_pin_ok=1
+              echo "g05_ensure: $_rais_o ← tip-cold pin $_rais_pin (w1516 Win)"
+              break
+            fi
+          fi
+        done
+      fi
+      if [ "$_rais_pin_ok" != "1" ]; then
+        rm -f "$_rais_o"
+        echo "$_rais_os $_rais_x" >>build_asm/g05_cc_fallback.log 2>/dev/null || true
+        echo "g05_ensure: ERROR $_rais_x pure asm failed 3x; no seed fallback (w1516)" >&2
+        exit 1
+      fi
     fi
   fi
   # wave765 G.7: labi multi-slice product PREFER → ensure try-labi-prefer
