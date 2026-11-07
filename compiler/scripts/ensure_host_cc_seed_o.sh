@@ -10956,47 +10956,90 @@ rt_argv_darwin_pure() {
   return 0
 }
 
-# w1170: src/runtime/rt_fmt_one.x segfaults on some pure-asm tries
-# and emits on a later try. Retry the whole translation unit.
-# Direct xlang_asm, not rt_prefer_try_x_to_o.
-# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
-rt_fmt_one_darwin_pure() {
+# tip_l4: rt_fmt_one.x tip/bootstrap pure often fails on Linux/Win tip-cold;
+# pin-egg emits Cap-good 3 T (driver_fmt_one_file + path helpers). Egg-first
+# on all hosts; Darwin arm64 tip retry retained as fallback.
+# PLATFORM: SHARED. cwd is compiler/.
+rt_fmt_one_pure_any() {
   local o="${1:-}"
   local xsrc="src/runtime/rt_fmt_one.x"
-  local try n c
-  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
-    return 1
-  fi
-  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
-    return 1
-  fi
-  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
-    return 1
-  fi
-  try=0
-  while [ "$try" -lt 12 ]; do
-    try=$((try + 1))
-    rm -f "$o"
-    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
-      break
-    fi
-    rm -f "$o"
-  done
-  if [ ! -s "$o" ]; then
-    return 1
-  fi
-  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
-  if [ "$n" != "3" ]; then
-    rm -f "$o"
-    return 1
-  fi
-  for c in _rt_fmt_path_copy_nul _rt_fmt_path_ends_x _driver_fmt_one_file; do
-    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+  local _egg_os _egg_arch _egg try n c
+  [ -n "$o" ] && [ -f "$xsrc" ] || return 1
+  _egg_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
+  _egg_arch="$(uname -m 2>/dev/null)"
+  case "$_egg_os" in darwin) _egg_os=darwin ;; linux) _egg_os=linux ;;
+    mingw*|msys*|cygwin*) _egg_os=windows ;; *) _egg_os="" ;; esac
+  case "$_egg_arch" in x86_64|amd64) _egg_arch=x86_64 ;; arm64|aarch64) _egg_arch=arm64 ;; *) _egg_arch="" ;; esac
+  if [ -n "$_egg_os" ] && [ -n "$_egg_arch" ]; then
+    _egg="seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}"
+    if [ -x "$_egg" ]; then
       rm -f "$o"
-      return 1
+      if g05_xasm "$_egg" -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 \
+        && [ -s "$o" ]; then
+        n="$(nm "$o" 2>/dev/null | tr -d '\r' | awk '$2=="T"' | wc -l | tr -d ' ')"
+        if [ "$n" = "3" ] \
+          && nm "$o" 2>/dev/null | tr -d '\r' | grep -qE " T _?driver_fmt_one_file$"; then
+          echo "rt-fmt-one: pure-asm via pin-egg $_egg (3 T)" >&2
+          return 0
+        fi
+      fi
+      rm -f "$o"
     fi
-  done
-  return 0
+  fi
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+    && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+    && [ -x ./xlang_asm ]; then
+    try=0
+    while [ "$try" -lt 12 ]; do
+      try=$((try + 1))
+      rm -f "$o"
+      if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+        break
+      fi
+      rm -f "$o"
+    done
+    if [ -s "$o" ]; then
+      n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+      if [ "$n" = "3" ] \
+        && nm "$o" | awk '$2=="T" && ($3=="_driver_fmt_one_file" || $3=="driver_fmt_one_file") { found=1 } END { exit found ? 0 : 1 }'; then
+        return 0
+      fi
+      rm -f "$o"
+    fi
+  fi
+  return 1
+}
+
+rt_fmt_one_darwin_pure() {
+  rt_fmt_one_pure_any "$@"
+}
+
+# tip_l4: rt_dispatch_thin.x tip pure fails on Linux tip-cold; pin-egg OK.
+# PLATFORM: SHARED.
+rt_dispatch_thin_pure_any() {
+  local o="${1:-}"
+  local xsrc="src/runtime/rt_dispatch_thin.x"
+  local _egg_os _egg_arch _egg
+  [ -n "$o" ] && [ -f "$xsrc" ] || return 1
+  _egg_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
+  _egg_arch="$(uname -m 2>/dev/null)"
+  case "$_egg_os" in darwin) _egg_os=darwin ;; linux) _egg_os=linux ;;
+    mingw*|msys*|cygwin*) _egg_os=windows ;; *) _egg_os="" ;; esac
+  case "$_egg_arch" in x86_64|amd64) _egg_arch=x86_64 ;; arm64|aarch64) _egg_arch=arm64 ;; *) _egg_arch="" ;; esac
+  if [ -n "$_egg_os" ] && [ -n "$_egg_arch" ]; then
+    _egg="seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}"
+    if [ -x "$_egg" ]; then
+      rm -f "$o"
+      if g05_xasm "$_egg" -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 \
+        && [ -s "$o" ] \
+        && nm "$o" 2>/dev/null | tr -d '\r' | grep -qE " T _?driver_run_compiler_full$"; then
+        echo "rt-dispatch-thin: pure-asm via pin-egg $_egg" >&2
+        return 0
+      fi
+      rm -f "$o"
+    fi
+  fi
+  return 1
 }
 
 # w1169: src/runtime/rt_compile.x segfaults on the first pure-asm
@@ -18095,6 +18138,25 @@ rt_prefer_try_x_to_o() {
   ); then
     return 0
   fi
+  # tip_l4 Linux/Win: tip/bootstrap pure of many rt_*.x fails (hollow SEGV /
+  # missing T); pin-egg still emits Cap-good bodies (argv/fmt_one/dispatch/…).
+  # Try host egg before -E+$CC so tip-cold multi-slice can complete without
+  # monofile last-resort. PLATFORM: SHARED.
+  _egg_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
+  _egg_arch="$(uname -m 2>/dev/null)"
+  case "$_egg_os" in darwin) _egg_os=darwin ;; linux) _egg_os=linux ;;
+    mingw*|msys*|cygwin*) _egg_os=windows ;; *) _egg_os="" ;; esac
+  case "$_egg_arch" in x86_64|amd64) _egg_arch=x86_64 ;; arm64|aarch64) _egg_arch=arm64 ;; *) _egg_arch="" ;; esac
+  if [ -n "$_egg_os" ] && [ -n "$_egg_arch" ]; then
+    _egg="seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}"
+    if [ -x "$_egg" ]; then
+      rm -f "$_xout"
+      if g05_xasm "$_egg" -backend asm -c "$_xsrc" -o "$_xout" >/dev/null 2>&1         && [ -s "$_xout" ]; then
+        return 0
+      fi
+      rm -f "$_xout"
+    fi
+  fi
   # Historic product path: -E → prologue → $CC -c.
   # BSD/macOS mktemp 要求 X 串在模板末尾；勿用 XXXXXX.c
   _xtmp=$(mktemp "${TMPDIR:-/tmp}/rtpref_x.XXXXXX") || return 1
@@ -19068,20 +19130,13 @@ ensure_rt_prefer_one() {
             # present. PLATFORM: SHARED — no host-cc of emptied cold body.
             _rt_fo_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_fmt_one_thin.XXXXXX") || true
             _rt_fo_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_fmt_one_rest.XXXXXX") || true
-            _rt_fo_pure=0
-            # w1170: some pure-asm tries segfault. Darwin retries the
-            # whole translation unit. Other hosts keep rt_prefer_try.
-            # PLATFORM: MACOS|DARWIN arm64 for the pure path.
-            if [ -n "$_rt_fo_thin_o" ] \
-              && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
-              && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
-              && [ -f scripts/ensure_host_cc_seed_o.sh ] \
-              && bash scripts/ensure_host_cc_seed_o.sh rt-fmt-one-pure "$_rt_fo_thin_o"; then
+                        _rt_fo_pure=0
+            # tip_l4: egg-first on all hosts (Linux tip-cold tip/bootstrap fail).
+            # PLATFORM: SHARED.
+            if [ -n "$_rt_fo_thin_o" ] && rt_fmt_one_pure_any "$_rt_fo_thin_o"; then
               _rt_fo_pure=1
             fi
-            if [ -n "$_rt_fo_thin_o" ] \
-              && { [ "$_rt_fo_pure" = "1" ] \
-                || rt_prefer_try_x_to_o "$_rt_fmt_one_x" "$_rt_fo_thin_o"; }; then
+            if [ -n "$_rt_fo_thin_o" ]               && { [ "$_rt_fo_pure" = "1" ]                 || rt_prefer_try_x_to_o "$_rt_fmt_one_x" "$_rt_fo_thin_o"; }; then
               if [ -n "$_rt_fo_rest_o" ] && [ -f "$_rt_fmt_one_seed" ] \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_FMT_ONE_FROM_X \
                      -c -o "$_rt_fo_rest_o" "$_rt_fmt_one_seed" 2>/dev/null \
@@ -19117,8 +19172,11 @@ ensure_rt_prefer_one() {
             # PLATFORM: SHARED — no host-cc of the emptied cold seed body.
             _rt_dt_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_dispatch_thin_thin.XXXXXX") || true
             _rt_dt_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_dispatch_thin_rest.XXXXXX") || true
-            if [ -n "$_rt_dt_thin_o" ] \
-              && rt_prefer_try_x_to_o "$_rt_dispatch_thin_x" "$_rt_dt_thin_o"; then
+            _rt_dt_pure=0
+            if [ -n "$_rt_dt_thin_o" ] && rt_dispatch_thin_pure_any "$_rt_dt_thin_o"; then
+              _rt_dt_pure=1
+            fi
+            if [ -n "$_rt_dt_thin_o" ]               && { [ "$_rt_dt_pure" = "1" ]                 || rt_prefer_try_x_to_o "$_rt_dispatch_thin_x" "$_rt_dt_thin_o"; }; then
               if [ -n "$_rt_dt_rest_o" ] && [ -f "$_rt_dispatch_thin_seed" ] \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_DISPATCH_THIN_FROM_X \
                      -c -o "$_rt_dt_rest_o" "$_rt_dispatch_thin_seed" 2>/dev/null \
