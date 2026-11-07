@@ -478,16 +478,13 @@ extern int diag_levenshtein_ci(const char *a, const char *b);
  * 与查询等长或仅差 1，避免把任意短查询都建议成首个已知码。
  */
 /* G-02f-158：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* tip_l4: hollowed nest left a bare for-loop outside any function (cc
+ * error on Linux full-seed fallback). Cold seed defers to thin.x via
+ * extern when FROM_X; without FROM_X the walk also lives in thin —
+ * seed keeps only the declaration face. PLATFORM: SHARED. */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
-#ifdef XLANG_L2_DIAG_THIN_FROM_X
-#else
-/* JSON report walk lives in src/diag_thin.x. PLATFORM: SHARED. */
-#endif
-#ifdef XLANG_L2_DIAG_THIN_FROM_X
-#else
-    for (i = 0; i < g_diag_code_table_count; i++) {
-        const char *cand = g_diag_code_table[i].code;
-#endif
+/* Cold full-seed path: did-you-mean body is in src/diag_thin.x; declare. */
+extern const char *diag_code_suggest(const char *code, char *out, size_t out_cap);
 #else
 /* Did-you-mean walk lives in src/diag_thin.x. PLATFORM: SHARED. */
 extern const char *diag_code_suggest(const char *code, char *out, size_t out_cap);

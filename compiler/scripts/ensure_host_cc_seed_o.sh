@@ -15895,9 +15895,28 @@ ensure_parser_asm_thin_glue_prefer() {
     echo "ensure_parser_asm_thin_glue_prefer: missing g05_ensure_relink_prereqs.sh" >&2
     return 1
   fi
+  # tip_l4 Linux/Win: g05 fatal-exits on hollow runtime_driver_no_c (rt-abk)
+  # before the P1–P20 thin_glue merge, so prefer saw a missing .o even though
+  # the rest of ensure already heated other leaves. Pre-heal no_c (try-rt-prefer
+  # + abk gate) so g05 reaches thin_glue; prefer still ignores g05's later
+  # diag-seed soft fails when $o is present. PLATFORM: SHARED.
+  if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
+    bash scripts/ensure_host_cc_seed_o.sh try-rt-prefer src/runtime_driver_no_c.o \
+      >/dev/null 2>&1 || true
+    if [ -s src/runtime_driver_no_c.o ] \
+      && ! bash scripts/ensure_host_cc_seed_o.sh rt-abk-authority-check \
+        src/runtime_driver_no_c.o >/dev/null 2>&1; then
+      echo "ensure_parser_asm_thin_glue_prefer: no_c fails rt-abk; FORCE try-rt-prefer" >&2
+      FORCE=1 bash scripts/ensure_host_cc_seed_o.sh try-rt-prefer \
+        src/runtime_driver_no_c.o >/dev/null 2>&1 || true
+    fi
+  fi
   rm -f "$o"
   (
     export XLANG_G05_PREFER_X_O=1
+    # Soft-continue past non-pthin fatals once keep-going is set (diag seed
+    # corruption must not erase a successful thin_glue write). PLATFORM: SHARED.
+    export XLANG_G05_PTHIN_KEEP_GOING=1
     if [ ! -x ./xlang ] && [ ! -x ./xlang-c ] && [ -x ./bootstrap_xlangc ]; then
       export XLANG=./bootstrap_xlangc
     fi
@@ -15924,6 +15943,7 @@ ensure_parser_asm_thin_glue_prefer() {
   log "parser_asm_thin_glue.o <- g05 prefer hybrid (knife256; T=$n; no hollow thin_c)"
   return 0
 }
+
 
 try_ensure_r1_one() {
   local o="$1"

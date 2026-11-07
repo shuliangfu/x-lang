@@ -1215,7 +1215,14 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         echo "g05_ensure: rt-abk authority OK (src/runtime_driver_no_c.o ← rt_run_asm_backend.x) (w2060)"
       else
         echo "g05_ensure: ERROR src/runtime_driver_no_c.o lacks the rt_run_asm_backend.x body of driver_run_asm_backend (cold seed?) (w2060)" >&2
-        exit 1
+        # tip_l4 pthin prefer: keep going so P1–P20 thin_glue can still merge;
+        # prefer ignores g05 rc when parser_asm_thin_glue.o is present.
+        # PLATFORM: SHARED.
+        if [ "${XLANG_G05_PTHIN_KEEP_GOING:-0}" = "1" ]; then
+          echo "g05_ensure: PTHIN_KEEP_GOING=1; continue past rt-abk (thin_glue prefer)" >&2
+        else
+          exit 1
+        fi
       fi
     fi
     # 7.4.4 配套基建 (2026-09-10): G05_OBJS also links the five STANDALONE rt
@@ -4684,7 +4691,17 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       if [ "$_diag_done" = "0" ]; then
         echo "g05_ensure: $_diag_o ← seed (G-02f-11)"
         # shellcheck disable=SC2086
-        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_diag_o" "$_diag"
+        if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_diag_o" "$_diag"; then
+          echo "g05_ensure: ERROR diag full seed cc failed" >&2
+          rm -f "$_diag_o"
+          # tip_l4 pthin prefer: thin_glue already merged; do not abort g05
+          # solely on hollow/corrupt diag seed. PLATFORM: SHARED.
+          if [ "${XLANG_G05_PTHIN_KEEP_GOING:-0}" = "1" ]; then
+            echo "g05_ensure: PTHIN_KEEP_GOING=1; continue past diag seed cc" >&2
+          else
+            exit 1
+          fi
+        fi
       fi
     fi
   fi
