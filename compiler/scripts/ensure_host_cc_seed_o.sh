@@ -4988,6 +4988,19 @@ ensure_strict_glue_w1530() {
     echo "ensure: $o cat of $x_heap and $x_glue failed; no host cc" >&2
     return 1
   fi
+  # tip_l4 Win: pre-strip non-Windows cfg from concat so tip_aside can emit.
+  # PLATFORM: WINDOWS.
+  case "$os_s" in
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+      _sg_pre="$(mktemp "${TMPDIR:-/tmp}/w1530pre.XXXXXX")"
+      _sg_pre_x="${_sg_pre}.x"
+      mv -f "$_sg_pre" "$_sg_pre_x" 2>/dev/null || _sg_pre_x="${_sg_pre}.x"
+      if x_strip_not_windows_cfg "$tmp_x" "$_sg_pre_x"; then
+        mv -f "$_sg_pre_x" "$tmp_x" || cp -f "$_sg_pre_x" "$tmp_x"
+      fi
+      rm -f "$_sg_pre_x"
+      ;;
+  esac
   if ! (
     export XLANG_PREFER_ASM_O=1
     export XLANG_PURE_ASM_TIMEOUT_SEC=180
@@ -4996,9 +5009,39 @@ ensure_strict_glue_w1530() {
     unset G05_X_O_SYM_RENAME
     pure_asm_x_to_o "$tmp_o" "$tmp_x"
   ) || [ ! -s "$tmp_o" ]; then
-    rm -f "$tmp_x" "$tmp_o"
-    echo "ensure: $o pure asm of $x_heap + $x_glue failed; no retry, no host cc" >&2
-    return 1
+    # tip_l4 Win: tip/egg concat P012/XT001; tip_aside+cfg-strip may emit.
+    # PLATFORM: WINDOWS.
+    _sg_ok=0
+    case "$os_s" in
+      Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+        _sg_strip="$(mktemp "${TMPDIR:-/tmp}/w1530strip.XXXXXX")"
+        _sg_strip_x="${_sg_strip}.x"
+        mv -f "$_sg_strip" "$_sg_strip_x" 2>/dev/null || _sg_strip_x="${_sg_strip}.x"
+        if x_strip_not_windows_cfg "$tmp_x" "$_sg_strip_x"; then
+          for _aside in \
+              ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang.exe"} \
+              ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang"} \
+              ./xlang.pre_l4_aside ./xlang.pre_l4_aside.exe; do
+            if [ -n "$_aside" ] && [ -x "$_aside" ]; then
+              rm -f "$tmp_o"
+              if g05_xasm "$_aside" -backend asm -c "$_sg_strip_x" -o "$tmp_o" >/dev/null 2>&1 \
+                && [ -s "$tmp_o" ]; then
+                _sg_ok=1
+                echo "ensure: $o via tip_aside+cfg-strip $_aside (Win w1530)" >&2
+                break
+              fi
+              rm -f "$tmp_o"
+            fi
+          done
+        fi
+        rm -f "$_sg_strip_x"
+        ;;
+    esac
+    if [ "$_sg_ok" != "1" ]; then
+      rm -f "$tmp_x" "$tmp_o"
+      echo "ensure: $o pure asm of $x_heap + $x_glue failed; no retry, no host cc" >&2
+      return 1
+    fi
   fi
   rm -f "$tmp_x"
   if ! strict_glue_w1530_weaken "$tmp_o"; then
@@ -6173,7 +6216,7 @@ uasb_pure_any() {
   [ -n "$o" ] && [ -f "$xsrc" ] || return 1
   _egg_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
   _egg_arch="$(uname -m 2>/dev/null)"
-  case "$_egg_os" in darwin) _egg_os=darwin ;; linux) _egg_os=linux ;; *) _egg_os="" ;; esac
+  case "$_egg_os" in darwin) _egg_os=darwin ;; linux) _egg_os=linux ;; mingw*|msys*|cygwin*|windows_nt*|windows) _egg_os=windows ;; *) _egg_os="" ;; esac
   case "$_egg_arch" in x86_64|amd64) _egg_arch=x86_64 ;; arm64|aarch64) _egg_arch=arm64 ;; *) _egg_arch="" ;; esac
   if [ -n "$_egg_os" ] && [ -n "$_egg_arch" ]; then
     _egg="seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}"
@@ -6204,7 +6247,66 @@ uasb_pure_any() {
     fi
     rm -f "$o"
   done
+  # tip_l4 Win: egg/tip/aside -c of uasb.x hits XT001/XP001; a tree bak that
+  # still passes ln++ authority is the tip-cold last resort (not Soft Cap).
+  # Also try tip_aside binary when present (helps other hosts). PLATFORM: SHARED.
+  local _aside _bak
+  for _aside in       ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang.exe"}       ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang"}       ./xlang.pre_l4_aside ./xlang.pre_l4_aside.exe; do
+    if [ -n "$_aside" ] && [ -x "$_aside" ]; then
+      rm -f "$o"
+      if g05_xasm "$_aside" -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1         && [ -s "$o" ] && uasb_codegen_elf_o_ln_inc_ok "$o"; then
+        echo "uasb: pure-asm via tip_aside $_aside (codegen_elf_o ln++)" >&2
+        return 0
+      fi
+      rm -f "$o"
+    fi
+  done
+  for _bak in       src/asm/user_asm_seed_bridge.o.pre1046n10.bak       src/asm/user_asm_seed_bridge.o.bak       user_asm_seed_bridge.o.bak; do
+    if [ -s "$_bak" ] && uasb_codegen_elf_o_ln_inc_ok "$_bak"; then
+      cp -f "$_bak" "$o" && [ -s "$o" ] || continue
+      echo "uasb: restore tip-cold bak $_bak (codegen_elf_o ln++ authority)" >&2
+      return 0
+    fi
+  done
   return 1
+}
+
+
+# tip_l4 Win: tip_aside / old egg keep both #[cfg(windows)] and
+# #[cfg(not(windows))] twins and then P012 on nested lets. Strip
+# not-windows cfg bodies into a temp .x before -c. PLATFORM: WINDOWS.
+x_strip_not_windows_cfg() {
+  local src="${1:-}" dst="${2:-}"
+  [ -n "$src" ] && [ -f "$src" ] && [ -n "$dst" ] || return 1
+  # tip_l4 Win tip_aside: drop non-Windows cfg twins (not(windows) / macos /
+  # linux / darwin) plus following attrs + one export/extern body. Keeps
+  # Windows-only bodies so nested lets are not P012-duplicated. PLATFORM: WINDOWS.
+  awk '
+    BEGIN { skip=0; depth=0; started=0 }
+    function is_non_win_cfg(s) {
+      return (s ~ /#\[cfg\(not\(target_os = "windows"\)\)\]/ ||
+              s ~ /#\[cfg\(target_os = "macos"\)\]/ ||
+              s ~ /#\[cfg\(target_os = "darwin"\)\]/ ||
+              s ~ /#\[cfg\(target_os = "linux"\)\]/)
+    }
+    skip==0 && is_non_win_cfg($0) {
+      skip=1; depth=0; started=0; next
+    }
+    skip==1 {
+      if ($0 ~ /^#\[/) next
+      if ($0 ~ /export function/ || $0 ~ /export extern/ || $0 ~ /^function / || $0 ~ /^extern /) started=1
+      # one-line extern decl
+      if (started && $0 ~ /extern/ && $0 !~ /{/ && $0 ~ /;/) {
+        skip=0; started=0; depth=0; next
+      }
+      depth += gsub(/{/, "{") - gsub(/}/, "}")
+      if (started && depth <= 0) { skip=0; started=0; depth=0 }
+      next
+    }
+    { print }
+  ' "$src" > "$dst" || return 1
+  [ -s "$dst" ] || return 1
+  return 0
 }
 
 ensure_deleted_seed_leaf_pure() {
@@ -6260,7 +6362,66 @@ ensure_deleted_seed_leaf_pure() {
     return 0
   fi
   mkdir -p "$(dirname "$o")"
-  local try=0 done=0
+  # tip_l4 Win: tip pure often XT001; pin-egg then tip_aside before tip.
+  # PLATFORM: SHARED.
+  local _egg_os _egg_arch _egg _aside try=0 done=0
+  _egg_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
+  _egg_arch="$(uname -m 2>/dev/null)"
+  case "$_egg_os" in darwin) _egg_os=darwin ;; linux) _egg_os=linux ;; mingw*|msys*|cygwin*|windows_nt|windows) _egg_os=windows ;; *) _egg_os="" ;; esac
+  case "$_egg_arch" in x86_64|amd64) _egg_arch=x86_64 ;; arm64|aarch64) _egg_arch=arm64 ;; *) _egg_arch="" ;; esac
+  if [ -n "$_egg_os" ] && [ -n "$_egg_arch" ]; then
+    _egg="seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}"
+    if [ -x "$_egg" ]; then
+      rm -f "$o"
+      if g05_xasm "$_egg" -backend asm -c "$x" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+        log "pure-asm $x → $o via pin-egg (deleted-seed)"
+        return 0
+      fi
+      rm -f "$o"
+    fi
+  fi
+  for _aside in \
+      ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang.exe"} \
+      ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang"} \
+      ./xlang.pre_l4_aside ./xlang.pre_l4_aside.exe; do
+    if [ -n "$_aside" ] && [ -x "$_aside" ]; then
+      rm -f "$o"
+      if g05_xasm "$_aside" -backend asm -c "$x" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+        log "pure-asm $x → $o via tip_aside $_aside (deleted-seed)"
+        return 0
+      fi
+      rm -f "$o"
+    fi
+  done
+  # tip_l4 Win enc: tip_aside P012 on cfg twins — strip not-windows then -c.
+  # PLATFORM: WINDOWS.
+  case "$(uname -s 2>/dev/null || echo Unknown)" in
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+      if [ "$o" = "src/asm/backend_x86_64_enc_c.o" ]; then
+        _strip="$(mktemp "${TMPDIR:-/tmp}/enc_win_only.XXXXXX")"
+        _strip_x="${_strip}.x"
+        mv -f "$_strip" "$_strip_x" 2>/dev/null || _strip_x="${_strip}.x"
+        if x_strip_not_windows_cfg "$x" "$_strip_x"; then
+          for _aside in \
+              ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang.exe"} \
+              ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang"} \
+              ./xlang.pre_l4_aside ./xlang.pre_l4_aside.exe; do
+            if [ -n "$_aside" ] && [ -x "$_aside" ]; then
+              rm -f "$o"
+              if g05_xasm "$_aside" -backend asm -c "$_strip_x" -o "$o" >/dev/null 2>&1 \
+                && [ -s "$o" ]; then
+                rm -f "$_strip_x"
+                log "pure-asm $x → $o via tip_aside+cfg-strip $_aside (Win enc)"
+                return 0
+              fi
+              rm -f "$o"
+            fi
+          done
+        fi
+        rm -f "$_strip_x"
+      fi
+      ;;
+  esac
   while [ "$try" -lt 3 ]; do
     try=$((try + 1))
     rm -f "$o"
@@ -7406,7 +7567,7 @@ rt_emit_state_pure_any() {
   [ -n "$o" ] && [ -f "$xsrc" ] || return 1
   _egg_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
   _egg_arch="$(uname -m 2>/dev/null)"
-  case "$_egg_os" in darwin) _egg_os=darwin ;; linux) _egg_os=linux ;; *) _egg_os="" ;; esac
+  case "$_egg_os" in darwin) _egg_os=darwin ;; linux) _egg_os=linux ;; mingw*|msys*|cygwin*|windows_nt*|windows) _egg_os=windows ;; *) _egg_os="" ;; esac
   case "$_egg_arch" in x86_64|amd64) _egg_arch=x86_64 ;; arm64|aarch64) _egg_arch=arm64 ;; *) _egg_arch="" ;; esac
   if [ -n "$_egg_os" ] && [ -n "$_egg_arch" ]; then
     _egg="seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}"
@@ -11418,7 +11579,7 @@ rt_run_asm_backend_pure_any() {
   # tip darwin_pure only as fallback. Ban park as main knife. PLATFORM: SHARED.
   _egg_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
   _egg_arch="$(uname -m 2>/dev/null)"
-  case "$_egg_os" in darwin) _egg_os=darwin ;; linux) _egg_os=linux ;; *) _egg_os="" ;; esac
+  case "$_egg_os" in darwin) _egg_os=darwin ;; linux) _egg_os=linux ;; mingw*|msys*|cygwin*|windows_nt*|windows) _egg_os=windows ;; *) _egg_os="" ;; esac
   case "$_egg_arch" in x86_64|amd64) _egg_arch=x86_64 ;; arm64|aarch64) _egg_arch=arm64 ;; *) _egg_arch="" ;; esac
   if [ -n "$_egg_os" ] && [ -n "$_egg_arch" ]; then
     _egg="seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}"
@@ -11435,6 +11596,23 @@ rt_run_asm_backend_pure_any() {
       rm -f "$o"
     fi
   fi
+  # tip_l4 Win: pin-egg XT001 on this TU; tip_aside emits Cap-good body
+  # (authority-checked). PLATFORM: SHARED.
+  local _aside
+  for _aside in \
+      ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang.exe"} \
+      ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang"} \
+      ./xlang.pre_l4_aside ./xlang.pre_l4_aside.exe; do
+    if [ -n "$_aside" ] && [ -x "$_aside" ]; then
+      rm -f "$o"
+      if g05_xasm "$_aside" -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 \
+        && [ -s "$o" ] && rt_abk_authority_check "$o"; then
+        echo "rt-abk: pure-asm via tip_aside $_aside (non-hollow step bls)" >&2
+        return 0
+      fi
+      rm -f "$o"
+    fi
+  done
   # knife 256 / 10.2: Darwin tip path wants ./xlang_asm (darwin_pure).
   # L4 true-cold wipes xlang_asm before bootstrap; fall through to egg
   # pure_asm_x_to_o (bootstrap_xlangc / xlang-c) with the same authority
@@ -14992,7 +15170,7 @@ diag_thin_egg_whole_any() {
   [ -n "$o" ] && [ -f "$xsrc" ] || return 1
   _egg_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
   _egg_arch="$(uname -m 2>/dev/null)"
-  case "$_egg_os" in darwin) _egg_os=darwin ;; linux) _egg_os=linux ;; *) _egg_os="" ;; esac
+  case "$_egg_os" in darwin) _egg_os=darwin ;; linux) _egg_os=linux ;; mingw*|msys*|cygwin*|windows_nt*|windows) _egg_os=windows ;; *) _egg_os="" ;; esac
   case "$_egg_arch" in x86_64|amd64) _egg_arch=x86_64 ;; arm64|aarch64) _egg_arch=arm64 ;; *) _egg_arch="" ;; esac
   if [ -n "$_egg_os" ] && [ -n "$_egg_arch" ]; then
     _egg="seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}"
@@ -15103,7 +15281,7 @@ PY
   objs=""
   _egg_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
   _egg_arch="$(uname -m 2>/dev/null)"
-  case "$_egg_os" in darwin) _egg_os=darwin ;; linux) _egg_os=linux ;; *) _egg_os="" ;; esac
+  case "$_egg_os" in darwin) _egg_os=darwin ;; linux) _egg_os=linux ;; mingw*|msys*|cygwin*|windows_nt*|windows) _egg_os=windows ;; *) _egg_os="" ;; esac
   case "$_egg_arch" in x86_64|amd64) _egg_arch=x86_64 ;; arm64|aarch64) _egg_arch=arm64 ;; *) _egg_arch="" ;; esac
   _egg=""
   if [ -n "$_egg_os" ] && [ -n "$_egg_arch" ]; then
@@ -18157,6 +18335,17 @@ rt_prefer_try_x_to_o() {
       rm -f "$_xout"
     fi
   fi
+  # tip_l4 Win: egg often XT001; tip_aside can emit Cap-good bodies (e.g.
+  # rt_run_asm_backend.x). Try pre_l4_aside before -E+$CC. PLATFORM: SHARED.
+  for _aside in       ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang.exe"}       ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang"}       ./xlang.pre_l4_aside ./xlang.pre_l4_aside.exe; do
+    if [ -n "$_aside" ] && [ -x "$_aside" ]; then
+      rm -f "$_xout"
+      if g05_xasm "$_aside" -backend asm -c "$_xsrc" -o "$_xout" >/dev/null 2>&1         && [ -s "$_xout" ]; then
+        return 0
+      fi
+      rm -f "$_xout"
+    fi
+  done
   # Historic product path: -E → prologue → $CC -c.
   # BSD/macOS mktemp 要求 X 串在模板末尾；勿用 XXXXXX.c
   _xtmp=$(mktemp "${TMPDIR:-/tmp}/rtpref_x.XXXXXX") || return 1

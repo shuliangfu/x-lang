@@ -451,6 +451,7 @@ build_lexer_x() {
   case "$_lex_os" in
     darwin) _lex_os=darwin ;;
     linux) _lex_os=linux ;;
+    mingw*|msys*|cygwin*|windows_nt*|windows) _lex_os=windows ;;
     *) _lex_os="" ;;
   esac
   case "$_lex_arch" in
@@ -466,6 +467,18 @@ build_lexer_x() {
     rm -f "$_lex_keep"
     return 0
   fi
+  # tip_l4 Win: pin-egg XT001 on lexer.x; tip_aside emits Cap-good body
+  # (body_into authority). PLATFORM: SHARED.
+  for _lex_aside in \
+      ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang.exe"} \
+      ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang"} \
+      ./xlang.pre_l4_aside ./xlang.pre_l4_aside.exe; do
+    if [ -n "$_lex_aside" ] && [ -x "$_lex_aside" ] && _lexer_try_xl "$_lex_aside"; then
+      log "lexer_x.o <- pure-asm src/lexer/lexer.x via tip_aside $_lex_aside (w1546)"
+      rm -f "$_lex_keep"
+      return 0
+    fi
+  done
   # note743k: restore same-session seed object when tip re-emit SEGV.
   # tip_l4: only restore when body_into is large-frame (never Cap tip probe).
   if [ -n "$_lex_keep" ] && [ -s "$_lex_keep" ]; then
