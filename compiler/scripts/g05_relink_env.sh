@@ -8442,6 +8442,30 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
         echo "g05_relink_env: Win lexer_src_store fix → G05 (before pe.s/no_c)" >&2
       fi
     fi
+    # Host-cc lexer_init out-ptr: hollow TAIL was xor/ret; tip writes *out.
+    _lexinit_fix=src/runtime/rt_lexer_init_win_fix.o
+    _lexinit_src=src/runtime/rt_lexer_init_win_fix.c
+    if [ -f "$_lexinit_src" ]; then
+      if [ ! -s "$_lexinit_fix" ] || [ "$_lexinit_src" -nt "$_lexinit_fix" ]; then
+        ${CC:-gcc} -std=c11 -O0 -g -I. -Iinclude -Isrc -c -o "$_lexinit_fix" "$_lexinit_src" >/dev/null 2>&1 || true
+      fi
+      if [ -s "$_lexinit_fix" ] && nm "$_lexinit_fix" 2>/dev/null | grep -qE " T [_]?lexer_init$"; then
+        _PABI_WIN_DRIVER_LEAVES="$_PABI_WIN_DRIVER_LEAVES $_lexinit_fix"
+        echo "g05_relink_env: Win lexer_init out-ptr fix → G05 (before pe.s/no_c)" >&2
+      fi
+    fi
+    # Asm lexer_next_buf_into dual-ABI: callers pass *Lexer; tip wants by-val.
+    _lexnbi_fix=src/runtime/rt_lexer_next_buf_into_win_fix.o
+    _lexnbi_src=src/runtime/rt_lexer_next_buf_into_win_fix.s
+    if [ -f "$_lexnbi_src" ]; then
+      if [ ! -s "$_lexnbi_fix" ] || [ "$_lexnbi_src" -nt "$_lexnbi_fix" ]; then
+        ${CC:-gcc} -c -o "$_lexnbi_fix" "$_lexnbi_src" >/dev/null 2>&1 || true
+      fi
+      if [ -s "$_lexnbi_fix" ] && nm "$_lexnbi_fix" 2>/dev/null | grep -qE " T [_]?lexer_next_buf_into$"; then
+        _PABI_WIN_DRIVER_LEAVES="$_PABI_WIN_DRIVER_LEAVES $_lexnbi_fix"
+        echo "g05_relink_env: Win lexer_next_buf_into dual-ABI fix → G05 (before pe.s/no_c)" >&2
+      fi
+    fi
     # Host-cc scan_at fix (before no_c)
     _scan_fix=src/runtime/rt_parse_argv_scan_at_win_fix.o
     _scan_src=src/runtime/rt_parse_argv_scan_at_win_fix.c
