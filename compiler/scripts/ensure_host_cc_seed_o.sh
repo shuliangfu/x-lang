@@ -16246,7 +16246,11 @@ ensure_parser_asm_thin_glue_prefer() {
       || grep -E " U _?parser_finish_struct_lit_ptr_into_c\$" "$1" >/dev/null \
       || grep -E " U _?parser_parse_expr_ptr_into_c\$" "$1" >/dev/null \
       || grep -E " U _?parser_asm_finish_struct_lit_from_type_ident_into_c\$" "$1" >/dev/null \
-      || grep -E " U _?parser_lex_from_next_into_glue\$" "$1" >/dev/null
+      || grep -E " U _?parser_lex_from_next_into_glue\$" "$1" >/dev/null \
+      || grep -E " U _?parser_asm_stretch_skip_ws_and_comments_c\$" "$1" >/dev/null \
+      || grep -E " U _?parser_asm_stretch_token_run_len_c\$" "$1" >/dev/null \
+      || grep -E " U _?lexer_src_data_store\$" "$1" >/dev/null \
+      || grep -E " U _?lexer_src_len_store\$" "$1" >/dev/null
   }
   if [ "${FORCE:-0}" != "1" ] && [ -s "$o" ]; then
     nm "$o" >"$nmfile" 2>/dev/null || true

@@ -3190,7 +3190,31 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
               echo "g05_ensure: P9b stretch lite ← $_pthin_p9b_x (7.2.1 Route C productize)"
             fi
           else
-            echo "g05_ensure: P9b stretch .x thin failed; P9 C twin stays full" >&2
+            # DIG tip_l4 Win: bi CG002 on stretch.x / one-fns; WEAK -E XLANG_WEAK
+            # fails MinGW; P9 C hollow without LITE. Win stubs ld past U hole.
+            # PLATFORM: WINDOWS.
+            _p9b_os="$(uname -s 2>/dev/null || echo Unknown)"
+            case "$_p9b_os" in
+              Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+                if [ -f src/asm/pthin_stretch_win_stubs.x ]; then
+                  rm -f "$_pthin_p9b_thin_o"
+                  if g05_try_x_to_o src/asm/pthin_stretch_win_stubs.x "$_pthin_p9b_thin_o" \
+                    && [ -s "$_pthin_p9b_thin_o" ]; then
+                    _pthin_p9b_ok=1
+                    _pthin_p9_extra="$_pthin_p9_extra -DXLANG_PTHIN_STRETCH_LITE_FROM_X"
+                    echo "g05_ensure: P9b stretch ← win stubs (bi CG002; tip stretch DIG)" >&2
+                  else
+                    echo "g05_ensure: P9b stretch .x thin failed; Win stubs failed; P9 C twin stays full" >&2
+                    rm -f "$_pthin_p9b_thin_o"
+                  fi
+                else
+                  echo "g05_ensure: P9b stretch .x thin failed; P9 C twin stays full" >&2
+                fi
+                ;;
+              *)
+                echo "g05_ensure: P9b stretch .x thin failed; P9 C twin stays full" >&2
+                ;;
+            esac
           fi
         fi
         if [ -n "$_pthin_p9_o" ] && [ -f "$_pthin_p9_seed" ]; then
