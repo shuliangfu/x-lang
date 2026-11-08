@@ -498,7 +498,7 @@ g05_unary_set_pure() {
 g05_unary_tramp_pure() {
   local _bo="$1"
   local _bx="src/asm/pthin_expr_unary_tramp.x"
-  local _os _xl
+  local _os _xl _bi_out
   if [ ! -f "$_bx" ]; then
     echo "g05_ensure: P4 unary trampoline .x missing" >&2
     return 1
@@ -510,16 +510,29 @@ g05_unary_tramp_pure() {
   rm -f "$_bo"
   # DIG tip_l4 Win: PE tip P012 on multi-cfg tramp; pin_egg may skip bi when
   # uname/path odd under g05 — try xlang_bi.exe first. PLATFORM: WINDOWS.
+  # Win bi keys -c off a .o suffix: mktemp paths without .o go through ld
+  # (BLD001) even with -c. Write to ${_bo}.o then mv. PLATFORM: WINDOWS.
   _os="$(uname -s 2>/dev/null || echo Unknown)"
   case "$_os" in
     Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+      case "$_bo" in
+        *.o|*.obj|*.O|*.OBJ) _bi_out="$_bo" ;;
+        *) _bi_out="${_bo}.o" ;;
+      esac
       for _xl in ./xlang_bi.exe ./xlang_bi; do
         [ -x "$_xl" ] || continue
-        if "$_xl" -backend asm -c "$_bx" -o "$_bo" >/dev/null 2>&1 && [ -s "$_bo" ]; then
-          echo "g05_ensure: P4 unary trampoline via $_xl (Win bi; tip P012)" >&2
-          break
+        rm -f "$_bi_out"
+        if "$_xl" -backend asm -c "$_bx" -o "$_bi_out" >/dev/null 2>&1 && [ -s "$_bi_out" ]; then
+          if [ "$_bi_out" != "$_bo" ]; then
+            mv -f "$_bi_out" "$_bo" || cp -f "$_bi_out" "$_bo"
+            rm -f "$_bi_out"
+          fi
+          if [ -s "$_bo" ]; then
+            echo "g05_ensure: P4 unary trampoline via $_xl (Win bi; tip P012; .o-out)" >&2
+            break
+          fi
         fi
-        rm -f "$_bo"
+        rm -f "$_bo" "$_bi_out"
       done
       ;;
   esac
