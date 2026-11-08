@@ -8414,14 +8414,35 @@ unset _dal_partial _dal_tramp_s _dal_tramp_o _dal_cap_host _dal_ok_cap _dal_h _d
 
 
 
-# PLATFORM: WINDOWS — phase1 hollow stubs also fill residual g05 UNDEF
-# (PE has no Darwin m8_reloc_stubs). GNU ld --allow-multiple-definition is
-# first-win: front-of-G05 hollow ret0 poisoned emit/driver and made L2
-# FAIL_BUILD (empty product). Tail-append so real T faces win; hollow only
-# binds symbols still U after the real bag. Refresh via win_phase1_hollow_fill.
+# PLATFORM: WINDOWS — real driver leaves before hollow tail.
+# L2 FAIL_BUILD＠502c5b668/2861f1070: hollow-only driver_run_x_emit_c (xor/ret)
+# after tip-cold peeled it from no_c. Heat rt_run_x_emit/rt_util/
+# rt_pipeline_elf_diag_note and place BEFORE hollow so first-win is real.
+# Hollow still tails for residual UNDEF (PE has no Darwin m8 bag).
+_PABI_WIN_DRIVER_LEAVES=""
 _PABI_WIN_HOLLOW_TAIL=""
 case "$(uname -s 2>/dev/null || echo unknown)" in
   Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+    _win_bi=""
+    if [ -x ./xlang.pre_l4_aside ]; then _win_bi=./xlang.pre_l4_aside
+    elif [ -x ./xlang_asm ]; then _win_bi=./xlang_asm
+    elif [ -x ./xlang ]; then _win_bi=./xlang
+    fi
+    for _wl in src/runtime/rt_run_x_emit.x src/runtime/rt_util.x       src/runtime/rt_pipeline_elf_diag_note.x; do
+      _wo="${_wl%.x}.o"
+      if [ ! -s "$_wo" ] || ! nm "$_wo" 2>/dev/null | grep -qE " T [_]?driver_run_x_emit_c$| T [_]?driver_unlink_failed_output$| T [_]?runtime_pipeline_elf_ctx_diag_note$"; then
+        if [ -n "$_win_bi" ] && [ -f "$_wl" ]; then
+          XLANG_PREFER_ASM_O=1 "$_win_bi" -backend asm -c -o "$_wo" "$_wl" >/dev/null 2>&1 || true
+        fi
+      fi
+      if [ -s "$_wo" ]; then
+        _PABI_WIN_DRIVER_LEAVES="$_PABI_WIN_DRIVER_LEAVES $_wo"
+      fi
+    done
+    # Prefer nm gate: require real emit face when leaf present
+    if [ -s src/runtime/rt_run_x_emit.o ]       && nm src/runtime/rt_run_x_emit.o 2>/dev/null | grep -qE " T [_]?driver_run_x_emit_c$"; then
+      echo "g05_relink_env: Win driver leaves → G05 (rt_run_x_emit/util/elf_diag)" >&2
+    fi
     if [ -f scripts/win_phase1_hollow_fill.sh ]; then
       bash scripts/win_phase1_hollow_fill.sh >/dev/null 2>&1 || true
     fi
@@ -8432,7 +8453,7 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
     ;;
 esac
 
-G05_OBJS="$_PABI_TIP_PEEL $_CAP_TIP_FRONT $_PABI_M8_RELOC_STUBS $_DRIVER_SEED_OBJS driver_x.o $_PIPELINE_LINK_O lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $_DRIVER_SUBCMD src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $_USER_ASM_LINK $_GLUE_SUFFIX $_AST_GEN2 $_PABI_ARCHIVE_LEAF $_PABI_WIN_HOLLOW_TAIL"
+G05_OBJS="$_PABI_TIP_PEEL $_CAP_TIP_FRONT $_PABI_M8_RELOC_STUBS $_DRIVER_SEED_OBJS $_PABI_WIN_DRIVER_LEAVES driver_x.o $_PIPELINE_LINK_O lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $_DRIVER_SUBCMD src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $_USER_ASM_LINK $_GLUE_SUFFIX $_AST_GEN2 $_PABI_ARCHIVE_LEAF $_PABI_WIN_HOLLOW_TAIL"
 # FixC12k8h: Cap tip Prefer L2 parse — force bak/CACHE lexer peel into
 # G05_OBJS even when note743y.6.22 shim path skipped (_G05_LEXER_X_O empty
 # left lexer_x.o linked → body_into≈25024 → P010/P014). Prefer text band
