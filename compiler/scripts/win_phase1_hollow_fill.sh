@@ -153,6 +153,67 @@ driver_diagnostic_parse_skip_function:
 codegen_find_impl_method_for_type_u8_ptr_u8_ptr_u8_ptr_i32_i32_reti32:
         xorl    %eax, %eax
         ret
+        .globl asm_ctx_local_set_offset_by_name
+asm_ctx_local_set_offset_by_name:
+        xorl    %eax, %eax
+        ret
+        .globl fa_array_lit_into_rbx
+fa_array_lit_into_rbx:
+        xorl    %eax, %eax
+        ret
+        .globl glue_binop_named_narrow_id
+glue_binop_named_narrow_id:
+        xorl    %eax, %eax
+        ret
+        .globl glue_binop_named_pair_wrap_id
+glue_binop_named_pair_wrap_id:
+        xorl    %eax, %eax
+        ret
+        .globl glue_emit_assign_load_lr_elf_c
+glue_emit_assign_load_lr_elf_c:
+        xorl    %eax, %eax
+        ret
+        .globl glue_emit_assign_rhs_elf_c
+glue_emit_assign_rhs_elf_c:
+        xorl    %eax, %eax
+        ret
+        .globl glue_emit_assign_rhs_mod_elf_c
+glue_emit_assign_rhs_mod_elf_c:
+        xorl    %eax, %eax
+        ret
+        .globl glue_emit_named_narrow_wrap_rax
+glue_emit_named_narrow_wrap_rax:
+        xorl    %eax, %eax
+        ret
+        .globl glue_emit_named_narrow_wrap_rbx
+glue_emit_named_narrow_wrap_rbx:
+        xorl    %eax, %eax
+        ret
+        .globl glue_wide_i32_vec_array_bytes
+glue_wide_i32_vec_array_bytes:
+        xorl    %eax, %eax
+        ret
+        .globl lexer_init
+lexer_init:
+        xorl    %eax, %eax
+        ret
+        .globl pipeline_lane_operand_emit_let_block_chain
+pipeline_lane_operand_emit_let_block_chain:
+        xorl    %eax, %eax
+        ret
+        .globl typeck_get_dep_return_type_in_caller_arena
+typeck_get_dep_return_type_in_caller_arena:
+        xorl    %eax, %eax
+        ret
+        .globl vector_let_init_array_lit_a64_vlet_f32_fill_lane
+vector_let_init_array_lit_a64_vlet_f32_fill_lane:
+        xorl    %eax, %eax
+        ret
+        .globl w1598_add_stored_in_u32
+w1598_add_stored_in_u32:
+        xorl    %eax, %eax
+        ret
+
 STUB
 
 AS=as
