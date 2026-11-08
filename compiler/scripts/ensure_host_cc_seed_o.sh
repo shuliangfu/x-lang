@@ -16234,14 +16234,32 @@ ensure_parser_asm_thin_glue_prefer() {
       && grep -E " T _?xlang_trait_check_impls_complete_c\$" "$1" >/dev/null \
       && grep -E " T _?xlang_skip_trait_method_slot_c\$" "$1" >/dev/null
   }
+  # tip_l4 Win: nm-T gate alone false-greens past primary tramp / P6b U
+  # holes (T=294, L4 ld UNDEF). Skip only when those faces are not U.
+  # PLATFORM: SHARED (cheap; Darwin/Linux hybrid rarely carries these U).
+  _pthin_u_tramp_hole() {
+    grep -E " U _?parser_asm_parse_type_ref_ptr_into_c\$" "$1" >/dev/null \
+      || grep -E " U _?parser_asm_empty_ident_braces_prefer_block_ptr_c\$" "$1" >/dev/null \
+      || grep -E " U _?parser_asm_string_lit_append_byte_ptr_c\$" "$1" >/dev/null \
+      || grep -E " U _?parser_asm_struct_lit_append_field_src_c\$" "$1" >/dev/null \
+      || grep -E " U _?parser_asm_struct_lit_append_shorthand_src_c\$" "$1" >/dev/null \
+      || grep -E " U _?parser_finish_struct_lit_ptr_into_c\$" "$1" >/dev/null \
+      || grep -E " U _?parser_parse_expr_ptr_into_c\$" "$1" >/dev/null \
+      || grep -E " U _?parser_asm_finish_struct_lit_from_type_ident_into_c\$" "$1" >/dev/null \
+      || grep -E " U _?parser_lex_from_next_into_glue\$" "$1" >/dev/null
+  }
   if [ "${FORCE:-0}" != "1" ] && [ -s "$o" ]; then
     nm "$o" >"$nmfile" 2>/dev/null || true
     if _pthin_nm_gate "$nmfile"; then
       n=$(grep -c " T " "$nmfile" || true)
       if [ "${n:-0}" -ge 200 ]; then
-        rm -f "$nmfile"
-        log "skip up-to-date $o (pthin prefer; T=$n trait faces)"
-        return 0
+        if _pthin_u_tramp_hole "$nmfile"; then
+          log "pthin prefer: $o has tramp/P6b U hole (T=$n); force rebuild (no false green)"
+        else
+          rm -f "$nmfile"
+          log "skip up-to-date $o (pthin prefer; T=$n trait faces; tramp U=0)"
+          return 0
+        fi
       fi
     fi
   fi
@@ -16290,12 +16308,27 @@ ensure_parser_asm_thin_glue_prefer() {
     return 1
   fi
   n=$(grep -c " T " "$nmfile" || true)
-  rm -f "$nmfile"
   if [ "${n:-0}" -lt 100 ]; then
     echo "ensure_parser_asm_thin_glue_prefer: nm-gate failed (T=$n want >=100; log=$g05log)" >&2
+    rm -f "$nmfile"
     return 1
   fi
-  log "parser_asm_thin_glue.o <- g05 prefer hybrid (knife256; T=$n; no hollow thin_c)"
+  # Anti-false-green: hybrid that still U-refs tramp/P6b faces will fail L4 ld
+  # unless the matching objs are on the link line. Prefer must not keep a hole.
+  # PLATFORM: WINDOWS (Darwin/Linux g05 keeps tramp in-tree; Win was the miss).
+  _os="$(uname -s 2>/dev/null || echo Unknown)"
+  case "$_os" in
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+      if _pthin_u_tramp_hole "$nmfile"; then
+        echo "ensure_parser_asm_thin_glue_prefer: Win tramp/P6b U hole after g05 (T=$n; log=$g05log)" >&2
+        grep -E " U _?(parser_asm_parse_type_ref_ptr_into_c|parser_lex_from_next_into_glue|parser_asm_empty_ident|parser_asm_string_lit_append|parser_asm_struct_lit_append|parser_finish_struct_lit|parser_parse_expr_ptr)" "$nmfile" | head -20 >&2 || true
+        rm -f "$nmfile"
+        return 1
+      fi
+      ;;
+  esac
+  rm -f "$nmfile"
+  log "parser_asm_thin_glue.o <- g05 prefer hybrid (knife256; T=$n; tramp U=0)"
   return 0
 }
 
