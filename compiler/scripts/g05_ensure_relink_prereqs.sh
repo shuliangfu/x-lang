@@ -348,6 +348,7 @@ g05_frontend_link_names_gate() {
 g05_p9a_bridge_pure() {
   local _bo="$1"
   local _bx="src/asm/parser_asm_lex_step_bridge.x"
+  local _os
   if [ ! -f "$_bx" ]; then
     echo "g05_ensure: P9a bridge .x missing" >&2
     return 1
@@ -371,14 +372,31 @@ g05_p9a_bridge_pure() {
     return 0
   fi
   rm -f "$_bo"
-  if ! (
-    export XLANG_PREFER_ASM_O=1
-    unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
-    pure_asm_x_to_o_or_pin_egg "$_bo" "$_bx"
-  ) || [ ! -s "$_bo" ]; then
-    echo "g05_ensure: P9a lexer-step bridge pure-asm failed" >&2
-    rm -f "$_bo"
-    return 1
+  # DIG tip_l4 Win: tip P012 on multi-cfg; bi CG002 on full/wrap_buf PE emit.
+  # windows-only nowrap TU + wrap stub, bi (.o-out) + ld -r.
+  # PLATFORM: WINDOWS.
+  _os="$(uname -s 2>/dev/null || echo Unknown)"
+  case "$_os" in
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+      if [ -f scripts/g05_p9a_win_bridge_build.sh ] \
+        && bash scripts/g05_p9a_win_bridge_build.sh "$_bo" \
+        && [ -s "$_bo" ]; then
+        :
+      else
+        rm -f "$_bo"
+      fi
+      ;;
+  esac
+  if [ ! -s "$_bo" ]; then
+    if ! (
+      export XLANG_PREFER_ASM_O=1
+      unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+      pure_asm_x_to_o_or_pin_egg "$_bo" "$_bx"
+    ) || [ ! -s "$_bo" ]; then
+      echo "g05_ensure: P9a lexer-step bridge pure-asm failed" >&2
+      rm -f "$_bo"
+      return 1
+    fi
   fi
   if ! g05_obj_defines "$_bo" "parser_asm_lex_step_kind_c" \
     || ! g05_obj_defines "$_bo" "parser_asm_lex_peek_kind_c" \
