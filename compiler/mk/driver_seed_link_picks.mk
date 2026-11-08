@@ -135,8 +135,13 @@ endif
 endif
 else
 ifeq ($(XLANG_IS_WIN_HOST),1)
-MAIN_LINK_O = src/asm/crt0_mingw.o
-MAIN_LINK_REBUILD = src/asm/crt0_mingw.o
+# PLATFORM: WINDOWS — runtime_asm_io_stubs.o (weak io twin bag) provides
+# xlang_sys_write/read/writev for src/runtime_io_abi.o / diag.o /
+# runtime_driver_no_c.o / x_seed_bridge.o on seed phase1 CC residual.
+# Mirror Darwin MAIN_LINK_O io slot (f635c82dd) and g05_relink_env.sh Win
+# _MAIN_LINK_O (crt0_mingw + runtime_asm_io_stubs). No freestanding_io on PE.
+MAIN_LINK_O = src/asm/crt0_mingw.o runtime_asm_io_stubs.o
+MAIN_LINK_REBUILD = src/asm/crt0_mingw.o runtime_asm_io_stubs.o
 # PLATFORM: WINDOWS — PE stack reserve 256MiB (matches pthread path stack_sz).
 # MSYS default main stack ~2MiB; PE --stack reserves VA, OS commits on demand.
 MAIN_LINK_FLAGS = -Wl,--stack,268435456

@@ -286,6 +286,9 @@ fi
 if [ -f scripts/linux_phase1_hollow_fill.sh ]; then
   bash scripts/linux_phase1_hollow_fill.sh
 fi
+if [ -f scripts/win_phase1_hollow_fill.sh ]; then
+  bash scripts/win_phase1_hollow_fill.sh
+fi
 
 # 11a) phase1 link → xlang-seed-phase1
 # wave934: direct shell invocation (was mk bootstrap-driver-seed-phase1-link).

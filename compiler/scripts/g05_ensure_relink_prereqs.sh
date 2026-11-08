@@ -5749,6 +5749,19 @@ if [ "$(uname -s)" = "Linux" ] && [ -f scripts/linux_phase1_hollow_fill.sh ]; th
     || echo "g05_ensure: WARN linux hollow_fill refresh failed" >&2
 fi
 
+# Win phase1 hollow-fill: PE tip-cold seed phase1 CC residual UNDEF bag
+# (driver_*/emit_block/pipe_modlet/vlet/mangle/sys). PLATFORM: WINDOWS.
+_win_os=$(uname -s 2>/dev/null || true)
+case "$_win_os" in
+  Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+    if [ -f scripts/win_phase1_hollow_fill.sh ]; then
+      echo "g05_ensure: win_phase1_hollow_fill refresh" >&2
+      bash scripts/win_phase1_hollow_fill.sh >&2 \
+        || echo "g05_ensure: WARN win hollow_fill refresh failed" >&2
+    fi
+    ;;
+esac
+
 # w1483: Linux selfhost_pabi tip refresh (pabi_alias + arr_struct_lit peers).
 # knife256 / 10.2 note743h: L4 wipe (or partial sidecars) can leave READY
 # while core .o (esz/loc/lea/…) are gone. Tip-only refresh then leaves
