@@ -8428,9 +8428,11 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
     elif [ -x ./xlang_asm ]; then _win_bi=./xlang_asm
     elif [ -x ./xlang ]; then _win_bi=./xlang
     fi
-    for _wl in src/runtime/rt_run_x_emit.x src/runtime/rt_util.x       src/runtime/rt_pipeline_elf_diag_note.x; do
+    # rt_pipeline_elf_diag_note.o pulls rt_elf_* UNDEF on Win tip-cold
+    # (no elf helper bag); hollow tail still covers that face. Keep emit+util.
+    for _wl in src/runtime/rt_run_x_emit.x src/runtime/rt_util.x; do
       _wo="${_wl%.x}.o"
-      if [ ! -s "$_wo" ] || ! nm "$_wo" 2>/dev/null | grep -qE " T [_]?driver_run_x_emit_c$| T [_]?driver_unlink_failed_output$| T [_]?runtime_pipeline_elf_ctx_diag_note$"; then
+      if [ ! -s "$_wo" ] || ! nm "$_wo" 2>/dev/null | grep -qE " T [_]?driver_run_x_emit_c$| T [_]?driver_unlink_failed_output$"; then
         if [ -n "$_win_bi" ] && [ -f "$_wl" ]; then
           XLANG_PREFER_ASM_O=1 "$_win_bi" -backend asm -c -o "$_wo" "$_wl" >/dev/null 2>&1 || true
         fi
@@ -8441,7 +8443,7 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
     done
     # Prefer nm gate: require real emit face when leaf present
     if [ -s src/runtime/rt_run_x_emit.o ]       && nm src/runtime/rt_run_x_emit.o 2>/dev/null | grep -qE " T [_]?driver_run_x_emit_c$"; then
-      echo "g05_relink_env: Win driver leaves → G05 (rt_run_x_emit/util/elf_diag)" >&2
+      echo "g05_relink_env: Win driver leaves → G05 (rt_run_x_emit/rt_util)" >&2
     fi
     if [ -f scripts/win_phase1_hollow_fill.sh ]; then
       bash scripts/win_phase1_hollow_fill.sh >/dev/null 2>&1 || true
