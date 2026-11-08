@@ -18323,8 +18323,13 @@ ensure_labi_prefer_one() {
       log "labi prefer: keep $o (Windows multi-slice not entered; no monofile seed)"
       return 0
     fi
-    echo "ensure_host_cc_seed_o try-labi-prefer: Windows multi-slice not entered; no monofile seed for $o" >&2
-    return 1
+    # tip_l4 Win: L4 wipe deletes labi .o; multi-slice is blocked by leftover
+    # PE (do not flip windows_leftover_pe_cannot_e). Monofile seed host-cc is
+    # the cold twin of the Linux/Darwin ensure_one path below; fail-closed
+    # left sat rebuild permanently red after wipe. PLATFORM: WINDOWS.
+    echo "ensure_host_cc_seed_o try-labi-prefer: Win missing $o; cold monofile seed" >&2
+    ensure_one "$o" "$seed" || return 1
+    return 0
   fi
 
   # Cold full seed (ensure_one twin / PREFER=0).
