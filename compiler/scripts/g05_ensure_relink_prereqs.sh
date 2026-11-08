@@ -897,6 +897,37 @@ g05_try_x_to_o() {
   ); then
     return 0
   fi
+  # DIG tip_l4 Win: PE tip P012 / -E→host-cc XLANG_WEAK on multi-cfg .x;
+  # xlang_bi.exe emits PE .o. Skip when SYM_RENAME needs rewrite. bi keys -c
+  # off a .o suffix — mktemp paths without .o go through ld (BLD001).
+  # PLATFORM: WINDOWS.
+  if [ -z "${G05_X_O_SYM_RENAME:-}" ]; then
+    _bi_os="$(uname -s 2>/dev/null || echo Unknown)"
+    case "$_bi_os" in
+      Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+        case "$_xout" in
+          *.o|*.obj|*.O|*.OBJ) _bi_out="$_xout" ;;
+          *) _bi_out="${_xout}.o" ;;
+        esac
+        for _xl in ./xlang_bi.exe ./xlang_bi; do
+          [ -x "$_xl" ] || continue
+          rm -f "$_bi_out"
+          if "$_xl" -backend asm -c "$_xsrc" -o "$_bi_out" >/dev/null 2>&1 \
+            && [ -s "$_bi_out" ]; then
+            if [ "$_bi_out" != "$_xout" ]; then
+              mv -f "$_bi_out" "$_xout" || cp -f "$_bi_out" "$_xout"
+              rm -f "$_bi_out"
+            fi
+            if [ -s "$_xout" ]; then
+              echo "g05_ensure: g05_try_x_to_o via $_xl (Win bi; tip P012; .o-out) ← $_xsrc" >&2
+              return 0
+            fi
+          fi
+          rm -f "$_xout" "$_bi_out"
+        done
+        ;;
+    esac
+  fi
   # w1485: pure asm was the intended path and failed; record the silent host-cc
   # fallback (SYM_RENAME and PREFER_ASM_O_G05=0 are cc by design). PLATFORM: SHARED.
   if [ "${XLANG_PREFER_ASM_O_G05:-1}" = "1" ] && [ -z "${G05_X_O_SYM_RENAME:-}" ]; then
