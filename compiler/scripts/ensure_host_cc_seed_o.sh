@@ -7935,10 +7935,18 @@ ensure_rt_arena_buf_prefer() {
 
   # Up-to-date: seed, the .x, and project headers. A full-cc .o that predates
   # the deleted C bodies still rebuilds once either input moves.
+  # Win tip-cold DIG: thin-only .o (no BSS) must not skip — gate on
+  # driver_arena_static / driver_module_static (seed rest faces).
   if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$seed" -nt "$o" ]; then
     if [ ! "$xsrc" -nt "$o" ] && ! seed_project_hdrs_newer "$seed" "$o"; then
-      log "skip up-to-date $o (rt-arena-buf)"
-      return 0
+      if r3_prefer_nm_has_sym "$o" "driver_arena_static" \
+        && r3_prefer_nm_has_sym "$o" "driver_module_static" \
+        && r3_prefer_nm_has_sym "$o" "driver_arena_buf" \
+        && r3_prefer_nm_has_sym "$o" "driver_module_buf"; then
+        log "skip up-to-date $o (rt-arena-buf)"
+        return 0
+      fi
+      log "rt-arena-buf $o missing BSS/static faces → force prefer rebuild"
     fi
   fi
 
