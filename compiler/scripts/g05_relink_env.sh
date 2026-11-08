@@ -8441,6 +8441,19 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
         echo "g05_relink_env: Win scan_at fix → G05 (before no_c)" >&2
       fi
     fi
+    # Host-cc emit_c_path_impl fix: pure-asm read argc/argv from 0x10/0x18
+    # (path homes) instead of Win 0x40/0x48 → SEGV in argv_is_D_alone.
+    _emit_fix=src/runtime/rt_emit_c_path_impl_win_fix.o
+    _emit_src=src/runtime/rt_emit_c_path_impl_win_fix.c
+    if [ -f "$_emit_src" ]; then
+      if [ ! -s "$_emit_fix" ] || [ "$_emit_src" -nt "$_emit_fix" ]; then
+        ${CC:-gcc} -std=c11 -O0 -g -I. -Iinclude -Isrc -c -o "$_emit_fix" "$_emit_src" >/dev/null 2>&1 || true
+      fi
+      if [ -s "$_emit_fix" ] && nm "$_emit_fix" 2>/dev/null | grep -qE " T [_]?driver_run_emit_c_path_impl_c$"; then
+        _PABI_WIN_DRIVER_LEAVES="$_PABI_WIN_DRIVER_LEAVES $_emit_fix"
+        echo "g05_relink_env: Win emit_c_path_impl fix → G05 (before no_c)" >&2
+      fi
+    fi
     # emit+util (elf_diag dropped: rt_elf_* UNDEF)
     for _wl in src/runtime/rt_run_x_emit.x src/runtime/rt_util.x; do
       _wo="${_wl%.x}.o"
