@@ -503,6 +503,12 @@ _g05_pure_overlay() {
     fi
     if [ "$_po_keep" = "1" ]; then
       _G05_PO_OUT="$_po_o"
+      # Win tip-cold: -backend asm -c may SEGV (argv7/diag) while prior .o is good.
+      # Scrub this .x's crash rows like the rebuild-success path (note743t).
+      if [ -s build_asm/g05_xasm_crash.log ]; then
+        grep -vF " $_po_x" build_asm/g05_xasm_crash.log           >build_asm/g05_xasm_crash.log.scrub 2>/dev/null || true
+        mv -f build_asm/g05_xasm_crash.log.scrub build_asm/g05_xasm_crash.log
+      fi
     else
       printf '%s overlay-duplex g05_relink_env: %s\n' \
         "$(date +%H:%M:%S)" "$_po_x" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
@@ -8454,6 +8460,30 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
         echo "g05_relink_env: Win lexer_init out-ptr fix → G05 (before pe.s/no_c)" >&2
       fi
     fi
+    # Host-cc diag_io_fputs: tip body SEGV on stale s (overlay -c diag path).
+    _diagfp_fix=src/runtime/rt_diag_io_fputs_win_fix.o
+    _diagfp_src=src/runtime/rt_diag_io_fputs_win_fix.c
+    if [ -f "$_diagfp_src" ]; then
+      if [ ! -s "$_diagfp_fix" ] || [ "$_diagfp_src" -nt "$_diagfp_fix" ]; then
+        ${CC:-gcc} -std=c11 -O0 -g -I. -Iinclude -Isrc -c -o "$_diagfp_fix" "$_diagfp_src" >/dev/null 2>&1 || true
+      fi
+      if [ -s "$_diagfp_fix" ] && nm "$_diagfp_fix" 2>/dev/null | grep -qE " T [_]?diag_io_fputs$"; then
+        _PABI_WIN_DRIVER_LEAVES="$_PABI_WIN_DRIVER_LEAVES $_diagfp_fix"
+        echo "g05_relink_env: Win diag_io_fputs safe fix → G05 (before pe.s/no_c)" >&2
+      fi
+    fi
+    # Host-cc diag_extract_line: tip SEGV on stale/unmapped src (overlay -c).
+    _diagex_fix=src/runtime/rt_diag_extract_line_win_fix.o
+    _diagex_src=src/runtime/rt_diag_extract_line_win_fix.c
+    if [ -f "$_diagex_src" ]; then
+      if [ ! -s "$_diagex_fix" ] || [ "$_diagex_src" -nt "$_diagex_fix" ]; then
+        ${CC:-gcc} -std=c11 -O0 -g -I. -Iinclude -Isrc -c -o "$_diagex_fix" "$_diagex_src" >/dev/null 2>&1 || true
+      fi
+      if [ -s "$_diagex_fix" ] && nm "$_diagex_fix" 2>/dev/null | grep -qE " T [_]?diag_extract_line$"; then
+        _PABI_WIN_DRIVER_LEAVES="$_PABI_WIN_DRIVER_LEAVES $_diagex_fix"
+        echo "g05_relink_env: Win diag_extract_line bounds fix → G05 (before pe.s/no_c)" >&2
+      fi
+    fi
     # Asm lexer_next_buf_into dual-ABI: callers pass *Lexer; tip wants by-val.
     _lexnbi_fix=src/runtime/rt_lexer_next_buf_into_win_fix.o
     _lexnbi_src=src/runtime/rt_lexer_next_buf_into_win_fix.s
@@ -8464,6 +8494,19 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
       if [ -s "$_lexnbi_fix" ] && nm "$_lexnbi_fix" 2>/dev/null | grep -qE " T [_]?lexer_next_buf_into$"; then
         _PABI_WIN_DRIVER_LEAVES="$_PABI_WIN_DRIVER_LEAVES $_lexnbi_fix"
         echo "g05_relink_env: Win lexer_next_buf_into dual-ABI fix → G05 (before pe.s/no_c)" >&2
+        # Demote tip body so trampoline can call lexer_next_buf_into_tip.
+        for _lexnbi_demote in lexer_x.o build_asm/seed_host/lexer_x_trackl_abi.o; do
+          if [ -s "$_lexnbi_demote" ] && nm "$_lexnbi_demote" 2>/dev/null | grep -qE " T [_]?lexer_next_buf_into$"; then
+            _lexnbi_oc=""
+            if command -v objcopy >/dev/null 2>&1; then _lexnbi_oc=objcopy
+            elif command -v llvm-objcopy >/dev/null 2>&1; then _lexnbi_oc=llvm-objcopy
+            fi
+            if [ -n "$_lexnbi_oc" ]; then
+              "$_lexnbi_oc" --redefine-sym=lexer_next_buf_into=lexer_next_buf_into_tip                 "$_lexnbi_demote" 2>/dev/null                 || "$_lexnbi_oc" --redefine-sym=_lexer_next_buf_into=_lexer_next_buf_into_tip                      "$_lexnbi_demote" 2>/dev/null || true
+              echo "g05_relink_env: demote lexer_next_buf_into→_tip in $_lexnbi_demote" >&2
+            fi
+          fi
+        done
       fi
     fi
     # Host-cc scan_at fix (before no_c)

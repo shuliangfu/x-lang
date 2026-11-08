@@ -76,6 +76,10 @@ export G05_CC G05_CFLAGS G05_OUT G05_XLANG_C G05_BOOTSTRAP G05_OBJS
 # Keep inner sync off so we do not double-cp; outer block below is the authority.
 export G05_SYNC_ASM=0
 bash scripts/g05_relink_xlang.sh
+# Win tip: driver_run_asm_backend misloads 7th arg (argv) from 0x10(%rbp).
+if [ "$(uname -s 2>/dev/null | cut -c1-5)" = "MINGW" ] || [ "$(uname -o 2>/dev/null)" = "Msys" ] || [ -n "$WINDIR" ]; then
+  python3 scripts/win_pe_argv7_patch.py ./xlang.exe ./xlang ./xlang_asm.exe ./xlang_asm 2>/dev/null || true
+fi
 
 if [ "$SYNC_ASM" = "1" ]; then
   _sync_src="${G05_OUT:-xlang}"
