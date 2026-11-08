@@ -35,149 +35,121 @@ O="$OUT/win_phase1_hollow_stubs.o"
 cat > "$S" <<'STUB'
 /* Win phase1 hollow-fill stubs.
  * PLATFORM: WINDOWS PE x86_64 · as only · zero host-cc.
- * First-win under --allow-multiple-definition; g05 restores real faces.
+ * PE/COFF gas: .weak makes weak-UNDEF (not defs). Use strong .globl only;
+ * first-win under --allow-multiple-definition; g05 restores real faces.
  */
         .text
         .globl vlet_lane_cmp_ko
-        .weak vlet_lane_cmp_ko
 vlet_lane_cmp_ko:
         xorl    %eax, %eax
         ret
         .globl backend_emit_block_body_sync_elf
-        .weak backend_emit_block_body_sync_elf
 backend_emit_block_body_sync_elf:
         xorl    %eax, %eax
         ret
         .globl pipeline_asm_emit_block_body_sync_elf
-        .weak pipeline_asm_emit_block_body_sync_elf
 pipeline_asm_emit_block_body_sync_elf:
         xorl    %eax, %eax
         ret
         .globl pipe_modlet_bake_struct_lit_to_data
-        .weak pipe_modlet_bake_struct_lit_to_data
 pipe_modlet_bake_struct_lit_to_data:
         xorl    %eax, %eax
         ret
         .globl pipe_modlet_array_lit_elem_const_val
-        .weak pipe_modlet_array_lit_elem_const_val
 pipe_modlet_array_lit_elem_const_val:
         xorl    %eax, %eax
         ret
         .globl w499_mega_try_tail_jmp
-        .weak w499_mega_try_tail_jmp
 w499_mega_try_tail_jmp:
         xorl    %eax, %eax
         ret
         .globl driver_arena_buf
-        .weak driver_arena_buf
 driver_arena_buf:
         xorl    %eax, %eax
         ret
         .globl driver_module_buf
-        .weak driver_module_buf
 driver_module_buf:
         xorl    %eax, %eax
         ret
         .globl driver_fs_open_write
-        .weak driver_fs_open_write
 driver_fs_open_write:
         xorl    %eax, %eax
         ret
         .globl driver_exec_compiled
-        .weak driver_exec_compiled
 driver_exec_compiled:
         xorl    %eax, %eax
         ret
         .globl driver_exec_path_is_non_exe
-        .weak driver_exec_path_is_non_exe
 driver_exec_path_is_non_exe:
         xorl    %eax, %eax
         ret
         .globl driver_exec_scan_out_path
-        .weak driver_exec_scan_out_path
 driver_exec_scan_out_path:
         xorl    %eax, %eax
         ret
         .globl driver_print_target_cpu_features_c
-        .weak driver_print_target_cpu_features_c
 driver_print_target_cpu_features_c:
         xorl    %eax, %eax
         ret
         .globl driver_run_test
-        .weak driver_run_test
 driver_run_test:
         xorl    %eax, %eax
         ret
         .globl driver_run_x_emit_c
-        .weak driver_run_x_emit_c
 driver_run_x_emit_c:
         xorl    %eax, %eax
         ret
         .globl driver_argv0_basename_is
-        .weak driver_argv0_basename_is
 driver_argv0_basename_is:
         xorl    %eax, %eax
         ret
         .globl driver_unlink_failed_output
-        .weak driver_unlink_failed_output
 driver_unlink_failed_output:
         xorl    %eax, %eax
         ret
         .globl driver_lib_roots_from_key
-        .weak driver_lib_roots_from_key
 driver_lib_roots_from_key:
         xorl    %eax, %eax
         ret
         .globl runtime_diag_errno_path
-        .weak runtime_diag_errno_path
 runtime_diag_errno_path:
         xorl    %eax, %eax
         ret
         .globl runtime_diag_errno_path_pair
-        .weak runtime_diag_errno_path_pair
 runtime_diag_errno_path_pair:
         xorl    %eax, %eax
         ret
         .globl runtime_pipeline_elf_ctx_diag_note
-        .weak runtime_pipeline_elf_ctx_diag_note
 runtime_pipeline_elf_ctx_diag_note:
         xorl    %eax, %eax
         ret
         .globl lexer_src_park
-        .weak lexer_src_park
 lexer_src_park:
         ret
         .globl xlang_sys_read
-        .weak xlang_sys_read
 xlang_sys_read:
         xorl    %eax, %eax
         ret
         .globl xlang_sys_write
-        .weak xlang_sys_write
 xlang_sys_write:
         xorl    %eax, %eax
         ret
         .globl xlang_sys_writev
-        .weak xlang_sys_writev
 xlang_sys_writev:
         xorl    %eax, %eax
         ret
         .globl glue_asm_resolve_call_target_module_c_u8_ptr_i32_u8_ptr_i32_ptr_i32_ptr_reti32
-        .weak glue_asm_resolve_call_target_module_c_u8_ptr_i32_u8_ptr_i32_ptr_i32_ptr_reti32
 glue_asm_resolve_call_target_module_c_u8_ptr_i32_u8_ptr_i32_ptr_i32_ptr_reti32:
         xorl    %eax, %eax
         ret
         .globl glue_asm_mangle_import_binding_call_sym_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_u8_ptr_i32_u8_ptr_i32_i32_u8_ptr_reti32
-        .weak glue_asm_mangle_import_binding_call_sym_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_u8_ptr_i32_u8_ptr_i32_i32_u8_ptr_reti32
 glue_asm_mangle_import_binding_call_sym_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_u8_ptr_i32_u8_ptr_i32_i32_u8_ptr_reti32:
         xorl    %eax, %eax
         ret
         .globl driver_diagnostic_parse_skip_function
-        .weak driver_diagnostic_parse_skip_function
 driver_diagnostic_parse_skip_function:
         ret
         .globl codegen_find_impl_method_for_type_u8_ptr_u8_ptr_u8_ptr_i32_i32_reti32
-        .weak codegen_find_impl_method_for_type_u8_ptr_u8_ptr_u8_ptr_i32_i32_reti32
 codegen_find_impl_method_for_type_u8_ptr_u8_ptr_u8_ptr_i32_i32_reti32:
         xorl    %eax, %eax
         ret
