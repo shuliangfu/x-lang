@@ -428,6 +428,7 @@ g05_binop_set_pure() {
 # PLATFORM: SHARED. $1 = output object. cwd is compiler/.
 g05_binop_tramp_pure() {
   local _bo="$1"
+  local _os _xl _bi_out
   local _bx="src/asm/pthin_expr_binop_tramp.x"
   if [ ! -f "$_bx" ]; then
     echo "g05_ensure: P4 binop trampoline .x missing" >&2
@@ -438,14 +439,43 @@ g05_binop_tramp_pure() {
     return 1
   fi
   rm -f "$_bo"
-  if ! (
-    export XLANG_PREFER_ASM_O=1
-    unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
-    pure_asm_x_to_o_or_pin_egg "$_bo" "$_bx"
-  ) || [ ! -s "$_bo" ]; then
-    echo "g05_ensure: P4 binop trampoline pure-asm failed" >&2
-    rm -f "$_bo"
-    return 1
+  # DIG tip_l4 Win: PE tip P012 on multi-cfg tramp; bi-first + .o-out.
+  # Win bi keys -c off a .o suffix (mktemp paths without .o → BLD001 ld).
+  # PLATFORM: WINDOWS.
+  _os="$(uname -s 2>/dev/null || echo Unknown)"
+  case "$_os" in
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+      case "$_bo" in
+        *.o|*.obj|*.O|*.OBJ) _bi_out="$_bo" ;;
+        *) _bi_out="${_bo}.o" ;;
+      esac
+      for _xl in ./xlang_bi.exe ./xlang_bi; do
+        [ -x "$_xl" ] || continue
+        rm -f "$_bi_out"
+        if "$_xl" -backend asm -c "$_bx" -o "$_bi_out" >/dev/null 2>&1 && [ -s "$_bi_out" ]; then
+          if [ "$_bi_out" != "$_bo" ]; then
+            mv -f "$_bi_out" "$_bo" || cp -f "$_bi_out" "$_bo"
+            rm -f "$_bi_out"
+          fi
+          if [ -s "$_bo" ]; then
+            echo "g05_ensure: P4 binop trampoline via $_xl (Win bi; tip P012; .o-out)" >&2
+            break
+          fi
+        fi
+        rm -f "$_bo" "$_bi_out"
+      done
+      ;;
+  esac
+  if [ ! -s "$_bo" ]; then
+    if ! (
+      export XLANG_PREFER_ASM_O=1
+      unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+      pure_asm_x_to_o_or_pin_egg "$_bo" "$_bx"
+    ) || [ ! -s "$_bo" ]; then
+      echo "g05_ensure: P4 binop trampoline pure-asm failed" >&2
+      rm -f "$_bo"
+      return 1
+    fi
   fi
   if ! g05_obj_defines "$_bo" "parser_asm_parse_term_into_slice_c" \
     || ! g05_obj_defines "$_bo" "parser_asm_parse_logor_into_slice_c" \
@@ -596,6 +626,7 @@ g05_as_suffix_set_pure() {
 # PLATFORM: SHARED. $1 = output object. cwd is compiler/.
 g05_as_suffix_tramp_pure() {
   local _bo="$1"
+  local _os _xl _bi_out
   local _bx="src/asm/pthin_expr_as_suffix_tramp.x"
   if [ ! -f "$_bx" ]; then
     echo "g05_ensure: P4 as_suffix trampoline .x missing" >&2
@@ -606,14 +637,43 @@ g05_as_suffix_tramp_pure() {
     return 1
   fi
   rm -f "$_bo"
-  if ! (
-    export XLANG_PREFER_ASM_O=1
-    unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
-    pure_asm_x_to_o_or_pin_egg "$_bo" "$_bx"
-  ) || [ ! -s "$_bo" ]; then
-    echo "g05_ensure: P4 as_suffix trampoline pure-asm failed" >&2
-    rm -f "$_bo"
-    return 1
+  # DIG tip_l4 Win: PE tip P012 on multi-cfg tramp; bi-first + .o-out.
+  # Win bi keys -c off a .o suffix (mktemp paths without .o → BLD001 ld).
+  # PLATFORM: WINDOWS.
+  _os="$(uname -s 2>/dev/null || echo Unknown)"
+  case "$_os" in
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+      case "$_bo" in
+        *.o|*.obj|*.O|*.OBJ) _bi_out="$_bo" ;;
+        *) _bi_out="${_bo}.o" ;;
+      esac
+      for _xl in ./xlang_bi.exe ./xlang_bi; do
+        [ -x "$_xl" ] || continue
+        rm -f "$_bi_out"
+        if "$_xl" -backend asm -c "$_bx" -o "$_bi_out" >/dev/null 2>&1 && [ -s "$_bi_out" ]; then
+          if [ "$_bi_out" != "$_bo" ]; then
+            mv -f "$_bi_out" "$_bo" || cp -f "$_bi_out" "$_bo"
+            rm -f "$_bi_out"
+          fi
+          if [ -s "$_bo" ]; then
+            echo "g05_ensure: P4 as_suffix trampoline via $_xl (Win bi; tip P012; .o-out)" >&2
+            break
+          fi
+        fi
+        rm -f "$_bo" "$_bi_out"
+      done
+      ;;
+  esac
+  if [ ! -s "$_bo" ]; then
+    if ! (
+      export XLANG_PREFER_ASM_O=1
+      unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+      pure_asm_x_to_o_or_pin_egg "$_bo" "$_bx"
+    ) || [ ! -s "$_bo" ]; then
+      echo "g05_ensure: P4 as_suffix trampoline pure-asm failed" >&2
+      rm -f "$_bo"
+      return 1
+    fi
   fi
   if ! g05_obj_defines "$_bo" "parser_asm_parse_as_suffix_into_slice_c" \
     || ! g05_obj_defines "$_bo" "parser_asm_lex_peek_kind_after_c" \
@@ -632,6 +692,7 @@ g05_as_suffix_tramp_pure() {
 # cwd is compiler/.
 g05_ternary_tramp_pure() {
   local _bo="$1"
+  local _os _xl _bi_out
   local _bx="src/asm/pthin_expr_ternary_tramp.x"
   if [ ! -f "$_bx" ]; then
     echo "g05_ensure: P4 ternary trampoline .x missing" >&2
@@ -642,14 +703,43 @@ g05_ternary_tramp_pure() {
     return 1
   fi
   rm -f "$_bo"
-  if ! (
-    export XLANG_PREFER_ASM_O=1
-    unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
-    pure_asm_x_to_o_or_pin_egg "$_bo" "$_bx"
-  ) || [ ! -s "$_bo" ]; then
-    echo "g05_ensure: P4 ternary trampoline pure-asm failed" >&2
-    rm -f "$_bo"
-    return 1
+  # DIG tip_l4 Win: PE tip P012 on multi-cfg tramp; bi-first + .o-out.
+  # Win bi keys -c off a .o suffix (mktemp paths without .o → BLD001 ld).
+  # PLATFORM: WINDOWS.
+  _os="$(uname -s 2>/dev/null || echo Unknown)"
+  case "$_os" in
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+      case "$_bo" in
+        *.o|*.obj|*.O|*.OBJ) _bi_out="$_bo" ;;
+        *) _bi_out="${_bo}.o" ;;
+      esac
+      for _xl in ./xlang_bi.exe ./xlang_bi; do
+        [ -x "$_xl" ] || continue
+        rm -f "$_bi_out"
+        if "$_xl" -backend asm -c "$_bx" -o "$_bi_out" >/dev/null 2>&1 && [ -s "$_bi_out" ]; then
+          if [ "$_bi_out" != "$_bo" ]; then
+            mv -f "$_bi_out" "$_bo" || cp -f "$_bi_out" "$_bo"
+            rm -f "$_bi_out"
+          fi
+          if [ -s "$_bo" ]; then
+            echo "g05_ensure: P4 ternary trampoline via $_xl (Win bi; tip P012; .o-out)" >&2
+            break
+          fi
+        fi
+        rm -f "$_bo" "$_bi_out"
+      done
+      ;;
+  esac
+  if [ ! -s "$_bo" ]; then
+    if ! (
+      export XLANG_PREFER_ASM_O=1
+      unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+      pure_asm_x_to_o_or_pin_egg "$_bo" "$_bx"
+    ) || [ ! -s "$_bo" ]; then
+      echo "g05_ensure: P4 ternary trampoline pure-asm failed" >&2
+      rm -f "$_bo"
+      return 1
+    fi
   fi
   if ! g05_obj_defines "$_bo" "parser_asm_parse_ternary_into_slice_c" \
     || ! g05_obj_defines "$_bo" "parser_asm_parse_assign_into_slice_c" \
