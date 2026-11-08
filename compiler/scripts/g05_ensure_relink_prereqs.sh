@@ -2326,6 +2326,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _pthin_p3b_ok=0
         _pthin_p4p_ok=0
         _pthin_p4pb_ok=0
+        _pthin_win_primary_tramp_miss=0
         _pthin_p4u_ok=0
         _pthin_p4u_set_ok=0
         _pthin_p4ub_ok=0
@@ -2640,14 +2641,32 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           fi
           if ! g05_primary_tramp_pure "$_pthin_p4p_o"; then
             # DIG tip_l4 Win: bi/tip CG002 on primary_tramp (59 funcs,
-            # elf label match). Soft-keep P4 C twin so other P*b bi
-            # bodies can still merge into thin_glue. PLATFORM: WINDOWS.
+            # elf label match). Soft-keep must roll back P3b too — those
+            # bodies U-ref tramp faces (parse_type_ref_ptr_into_c etc.);
+            # nm-gate only counts T and missed the U hole that L4 ld
+            # later fails on. Flag later P6b demote. PLATFORM: WINDOWS.
             _pt_os="$(uname -s 2>/dev/null || echo Unknown)"
             case "$_pt_os" in
               Windows_NT*|MINGW*|MSYS*|CYGWIN*)
-                echo "g05_ensure: P4 primary trampoline pure-asm failed; Win keep P4 C twin (tramp CG002)" >&2
+                echo "g05_ensure: P4 primary trampoline pure-asm failed; Win roll back P3b/P4b C twins (tramp CG002)" >&2
                 _pthin_p4pb_ok=0
+                _pthin_p4p_extra=""
                 rm -f "$_pthin_p4p_o" "$_pthin_p4pb_thin_o"
+                _pthin_p3b_ok=0
+                _pthin_p3_extra=""
+                if [ -n "$_pthin_p3_o" ] && [ -f "$_pthin_p3_seed" ]; then
+                  # shellcheck disable=SC2086
+                  if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm                        -c -o "$_pthin_p3_o" "$_pthin_p3_seed"; then
+                    _pthin_p3_ok=1
+                    echo "g05_ensure: P3 type_ref ← $_pthin_p3_seed (full C twin; tramp miss rollback)" >&2
+                  else
+                    _pthin_p3_ok=0
+                    rm -f "$_pthin_p3_o"
+                  fi
+                fi
+                # Drop rest FROM_X that assumed tramp/P3b bodies.
+                _pthin_rest_defs="$(printf '%s' "$_pthin_rest_defs" | sed -e 's/ -DXLANG_PTHIN_TYPE_REF_FROM_X//g' -e 's/ -DXLANG_PTHIN_EXPR_PRIMARY_FROM_X//g')"
+                _pthin_win_primary_tramp_miss=1
                 ;;
               *)
                 echo "g05_ensure: P4 primary trampoline pure-asm failed" >&2
@@ -2928,6 +2947,15 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           else
             echo "g05_ensure: P6b fn_block .x thin failed or missing layout match; P6 C twin stays full" >&2
           fi
+        fi
+        # Win primary tramp miss: P6b U-refs tramp faces — demote before
+        # P6 seed cc so C twin stays full (no FN_BLOCK_FROM_X rest hole).
+        # PLATFORM: WINDOWS.
+        if [ "${_pthin_win_primary_tramp_miss:-0}" = "1" ] && [ "$_pthin_p6b_ok" = "1" ]; then
+          echo "g05_ensure: Win tramp miss; demote P6b before seed (keep P6 C twin)" >&2
+          _pthin_p6b_ok=0
+          _pthin_p6_extra=""
+          rm -f "$_pthin_p6b_thin_o"
         fi
         if [ -n "$_pthin_p6_o" ] && [ -f "$_pthin_p6_seed" ]; then
           # shellcheck disable=SC2086
@@ -3658,6 +3686,10 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         if [ "$_pthin_p1b_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p1b_thin_o"
         fi
+        if [ "${_pthin_win_primary_tramp_miss:-0}" = "1" ] && [ "$_pthin_p3b_ok" = "1" ]; then
+          echo "g05_ensure: Win tramp miss; demote P3b thin (keep P3 C twin)" >&2
+          _pthin_p3b_ok=0
+        fi
         if [ "$_pthin_p3_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p3_o"
         fi
@@ -3669,6 +3701,13 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         fi
         if [ "$_pthin_p2b_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p2b_thin_o"
+        fi
+        # Win primary tramp miss: P6b bi U-refs tramp faces — keep P6 C twin.
+        # PLATFORM: WINDOWS.
+        if [ "${_pthin_win_primary_tramp_miss:-0}" = "1" ] && [ "$_pthin_p6b_ok" = "1" ]; then
+          echo "g05_ensure: Win tramp miss; demote P6b thin (keep P6 C twin)" >&2
+          _pthin_p6b_ok=0
+          _pthin_rest_defs="$(printf '%s' "$_pthin_rest_defs" | sed -e 's/ -DXLANG_PTHIN_FN_BLOCK_FROM_X//g')"
         fi
         if [ "$_pthin_p6_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p6_o"
