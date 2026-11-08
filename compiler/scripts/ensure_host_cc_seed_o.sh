@@ -16101,8 +16101,14 @@ ensure_diag_prefer() {
     return 0
   fi
   mkdir -p "$(dirname "$o")"
-  thin_o="$(mktemp "${TMPDIR:-/tmp}/diag_thin.XXXXXX.o")" || return 1
-  rest_o="$(mktemp "${TMPDIR:-/tmp}/diag_rest.XXXXXX.o")" || { rm -f "$thin_o"; return 1; }
+  # MSYS mktemp rejects XXXXXX.ext (X must be last). Bare XXXXXX then
+  # rename to .o so Win bi -c keys off the suffix. PLATFORM: WINDOWS|SHARED.
+  thin_o="$(mktemp "${TMPDIR:-/tmp}/diag_thin.XXXXXX")" || return 1
+  mv -f "$thin_o" "${thin_o}.o" || { rm -f "$thin_o"; return 1; }
+  thin_o="${thin_o}.o"
+  rest_o="$(mktemp "${TMPDIR:-/tmp}/diag_rest.XXXXXX")" || { rm -f "$thin_o"; return 1; }
+  mv -f "$rest_o" "${rest_o}.o" || { rm -f "$thin_o" "$rest_o"; return 1; }
+  rest_o="${rest_o}.o"
   # 1) thin
   # tip_l4: Darwin arm64 uses diag_thin_darwin_pure (egg-first whole-file /
   # eight-piece with cstr_len n++ authority). No longer require tip
