@@ -1,6 +1,7 @@
 /* Win64 park for lexer source buffer (rt_run_asm_backend U).
  * SysV twin uses different arg regs; PE uses rcx/rdx.
- * PLATFORM: WINDOWS|X86_64 · 10.46.
+ * data_store/len_store: out:*u8 → *out = parked (NOT return-in-rax).
+ * PLATFORM: WINDOWS|X86_64 · 10.46 / tip L4 SEGV fix.
  */
 	.globl g_lex_src_data
 	.bss
@@ -22,10 +23,20 @@ lexer_src_park:
 	.globl lexer_src_data_store
 	.def lexer_src_data_store; .scl 2; .type 32; .endef
 lexer_src_data_store:
+	/* rcx = out:*u8 (pointer to *u8 slot). Write parked data into *out. */
 	movq g_lex_src_data(%rip), %rax
+	testq %rcx, %rcx
+	je 1f
+	movq %rax, (%rcx)
+1:
 	ret
 	.globl lexer_src_len_store
 	.def lexer_src_len_store; .scl 2; .type 32; .endef
 lexer_src_len_store:
+	/* rcx = out:*u8 (pointer to usize slot). Write parked len into *out. */
 	movq g_lex_src_len(%rip), %rax
+	testq %rcx, %rcx
+	je 2f
+	movq %rax, (%rcx)
+2:
 	ret

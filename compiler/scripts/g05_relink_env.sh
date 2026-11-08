@@ -8429,6 +8429,19 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
     elif [ -x ./xlang_asm ]; then _win_bi=./xlang_asm
     elif [ -x ./xlang ]; then _win_bi=./xlang
     fi
+    # Host-cc lexer_src_store fix: pe.s store was getter; .x expects *out=parked.
+    # Must include park+store+BSS in one TU (before pe.s in DRIVER_SEED).
+    _lexsrc_fix=src/runtime/rt_lexer_src_store_win_fix.o
+    _lexsrc_src=src/runtime/rt_lexer_src_store_win_fix.c
+    if [ -f "$_lexsrc_src" ]; then
+      if [ ! -s "$_lexsrc_fix" ] || [ "$_lexsrc_src" -nt "$_lexsrc_fix" ]; then
+        ${CC:-gcc} -std=c11 -O0 -g -I. -Iinclude -Isrc -c -o "$_lexsrc_fix" "$_lexsrc_src" >/dev/null 2>&1 || true
+      fi
+      if [ -s "$_lexsrc_fix" ] && nm "$_lexsrc_fix" 2>/dev/null | grep -qE " T [_]?lexer_src_data_store$"; then
+        _PABI_WIN_DRIVER_LEAVES="$_PABI_WIN_DRIVER_LEAVES $_lexsrc_fix"
+        echo "g05_relink_env: Win lexer_src_store fix → G05 (before pe.s/no_c)" >&2
+      fi
+    fi
     # Host-cc scan_at fix (before no_c)
     _scan_fix=src/runtime/rt_parse_argv_scan_at_win_fix.o
     _scan_src=src/runtime/rt_parse_argv_scan_at_win_fix.c
