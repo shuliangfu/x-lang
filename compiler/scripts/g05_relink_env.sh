@@ -8495,18 +8495,24 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
         _PABI_WIN_DRIVER_LEAVES="$_PABI_WIN_DRIVER_LEAVES $_lexnbi_fix"
         echo "g05_relink_env: Win lexer_next_buf_into dual-ABI fix → G05 (before pe.s/no_c)" >&2
         # Demote tip body so trampoline can call lexer_next_buf_into_tip.
-        for _lexnbi_demote in lexer_x.o build_asm/seed_host/lexer_x_trackl_abi.o; do
-          if [ -s "$_lexnbi_demote" ] && nm "$_lexnbi_demote" 2>/dev/null | grep -qE " T [_]?lexer_next_buf_into$"; then
-            _lexnbi_oc=""
-            if command -v objcopy >/dev/null 2>&1; then _lexnbi_oc=objcopy
-            elif command -v llvm-objcopy >/dev/null 2>&1; then _lexnbi_oc=llvm-objcopy
-            fi
-            if [ -n "$_lexnbi_oc" ]; then
-              "$_lexnbi_oc" --redefine-sym=lexer_next_buf_into=lexer_next_buf_into_tip                 "$_lexnbi_demote" 2>/dev/null                 || "$_lexnbi_oc" --redefine-sym=_lexer_next_buf_into=_lexer_next_buf_into_tip                      "$_lexnbi_demote" 2>/dev/null || true
-              echo "g05_relink_env: demote lexer_next_buf_into→_tip in $_lexnbi_demote" >&2
-            fi
-          fi
-        done
+        # Never demote lexer_x.o in place — that poisons cold L4 seed link
+        # (undefined lexer_next_buf_into). Copy then demote; swap into leaves.
+        _lexnbi_oc=""
+        if command -v objcopy >/dev/null 2>&1; then _lexnbi_oc=objcopy
+        elif command -v llvm-objcopy >/dev/null 2>&1; then _lexnbi_oc=llvm-objcopy
+        fi
+        if [ -n "$_lexnbi_oc" ] && [ -s lexer_x.o ]           && nm lexer_x.o 2>/dev/null | grep -qE " T [_]?lexer_next_buf_into$"; then
+          mkdir -p build_asm/seed_host
+          _lexnbi_copy=build_asm/seed_host/lexer_x_nbi_demoted.o
+          cp -f lexer_x.o "$_lexnbi_copy"
+          "$_lexnbi_oc" --redefine-sym=lexer_next_buf_into=lexer_next_buf_into_tip             "$_lexnbi_copy" 2>/dev/null             || "$_lexnbi_oc" --redefine-sym=_lexer_next_buf_into=_lexer_next_buf_into_tip                  "$_lexnbi_copy" 2>/dev/null || true
+          _PABI_WIN_DRIVER_LEAVES="$_PABI_WIN_DRIVER_LEAVES $_lexnbi_copy"
+          echo "g05_relink_env: demote copy lexer_x→lexer_x_nbi_demoted.o (leave lexer_x.o intact)" >&2
+        fi
+        if [ -n "$_lexnbi_oc" ] && [ -s build_asm/seed_host/lexer_x_trackl_abi.o ]           && nm build_asm/seed_host/lexer_x_trackl_abi.o 2>/dev/null | grep -qE " T [_]?lexer_next_buf_into$"; then
+          "$_lexnbi_oc" --redefine-sym=lexer_next_buf_into=lexer_next_buf_into_tip             build_asm/seed_host/lexer_x_trackl_abi.o 2>/dev/null             || "$_lexnbi_oc" --redefine-sym=_lexer_next_buf_into=_lexer_next_buf_into_tip                  build_asm/seed_host/lexer_x_trackl_abi.o 2>/dev/null || true
+          echo "g05_relink_env: demote lexer_next_buf_into→_tip in lexer_x_trackl_abi.o" >&2
+        fi
       fi
     fi
     # Host-cc scan_at fix (before no_c)

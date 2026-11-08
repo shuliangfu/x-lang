@@ -501,6 +501,47 @@ if [ -f parser_x.o ] && [ -f lexer_x.o ]; then
   fi
 fi
 
+# Win tip-cold: dual-ABI trampoline for lexer_next_buf_into.
+# Callers pass *Lexer; tip body is by-val as lexer_next_buf_into_tip. G05
+# injects via _PABI_WIN_DRIVER_LEAVES; phase1 seed link must too — else cold
+# L4 undefined reference when tip was demoted in-place or Track L filtered.
+# PLATFORM: WINDOWS.
+case "$(uname -s 2>/dev/null)" in
+  Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+    _lexnbi_src=src/runtime/rt_lexer_next_buf_into_win_fix.s
+    _lexnbi_fix=src/runtime/rt_lexer_next_buf_into_win_fix.o
+    if [ -f "$_lexnbi_src" ]; then
+      if [ ! -s "$_lexnbi_fix" ] || [ "$_lexnbi_src" -nt "$_lexnbi_fix" ]; then
+        ${SEED_LINK_CC:-${CC:-gcc}} -c -o "$_lexnbi_fix" "$_lexnbi_src" \
+          || fail "Win lexnbi trampoline assemble failed"
+      fi
+      if [ -s "$_lexnbi_fix" ] && nm "$_lexnbi_fix" 2>/dev/null | grep -qE " T [_]?lexer_next_buf_into$"; then
+        _lexnbi_oc=""
+        if command -v objcopy >/dev/null 2>&1; then _lexnbi_oc=objcopy
+        elif command -v llvm-objcopy >/dev/null 2>&1; then _lexnbi_oc=llvm-objcopy
+        fi
+        for _lexnbi_demote in build_asm/seed_host/lexer_x_trackl_abi.o lexer_x.o; do
+          case " $SEED_LINK_OBJS " in
+            *" $_lexnbi_demote "*)
+              if [ -n "$_lexnbi_oc" ] && [ -s "$_lexnbi_demote" ] \
+                && nm "$_lexnbi_demote" 2>/dev/null | grep -qE " T [_]?lexer_next_buf_into$"; then
+                "$_lexnbi_oc" --redefine-sym=lexer_next_buf_into=lexer_next_buf_into_tip \
+                  "$_lexnbi_demote" 2>/dev/null \
+                  || "$_lexnbi_oc" --redefine-sym=_lexer_next_buf_into=_lexer_next_buf_into_tip \
+                       "$_lexnbi_demote" 2>/dev/null || true
+                note "Win lexnbi: demote lexer_next_buf_into→_tip in $_lexnbi_demote"
+              fi
+              ;;
+          esac
+        done
+        SEED_LINK_OBJS="$_lexnbi_fix $SEED_LINK_OBJS"
+        note "Win lexnbi: dual-ABI trampoline prepended for phase1/final"
+      fi
+    fi
+    ;;
+esac
+
+
 # knife256 / 10.2: gate Track L typeck against silent shrink (~135KB missing
 # typeck_x_ast_check_one_func). Healthy archaeology pin is ~365KB.
 # PLATFORM: SHARED phase1/final.
