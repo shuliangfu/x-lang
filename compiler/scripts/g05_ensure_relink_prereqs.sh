@@ -789,6 +789,7 @@ g05_primary_tramp_pure() {
   local _bo="$1"
   local _bx="src/asm/pthin_expr_primary_tramp.x"
   local _bs
+  local _os
   if [ ! -f "$_bx" ]; then
     echo "g05_ensure: P4 primary trampoline .x missing" >&2
     return 1
@@ -798,6 +799,52 @@ g05_primary_tramp_pure() {
     return 1
   fi
   rm -f "$_bo"
+  # DIG tip_l4 Win: bi/tip CG002 on full tramp (59 funcs); five faces
+  # SEGV/CG002 even alone. windows-only split + win stubs + ld -r.
+  # Gate checks T and tramp-face U=0 (no nm-T false green). PLATFORM: WINDOWS.
+  _os="$(uname -s 2>/dev/null || echo Unknown)"
+  case "$_os" in
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+      if [ -f scripts/g05_primary_tramp_win_build.sh ] \
+        && bash scripts/g05_primary_tramp_win_build.sh "$_bo" \
+        && [ -s "$_bo" ]; then
+        :
+      else
+        rm -f "$_bo"
+      fi
+      ;;
+  esac
+  if [ -s "$_bo" ]; then
+    for _bs in labi_pthin_expr_primary_slice_marker \
+      parser_asm_append_type_inst_mangle_c \
+      parser_asm_struct_lit_append_field_src_c \
+      parser_asm_struct_lit_append_shorthand_src_c \
+      parser_asm_struct_lit_parse_field_value_c \
+      parser_asm_parse_anonymous_struct_lit_c \
+      parser_asm_finish_struct_lit_from_type_ident_into_c \
+      parser_parse_expr_ptr_into_c \
+      parser_finish_struct_lit_ptr_into_c \
+      parser_asm_lbrace_looks_like_block_ptr_c \
+      parser_asm_empty_ident_braces_prefer_block_ptr_c \
+      parser_asm_parse_struct_lit_fields_ptr_c \
+      parser_asm_string_lit_decode_span_ptr_c \
+      parser_asm_string_lit_append_byte_ptr_c \
+      parser_parse_match_ptr_into_c \
+      parser_parse_at_simd_builtin_ptr_into_c \
+      parser_asm_parse_anonymous_struct_lit_ptr_c \
+      parser_asm_parse_type_ref_ptr_into_c \
+      parser_asm_skip_angle_count_ptr_into_c \
+      parser_asm_ident_pre_dispatch_ptr_c \
+      parser_asm_parse_primary_into_slice_c \
+      pthin_expr_primary_tramp_w1539_anchor; do
+      if ! g05_obj_defines "$_bo" "$_bs"; then
+        echo "g05_ensure: P4 primary trampoline missing $_bs" >&2
+        rm -f "$_bo"
+        return 1
+      fi
+    done
+    return 0
+  fi
   # note743y.6.3: tip product may SEGV on tramp.x (same qualified-name smash
   # as ensure-std). Retry pin-egg like note743m so g05 can relink the fixed
   # pthin_type_ref bodies. PLATFORM: SHARED.
