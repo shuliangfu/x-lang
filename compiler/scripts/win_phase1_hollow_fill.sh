@@ -172,6 +172,10 @@ glue_asm_resolve_call_target_module_c_u8_ptr_i32_u8_ptr_i32_ptr_i32_ptr_reti32:
 glue_asm_mangle_import_binding_call_sym_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_u8_ptr_i32_u8_ptr_i32_i32_u8_ptr_reti32:
         xorl    %eax, %eax
         ret
+        .globl driver_diagnostic_parse_skip_function
+        .weak driver_diagnostic_parse_skip_function
+driver_diagnostic_parse_skip_function:
+        ret
         .globl codegen_find_impl_method_for_type_u8_ptr_u8_ptr_u8_ptr_i32_i32_reti32
         .weak codegen_find_impl_method_for_type_u8_ptr_u8_ptr_u8_ptr_i32_i32_reti32
 codegen_find_impl_method_for_type_u8_ptr_u8_ptr_u8_ptr_i32_i32_reti32:
