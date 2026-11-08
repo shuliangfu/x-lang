@@ -16114,6 +16114,38 @@ ensure_diag_prefer() {
     thin_ok=1
   fi
   if [ "$thin_ok" != "1" ]; then
+    # DIG tip_l4 Win: tip diag_thin emits hang body (no cstr_len n++;
+    # mangled diag_thin_diag_cstr_len_bounded). xlang_bi.exe emits Cap-good
+    # n++ (auth=0). Try bi before tip. .o-out: bi keys -c off .o suffix.
+    # PLATFORM: WINDOWS.
+    _diag_os="$(uname -s 2>/dev/null || echo Unknown)"
+    case "$_diag_os" in
+      Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+        case "$thin_o" in
+          *.o|*.obj|*.O|*.OBJ) _diag_bi_out="$thin_o" ;;
+          *) _diag_bi_out="${thin_o}.o" ;;
+        esac
+        for _xl in ./xlang_bi.exe ./xlang_bi; do
+          [ -x "$_xl" ] || continue
+          rm -f "$_diag_bi_out"
+          if "$_xl" -backend asm -c "$thin_x" -o "$_diag_bi_out" >/dev/null 2>&1 \
+            && [ -s "$_diag_bi_out" ]; then
+            if [ "$_diag_bi_out" != "$thin_o" ]; then
+              mv -f "$_diag_bi_out" "$thin_o" || cp -f "$_diag_bi_out" "$thin_o"
+              rm -f "$_diag_bi_out"
+            fi
+            if [ -s "$thin_o" ] && diagthin_cstr_len_n_inc_ok "$thin_o"; then
+              echo "ensure_diag_prefer: thin via $_xl (Win bi; cstr_len n++ auth)" >&2
+              thin_ok=1
+              break
+            fi
+          fi
+          rm -f "$thin_o" "$_diag_bi_out"
+        done
+        ;;
+    esac
+  fi
+  if [ "$thin_ok" != "1" ]; then
     if [ -x ./xlang ]; then xlang_bin=./xlang
     elif [ -x ./xlang-c ]; then xlang_bin=./xlang-c
     elif [ -x ./bootstrap_xlangc ]; then xlang_bin=./bootstrap_xlangc
