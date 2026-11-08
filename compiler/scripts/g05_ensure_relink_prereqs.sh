@@ -2639,12 +2639,26 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             exit 1
           fi
           if ! g05_primary_tramp_pure "$_pthin_p4p_o"; then
-            echo "g05_ensure: P4 primary trampoline pure-asm failed" >&2
-            exit 1
+            # DIG tip_l4 Win: bi/tip CG002 on primary_tramp (59 funcs,
+            # elf label match). Soft-keep P4 C twin so other P*b bi
+            # bodies can still merge into thin_glue. PLATFORM: WINDOWS.
+            _pt_os="$(uname -s 2>/dev/null || echo Unknown)"
+            case "$_pt_os" in
+              Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+                echo "g05_ensure: P4 primary trampoline pure-asm failed; Win keep P4 C twin (tramp CG002)" >&2
+                _pthin_p4pb_ok=0
+                rm -f "$_pthin_p4p_o" "$_pthin_p4pb_thin_o"
+                ;;
+              *)
+                echo "g05_ensure: P4 primary trampoline pure-asm failed" >&2
+                exit 1
+                ;;
+            esac
+          else
+            _pthin_p4p_ok=1
+            _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_EXPR_PRIMARY_FROM_X"
+            echo "g05_ensure: P4 primary trampoline ← pure-asm w1539"
           fi
-          _pthin_p4p_ok=1
-          _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_EXPR_PRIMARY_FROM_X"
-          echo "g05_ensure: P4 primary trampoline ← pure-asm w1539"
         fi
         # PLATFORM: SHARED — 7.2.1 P4ub/P4uc/P4ud Route C (2026-09-13/15).
         # pthin_expr_unary.x holds TOKEN→ExprKind + wrap dest-buffer +
