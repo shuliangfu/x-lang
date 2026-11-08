@@ -3902,10 +3902,18 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         fi
         # Class BX: full P1–P20 omit-rest hybrid was tip-SEGV on pin parser; Linux product
         # needs the merge (else Class CB partial peel drops glue faces). Default FULL on Linux.
-        # Darwin keeps opt-in (Cap tip / pin path). PLATFORM: LINUX default FULL.
+        # tip_l4 Win: without FULL, hybrid+rest fails → Class CB type_ref+FN_BLOCK peel
+        # drops primary tramp / P6b faces → thin_glue U hole → L4 ld UNDEF. Default FULL
+        # on Windows too so split+stubs tramp merges into thin_glue. Darwin keeps opt-in.
+        # PLATFORM: LINUX|WINDOWS default FULL.
         _pthin_full_gate="${XLANG_G05_PTHIN_FULL:-0}"
-        if [ "$_pthin_full_gate" != "1" ] && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Linux" ]; then
-          _pthin_full_gate=1
+        if [ "$_pthin_full_gate" != "1" ]; then
+          _pthin_os="$(uname -s 2>/dev/null || echo Unknown)"
+          case "$_pthin_os" in
+            Linux|Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+              _pthin_full_gate=1
+              ;;
+          esac
         fi
         if [ "$_pthin_full" = "1" ] && [ "$_pthin_full_gate" = "1" ]; then
           # shellcheck disable=SC2086
