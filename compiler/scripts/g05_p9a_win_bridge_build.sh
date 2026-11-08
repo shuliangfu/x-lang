@@ -29,10 +29,19 @@ if [ -z "$_xl" ]; then
   exit 1
 fi
 _tmpdir="${TMPDIR:-/tmp}"
-_winonly="$(mktemp "${_tmpdir}/p9a_winonly.XXXXXX.x")"
-_nowrap="$(mktemp "${_tmpdir}/p9a_nowrap.XXXXXX.x")"
-_oa="$(mktemp "${_tmpdir}/p9a_a.XXXXXX.o")"
-_ob="$(mktemp "${_tmpdir}/p9a_b.XXXXXX.o")"
+# MSYS mktemp rejects XXXXXX.ext — create then suffix.
+_winonly="$(mktemp "${_tmpdir}/p9a_winonly.XXXXXX")"
+_nowrap="$(mktemp "${_tmpdir}/p9a_nowrap.XXXXXX")"
+_oa="$(mktemp "${_tmpdir}/p9a_a.XXXXXX")"
+_ob="$(mktemp "${_tmpdir}/p9a_b.XXXXXX")"
+mv -f "$_winonly" "${_winonly}.x"
+_winonly="${_winonly}.x"
+mv -f "$_nowrap" "${_nowrap}.x"
+_nowrap="${_nowrap}.x"
+mv -f "$_oa" "${_oa}.o"
+_oa="${_oa}.o"
+mv -f "$_ob" "${_ob}.o"
+_ob="${_ob}.o"
 cleanup() { rm -f "$_winonly" "$_nowrap" "$_oa" "$_ob"; }
 trap cleanup EXIT
 
