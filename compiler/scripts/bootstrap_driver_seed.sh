@@ -98,14 +98,14 @@ _bootstrap_cat_owned=0
 _bootstrap_cat_cache="${XLANG_CATALOG_CACHE_FILE:-}"
 if [ -n "${_bootstrap_cat_cache}" ] && [ -s "${_bootstrap_cat_cache}" ]; then
   export XLANG_CATALOG_CACHE_FILE="${_bootstrap_cat_cache}"
-  log "catalog cache reuse OK (${XLANG_CATALOG_CACHE_FILE})"
+  log "catalog cache reuse OK (${XLANG_CATALOG_CACHE_FILE:-})"
 else
   _bootstrap_cat_cache="${TMPDIR:-/tmp}/xlang_bootstrap_catalog_$$.txt"
   if bash scripts/driver_seed_obj_catalog.sh --shell >"${_bootstrap_cat_cache}" \
     2>/tmp/xlang_bootstrap_cat_err_$$.txt; then
     export XLANG_CATALOG_CACHE_FILE="${_bootstrap_cat_cache}"
     _bootstrap_cat_owned=1
-    log "catalog cache warm OK (${XLANG_CATALOG_CACHE_FILE})"
+    log "catalog cache warm OK (${XLANG_CATALOG_CACHE_FILE:-})"
   else
     log "WARN catalog warm failed (ensure/rebuild will re-expand)"
     cat /tmp/xlang_bootstrap_cat_err_$$.txt 2>/dev/null || true
@@ -152,7 +152,7 @@ _ensure_asm_host_dispatch_objs() {
   # missing, re-run try-heat for that leaf (G.7 single body).
   local _dispatch_objs _obj
   _dispatch_objs=$(sed -n 's|^DRIVER_SEED_ASM_HOST_DISPATCH_OBJS=||p' \
-    "${XLANG_CATALOG_CACHE_FILE}" 2>/dev/null | head -1)
+    "${XLANG_CATALOG_CACHE_FILE:-}" 2>/dev/null | head -1)
   if [ -z "${_dispatch_objs// /}" ]; then
     _dispatch_objs=$(bash scripts/driver_seed_obj_catalog.sh 2>/dev/null \
       | sed -n 's|^DRIVER_SEED_ASM_HOST_DISPATCH_OBJS=||p' | head -1)
@@ -173,16 +173,16 @@ _ensure_filtered_objs() {
   # Linux: BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS empty → no-op.
   local _filtered_objs _against_partial _pipeline _obj
   _filtered_objs=$(sed -n 's|^BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS=||p' \
-    "${XLANG_CATALOG_CACHE_FILE}" 2>/dev/null | head -1)
+    "${XLANG_CATALOG_CACHE_FILE:-}" 2>/dev/null | head -1)
   if [ -z "${_filtered_objs// /}" ]; then
     _filtered_objs=$(bash scripts/driver_seed_obj_catalog.sh 2>/dev/null \
       | sed -n 's|^BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS=||p' | head -1)
   fi
   [ -z "${_filtered_objs// /}" ] && return 0
   _against_partial=$(sed -n 's|^FILTER_AGAINST_PARTIAL_OBJS=||p' \
-    "${XLANG_CATALOG_CACHE_FILE}" 2>/dev/null | head -1)
+    "${XLANG_CATALOG_CACHE_FILE:-}" 2>/dev/null | head -1)
   _pipeline=$(sed -n 's|^FILTER_PIPELINE_OBJS=||p' \
-    "${XLANG_CATALOG_CACHE_FILE}" 2>/dev/null | head -1)
+    "${XLANG_CATALOG_CACHE_FILE:-}" 2>/dev/null | head -1)
   # shellcheck disable=SC2086
   for _obj in $_filtered_objs; do
     case " $_against_partial " in *" $_obj "*)
