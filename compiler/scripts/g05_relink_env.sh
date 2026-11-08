@@ -8414,23 +8414,25 @@ unset _dal_partial _dal_tramp_s _dal_tramp_o _dal_cap_host _dal_ok_cap _dal_h _d
 
 
 
-# PLATFORM: WINDOWS — phase1 hollow stubs also front g05 link (PE has no
-# Darwin m8_reloc_stubs). Strong ret0 first-win under --allow-multiple-definition;
-# real prefer overlays keep winning when present later in G05_OBJS.
-# Refresh via win_phase1_hollow_fill when script exists.
+# PLATFORM: WINDOWS — phase1 hollow stubs also fill residual g05 UNDEF
+# (PE has no Darwin m8_reloc_stubs). GNU ld --allow-multiple-definition is
+# first-win: front-of-G05 hollow ret0 poisoned emit/driver and made L2
+# FAIL_BUILD (empty product). Tail-append so real T faces win; hollow only
+# binds symbols still U after the real bag. Refresh via win_phase1_hollow_fill.
+_PABI_WIN_HOLLOW_TAIL=""
 case "$(uname -s 2>/dev/null || echo unknown)" in
   Windows_NT*|MINGW*|MSYS*|CYGWIN*)
     if [ -f scripts/win_phase1_hollow_fill.sh ]; then
       bash scripts/win_phase1_hollow_fill.sh >/dev/null 2>&1 || true
     fi
     if [ -s build_asm/selfhost_pabi/win_phase1_hollow_stubs.o ]; then
-      _PABI_M8_RELOC_STUBS="build_asm/selfhost_pabi/win_phase1_hollow_stubs.o"
-      echo "g05_relink_env: Win hollow stubs → G05 front ($_PABI_M8_RELOC_STUBS)" >&2
+      _PABI_WIN_HOLLOW_TAIL="build_asm/selfhost_pabi/win_phase1_hollow_stubs.o"
+      echo "g05_relink_env: Win hollow stubs → G05 TAIL ($_PABI_WIN_HOLLOW_TAIL)" >&2
     fi
     ;;
 esac
 
-G05_OBJS="$_PABI_TIP_PEEL $_CAP_TIP_FRONT $_PABI_M8_RELOC_STUBS $_DRIVER_SEED_OBJS driver_x.o $_PIPELINE_LINK_O lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $_DRIVER_SUBCMD src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $_USER_ASM_LINK $_GLUE_SUFFIX $_AST_GEN2 $_PABI_ARCHIVE_LEAF"
+G05_OBJS="$_PABI_TIP_PEEL $_CAP_TIP_FRONT $_PABI_M8_RELOC_STUBS $_DRIVER_SEED_OBJS driver_x.o $_PIPELINE_LINK_O lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $_DRIVER_SUBCMD src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $_USER_ASM_LINK $_GLUE_SUFFIX $_AST_GEN2 $_PABI_ARCHIVE_LEAF $_PABI_WIN_HOLLOW_TAIL"
 # FixC12k8h: Cap tip Prefer L2 parse — force bak/CACHE lexer peel into
 # G05_OBJS even when note743y.6.22 shim path skipped (_G05_LEXER_X_O empty
 # left lexer_x.o linked → body_into≈25024 → P010/P014). Prefer text band
