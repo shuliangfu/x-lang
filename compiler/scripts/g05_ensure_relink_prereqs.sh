@@ -3198,14 +3198,31 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
               Windows_NT*|MINGW*|MSYS*|CYGWIN*)
                 if [ -f src/asm/pthin_stretch_win_stubs.x ]; then
                   rm -f "$_pthin_p9b_thin_o"
-                  if g05_try_x_to_o src/asm/pthin_stretch_win_stubs.x "$_pthin_p9b_thin_o" \
-                    && [ -s "$_pthin_p9b_thin_o" ]; then
+                  # bi keys -c off .o suffix (mktemp path without .o → BLD001).
+                  _p9b_stub_out="$_pthin_p9b_thin_o"
+                  case "$_p9b_stub_out" in
+                    *.o|*.obj|*.O|*.OBJ) ;;
+                    *) _p9b_stub_out="${_pthin_p9b_thin_o}.o" ;;
+                  esac
+                  _p9b_bi=""
+                  for _xl in ./xlang_bi.exe ./xlang_bi; do
+                    [ -x "$_xl" ] || continue
+                    _p9b_bi="$_xl"
+                    break
+                  done
+                  if [ -n "$_p9b_bi" ] \
+                    && "$_p9b_bi" -backend asm -c src/asm/pthin_stretch_win_stubs.x -o "$_p9b_stub_out" >/dev/null 2>&1 \
+                    && [ -s "$_p9b_stub_out" ]; then
+                    if [ "$_p9b_stub_out" != "$_pthin_p9b_thin_o" ]; then
+                      mv -f "$_p9b_stub_out" "$_pthin_p9b_thin_o" || cp -f "$_p9b_stub_out" "$_pthin_p9b_thin_o"
+                      rm -f "$_p9b_stub_out"
+                    fi
                     _pthin_p9b_ok=1
                     _pthin_p9_extra="$_pthin_p9_extra -DXLANG_PTHIN_STRETCH_LITE_FROM_X"
-                    echo "g05_ensure: P9b stretch ← win stubs (bi CG002; tip stretch DIG)" >&2
+                    echo "g05_ensure: P9b stretch ← win stubs via $_p9b_bi (bi CG002; tip stretch DIG)" >&2
                   else
-                    echo "g05_ensure: P9b stretch .x thin failed; Win stubs failed; P9 C twin stays full" >&2
-                    rm -f "$_pthin_p9b_thin_o"
+                    echo "g05_ensure: P9b stretch .x thin failed; Win stubs bi failed; P9 C twin stays full" >&2
+                    rm -f "$_pthin_p9b_thin_o" "$_p9b_stub_out"
                   fi
                 else
                   echo "g05_ensure: P9b stretch .x thin failed; P9 C twin stays full" >&2
