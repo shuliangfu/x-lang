@@ -8515,6 +8515,27 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
         fi
       fi
     fi
+
+    # Win tip P001 dig_min lexer leaves (DIG 2026-11-09).
+    mkdir -p build_asm/seed_host
+    for _p001_src in \
+      src/runtime/rt_lexer_write_result_win_64.s \
+      src/runtime/rt_lexer_park_token_start_win_64.s \
+      src/runtime/rt_lexer_write_ident_token_win_64.s \
+      src/runtime/rt_lexer_next_punct_into_win_64.s \
+      src/runtime/rt_lexer_next_into_win_64.s
+    do
+      [ -f "$_p001_src" ] || continue
+      _p001_obj="${_p001_src%.s}.o"
+      if [ ! -s "$_p001_obj" ] || [ "$_p001_src" -nt "$_p001_obj" ]; then
+        ${CC:-gcc} -c -o "$_p001_obj" "$_p001_src" >/dev/null 2>&1 || true
+      fi
+      if [ -s "$_p001_obj" ]; then
+        _PABI_WIN_DRIVER_LEAVES="$_PABI_WIN_DRIVER_LEAVES $_p001_obj"
+        echo "g05_relink_env: Win P001 leaf $_p001_src -> G05" >&2
+      fi
+    done
+
     # Host-cc scan_at fix (before no_c)
     _scan_fix=src/runtime/rt_parse_argv_scan_at_win_fix.o
     _scan_src=src/runtime/rt_parse_argv_scan_at_win_fix.c

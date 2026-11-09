@@ -1223,6 +1223,11 @@ case "$(uname -s 2>/dev/null)" in
     if [ -f scripts/win_patch_body_sync_jmp.py ] && [ -f "$OUT" ]; then
       python3 scripts/win_patch_body_sync_jmp.py "$OUT" || { echo "g05_relink_xlang: win_patch_body_sync_jmp failed" >&2; exit 1; }
     fi
+    # Win tip P001/dig_min: face tramp/primary lex pass + literal kind ebx
+    # (DIG 2026-11-09). Symbol-relative PE patches; idempotent.
+    if [ -f scripts/win_tip_p001_face_pe_patch.py ] && [ -f "$OUT" ]; then
+      python3 scripts/win_tip_p001_face_pe_patch.py "$OUT" || { echo "g05_relink_xlang: win_tip_p001_face_pe_patch failed" >&2; exit 1; }
+    fi
     ;;
 esac
 
