@@ -120,7 +120,22 @@ _l4_restore_tip_aside() {
   if [ -n "$cand" ]; then
     _l4_seed_tip_aside_ensure_companions "$(dirname "$cand")"
   fi
-  if [ -n "$cand" ] && [ ! -x "$COMPILER_DIR/xlang" ]; then
+  # PLATFORM: WINDOWS — always force tip-aside over dig PE leftovers.
+  # Dig PE can survive wipe (lock) or remain as xlang.exe; [ ! -x xlang ] then
+  # skipped restore and try-r3-cold -E SEGVd on the dig binary (L4@a4e46de2b).
+  # Darwin/Linux keep prior "only if xlang absent" so a live tip build is not stomped.
+  _l4_force_aside=0
+  case "$(uname -s 2>/dev/null)" in
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*) _l4_force_aside=1 ;;
+  esac
+  if [ -n "$cand" ] && { [ "$_l4_force_aside" = "1" ] || [ ! -x "$COMPILER_DIR/xlang" ]; }; then
+    if [ "$_l4_force_aside" = "1" ]; then
+      # Drop dig PE names before install so locked partial copies cannot win.
+      rm -f "$COMPILER_DIR/xlang" "$COMPILER_DIR/xlang.exe"         "$COMPILER_DIR/xlang-c" "$COMPILER_DIR/xlang-c.exe"         "$COMPILER_DIR/xlang_asm" "$COMPILER_DIR/xlang_asm.exe" 2>/dev/null || true
+      # Windows sometimes needs a second pass if AV briefly holds the PE.
+      rm -f "$COMPILER_DIR/xlang" "$COMPILER_DIR/xlang.exe"         "$COMPILER_DIR/xlang-c.exe" 2>/dev/null || true
+      log "step2b: Win force tip-aside over dig PE (cand=$(basename "$cand"))"
+    fi
     cp -f "$cand" "$COMPILER_DIR/xlang"
     chmod +x "$COMPILER_DIR/xlang"
     if [ -x "${cand%/*}/xlang_asm" ] || [ -x "${cand}_asm" ]; then
@@ -142,13 +157,29 @@ _l4_restore_tip_aside() {
     # returns 1 → " -E failed; no cold seed on Windows" cascade (ok=16/fail=36).
     case "$(uname -s 2>/dev/null)" in
       Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+        # Retry copies; refuse silent dig PE leftover (size must match cand).
+        _aside_sz=$(wc -c <"$cand" | tr -d " ")
         cp -f "$COMPILER_DIR/xlang" "$COMPILER_DIR/xlang-c.exe"
-        cp -f "$COMPILER_DIR/xlang" "$COMPILER_DIR/xlang.exe" 2>/dev/null || true
-        cp -f "$COMPILER_DIR/xlang_asm" "$COMPILER_DIR/xlang_asm.exe" 2>/dev/null || true
+        cp -f "$COMPILER_DIR/xlang" "$COMPILER_DIR/xlang.exe"
+        cp -f "$COMPILER_DIR/xlang_asm" "$COMPILER_DIR/xlang_asm.exe" 2>/dev/null \
+          || cp -f "$COMPILER_DIR/xlang" "$COMPILER_DIR/xlang_asm.exe"
         cp -f "$COMPILER_DIR/xlang" "$COMPILER_DIR/xlang-c" 2>/dev/null || true
         chmod +x "$COMPILER_DIR/xlang-c.exe" "$COMPILER_DIR/xlang.exe" \
           "$COMPILER_DIR/xlang_asm.exe" "$COMPILER_DIR/xlang-c" 2>/dev/null || true
-        log "step2b: Win tip aside also installed xlang-c.exe for driver_leaf -E"
+        _exe_sz=$(wc -c <"$COMPILER_DIR/xlang.exe" | tr -d " ")
+        if [ -n "$_aside_sz" ] && [ -n "$_exe_sz" ] && [ "$_exe_sz" != "$_aside_sz" ]; then
+          log "step2b: WARN xlang.exe size=$_exe_sz != aside=$_aside_sz; retry force"
+          rm -f "$COMPILER_DIR/xlang.exe" "$COMPILER_DIR/xlang-c.exe" 2>/dev/null || true
+          cp -f "$cand" "$COMPILER_DIR/xlang.exe"
+          cp -f "$cand" "$COMPILER_DIR/xlang-c.exe"
+          cp -f "$cand" "$COMPILER_DIR/xlang"
+          chmod +x "$COMPILER_DIR/xlang.exe" "$COMPILER_DIR/xlang-c.exe" "$COMPILER_DIR/xlang"
+          _exe_sz=$(wc -c <"$COMPILER_DIR/xlang.exe" | tr -d " ")
+        fi
+        if [ -n "$_aside_sz" ] && [ "$_exe_sz" != "$_aside_sz" ]; then
+          fail "step2b: Win tip-aside install failed (xlang.exe=$_exe_sz aside=$_aside_sz); dig PE must not remain"
+        fi
+        log "step2b: Win tip aside installed xlang-c.exe/xlang.exe (size=$_exe_sz) for driver_leaf -E"
         # Dual-GP option.o (Win tip L2) lives beside the PE aside when present.
         if [ -f "${cand%/*}/option.o" ]; then
           mkdir -p "$ROOT/core/option"
