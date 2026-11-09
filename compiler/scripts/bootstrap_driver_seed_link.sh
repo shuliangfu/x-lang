@@ -182,6 +182,57 @@ if [ -s "$_AOC" ]; then
   fi
 fi
 
+
+
+# 10.44 follow: mega/pabi demotes glue_type_align_simple → __demoted; Cap tip /
+# g05 product keeps public T in named_align.o (named_align_thin). Phase1 catalog
+# lists backend_call_dispatch.o (U align_simple) but not named_align.o → Win tip
+# L4 cold UNDEF at CC residual phase1. Mirror addr_of_call.o prepend.
+# PLATFORM: SHARED — Win/Linux/Darwin tip-cold phase1/final.
+_NA=build_asm/selfhost_pabi/named_align.o
+_NA_X=src/runtime_pipeline_abi_named_align_thin.x
+_NA_C=build_asm/selfhost_pabi/named_align_phase1_host.c
+if [ ! -s "$_NA" ]; then
+  mkdir -p build_asm/selfhost_pabi
+  _xc=
+  # Prefer tip aside PE first — dig-patched tip PE can SEGV on this thin (Win).
+  for _c in ./xlang.pre_l4_aside ./xlang ./xlang.exe ./bootstrap_xlangc ./xlang-c ./xlang-c.exe; do
+    if [ -x "$_c" ]; then _xc=$_c; break; fi
+  done
+  if [ -n "$_xc" ] && [ -f "$_NA_X" ]; then
+    note "phase1 building named_align.o from thin (pabi align demoted)"
+    if ! XLANG_PREFER_ASM_O=1 "$_xc" -backend asm -c "$_NA_X" -o "$_NA" >/tmp/phase1_named_align_build.log 2>&1; then
+      "$_xc" -backend asm -c "$_NA_X" -o "$_NA" >>/tmp/phase1_named_align_build.log 2>&1 || true
+    fi
+  fi
+  # Host-cc fallback: forward to demoted egg (pabi always keeps __demoted).
+  if [ ! -s "$_NA" ]; then
+    note "phase1 named_align thin fail → host-cc forward-to-demoted"
+    cat >"$_NA_C" <<'EOF_NA_C'
+/* Win/Linux tip-cold phase1: public glue_type_align_simple → demoted egg.
+ * Thin assemble may SEGV on dig-patched tip PE; host-cc keeps phase1 linkable.
+ * PLATFORM: SHARED phase1 only; g05 product still prefers named_align_thin. */
+typedef int int32_t;
+int32_t glue_type_align_simple__demoted(void *m, void *a, int32_t ty_ref, int32_t depth);
+int32_t glue_type_align_simple(void *m, void *a, int32_t ty_ref, int32_t depth) {
+  return glue_type_align_simple__demoted(m, a, ty_ref, depth);
+}
+EOF_NA_C
+    ${CC:-gcc} -c -O2 -o "$_NA" "$_NA_C" 2>/tmp/phase1_named_align_host.err || true
+  fi
+fi
+if [ -s "$_NA" ]; then
+  if nm -g "$_NA" 2>/dev/null | grep -qE ' T [_]?glue_type_align_simple$'; then
+    case " $SEED_LINK_OBJS " in
+      *" $_NA "*|*" build_asm/selfhost_pabi/named_align.o "*) ;;
+      *)
+        SEED_LINK_OBJS="$_NA $SEED_LINK_OBJS"
+        note "phase1 prepended named_align.o (glue_type_align_simple)"
+        ;;
+    esac
+  fi
+fi
+
 # 10.22 follow: Linux tip-cold phase1 pure-ld of parser_asm_thin_glue.o UNDEFs
 # parser_asm_stretch_* (is_type_start / skip_balanced / skip_type_suffix /
 # skip_one_param). Those T live in stretch_product_keep_faces.o (g05 tip-peel
