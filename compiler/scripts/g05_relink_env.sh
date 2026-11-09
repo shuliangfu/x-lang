@@ -8536,6 +8536,19 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
       fi
     done
 
+    # Host-cc try_keyword packed Token (DIG 2026-11-09 kwslot). First-win over tip.
+    _trykw_src=src/runtime/rt_lexer_try_keyword_win_64.c
+    _trykw_obj=src/runtime/rt_lexer_try_keyword_win_64.o
+    if [ -f "$_trykw_src" ]; then
+      if [ ! -s "$_trykw_obj" ] || [ "$_trykw_src" -nt "$_trykw_obj" ]; then
+        ${CC:-gcc} -std=c11 -O0 -g -I. -Iinclude -Isrc -c -o "$_trykw_obj" "$_trykw_src" >/dev/null 2>&1 || true
+      fi
+      if [ -s "$_trykw_obj" ] && nm "$_trykw_obj" 2>/dev/null | grep -qE " T [_]?lexer_try_keyword$"; then
+        _PABI_WIN_DRIVER_LEAVES="$_PABI_WIN_DRIVER_LEAVES $_trykw_obj"
+        echo "g05_relink_env: Win try_keyword packed Token leaf → G05" >&2
+      fi
+    fi
+
     # Host-cc scan_at fix (before no_c)
     _scan_fix=src/runtime/rt_parse_argv_scan_at_win_fix.o
     _scan_src=src/runtime/rt_parse_argv_scan_at_win_fix.c
