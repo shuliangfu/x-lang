@@ -232,6 +232,98 @@ def apply_blkdepth_rip(data: bytearray, syms: dict[str, int], image_base: int) -
     return applied, skipped
 
 
+
+def apply_punct_eq_dot(data: bytearray, image_base: int) -> tuple[int, int]:
+    """Extend tip lexer_next_punct_into dig_min stub with '='->117, '.'->92, '*'->98 (E9 near-jmps).
+
+    Cold tip stub maps (){}:;[], only; missing ASSIGN/DOT/STAR makes collect
+    expect_kind(=) see kind=0 -> restore -> top-level const P010.
+    Dig trampoline to cave@file 0x47da80; reuse when empty.
+    """
+    import struct
+    sig = bytes.fromhex("0fb64424284589c24d89c349c1eb20")
+    cave_off = 0x47da80
+    # Tip-cold leaf punct lives near file 0x1100 (VA 0x140001b00). Prefer that
+    # even after trampoline (entry becomes E9...); never treat cave as entry.
+    entry_off = 0x1100
+    blob = bytes(data)
+    if not (blob[entry_off:entry_off + 16].startswith(sig) or blob[entry_off] == 0xE9):
+        sites = []
+        idx = 0
+        while True:
+            j = blob.find(sig, idx)
+            if j < 0:
+                break
+            if j != cave_off:
+                sites.append(j)
+            idx = j + 1
+        if not sites:
+            print("skip punct_eq: no dig_min punct stub", file=sys.stderr)
+            return 0, 1
+        entry_off = min(sites)
+    cave_good = bytes.fromhex(
+        "0fb64424284589c24d89c349c1eb204589d84883c2014183c30141b900000000"
+        "3c28750b41b952000000e9a00000003c29750b41b953000000e9910000003c7b"
+        "750b41b954000000e9820000003c7d750b41b955000000e9730000003c3a750b"
+        "41b95b000000e9640000003c3b750b41b95f000000e9550000003c5b750b41b9"
+        "56000000e9460000003c5d750b41b957000000e9370000003c2c750b41b95a00"
+        "0000e9280000003c3d750b41b975000000e9190000003c2e750b41b95c000000"
+        "e90a0000003c2a750641b962000000488911448951084489590c48c741100000"
+        "000048c741180000000048c741200000000048c741280000000048c741300000"
+        "000048c74138000000004489491044895114448941184889d04883e801488941"
+        "40c3"
+    )
+    if cave_off + len(cave_good) + 0x20 > len(data):
+        print("skip punct_eq: cave OOB", file=sys.stderr)
+        return 0, 1
+    off = data.find(b"PE\0\0")
+    coff = off + 4
+    opt = coff + 20
+    magic = struct.unpack_from("<H", data, opt)[0]
+    ib = (
+        struct.unpack_from("<Q", data, opt + 24)[0]
+        if magic == 0x20b
+        else struct.unpack_from("<I", data, opt + 28)[0]
+    )
+    nsec = struct.unpack_from("<H", data, coff + 2)[0]
+    soh = struct.unpack_from("<H", data, coff + 16)[0]
+    sec = opt + soh
+
+    def pe_va(foff: int) -> int:
+        for i in range(nsec):
+            s = sec + i * 40
+            vsz, va0, rsz, raw = struct.unpack_from("<IIII", data, s + 8)
+            if raw <= foff < raw + max(rsz, 1):
+                return ib + va0 + (foff - raw)
+        raise SystemExit(f"punct cave va miss {foff:#x}")
+
+    cave_va = pe_va(cave_off)
+    entry_va = pe_va(entry_off)
+    rel = cave_va - (entry_va + 5)
+    tramp = b"\xe9" + struct.pack("<i", rel) + b"\x90" * 11
+    already = data[entry_off] == 0xE9 and bytes(data[cave_off : cave_off + len(cave_good)]) == cave_good
+    if bytes(data[cave_off:cave_off + max(len(cave_good), 0x200)]).find(bytes.fromhex("41b962000000")) < 0:
+        already = False  # DIG 11-10: rewrite when STAR missing
+    if already:
+        print("ok punct_eq: already trampoline+cave", file=sys.stderr)
+        return 0, 1
+    cave_head = bytes(data[cave_off : cave_off + 16])
+    if cave_head not in (b"\x00" * 16, cave_good[:16], sig[:16]) and not cave_head.startswith(sig):
+        print(
+            f"FAIL punct_eq: cave busy {bytes(data[cave_off:cave_off+16]).hex()}",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+    data[cave_off : cave_off + len(cave_good)] = cave_good
+    data[entry_off : entry_off + 16] = tramp
+    print(
+        f"patch punct_eq: entry@{entry_off:#x}->cave@{cave_off:#x} (=/./* kinds 117/92/98)",
+        file=sys.stderr,
+    )
+    return 1, 0
+
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print(f"usage: {sys.argv[0]} <xlang.exe>", file=sys.stderr)
@@ -256,6 +348,12 @@ def main() -> int:
     skipped = 0
     try:
         a, s = apply_blkdepth_rip(data, syms, image_base)
+        applied += a
+        skipped += s
+    except SystemExit:
+        return 1
+    try:
+        a, s = apply_punct_eq_dot(data, image_base)
         applied += a
         skipped += s
     except SystemExit:

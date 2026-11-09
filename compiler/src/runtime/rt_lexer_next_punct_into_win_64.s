@@ -52,8 +52,20 @@ lexer_next_punct_into:
 	movl	$87, %r9d
 	jmp	9f
 8:	cmpb	$44, %al
-	jne	9f
+	jne	8a
 	movl	$90, %r9d
+	jmp	9f
+8a:	cmpb	$61, %al
+	jne	8b
+	movl	$117, %r9d
+	jmp	9f
+8b:	cmpb	$46, %al
+	jne	8c
+	movl	$92, %r9d
+	jmp	9f
+8c:	cmpb	$42, %al
+	jne	9f
+	movl	$98, %r9d
 9:	/* write next_lex */
 	movq	%rdx, (%rcx)
 	movl	%r10d, 8(%rcx)
