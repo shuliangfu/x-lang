@@ -54,7 +54,38 @@ PATCHES = [
     # SCALAR first null-check and ORD_C kind==0x3c compare both read %ebx.
     ("parser_asm_parse_builtin_scalar_type_x_into_c", 0x0C, "4889c8488945f0", "4889cb48895df0"),
     ("parser_asm_type_ref_builtin_kind_ord_c", 0x0C, "4889c8488945f0", "4889cb48895df0"),
+    # DIG 2026-11-09 L2: Lexer.col product@+0x0c; tip advance/alpha used +0x10 (stack smash / bad col).
+    ("lexer_advance_one", 0x82, "480510000000", "48050c000000"),
+
+    ("lexer_next_body_into", 0x1774, "480510000000", "48050c000000"),
+    # DIG 2026-11-09 IDENT expr: suffix_loop zero-init uses uninit [rbp-0x50] as i32[8]
+    # base; residual often aliases Pos* -> zeroes working pos after step_kind (29->31->0).
+    # INT lucked into a safe residual; IDENT smashed Pos -> tip Result+8=0 -> adv_semi kind=1.
+    # Init -0x50 to unused frame scratch -0x2a00 before source_data (compress redundant mov).
+    ("parser_asm_primary_suffix_loop_x_into_c", 0x2C0,
+     "488b45e848898570feffff488b8570feffff4889c1",
+     "488d8500d6ffff488945b0488b45e84889c1909090"),
+    # DIG 2026-11-09: DOT compare used stale %ebx; reload peek kind from -0x70.
+    ("parser_asm_primary_suffix_loop_x_into_c", 0x4A6,
+     "488b4590489848898578ffffff",
+     "488b5d9048899d78ffffff9090"),
+    # DIG 2026-11-09: call-arg after peek COMMA/RPAREN used stale %ebx.
+    ("parser_asm_primary_suffix_loop_x_into_c", 0x295A, "48894588", "4889c390"),
+    ("parser_asm_primary_suffix_loop_x_into_c", 0xB6C, "48894588", "4889c390"),
+    # field/other arg-loop site: keep kind in rbx and -0x78
+    ("parser_asm_primary_suffix_loop_x_into_c", 0x20C6, "48894588488b5d88", "4889c34889458890"),
+    # skip_ws: tip Lexer.col@+0x10 -> product @+0x0c (block comment / rv header)
+    ("lexer_skip_whitespace_and_comments", 0x8E, "480510000000", "48050c000000"),
+    ("lexer_skip_whitespace_and_comments", 0x9D, "480510000000", "48050c000000"),
+    ("lexer_skip_whitespace_and_comments", 0x6CC, "480510000000", "48050c000000"),
+    ("lexer_skip_whitespace_and_comments", 0x121D, "480510000000", "48050c000000"),
+    ("lexer_skip_whitespace_and_comments", 0x122C, "480510000000", "48050c000000"),
+    ("lexer_skip_whitespace_and_comments", 0x13F8, "480510000000", "48050c000000"),
+    ("lexer_skip_whitespace_and_comments", 0x1407, "480510000000", "48050c000000"),
+    ("lexer_skip_whitespace_and_comments", 0x1453, "480510000000", "48050c000000"),
+    ("lexer_skip_whitespace_and_comments", 0x1462, "480510000000", "48050c000000"),
 ]
+
 
 
 def pe_file_off(data: bytes, va: int) -> int:
@@ -80,13 +111,66 @@ def pe_file_off(data: bytes, va: int) -> int:
 def load_syms(exe: Path, image_base: int) -> dict[str, int]:
     out = subprocess.check_output(["nm", str(exe)], text=True, errors="replace")
     syms: dict[str, int] = {}
+    kinds: dict[str, str] = {}
     for line in out.splitlines():
         parts = line.split()
         if len(parts) >= 3 and parts[1] in "TtWw":
+            name = parts[2]
+            kind = parts[1]
             v = int(parts[0], 16)
-            syms[parts[2]] = v if v > image_base else image_base + v
+            va = v if v > image_base else image_base + v
+            # Prefer strong text (T/t) over weak (W/w) aliases.
+            if name in kinds and kinds[name] in "Tt" and kind in "Ww":
+                continue
+            syms[name] = va
+            kinds[name] = kind
     return syms
 
+
+
+
+# DIG 2026-11-09f/g hello import-const: collect CONST ebx + STRING tok +
+# validate hollow + modcollect Fat* ABI + bound_check 7th/8th args.
+HELLO_IMPORT_PATCHES = [
+    ("parser_asm_collect_imports_into_c", 0x374,
+     "b80300000039c3", "8b5db083fb0390"),
+    ("parser_asm_collect_imports_into_c", 0x45C, "4898", "89c3"),
+    ("lexer_next_body_into", 0x62A, "48898550f2ffff", "488945b8909090"),
+    ("lexer_next_body_into", 0x635, "480510000000", "48050c000000"),
+    ("lexer_next_body_into", 0x63F, "48898548f2ffff", "488945b0909090"),
+    ("lexer_next_body_into", 0x665, "48898558f2ffff", "488945a8909090"),
+    ("lexer_next_body_into", 0x159D, "898308000000", "898304000000"),
+    ("lexer_next_body_into", 0x15AB, "898310000000", "898308000000"),
+    ("lexer_next_body_into", 0x15E8, "898330000000", "898328000000"),
+    ("parser_asm_stretch_import_path_validate_c", 0x1A, "b800000000", "b801000000"),
+    ("xlang_module_collect_imports_from_buf", 0x231,
+     "488b85b0feffff4889c2488b85a8feffff4889c1488b8588feffff4989c0488b8568feffff4989c1488b8548feffff4889442420488b8528feffff4889442428",
+     "488d8da8feffff488b9588feffff4c8b8568feffff4c8b8d48feffff488b8528feffff4889442420" + ("90" * 24)),
+    ("xlang_generic_bound_check_into_c", 0x38,
+     "b800000000488945a8b800000000488945a0",
+     "488b4540488945c0488b4548488945b89090"),
+]
+
+# DIG 2026-11-09 block-comment depth: loop read -0x40 never set; use global nest
+BLKDEPTH_PATCHES = [
+    ("lexer_skip_whitespace_and_comments", 0x727,
+     "488d1d8670d609488903", "8945c04889058370d609"),
+    ("lexer_skip_whitespace_and_comments", 0x759,
+     "488b45c048984889c3", "8b055570d60989c390"),
+    ("lexer_skip_whitespace_and_comments", 0x1030,
+     "488b45c048984889c3", "8b057e67d60989c390"),
+]
+
+
+# DIG 2026-11-09c float no-exp emit: write_tok source -0x9a8 -> -0xe08
+FLOAT_SLOT_PATCHES = [
+    ("lexer_next_body_into", 0x5916, "488d8558f6ffff", "488d85f8f1ffff"),
+    ("lexer_next_body_into", 0x5927, "488d8558f6ffff", "488d85f8f1ffff"),
+    ("lexer_next_body_into", 0x593e, "488d8558f6ffff", "488d85f8f1ffff"),
+    ("lexer_next_body_into", 0x5955, "488d8558f6ffff", "488d85f8f1ffff"),
+    ("lexer_next_body_into", 0x596c, "488d8558f6ffff", "488d85f8f1ffff"),
+    ("lexer_next_body_into", 0x5983, "488d8558f6ffff", "488d85f8f1ffff"),
+]
 
 def main() -> int:
     if len(sys.argv) != 2:
@@ -110,7 +194,8 @@ def main() -> int:
         return 1
     applied = 0
     skipped = 0
-    for name, off, old_h, new_h in PATCHES:
+    all_patches = PATCHES + HELLO_IMPORT_PATCHES + BLKDEPTH_PATCHES + FLOAT_SLOT_PATCHES
+    for name, off, old_h, new_h in all_patches:
         if name not in syms:
             print(f"skip {name}: no symbol", file=sys.stderr)
             skipped += 1
