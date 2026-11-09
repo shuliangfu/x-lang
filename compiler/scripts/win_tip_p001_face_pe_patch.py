@@ -172,6 +172,66 @@ FLOAT_SLOT_PATCHES = [
     ("lexer_next_body_into", 0x5983, "488d8558f6ffff", "488d85f8f1ffff"),
 ]
 
+
+def _i32(x: int) -> bytes:
+    return struct.pack("<i", x)
+
+
+def apply_blkdepth_rip(data: bytearray, syms: dict[str, int], image_base: int) -> tuple[int, int]:
+    """Rewrite block-comment nest PE using live RIP (cold tip drift-safe).
+
+    DIG: tip loop read -0x40 never set; use .bss nest global instead.
+    Site+0x727 stores nest; +0x759/+0x1030 load nest. RIP displ changes per tip.
+    """
+    name = "lexer_skip_whitespace_and_comments"
+    if name not in syms:
+        print(f"skip {name}: no symbol", file=sys.stderr)
+        return 0, 1
+    base = syms[name]
+    applied = skipped = 0
+
+    off727 = 0x727
+    va727 = base + off727
+    f727 = pe_file_off(bytes(data), va727)
+    cur727 = bytes(data[f727 : f727 + 10])
+    new727_prefix = bytes.fromhex("8945c0488905")
+    if cur727.startswith(new727_prefix) and len(cur727) == 10:
+        print(f"ok {name}+{off727:#x}: already patched", file=sys.stderr)
+        skipped += 1
+        displ = struct.unpack_from("<i", cur727, 6)[0]
+        nest_va = va727 + 10 + displ
+    elif cur727[:3] == bytes.fromhex("488d1d") and cur727[7:10] == bytes.fromhex("488903"):
+        displ = struct.unpack_from("<i", cur727, 3)[0]
+        nest_va = va727 + 7 + displ
+        new_displ = nest_va - (va727 + 10)
+        newb = new727_prefix + _i32(new_displ)
+        data[f727 : f727 + 10] = newb
+        print(f"patch {name}+{off727:#x}: blkdepth store rip -> nest@{nest_va:#x}", file=sys.stderr)
+        applied += 1
+    else:
+        print(f"FAIL {name}+{off727:#x}: got {cur727.hex()} (blkdepth store)", file=sys.stderr)
+        raise SystemExit(1)
+
+    for off, tag in ((0x759, "loadA"), (0x1030, "loadB")):
+        va = base + off
+        foff = pe_file_off(bytes(data), va)
+        cur = bytes(data[foff : foff + 9])
+        if cur[:2] == bytes.fromhex("8b05") and cur[6:9] == bytes.fromhex("89c390"):
+            print(f"ok {name}+{off:#x}: already patched", file=sys.stderr)
+            skipped += 1
+            continue
+        old = bytes.fromhex("488b45c048984889c3")
+        if cur != old:
+            print(f"FAIL {name}+{off:#x}: got {cur.hex()} want {old.hex()} (blkdepth {tag})", file=sys.stderr)
+            raise SystemExit(1)
+        new_displ = nest_va - (va + 6)
+        newb = bytes.fromhex("8b05") + _i32(new_displ) + bytes.fromhex("89c390")
+        data[foff : foff + 9] = newb
+        print(f"patch {name}+{off:#x}: blkdepth {tag} rip -> nest@{nest_va:#x}", file=sys.stderr)
+        applied += 1
+    return applied, skipped
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print(f"usage: {sys.argv[0]} <xlang.exe>", file=sys.stderr)
@@ -194,7 +254,13 @@ def main() -> int:
         return 1
     applied = 0
     skipped = 0
-    all_patches = PATCHES + HELLO_IMPORT_PATCHES + BLKDEPTH_PATCHES + FLOAT_SLOT_PATCHES
+    try:
+        a, s = apply_blkdepth_rip(data, syms, image_base)
+        applied += a
+        skipped += s
+    except SystemExit:
+        return 1
+    all_patches = PATCHES + HELLO_IMPORT_PATCHES + FLOAT_SLOT_PATCHES
     for name, off, old_h, new_h in all_patches:
         if name not in syms:
             print(f"skip {name}: no symbol", file=sys.stderr)
