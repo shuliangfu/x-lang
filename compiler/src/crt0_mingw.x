@@ -28,7 +28,7 @@
 // regeneration lane is host-portable.
 
 /** runtime_abi trampoline into main.x's main_entry (argc/argv pass through). */
-export extern function xlang_forward_main_to_main_entry(argc: i32, argv: **u8): i32;
+export extern function xlang_forward_main_to_main_entry(argc: i32, argv: *u8): i32;
 
 /**
  * PE link entry: equivalent to main.c but dedicated to Windows-host
@@ -39,9 +39,12 @@ export extern function xlang_forward_main_to_main_entry(argc: i32, argv: **u8): 
  * @return i32 — main_entry's exit code
  * PLATFORM: WINDOWS|MINGW.
  */
-function main(argc: i32, argv: **u8): i32 {
+export function main(argc: i32, argv: *u8): i32 {
+  /* Tip Win monofile: **u8 in signatures yields P001 no functions. Product
+   * cc_inc_tu lane still rewrites emitted C main to char**. PLATFORM: WINDOWS|MINGW. */
+  let rc: i32 = 0;
   unsafe {
-    return xlang_forward_main_to_main_entry(argc, argv);
+    rc = xlang_forward_main_to_main_entry(argc, argv);
   }
-  return 0;
+  return rc;
 }
