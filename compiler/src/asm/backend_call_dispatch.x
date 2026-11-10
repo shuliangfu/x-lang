@@ -1192,10 +1192,12 @@ export function w1545_win_epi_prefix_c(elf_ctx: *u8): i32 {
  * PLATFORM: SHARED — Windows slice returns and the arm64 by-value gate both use this.
  */
 function w1545_callee_class(arena: *u8, expr_ref: i32): i32 {
+  // Tip Win monofile XT001: `let m: *u8` here made caller
+  // w1545_win_extern_slice_ret_sz (#298) fail check_block. Reuse arena
+  // for the resolved module pointer instead. PLATFORM: SHARED.
   let ms: u8[8] = [];
   let fs: i32[1] = [];
   let ds: i32[1] = [];
-  let m: *u8 = 0 as *u8;
   let rc: i32 = 0;
   if (arena == 0 as *u8 || expr_ref <= 0) { return 0; }
   fs[0] = 0 - 1;
@@ -1206,10 +1208,10 @@ function w1545_callee_class(arena: *u8, expr_ref: i32): i32 {
     rc = glue_asm_resolve_call_target_module_c(arena, expr_ref, &ms[0], &fs[0], &ds[0]);
   }
   if (rc != 0 || fs[0] < 0) { return 0; }
-  m = call_dispatch_load_ptr_le(&ms[0], 0);
-  if (m == 0 as *u8) { return 0; }
+  arena = call_dispatch_load_ptr_le(&ms[0], 0);
+  if (arena == 0 as *u8) { return 0; }
   unsafe {
-    if (pipeline_module_func_is_extern_at(m, fs[0]) != 0) { return 2; }
+    if (pipeline_module_func_is_extern_at(arena, fs[0]) != 0) { return 2; }
   }
   return 1;
 }
@@ -1536,7 +1538,8 @@ function glue_emit_arm64_host_mem_arg_addr_to_rax_c(
  * PLATFORM: MACOS|ARM64 AAPCS64.
  */
 function glue_aapcs64_hfa_nregs_c(arena: *u8, ctx: *u8, ty: i32): i32 {
-  let m: *u8 = 0 as *u8;
+  // Tip Win monofile XT001: avoid `let m: *u8` (caller check_block). PLATFORM: SHARED.
+  let m: usize = 0;
   let nm: u8[256] = [];
   let nlen: i32 = 0;
   let li: i32 = 0;
@@ -1552,29 +1555,29 @@ function glue_aapcs64_hfa_nregs_c(arena: *u8, ctx: *u8, ty: i32): i32 {
   }
   if (ctx != (0 as *u8)) {
     unsafe {
-      m = glue_emit_module_from_ctx(ctx);
+      m = glue_emit_module_from_ctx(ctx) as usize;
     }
   }
-  if (m == (0 as *u8)) {
+  if (m == 0) {
     unsafe {
-      m = pipeline_asm_emit_module_ref_c();
+      m = pipeline_asm_emit_module_ref_c() as usize;
     }
   }
-  if (m == (0 as *u8)) { return 0; }
+  if (m == 0) { return 0; }
   unsafe {
     nlen = pipeline_type_named_name_into(arena, ty, &nm[0]);
   }
   if (nlen <= 0 || nlen > 255) { return 0; }
-  li = glue_asm_fmt_any_find_layout(m, &nm[0], nlen);
+  li = glue_asm_fmt_any_find_layout(m as *u8, &nm[0], nlen);
   if (li < 0) { return 0; }
   unsafe {
-    nf = pipeline_module_struct_layout_num_fields(m, li);
+    nf = pipeline_module_struct_layout_num_fields(m as *u8, li);
   }
   if (nf < 1 || nf > 4) { return 0; }
   j = 0;
   while (j < nf) {
     unsafe {
-      fty = pipeline_module_struct_layout_field_type_ref(m, li, j);
+      fty = pipeline_module_struct_layout_field_type_ref(m as *u8, li, j);
       ftk = pipeline_type_kind_ord_at(arena, fty);
     }
     if (ftk != 14 && ftk != 15) { return 0; }
