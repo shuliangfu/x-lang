@@ -5398,7 +5398,11 @@ export function lexer_next_buf_into(out: *LexerResult, lex: Lexer, data: *u8, le
       let nl: usize = (n as usize);
       memcpy((&sl as *u8) + (8 as usize), (&nl as *u8), (8 as usize));
     }
-    lexer_next_into(out, lex, sl);
+    // Win tip: call impl directly — lexer_next_into dual-ABI cave
+    // (rdx>=0x10000⇒pointer) misclassifies by-value once pos>=64KiB on
+    // large monofiles (backend_call_dispatch SEGV). buf_into already has
+    // by-value Lex + Fat. PLATFORM: SHARED.
+    lexer_next_impl(out, lex, sl);
   }
 }
 
