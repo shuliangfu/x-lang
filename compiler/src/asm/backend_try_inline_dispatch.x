@@ -438,11 +438,11 @@ export function asm_local_var_slot_holds_indirect_ptr(arena: *u8, expr_ref: i32,
  */
 #[no_mangle]
 export function glue_local_var_slot_holds_indirect_ptr(arena: *u8, er: i32, asm_ctx: *u8): i32 {
-  let mod_ref: *u8 = 0 as *u8;
+  let mod_ref_u: usize = 0;
   if (asm_ctx != 0) {
-    mod_ref = g02f_load_ptr_at(asm_ctx, 16);
+    mod_ref_u = g02f_load_ptr_at(asm_ctx, 16) as usize;
   }
-  return asm_local_var_slot_holds_indirect_ptr(arena, er, mod_ref, asm_ctx);
+  return asm_local_var_slot_holds_indirect_ptr(arena, er, mod_ref_u as *u8, asm_ctx);
 }
 
 // glue_expr_is_func_param_at: see function docblock below.
@@ -2070,8 +2070,8 @@ export function try_inline_var_field_sum_binop_elf(
       pctx = pipeline_asm_emit_dep_pipe_c();
     }
     if (pctx == 0) { return 0; }
-    let off_a: i32 = 0 - 1;
-    let off_b: i32 = 0 - 1;
+    let off_a: i32 = (0 - 1);
+    let off_b: i32 = (0 - 1);
     let nd: i32 = pipeline_dep_ctx_ndep(pctx);
     let di: i32 = 0;
     while (di < nd) {

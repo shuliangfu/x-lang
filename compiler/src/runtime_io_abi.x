@@ -661,11 +661,11 @@ export function xlang_read_fd_into_buf_impl(fd: i32, buf: *u8, cap: i64): i32 {
 #[no_mangle]
 export function xlang_runtime_file_view_read_malloc_impl(fd: i32, size: i64, out: *u8): i32 {
   let size_u: usize = size as usize;
-  let buf: *u8 = 0 as *u8;
+  let buf_u: usize = 0;
   unsafe {
-    buf = malloc(size_u + 1);
+    buf_u = malloc(size_u + 1) as usize;
   }
-  if (buf == 0 as *u8) {
+  if (buf_u == 0) {
     unsafe {
       close(fd);
     }
@@ -674,9 +674,9 @@ export function xlang_runtime_file_view_read_malloc_impl(fd: i32, size: i64, out
   let off: usize = 0 as usize;
   while (off < size_u) {
     unsafe {
-      let n: isize = xlang_sys_read(fd, buf + off, size_u - off);
+      let n: isize = xlang_sys_read(fd, (buf_u as *u8) + off, size_u - off);
       if (n < 0) {
-        free(buf);
+        free(buf_u as *u8);
         close(fd);
         return -1;
       }
@@ -691,15 +691,15 @@ export function xlang_runtime_file_view_read_malloc_impl(fd: i32, size: i64, out
   }
   if (off != size_u) {
     unsafe {
-      free(buf);
+      free(buf_u as *u8);
     }
     return -1;
   }
   // buf[size] = '\0' — via write_u8_at (10.46 hoist fix)
-  write_u8_at(buf, size_u, 0);
+  write_u8_at(buf_u as *u8, size_u, 0);
   // See implementation.
   let out_view: *XlangRuntimeFileView = out as *XlangRuntimeFileView;
-  out_view.data = buf;
+  out_view.data = buf_u as *u8;
   out_view.length = size_u;
   out_view.needs_free = 1;
   out_view.needs_munmap = 0;
@@ -724,27 +724,27 @@ export function runtime_read_file_malloc_impl(path: *u8, out_len: *u8): *u8 {
   if (view_rc != 0) {
     return 0 as *u8;
   }
-  let buf: *u8 = 0 as *u8;
+  let buf_u: usize = 0;
   unsafe {
-    buf = malloc(view.length + 1);
+    buf_u = malloc(view.length + 1) as usize;
   }
-  if (buf == 0 as *u8) {
+  if (buf_u == 0) {
     runtime_release_file_view(&view as *u8);
     return 0 as *u8;
   }
   if (view.length > 0) {
     unsafe {
-      memcpy(buf, view.data, view.length);
+      memcpy(buf_u as *u8, view.data, view.length);
     }
   }
   // buf[view.length] = '\0' — via write_u8_at (10.46 hoist fix)
-  write_u8_at(buf, view.length, 0);
+  write_u8_at(buf_u as *u8, view.length, 0);
   if (out_len != 0 as *u8) {
     let out_len_ptr: *usize = out_len as *usize;
     out_len_ptr[0] = view.length;
   }
   runtime_release_file_view(&view as *u8);
-  return buf;
+  return buf_u as *u8;
 }
 
 /** Exported function `xlang_read_file_into_path_impl`.

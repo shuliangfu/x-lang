@@ -258,7 +258,7 @@ export function backend_enc_x86_64_load_rax_rbx_disp32_c(elf_ctx: *u8, dst_reg: 
     if (base_reg >= 8) { rex = rex + 1; }
     if (backend_enc_append_u8_c(elf_ctx, rex) != 0) { return 0 - 1; }
     if (backend_enc_append_u8_c(elf_ctx, 139) != 0) { return 0 - 1; }
-    let modrm: i32 = 128 + ((dst_reg & 7) * 8) + (base_reg & 7);
+    let modrm: i32 = (128 + ((dst_reg & 7) * 8) + (base_reg & 7));
     if (backend_enc_append_u8_c(elf_ctx, modrm) != 0) { return 0 - 1; }
     /* SIB required when r/m is rsp/r12 (encoding 4). */
     if ((base_reg & 7) == 4) {
@@ -1256,7 +1256,7 @@ export function backend_enc_cmp_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
 #[no_mangle]
 export function backend_enc_cmp_setcc_movzbl_arch(elf_ctx: *u8, cc: i32, ta: i32): i32 {
   /* setcc/cset writes w0/eax — drop stale VAR-in-rax (w2060 T001). PLATFORM: SHARED. */
-  let rc: i32 = 0 - 1;
+  let rc: i32 = (0 - 1);
   unsafe {
     if (ta == 1) { rc = arch_arm64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc); }
     else if (ta == 2) { rc = arch_riscv64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc); }
@@ -2294,7 +2294,7 @@ export function backend_enc_load_rbp_to_rbx_arch(elf_ctx: *u8, offset: i32, ta: 
   if (ta == 2) { return arch_riscv64_enc_enc_load_rbp_to_rbx(elf_ctx, offset); }
   if (elf_ctx == 0) { return 0 - 1; }
   unsafe {
-    let disp: i32 = 0 - offset;
+    let disp: i32 = (0 - offset);
     let u: u32 = disp as u32;
     let b: u8[7] = [];
     if (disp >= 0 - 128) {
@@ -2333,7 +2333,7 @@ export function backend_enc_store_eax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta:
   if (ta != 0) { return 0 - 1; }
   if (elf_ctx == 0) { return 0 - 1; }
   unsafe {
-    let disp: i32 = 0 - offset;
+    let disp: i32 = (0 - offset);
     let u: u32 = disp as u32;
     let b: u8[7] = [];
     if (disp >= 0 - 128) {
