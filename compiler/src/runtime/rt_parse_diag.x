@@ -572,7 +572,7 @@ export function rt_rec_top_const(src: *u8, s: *i32, depth: *i32): i32 {
         return -1;
       }
       if (cr[0] != 15) {
-        rt_rec_fail(cr[2], cr[3], "expected const x = import(\"path\")");
+        rt_rec_fail(cr[2], cr[3], "expected const x = import('path')");
         rt_rec_rewind(s, &cr[0]);
         rt_rec_recover_to_top_start(src, s);
         return 1;
@@ -582,7 +582,7 @@ export function rt_rec_top_const(src: *u8, s: *i32, depth: *i32): i32 {
           break;
         }
         if (rt_rec_is_top_start(&cx[0]) != 0) {
-          rt_rec_fail(cx[2], cx[3], "expected ';' after const x = import(\"path\")");
+          rt_rec_fail(cx[2], cx[3], "expected ';' after const x = import('path')");
           rt_rec_rewind(s, &cx[0]);
           return 1;
         }
