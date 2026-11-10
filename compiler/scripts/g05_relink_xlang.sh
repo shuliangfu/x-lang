@@ -1278,6 +1278,25 @@ esac
 # PLATFORM: MACOS needs it; SHARED harmless.
 _g05_cp_fresh() {
   [ "$1" = "$2" ] && return 0
+  # Windows MinGW: after -o xlang materializes as xlang.exe, the bare
+  # name and the .exe name are the same file. A string compare misses
+  # that; rm -f would be unsafe, and `cp -f xlang.exe xlang` exits 1
+  # ("are the same file") under set -e, so later xlang-c.exe sync never
+  # runs (DIG 2026-11-10, formal L4 @ de6a59418). PLATFORM: WINDOWS.
+  case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+      if [ "$1" = "$2.exe" ] || [ "$2" = "$1.exe" ]; then
+        return 0
+      fi
+      ;;
+  esac
+  if [ -e "$1" ] && [ -e "$2" ]; then
+    _g05_i1=$(ls -i "$1" 2>/dev/null | awk '{print $1; exit}') || true
+    _g05_i2=$(ls -i "$2" 2>/dev/null | awk '{print $1; exit}') || true
+    if [ -n "$_g05_i1" ] && [ "$_g05_i1" = "$_g05_i2" ]; then
+      return 0
+    fi
+  fi
   rm -f "$2"
   cp -f "$1" "$2"
 }
