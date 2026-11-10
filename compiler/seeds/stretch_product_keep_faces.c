@@ -1,5 +1,5 @@
 /* 10.22: Class BX omit-rest drops product_keep; restore live stretch helpers.
- * Layout matches seeds/pthin_stretch.from_x.c. PLATFORM: LINUX. */
+ * Layout matches seeds/pthin_stretch.from_x.c. PLATFORM: LINUX|WINDOWS. */
 #include <stddef.h>
 #include <stdint.h>
 #include "token.h"

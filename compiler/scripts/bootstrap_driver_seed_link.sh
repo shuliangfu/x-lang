@@ -283,15 +283,19 @@ EOF_NA_C
   fi
 fi
 
-# 10.22 follow: Linux tip-cold phase1 pure-ld of parser_asm_thin_glue.o UNDEFs
+# 10.22 follow: tip-cold phase1 of parser_asm_thin_glue.o UNDEFs
 # parser_asm_stretch_* (is_type_start / skip_balanced / skip_type_suffix /
-# skip_one_param). Those T live in stretch_product_keep_faces.o (g05 tip-peel
-# only). Prepend when thin_glue is on the phase1 catalog. PLATFORM: LINUX.
+# skip_one_param) when omit-rest drops product_keep. Those T live in
+# stretch_product_keep_faces.o (official product_keep.inc live helpers).
+# Linux g05 tip-peel already prepends this; Windows seed phase1 did not,
+# so L4@1906d1c0f phase1 CC residual failed collect2. Darwin fat thin_glue
+# already has the T faces — leave Darwin alone. Prepend when thin_glue is
+# on the catalog. PLATFORM: LINUX|WINDOWS.
 _STFACES=build_asm/selfhost_pabi/stretch_product_keep_faces.o
 case " $SEED_LINK_OBJS " in
   *" parser_asm_thin_glue.o "*|*"parser_asm_thin_glue.o "*)
     case "$(uname -s 2>/dev/null)" in
-      Linux)
+      Linux|Windows_NT*|MINGW*|MSYS*|CYGWIN*)
         if [ ! -s "$_STFACES" ] && [ -f seeds/stretch_product_keep_faces.c ]; then
           mkdir -p build_asm/selfhost_pabi
           ${CC:-cc} -Wall -O2 -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm             -c -o "$_STFACES" seeds/stretch_product_keep_faces.c             2>/tmp/phase1_stfaces.err || true
@@ -307,6 +311,33 @@ case " $SEED_LINK_OBJS " in
         fi
         ;;
     esac
+    ;;
+esac
+
+# PLATFORM: WINDOWS — Darwin/Linux phase1 hollow defines lexer_src_*_store;
+# win_phase1_hollow_fill does not. Official bodies are
+# src/runtime/rt_lexer_src_store_win_fix.c (*out = parked), already used by
+# g05 Win driver leaves, but seed phase1 did not prepend them, so
+# lexer_x_trackl_abi.o + thin_glue left U/w lexer_src_*_store at L4@1906d1c0f.
+# Do not use pthin_stretch_win_stubs.x (those stores are no-ops).
+_LEXSRC_FIX=src/runtime/rt_lexer_src_store_win_fix.o
+_LEXSRC_SRC=src/runtime/rt_lexer_src_store_win_fix.c
+case "$(uname -s 2>/dev/null)" in
+  Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+    if [ -f "$_LEXSRC_SRC" ]; then
+      if [ ! -s "$_LEXSRC_FIX" ] || [ "$_LEXSRC_SRC" -nt "$_LEXSRC_FIX" ]; then
+        ${CC:-gcc} -std=c11 -O0 -g -I. -Iinclude -Isrc           -c -o "$_LEXSRC_FIX" "$_LEXSRC_SRC" 2>/tmp/phase1_lexsrc_fix.err || true
+      fi
+      if [ -s "$_LEXSRC_FIX" ]         && nm "$_LEXSRC_FIX" 2>/dev/null | grep -qE " T [_]?lexer_src_data_store$"; then
+        case " $SEED_LINK_OBJS " in
+          *" $_LEXSRC_FIX "*|*" rt_lexer_src_store_win_fix.o "*|*"src/runtime/rt_lexer_src_store_win_fix.o "*) ;;
+          *)
+            SEED_LINK_OBJS="$_LEXSRC_FIX $SEED_LINK_OBJS"
+            note "phase1 prepended rt_lexer_src_store_win_fix.o (lexer_src_*_store for thin_glue/lexer abi)"
+            ;;
+        esac
+      fi
+    fi
     ;;
 esac
 

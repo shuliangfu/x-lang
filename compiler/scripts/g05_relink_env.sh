@@ -8448,6 +8448,26 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
         echo "g05_relink_env: Win lexer_src_store fix → G05 (before pe.s/no_c)" >&2
       fi
     fi
+    # 10.22: Class BX omit-rest drops stretch product_keep faces from Win
+    # thin_glue (same hole as Linux tip-peel). Host-cc official
+    # seeds/stretch_product_keep_faces.c (product_keep.inc live helpers).
+    # PE --allow-multiple-definition first-wins over thin_glue's
+    # labi_pthin_stretch_suite_slice_marker. Do not use pthin_stretch_win_stubs.
+    # PLATFORM: WINDOWS.
+    _stfaces=build_asm/selfhost_pabi/stretch_product_keep_faces.o
+    _stfaces_src=seeds/stretch_product_keep_faces.c
+    if [ -f "$_stfaces_src" ]; then
+      mkdir -p build_asm/selfhost_pabi
+      if [ ! -s "$_stfaces" ] || [ "$_stfaces_src" -nt "$_stfaces" ]; then
+        ${CC:-gcc} -Wall -O2 -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
+          -c -o "$_stfaces" "$_stfaces_src" 2>/tmp/g05_win_stretch_faces.err || true
+      fi
+      if [ -s "$_stfaces" ] \
+        && nm "$_stfaces" 2>/dev/null | grep -qE "T _*parser_asm_stretch_is_type_start_kind_c$"; then
+        _PABI_WIN_DRIVER_LEAVES="$_stfaces $_PABI_WIN_DRIVER_LEAVES"
+        echo "g05_relink_env: Win stretch product_keep faces → G05 (before thin_glue)" >&2
+      fi
+    fi
     # Host-cc lexer_init out-ptr: hollow TAIL was xor/ret; tip writes *out.
     _lexinit_fix=src/runtime/rt_lexer_init_win_fix.o
     _lexinit_src=src/runtime/rt_lexer_init_win_fix.c
