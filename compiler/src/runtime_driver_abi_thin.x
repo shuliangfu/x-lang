@@ -1366,7 +1366,9 @@ export function driver_defines_set_at(defines: *u8, i: i32, s: *u8): void {
  */
 #[no_mangle]
 export function driver_stack_limit_want_bytes(): i64 {
-  let def: i64 = 512 as i64 * 1024 as i64 * 1024 as i64;
+  // Tip Win monofile XT001: lit-left let init needs outer parens (caller
+  // driver_bump_stack_limit was mis-blamed #115). PLATFORM: SHARED.
+  let def: i64 = ((512 as i64) * (1024 as i64) * (1024 as i64));
   unsafe {
     let e: *u8 = link_abi_getenv("XLANG_STACK_LIMIT_MB");
     if (e == 0 as *u8) {
@@ -3235,7 +3237,8 @@ function driver_abi_load_usize_le(p: *u8, off: i32): usize {
     return 0 as usize;
   }
   unsafe {
-    let m: usize = 256 as usize;
+    // Tip Win monofile: bare lit-as let RHS needs parens (size_table_get #228).
+    let m: usize = (256 as usize);
     let m2: usize = m * m;
     let m4: usize = m2 * m2;
     let a0: usize = p[off] as usize;
@@ -3269,8 +3272,9 @@ function driver_abi_store_usize_le(p: *u8, off: i32, v: usize): void {
   }
   unsafe {
     // Same successive /256 + low-byte extract pattern as wave14 i32 LE store (no % op).
-    let m: usize = 256 as usize;
-    let b255: usize = 255 as usize;
+    // Tip Win monofile: bare lit-as let RHS needs parens (size_table_get #228).
+    let m: usize = (256 as usize);
+    let b255: usize = (255 as usize);
     let u0: usize = v;
     p[off] = (u0 & b255) as u8;
     let u1: usize = u0 / m;
