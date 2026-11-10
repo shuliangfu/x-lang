@@ -151,11 +151,11 @@ export function x86_enc_append_i32_le(elf_ctx: *u8, v: i32): i32 {
  */
 #[no_mangle]
 export function x86_enc_movq_from_rbp_neg(elf_ctx: *u8, offset: i32, disp8_modrm: u8, disp32_modrm: u8): i32 {
-  let disp: i32 = 0 - offset;
+  let disp: i32 = (0 - offset);
   let r64: u8 = 72;
   let op: u8 = 139; // 0x8B
-  if (disp >= 0 - 128 && disp <= 0 - 1) {
-    let d8: u8 = disp as u8;
+  if (disp >= (0 - 128) && disp <= (0 - 1)) {
+    let d8: u8 = (disp as u8);
     unsafe {
       if (pipeline_elf_ctx_append_bytes(elf_ctx, &r64, 1) != 0) { return 0 - 1; }
       if (pipeline_elf_ctx_append_bytes(elf_ctx, &op, 1) != 0) { return 0 - 1; }
@@ -182,11 +182,11 @@ export function x86_enc_movq_from_rbp_neg(elf_ctx: *u8, offset: i32, disp8_modrm
  */
 #[no_mangle]
 export function x86_enc_lea_from_rbp_neg(elf_ctx: *u8, offset: i32, disp8_modrm: u8, disp32_modrm: u8): i32 {
-  let disp: i32 = 0 - offset;
+  let disp: i32 = (0 - offset);
   let r64: u8 = 72;
   let op: u8 = 141; // 0x8D
-  if (disp >= 0 - 128 && disp <= 0 - 1) {
-    let d8: u8 = disp as u8;
+  if (disp >= (0 - 128) && disp <= (0 - 1)) {
+    let d8: u8 = (disp as u8);
     unsafe {
       if (pipeline_elf_ctx_append_bytes(elf_ctx, &r64, 1) != 0) { return 0 - 1; }
       if (pipeline_elf_ctx_append_bytes(elf_ctx, &op, 1) != 0) { return 0 - 1; }
@@ -213,10 +213,10 @@ export function x86_enc_lea_from_rbp_neg(elf_ctx: *u8, offset: i32, disp8_modrm:
  */
 #[no_mangle]
 export function x86_enc_movl_from_rbp_neg32(elf_ctx: *u8, offset: i32, disp8_modrm: u8, disp32_modrm: u8): i32 {
-  let disp: i32 = 0 - offset;
+  let disp: i32 = (0 - offset);
   let op: u8 = 139; // 0x8B
-  if (disp >= 0 - 128 && disp <= 0 - 1) {
-    let d8: u8 = disp as u8;
+  if (disp >= (0 - 128) && disp <= (0 - 1)) {
+    let d8: u8 = (disp as u8);
     unsafe {
       if (pipeline_elf_ctx_append_bytes(elf_ctx, &op, 1) != 0) { return 0 - 1; }
       if (pipeline_elf_ctx_append_bytes(elf_ctx, &disp8_modrm, 1) != 0) { return 0 - 1; }
@@ -239,12 +239,12 @@ export function x86_enc_movl_from_rbp_neg32(elf_ctx: *u8, offset: i32, disp8_mod
  */
 #[no_mangle]
 export function x86_enc_store_rax_to_rbp_neg(elf_ctx: *u8, offset: i32): i32 {
-  let disp: i32 = 0 - offset;
+  let disp: i32 = (0 - offset);
   let r64: u8 = 72;
   let op: u8 = 137; // 0x89
-  if (disp >= 0 - 128 && disp <= 0 - 1) {
+  if (disp >= (0 - 128) && disp <= (0 - 1)) {
     let modrm: u8 = 69; // 0x45
-    let d8: u8 = disp as u8;
+    let d8: u8 = (disp as u8);
     unsafe {
       if (pipeline_elf_ctx_append_bytes(elf_ctx, &r64, 1) != 0) { return 0 - 1; }
       if (pipeline_elf_ctx_append_bytes(elf_ctx, &op, 1) != 0) { return 0 - 1; }
@@ -274,14 +274,14 @@ export function x86_enc_store_rax_to_rbp_neg(elf_ctx: *u8, offset: i32): i32 {
 export function x86_enc_store_r64_to_rbp_neg(elf_ctx: *u8, reg: i32, offset: i32): i32 {
   if (elf_ctx == 0 as *u8) { return 0 - 1; }
   if (reg < 0 || reg > 15) { return 0 - 1; }
-  let disp: i32 = 0 - offset;
+  let disp: i32 = (0 - offset);
   let rex: u8 = 72;
   if (reg >= 8) { rex = 76; }
   let op: u8 = 137;
   let lo: i32 = reg & 7;
-  if (disp >= 0 - 128 && disp <= 0 - 1) {
+  if (disp >= (0 - 128) && disp <= (0 - 1)) {
     let modrm: u8 = (69 + lo * 8) as u8;
-    let d8: u8 = disp as u8;
+    let d8: u8 = (disp as u8);
     unsafe {
       if (pipeline_elf_ctx_append_bytes(elf_ctx, &rex, 1) != 0) { return 0 - 1; }
       if (pipeline_elf_ctx_append_bytes(elf_ctx, &op, 1) != 0) { return 0 - 1; }
@@ -307,12 +307,12 @@ export function x86_enc_store_r64_to_rbp_neg(elf_ctx: *u8, reg: i32, offset: i32
  */
 #[no_mangle]
 export function x86_enc_store_rdx_to_rbp_neg(elf_ctx: *u8, offset: i32): i32 {
-  let disp: i32 = 0 - offset;
+  let disp: i32 = (0 - offset);
   let r64: u8 = 72;
   let op: u8 = 137; // 0x89
-  if (disp >= 0 - 128 && disp <= 0 - 1) {
+  if (disp >= (0 - 128) && disp <= (0 - 1)) {
     let modrm: u8 = 85; // 0x55
-    let d8: u8 = disp as u8;
+    let d8: u8 = (disp as u8);
     unsafe {
       if (pipeline_elf_ctx_append_bytes(elf_ctx, &r64, 1) != 0) { return 0 - 1; }
       if (pipeline_elf_ctx_append_bytes(elf_ctx, &op, 1) != 0) { return 0 - 1; }
@@ -343,7 +343,7 @@ export function x86_enc_alu_imm32_to_reg(elf_ctx: *u8, imm: i32, op_prefix: u8, 
   if (imm == 0) { return 0; }
   if (imm >= 0 - 128 && imm <= 127) {
     let op83: u8 = 131; // 0x83
-    let d8: u8 = imm as u8;
+    let d8: u8 = (imm as u8);
     unsafe {
       if (pipeline_elf_ctx_append_bytes(elf_ctx, &op83, 1) != 0) { return 0 - 1; }
       if (pipeline_elf_ctx_append_bytes(elf_ctx, &reg_modrm, 1) != 0) { return 0 - 1; }

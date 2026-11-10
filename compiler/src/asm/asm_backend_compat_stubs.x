@@ -140,7 +140,7 @@ export function format_i32_to_buf(buf: *u8, off: i32, max: i32, val: i32): i32 {
   if (buf == 0 as *u8) { return 0 - 1; }
   if (max < 1) { return 0 - 1; }
   if (val < 0) {
-    let min_i32: i32 = 0 - 2147483647 - 1;
+    let min_i32: i32 = ((0 - 2147483647) - 1);
     if (val == min_i32) {
       if (max < 11) { return 0 - 1; }
       let s: *u8 = "-2147483648";

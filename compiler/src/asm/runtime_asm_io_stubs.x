@@ -1129,11 +1129,17 @@ export function std_io_unregister_provided(): void {
 #[no_mangle]
 export function std_io_read_stdin_ptr_slice(): RaisSliceU8 {
   let d: *u8 = io_read_ptr(0, 0);
-  if (d != 0 as *u8) {
-    let n: usize = g_rais_read_ptr_len[0] as usize;
-    return RaisSliceU8 { data: d, length: n };
+  if (d != (0 as *u8)) {
+    let n: usize = (g_rais_read_ptr_len[0] as usize);
+    let s: RaisSliceU8 = [];
+    s.data = d;
+    s.length = n;
+    return s;
   }
-  return RaisSliceU8 { data: d, length: 0 };
+  let z: RaisSliceU8 = [];
+  z.data = d;
+  z.length = (0 as usize);
+  return z;
 }
 
 /** io.stdin_slice. PLATFORM: SHARED */
@@ -1146,11 +1152,17 @@ export function std_io_stdin_slice(): RaisSliceU8 {
 #[no_mangle]
 export function std_io_read_ptr_slice(handle: usize, timeout_ms: u32): RaisSliceU8 {
   let d: *u8 = io_read_ptr(handle as u32, timeout_ms);
-  if (d != 0 as *u8) {
-    let n: usize = g_rais_read_ptr_len[0] as usize;
-    return RaisSliceU8 { data: d, length: n };
+  if (d != (0 as *u8)) {
+    let n: usize = (g_rais_read_ptr_len[0] as usize);
+    let s: RaisSliceU8 = [];
+    s.data = d;
+    s.length = n;
+    return s;
   }
-  return RaisSliceU8 { data: d, length: 0 };
+  let z: RaisSliceU8 = [];
+  z.data = d;
+  z.length = (0 as usize);
+  return z;
 }
 
 // ---- batch / uring / fixed / driver / backend stubs ----
