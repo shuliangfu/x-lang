@@ -29,9 +29,9 @@ export extern "C" function diag_report_with_code(
 
 /* See signature and body for contracts. */
 export let g_rt_diag_codes_ready: i32 = 0;
-export let g_rt_diag_io001: *u8 = 0 as *u8;
-export let g_rt_diag_prc001: *u8 = 0 as *u8;
-export let g_rt_diag_bld001: *u8 = 0 as *u8;
+export let g_rt_diag_io001: *u8 = (0 as *u8);
+export let g_rt_diag_prc001: *u8 = (0 as *u8);
+export let g_rt_diag_bld001: *u8 = (0 as *u8);
 
 /** Read the thread-local errno for Linux.
  * Calls libc `__errno_location` and returns `*p`, or 0 if the pointer is null.
@@ -40,12 +40,12 @@ export let g_rt_diag_bld001: *u8 = 0 as *u8;
 #[cfg(target_os = "linux")]
 #[no_mangle]
 export function rt_diag_get_errno(): i32 {
-  let p: *i32 = 0 as *i32;
+  let p: *i32 = (0 as *i32);
   // FFI: TLS errno lives behind a function pointer from libc.
   unsafe {
     p = __errno_location();
   }
-  if (p == 0 as *i32) {
+  if (p == (0 as *i32)) {
     return 0;
   }
   return p[0];
@@ -58,12 +58,12 @@ export function rt_diag_get_errno(): i32 {
 #[cfg(target_os = "macos")]
 #[no_mangle]
 export function rt_diag_get_errno(): i32 {
-  let p: *i32 = 0 as *i32;
+  let p: *i32 = (0 as *i32);
   // FFI: Darwin errno accessor (not __errno_location).
   unsafe {
     p = __error();
   }
-  if (p == 0 as *i32) {
+  if (p == (0 as *i32)) {
     return 0;
   }
   return p[0];
@@ -77,12 +77,12 @@ export function rt_diag_get_errno(): i32 {
 #[cfg(target_os = "windows")]
 #[no_mangle]
 export function rt_diag_get_errno(): i32 {
-  let p: *i32 = 0 as *i32;
+  let p: *i32 = (0 as *i32);
   // FFI: msvcrt errno accessor.
   unsafe {
     p = _errno();
   }
-  if (p == 0 as *i32) {
+  if (p == (0 as *i32)) {
     return 0;
   }
   return p[0];
@@ -96,30 +96,28 @@ export function rt_diag_get_errno(): i32 {
  * PLATFORM: SHARED — link-name contract; verify with mac + Ubuntu prove. */
 #[no_mangle]
 export function rt_diag_ensure_codes(): void {
-  let p: *u8 = 0 as *u8;
-  let ready_slot: *i32 = &g_rt_diag_codes_ready;
-  if (ready_slot[0] != 0) {
+  let p: *u8 = (0 as *u8);
+  if (g_rt_diag_codes_ready != 0) {
     return;
   }
   // "IO001" — I/O family diagnostic code.
   unsafe {
-    p = malloc(8 as usize);
+    p = malloc((8 as usize));
   }
-  if (p != 0 as *u8) {
+  if (p != (0 as *u8)) {
     p[0] = 73;
     p[1] = 79;
     p[2] = 48;
     p[3] = 48;
     p[4] = 49;
     p[5] = 0;
-    let io_slot: **u8 = &g_rt_diag_io001;
-    io_slot[0] = p;
+    g_rt_diag_io001 = p;
   }
   // "PRC001" — process family diagnostic code.
   unsafe {
-    p = malloc(8 as usize);
+    p = malloc((8 as usize));
   }
-  if (p != 0 as *u8) {
+  if (p != (0 as *u8)) {
     p[0] = 80;
     p[1] = 82;
     p[2] = 67;
@@ -127,14 +125,13 @@ export function rt_diag_ensure_codes(): void {
     p[4] = 48;
     p[5] = 49;
     p[6] = 0;
-    let prc_slot: **u8 = &g_rt_diag_prc001;
-    prc_slot[0] = p;
+    g_rt_diag_prc001 = p;
   }
   // "BLD001" — build family diagnostic code (default for unknown kinds).
   unsafe {
-    p = malloc(8 as usize);
+    p = malloc((8 as usize));
   }
-  if (p != 0 as *u8) {
+  if (p != (0 as *u8)) {
     p[0] = 66;
     p[1] = 76;
     p[2] = 68;
@@ -142,11 +139,11 @@ export function rt_diag_ensure_codes(): void {
     p[4] = 48;
     p[5] = 49;
     p[6] = 0;
-    let bld_slot: **u8 = &g_rt_diag_bld001;
-    bld_slot[0] = p;
+    g_rt_diag_bld001 = p;
   }
-  ready_slot[0] = 1;
+  g_rt_diag_codes_ready = 1;
 }
+
 
 /** Return the index of the first 0 in `dst`, or `cap` when none fits.
  * The pointer and the index are copied to locals before the subscript.
@@ -228,10 +225,10 @@ function rt_diag_append_body(dst: *u8, cap: i32, src: *u8): i32 {
  * The scans live in helpers so this frame does not store into the saved x19 slot. */
 #[no_mangle]
 export function rt_diag_append(dst: *u8, cap: i32, src: *u8): i32 {
-  if (dst == 0 as *u8) {
+  if (dst == (0 as *u8)) {
     return 0;
   }
-  if (src == 0 as *u8) {
+  if (src == (0 as *u8)) {
     return rt_diag_len_or_zero(dst, cap);
   }
   return rt_diag_append_body(dst, cap, src);
@@ -244,26 +241,24 @@ export function rt_diag_append(dst: *u8, cap: i32, src: *u8): i32 {
  */
 #[no_mangle]
 export function runtime_diag_code_for_kind(kind: *u8): *u8 {
-  let io_slot: **u8 = &g_rt_diag_io001;
-  let prc_slot: **u8 = &g_rt_diag_prc001;
-  let bld_slot: **u8 = &g_rt_diag_bld001;
   rt_diag_ensure_codes();
-  if (kind == 0 as *u8) {
-    return bld_slot[0];
+  if (kind == (0 as *u8)) {
+    return g_rt_diag_bld001;
   }
   unsafe {
     if (strcmp(kind, "io error") == 0) {
-      return io_slot[0];
+      return g_rt_diag_io001;
     }
     if (strcmp(kind, "process error") == 0) {
-      return prc_slot[0];
+      return g_rt_diag_prc001;
     }
     if (strcmp(kind, "build error") == 0) {
-      return bld_slot[0];
+      return g_rt_diag_bld001;
     }
   }
-  return 0 as *u8;
+  return (0 as *u8);
 }
+
 
 /** Exported function `runtime_diag_errno`.
  * Implements `runtime_diag_errno`.
@@ -275,25 +270,25 @@ export function runtime_diag_code_for_kind(kind: *u8): *u8 {
 #[no_mangle]
 export function runtime_diag_errno(file: *u8, kind: *u8, op: *u8): void {
   let saved: i32 = 0;
-  let err: *u8 = 0 as *u8;
-  let rk: *u8 = 0 as *u8;
-  let code: *u8 = 0 as *u8;
+  let err: *u8 = (0 as *u8);
+  let rk: *u8 = (0 as *u8);
+  let code: *u8 = (0 as *u8);
   let msg: u8[256] = [];
-  let s: *u8 = 0 as *u8;
+  let s: *u8 = (0 as *u8);
   saved = rt_diag_get_errno();
   unsafe {
     err = strerror(saved);
   }
-  if (err == 0 as *u8) {
+  if (err == (0 as *u8)) {
     err = "unknown error";
   }
-  if (kind != 0 as *u8) {
+  if (kind != (0 as *u8)) {
     rk = kind;
   } else {
     rk = "build error";
   }
   code = runtime_diag_code_for_kind(rk);
-  if (op != 0 as *u8) {
+  if (op != (0 as *u8)) {
     s = op;
   } else {
     s = "system call";
@@ -303,7 +298,7 @@ export function runtime_diag_errno(file: *u8, kind: *u8, op: *u8): void {
   rt_diag_append(&msg[0], 256, " failed: ");
   rt_diag_append(&msg[0], 256, err);
   unsafe {
-    diag_report_with_code(file, 0, 0, rk, code, &msg[0], 0 as *u8);
+    diag_report_with_code(file, 0, 0, rk, code, &msg[0], (0 as *u8));
   }
 }
 
@@ -318,16 +313,16 @@ export function runtime_diag_errno(file: *u8, kind: *u8, op: *u8): void {
 #[no_mangle]
 export function runtime_diag_errno_path(file: *u8, kind: *u8, op: *u8, path: *u8): void {
   let saved: i32 = 0;
-  let err: *u8 = 0 as *u8;
-  let rk: *u8 = 0 as *u8;
-  let code: *u8 = 0 as *u8;
+  let err: *u8 = (0 as *u8);
+  let rk: *u8 = (0 as *u8);
+  let code: *u8 = (0 as *u8);
   let msg: u8[384] = [];
-  let s: *u8 = 0 as *u8;
-  if (path == 0 as *u8) {
+  let s: *u8 = (0 as *u8);
+  if (path == (0 as *u8)) {
     runtime_diag_errno(file, kind, op);
     return;
   }
-  if (path[0 as usize] == 0 as u8) {
+  if (path[(0 as usize)] == (0 as u8)) {
     runtime_diag_errno(file, kind, op);
     return;
   }
@@ -335,16 +330,16 @@ export function runtime_diag_errno_path(file: *u8, kind: *u8, op: *u8, path: *u8
   unsafe {
     err = strerror(saved);
   }
-  if (err == 0 as *u8) {
+  if (err == (0 as *u8)) {
     err = "unknown error";
   }
-  if (kind != 0 as *u8) {
+  if (kind != (0 as *u8)) {
     rk = kind;
   } else {
     rk = "build error";
   }
   code = runtime_diag_code_for_kind(rk);
-  if (op != 0 as *u8) {
+  if (op != (0 as *u8)) {
     s = op;
   } else {
     s = "system call";
@@ -356,7 +351,7 @@ export function runtime_diag_errno_path(file: *u8, kind: *u8, op: *u8, path: *u8
   rt_diag_append(&msg[0], 384, "': ");
   rt_diag_append(&msg[0], 384, err);
   unsafe {
-    diag_report_with_code(file, 0, 0, rk, code, &msg[0], 0 as *u8);
+    diag_report_with_code(file, 0, 0, rk, code, &msg[0], (0 as *u8));
   }
 }
 
@@ -365,37 +360,37 @@ export function runtime_diag_errno_path(file: *u8, kind: *u8, op: *u8, path: *u8
 export function runtime_diag_errno_path_pair(
   file: *u8, kind: *u8, op: *u8, from_path: *u8, to_path: *u8): void {
   let saved: i32 = 0;
-  let err: *u8 = 0 as *u8;
-  let rk: *u8 = 0 as *u8;
-  let code: *u8 = 0 as *u8;
+  let err: *u8 = (0 as *u8);
+  let rk: *u8 = (0 as *u8);
+  let code: *u8 = (0 as *u8);
   let msg: u8[512] = [];
-  let s: *u8 = 0 as *u8;
-  let from_s: *u8 = 0 as *u8;
-  let to_s: *u8 = 0 as *u8;
+  let s: *u8 = (0 as *u8);
+  let from_s: *u8 = (0 as *u8);
+  let to_s: *u8 = (0 as *u8);
   saved = rt_diag_get_errno();
   unsafe {
     err = strerror(saved);
   }
-  if (err == 0 as *u8) {
+  if (err == (0 as *u8)) {
     err = "unknown error";
   }
-  if (kind != 0 as *u8) {
+  if (kind != (0 as *u8)) {
     rk = kind;
   } else {
     rk = "build error";
   }
   code = runtime_diag_code_for_kind(rk);
-  if (op != 0 as *u8) {
+  if (op != (0 as *u8)) {
     s = op;
   } else {
     s = "system call";
   }
-  if (from_path != 0 as *u8) {
+  if (from_path != (0 as *u8)) {
     from_s = from_path;
   } else {
     from_s = "?";
   }
-  if (to_path != 0 as *u8) {
+  if (to_path != (0 as *u8)) {
     to_s = to_path;
   } else {
     to_s = "?";
@@ -409,7 +404,7 @@ export function runtime_diag_errno_path_pair(
   rt_diag_append(&msg[0], 512, "': ");
   rt_diag_append(&msg[0], 512, err);
   unsafe {
-    diag_report_with_code(file, 0, 0, rk, code, &msg[0], 0 as *u8);
+    diag_report_with_code(file, 0, 0, rk, code, &msg[0], (0 as *u8));
   }
 }
 
@@ -421,9 +416,9 @@ export function runtime_diag_errno_path_pair(
 #[no_mangle]
 export function runtime_diag_cli_usage_note(argv0: *u8): void {
   let msg: u8[256] = [];
-  let name: *u8 = 0 as *u8;
-  let note_kind: *u8 = 0 as *u8;
-  if (argv0 != 0 as *u8) {
+  let name: *u8 = (0 as *u8);
+  let note_kind: *u8 = (0 as *u8);
+  if (argv0 != (0 as *u8)) {
     name = argv0;
   } else {
     name = "xlang";
@@ -435,6 +430,6 @@ export function runtime_diag_cli_usage_note(argv0: *u8): void {
   rt_diag_append(&msg[0], 256, " [ -L <lib> ] [ -target <triple> ] [ -D <sym> ] ");
   rt_diag_append(&msg[0], 256, "[ -O 0|1|2|3|s ] [ -flto ] <file.x> [ -o <out> ]");
   unsafe {
-    diag_report_with_code(0 as *u8, 0, 0, note_kind, 0 as *u8, &msg[0], 0 as *u8);
+    diag_report_with_code((0 as *u8), 0, 0, note_kind, (0 as *u8), &msg[0], (0 as *u8));
   }
 }
