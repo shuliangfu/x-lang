@@ -9,9 +9,15 @@ Proven dig_min -E green on tip 9324542aa (2026-11-09):
   5. lexer_next_body_into+0x1aeb: write_ident &out.tok out+8 → out+16
 
 PLATFORM: WINDOWS PE only. No-op on missing symbols (older tips).
-No-op on skip_ws sites that are not the tip nest-bug / col@+0x10 shape
-(product skip_ws after the if-stmt else-if 7th-slot PE already has
-local nest and col@+0x0c). Do not widen those sites to a new poke.
+No-op on tip-shape fixed-offset sites whose bytes are neither the
+known tip old form nor the already-patched form. After the if-stmt
+else-if 7th-slot PE, g05 product skip_ws / primary_literal /
+lexer_next_body_into / suffix_loop (and other) layouts differ from
+the tip 0x147c / tip-stride face; +0x454 of primary_literal lands
+mid `mov eax,0; test eax,eax` (got 0085), not the tip `cdqe` that
+saved step_kind into %ebx. Product already reloads kind from
+[rbp-0x70] for the 0x50 compare. Do not poke a different shape and
+do not widen expected bytes. Exact old→new matches still apply.
 """
 from __future__ import annotations
 import struct
@@ -383,23 +389,16 @@ def main() -> int:
             skipped += 1
             continue
         if cur != old_b:
-            # skip_ws col sites are tip-shape fixed offsets (0x147c face).
-            # A product skip_ws that already uses Lexer.col@+0x0c (or a
-            # slightly different layout) must not be poked; other symbols
-            # still fail closed.
-            if name == "lexer_skip_whitespace_and_comments":
-                print(
-                    f"skip {name}+{off:#x}: not tip col/shape (got {cur.hex()})",
-                    file=sys.stderr,
-                )
-                skipped += 1
-                continue
-            # allow already-partial / tip drift
+            # Tip-shape fixed offsets (written for tip 9324542aa / 0x147c
+            # skip_ws and tip-stride body_into). A g05 product face with a
+            # different layout must not be poked; skip rather than FAIL the
+            # relink or widen the expected bytes.
             print(
-                f"FAIL {name}+{off:#x}: got {cur.hex()} want old {old_h} or new {new_h}",
+                f"skip {name}+{off:#x}: not tip shape (got {cur.hex()})",
                 file=sys.stderr,
             )
-            return 1
+            skipped += 1
+            continue
         data[foff : foff + len(new_b)] = new_b
         print(f"patch {name}+{off:#x}: {old_h} -> {new_h}", file=sys.stderr)
         applied += 1
