@@ -3324,6 +3324,46 @@ function lexer_emit_float_token(out: *LexerResult, lex: *Lexer, data: u8[]): voi
  * small callee, same class as lexer_emit_int_token / lexer_emit_eof_token.
  * PLATFORM: SHARED. WINDOWS is where the dest/arg alias was measured.
  */
+/**
+ * Emit TOKEN_STRING through out in a small frame.
+ *
+ * lexer_next_body_into is a huge frame. After the close-quote scan, the
+ * locals start / line0 / col0 / slen alias, so write_tok_into stores a
+ * correct kind=130 with garbage line / col / ident_len, and
+ * lexer_park_token_start writes 0 (or a stack pointer) as token_start.
+ * gdb of `const option = import("core.option");` on the Windows work
+ * copy showed kind=130, token_start=0, ident_len=34 (the close-quote
+ * index), line=34, col a stack pointer. The import keyword itself is
+ * TOKEN_IMPORT=53. Parse then skips at the semicolon (P001, num_funcs=0).
+ *
+ * Park the content start and seed line/col at the opening quote from the
+ * reliable Lexer fields (lexer_begin_number_span), then finish here:
+ * ident_len = close_pos - parked_start, consume the close quote, write
+ * tok, and re-park start. At most two arguments, both in registers.
+ * PLATFORM: SHARED. WINDOWS is where the bad STRING slots were measured.
+ */
+function lexer_emit_string_token(out: *LexerResult, lex: *Lexer): void {
+  if (out == 0 || lex == 0) { return; }
+  let end_pos: usize = 0;
+  let end_line: i32 = 1;
+  let end_col: i32 = 1;
+  unsafe {
+    end_pos = lex.pos;
+    end_line = lex.line;
+    end_col = lex.col;
+  }
+  let start: usize = lexer_parked_token_start(out);
+  let line0: i32 = lexer_seeded_token_line(out);
+  let col0: i32 = lexer_seeded_token_col(out);
+  let slen: i32 = (end_pos - start) as i32;
+  let l: Lexer = { pos: end_pos + (1 as usize), line: end_line, col: end_col + 1 };
+  let tok: Token = { kind: (130 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
+    float_val: 0.0, ident: (0 as *u8), ident_len: slen };
+  write_next_lex_into(out, l);
+  write_tok_into(out, tok);
+  lexer_park_token_start(out, start);
+}
+
 function lexer_emit_ident_token(out: *LexerResult, line0: i32, col0: i32, nlen: i32): void {
   if (out == 0) { return; }
   let tok: Token = { kind: (59 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
@@ -3406,6 +3446,10 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
     let line0: i32 = l.line;
     let col0: i32 = l.col;
     let start: usize = l.pos + (1 as usize);
+    // Park content start and seed line/col from reliable Lexer fields.
+    // Later huge-frame reloads of start/line0/col0/slen alias.
+    // PLATFORM: SHARED.
+    lexer_begin_number_span(out, l.pos + (1 as usize), l.line, l.col);
     advance_one(&l, 34);
     while (l.pos < data.length && data[l.pos] != 34) {
       if (data[l.pos] == 92) {
@@ -3460,13 +3504,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       lexer_park_token_start(out, start);
       return;
     }
-    let slen: i32 = (l.pos - start) as i32;
-    advance_one(&l, 34);
-    let tok_str: Token = { kind: (130 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: slen };
-    write_next_lex_into(out, l);
-    write_tok_into(out, tok_str);
-    lexer_park_token_start(out, start);
+    lexer_emit_string_token(out, &l);
     return;
   }
   if ((is_alpha(c) != 0)) {
