@@ -858,10 +858,16 @@ export function parser_asm_primary_suffix_loop_x_into_c(arena: *u8, source: *u8,
   unsafe {
     data = parser_asm_lex_source_data_c(source);
     slen = parser_asm_lex_source_length_c(source);
-    pi = 0;
-    while (pi < 8) {
-      pending_refs[pi] = 0;
-      pi = pi + 1;
+    /* idx8 lowers pending_refs[i] through the pointer value (scale-4).
+     * Official W used the slot address at scale-8 and smashed saved lex /
+     * source instead. Some callers pass a null pending_refs (only the
+     * five required outs are guaranteed); do not store through null. */
+    if (pending_refs != (0 as *i32)) {
+      pi = 0;
+      while (pi < 8) {
+        pending_refs[pi] = 0;
+        pi = pi + 1;
+      }
     }
     loop {
       kind = parser_asm_lex_peek_kind_c(lex_inout, source);
@@ -931,6 +937,10 @@ export function parser_asm_primary_suffix_loop_x_into_c(arena: *u8, source: *u8,
                 out_ok[0] = 0;
                 return;
               }
+              if (mc_arg_buf == (0 as *i32)) {
+                out_ok[0] = 0;
+                return;
+              }
               mc_arg_buf[n] = eref2;
               n = n + 1;
               k2 = parser_asm_lex_peek_kind_c(lex_inout, source);
@@ -989,9 +999,11 @@ export function parser_asm_primary_suffix_loop_x_into_c(arena: *u8, source: *u8,
         pi = 0;
         lt_line = parser_asm_lex_line_c(lex_inout);
         lt_col = parser_asm_lex_col_c(lex_inout);
-        while (pi < 8) {
-          parsed_refs[pi] = 0;
-          pi = pi + 1;
+        if (parsed_refs != (0 as *i32)) {
+          while (pi < 8) {
+            parsed_refs[pi] = 0;
+            pi = pi + 1;
+          }
         }
         parser_asm_lex_step_kind_c(lex_inout, source);
         if (parser_asm_lex_peek_kind_c(lex_inout, source) == TOKEN_GT || parser_asm_lex_peek_kind_c(lex_inout, source) == TOKEN_RSHIFT) {
@@ -1005,6 +1017,10 @@ export function parser_asm_primary_suffix_loop_x_into_c(arena: *u8, source: *u8,
             }
             tr = parser_asm_parse_type_ref_ptr_into_c(arena, lex_inout, source);
             if (tr <= 0) {
+              parse_ok = 0;
+              break;
+            }
+            if (parsed_refs == (0 as *i32)) {
               parse_ok = 0;
               break;
             }
@@ -1069,10 +1085,12 @@ export function parser_asm_primary_suffix_loop_x_into_c(arena: *u8, source: *u8,
             }
             out_expr_ref[0] = eref2;
             pending_n = 0;
-            pi = 0;
-            while (pi < 8) {
-              pending_refs[pi] = 0;
-              pi = pi + 1;
+            if (pending_refs != (0 as *i32)) {
+              pi = 0;
+              while (pi < 8) {
+                pending_refs[pi] = 0;
+                pi = pi + 1;
+              }
             }
             continue;
           }
@@ -1085,14 +1103,16 @@ export function parser_asm_primary_suffix_loop_x_into_c(arena: *u8, source: *u8,
             return;
           }
           pending_n = n;
-          pi = 0;
-          while (pi < n && pi < 8) {
-            pending_refs[pi] = parsed_refs[pi];
-            pi = pi + 1;
-          }
-          while (pi < 8) {
-            pending_refs[pi] = 0;
-            pi = pi + 1;
+          if (pending_refs != (0 as *i32) && parsed_refs != (0 as *i32)) {
+            pi = 0;
+            while (pi < n && pi < 8) {
+              pending_refs[pi] = parsed_refs[pi];
+              pi = pi + 1;
+            }
+            while (pi < 8) {
+              pending_refs[pi] = 0;
+              pi = pi + 1;
+            }
           }
           /* Cursor stays past the '>' (already consumed above). */
         } else {
@@ -1109,10 +1129,12 @@ export function parser_asm_primary_suffix_loop_x_into_c(arena: *u8, source: *u8,
             return;
           }
           pending_n = count;
-          pi = 0;
-          while (pi < 8) {
-            pending_refs[pi] = 0;
-            pi = pi + 1;
+          if (pending_refs != (0 as *i32)) {
+            pi = 0;
+            while (pi < 8) {
+              pending_refs[pi] = 0;
+              pi = pi + 1;
+            }
           }
         }
       } else if (kind == TOKEN_LBRACKET) {
@@ -1159,7 +1181,7 @@ export function parser_asm_primary_suffix_loop_x_into_c(arena: *u8, source: *u8,
         // slot 0 is import 0. Stamp -1 before the callee is stored.
         pipeline_expr_init_call_resolve_at_ref(arena, call_ref);
         pipeline_expr_set_call_c(arena, call_ref, callee_ref, pending_n);
-        if (pending_n > 0 && pending_refs[0] > 0) {
+        if (pending_n > 0 && pending_refs != (0 as *i32) && pending_refs[0] > 0) {
           ai = 0;
           while (ai < pending_n && ai < 8) {
             if (pending_refs[ai] <= 0) {
@@ -1173,10 +1195,12 @@ export function parser_asm_primary_suffix_loop_x_into_c(arena: *u8, source: *u8,
           }
         }
         pending_n = 0;
-        pi = 0;
-        while (pi < 8) {
-          pending_refs[pi] = 0;
-          pi = pi + 1;
+        if (pending_refs != (0 as *i32)) {
+          pi = 0;
+          while (pi < 8) {
+            pending_refs[pi] = 0;
+            pi = pi + 1;
+          }
         }
         n = 0;
         k2 = parser_asm_lex_peek_kind_c(lex_inout, source);
@@ -1193,6 +1217,10 @@ export function parser_asm_primary_suffix_loop_x_into_c(arena: *u8, source: *u8,
               return;
             }
             if (ok2 == 0) {
+              out_ok[0] = 0;
+              return;
+            }
+            if (arg_buf == (0 as *i32)) {
               out_ok[0] = 0;
               return;
             }
