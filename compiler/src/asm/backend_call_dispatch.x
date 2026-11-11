@@ -4606,19 +4606,54 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
   return w1521_sret_wrap(arena, elf_ctx, expr_ref, ctx, ta, 1);
 }
 
-function w1521_guard_nargs(n: i32, maxv: i32): i32 {
-  if (n < 0) { return 0 - 1; }
-  if (n > maxv) { return 0 - 1; }
-  return 0;
+// typool in the large emit_method_body frame stores a scalar in one slot and
+// compares / passes another uninitialized slot (nargs stored at -0x1e0, passed
+// from -0x4048; try_emit status stored at -0x1f8, compared from -0x4af8).
+// Compute and guard those values in a small-frame helper so store and compare
+// share a slot. Return -1 fail, 1 early-emitted, 0 continue.
+function w1521_emit_method_early(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  if (arena == 0 as *u8) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (ctx == 0 as *u8) { return 0 - 1; }
+  unsafe {
+    let nargs: i32 = pipeline_expr_method_call_num_args_at(arena, expr_ref);
+    if (nargs < 0) { return 0 - 1; }
+    if (nargs > 96) { return 0 - 1; }
+    let name_len: i32 = pipeline_expr_method_call_name_len(arena, expr_ref);
+    if (name_len <= 0) { return 0 - 1; }
+    if (name_len > 255) { return 0 - 1; }
+    let name: u8[256] = [];
+    pipeline_expr_method_call_name_into(arena, expr_ref, &name[0]);
+    let rs_mc: i32 = try_emit_raw_syscall_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+    if (rs_mc < 0) { return 0 - 1; }
+    if (rs_mc > 0) { return 1; }
+    let va_mc: i32 = try_emit_va_cap_builtin_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+    if (va_mc < 0) { return 0 - 1; }
+    if (va_mc > 0) { return 1; }
+    let at_mc: i32 = try_emit_atomic_builtin_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+    if (at_mc < 0) { return 0 - 1; }
+    if (at_mc > 0) { return 1; }
+    let sd_mc: i32 = try_emit_simd_lang_builtin_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+    if (sd_mc < 0) { return 0 - 1; }
+    if (sd_mc > 0) { return 1; }
+    return 0;
+  }
+  return 0 - 1;
 }
 
-function w1521_guard_pos_len(n: i32, maxv: i32): i32 {
-  if (n <= 0) { return 0 - 1; }
-  if (n > maxv) { return 0 - 1; }
-  return 0;
-}
-
+// Hooked symbol: keep this a small-frame wrapper so typool's 3-way on `st`
+// stores and compares the same slot. Heavy work is in early + tail.
 function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  if (arena == 0 as *u8) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (ctx == 0 as *u8) { return 0 - 1; }
+  let st: i32 = w1521_emit_method_early(arena, elf_ctx, expr_ref, ctx, ta);
+  if (st < 0) { return 0 - 1; }
+  if (st > 0) { return 0; }
+  return w1521_emit_method_body_tail(arena, elf_ctx, expr_ref, ctx, ta);
+}
+
+function w1521_emit_method_body_tail(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
   if (arena == 0 as *u8) { return 0 - 1; }
   if (elf_ctx == 0) { return 0 - 1; }
   if (ctx == 0 as *u8) { return 0 - 1; }
@@ -4632,42 +4667,14 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
     let _frame_pad_y5_m: u8[16384];
     _frame_pad_y5_m[0] = 0;
     let mod_ref: *u8 = call_dispatch_load_ptr_le(ctx, 16);
-    let nargs: i32 = pipeline_expr_method_call_num_args_at(arena, expr_ref);
     /** Product parses core.xlang_io_submit_*_batch as METHOD_CALL with >5 args; seed _impl is authority. */
-    // typool in this large frame stored nargs/name_len in one slot and compared
-    // another uninitialized slot (e.g. store -0x1e0, compare -0x4048). Guard in
-    // a small-frame helper so the store and the compare share a slot.
-    if (w1521_guard_nargs(nargs, 96) != 0) { return 0 - 1; }
+    // nargs/name_len/try_emit early-outs already ran in w1521_emit_method_early
+    // (small frame). Re-fetch scalars and the name buffer for later uses here.
+    let nargs: i32 = pipeline_expr_method_call_num_args_at(arena, expr_ref);
     let base_ref: i32 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
     let name_len: i32 = pipeline_expr_method_call_name_len(arena, expr_ref);
-    if (w1521_guard_pos_len(name_len, 255) != 0) { return 0 - 1; }
     let name: u8[256] = [];
     pipeline_expr_method_call_name_into(arena, expr_ref, &name[0]);
-    /* stage10 S3.1 slice2 (10.1.1): dot-call raw_syscall0..6 shape
-     * (linux.raw_syscall3(...) parses here; before dyn/UFCS/try_inline). */
-    {
-      let rs_mc: i32 = try_emit_raw_syscall_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
-      if (rs_mc < 0) { return 0 - 1; }
-      if (rs_mc > 0) { return 0; }
-    }
-    /* Cap 10.7.1 slice12: va_* Cap METHOD_CALL (x86_64). */
-    {
-      let va_mc: i32 = try_emit_va_cap_builtin_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
-      if (va_mc < 0) { return 0 - 1; }
-      if (va_mc > 0) { return 0; }
-    }
-    /* 10.4.1 slice1: atomic_load/store/cas_i32 METHOD_CALL (x86_64 only). */
-    {
-      let at_mc: i32 = try_emit_atomic_builtin_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
-      if (at_mc < 0) { return 0 - 1; }
-      if (at_mc > 0) { return 0; }
-    }
-    /* 10.5.1 slice0: add_f32x4 / mul_f32x4 language SIMD builtins (x86 SSE). */
-    {
-      let sd_mc: i32 = try_emit_simd_lang_builtin_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
-      if (sd_mc < 0) { return 0 - 1; }
-      if (sd_mc > 0) { return 0; }
-    }
     /*
      * 10.3.3 slice3: METHOD_CALL `h.f(args)` when `f` is Cap/TYPE_FN field.
      * typeck stamps ret; emit loads field into rax/x0 then Cap blr (no self arg).
