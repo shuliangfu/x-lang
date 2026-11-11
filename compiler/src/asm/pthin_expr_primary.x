@@ -1604,15 +1604,20 @@ function parser_asm_primary_break_continue_x_into_c(arena: *u8, lex_inout: *u8, 
     tl = parser_asm_lex_peek_tok_line_c(lex_inout, source);
     tc = parser_asm_lex_peek_tok_col_c(lex_inout, source);
     parser_asm_lex_step_kind_c(lex_inout, source);
-    ref = ast_ast_arena_expr_alloc(arena);
-    if (ref == 0) {
-      out_ok[0] = 0;
-      return 1;
-    }
+    // Map the token to EXPR_BREAK/CONTINUE before expr_alloc. Stage1
+    // kept the alloc ref in the compare register and compiled
+    // `if (kind == TOKEN_BREAK)` as `if (ref == 9)`, so a break whose
+    // expr ref was not 9 was stamped EXPR_CONTINUE and jumped to the
+    // loop head. PLATFORM: SHARED.
     if (kind == TOKEN_BREAK) {
       ek = EXPR_BREAK;
     } else {
       ek = EXPR_CONTINUE;
+    }
+    ref = ast_ast_arena_expr_alloc(arena);
+    if (ref == 0) {
+      out_ok[0] = 0;
+      return 1;
     }
     pipeline_expr_set_kind(arena, ref, ek);
     pipeline_expr_set_line_col(arena, ref, tl, tc);

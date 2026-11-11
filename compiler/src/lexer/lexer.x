@@ -1809,343 +1809,84 @@ function lexer_write_ident_token(out: *Token, line0: i32, col0: i32, nlen: i32):
   out.ident = t.ident; out.ident_len = t.ident_len;
 }
 
+/**
+ * Write a keyword token through out in a small frame.
+ *
+ * In try_keyword's 0x1278-byte frame, `let t: Token = { kind: 1, ... }` is
+ * stored at one slot (e.g. -0x710) but `out.kind = t.kind` reads a different
+ * slot (e.g. -0x80), so *out.kind stays 0 and `function` becomes TOKEN_IDENT
+ * (P001). A callee keeps the literal and the field stores in one frame.
+ * PLATFORM: SHARED.
+ */
+function lexer_write_simple_token(out: *Token, kind: i32, line0: i32, col0: i32): void {
+  if (out == 0) { return; }
+  let t: Token = {
+    kind: (kind as TokenKind),
+    line: line0,
+    col: col0,
+    int_val: (0 as i64),
+    float_val: 0.0,
+    ident: (0 as *u8),
+    ident_len: 0
+  };
+  out.kind = t.kind;
+  out.line = t.line;
+  out.col = t.col;
+  out.int_val = t.int_val;
+  out.float_val = t.float_val;
+  out.ident = t.ident;
+  out.ident_len = t.ident_len;
+}
+
 export function try_keyword(out: *Token, data: u8[], start: usize, len: usize, line0: i32, col0: i32): void {
   let nlen: i32 = len as i32;
   if (nlen == 8 && (match_keyword(data, start, 8, "function" as *u8) != 0)) {
-    let t: Token = {
-      kind: (1 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 1, line0, col0);
     return;
   }  if (nlen == 3 && (match_keyword(data, start, 3, "let" as *u8) != 0)) {
-    let t: Token = {
-      kind: (2 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 2, line0, col0);
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "const" as *u8) != 0)) {
-    let t: Token = {
-      kind: (3 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 3, line0, col0);
     return;
   }  if (nlen == 2 && (match_keyword(data, start, 2, "if" as *u8) != 0)) {
-    let t: Token = {
-      kind: (4 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 4, line0, col0);
     return;
   }  if (nlen == 4 && (match_keyword(data, start, 4, "else" as *u8) != 0)) {
-    let t: Token = {
-      kind: (5 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 5, line0, col0);
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "while" as *u8) != 0)) {
-    let t: Token = {
-      kind: (6 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 6, line0, col0);
     return;
   }  if (nlen == 4 && (match_keyword(data, start, 4, "loop" as *u8) != 0)) {
-    let t: Token = {
-      kind: (7 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 7, line0, col0);
     return;
   }  if (nlen == 3 && (match_keyword(data, start, 3, "for" as *u8) != 0)) {
-    let t: Token = {
-      kind: (8 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 8, line0, col0);
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "break" as *u8) != 0)) {
-    let t: Token = {
-      kind: (9 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 9, line0, col0);
     return;
   }  if (nlen == 8 && (match_keyword(data, start, 8, "continue" as *u8) != 0)) {
-    let t: Token = {
-      kind: (10 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 10, line0, col0);
     return;
   }  if (nlen == 6 && (match_keyword(data, start, 6, "return" as *u8) != 0)) {
-    let t: Token = {
-      kind: (11 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 11, line0, col0);
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "panic" as *u8) != 0)) {
-    let t: Token = {
-      kind: (12 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 12, line0, col0);
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "defer" as *u8) != 0)) {
-    let t: Token = {
-      kind: (13 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 13, line0, col0);
     return;
   }  if (nlen == 6 && (match_keyword(data, start, 6, "region" as *u8) != 0)) {
-    let t: Token = {
-      kind: (16 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 16, line0, col0);
     return;
   }  if (nlen == 10 && (match_keyword(data, start, 10, "with_arena" as *u8) != 0)) {
-    let t: Token = {
-      kind: (17 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 17, line0, col0);
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "match" as *u8) != 0)) {
-    let t: Token = {
-      kind: (18 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 18, line0, col0);
     return;
   }  try_keyword_b(out, data, start, len, line0, col0);
     return;
@@ -2164,340 +1905,52 @@ export function try_keyword(out: *Token, data: u8[], start: usize, len: usize, l
 function try_keyword_b(out: *Token, data: u8[], start: usize, len: usize, line0: i32, col0: i32): void {
   let nlen: i32 = len as i32;
   if (nlen == 6 && (match_keyword(data, start, 6, "struct" as *u8) != 0)) {
-    let t: Token = {
-      kind: (19 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 19, line0, col0);
     return;
   }  if (nlen == 4 && (match_keyword(data, start, 4, "type" as *u8) != 0)) {
-    let t: Token = {
-      kind: (20 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 20, line0, col0);
     return;
   }  if (nlen == 6 && (match_keyword(data, start, 6, "packed" as *u8) != 0)) {
-    let t: Token = {
-      kind: (21 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 21, line0, col0);
     return;
   }  if (nlen == 3 && (match_keyword(data, start, 3, "soa" as *u8) != 0)) {
-    let t: Token = {
-      kind: (22 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 22, line0, col0);
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "align" as *u8) != 0)) {
-    let t: Token = {
-      kind: (46 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 46, line0, col0);
     return;
   }  if (nlen == 4 && (match_keyword(data, start, 4, "enum" as *u8) != 0)) {
-    let t: Token = {
-      kind: (47 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 47, line0, col0);
     return;
   }  if (nlen == 4 && (match_keyword(data, start, 4, "goto" as *u8) != 0)) {
-    let t: Token = {
-      kind: (48 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 48, line0, col0);
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "trait" as *u8) != 0)) {
-    let t: Token = {
-      kind: (49 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 49, line0, col0);
     return;
   }  if (nlen == 4 && (match_keyword(data, start, 4, "impl" as *u8) != 0)) {
-    let t: Token = {
-      kind: (50 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 50, line0, col0);
     return;
   }  if (nlen == 4 && (match_keyword(data, start, 4, "self" as *u8) != 0)) {
-    let t: Token = {
-      kind: (51 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 51, line0, col0);
     return;
   }  if (nlen == 1 && data[start] == 95) {
-    let t: Token = {
-      kind: (52 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 52, line0, col0);
     return;
   }  if (nlen == 6 && (match_keyword(data, start, 6, "import" as *u8) != 0)) {
-    let t: Token = {
-      kind: (53 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 53, line0, col0);
     return;
   }  if (nlen == 6 && (match_keyword(data, start, 6, "extern" as *u8) != 0)) {
-    let t: Token = {
-      kind: (54 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 54, line0, col0);
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "async" as *u8) != 0)) {
-    let t: Token = {
-      kind: (55 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 55, line0, col0);
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "await" as *u8) != 0)) {
-    let t: Token = {
-      kind: (56 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 56, line0, col0);
     return;
   }  if (nlen == 3 && (match_keyword(data, start, 3, "run" as *u8) != 0)) {
-    let t: Token = {
-      kind: (57 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 57, line0, col0);
     return;
   }  try_keyword_c(out, data, start, len, line0, col0);
     return;
@@ -2516,257 +1969,41 @@ function try_keyword_b(out: *Token, data: u8[], start: usize, len: usize, line0:
 function try_keyword_c(out: *Token, data: u8[], start: usize, len: usize, line0: i32, col0: i32): void {
   let nlen: i32 = len as i32;
   if (nlen == 5 && (match_keyword(data, start, 5, "spawn" as *u8) != 0)) {
-    let t: Token = {
-      kind: (58 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 58, line0, col0);
     return;
   }
   /** export：e x p o r t */  if (nlen == 6 && (match_keyword(data, start, 6, "export" as *u8) != 0)) {
-    let t: Token = {
-      kind: (131 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 131, line0, col0);
     return;
   }  if (nlen == 3 && (match_keyword(data, start, 3, "i32" as *u8) != 0)) {
-    let t: Token = {
-      kind: (60 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 60, line0, col0);
     return;
   }  if (nlen == 4 && (match_keyword(data, start, 4, "bool" as *u8) != 0)) {
-    let t: Token = {
-      kind: (61 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 61, line0, col0);
     return;
   }  if (nlen == 2 && (match_keyword(data, start, 2, "u8" as *u8) != 0)) {
-    let t: Token = {
-      kind: (62 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 62, line0, col0);
     return;
   }  if (nlen == 3 && (match_keyword(data, start, 3, "u32" as *u8) != 0)) {
-    let t: Token = {
-      kind: (63 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 63, line0, col0);
     return;
   }  if (nlen == 3 && (match_keyword(data, start, 3, "u64" as *u8) != 0)) {
-    let t: Token = {
-      kind: (64 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 64, line0, col0);
     return;
   }  if (nlen == 3 && (match_keyword(data, start, 3, "i64" as *u8) != 0)) {
-    let t: Token = {
-      kind: (65 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 65, line0, col0);
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "usize" as *u8) != 0)) {
-    let t: Token = {
-      kind: (66 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 66, line0, col0);
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "isize" as *u8) != 0)) {
-    let t: Token = {
-      kind: (67 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 67, line0, col0);
     return;
   }  if (nlen == 4 && (match_keyword(data, start, 4, "true" as *u8) != 0)) {
-    let t: Token = {
-      kind: (75 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 75, line0, col0);
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "false" as *u8) != 0)) {
-    let t: Token = {
-      kind: (76 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 76, line0, col0);
     return;
   }
   /*
@@ -2774,88 +2011,16 @@ function try_keyword_c(out: *Token, data: u8[], start: usize, len: usize, line0:
    * Bytes: n=110 u=117 l=108 l=108. G.7 single keyword table (try_keyword + buf twin).
    * PLATFORM: SHARED.
    */  if (nlen == 4 && (match_keyword(data, start, 4, "null" as *u8) != 0)) {
-    let t: Token = {
-      kind: (132 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 132, line0, col0);
     return;
   }  if (nlen == 3 && (match_keyword(data, start, 3, "f32" as *u8) != 0)) {
-    let t: Token = {
-      kind: (77 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 77, line0, col0);
     return;
   }  if (nlen == 3 && (match_keyword(data, start, 3, "f64" as *u8) != 0)) {
-    let t: Token = {
-      kind: (78 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 78, line0, col0);
     return;
   }  if (nlen == 4 && (match_keyword(data, start, 4, "void" as *u8) != 0)) {
-    let t: Token = {
-      kind: (79 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 79, line0, col0);
     return;
   }  try_keyword_d(out, data, start, len, line0, col0);
     return;
@@ -2874,151 +2039,25 @@ function try_keyword_c(out: *Token, data: u8[], start: usize, len: usize, line0:
 function try_keyword_d(out: *Token, data: u8[], start: usize, len: usize, line0: i32, col0: i32): void {
   let nlen: i32 = len as i32;
   if (nlen == 5 && (match_keyword(data, start, 5, "i3x4" as *u8) != 0)) {
-    let t: Token = {
-      kind: (68 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 68, line0, col0);
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "i3x8" as *u8) != 0)) {
-    let t: Token = {
-      kind: (69 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 69, line0, col0);
     return;
   }  if (nlen == 6 && (match_keyword(data, start, 6, "i3x16" as *u8) != 0)) {
-    let t: Token = {
-      kind: (70 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 70, line0, col0);
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "u3x4" as *u8) != 0)) {
-    let t: Token = {
-      kind: (71 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 71, line0, col0);
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "u3x8" as *u8) != 0)) {
-    let t: Token = {
-      kind: (72 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 72, line0, col0);
     return;
   }  if (nlen == 6 && (match_keyword(data, start, 6, "u3x16" as *u8) != 0)) {
-    let t: Token = {
-      kind: (73 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 73, line0, col0);
     return;
   }  if (nlen == 2 && (match_keyword(data, start, 2, "as" as *u8) != 0)) {
-    let t: Token = {
-      kind: (128 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 128, line0, col0);
     return;
   }
   // Cap 4.2.8: AST name slots are 255 bytes. Longer identifiers set the L012 sticky note.
@@ -3033,439 +2072,120 @@ export function try_keyword_buf(out: *Token, data: *u8, data_len: i32, start: us
 i32): void {
   let nlen: i32 = len as i32;
   if (nlen == 8 && (match_keyword_buf(data, data_len, start, 8, "function" as *u8) != 0)) {
-    let t: Token = { kind: (1 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 1, line0, col0);
     return;
   }
   if (nlen == 3 && (match_keyword_buf(data, data_len, start, 3, "let" as *u8) != 0)) {
-    let t: Token = { kind: (2 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 2, line0, col0);
     return;
   }
   if (nlen == 5 && (match_keyword_buf(data, data_len, start, 5, "const" as *u8) != 0)) {
-    let t: Token = { kind: (3 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 3, line0, col0);
     return;
   }
   if (nlen == 2 && (match_keyword_buf(data, data_len, start, 2, "if" as *u8) != 0)) {
-    let t: Token = { kind: (4 as TokenKind), line: line0, col: col0, int_val: (0 as i64), float_val:
-      0.0, ident: (0 as *u8), ident_len: 0 };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 4, line0, col0);
     return;
   }
   if (nlen == 4 && (match_keyword_buf(data, data_len, start, 4, "else" as *u8) != 0)) {
-    let t: Token = { kind: (5 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 5, line0, col0);
     return;
   }
   if (nlen == 6 && (match_keyword_buf(data, data_len, start, 6, "return" as *u8) != 0)) {
-    let t: Token = { kind: (11 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 11, line0, col0);
     return;
   }
   if (nlen == 6 && (match_keyword_buf(data, data_len, start, 6, "struct" as *u8) != 0)) {
-    let t: Token = { kind: (19 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 19, line0, col0);
     return;
   }
   if (nlen == 4 && (match_keyword_buf(data, data_len, start, 4, "type" as *u8) != 0)) {
-    let t: Token = { kind: (20 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 20, line0, col0);
     return;
   }
   if (nlen == 4 && (match_keyword_buf(data, data_len, start, 4, "enum" as *u8) != 0)) {
-    let t: Token = { kind: (47 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 47, line0, col0);
     return;
   }
   if (nlen == 5 && (match_keyword_buf(data, data_len, start, 5, "match" as *u8) != 0)) {
-    let t: Token = { kind: (18 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 18, line0, col0);
     return;
   }
   if (nlen == 4 && (match_keyword_buf(data, data_len, start, 4, "true" as *u8) != 0)) {
-    let t: Token = { kind: (75 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 75, line0, col0);
     return;
   }
   if (nlen == 5 && (match_keyword_buf(data, data_len, start, 5, "false" as *u8) != 0)) {
-    let t: Token = { kind: (76 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 76, line0, col0);
     return;
   }
   /* wave668: `null` → TOKEN_NULL (132). G.7 ≡ try_keyword. PLATFORM: SHARED. */
   if (nlen == 4 && (match_keyword_buf(data, data_len, start, 4, "null" as *u8) != 0)) {
-    let t: Token = { kind: (132 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 132, line0, col0);
     return;
   }
   if (nlen == 3 && (match_keyword_buf(data, data_len, start, 3, "f64" as *u8) != 0)) {
-    let t: Token = { kind: (78 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 78, line0, col0);
     return;
   }
   if (nlen == 4 && (match_keyword_buf(data, data_len, start, 4, "void" as *u8) != 0)) {
-    let t: Token = { kind: (79 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 79, line0, col0);
     return;
   }
   if (nlen == 3 && (match_keyword_buf(data, data_len, start, 3, "i32" as *u8) != 0)) {
-    let t: Token = { kind: (60 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 60, line0, col0);
     return;
   }
   if (nlen == 4 && (match_keyword_buf(data, data_len, start, 4, "bool" as *u8) != 0)) {
-    let t: Token = { kind: (61 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 61, line0, col0);
     return;
   }
   if (nlen == 2 && (match_keyword_buf(data, data_len, start, 2, "u8" as *u8) != 0)) {
-    let t: Token = { kind: (62 as TokenKind), line: line0, col: col0, int_val: (0 as i64), float_val:
-      0.0, ident: (0 as *u8), ident_len: 0 };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 62, line0, col0);
     return;
   }
   if (nlen == 5 && (match_keyword_buf(data, data_len, start, 5, "usize" as *u8) != 0)) {
-    let t: Token = { kind: (66 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 66, line0, col0);
     return;
   }
   if (nlen == 5 && (match_keyword_buf(data, data_len, start, 5, "isize" as *u8) != 0)) {
-    let t: Token = { kind: (67 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 67, line0, col0);
     return;
   }
   if (nlen == 2 && (match_keyword_buf(data, data_len, start, 2, "as" as *u8) != 0)) {
-    let t: Token = { kind: (128 as TokenKind), line: line0, col: col0, int_val: (0 as i64), float_val:
-      0.0, ident: (0 as *u8), ident_len: 0 };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 128, line0, col0);
     return;
   }
   if (nlen == 6 && (match_keyword_buf(data, data_len, start, 6, "import" as *u8) != 0)) {
-    let t: Token = { kind: (53 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 53, line0, col0);
     return;
   }
   if (nlen == 6 && (match_keyword_buf(data, data_len, start, 6, "extern" as *u8) != 0)) {
-    let t: Token = { kind: (54 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 54, line0, col0);
     return;
   }
   if (nlen == 5 && (match_keyword_buf(data, data_len, start, 5, "async" as *u8) != 0)) {
-    let t: Token = { kind: (55 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 55, line0, col0);
     return;
   }
   if (nlen == 5 && (match_keyword_buf(data, data_len, start, 5, "await" as *u8) != 0)) {
-    let t: Token = { kind: (56 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 56, line0, col0);
     return;
   }
   if (nlen == 3 && (match_keyword_buf(data, data_len, start, 3, "run" as *u8) != 0)) {
-    let t: Token = { kind: (57 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 57, line0, col0);
     return;
   }
   if (nlen == 5 && (match_keyword_buf(data, data_len, start, 5, "spawn" as *u8) != 0)) {
-    let t: Token = { kind: (58 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 58, line0, col0);
     return;
   }
   if (nlen == 6 && (match_keyword_buf(data, data_len, start, 6, "export" as *u8) != 0)) {
-    let t: Token = { kind: (131 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 131, line0, col0);
     return;
   }
   if (nlen == 1 && start < (data_len as usize) && data[start] == 95) {
-    let t: Token = { kind: (52 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
-    // Field stores; avoid by-value stack slot / struct-assign trunc.
-    // PLATFORM: SHARED.
-    out.kind = t.kind;
-    out.line = t.line;
-    out.col = t.col;
-    out.int_val = t.int_val;
-    out.float_val = t.float_val;
-    out.ident = t.ident;
-    out.ident_len = t.ident_len;
+    lexer_write_simple_token(out, 52, line0, col0);
     return;
   }
   // wave Cap 4.2.8: G.7 mirror try_keyword — L012 when non-keyword span > 255.
@@ -4233,29 +2953,11 @@ export function lexer_next_slice(out: *LexerResult, lex: Lexer, data: u8[]): voi
   }
   skip_whitespace_and_comments(&out.next_lex, lex, data);
   if (out.next_lex.pos >= data.length) {
-    let t: Token = {
-      kind: (0 as TokenKind),
-      line: out.next_lex.line,
-      col: out.next_lex.col,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = ({ next_lex: out.next_lex, tok: t, token_start: (0 as usize) }); }
+    lexer_emit_eof_token(out, out.next_lex);
     return;
   }
   if (data[out.next_lex.pos] == 0) {
-    let t: Token = {
-      kind: (0 as TokenKind),
-      line: out.next_lex.line,
-      col: out.next_lex.col,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = ({ next_lex: out.next_lex, tok: t, token_start: (0 as usize) }); }
+    lexer_emit_eof_token(out, out.next_lex);
     return;
   }
   /* See implementation. */
@@ -4428,6 +3130,54 @@ function lexer_parked_token_start(out: *LexerResult): usize {
   return p;
 }
 
+/**
+ * Consume data[lex.pos] in a separate frame and return that byte.
+ *
+ * In the same frame as `data: u8[]`, `let d: u8 = data[l.pos]` is lowered
+ * so d shares the Fat* slot of data; the store clobbers the slice pointer
+ * and the next `data.length` / `data[i]` access SEGV. A callee keeps the
+ * caller's Fat* intact. PLATFORM: SHARED.
+ */
+function lexer_take_byte(lex: *Lexer, data: u8[]): u8 {
+  let d: u8 = data[lex.pos];
+  advance_one(lex, d);
+  return d;
+}
+
+/**
+ * Emit TOKEN_INT through out in a small frame.
+ *
+ * In lexer_next_body_into's huge frame, `let tok: Token = { kind: 80, int_val: ival, ... }`
+ * plus write_tok_into can leave *out.tok.kind=0 (same slot-alias as try_keyword).
+ * A callee keeps the literal and the field/copy stores together. PLATFORM: SHARED.
+ */
+/**
+ * Emit TOKEN_EOF through out in a small frame.
+ *
+ * In lexer_next_impl's frame, `let t: Token = { kind: 0, ... }` is stored
+ * at one slot (e.g. -0xe0) but write_tok_into(out, t) reads another
+ * (e.g. -0x70). The parser then sees a garbage kind at end-of-file
+ * (42 / a stack pointer) instead of TOKEN_EOF=0 and re-peeks forever.
+ * Same slot-alias class as lexer_write_simple_token / lexer_emit_int_token.
+ * A callee keeps the literal and the copy in one small frame.
+ * PLATFORM: SHARED.
+ */
+function lexer_emit_eof_token(out: *LexerResult, l: Lexer): void {
+  if (out == 0) { return; }
+  let tok: Token = { kind: (0 as TokenKind), line: l.line, col: l.col, int_val: (0 as i64),
+    float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
+  write_next_lex_into(out, l);
+  write_tok_into(out, tok);
+}
+
+function lexer_emit_int_token(out: *LexerResult, l: Lexer, start: usize, line0: i32, col0: i32, ival: i64): void {
+  let tok: Token = { kind: (80 as TokenKind), line: line0, col: col0, int_val: ival,
+    float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
+  write_next_lex_into(out, l);
+  write_tok_into(out, tok);
+  lexer_park_token_start(out, start);
+}
+
 export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): void {
   // tip PE Ubuntu: do NOT take (&data as *u8) / rewrite the u8[] fat here —
   // tip PE then treats later data[i] as *Fat and SEGV (ASCII-as-ptr). Cap tip
@@ -4582,9 +3332,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       // wave277: allow `_` digit separators between hex digits (`0x2_A`, `0x_FF`).
       while (l.pos < data.length) {
         if ((is_hex_digit(data[l.pos]) != 0)) {
-          let hd: u8 = data[l.pos];
-          hval = hval * 16 + (hex_digit_value(hd) as u64);
-          advance_one(&l, hd);
+          hval = hval * 16 + (hex_digit_value(lexer_take_byte(&l, data)) as u64);
           hex_digits = hex_digits + 1;
         } else if (lexer_is_digit_sep(data, l.pos, 1) != 0) {
           advance_one(&l, 95);
@@ -4621,11 +3369,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
         lexer_park_token_start(out, start);
         return;
       }
-      let tok: Token = { kind: (80 as TokenKind), line: line0, col: col0, int_val: hval as i64,
-        float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-      write_next_lex_into(out, l);
-      write_tok_into(out, tok);
-      lexer_park_token_start(out, start);
+      lexer_emit_int_token(out, l, start, line0, col0, hval as i64);
       return;
     }
     // wave276 Cap residual: `0b`/`0B` binary integer (mirror hex L004 path).
@@ -4637,9 +3381,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       // wave277: allow `_` digit separators between binary digits (`0b_101010`).
       while (l.pos < data.length) {
         if ((is_bin_digit(data[l.pos]) != 0)) {
-          let bd: u8 = data[l.pos];
-          bval = bval * 2 + ((bd - 48) as u64);
-          advance_one(&l, bd);
+          bval = bval * 2 + ((lexer_take_byte(&l, data) - 48) as u64);
           bin_digits = bin_digits + 1;
         } else if (lexer_is_digit_sep(data, l.pos, 2) != 0) {
           advance_one(&l, 95);
@@ -4676,11 +3418,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
         lexer_park_token_start(out, start);
         return;
       }
-      let tok_b: Token = { kind: (80 as TokenKind), line: line0, col: col0, int_val: bval as i64,
-        float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-      write_next_lex_into(out, l);
-      write_tok_into(out, tok_b);
-      lexer_park_token_start(out, start);
+      lexer_emit_int_token(out, l, start, line0, col0, bval as i64);
       return;
     }
     // wave276 Cap residual: `0o`/`0O` octal integer (mirror hex L004 path).
@@ -4692,9 +3430,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       // wave277: allow `_` digit separators between octal digits (`0o5_2`).
       while (l.pos < data.length) {
         if ((is_oct_digit(data[l.pos]) != 0)) {
-          let od: u8 = data[l.pos];
-          oval = oval * 8 + ((od - 48) as u64);
-          advance_one(&l, od);
+          oval = oval * 8 + ((lexer_take_byte(&l, data) - 48) as u64);
           oct_digits = oct_digits + 1;
         } else if (lexer_is_digit_sep(data, l.pos, 3) != 0) {
           advance_one(&l, 95);
@@ -4731,20 +3467,14 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
         lexer_park_token_start(out, start);
         return;
       }
-      let tok_o: Token = { kind: (80 as TokenKind), line: line0, col: col0, int_val: oval as i64,
-        float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-      write_next_lex_into(out, l);
-      write_tok_into(out, tok_o);
-      lexer_park_token_start(out, start);
+      lexer_emit_int_token(out, l, start, line0, col0, oval as i64);
       return;
     }
     ival = ival * 10 + (c - 48);
     // wave277: allow `_` digit separators in decimal ints (`1_000`, `4_2`).
     while (l.pos < data.length) {
       if ((is_digit(data[l.pos]) != 0)) {
-        let d: u8 = data[l.pos];
-        advance_one(&l, d);
-        ival = ival * 10 + (d - 48);
+        ival = ival * 10 + (lexer_take_byte(&l, data) - 48);
       } else if (lexer_is_digit_sep(data, l.pos, 0) != 0) {
         advance_one(&l, 95);
       } else {
@@ -4774,9 +3504,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       // wave277: allow `_` digit separators in float fraction digits.
       while (l.pos < data.length) {
         if ((is_digit(data[l.pos]) != 0)) {
-          let d: u8 = data[l.pos];
-          advance_one(&l, d);
-          fval = fval * 10.0 + ((d - 48) as f64);
+          fval = fval * 10.0 + ((lexer_take_byte(&l, data) - 48) as f64);
           places = places + 1;
         } else if (lexer_is_digit_sep(data, l.pos, 0) != 0) {
           advance_one(&l, 95);
@@ -4843,9 +3571,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       // wave277: allow `_` digit separators in float exponent digits (`1e2_0`).
       while (l.pos < data.length) {
         if ((is_digit(data[l.pos]) != 0)) {
-          let d: u8 = data[l.pos];
-          advance_one(&l, d);
-          exp = exp * 10 + (d - 48);
+          exp = exp * 10 + (lexer_take_byte(&l, data) - 48);
           exp_digits = exp_digits + 1;
         } else if (lexer_is_digit_sep(data, l.pos, 0) != 0) {
           advance_one(&l, 95);
@@ -4915,12 +3641,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       lexer_park_token_start(out, start);
       return;
     }
-    let tok: Token = { kind: (80 as TokenKind), line: line0, col: col0, int_val: ival,
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    write_next_lex_into(out, l);
-    write_tok_into(out, tok);
-    /* See implementation. */
-    lexer_park_token_start(out, start);
+    lexer_emit_int_token(out, l, start, line0, col0, ival);
     return;
   }
   if (c == 46 && l.pos + (1 as usize) < data.length && (is_digit(data[l.pos + (1 as usize)]) != 0)) {
@@ -4934,9 +3655,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
     // wave277: allow `_` digit separators in float fraction digits.
     while (l.pos < data.length) {
       if ((is_digit(data[l.pos]) != 0)) {
-        let d: u8 = data[l.pos];
-        advance_one(&l, d);
-        fval = fval * 10.0 + ((d - 48) as f64);
+        fval = fval * 10.0 + ((lexer_take_byte(&l, data) - 48) as f64);
         ld_places = ld_places + 1;
       } else if (lexer_is_digit_sep(data, l.pos, 0) != 0) {
         advance_one(&l, 95);
@@ -5336,17 +4055,11 @@ export function lexer_next_impl(out: *LexerResult, lex: Lexer, data: u8[]): void
   // PLATFORM: SHARED.
   skip_whitespace_and_comments(&out.next_lex, lex, data);
   if (out.next_lex.pos >= data.length) {
-    let t: Token = { kind: (0 as TokenKind), line: out.next_lex.line, col: out.next_lex.col, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    write_next_lex_into(out, out.next_lex);
-    write_tok_into(out, t);
+    lexer_emit_eof_token(out, out.next_lex);
     return;
   }
   if (data[out.next_lex.pos] == 0) {
-    let t: Token = { kind: (0 as TokenKind), line: out.next_lex.line, col: out.next_lex.col, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    write_next_lex_into(out, out.next_lex);
-    write_tok_into(out, t);
+    lexer_emit_eof_token(out, out.next_lex);
     return;
   }
   lexer_next_body_into(out, out.next_lex, data);

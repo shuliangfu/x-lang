@@ -14,6 +14,8 @@
 
 export extern function pipeline_type_kind_ord_at(arena: *u8, ty_ref: i32): i32;
 export extern function pipeline_type_elem_ref_at(arena: *u8, ty_ref: i32): i32;
+
+
 export extern function pipeline_type_named_name_into(arena: *u8, ty_ref: i32, out: *u8): i32;
 export extern function glue_fixed_array_total_bytes_c(arena: *u8, ty_ref: i32, depth: i32): i32;
 export extern function glue_type_size_simple(mod: *u8, arena: *u8, ty_ref: i32, depth: i32): i32;
@@ -22,16 +24,112 @@ export extern function glue_vector_type_lanes_esz_c(
   arena: *u8, type_ref: i32, out_lanes: *i32, out_esz: *i32
 ): i32;
 
+export extern function arena_sidecar_get(key: *u8, create: i32): *u8;
+export extern function grow_vec_at(v: *u8, index: i32): *u8;
+export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
+
 /**
- * True-pack width of a TYPE_NAMED ref.
- * @param arena *u8 — AST arena; caller already rejected null
- * @param ty i32 — named type ref; caller already knows kind 8
- * @return i32 — 1 for i8, 2 for i16 or u16, layout size when positive, else 0
- * A 0 result means the caller keeps walking. This is not a link export.
- * Cap residual without XLANG_WIN_TRUE_PACK returns 4 for these names.
- * This object is the -D body, so those names do not return 4 here.
- * PLATFORM: SHARED — local helper, not a link export.
+ * Type.elem with the same sidecar-on-miss fallback as widen_type_kind_ord.
+ * Cached primitives with no elem stay 0. PLATFORM: SHARED.
  */
+
+/**
+ * Type.kind with sidecar-on-miss, same path as 83d6a7b85 widen_type_kind_ord.
+ * pipeline_type_kind_ord_at is tried first; sidecar only when it returns < 0.
+ * PLATFORM: SHARED.
+ */
+function widen_type_kind_ord(arena: *u8, type_ref: i32): i32 {
+  let kind: i32 = 0 - 1;
+  let sc: *u8 = 0 as *u8;
+  let n: i32 = 0;
+  let slot: *u8 = 0 as *u8;
+  if (arena == (0 as *u8) || type_ref <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    kind = pipeline_type_kind_ord_at(arena, type_ref);
+  }
+  if (kind >= 0) {
+    return kind;
+  }
+  unsafe {
+    sc = arena_sidecar_get(arena, 0);
+  }
+  if (sc == (0 as *u8)) {
+    return 0 - 1;
+  }
+  unsafe {
+    n = pipe_load_i32_le(sc + (16 as usize), 12);
+  }
+  if (type_ref > n) {
+    return 0 - 1;
+  }
+  unsafe {
+    slot = grow_vec_at(sc + (16 as usize), type_ref - 1);
+  }
+  if (slot == (0 as *u8)) {
+    return 0 - 1;
+  }
+  unsafe {
+    kind = pipe_load_i32_le(slot, 0);
+  }
+  return kind;
+}
+
+function widen_type_elem_ref(arena: *u8, type_ref: i32): i32 {
+  let elem: i32 = 0;
+  let kind: i32 = 0 - 1;
+  let sc: *u8 = 0 as *u8;
+  let n: i32 = 0;
+  let slot: *u8 = 0 as *u8;
+  if (arena == (0 as *u8) || type_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    elem = pipeline_type_elem_ref_at(arena, type_ref);
+  }
+  if (elem > 0) {
+    return elem;
+  }
+  unsafe {
+    kind = pipeline_type_kind_ord_at(arena, type_ref);
+  }
+  if (kind >= 0) {
+    return 0;
+  }
+  unsafe {
+    sc = arena_sidecar_get(arena, 0);
+  }
+  if (sc == (0 as *u8)) {
+    return 0;
+  }
+  unsafe {
+    n = pipe_load_i32_le(sc + (16 as usize), 12);
+  }
+  if (type_ref > n) {
+    return 0;
+  }
+  unsafe {
+    slot = grow_vec_at(sc + (16 as usize), type_ref - 1);
+  }
+  if (slot == (0 as *u8)) {
+    return 0;
+  }
+  // Live official typool still stamps Type.elem at historic C offset
+  // 136. Current typool source moved that field to 264 (AST layout)
+  // but is not folded; 264 is tried first so a future typool fold
+  // keeps working. A 0 at 264 falls back to 136.
+  unsafe {
+    elem = pipe_load_i32_le(slot, 264);
+  }
+  if (elem <= 0) {
+    unsafe {
+      elem = pipe_load_i32_le(slot, 136);
+    }
+  }
+  return elem;
+}
+
 function iesz_named_pack(arena: *u8, ty: i32): i32 {
   let sl: i32 = 0;
   let ssz: i32 = 0;
@@ -173,11 +271,11 @@ function iesz_ptr_peel(arena: *u8, tr: i32): i32 {
   let asz: i32 = 0;
   let hit: i32 = 0;
   unsafe {
-    pointee = pipeline_type_elem_ref_at(arena, tr);
+    pointee = widen_type_elem_ref(arena, tr);
   }
   if (pointee > 0) {
     unsafe {
-      kind_ord = pipeline_type_kind_ord_at(arena, pointee);
+      kind_ord = widen_type_kind_ord(arena, pointee);
     }
     if (kind_ord == 2 || kind_ord == 1) {
       return 1;
@@ -327,18 +425,18 @@ export function glue_index_elem_byte_sz_from_type_ref_c(arena: *u8, tr: i32): i3
     return 4;
   }
   unsafe {
-    kind_ord = pipeline_type_kind_ord_at(arena, tr);
+    kind_ord = widen_type_kind_ord(arena, tr);
   }
   if (kind_ord == 9) {
     return iesz_ptr_peel(arena, tr);
   }
   if (kind_ord == 10 || kind_ord == 11) {
     unsafe {
-      pointee = pipeline_type_elem_ref_at(arena, tr);
+      pointee = widen_type_elem_ref(arena, tr);
     }
     if (pointee > 0) {
       unsafe {
-        pk = pipeline_type_kind_ord_at(arena, pointee);
+        pk = widen_type_kind_ord(arena, pointee);
       }
       hit = iesz_arr_pointee(arena, pointee, pk);
       if (hit > 0) {
