@@ -4291,8 +4291,9 @@ export function lexer_next_buf_into(out: *LexerResult, lex: Lexer, data: *u8, le
   // byte 1024 (e.g. second /** in runtime_io_abi.x) became L001 unclosed.
   // Store the {data,len} fat into a local empty slice instead (parser twin:
   // parser_slice_view_store). PLATFORM: SHARED.
-  // Ubuntu product -c P001: Track L calls this path (not body_into). Prefer
-  // lexer_src_park when set — same honesty as body_into park-prefer.
+  // Ubuntu product -c P001: Track L calls this path (not body_into).
+  // Park is only the fallback when the caller passed a null buf — a
+  // sticky entry park must not override a later dep buffer.
   // PLATFORM: SHARED.
   unsafe {
     let n: i32 = len;
@@ -4301,7 +4302,12 @@ export function lexer_next_buf_into(out: *LexerResult, lex: Lexer, data: *u8, le
     let slen: usize = 0;
     lexer_src_data_store((&sp as *u8));
     lexer_src_len_store((&slen as *u8));
-    if (sp != (0 as *u8)) {
+    // Prefer the caller's buf when it is non-null. A sticky park from the
+    // entry file (const-import) must not override a later dep buffer —
+    // Win tip then re-lexed the entry as const name = import("...") on
+    // core.option and build crashed after validate failed. Park remains
+    // the fallback when data is null (bridge peel). PLATFORM: SHARED.
+    if (d == (0 as *u8) && sp != (0 as *u8)) {
       d = sp;
       n = (slen as i32);
     }
@@ -4335,7 +4341,7 @@ export function lexer_next_buf_into(out: *LexerResult, lex: Lexer, data: *u8, le
 // PLATFORM: SHARED — LexerResult is written through out. The slice path is unchanged.
 export function lexer_next_buf(out: *LexerResult, lex: Lexer, data: *u8, len: i32): void {
   // knife256 / 10.2: same store-not-return as lexer_next_buf_into (1024 cap).
-  // Prefer park when set (twin of lexer_next_buf_into). PLATFORM: SHARED.
+  // Park is only the fallback when the caller passed a null buf (twin of lexer_next_buf_into). PLATFORM: SHARED.
   unsafe {
     let n: i32 = len;
     let d: *u8 = data;
@@ -4343,7 +4349,12 @@ export function lexer_next_buf(out: *LexerResult, lex: Lexer, data: *u8, len: i3
     let slen: usize = 0;
     lexer_src_data_store((&sp as *u8));
     lexer_src_len_store((&slen as *u8));
-    if (sp != (0 as *u8)) {
+    // Prefer the caller's buf when it is non-null. A sticky park from the
+    // entry file (const-import) must not override a later dep buffer —
+    // Win tip then re-lexed the entry as const name = import("...") on
+    // core.option and build crashed after validate failed. Park remains
+    // the fallback when data is null (bridge peel). PLATFORM: SHARED.
+    if (d == (0 as *u8) && sp != (0 as *u8)) {
       d = sp;
       n = (slen as i32);
     }

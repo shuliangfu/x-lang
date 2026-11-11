@@ -123,6 +123,71 @@ const TOKEN_STRING: i32 = 130;
 const IMPORT_BIND_CAP: i32 = 128;
 
 /**
+ * Park the collect-imports commit pointers outside
+ * parser_asm_collect_imports_into_c's huge frame.
+ *
+ * That function spills module / path_buf / path_len / bind_buf and then
+ * reuses those slots for locals. gdb of `const option = import("core.option")`
+ * on the Windows work copy showed consume_path / finalize producing path
+ * "core.option" with length 11, but pipeline_module_import_set_path was
+ * called with the same bytes and len=0, so the module recorded an empty
+ * path and build failed IMP001 `./.x`. Park at entry (param slots still
+ * fresh) and commit from this small frame after consume_path returns.
+ * PLATFORM: SHARED. WINDOWS is where the zero length was measured.
+ */
+let g_collect_imports_module: *u8 = 0 as *u8;
+let g_collect_imports_path_buf: *u8 = 0 as *u8;
+let g_collect_imports_path_len: *i32 = 0 as *i32;
+let g_collect_imports_bind_buf: *u8 = 0 as *u8;
+
+function parser_asm_collect_imports_park_commit_args(module: *u8, path_buf: *u8, path_len: *i32, bind_buf: *u8): void {
+  g_collect_imports_module = module;
+  g_collect_imports_path_buf = path_buf;
+  g_collect_imports_path_len = path_len;
+  g_collect_imports_bind_buf = bind_buf;
+}
+
+function parser_asm_collect_imports_commit_parked(): i32 {
+  let module: *u8 = g_collect_imports_module;
+  let path_buf: *u8 = g_collect_imports_path_buf;
+  let path_len: *i32 = g_collect_imports_path_len;
+  let bind_buf: *u8 = g_collect_imports_bind_buf;
+  let n: i32 = 0;
+  let blen: i32 = 0;
+  let ix: i32 = 0;
+  if (module == 0 as *u8 || path_buf == 0 as *u8 || path_len == 0 as *i32 || bind_buf == 0 as *u8) {
+    return -1;
+  }
+  unsafe {
+    n = path_len[0];
+  }
+  if (n <= 0) {
+    return -1;
+  }
+  while (blen < IMPORT_BIND_CAP) {
+    let b: u8 = 0;
+    unsafe { b = bind_buf[blen]; }
+    if (b == 0) {
+      break;
+    }
+    blen = blen + 1;
+  }
+  unsafe {
+    ix = pipeline_module_import_alloc(module);
+  }
+  if (ix < 0) {
+    return -1;
+  }
+  unsafe {
+    pipeline_module_import_set_path(module, ix, path_buf, n);
+    pipeline_module_import_set_kind(module, ix, 1);
+    pipeline_module_import_set_binding_name(module, ix, bind_buf, blen);
+    pipeline_module_import_set_select_count(module, ix, 0);
+  }
+  return ix;
+}
+
+/**
  * Restore lexer pos/line/col saved at try_skip entry (C twin left
  * *lex unmoved on any fail because consume_path mutated a dummy).
  * @param lex *u8 — opaque lexer
@@ -450,6 +515,7 @@ export function parser_asm_collect_imports_into_c(lex_inout: *u8, source: *u8, m
   if (lex_inout == 0 as *u8 || source == 0 as *u8 || module == 0 as *u8 || path_buf == 0 as *u8 || bind_buf == 0 as *u8 || path_len == 0 as *i32) {
     return 0;
   }
+  parser_asm_collect_imports_park_commit_args(module, path_buf, path_len, bind_buf);
   unsafe {
     while (true) {
       kind = parser_asm_lex_peek_kind_c(lex_inout, source);
@@ -518,14 +584,10 @@ export function parser_asm_collect_imports_into_c(lex_inout: *u8, source: *u8, m
       if (ok == 0) {
         return 0;
       }
-      imp_ix = pipeline_module_import_alloc(module);
+      imp_ix = parser_asm_collect_imports_commit_parked();
       if (imp_ix < 0) {
         return 0;
       }
-      pipeline_module_import_set_path(module, imp_ix, path_buf, path_len[0]);
-      pipeline_module_import_set_kind(module, imp_ix, 1);
-      pipeline_module_import_set_binding_name(module, imp_ix, bind_buf, pl);
-      pipeline_module_import_set_select_count(module, imp_ix, 0);
     }
   }
   return 1;
