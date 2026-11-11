@@ -3178,6 +3178,50 @@ function lexer_emit_int_token(out: *LexerResult, l: Lexer, start: usize, line0: 
   lexer_park_token_start(out, start);
 }
 
+/**
+ * Emit TOKEN_IDENT through out in a small frame.
+ *
+ * lexer_next_body_into is a huge frame. `&out.tok` plus the saved line/col
+ * slots were not the official LexerResult.tok / line / col at the call
+ * (gdb: dest was a temp, rdx a stack pointer, r8 the parked start pos).
+ * lexer_write_ident_token then stored the ident image off to the side, so
+ * tok stayed the previous keyword (false P014 on `let x`). write_tok_into
+ * already memcpy's the 48-byte Token through *LexerResult; use that from a
+ * small callee, same class as lexer_emit_int_token / lexer_emit_eof_token.
+ * PLATFORM: SHARED. WINDOWS is where the dest/arg alias was measured.
+ */
+function lexer_emit_ident_token(out: *LexerResult, line0: i32, col0: i32, nlen: i32): void {
+  if (out == 0) { return; }
+  let tok: Token = { kind: (59 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
+    float_val: 0.0, ident: (0 as *u8), ident_len: nlen };
+  write_tok_into(out, tok);
+}
+
+/**
+ * Finish an identifier-or-keyword token in a small frame.
+ *
+ * In lexer_next_body_into's huge frame the Token init was stored at one
+ * slot (e.g. -0xc10) while try_keyword(&tok), `kind_i = tok.kind`, and
+ * write_tok_into(out, tok) used another (e.g. -0x280). Keywords hid the
+ * bug because try_keyword wrote kind into the read slot. A following
+ * ident left that slot holding the previous keyword (kind=2 `let`), so
+ * kind_i != 0 and write_tok_into re-emitted `let` as the binding name
+ * (false P014). Keep the Token, the kind test, and the store together
+ * here; the caller only passes *LexerResult plus start/span/line/col.
+ * PLATFORM: SHARED. WINDOWS is where the two-slot alias was measured.
+ */
+function lexer_emit_ident_or_keyword(out: *LexerResult, data: u8[], start: usize, span_len: usize, line0: i32, col0: i32): void {
+  if (out == 0) { return; }
+  let tok: Token = { kind: (0 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
+    float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
+  try_keyword(&tok, data, start, span_len, line0, col0);
+  if ((tok.kind as i32) == 0) {
+    lexer_emit_ident_token(out, line0, col0, (span_len as i32));
+  } else {
+    write_tok_into(out, tok);
+  }
+}
+
 export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): void {
   // tip PE Ubuntu: do NOT take (&data as *u8) / rewrite the u8[] fat here —
   // tip PE then treats later data[i] as *Fat and SEGV (ASCII-as-ptr). Cap tip
@@ -3304,16 +3348,10 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
     }
     let start_parked: usize = lexer_parked_token_start(out);
     let span_len: usize = l.pos - start_parked;
-    let tok: Token = { kind: (0 as TokenKind), line: line_save, col: col_save, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    // 10.2 Cap tip: try_keyword(u8[]) — avoid peel→buf (PAGEZERO SEGV / L003 sync).
-    try_keyword(&tok, data, start_parked, span_len, line_save, col_save);
     write_next_lex_into(out, l);
-    let kind_i: i32 = (tok.kind as i32);
-    if (kind_i == 0) {
-      lexer_write_ident_token(&out.tok, line_save, col_save, (span_len as i32));
-    } else {
-      write_tok_into(out, tok);
-    }
+    // Huge-frame tok/kind_i slots diverged; finish ident vs keyword in a small callee.
+    // PLATFORM: SHARED.
+    lexer_emit_ident_or_keyword(out, data, start_parked, span_len, line_save, col_save);
     lexer_park_token_start(out, start_parked);
     return;
   }
