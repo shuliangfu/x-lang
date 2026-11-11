@@ -3179,20 +3179,131 @@ function lexer_emit_int_token(out: *LexerResult, l: Lexer, start: usize, line0: 
 }
 
 /**
+ * Park the number-literal start and seed tok.line / tok.col from the
+ * reliable Lexer fields, in a small frame. Later huge-frame reloads of
+ * start / line0 / col0 alias. PLATFORM: SHARED.
+ */
+function lexer_begin_number_span(out: *LexerResult, start: usize, line0: i32, col0: i32): void {
+  if (out == 0) { return; }
+  let tok: Token = { kind: (0 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
+    float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
+  write_tok_into(out, tok);
+  lexer_park_token_start(out, start);
+}
+
+function lexer_seeded_token_line(out: *LexerResult): i32 {
+  let v: i32 = 0;
+  unsafe { memcpy((&v as *u8), (out as *u8) + (20 as usize), (4 as usize)); }
+  return v;
+}
+
+function lexer_seeded_token_col(out: *LexerResult): i32 {
+  let v: i32 = 0;
+  unsafe { memcpy((&v as *u8), (out as *u8) + (24 as usize), (4 as usize)); }
+  return v;
+}
+
+/**
+ * Re-parse a float literal from data[start, end) in a small frame.
+ *
+ * Do not take the already-folded fval / start / line0 / col0 from
+ * lexer_next_body_into: those huge-frame slots alias, and the 8-arg
+ * Win64 call also only reserved 0x20 of shadow so stack args shift by 8.
+ * PLATFORM: SHARED. WINDOWS is where the wrong slots and the shift were measured.
+ */
+function lexer_parse_float_span(data: u8[], start: usize, end: usize): f64 {
+  // idx8 still folds a ten-dot-zero literal to zero, so scale with (10 as f64).
+  // PLATFORM: SHARED.
+  let i: usize = start;
+  let fval: f64 = (0 as f64);
+  while (i < end && (is_digit(data[i]) != 0 || data[i] == 95)) {
+    if (is_digit(data[i]) != 0) {
+      fval = fval * (10 as f64) + ((data[i] - 48) as f64);
+    }
+    i = i + 1;
+  }
+  if (i < end && data[i] == 46) {
+    i = i + 1;
+    let places: i32 = 0;
+    while (i < end && (is_digit(data[i]) != 0 || data[i] == 95)) {
+      if (is_digit(data[i]) != 0) {
+        fval = fval * (10 as f64) + ((data[i] - 48) as f64);
+        places = places + 1;
+      }
+      i = i + 1;
+    }
+    let pi: i32 = 0;
+    while (pi < places) {
+      fval = fval / (10 as f64);
+      pi = pi + 1;
+    }
+  }
+  if (i < end && (data[i] == 101 || data[i] == 69)) {
+    i = i + 1;
+    let exp_sign: i32 = 1;
+    if (i < end && data[i] == 45) {
+      exp_sign = -1;
+      i = i + 1;
+    } else {
+      if (i < end && data[i] == 43) { i = i + 1; }
+    }
+    let exp: i32 = 0;
+    while (i < end && (is_digit(data[i]) != 0 || data[i] == 95)) {
+      if (is_digit(data[i]) != 0) {
+        exp = exp * 10 + (data[i] - 48);
+      }
+      i = i + 1;
+    }
+    exp = exp * exp_sign;
+    let scale: f64 = (1 as f64);
+    let e: i32 = 0;
+    if (exp > 0) {
+      while (e < exp) {
+        scale = scale * (10 as f64);
+        e = e + 1;
+      }
+    } else {
+      while (e > exp) {
+        scale = scale / (10 as f64);
+        e = e - 1;
+      }
+    }
+    fval = fval * scale;
+  }
+  return fval;
+}
+
+/**
  * Emit TOKEN_FLOAT through out in a small frame.
  *
  * lexer_next_body_into is a huge frame. `let tok: Token = { kind: 81, float_val: fval, ... }`
  * plus write_tok_into can write a garbage kind into *out (same slot-alias as
  * lexer_emit_int_token / ident-or-keyword). gdb on `let x: f32 = 0.0` showed
  * official tok.kind=67632 after the float next, so parse_body_lets_into left
- * init_handled=0 and dropped the function (funcs=0 / CG002). Keep the Token
- * and the store in this callee. Pass cursor/start/line/col/fval as scalars
- * rather than a by-value Lexer plus f64 (that shape passed a stack pointer
- * in rdx from the huge caller). PLATFORM: SHARED. WINDOWS is where the
- * garbage kind was measured.
+ * init_handled=0 and dropped the function (funcs=0 / CG002).
+ *
+ * After the kind fix, start / line / col / float_val were still wrong: the
+ * 8-scalar Win64 call loaded aliased huge-frame slots for args 5–8, and the
+ * caller only reserved 0x20 so those stack args shifted by one slot at entry.
+ * Re-parse the already-consumed span (parked + seeded at the first digit or
+ * leading dot from the reliable Lexer fields) and write tok in this callee.
+ * At most four arguments, all in registers. PLATFORM: SHARED.
+ * WINDOWS is where the garbage kind, bad slots, and stack shift were measured.
  */
-function lexer_emit_float_token(out: *LexerResult, end_pos: usize, end_line: i32, end_col: i32, start: usize, line0: i32, col0: i32, fval: f64): void {
-  if (out == 0) { return; }
+function lexer_emit_float_token(out: *LexerResult, lex: *Lexer, data: u8[]): void {
+  if (out == 0 || lex == 0) { return; }
+  let end_pos: usize = 0;
+  let end_line: i32 = 1;
+  let end_col: i32 = 1;
+  unsafe {
+    end_pos = lex.pos;
+    end_line = lex.line;
+    end_col = lex.col;
+  }
+  let start: usize = lexer_parked_token_start(out);
+  let line0: i32 = lexer_seeded_token_line(out);
+  let col0: i32 = lexer_seeded_token_col(out);
+  let fval: f64 = lexer_parse_float_span(data, start, end_pos);
   let l: Lexer = { pos: end_pos, line: end_line, col: end_col };
   let tok: Token = { kind: (81 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
     float_val: fval, ident: (0 as *u8), ident_len: 0 };
@@ -3383,6 +3494,10 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
     let line0: i32 = l.line;
     let col0: i32 = l.col;
     let ival: i64 = 0;
+    // Park start and seed line/col from the Lexer fields (those slots are
+    // reliable). Later huge-frame reloads of start/line0/col0 alias.
+    // PLATFORM: SHARED.
+    lexer_begin_number_span(out, l.pos, l.line, l.col);
     advance_one(&l, c);
     if (c == 48 && l.pos < data.length && (data[l.pos] == 120 || data[l.pos] == 88)) {
       // wave273 Cap residual: `0x`/`0X` requires ≥1 hex digit. Zero digits was silent
@@ -3608,7 +3723,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
         lexer_park_token_start(out, start);
         return;
       }
-      lexer_emit_float_token(out, l.pos, l.line, l.col, start, line0, col0, fval);
+      lexer_emit_float_token(out, &l, data);
       return;
     }
     if (l.pos < data.length && (data[l.pos] == 101 || data[l.pos] == 69)) {
@@ -3681,7 +3796,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
         lexer_park_token_start(out, start);
         return;
       }
-      lexer_emit_float_token(out, l.pos, l.line, l.col, start, line0, col0, fval);
+      lexer_emit_float_token(out, &l, data);
       return;
     }
     // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
@@ -3701,6 +3816,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
     let start: usize = l.pos;
     let line0: i32 = l.line;
     let col0: i32 = l.col;
+    lexer_begin_number_span(out, l.pos, l.line, l.col);
     advance_one(&l, 46);
     let fval: f64 = 0.0;
     let ld_places: i32 = 0;
@@ -3750,7 +3866,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       lexer_park_token_start(out, start);
       return;
     }
-    lexer_emit_float_token(out, l.pos, l.line, l.col, start, line0, col0, fval);
+    lexer_emit_float_token(out, &l, data);
     return;
   }
   // Punctuation/operators: dedicated helper keeps body_into under typeck limits.
