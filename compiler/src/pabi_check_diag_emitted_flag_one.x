@@ -4,7 +4,9 @@
 // That is holds-indirect lowering in a huge 0x1b8 frame, not a
 // real flag value. Small-frame load/store actually read and write
 // the i32 at *p. flag_slot functions themselves (lea of the BSS
-// word) stay official. Covers the whole driver_* flag-slot family.
+// word) stay official when one already exists. Covers the whole
+// driver_* flag-slot family, including the hard-diag i32 counter
+// (count must return the loaded i32, not the pointer / nonzero).
 // PLATFORM: SHARED.
 
 export extern function driver_check_diag_emitted_flag_slot(): *i32;
@@ -17,6 +19,7 @@ export extern function driver_x_pipeline_skip_codegen_flag_slot(): *i32;
 export extern function driver_skip_codegen_dep_0_flag_slot(): *i32;
 export extern function driver_large_stack_thread_flag_slot(): *i32;
 export extern function link_abi_getenv(name: *u8): *u8;
+export extern function lsp_diag_get_enabled(): i32;
 
 function flag_i32_load(p: *i32): i32 {
   if (p == (0 as *i32)) {
@@ -46,6 +49,19 @@ function flag_i32_nonzero(p: *i32): i32 {
     return 1;
   }
   return 0;
+}
+
+
+function flag_i32_inc(p: *i32): void {
+  let v: i32 = 0;
+  unsafe {
+    v = flag_i32_load(p);
+  }
+  if (v < 2147483647) {
+    unsafe {
+      flag_i32_store(p, v + 1);
+    }
+  }
 }
 
 #[no_mangle]
@@ -205,4 +221,34 @@ export function driver_sanitize_address_get(): i32 {
     }
   }
   return 1;
+}
+
+// Official product has no driver_typeck_hard_diag_flag_slot lea.
+// Count/note are the only accessors; a small-frame slot in this TU is
+// the same pattern as the other helpers (no function-name special case).
+let g_driver_typeck_hard_diag_n: i32[1] = [0];
+
+function driver_typeck_hard_diag_flag_slot(): *i32 {
+  unsafe {
+    return &g_driver_typeck_hard_diag_n[0];
+  }
+  return 0 as *i32;
+}
+
+#[no_mangle]
+export function driver_typeck_hard_diag_count(): i32 {
+  unsafe {
+    return flag_i32_load(driver_typeck_hard_diag_flag_slot());
+  }
+  return 0;
+}
+
+#[no_mangle]
+export function driver_typeck_hard_diag_note(): void {
+  unsafe {
+    if (lsp_diag_get_enabled() != 0) {
+      return;
+    }
+    flag_i32_inc(driver_typeck_hard_diag_flag_slot());
+  }
 }
