@@ -524,6 +524,22 @@ function asm_wpo_call_callee_id(a: *u8, call_expr_ref: i32, caller_mod: *u8, ctx
 
 
 
+
+/**
+ * Forward decls: else-branch pool walks live in small frames so the
+ * count local and the `while (i < n)` compare use the same slot.
+ * Official typool and idx8 both alias that slot in the large
+ * collect_walk frame (nf stored at one spill, compared against an
+ * uninitialized neighbor). PLATFORM: WINDOWS lowering; SHARED semantics.
+ */
+function asm_wpo_collect_walk_consts(a: *u8, block_ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8): void;
+function asm_wpo_collect_walk_lets(a: *u8, block_ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8): void;
+function asm_wpo_collect_walk_whiles(a: *u8, block_ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8): void;
+function asm_wpo_collect_walk_fors(a: *u8, block_ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8): void;
+function asm_wpo_collect_walk_ifs(a: *u8, block_ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8): void;
+function asm_wpo_collect_walk_expr_stmts(a: *u8, block_ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8): void;
+function asm_wpo_collect_walk_labeled(a: *u8, block_ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8): void;
+
 /**
  * Walk one block or one expression and record call edges.
  * @param is_block i32 — non-zero walks a block; zero walks an expression
@@ -644,97 +660,15 @@ function asm_wpo_collect_walk(is_block: i32, a: *u8, ref: i32, caller_id: i32, c
           i = i + 1;
         }
       } else {
-        let nc: i32 = ast_ast_block_num_consts(a, block_ref);
-        i = 0;
-        while (i < nc) {
-          er = ast_pipeline_block_const_init_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          i = i + 1;
-        }
-        let nl: i32 = ast_ast_block_num_lets(a, block_ref);
-        i = 0;
-        while (i < nl) {
-          er = pipeline_block_let_init_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          i = i + 1;
-        }
-        let nlp: i32 = ast_ast_block_num_loops(a, block_ref);
-        i = 0;
-        while (i < nlp) {
-          er = ast_ast_block_while_cond_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          er = ast_ast_block_while_body_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(1, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          i = i + 1;
-        }
-        let nf: i32 = ast_ast_block_num_for_loops(a, block_ref);
-        i = 0;
-        while (i < nf) {
-          er = ast_ast_block_for_init_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          er = ast_ast_block_for_cond_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          er = ast_ast_block_for_step_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          er = ast_ast_block_for_body_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(1, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          i = i + 1;
-        }
-        let ni: i32 = ast_ast_block_num_if_stmts(a, block_ref);
-        i = 0;
-        while (i < ni) {
-          er = ast_pipeline_block_if_cond_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          er = ast_pipeline_block_if_then_body_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(1, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          er = ast_pipeline_block_if_else_body_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(1, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          i = i + 1;
-        }
-        let nes2: i32 = ast_ast_block_num_expr_stmts(a, block_ref);
-        i = 0;
-        while (i < nes2) {
-          er = ast_pipeline_block_expr_stmt_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          i = i + 1;
-        }
+        asm_wpo_collect_walk_consts(a, block_ref, caller_id, caller_mod, ctx);
+        asm_wpo_collect_walk_lets(a, block_ref, caller_id, caller_mod, ctx);
+        asm_wpo_collect_walk_whiles(a, block_ref, caller_id, caller_mod, ctx);
+        asm_wpo_collect_walk_fors(a, block_ref, caller_id, caller_mod, ctx);
+        asm_wpo_collect_walk_ifs(a, block_ref, caller_id, caller_mod, ctx);
+        asm_wpo_collect_walk_expr_stmts(a, block_ref, caller_id, caller_mod, ctx);
       }
       // Labeled returns (C parser) not always in stmt_order.
-      let nlab: i32 = pipeline_block_num_labeled_stmts(a, block_ref);
-      i = 0;
-      while (i < nlab) {
-        if (pipeline_block_labeled_is_goto(a, block_ref, i) == 0) {
-          er = pipeline_block_labeled_return_expr_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
-          }
-        }
-        i = i + 1;
-      }
+      asm_wpo_collect_walk_labeled(a, block_ref, caller_id, caller_mod, ctx);
       let fer: i32 = ast_ast_block_final_expr_ref(a, block_ref);
       if (fer > 0) {
         asm_wpo_collect_walk(0, a, fer, caller_id, caller_mod, ctx, 0);
@@ -936,6 +870,144 @@ function asm_wpo_collect_walk(is_block: i32, a: *u8, ref: i32, caller_id: i32, c
       asm_wpo_collect_walk(0, a, iidx, caller_id, caller_mod, ctx, depth + 1);
     }
 
+  }
+}
+
+
+/**
+ * Else-branch / labeled pool walks. Each helper is a small frame so
+ * `let n = count(); while (i < n)` cannot typool-alias the bound
+ * (idx8 stored nf at -0x2a0 and compared i against uninitialized
+ * -0xe0 in the large collect_walk frame). PLATFORM: WINDOWS lowering.
+ */
+function asm_wpo_collect_walk_consts(a: *u8, block_ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8): void {
+  unsafe {
+    let nc: i32 = ast_ast_block_num_consts(a, block_ref);
+    let i: i32 = 0;
+    let er: i32 = 0;
+    while (i < nc) {
+      er = ast_pipeline_block_const_init_ref(a, block_ref, i);
+      if (er > 0) {
+        asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
+      }
+      i = i + 1;
+    }
+  }
+}
+
+function asm_wpo_collect_walk_lets(a: *u8, block_ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8): void {
+  unsafe {
+    let nl: i32 = ast_ast_block_num_lets(a, block_ref);
+    let i: i32 = 0;
+    let er: i32 = 0;
+    while (i < nl) {
+      er = pipeline_block_let_init_ref(a, block_ref, i);
+      if (er > 0) {
+        asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
+      }
+      i = i + 1;
+    }
+  }
+}
+
+function asm_wpo_collect_walk_whiles(a: *u8, block_ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8): void {
+  unsafe {
+    let nlp: i32 = ast_ast_block_num_loops(a, block_ref);
+    let i: i32 = 0;
+    let er: i32 = 0;
+    while (i < nlp) {
+      er = ast_ast_block_while_cond_ref(a, block_ref, i);
+      if (er > 0) {
+        asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
+      }
+      er = ast_ast_block_while_body_ref(a, block_ref, i);
+      if (er > 0) {
+        asm_wpo_collect_walk(1, a, er, caller_id, caller_mod, ctx, 0);
+      }
+      i = i + 1;
+    }
+  }
+}
+
+function asm_wpo_collect_walk_fors(a: *u8, block_ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8): void {
+  unsafe {
+    let nf: i32 = ast_ast_block_num_for_loops(a, block_ref);
+    let i: i32 = 0;
+    let er: i32 = 0;
+    while (i < nf) {
+      er = ast_ast_block_for_init_ref(a, block_ref, i);
+      if (er > 0) {
+        asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
+      }
+      er = ast_ast_block_for_cond_ref(a, block_ref, i);
+      if (er > 0) {
+        asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
+      }
+      er = ast_ast_block_for_step_ref(a, block_ref, i);
+      if (er > 0) {
+        asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
+      }
+      er = ast_ast_block_for_body_ref(a, block_ref, i);
+      if (er > 0) {
+        asm_wpo_collect_walk(1, a, er, caller_id, caller_mod, ctx, 0);
+      }
+      i = i + 1;
+    }
+  }
+}
+
+function asm_wpo_collect_walk_ifs(a: *u8, block_ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8): void {
+  unsafe {
+    let ni: i32 = ast_ast_block_num_if_stmts(a, block_ref);
+    let i: i32 = 0;
+    let er: i32 = 0;
+    while (i < ni) {
+      er = ast_pipeline_block_if_cond_ref(a, block_ref, i);
+      if (er > 0) {
+        asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
+      }
+      er = ast_pipeline_block_if_then_body_ref(a, block_ref, i);
+      if (er > 0) {
+        asm_wpo_collect_walk(1, a, er, caller_id, caller_mod, ctx, 0);
+      }
+      er = ast_pipeline_block_if_else_body_ref(a, block_ref, i);
+      if (er > 0) {
+        asm_wpo_collect_walk(1, a, er, caller_id, caller_mod, ctx, 0);
+      }
+      i = i + 1;
+    }
+  }
+}
+
+function asm_wpo_collect_walk_expr_stmts(a: *u8, block_ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8): void {
+  unsafe {
+    let nes: i32 = ast_ast_block_num_expr_stmts(a, block_ref);
+    let i: i32 = 0;
+    let er: i32 = 0;
+    while (i < nes) {
+      er = ast_pipeline_block_expr_stmt_ref(a, block_ref, i);
+      if (er > 0) {
+        asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
+      }
+      i = i + 1;
+    }
+  }
+}
+
+function asm_wpo_collect_walk_labeled(a: *u8, block_ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8): void {
+  unsafe {
+    let nlab: i32 = pipeline_block_num_labeled_stmts(a, block_ref);
+    let i: i32 = 0;
+    let er: i32 = 0;
+    while (i < nlab) {
+      if (pipeline_block_labeled_is_goto(a, block_ref, i) == 0) {
+        er = pipeline_block_labeled_return_expr_ref(a, block_ref, i);
+        if (er > 0) {
+          asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
+        }
+      }
+      i = i + 1;
+    }
   }
 }
 
