@@ -4641,35 +4641,117 @@ function w1521_emit_method_early(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *
   return 0 - 1;
 }
 
-// Hooked symbol: keep this a small-frame wrapper so typool's 3-way on `st`
-// stores and compares the same slot. Heavy work is in early + tail.
-function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
-  if (arena == 0 as *u8) { return 0 - 1; }
-  if (elf_ctx == 0) { return 0 - 1; }
-  if (ctx == 0 as *u8) { return 0 - 1; }
-  let st: i32 = w1521_emit_method_early(arena, elf_ctx, expr_ref, ctx, ta);
-  if (st < 0) { return 0 - 1; }
-  if (st > 0) { return 0; }
-  return w1521_emit_method_body_tail(arena, elf_ctx, expr_ref, ctx, ta);
+// typool of w1521_emit_method_body_tail stores method base_ref at one slot
+// (-0x1e8) and later passes/compares a different uninitialized slot (-0x4050,
+// live 246). The same class stored ff_ok = 0 in the -0x1f8 cluster and then
+// set/compared ff_ok at -0x4b10, so the Cap/TYPE_FN field arm fired on
+// leftover stack garbage. Compute those scalars in small-frame helpers;
+// typool of `if (helper() != 0)` uses %eax, and each helper stores and
+// passes the same slot.
+function w1521_method_base_ref(arena: *u8, expr_ref: i32): i32 {
+  unsafe {
+
+    return pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+  }
+  return 0;
 }
 
-function w1521_emit_method_body_tail(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
-  if (arena == 0 as *u8) { return 0 - 1; }
-  if (elf_ctx == 0) { return 0 - 1; }
-  if (ctx == 0 as *u8) { return 0 - 1; }
+function w1521_method_base_nz(arena: *u8, expr_ref: i32): i32 {
   unsafe {
-    // note743y.5: tip frame was 0x18e8 while locals used to -0x34b0 (SEGV in
-    // import METHOD). Pad so tip-emitted prologue covers nested spill arrays.
-    // Official typool of `u8[16384] = []` unrolls 256 zero-bytes from a
-    // shallow -0x98(%rbp) through saved rbx/rbp and the return address
-    // (option/SI build SIGSEGV RIP=0 after emit_method_body). Keep the
-    // pad allocation; do not zero-init the whole array. Touch only [0].
-    let _frame_pad_y5_m: u8[16384];
-    _frame_pad_y5_m[0] = 0;
+
+    let br: i32 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    if (br != 0) { return 1; }
+    return 0;
+  }
+  return 0;
+}
+
+function w1521_method_base_gt0(arena: *u8, expr_ref: i32): i32 {
+  unsafe {
+
+    let br: i32 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    if (br > 0) { return 1; }
+    return 0;
+  }
+  return 0;
+}
+
+function w1521_method_base_kind_ord(arena: *u8, expr_ref: i32): i32 {
+  unsafe {
+
+    let br: i32 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    return pipeline_expr_kind_ord_at(arena, br);
+  }
+  return 0;
+}
+
+function w1521_method_base_var_name_len(arena: *u8, expr_ref: i32): i32 {
+  unsafe {
+
+    let br: i32 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    return pipeline_expr_var_name_len(arena, br);
+  }
+  return 0;
+}
+
+function w1521_method_base_var_name_into(arena: *u8, expr_ref: i32, dst: *u8): i32 {
+  unsafe {
+
+    let br: i32 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    pipeline_expr_var_name_into(arena, br, dst);
+    return br;
+  }
+  return 0;
+}
+
+function w1521_method_base_resolved_type(arena: *u8, expr_ref: i32): i32 {
+  unsafe {
+
+    let br: i32 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    return pipeline_expr_resolved_type_ref(arena, br);
+  }
+  return 0;
+}
+
+function w1521_emit_lvalue_method_base(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  unsafe {
+
+    let br: i32 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    return pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, br, ctx, ta);
+  }
+  return 0 - 1;
+}
+
+function w1521_emit_expr_method_base(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  unsafe {
+
+    let br: i32 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    return pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, br, ctx, ta);
+  }
+  return 0 - 1;
+}
+
+function w1521_glue_emit_one_call_arg_method_base(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  unsafe {
+
+    let br: i32 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    return glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, br, 0, ctx, ta);
+  }
+  return 0 - 1;
+}
+
+// Cap/TYPE_FN field method arm. idx8 tail typool stored ff_ok init and
+// base_ref in one band and later compared/passed different slots, so
+// is_none_i32 entered this arm with r8=246 into emit_lvalue. Keep this
+// helper's frame small: same-slot scalars, return -1 / 1 emitted / 0
+// fall through (including stack-arg Cap, which must keep UFCS).
+function w1521_try_emit_method_field_fn(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  unsafe {
+
+    if (arena == 0 as *u8) { return 0 - 1; }
+    if (elf_ctx == 0) { return 0 - 1; }
+    if (ctx == 0 as *u8) { return 0 - 1; }
     let mod_ref: *u8 = call_dispatch_load_ptr_le(ctx, 16);
-    /** Product parses core.xlang_io_submit_*_batch as METHOD_CALL with >5 args; seed _impl is authority. */
-    // nargs/name_len/try_emit early-outs already ran in w1521_emit_method_early
-    // (small frame). Re-fetch scalars and the name buffer for later uses here.
     let nargs: i32 = pipeline_expr_method_call_num_args_at(arena, expr_ref);
     let base_ref: i32 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
     let name_len: i32 = pipeline_expr_method_call_name_len(arena, expr_ref);
@@ -4787,7 +4869,7 @@ function w1521_emit_method_body_tail(arena: *u8, elf_ctx: *u8, expr_ref: i32, ct
           }
           if (nargs == 0) {
             if (backend_enc_blr_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
-            return 0;
+            return 1;
           }
           ff_reg_max = glue_asm_call_reg_max(ta);
           if (ff_reg_max < 1) { ff_reg_max = 6; }
@@ -4825,10 +4907,56 @@ function w1521_emit_method_body_tail(arena: *u8, elf_ctx: *u8, expr_ref: i32, ct
             }
             if (backend_enc_blr_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
           }
-          return 0;
+          return 1;
         }
       }
     }
+    return 0;
+  }
+  return 0 - 1;
+}
+
+// Hooked symbol: keep this a small-frame wrapper so typool's 3-way on `st`
+// stores and compares the same slot. Heavy work is in early + field-fn +
+// tail. Field-fn must not stay in the large tail: typool passed the wrong
+// base_ref slot (246) and compared the wrong ff_ok slot.
+function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  if (arena == 0 as *u8) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (ctx == 0 as *u8) { return 0 - 1; }
+  let st: i32 = w1521_emit_method_early(arena, elf_ctx, expr_ref, ctx, ta);
+  if (st < 0) { return 0 - 1; }
+  if (st > 0) { return 0; }
+  st = w1521_try_emit_method_field_fn(arena, elf_ctx, expr_ref, ctx, ta);
+  if (st < 0) { return 0 - 1; }
+  if (st > 0) { return 0; }
+  return w1521_emit_method_body_tail(arena, elf_ctx, expr_ref, ctx, ta);
+}
+
+function w1521_emit_method_body_tail(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  if (arena == 0 as *u8) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (ctx == 0 as *u8) { return 0 - 1; }
+  unsafe {
+    // note743y.5: tip frame was 0x18e8 while locals used to -0x34b0 (SEGV in
+    // import METHOD). Pad so tip-emitted prologue covers nested spill arrays.
+    // Official typool of `u8[16384] = []` unrolls 256 zero-bytes from a
+    // shallow -0x98(%rbp) through saved rbx/rbp and the return address
+    // (option/SI build SIGSEGV RIP=0 after emit_method_body). Keep the
+    // pad allocation; do not zero-init the whole array. Touch only [0].
+    let _frame_pad_y5_m: u8[16384];
+    _frame_pad_y5_m[0] = 0;
+    let mod_ref: *u8 = call_dispatch_load_ptr_le(ctx, 16);
+    /** Product parses core.xlang_io_submit_*_batch as METHOD_CALL with >5 args; seed _impl is authority. */
+    // nargs/name_len/try_emit early-outs already ran in w1521_emit_method_early
+    // (small frame). Re-fetch scalars and the name buffer for later uses here.
+    let nargs: i32 = pipeline_expr_method_call_num_args_at(arena, expr_ref);
+    let base_ref: i32 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    let name_len: i32 = pipeline_expr_method_call_name_len(arena, expr_ref);
+    let name: u8[256] = [];
+    pipeline_expr_method_call_name_into(arena, expr_ref, &name[0]);
+    // Cap/TYPE_FN field-fn arm lives in w1521_try_emit_method_field_fn
+    // (small frame). The wrapper already ran it and 3-way-branched.
     // wave359: bootstrap i32.double → 2*x when not UFCS-resolved free fn.
     let r_fn: i32 = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
     /*
@@ -4957,7 +5085,7 @@ function w1521_emit_method_body_tail(arena: *u8, elf_ctx: *u8, expr_ref: i32, ct
        * receivers use the existing lvalue-LEA authority (G.7). emit_expr
        * would load the first 8 bytes (data ptr) and [x0,#8] would then
        * read past the concrete payload — SIGSEGV / exit=112 false-green. */
-      if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+      if (w1521_emit_lvalue_method_base(arena, elf_ctx, expr_ref, ctx, ta) != 0) {
         return 0 - 1;
       }
       /* x0 = &dyn_obj; load vtable ptr from dyn_obj+8 into x1. */
@@ -5087,14 +5215,14 @@ function w1521_emit_method_body_tail(arena: *u8, elf_ctx: *u8, expr_ref: i32, ct
     if (r_fn < 0) {
       if (nargs == 0) {
         if (name_len == 6) {
-          if (base_ref != 0) {
+          if (w1521_method_base_nz(arena, expr_ref) != 0) {
             if (name[0] == 100) {
               if (name[1] == 111) {
                 if (name[2] == 117) {
                   if (name[3] == 98) {
                     if (name[4] == 108) {
                       if (name[5] == 101) {
-                        if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+                        if (w1521_emit_expr_method_base(arena, elf_ctx, expr_ref, ctx, ta) != 0) {
                           return 0 - 1;
                         }
                         if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
@@ -5111,14 +5239,14 @@ function w1521_emit_method_body_tail(arena: *u8, elf_ctx: *u8, expr_ref: i32, ct
       }
     }
     if (mod_ref != 0) {
-      if (base_ref > 0) {
-        if (pipeline_expr_kind_ord_at(arena, base_ref) == 3) {
-          let base_len: i32 = pipeline_expr_var_name_len(arena, base_ref);
+      if (w1521_method_base_gt0(arena, expr_ref) != 0) {
+        if (w1521_method_base_kind_ord(arena, expr_ref) == 3) {
+          let base_len: i32 = w1521_method_base_var_name_len(arena, expr_ref);
           if (base_len > 0) {
             // wave580 Cap: import binding name content cap 255.
             if (base_len <= 255) {
               let base_name: u8[256] = [];
-              pipeline_expr_var_name_into(arena, base_ref, &base_name[0]);
+              w1521_method_base_var_name_into(arena, expr_ref, &base_name[0]);
               let j: i32 = 0;
               let nimp: i32 = parser_get_module_num_imports(mod_ref);
               while (j < nimp) {
@@ -5591,7 +5719,7 @@ function w1521_emit_method_body_tail(arena: *u8, elf_ctx: *u8, expr_ref: i32, ct
       let sret_sh_u: i32 = 0;
       let sret_park_u: i32 = (0 - 2);
       let gp_cur_u: i32 = 0;
-      if (base_ref != 0) { has_recv = 1; }
+      if (w1521_method_base_nz(arena, expr_ref) != 0) { has_recv = 1; }
       /*
        * Associated Type.method(): resolved callee nparams == nargs (no implicit
        * self). `P.mk()` / `P.id(7)` / `P.get(p)` — type-name receiver is not
@@ -5623,7 +5751,7 @@ function w1521_emit_method_body_tail(arena: *u8, elf_ctx: *u8, expr_ref: i32, ct
           if (r_dep2 < 0) {
             if (mod_ref != 0) {
               let p0: i32 = pipeline_module_func_param_type_ref_at(mod_ref, r_fn2, 0);
-              let bty: i32 = pipeline_expr_resolved_type_ref(arena, base_ref);
+              let bty: i32 = w1521_method_base_resolved_type(arena, expr_ref);
               if (p0 > 0) {
                 if (bty > 0) {
                   // TYPE_PTR kind ord = 9
@@ -5659,7 +5787,7 @@ function w1521_emit_method_body_tail(arena: *u8, elf_ctx: *u8, expr_ref: i32, ct
         let u_u: i32 = 0;
         if (has_recv != 0) {
           if (i_u == 0) {
-            ar_u = base_ref;
+            ar_u = w1521_method_base_ref(arena, expr_ref);
           } else {
             ar_u = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_u - has_recv);
           }
@@ -5800,7 +5928,7 @@ function w1521_emit_method_body_tail(arena: *u8, elf_ctx: *u8, expr_ref: i32, ct
           let arg_pl: i32 = 0;
           if (has_recv != 0) {
             if (i_u == 0) {
-              arg_pl = base_ref;
+              arg_pl = w1521_method_base_ref(arena, expr_ref);
             } else {
               arg_pl = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_u - has_recv);
             }
@@ -5819,10 +5947,10 @@ function w1521_emit_method_body_tail(arena: *u8, elf_ctx: *u8, expr_ref: i32, ct
               if (has_recv != 0) {
                 if (i_u == 0) {
                   if (need_aref != 0) {
-                    if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+                    if (w1521_emit_lvalue_method_base(arena, elf_ctx, expr_ref, ctx, ta) != 0) {
                       return 0 - 1;
                     }
-                  } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, base_ref, 0, ctx, ta) != 0) {
+                  } else if (w1521_glue_emit_one_call_arg_method_base(arena, elf_ctx, expr_ref, ctx, ta) != 0) {
                     return 0 - 1;
                   }
                 } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_pl, i_u, ctx, ta) != 0) {
@@ -5868,7 +5996,7 @@ function w1521_emit_method_body_tail(arena: *u8, elf_ctx: *u8, expr_ref: i32, ct
           let arg_rg: i32 = 0;
           if (has_recv != 0) {
             if (i_u == 0) {
-              arg_rg = base_ref;
+              arg_rg = w1521_method_base_ref(arena, expr_ref);
             } else {
               arg_rg = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_u - has_recv);
             }
@@ -5885,10 +6013,10 @@ function w1521_emit_method_body_tail(arena: *u8, elf_ctx: *u8, expr_ref: i32, ct
             } else if (has_recv != 0) {
               if (i_u == 0) {
                 if (need_aref != 0) {
-                  if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+                  if (w1521_emit_lvalue_method_base(arena, elf_ctx, expr_ref, ctx, ta) != 0) {
                     return 0 - 1;
                   }
-                } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, base_ref, 0, ctx, ta) != 0) {
+                } else if (w1521_glue_emit_one_call_arg_method_base(arena, elf_ctx, expr_ref, ctx, ta) != 0) {
                   return 0 - 1;
                 }
               } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_rg, i_u, ctx, ta) != 0) {
@@ -5915,7 +6043,7 @@ function w1521_emit_method_body_tail(arena: *u8, elf_ctx: *u8, expr_ref: i32, ct
             let arg_sk: i32 = 0;
             if (has_recv != 0) {
               if (i_u == 0) {
-                arg_sk = base_ref;
+                arg_sk = w1521_method_base_ref(arena, expr_ref);
               } else {
                 arg_sk = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_u - has_recv);
               }
@@ -5934,10 +6062,10 @@ function w1521_emit_method_body_tail(arena: *u8, elf_ctx: *u8, expr_ref: i32, ct
                 if (has_recv != 0) {
                   if (i_u == 0) {
                     if (need_aref != 0) {
-                      if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+                      if (w1521_emit_lvalue_method_base(arena, elf_ctx, expr_ref, ctx, ta) != 0) {
                         return 0 - 1;
                       }
-                    } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, base_ref, 0, ctx, ta) != 0) {
+                    } else if (w1521_glue_emit_one_call_arg_method_base(arena, elf_ctx, expr_ref, ctx, ta) != 0) {
                       return 0 - 1;
                     }
                   } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_sk, i_u, ctx, ta) != 0) {
@@ -6040,8 +6168,8 @@ function w1521_emit_method_body_tail(arena: *u8, elf_ctx: *u8, expr_ref: i32, ct
             }
           }
         }
-        if (call_sym_len <= 0 && mod_ref != 0 as *u8 && name_len > 0 && base_ref != 0) {
-          let recv_ty_bm: i32 = pipeline_expr_resolved_type_ref(arena, base_ref);
+        if (call_sym_len <= 0 && mod_ref != 0 as *u8 && name_len > 0 && w1521_method_base_nz(arena, expr_ref) != 0) {
+          let recv_ty_bm: i32 = w1521_method_base_resolved_type(arena, expr_ref);
           if (recv_ty_bm > 0) {
             let impl_fi_bm: i32 = codegen_find_impl_method_for_type(mod_ref, arena, &name[0], name_len, recv_ty_bm);
             if (impl_fi_bm >= 0) {
