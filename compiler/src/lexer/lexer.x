@@ -3179,6 +3179,29 @@ function lexer_emit_int_token(out: *LexerResult, l: Lexer, start: usize, line0: 
 }
 
 /**
+ * Emit TOKEN_FLOAT through out in a small frame.
+ *
+ * lexer_next_body_into is a huge frame. `let tok: Token = { kind: 81, float_val: fval, ... }`
+ * plus write_tok_into can write a garbage kind into *out (same slot-alias as
+ * lexer_emit_int_token / ident-or-keyword). gdb on `let x: f32 = 0.0` showed
+ * official tok.kind=67632 after the float next, so parse_body_lets_into left
+ * init_handled=0 and dropped the function (funcs=0 / CG002). Keep the Token
+ * and the store in this callee. Pass cursor/start/line/col/fval as scalars
+ * rather than a by-value Lexer plus f64 (that shape passed a stack pointer
+ * in rdx from the huge caller). PLATFORM: SHARED. WINDOWS is where the
+ * garbage kind was measured.
+ */
+function lexer_emit_float_token(out: *LexerResult, end_pos: usize, end_line: i32, end_col: i32, start: usize, line0: i32, col0: i32, fval: f64): void {
+  if (out == 0) { return; }
+  let l: Lexer = { pos: end_pos, line: end_line, col: end_col };
+  let tok: Token = { kind: (81 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
+    float_val: fval, ident: (0 as *u8), ident_len: 0 };
+  write_next_lex_into(out, l);
+  write_tok_into(out, tok);
+  lexer_park_token_start(out, start);
+}
+
+/**
  * Emit TOKEN_IDENT through out in a small frame.
  *
  * lexer_next_body_into is a huge frame. `&out.tok` plus the saved line/col
@@ -3585,11 +3608,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
         lexer_park_token_start(out, start);
         return;
       }
-      let tok: Token = { kind: (81 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-        float_val: fval, ident: (0 as *u8), ident_len: 0 };
-      write_next_lex_into(out, l);
-      write_tok_into(out, tok);
-      lexer_park_token_start(out, start);
+      lexer_emit_float_token(out, l.pos, l.line, l.col, start, line0, col0, fval);
       return;
     }
     if (l.pos < data.length && (data[l.pos] == 101 || data[l.pos] == 69)) {
@@ -3662,11 +3681,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
         lexer_park_token_start(out, start);
         return;
       }
-      let tok: Token = { kind: (81 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-        float_val: fval, ident: (0 as *u8), ident_len: 0 };
-      write_next_lex_into(out, l);
-      write_tok_into(out, tok);
-      lexer_park_token_start(out, start);
+      lexer_emit_float_token(out, l.pos, l.line, l.col, start, line0, col0, fval);
       return;
     }
     // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
@@ -3735,11 +3750,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       lexer_park_token_start(out, start);
       return;
     }
-    let tok: Token = { kind: (81 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: fval, ident: (0 as *u8), ident_len: 0 };
-    write_next_lex_into(out, l);
-    write_tok_into(out, tok);
-    lexer_park_token_start(out, start);
+    lexer_emit_float_token(out, l.pos, l.line, l.col, start, line0, col0, fval);
     return;
   }
   // Punctuation/operators: dedicated helper keeps body_into under typeck limits.
