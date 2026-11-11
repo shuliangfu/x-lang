@@ -4606,6 +4606,18 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
   return w1521_sret_wrap(arena, elf_ctx, expr_ref, ctx, ta, 1);
 }
 
+function w1521_guard_nargs(n: i32, maxv: i32): i32 {
+  if (n < 0) { return 0 - 1; }
+  if (n > maxv) { return 0 - 1; }
+  return 0;
+}
+
+function w1521_guard_pos_len(n: i32, maxv: i32): i32 {
+  if (n <= 0) { return 0 - 1; }
+  if (n > maxv) { return 0 - 1; }
+  return 0;
+}
+
 function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
   if (arena == 0 as *u8) { return 0 - 1; }
   if (elf_ctx == 0) { return 0 - 1; }
@@ -4613,16 +4625,22 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
   unsafe {
     // note743y.5: tip frame was 0x18e8 while locals used to -0x34b0 (SEGV in
     // import METHOD). Pad so tip-emitted prologue covers nested spill arrays.
-    let _frame_pad_y5_m: u8[16384] = [];
+    // Official typool of `u8[16384] = []` unrolls 256 zero-bytes from a
+    // shallow -0x98(%rbp) through saved rbx/rbp and the return address
+    // (option/SI build SIGSEGV RIP=0 after emit_method_body). Keep the
+    // pad allocation; do not zero-init the whole array. Touch only [0].
+    let _frame_pad_y5_m: u8[16384];
+    _frame_pad_y5_m[0] = 0;
     let mod_ref: *u8 = call_dispatch_load_ptr_le(ctx, 16);
     let nargs: i32 = pipeline_expr_method_call_num_args_at(arena, expr_ref);
     /** Product parses core.xlang_io_submit_*_batch as METHOD_CALL with >5 args; seed _impl is authority. */
-    if (nargs < 0) { return 0 - 1; }
-    if (nargs > 96) { return 0 - 1; }
+    // typool in this large frame stored nargs/name_len in one slot and compared
+    // another uninitialized slot (e.g. store -0x1e0, compare -0x4048). Guard in
+    // a small-frame helper so the store and the compare share a slot.
+    if (w1521_guard_nargs(nargs, 96) != 0) { return 0 - 1; }
     let base_ref: i32 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
     let name_len: i32 = pipeline_expr_method_call_name_len(arena, expr_ref);
-    if (name_len <= 0) { return 0 - 1; }
-    if (name_len > 255) { return 0 - 1; }
+    if (w1521_guard_pos_len(name_len, 255) != 0) { return 0 - 1; }
     let name: u8[256] = [];
     pipeline_expr_method_call_name_into(arena, expr_ref, &name[0]);
     /* stage10 S3.1 slice2 (10.1.1): dot-call raw_syscall0..6 shape

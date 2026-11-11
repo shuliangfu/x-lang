@@ -118,7 +118,11 @@ export function pipeline_asm_emit_expr_elf_for_call_args(
   // note743y.5: tip under-counts nested-block homes (frame was 0xd98, slots to
   // -0x1a00); slice_hit/tk_* landed past rsp and became non-zero → false lea.
   // Function-scope pad forces tip frame ≥ deepest slot. Do not remove.
-  let _frame_pad_y5: u8[16384] = [];
+  // Official typool of `u8[16384] = []` can unroll 256 zero-bytes from a
+  // shallow slot through the return address (same class as emit_method_body).
+  // Keep the pad allocation; do not zero-init the whole array. Touch only [0].
+  let _frame_pad_y5: u8[16384];
+  _frame_pad_y5[0] = 0;
   let pty: i32 = 0;
   let call_abi_widen_f64: i32 = 1;
   let tr: i32 = 0;
