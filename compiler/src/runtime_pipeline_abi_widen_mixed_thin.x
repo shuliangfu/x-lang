@@ -49,6 +49,12 @@
 // glue_binop_named_pair_wrap_id after a narrow add or sub, and
 // sign-extends a named left operand before a 64-bit add or sub with a
 // wide integer. The byte sequences stay in binop_wide.
+// Ptr+int: glue_binop_operand_is_64bit_elf_c can miss a TYPE_PTR VAR with
+// an empty stamp when the other side is i32, then emit_add uses 32-bit
+// addl (01 D8) and zero-extends, truncating a Win64 ASLR / large-BSS
+// pointer (fmt_check_path_bss_slot: base + which*512 → 0x3e41c620).
+// widen_operand_is_ptr plus scale1 lea (48 8d 04 18) covers that arm.
+// Legal i32 add still uses backend_enc_add_rax_rbx_arch.
 // PLATFORM: SHARED — x86_64 and arm64 encoders; LINUX, MACOS|DARWIN, and WINDOWS install the object.
 
 export extern function glue_binop_operand_is_scalar_f64_elf_c(arena: *u8, ctx: *u8, expr_ref: i32): i32;
@@ -318,6 +324,77 @@ function w1597_zxt_rax(elf_ctx: *u8, ta: i32, kind: i32): i32 {
   return 0 - 1;
 }
 
+
+/**
+ * True when this operand is a pointer.
+ * Resolved type or the VAR declaration (kind 9) wins. A VAR with an
+ * empty stamp also tries the current function body. ADDR_OF (51) is
+ * always a pointer value.
+ * The pair helper keeps the first typed operand, so a missing ptr
+ * stamp next to an i32 was classified as 32-bit.
+ * @param arena *u8 — AST arena; null returns 0
+ * @param ctx *u8 — emit context for the VAR declaration; null skips that fallback
+ * @param expr_ref i32 — one add operand; <=0 returns 0
+ * @return i32 — 1 when the operand is a pointer, else 0
+ * PLATFORM: SHARED — type kinds only; the add itself is scale1 lea.
+ */
+function widen_operand_is_ptr(arena: *u8, ctx: *u8, expr_ref: i32): i32 {
+  let kind: i32 = 0;
+  let ko: i32 = 0;
+  let tr: i32 = 0;
+  let vlen: i32 = 0;
+  let vname: u8[256] = [];
+  let mod: *u8 = 0 as *u8;
+  let fi: i32 = 0 - 1;
+  let body: i32 = 0;
+  if (arena == (0 as *u8) || expr_ref <= 0) {
+    return 0;
+  }
+  kind = w1591_operand_kind(arena, ctx, expr_ref);
+  if (kind == 9) {
+    return 1;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  }
+  if (ko == 51) {
+    return 1;
+  }
+  if (ko != 3) {
+    return 0;
+  }
+  unsafe {
+    vlen = pipeline_expr_var_name_len(arena, expr_ref);
+  }
+  if (vlen <= 0 || vlen > 255) {
+    return 0;
+  }
+  unsafe {
+    pipeline_expr_var_name_into(arena, expr_ref, &vname[0]);
+    mod = pipeline_asm_emit_module_ref_c();
+    fi = pipeline_asm_emit_func_index_c();
+  }
+  if (mod != (0 as *u8) && fi >= 0) {
+    unsafe {
+      body = pipeline_module_func_body_ref_at(mod, fi);
+    }
+    if (body > 0) {
+      unsafe {
+        tr = pipeline_block_resolve_var_type_ref(arena, body, &vname[0], vlen);
+      }
+      if (tr > 0) {
+        unsafe {
+          kind = pipeline_type_kind_ord_at(arena, tr);
+        }
+        if (kind == 9) {
+          return 1;
+        }
+      }
+    }
+  }
+  return 0;
+}
+
 /**
  * Emit integer or float ADD of the values already in rax and rbx.
  * Same float, pointer-scale, and 32-bit arms as the egg. A narrow
@@ -376,6 +453,17 @@ export function glue_emit_binop_add_rax_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx:
         return 0 - 1;
       }
     }
+    unsafe {
+      return backend_enc_rax_plus_rbx_scale1_arch(elf_ctx, ta);
+    }
+  }
+  // Pointer plus integer must stay 64-bit when the pair helper missed
+  // the pointer stamp (empty VAR stamp, or first typed side is i32).
+  // 32-bit addl zero-extends and drops the high half of a Win64 ASLR
+  // / large-BSS address. Same scale1 lea as the is_64bit arm.
+  // i32 plus i32 still takes addl below.
+  // PLATFORM: SHARED — x86_64 48 8d 04 18 · arm64 ADD X0,X0,X1.
+  if (widen_operand_is_ptr(arena, ctx, left_ref) != 0 || widen_operand_is_ptr(arena, ctx, right_ref) != 0) {
     unsafe {
       return backend_enc_rax_plus_rbx_scale1_arch(elf_ctx, ta);
     }
