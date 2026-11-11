@@ -947,40 +947,41 @@ function asm_wpo_collect_from_block(a: *u8, block_ref: i32, caller_id: i32, call
   asm_wpo_collect_walk(1, a, block_ref, caller_id, caller_mod, ctx, 0);
 }
 
-/** User single-file + PGO_HOT and not compiler selfhost. */
-function asm_wpo_is_user_single_file_pgo_entry(): i32 {
+/**
+ * Pointer parameters home in rcx and are reloaded from that home.
+ * Binding `let p: *u8 = some_call()` in a large xlang frame stores the
+ * return at one spill and later reads a different uninitialized slot
+ * (official and idx8 both do this). Pass the pointer into a helper
+ * instead of letting the call result in the caller.
+ * PLATFORM: WINDOWS lowering; SHARED semantics.
+ */
+function asm_wpo_module_is_compiler_selfhost(m: *u8): i32 {
   unsafe {
-    if (pipeline_elf_pgo_hot_enabled() == 0) {
+    if (m == 0 as *u8) {
       return 0;
     }
-    let entry: *u8 = asm_wpo_get_entry();
-    if (entry == 0 as *u8 || g_aw_nmods != 1) {
-      return 0;
+    if (asm_module_is_main_driver_selfhost(m) != 0) {
+      return 1;
     }
-    if (asm_module_is_main_driver_selfhost(entry) != 0) {
-      return 0;
+    if (asm_module_is_pipeline_selfhost(m) != 0 || asm_module_is_typeck_selfhost(m) != 0 ||
+        asm_module_is_backend_selfhost(m) != 0 || asm_module_is_parser_selfhost(m) != 0) {
+      return 1;
     }
-    if (asm_module_is_pipeline_selfhost(entry) != 0 || asm_module_is_typeck_selfhost(entry) != 0 ||
-        asm_module_is_backend_selfhost(entry) != 0 || asm_module_is_parser_selfhost(entry) != 0) {
-      return 0;
-    }
-    return 1;
-
+    return 0;
   }
 }
 
-/** User program main WPO func id; -1 if absent. */
-function asm_wpo_user_main_func_id(): i32 {
+/** User program main WPO func id in one module; -1 if absent. */
+function asm_wpo_user_main_func_id_in(m: *u8): i32 {
   unsafe {
-    let entry: *u8 = asm_wpo_get_entry();
-    if (entry == 0 as *u8) {
+    if (m == 0 as *u8) {
       return -1;
     }
-    let nf: i32 = pipeline_module_num_funcs(entry);
+    let nf: i32 = pipeline_module_num_funcs(m);
     let fi: i32 = 0;
     while (fi < nf) {
-      if (pipeline_module_func_name_equal_at(entry, fi, "main", 4) != 0) {
-        let id: i32 = asm_wpo_func_id_of(entry, fi);
+      if (pipeline_module_func_name_equal_at(m, fi, "main", 4) != 0) {
+        let id: i32 = asm_wpo_func_id_of(m, fi);
         if (id >= 0) {
           return id;
         }
@@ -988,7 +989,50 @@ function asm_wpo_user_main_func_id(): i32 {
       fi = fi + 1;
     }
     return -1;
+  }
+}
 
+/** User program main WPO func id; -1 if absent. */
+function asm_wpo_user_main_func_id(): i32 {
+  unsafe {
+    return asm_wpo_user_main_func_id_in(asm_wpo_get_entry());
+  }
+}
+
+function asm_wpo_is_user_single_file_pgo_mod(m: *u8): i32 {
+  unsafe {
+    if (pipeline_elf_pgo_hot_enabled() == 0) {
+      return 0;
+    }
+    if (m == 0 as *u8 || g_aw_nmods != 1) {
+      return 0;
+    }
+    if (asm_wpo_module_is_compiler_selfhost(m) != 0) {
+      return 0;
+    }
+    return 1;
+  }
+}
+
+/** User single-file + PGO_HOT and not compiler selfhost. */
+function asm_wpo_is_user_single_file_pgo_entry(): i32 {
+  unsafe {
+    return asm_wpo_is_user_single_file_pgo_mod(asm_wpo_get_entry());
+  }
+}
+
+function asm_wpo_is_user_program_mod(m: *u8): i32 {
+  unsafe {
+    if (m == 0 as *u8 || g_aw_nmods != 1) {
+      return 0;
+    }
+    if (asm_wpo_module_is_compiler_selfhost(m) != 0) {
+      return 0;
+    }
+    if (asm_wpo_user_main_func_id_in(m) >= 0) {
+      return 1;
+    }
+    return 0;
   }
 }
 
@@ -997,22 +1041,7 @@ function asm_wpo_user_main_func_id(): i32 {
  */
 function asm_wpo_is_user_program_entry(): i32 {
   unsafe {
-    let entry: *u8 = asm_wpo_get_entry();
-    if (entry == 0 as *u8 || g_aw_nmods != 1) {
-      return 0;
-    }
-    if (asm_module_is_main_driver_selfhost(entry) != 0) {
-      return 0;
-    }
-    if (asm_module_is_pipeline_selfhost(entry) != 0 || asm_module_is_typeck_selfhost(entry) != 0 ||
-        asm_module_is_backend_selfhost(entry) != 0 || asm_module_is_parser_selfhost(entry) != 0) {
-      return 0;
-    }
-    if (asm_wpo_user_main_func_id() >= 0) {
-      return 1;
-    }
-    return 0;
-
+    return asm_wpo_is_user_program_mod(asm_wpo_get_entry());
   }
 }
 
@@ -1059,7 +1088,7 @@ function asm_wpo_user_pgo_force_main_callee_edge(entry: *u8, a: *u8): i32 {
     if (entry == 0 as *u8 || a == 0 as *u8) {
       return -1;
     }
-    let main_id: i32 = asm_wpo_user_main_func_id();
+    let main_id: i32 = asm_wpo_user_main_func_id_in(entry);
     if (main_id < 0) {
       return -1;
     }
@@ -1212,6 +1241,18 @@ function asm_wpo_reach_fixpoint_expand(): void {
   }
 }
 
+function asm_wpo_try_user_pgo_force_from_mod(m: *u8): void {
+  unsafe {
+    if (m != 0 as *u8 && g_aw_nmods > 0) {
+      let main_callee: i32 = asm_wpo_user_pgo_force_main_callee_edge(m, asm_wpo_arena_slot(0));
+      let main_id: i32 = asm_wpo_user_main_func_id_in(m);
+      if (main_id >= 0 && main_callee >= 0) {
+        asm_wpo_user_pgo_prune_main_edges(main_id, main_callee);
+      }
+    }
+  }
+}
+
 /** BFS mark reachable from root. */
 function asm_wpo_build_reach(): void {
   unsafe {
@@ -1222,14 +1263,7 @@ function asm_wpo_build_reach(): void {
     let ctx: *u8 = asm_wpo_get_dep_ctx();
     asm_wpo_precollect_all_func_edges();
     if (user_pgo != 0) {
-      let entry: *u8 = asm_wpo_get_entry();
-      if (entry != 0 as *u8 && g_aw_nmods > 0) {
-        let main_callee: i32 = asm_wpo_user_pgo_force_main_callee_edge(entry, asm_wpo_arena_slot(0));
-        let main_id: i32 = asm_wpo_user_main_func_id();
-        if (main_id >= 0 && main_callee >= 0) {
-          asm_wpo_user_pgo_prune_main_edges(main_id, main_callee);
-        }
-      }
+      asm_wpo_try_user_pgo_force_from_mod(asm_wpo_get_entry());
     }
     let qh: i32 = 0;
     let qt: i32 = 0;
@@ -1343,6 +1377,39 @@ function asm_wpo_close_std_heap_helpers(): void {
   }
 }
 
+function asm_wpo_mark_user_pgo_main_hot(m: *u8): void {
+  unsafe {
+    let main_id: i32 = asm_wpo_user_main_func_id_in(m);
+    if (main_id >= 0) {
+      g_aw_pgo_hot[main_id] = 1;
+      if (m != 0 as *u8 && g_aw_nmods > 0) {
+        let main_callee: i32 = asm_wpo_user_pgo_force_main_callee_edge(m, asm_wpo_arena_slot(0));
+        if (main_callee >= 0 && g_aw_reachable[main_callee] != 0) {
+          g_aw_pgo_hot[main_callee] = 1;
+        }
+      }
+    }
+  }
+}
+
+function asm_wpo_mark_non_selfhost_main_hot(m: *u8): void {
+  unsafe {
+    if (m != 0 as *u8 && asm_module_is_main_driver_selfhost(m) == 0) {
+      let nf: i32 = pipeline_module_num_funcs(m);
+      let fi: i32 = 0;
+      while (fi < nf) {
+        if (pipeline_module_func_name_equal_at(m, fi, "main", 4) != 0) {
+          let mid: i32 = asm_wpo_func_id_of(m, fi);
+          if (mid >= 0) {
+            g_aw_pgo_hot[mid] = 1;
+          }
+        }
+        fi = fi + 1;
+      }
+    }
+  }
+}
+
 /** Mark PGO hot: root + direct callees (user-PGO special path). */
 function asm_wpo_mark_pgo_hot(): void {
   unsafe {
@@ -1363,33 +1430,10 @@ function asm_wpo_mark_pgo_hot(): void {
     }
     g_aw_pgo_hot[root] = 1;
     if (asm_wpo_is_user_single_file_pgo_entry() != 0) {
-      let main_id: i32 = asm_wpo_user_main_func_id();
-      if (main_id >= 0) {
-        g_aw_pgo_hot[main_id] = 1;
-        let entry: *u8 = asm_wpo_get_entry();
-        if (entry != 0 as *u8 && g_aw_nmods > 0) {
-          let main_callee: i32 = asm_wpo_user_pgo_force_main_callee_edge(entry, asm_wpo_arena_slot(0));
-          if (main_callee >= 0 && g_aw_reachable[main_callee] != 0) {
-            g_aw_pgo_hot[main_callee] = 1;
-          }
-        }
-      }
+      asm_wpo_mark_user_pgo_main_hot(asm_wpo_get_entry());
       return;
     }
-    let entry2: *u8 = asm_wpo_get_entry();
-    if (entry2 != 0 as *u8 && asm_module_is_main_driver_selfhost(entry2) == 0) {
-      let nf: i32 = pipeline_module_num_funcs(entry2);
-      let fi: i32 = 0;
-      while (fi < nf) {
-        if (pipeline_module_func_name_equal_at(entry2, fi, "main", 4) != 0) {
-          let mid: i32 = asm_wpo_func_id_of(entry2, fi);
-          if (mid >= 0) {
-            g_aw_pgo_hot[mid] = 1;
-          }
-        }
-        fi = fi + 1;
-      }
-    }
+    asm_wpo_mark_non_selfhost_main_hot(asm_wpo_get_entry());
     let ei: i32 = 0;
     while (ei < g_aw_nedges) {
       if (g_aw_edge_from[ei] == root) {
@@ -1797,7 +1841,12 @@ export function pipeline_asm_wpo_should_emit_func(m: *u8, fi: i32): i32 {
     if (pipeline_asm_module_func_is_extern_at(m, fi) != 0) {
       return 1;
     }
-    let entry: *u8 = asm_wpo_get_entry();
+    return asm_wpo_should_emit_func_with_entry(m, fi, asm_wpo_get_entry());
+  }
+}
+
+function asm_wpo_should_emit_func_with_entry(m: *u8, fi: i32, entry: *u8): i32 {
+  unsafe {
     if (m == entry && pipeline_module_func_name_equal_at(m, fi, "entry", 5) != 0) {
       return 1;
     }
