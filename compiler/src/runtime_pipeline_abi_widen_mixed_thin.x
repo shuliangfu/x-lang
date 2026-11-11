@@ -84,6 +84,9 @@ export extern function backend_enc_mov_rax_to_rbx_arch(elf_ctx: *u8, ta: i32): i
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
+export extern function arena_sidecar_get(key: *u8, create: i32): *u8;
+export extern function grow_vec_at(v: *u8, index: i32): *u8;
+export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 export extern function pipeline_expr_var_name_len(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_var_name_into(arena: *u8, expr_ref: i32, out: *u8): void;
 export extern function pipeline_asm_emit_module_ref_c(): *u8;
@@ -326,12 +329,66 @@ function w1597_zxt_rax(elf_ctx: *u8, ta: i32, kind: i32): i32 {
 
 
 /**
+ * Type.kind for a 1-based pipeline type-pool ref.
+ * pipeline_type_kind_ord_at uses the cached arena.num_types word.
+ * Emit can see that cache as 0 while the sidecar types GrowVec still
+ * holds the typeck slots (same arena; exprs/blocks/funcs counts stay).
+ * A miss then falls back to arena_sidecar_get + grow_vec_at.
+ * @param arena *u8 — AST arena; null returns -1
+ * @param type_ref i32 — 1-based type pool index; <=0 returns -1
+ * @return i32 — kind ordinal, or -1 when the slot cannot be read
+ * PLATFORM: SHARED — pool layout only; callers decide if kind 9 is a pointer.
+ */
+function widen_type_kind_ord(arena: *u8, type_ref: i32): i32 {
+  let kind: i32 = 0 - 1;
+  let sc: *u8 = 0 as *u8;
+  let n: i32 = 0;
+  let slot: *u8 = 0 as *u8;
+  if (arena == (0 as *u8) || type_ref <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    kind = pipeline_type_kind_ord_at(arena, type_ref);
+  }
+  if (kind >= 0) {
+    return kind;
+  }
+  unsafe {
+    sc = arena_sidecar_get(arena, 0);
+  }
+  if (sc == (0 as *u8)) {
+    return 0 - 1;
+  }
+  unsafe {
+    n = pipe_load_i32_le(sc + (16 as usize), 12);
+  }
+  if (type_ref > n) {
+    return 0 - 1;
+  }
+  unsafe {
+    slot = grow_vec_at(sc + (16 as usize), type_ref - 1);
+  }
+  if (slot == (0 as *u8)) {
+    return 0 - 1;
+  }
+  unsafe {
+    kind = pipe_load_i32_le(slot, 0);
+  }
+  return kind;
+}
+
+/**
  * True when this operand is a pointer.
  * Resolved type or the VAR declaration (kind 9) wins. A VAR with an
- * empty stamp also tries the current function body. ADDR_OF (51) is
- * always a pointer value.
+ * empty stamp also tries, in order: the function parameter list, the
+ * current emit scope block (nested unsafe / if / while lets; resolve
+ * walks parents), then the function body. ADDR_OF (51) is always a
+ * pointer value. Kind is read through widen_type_kind_ord so a type_ref
+ * that is a real pool index still wins when the num_types cache is 0.
  * The pair helper keeps the first typed operand, so a missing ptr
- * stamp next to an i32 was classified as 32-bit.
+ * stamp next to an i32 was classified as 32-bit. The body-only lookup
+ * misses a let inside a nested block, which is how fmt_check_path_bss_slot
+ * (`let base` in unsafe) still emitted addl.
  * @param arena *u8 — AST arena; null returns 0
  * @param ctx *u8 — emit context for the VAR declaration; null skips that fallback
  * @param expr_ref i32 — one add operand; <=0 returns 0
@@ -347,6 +404,7 @@ function widen_operand_is_ptr(arena: *u8, ctx: *u8, expr_ref: i32): i32 {
   let mod: *u8 = 0 as *u8;
   let fi: i32 = 0 - 1;
   let body: i32 = 0;
+  let scope_br: i32 = 0;
   if (arena == (0 as *u8) || expr_ref <= 0) {
     return 0;
   }
@@ -376,20 +434,33 @@ function widen_operand_is_ptr(arena: *u8, ctx: *u8, expr_ref: i32): i32 {
   }
   if (mod != (0 as *u8) && fi >= 0) {
     unsafe {
+      tr = pipeline_module_func_param_type_ref_for_name(mod, fi, &vname[0], vlen);
+    }
+  }
+  if (tr <= 0) {
+    unsafe {
+      scope_br = pipeline_asm_emit_ctx_scope_block_get();
+    }
+    if (scope_br > 0) {
+      unsafe {
+        tr = pipeline_block_resolve_var_type_ref(arena, scope_br, &vname[0], vlen);
+      }
+    }
+  }
+  if (tr <= 0 && mod != (0 as *u8) && fi >= 0) {
+    unsafe {
       body = pipeline_module_func_body_ref_at(mod, fi);
     }
     if (body > 0) {
       unsafe {
         tr = pipeline_block_resolve_var_type_ref(arena, body, &vname[0], vlen);
       }
-      if (tr > 0) {
-        unsafe {
-          kind = pipeline_type_kind_ord_at(arena, tr);
-        }
-        if (kind == 9) {
-          return 1;
-        }
-      }
+    }
+  }
+  if (tr > 0) {
+    kind = widen_type_kind_ord(arena, tr);
+    if (kind == 9) {
+      return 1;
     }
   }
   return 0;
