@@ -1,0 +1,5 @@
+// Documentation twin of runtime_pipeline_abi_param_name_dup_thin.c.
+// The fold vehicle is the host-gcc .c (idx8 of a thin with calls AVs in typool
+// try_emit_va_cap_builtin_call). Do not idx8 this file for the PE fold.
+// Body matches parser_onefunc_param_name_dup_c in pthin_body_tl.x.
+// PLATFORM: WINDOWS PE fold; keep proven hooks.
