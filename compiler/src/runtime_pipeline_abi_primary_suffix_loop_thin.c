@@ -13,7 +13,19 @@
  * append_i32 / fputc / try_keyword_c / typool rec / typool body_into /
  * typool skip_ws / typool skip_comment wholesale are not in this thin.
  * Adapted from seeds/darwin_tip_pe_overrides/pthin_expr_primary_suffix_loop_override.c
- * (DOT method/field + LPAREN call; LT/LBRACKET/LBRACE deferred).
+ * (DOT method/field + LPAREN call). fromsrc_s113 residual: the deferred
+ * LBRACKET arm left lex parked at `buf[` (kind=86) after typool leftover
+ * parser_asm_parse_assign_x_into_c returned 1 for `buf[k] = s[k]` at
+ * pos=1439 in core.fmt fmt_i32_to_buf (while body of if (x < 0 && u < 0)).
+ * typool leftover advance_past_stmt_semicolon then peeked TOKEN_LBRACKET
+ * and returned 0, so host-cc parse_block_into wrote out.ok=false without
+ * next_lex and typool parse_block_ptr_into_c copied a zeroed result.
+ * LBRACKET/INDEX is now hosted from typool pthin_expr_primary.x 1140-1168
+ * (step `[`, parse_expr index, expect `]`, EXPR_INDEX via set_index_c).
+ * LT / LBRACE stay deferred. typool source unchanged. typool leftover
+ * assign / typool leftover ASI / typool leftover primary_ident / typool
+ * leftover postfix_array / typool fputc / typool diag / typool rec are
+ * not in this thin.
  * docs-only .x, do not idx8. Do not JMP typool rec T 0x140087de4. */
 #include <stddef.h>
 #include <stdint.h>
@@ -27,6 +39,7 @@ enum {
   TOKEN_RPAREN = 83,
   TOKEN_LBRACE = 84,
   TOKEN_LBRACKET = 86,
+  TOKEN_RBRACKET = 87,
   TOKEN_COMMA = 90,
   TOKEN_DOT = 92,
   TOKEN_LT = 120,
@@ -63,6 +76,8 @@ extern void pipeline_expr_set_method_call_c(void *arena, int32_t er,
 extern void pipeline_expr_set_field_access_c(void *arena, int32_t er,
                                             int32_t base, uint8_t *name,
                                             int32_t nlen);
+extern void pipeline_expr_set_index_c(void *arena, int32_t er, int32_t base_ref,
+                                     int32_t index_ref, int32_t is_slice);
 extern void pipeline_expr_set_call_c(void *arena, int32_t er, int32_t callee,
                                     int32_t pending_n);
 extern void pipeline_expr_init_call_resolve_at_ref(void *arena, int32_t er);
@@ -91,8 +106,10 @@ void parser_asm_primary_suffix_loop_x_into_c(
   size_t mname_start;
   int32_t mc_ref;
   int32_t fa_ref;
+  int32_t idx_ref;
   int32_t call_ref;
   int32_t callee_ref;
+  int32_t base_ref;
   int32_t n;
   int32_t ai;
   int32_t ok2;
@@ -310,7 +327,39 @@ void parser_asm_primary_suffix_loop_x_into_c(
       out_expr_ref[0] = call_ref;
       continue;
     }
-    /* LT / LBRACKET / LBRACE deferred — non-suffix exit (`;`, `)`, etc.). */
+    if (kind == TOKEN_LBRACKET) {
+      base_ref = out_expr_ref[0];
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      ok2 = 0;
+      eref2 = 0;
+      if (parser_parse_expr_ptr_into_c(arena, lex_inout, source, &ok2,
+                                      &eref2) == 0) {
+        out_ok[0] = 0;
+        return;
+      }
+      if (ok2 == 0) {
+        out_ok[0] = 0;
+        return;
+      }
+      k2 = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (k2 != TOKEN_RBRACKET) {
+        out_ok[0] = 0;
+        return;
+      }
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      idx_ref = ast_ast_arena_expr_alloc(arena);
+      if (idx_ref == 0) {
+        out_ok[0] = 0;
+        return;
+      }
+      pipeline_expr_set_common_zeros_c(arena, idx_ref);
+      pipeline_expr_set_kind(arena, idx_ref, EXPR_INDEX);
+      pipeline_expr_set_index_c(arena, idx_ref, base_ref, eref2, 0);
+      pipeline_expr_set_line_col(arena, idx_ref, 0, 0);
+      out_expr_ref[0] = idx_ref;
+      continue;
+    }
+    /* LT / LBRACE deferred — non-suffix exit (`;`, `)`, etc.). */
     return;
   }
 }
