@@ -16544,6 +16544,21 @@ export function codegen_emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_re
                 return -1;
               }
             } else {
+              /*
+               * DIG s222: stamp nested anon STRUCT_LIT with the field dest type
+               * before emit_expr. Without this, empty struct_lit_struct_name
+               * recovers from the enclosing function return type → wrong C tags
+               * such as `(struct ){.kind}` / `(struct lexer_Lexer){.kind}` /
+               * `(struct parser_ParseResult){.kind}` for LexerResult.tok (seed
+               * emits `(struct token_Token){…}`). G.7: same stamp authority as
+               * let/array dest (codegen_stamp_anon_struct_lit_dest).
+               * PLATFORM: SHARED host-C STRUCT_LIT field nest.
+               */
+              if ((init_e.kind as i32) == (ExprKind.EXPR_STRUCT_LIT as i32)
+                  && !ast.ref_is_null(ftr) && ftr > 0) {
+                let _st_nest: i32 = codegen_stamp_anon_struct_lit_dest(arena, init_ref, ftr);
+                (void)(_st_nest);
+              }
               if (codegen_emit_expr(arena, out, init_ref, ctx) != 0) {
                 return -1;
               }

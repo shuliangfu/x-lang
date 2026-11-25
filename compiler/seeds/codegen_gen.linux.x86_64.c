@@ -14880,6 +14880,13 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
                   return -1;
                 }
               } else {
+                /* DIG s222: stamp nested anon STRUCT_LIT with field dest type
+                 * before emit (LexerResult.tok → token_Token; ban return-type
+                 * fallback poison). PLATFORM: SHARED host-C; twin codegen.x. */
+                if (((((int32_t)(((init_e).kind))) ==45) && (!(ast_ref_is_null(ftr)))) && (ftr > 0))) {
+                  int32_t _st_nest = codegen_stamp_anon_struct_lit_dest(arena, init_ref, ftr);
+                  (void)(_st_nest);
+                }
                 if ((codegen_emit_expr(arena, out, init_ref, ctx) !=0)) {
                   return -1;
                 }
