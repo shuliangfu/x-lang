@@ -8,6 +8,8 @@ export extern function backend_enc_rem_mod_arch(elf_ctx: *u8, ta: i32): i32;
 
 /**
  * Compound %= arm — zero-check then rem/mod.
+ * s213: dig absolute ret0 stub first-wins; host-cc twin
+ *   runtime_pipeline_abi_assign_rhs_elf_hostcc_thin.c is product authority.
  * @return i32 — 0 ok; -1 fail
  * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
  */

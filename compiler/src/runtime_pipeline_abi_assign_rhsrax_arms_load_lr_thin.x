@@ -12,6 +12,8 @@ export extern function backend_enc_pop_rbx_arch(elf_ctx: *u8, ta: i32): i32;
 /**
  * Load LHS→rax and RHS→rbx for compound assign (try fast path, else emit+push/pop).
  * wave474: no-local — try via 0/-1/-2 eq-cascade re-call; no `let x=call()`.
+ * s213: dig absolute ret0 stub first-wins; host-cc twin
+ *   runtime_pipeline_abi_assign_rhs_elf_hostcc_thin.c is product authority.
  * @return i32 — 0 ok; -1 fail
  * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
  */

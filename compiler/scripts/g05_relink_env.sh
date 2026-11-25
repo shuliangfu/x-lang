@@ -2187,6 +2187,41 @@ if [ -x ./xlang_asm ]; then
   else
     echo "g05_relink_env: WARNING s212 flag-slot accessors host-cc twin did not build" >&2
   fi
+  # DIG s213: tipU absolute ret0 stubs first-wins for assign RHS emit
+  # (glue_emit_assign_rhs_elf_c / load_lr / rhs_mod). Host-cc .c twins
+  # restore named symbols (assign_thin / arms_* authority). PLATFORM:
+  # SHARED host-cc.
+  _G05_W213_ASSIGN_RHS=""
+  _g05_arh_c=src/runtime_pipeline_abi_assign_rhs_elf_hostcc_thin.c
+  _g05_arh_o=build_asm/selfhost_pabi/assign_rhs_elf_hostcc.o
+  if [ -f "$_g05_arh_c" ]; then
+    if gcc -c -O2 -o "${_g05_arh_o}.tmp.o" "$_g05_arh_c" 2>/tmp/g05_arh.err; then
+      if nm "${_g05_arh_o}.tmp.o" 2>/dev/null | grep -qE ' T glue_emit_assign_rhs_elf_c$' \
+        && nm "${_g05_arh_o}.tmp.o" 2>/dev/null | grep -qE ' T glue_emit_assign_load_lr_elf_c$' \
+        && nm "${_g05_arh_o}.tmp.o" 2>/dev/null | grep -qE ' T glue_emit_assign_rhs_mod_elf_c$'; then
+        mv -f "${_g05_arh_o}.tmp.o" "$_g05_arh_o"
+        _G05_W213_ASSIGN_RHS="$_g05_arh_o"
+        echo "g05_relink_env: s213 host-cc assign_rhs_elf twins (.c)" >&2
+      else
+        rm -f "${_g05_arh_o}.tmp.o"
+      fi
+    fi
+  fi
+  if [ -n "$_G05_W213_ASSIGN_RHS" ]; then
+    for _g05_arh_sym in \
+      glue_emit_assign_rhs_elf_c \
+      glue_emit_assign_load_lr_elf_c \
+      glue_emit_assign_rhs_mod_elf_c
+    do
+      if [ "$UNAME_S" = "Darwin" ]; then
+        _G05_LINK_WINNERS="$_G05_LINK_WINNERS _${_g05_arh_sym}=$_G05_W213_ASSIGN_RHS"
+      else
+        _G05_LINK_WINNERS="$_G05_LINK_WINNERS ${_g05_arh_sym}=$_G05_W213_ASSIGN_RHS"
+      fi
+    done
+  else
+    echo "g05_relink_env: WARNING s213 assign_rhs_elf host-cc twin did not build" >&2
+  fi
   _g05_pure_overlay src/runtime_pipeline_abi_call_arg_const_off_thin.x \
     build_asm/selfhost_pabi/call_arg_const_off.o \
     glue_call_arg_resolve_var_stack_off_elf_c

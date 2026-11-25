@@ -331,6 +331,8 @@ export function glue_assign_lhs_f32_type_ref_elf_c(arena: *u8, ctx: *u8, left_re
  * @return i32 - 0 ok; -1 failure
  * wave142 pure: G.7 authority (was static glue_emit_assign_rhs_elf_c).
  * Cap residual: float lit pure + public emit_expr_elf_c for general RHS.
+ * s213: dig tipU ret0 stub first-wins; product first-wins is host-cc twin
+ *   runtime_pipeline_abi_assign_rhs_elf_hostcc_thin.c (this semantics).
  * PLATFORM: SHARED freestanding.
  */
 export function glue_emit_assign_rhs_elf_c(arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32 {
