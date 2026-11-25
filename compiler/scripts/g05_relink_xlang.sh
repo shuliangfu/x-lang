@@ -904,7 +904,8 @@ if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
     _er_has_prev=0
     for _er_o in $OBJS; do
       [ -s "$_er_o" ] || continue
-      if nm -u "$_er_o" 2>/dev/null | grep -qE '^pipeline_asm_emit_return_elf_impl_prev$'; then
+      # nm -u lines are " U name" (leading spaces); do not anchor ^name.
+      if nm -u "$_er_o" 2>/dev/null | grep -qE '[[:space:]]U[[:space:]]+pipeline_asm_emit_return_elf_impl_prev$'; then
         _er_need_prev=1
       fi
       if nm "$_er_o" 2>/dev/null | grep -qE ' [TW] pipeline_asm_emit_return_elf_impl_prev$'; then
