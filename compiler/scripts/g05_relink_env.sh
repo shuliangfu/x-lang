@@ -2222,6 +2222,72 @@ if [ -x ./xlang_asm ]; then
   else
     echo "g05_relink_env: WARNING s213 assign_rhs_elf host-cc twin did not build" >&2
   fi
+  # DIG s214: tipU uasb_note2 (and note1) place msg at lea -0x50/-0x28
+  # with cap=256 → smash saved args → put_str reads int-as-ptr AV.
+  # Manifests as `if (i == lit) { return ...; }` first-stmt return AV
+  # after coff_write note2. Host-cc twins (s187/s188 aside) were never
+  # g05 LINK_WINNERS — tip-land them now. PLATFORM: SHARED host-cc.
+  _G05_W214_UASB=""
+  _g05_uasb_o=build_asm/selfhost_pabi/uasb_notes.o
+  _g05_uasb_ok=1
+  _g05_uasb_parts=""
+  for _g05_uasb_c in \
+    src/runtime_pipeline_abi_uasb_put_str_thin.c \
+    src/runtime_pipeline_abi_uasb_note1_thin.c \
+    src/runtime_pipeline_abi_uasb_note2_thin.c \
+    src/runtime_pipeline_abi_uasb_out_append_thin.c
+  do
+    if [ ! -f "$_g05_uasb_c" ]; then _g05_uasb_ok=0; break; fi
+  done
+  if [ "$_g05_uasb_ok" = "1" ]; then
+    _g05_uasb_tmps=""
+    for _g05_uasb_c in \
+      src/runtime_pipeline_abi_uasb_put_str_thin.c \
+      src/runtime_pipeline_abi_uasb_note1_thin.c \
+      src/runtime_pipeline_abi_uasb_note2_thin.c \
+      src/runtime_pipeline_abi_uasb_out_append_thin.c
+    do
+      _g05_uasb_tmp="${_g05_uasb_o}.$(basename "$_g05_uasb_c" .c).tmp.o"
+      if gcc -c -O2 -o "$_g05_uasb_tmp" "$_g05_uasb_c" 2>/tmp/g05_uasb.err; then
+        _g05_uasb_tmps="$_g05_uasb_tmps $_g05_uasb_tmp"
+      else
+        _g05_uasb_ok=0
+        break
+      fi
+    done
+    if [ "$_g05_uasb_ok" = "1" ] && command -v ld >/dev/null 2>&1; then
+      # Darwin nm prefixes `_`; Linux does not. PLATFORM: SHARED.
+      if ld -r -o "${_g05_uasb_o}.tmp.o" $_g05_uasb_tmps 2>/tmp/g05_uasb_ld.err \
+        && nm "${_g05_uasb_o}.tmp.o" 2>/dev/null | grep -qE ' T _?user_asm_seed_bridge_uasb_note2$' \
+        && nm "${_g05_uasb_o}.tmp.o" 2>/dev/null | grep -qE ' T _?user_asm_seed_bridge_uasb_put_str$'; then
+        mv -f "${_g05_uasb_o}.tmp.o" "$_g05_uasb_o"
+        _G05_W214_UASB="$_g05_uasb_o"
+        echo "g05_relink_env: s214 host-cc uasb note/put_str/out_append (.c)" >&2
+      else
+        rm -f "${_g05_uasb_o}.tmp.o"
+        _g05_uasb_ok=0
+      fi
+    else
+      _g05_uasb_ok=0
+    fi
+    rm -f $_g05_uasb_tmps
+  fi
+  if [ -n "$_G05_W214_UASB" ]; then
+    for _g05_uasb_sym in \
+      user_asm_seed_bridge_uasb_put_str \
+      user_asm_seed_bridge_uasb_note1 \
+      user_asm_seed_bridge_uasb_note2 \
+      user_asm_seed_bridge_uasb_out_append
+    do
+      if [ "$UNAME_S" = "Darwin" ]; then
+        _G05_LINK_WINNERS="$_G05_LINK_WINNERS _${_g05_uasb_sym}=$_G05_W214_UASB"
+      else
+        _G05_LINK_WINNERS="$_G05_LINK_WINNERS ${_g05_uasb_sym}=$_G05_W214_UASB"
+      fi
+    done
+  else
+    echo "g05_relink_env: WARNING s214 uasb host-cc twins did not build" >&2
+  fi
   _g05_pure_overlay src/runtime_pipeline_abi_call_arg_const_off_thin.x \
     build_asm/selfhost_pabi/call_arg_const_off.o \
     glue_call_arg_resolve_var_stack_off_elf_c

@@ -1,8 +1,11 @@
 /* Source-faithful user_asm_seed_bridge_uasb_note2 twin
  * (compiler/src/asm/user_asm_seed_bridge.x).
- * Same typool undersized-msg class as note1 (s187): lea -0x38(%rbp) for
- * `let msg: u8[256]` then put_str/put_i32 with cap=256 smash upward through
- * saved frame. Fold with note1 in the same wave to avoid the next hop.
+ * Same typool undersized-msg class as note1 (s187): lea -0x38/%rbp-0x50
+ * for `let msg: u8[256]` then put_str/put_i32 with cap=256 smash upward
+ * through saved frame (corrupts string arg → put_str int-as-ptr AV).
+ * s214 DIG: dig first-wins tipU note2 → AV on
+ * `if (i == lit) { return ...; }` (first stmt return) after coff_write
+ * note2; host-cc inject aside green. Tip-land via g05 LINK_WINNERS.
  * docs-only .x, do not idx8.
  * PLATFORM: WINDOWS DIG host-cc first-wins; SHARED note formatting.
  */
