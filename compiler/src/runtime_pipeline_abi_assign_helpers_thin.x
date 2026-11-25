@@ -94,6 +94,11 @@ function w558_rhs_query(arena: *u8, elf_ctx: *u8, right_ref: i32, ta: i32, lhs_f
 /**
  * wave142/558: emit an assign RHS. Both emitters always run.
  * Tip returns 0; the real status stays on the w421 overlay.
+ * s213 DIG: dig absolute ret0 stub first-wins killed RHS emit
+ *   (`i=i+1` no ADD). Host-cc twin
+ *   runtime_pipeline_abi_assign_rhs_elf_hostcc_thin.c + g05
+ *   LINK_WINNERS is the product authority (assign_thin.x semantics);
+ *   this tip overlay must not first-wins. docs-only; do not idx8.
  * @param arena *u8 — AST arena; null returns -1
  * @param elf_ctx *u8 — ELF emit context
  * @param left_ref i32 — LHS expr
