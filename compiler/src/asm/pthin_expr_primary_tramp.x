@@ -1132,7 +1132,17 @@ function pthin_primary_face_struct(arena: *u8, lit_ref: i32, lex: *u8, source: *
       return;
     }
     op[0] = 1;
-    op[1] = refv;
+    /* lit_ref is the in-place STRUCT_LIT (finish converts the IDENT
+     * placeholder). Prefer lit_ref over refv: Win64 typool/dig PE has
+     * dropped the 7th stack arg (out_expr_ref) into x_into, leaving
+     * refv at 0 while fields still build lit_ref. Body-let then stored
+     * expr_ref=0 → lit synthesis → S{a:9} became LIT 0 (s215 DIG).
+     * PLATFORM: SHARED. G.7: same face; no second writer. */
+    if (which != 0) {
+      op[1] = lit_ref;
+    } else {
+      op[1] = refv;
+    }
     memcpy(out + 8, &cur[0], 16);
   }
 }

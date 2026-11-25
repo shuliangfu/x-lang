@@ -2163,6 +2163,12 @@ export function parser_asm_parse_anonymous_struct_lit_x_into_c(arena: *u8, lex_i
       out_expr_ref[0] = 0;
       return 0;
     }
+    /* Contract: out_expr_ref is lit_ref on success (fields also write it;
+     * re-stamp so a dropped out_expr_ref pointer still leaves ok=1 with
+     * a recoverable lit_ref at the caller's local when the face uses
+     * lit_ref directly). PLATFORM: SHARED. */
+    out_ok[0] = 1;
+    out_expr_ref[0] = lit_ref;
     return 1;
   }
   return 0;
@@ -2216,6 +2222,11 @@ export function parser_asm_finish_struct_lit_from_type_ident_x_into_c(arena: *u8
       out_expr_ref[0] = 0;
       return 0;
     }
+    /* Contract: out_expr_ref is lit_ref on success. Re-stamp after fields
+     * (s215: face must not depend solely on a possibly-dropped out_expr_ref
+     * stack arg). PLATFORM: SHARED. */
+    out_ok[0] = 1;
+    out_expr_ref[0] = lit_ref;
     return 1;
   }
   return 0;
