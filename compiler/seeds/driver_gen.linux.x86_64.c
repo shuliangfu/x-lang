@@ -4159,7 +4159,9 @@ int32_t main_driver_argv_parse_x(int32_t argc, uint8_t * argv, struct main_Drive
       }
       if ((main_eq_minus_E(arg_buf, len) !=0)) {
         int32_t pi = (i + 1);
-        while ((pi < argc)) {
+        /* DIG s204/s210: tipU asm dropped break → hang; done-flag ≡ break. */
+        int32_t e_done = 0;
+        while (((pi < argc) && (e_done == 0))) {
           int32_t plen_temp = driver_get_argv_i(argc, argv, pi, arg_buf, 512);
           if ((((plen_temp > 0) && (main_eq_minus_lib_name(arg_buf, plen_temp) !=0)) && ((pi + 1) < argc))) {
             if ((driver_compile_argv_next_is_value_c(argc, argv, pi, arg_buf, 512) !=0)) {
@@ -4186,7 +4188,7 @@ int32_t main_driver_argv_parse_x(int32_t argc, uint8_t * argv, struct main_Drive
             (void)((pi = (pi + 1)));
             continue;
           }
-          break;
+          (void)((e_done = 1));
         }
         if ((pi < argc)) {
           int32_t opt_len = driver_get_argv_i(argc, argv, pi, arg_buf, 512);

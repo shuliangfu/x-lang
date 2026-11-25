@@ -689,7 +689,12 @@ export function driver_argv_parse_x(argc: i32, argv: *u8, state: *DriverXEmitSta
       }
       if (eq_minus_E(arg_buf, len) != 0) {
         let pi: i32 = i + 1;
-        while (pi < argc) {
+        /* DIG s204/s210: tipU asm emit dropped `break` in this while →
+         * fallthrough / empty-plen path looped on driver_get_argv_i forever.
+         * Use an explicit done flag (same control flow) so the loop does not
+         * depend on break codegen. PLATFORM: SHARED. */
+        let e_done: i32 = 0;
+        while (pi < argc && e_done == 0) {
           let plen_temp: i32 = driver_get_argv_i(argc, argv, pi, arg_buf, 512);
           if (plen_temp > 0 && eq_minus_lib_name(arg_buf, plen_temp) != 0 && pi + 1 < argc) {
             /* 7.4.4 v3: -lib-name inside the -E scan — without this the
@@ -722,7 +727,7 @@ export function driver_argv_parse_x(argc: i32, argv: *u8, state: *DriverXEmitSta
             pi = pi + 1;
             continue;
           }
-          break;
+          e_done = 1;
         }
         if (pi < argc) {
           let opt_len: i32 = driver_get_argv_i(argc, argv, pi, arg_buf, 512);
