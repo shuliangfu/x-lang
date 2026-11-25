@@ -310,11 +310,25 @@ build_parser() {
   elif grep -q 'wave324 parser M4 cold assemble' parser_gen.c 2>/dev/null; then
     log "parser_gen.c: skip token enum sync (wave324 .x assemble)"
   fi
+  # DIG s220: refuse to claim OK when host-cc fails (broken tip -E assemble).
+  # On fail, restore archaeology seed once and retry.
   # shellcheck disable=SC2086
-  $CC $CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc \
+  if ! $CC $CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc \
     -Dstd_io_driver_driver_read_ptr_len=xlang_io_read_ptr_len \
     -Dstd_io_driver_driver_read_ptr=xlang_io_read_ptr \
-    -c parser_gen.c -o parser_x.o
+    -c parser_gen.c -o parser_x.o; then
+    log "parser_gen.c host-cc failed; restore archaeology seed and retry"
+    if [ -f seeds/parser_gen.linux.x86_64.c ]; then
+      cp -f seeds/parser_gen.linux.x86_64.c parser_gen.c
+      # shellcheck disable=SC2086
+      $CC $CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc \
+        -Dstd_io_driver_driver_read_ptr_len=xlang_io_read_ptr_len \
+        -Dstd_io_driver_driver_read_ptr=xlang_io_read_ptr \
+        -c parser_gen.c -o parser_x.o
+    else
+      return 1
+    fi
+  fi
   log "parser_x.o OK"
 }
 
