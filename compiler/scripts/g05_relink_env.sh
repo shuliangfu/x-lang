@@ -2036,6 +2036,20 @@ _G05_W211_CONST_LIT=""
 _G05_W211_REGISTER=""
 _G05_W211_VAR_OFF=""
 _G05_W211_CALL_ARG=""
+# DIG s211–s223 host-cc / tip overlays — must also land in DRIVER_SEED_OBJS
+# (LINK_WINNERS alone is a post-link map check; Linux first-wins needs the
+# .o on G05_OBJS). Init empty so the seed bag expands safely when xlang_asm
+# is missing. PLATFORM: SHARED.
+_G05_W211_SKIP_CG=""
+_G05_W212_FLAGS=""
+_G05_W213_ASSIGN_RHS=""
+_G05_W214_UASB=""
+_G05_W216_ASSIGN_MM=""
+_G05_W217_ENC=""
+_G05_W223_ASG=""
+_G05_W223_FLSZ=""
+_G05_W223_IDX=""
+_G05_W223_MTRIM=""
 if [ -x ./xlang_asm ]; then
   _g05_pure_overlay src/runtime_pipeline_abi_const_lit_fold_thin.x \
     build_asm/selfhost_pabi/const_lit_fold.o \
@@ -2221,6 +2235,108 @@ if [ -x ./xlang_asm ]; then
     done
   else
     echo "g05_relink_env: WARNING s213 assign_rhs_elf host-cc twin did not build" >&2
+  fi
+  # DIG s223: leftover pipeline_abi.o may keep U asg_thin_* after assign_thin
+  # inject (TU-private helpers tip-asm'd as T then localized away). Host-cc
+  # twin restores the four helpers for LINK_WINNERS. PLATFORM: SHARED.
+  _G05_W223_ASG=""
+  _g05_asg_c=src/runtime_pipeline_abi_asg_thin_hostcc_thin.c
+  _g05_asg_o=build_asm/selfhost_pabi/asg_thin_hostcc.o
+  if [ -f "$_g05_asg_c" ]; then
+    if gcc -c -O2 -o "${_g05_asg_o}.tmp.o" "$_g05_asg_c" 2>/tmp/g05_asg.err; then
+      if nm "${_g05_asg_o}.tmp.o" 2>/dev/null | grep -qE ' T asg_thin_load_i32_le$' \
+        && nm "${_g05_asg_o}.tmp.o" 2>/dev/null | grep -qE ' T asg_thin_store_i32_le$' \
+        && nm "${_g05_asg_o}.tmp.o" 2>/dev/null | grep -qE ' T asg_thin_ctx_off_next_offset$' \
+        && nm "${_g05_asg_o}.tmp.o" 2>/dev/null | grep -qE ' T asg_thin_align_next_offset$'; then
+        mv -f "${_g05_asg_o}.tmp.o" "$_g05_asg_o"
+        _G05_W223_ASG="$_g05_asg_o"
+        echo "g05_relink_env: s223 host-cc asg_thin helpers (.c)" >&2
+      else
+        rm -f "${_g05_asg_o}.tmp.o"
+      fi
+    fi
+  fi
+  if [ -n "$_G05_W223_ASG" ]; then
+    for _g05_asg_sym in \
+      asg_thin_load_i32_le \
+      asg_thin_store_i32_le \
+      asg_thin_ctx_off_next_offset \
+      asg_thin_align_next_offset
+    do
+      if [ "$UNAME_S" = "Darwin" ]; then
+        _G05_LINK_WINNERS="$_G05_LINK_WINNERS _${_g05_asg_sym}=$_G05_W223_ASG"
+      else
+        _G05_LINK_WINNERS="$_G05_LINK_WINNERS ${_g05_asg_sym}=$_G05_W223_ASG"
+      fi
+    done
+  else
+    echo "g05_relink_env: WARNING s223 asg_thin host-cc twin did not build" >&2
+  fi
+  # DIG s223: field_load_sz_bytes_eq — LINUX w540 BAN tip helpers reinject;
+  # leftover U needs host-cc twin. PLATFORM: SHARED.
+  _G05_W223_FLSZ=""
+  _g05_flsz_c=src/runtime_pipeline_abi_field_load_sz_bytes_eq_hostcc_thin.c
+  _g05_flsz_o=build_asm/selfhost_pabi/field_load_sz_bytes_eq_hostcc.o
+  if [ -f "$_g05_flsz_c" ]; then
+    if gcc -c -O2 -o "${_g05_flsz_o}.tmp.o" "$_g05_flsz_c" 2>/tmp/g05_flsz.err; then
+      if nm "${_g05_flsz_o}.tmp.o" 2>/dev/null | grep -qE ' T field_load_sz_bytes_eq$'; then
+        mv -f "${_g05_flsz_o}.tmp.o" "$_g05_flsz_o"
+        _G05_W223_FLSZ="$_g05_flsz_o"
+        echo "g05_relink_env: s223 host-cc field_load_sz_bytes_eq (.c)" >&2
+      else
+        rm -f "${_g05_flsz_o}.tmp.o"
+      fi
+    fi
+  fi
+  if [ -n "$_G05_W223_FLSZ" ]; then
+    if [ "$UNAME_S" = "Darwin" ]; then
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS _field_load_sz_bytes_eq=$_G05_W223_FLSZ"
+    else
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS field_load_sz_bytes_eq=$_G05_W223_FLSZ"
+    fi
+  else
+    echo "g05_relink_env: WARNING s223 field_load_sz_bytes_eq host-cc twin did not build" >&2
+  fi
+  # DIG s223: leftover U glue_try_index_var_or_field_base_to_rbx_elf_c when
+  # READY/selfhost bag misses base.o. Prefer existing tip thin / base.o.
+  # PLATFORM: LINUX gold (Darwin/Win already LINK_WINNERS elsewhere).
+  _G05_W223_IDX=""
+  for _g05_idx_cand in \
+    build_asm/selfhost_pabi/base.o \
+    build_asm/selfhost_pabi/index_base_rbx_egg_stub.o
+  do
+    if [ -s "$_g05_idx_cand" ] \
+      && nm "$_g05_idx_cand" 2>/dev/null \
+           | grep -qE ' T glue_try_index_var_or_field_base_to_rbx_elf_c$'; then
+      _G05_W223_IDX="$_g05_idx_cand"
+      break
+    fi
+  done
+  if [ -n "$_G05_W223_IDX" ]; then
+    if [ "$UNAME_S" = "Darwin" ]; then
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS _glue_try_index_var_or_field_base_to_rbx_elf_c=$_G05_W223_IDX"
+    else
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS glue_try_index_var_or_field_base_to_rbx_elf_c=$_G05_W223_IDX"
+    fi
+    echo "g05_relink_env: s223 index_base_rbx provider $_G05_W223_IDX" >&2
+  fi
+  # DIG s223: nostdlib pure-ld UNDEF malloc_trim from leftover from_x.c.
+  _G05_W223_MTRIM=""
+  _g05_mt_c=src/runtime_pipeline_abi_malloc_trim_hostcc_stub.c
+  _g05_mt_o=build_asm/selfhost_pabi/malloc_trim_hostcc_stub.o
+  if [ -f "$_g05_mt_c" ]; then
+    if gcc -c -O2 -o "${_g05_mt_o}.tmp.o" "$_g05_mt_c" 2>/tmp/g05_mtrim.err; then
+      if nm "${_g05_mt_o}.tmp.o" 2>/dev/null | grep -qE ' T malloc_trim$'; then
+        mv -f "${_g05_mt_o}.tmp.o" "$_g05_mt_o"
+        _G05_W223_MTRIM="$_g05_mt_o"
+        echo "g05_relink_env: s223 host-cc malloc_trim stub (.c)" >&2
+      else
+        rm -f "${_g05_mt_o}.tmp.o"
+      fi
+    fi
+  fi
+  if [ -n "$_G05_W223_MTRIM" ] && [ "$UNAME_S" = "Linux" ]; then
+    _G05_LINK_WINNERS="$_G05_LINK_WINNERS malloc_trim=$_G05_W223_MTRIM"
   fi
   # DIG s214: tipU uasb_note2 (and note1) place msg at lea -0x50/-0x28
   # with cap=256 → smash saved args → put_str reads int-as-ptr AV.
@@ -7122,7 +7238,10 @@ case "$UNAME_S" in
     ;;
 esac
 _X_FRONTEND="parser_x.o ${_G05_LEXER_X_O:-lexer_x.o} ${_G05_TYPECK_X_O:-typeck_x.o} ${_TYPECK_CAP_RESIDUAL} ${_TYPECK_CTFE} codegen_x.o x_frontend_link_alias.o ${_WIN_V1_CALL_ALIAS}"
-_DRIVER_SEED_OBJS="$_PABI_WIN_1046_PROVIDERS $_PABI_MODLET_TABLE_BASE $_PABI_MODLET_SEED_SIGNED $_PABI_ADDR_OF_CALL $_PABI_ELF_LAYOUT_64K $_PABI_INDEX_BASE_FIELD $_PABI_SLICE_MODLET $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_ELF_UNDEF_CAP $_PABI_LAYOUT_OFF $_PABI_NAMED_BUILTIN_CAP $_PABI_NAMED_ALIGN $_PABI_NAMED_SIZE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_REENT_SUM $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_WPO_ALIAS $_PABI_RELOC_TYPED $_PABI_ELF_CTX $_PABI_DATA_LEN $_G05_W211_CALL_ARG $_G05_W211_VAR_OFF $_G05_W211_REGISTER $_PABI_CONST_LIT $_MAIN_LINK_O ${_G05_IO_ABI_O:-src/runtime_io_abi.o} src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_SKIP_HEAVY $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_CODEGEN_CAP_RESIDUAL $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
+# DIG s223: host-cc twins s211–s223 MUST precede $_PABI_LINK_O so Linux
+# --allow-multiple-definition first-wins (LINK_WINNERS alone does not put
+# the .o on the link line). PLATFORM: SHARED.
+_DRIVER_SEED_OBJS="$_PABI_WIN_1046_PROVIDERS $_PABI_MODLET_TABLE_BASE $_PABI_MODLET_SEED_SIGNED $_PABI_ADDR_OF_CALL $_PABI_ELF_LAYOUT_64K $_PABI_INDEX_BASE_FIELD $_PABI_SLICE_MODLET $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_ELF_UNDEF_CAP $_PABI_LAYOUT_OFF $_PABI_NAMED_BUILTIN_CAP $_PABI_NAMED_ALIGN $_PABI_NAMED_SIZE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_REENT_SUM $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_WPO_ALIAS $_PABI_RELOC_TYPED $_PABI_ELF_CTX $_PABI_DATA_LEN $_G05_W223_ASG $_G05_W223_FLSZ $_G05_W223_IDX $_G05_W223_MTRIM $_G05_W213_ASSIGN_RHS $_G05_W214_UASB $_G05_W216_ASSIGN_MM $_G05_W217_ENC $_G05_W212_FLAGS $_G05_W211_SKIP_CG $_G05_W211_CALL_ARG $_G05_W211_VAR_OFF $_G05_W211_REGISTER $_PABI_CONST_LIT $_MAIN_LINK_O ${_G05_IO_ABI_O:-src/runtime_io_abi.o} src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_SKIP_HEAVY $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_CODEGEN_CAP_RESIDUAL $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
 # ast_gen2.o: in LEGACY mode, append at link END (mirrors Makefile xlang-c LEGACY L2501
