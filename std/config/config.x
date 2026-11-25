@@ -29,13 +29,13 @@ export const CFG_ERR_INVALID: i32 = -3;
 export const CFG_ERR_IO: i32 = -4;
 export const CFG_ERR_FULL: i32 = -5;
 
-export const CFG_MAX_ENTRIES: i32 = 64;
+export const CFG_MAX_ENTRIES: i32 = 256;
 export const CFG_KEY_MAX: i32 = 128;
 export const CFG_VAL_MAX: i32 = 256;
 export const CFG_FILE_MAX: i32 = 65536;
 export const CFG_SRC_LABEL_MAX: i32 = 64;
 export const YAML_STACK_MAX: i32 = 8;
-export const CFG_STORE_SIZE: usize = 29000;
+export const CFG_STORE_SIZE: usize = 120000;
 export const YAML_CTX_SIZE: usize = 1200;
 
 export const CFG_SRC_UNKNOWN: i32 = 0;
@@ -86,7 +86,7 @@ allow(padding) struct CfgEntry {
 
 /* See implementation. */
 allow(padding) struct CfgStore {
-  entries: CfgEntry[64];
+  entries: CfgEntry[256];
   count: i32;
   active_source_kind: i32;
   active_source_label: u8[64];

@@ -15,6 +15,8 @@
 # Env: XLANG=compiler binary (default ./xlang_asm → ./xlang → ./xlang-c)
 # wave826: FORCE-thin mtime skip when formal_mod ensure dispatches here (not physical delete).
 set -e
+_SOC_INC="$(CDPATH= cd "$(dirname "$0")" && pwd)/std_o_compiler_freshness.inc.sh"
+. "$_SOC_INC"
 
 out_o="$1"
 if [ -z "$out_o" ]; then
@@ -40,6 +42,11 @@ if [ "${FORCE:-0}" != "1" ] && [ -f "$out_o" ]; then
       break
     fi
   done
+  # 10.75: compiler/ABI stamp
+  if [ "$_fs_stale" = "0" ] && std_o_stale_vs_compiler "$out_o"; then
+    _fs_stale=1
+    echo "xlang_compile_std_fs_formal: stale vs compiler $out_o (formal_mod/fs)" >&2
+  fi
   if [ "$_fs_stale" = "0" ]; then
     # Only skip if at least one real source path exists (avoid skip when tree missing).
     if [ -f ../std/fs/mod.x ] || [ -f std/fs/mod.x ]; then
@@ -75,18 +82,37 @@ trap 'rm -rf "$tmp_dir" 2>/dev/null || true' EXIT INT TERM
 # Darwin and Linux x86_64 compile mod.x and posix.x as two asm entries,
 # then ld -r. User imports skip co-emitting std.fs, so each file has to
 # be its own entry. Fail closed: do not fall back to KEEP_C + cc.
-# Windows stays on the C vehicle.
-# PLATFORM: MACOS|DARWIN and LINUX x86_64.
+# 10.93: Windows also fail-closed pure-asm (no KEEP_C + host cc).
+# PLATFORM: MACOS|DARWIN and LINUX x86_64 | WINDOWS.
 asm_ok=0
 _fs_os="$(uname -s 2>/dev/null || echo Unknown)"
 _fs_mach="$(uname -m 2>/dev/null || echo unknown)"
-if [ "$_fs_os" = "Darwin" ] || { [ "$_fs_os" = "Linux" ] && [ "$_fs_mach" = "x86_64" ]; }; then
-    _fs_mod="../std/fs/mod.x"
-    [ -f "$_fs_mod" ] || _fs_mod="std/fs/mod.x"
-    _fs_posix="../std/fs/posix.x"
-    [ -f "$_fs_posix" ] || _fs_posix="std/fs/posix.x"
-    _fs_L=".."
-    [ -d ../std/fs ] || _fs_L="."
+_fs_win=0
+case "$_fs_os" in MINGW*|MSYS*|CYGWIN*|Windows_NT*) _fs_win=1 ;; esac
+if [ "$_fs_os" = "Darwin" ] || { [ "$_fs_os" = "Linux" ] && [ "$_fs_mach" = "x86_64" ]; } || [ "$_fs_win" = "1" ]; then
+    # tip-cold import root: with cwd=compiler and entry ../std/... tip
+    # resolves std.* to ../std/debug/std/... (IMP001). Repo-root relative
+    # entry + -L . works. Absolute XLANG_BIN so cd away from compiler/ is safe.
+    # PLATFORM: SHARED tip cold (Linux gold; Darwin same layout).
+    _fs_script_dir=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
+    _fs_compiler_dir=$(CDPATH= cd -- "$_fs_script_dir/.." && pwd)
+    _fs_root=$(CDPATH= cd -- "$_fs_compiler_dir/.." && pwd)
+    case "$XLANG_BIN" in
+      /*) ;;
+      *) XLANG_BIN="$_fs_compiler_dir/${XLANG_BIN#./}" ;;
+    esac
+    case "$tmp_dir" in
+      /*) ;;
+      *) tmp_dir="$_fs_compiler_dir/$tmp_dir" ;;
+    esac
+    case "$out_o" in
+      /*) ;;
+      *) out_o="$_fs_compiler_dir/$out_o" ;;
+    esac
+    cd "$_fs_root" || exit 1
+    _fs_mod="std/fs/mod.x"
+    _fs_posix="std/fs/posix.x"
+    _fs_L="."
     # Linux mod.x imports std.fs.freestanding_linux, and that file imports
     # std.sys. The asm co-emit skip covers every std.fs path, so each of
     # those files is its own entry. std.sys is not skipped; -c still emits
@@ -96,14 +122,10 @@ if [ "$_fs_os" = "Darwin" ] || { [ "$_fs_os" = "Linux" ] && [ "$_fs_mach" = "x86
     # PLATFORM: LINUX x86_64.
     _fs_more=""
     if [ "$_fs_os" = "Linux" ]; then
-      _fs_free="../std/fs/freestanding_linux.x"
-      [ -f "$_fs_free" ] || _fs_free="std/fs/freestanding_linux.x"
-      _sys_mod="../std/sys/mod.x"
-      [ -f "$_sys_mod" ] || _sys_mod="std/sys/mod.x"
-      _sys_linux="../std/sys/linux.x"
-      [ -f "$_sys_linux" ] || _sys_linux="std/sys/linux.x"
-      _sys_mmap="../std/sys/mmap.x"
-      [ -f "$_sys_mmap" ] || _sys_mmap="std/sys/mmap.x"
+      _fs_free="std/fs/freestanding_linux.x"
+      _sys_mod="std/sys/mod.x"
+      _sys_linux="std/sys/linux.x"
+      _sys_mmap="std/sys/mmap.x"
       if ! "$XLANG_BIN" -backend asm -c -L "$_fs_L" -o "$tmp_dir/free.o" "$_fs_free" \
           >"$tmp_dir/free_asm.log" 2>&1 \
         || ! "$XLANG_BIN" -backend asm -c -L "$_fs_L" -o "$tmp_dir/sysmod.o" "$_sys_mod" \
@@ -125,6 +147,11 @@ if [ "$_fs_os" = "Darwin" ] || { [ "$_fs_os" = "Linux" ] && [ "$_fs_mach" = "x86
       fi
       _fs_more="$tmp_dir/free.o $tmp_dir/sysmod.o $tmp_dir/syslinux.o $tmp_dir/sysmmap.o"
     fi
+    # PLATFORM: MACOS|DARWIN — Cap tip / LEGACY asm may emit U __error or
+    # ____error; libSystem is ___error (same class as std/net errno retarget).
+    # Retarget before the Darwin contract check. Prefer pure-asm; no FORCE_CC.
+    # Linux posix.o has neither symbol.
+    _fs_asm_ok=0
     if "$XLANG_BIN" -backend asm -c -L "$_fs_L" -o "$tmp_dir/mod.o" "$_fs_mod" \
         >"$tmp_dir/mod_asm.log" 2>&1 \
       && [ -s "$tmp_dir/mod.o" ] \
@@ -132,28 +159,152 @@ if [ "$_fs_os" = "Darwin" ] || { [ "$_fs_os" = "Linux" ] && [ "$_fs_mach" = "x86
       && "$XLANG_BIN" -backend asm -c -L "$_fs_L" -o "$tmp_dir/posix.o" "$_fs_posix" \
         >"$tmp_dir/posix_asm.log" 2>&1 \
       && [ -s "$tmp_dir/posix.o" ] \
-      && nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' T _?std_fs_posix_fs_open_read_c$' \
-      && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_fs_unlink$' \
-      && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_fs_rmdir$' \
-      && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_sys_pread$' \
-      && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_sys_pwrite$' \
-      && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_sys_readv$' \
-      && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_sys_poll$' \
-      && nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?pread$' \
-      && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U __error$' \
-      && ld -r -o "$tmp_dir/fs_formal_raw.o" "$tmp_dir/mod.o" "$tmp_dir/posix.o" $_fs_more \
-        >"$tmp_dir/ld_asm.err" 2>&1; then
+      && nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' T _?std_fs_posix_fs_open_read_c$'; then
+      if [ "$_fs_os" = "Darwin" ]; then
+        _oc="${LLVM_OBJCOPY:-}"
+        [ -n "$_oc" ] || { [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ] && _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy; }
+        [ -n "$_oc" ] || { [ -x /usr/local/opt/llvm/bin/llvm-objcopy ] && _oc=/usr/local/opt/llvm/bin/llvm-objcopy; }
+        if [ -n "$_oc" ]; then
+          if nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U __error$'; then
+            "$_oc" --redefine-sym=__error=___error "$tmp_dir/posix.o" \
+              && echo "xlang_compile_std_fs_formal: Darwin __error → ___error" >&2 || true
+          fi
+          if nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U ____error$'; then
+            "$_oc" --redefine-sym=____error=___error "$tmp_dir/posix.o" \
+              && echo "xlang_compile_std_fs_formal: Darwin ____error → ___error" >&2 || true
+          fi
+        fi
+      fi
+      if ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_fs_unlink$' \
+        && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_fs_rmdir$' \
+        && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_sys_pread$' \
+        && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_sys_pwrite$' \
+        && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_sys_readv$' \
+        && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_sys_poll$' \
+        && nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?pread$' \
+        && { [ "$_fs_os" != "Darwin" ] || nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U ___error$'; } \
+        && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U ____error$' \
+        && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U __error$' \
+        && ld -r -o "$tmp_dir/fs_formal_raw.o" "$tmp_dir/mod.o" "$tmp_dir/posix.o" $_fs_more \
+          >"$tmp_dir/ld_asm.err" 2>&1; then
+        _fs_asm_ok=1
+      fi
+    fi
+    if [ "$_fs_asm_ok" = "1" ]; then
       asm_ok=1
       raw_o="$tmp_dir/fs_formal_raw.o"
       echo "xlang_compile_std_fs_formal: mod.o+posix.o <- asm"
     else
-      echo "xlang_compile_std_fs_formal: pure-asm std.fs failed" >&2
-      cat "$tmp_dir/mod_asm.log" "$tmp_dir/posix_asm.log" "$tmp_dir/ld_asm.err" >&2 || true
-      exit 1
+      # knife256/10.2 Cap tip: tip xlang -backend asm mis-resolves std.fs
+      # imports (../std/debug/std/fs/posix.x). Retry pure-asm with Cap tip REF
+      # CACHE first (FixC12f Prefer-M2), then LEGACY bak. Prefer asm; no
+      # FORCE_CC / new .c. PLATFORM: MACOS Cap tip.
+      _leg=""
+      _cap_ref=""
+      for _cr in \
+        "${XLANG_CAP_TIP_L4_CACHE:-}/xlang" \
+        /tmp/cap_tip_l4_safe_406200eef/xlang \
+        "${HOME:-}/.cache/xlang_cap_tip_l4/xlang" \
+        "$_fs_compiler_dir/xlang.cap_g05_l2"
+      do
+        [ -n "$_cr" ] && [ -x "$_cr" ] && [ -s "$_cr" ] || continue
+        _crsz=$(stat -f '%z' "$_cr" 2>/dev/null || stat -c '%s' "$_cr" 2>/dev/null || echo 0)
+        [ "$_crsz" -gt 8000000 ] && [ "$_crsz" -lt 12000000 ] || continue
+        [ "$_cr" = "$XLANG_BIN" ] && continue
+        _cap_ref="$_cr"
+        break
+      done
+      # After cd to repo root: LEGACY bak lives under compiler/.
+      if [ -x "$_fs_compiler_dir/xlang.product_legacy_bak" ]; then
+        _leg="$_fs_compiler_dir/xlang.product_legacy_bak"
+      elif [ -x ./xlang.product_legacy_bak ]; then
+        _leg=$PWD/xlang.product_legacy_bak
+      elif [ -x ../compiler/xlang.product_legacy_bak ]; then
+        _leg=$(cd ../compiler && pwd)/xlang.product_legacy_bak
+      fi
+      # 10.77 Prefer-M2: try Cap tip REF then LEGACY bak (cold Cap tip REF
+      # can still miss std.fs after wipe; exclusive if/elif left no fallback).
+      # PLATFORM: MACOS Cap tip.
+      _fs_try_list=""
+      if [ "$_fs_os" = "Darwin" ] && [ -n "$_cap_ref" ]; then
+        _fs_try_list="$_cap_ref"
+      fi
+      if [ "$_fs_os" = "Darwin" ] && [ -n "$_leg" ] && [ "$_leg" != "$XLANG_BIN" ]; then
+        case " $_fs_try_list " in
+          *" $_leg "*) ;;
+          *) _fs_try_list="${_fs_try_list:+$_fs_try_list }$_leg" ;;
+        esac
+      fi
+      _fs_asm_ok=0
+      _fs_retry_used=""
+      for _fs_retry in $_fs_try_list; do
+        [ -n "$_fs_retry" ] && [ -x "$_fs_retry" ] || continue
+        [ "$_fs_retry" = "$XLANG_BIN" ] && continue
+        if [ -n "$_cap_ref" ] && [ "$_fs_retry" = "$_cap_ref" ]; then
+          echo "xlang_compile_std_fs_formal: Cap tip asm miss; Prefer-M2 Cap tip REF" >&2
+        else
+          echo "xlang_compile_std_fs_formal: Cap tip asm miss; retry LEGACY bak" >&2
+        fi
+        XLANG_BIN="$_fs_retry"
+        if "$XLANG_BIN" -backend asm -c -L "$_fs_L" -o "$tmp_dir/mod.o" "$_fs_mod" \
+             >"$tmp_dir/mod_asm.log" 2>&1 \
+          && [ -s "$tmp_dir/mod.o" ] \
+          && nm "$tmp_dir/mod.o" 2>/dev/null | grep -qE ' T _?std_fs_invalid$' \
+          && "$XLANG_BIN" -backend asm -c -L "$_fs_L" -o "$tmp_dir/posix.o" "$_fs_posix" \
+             >"$tmp_dir/posix_asm.log" 2>&1 \
+          && [ -s "$tmp_dir/posix.o" ] \
+          && nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' T _?std_fs_posix_fs_open_read_c$'; then
+          _oc="${LLVM_OBJCOPY:-}"
+          [ -n "$_oc" ] || { [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ] && _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy; }
+          [ -n "$_oc" ] || { [ -x /usr/local/opt/llvm/bin/llvm-objcopy ] && _oc=/usr/local/opt/llvm/bin/llvm-objcopy; }
+          if [ -n "$_oc" ]; then
+            if nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U __error$'; then
+              "$_oc" --redefine-sym=__error=___error "$tmp_dir/posix.o" || true
+            fi
+            if nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U ____error$'; then
+              "$_oc" --redefine-sym=____error=___error "$tmp_dir/posix.o" || true
+            fi
+          fi
+          if ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_fs_unlink$' \
+            && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_fs_rmdir$' \
+            && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_sys_pread$' \
+            && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_sys_pwrite$' \
+            && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_sys_readv$' \
+            && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_sys_poll$' \
+            && nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?pread$' \
+            && nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U ___error$' \
+            && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U ____error$' \
+            && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U __error$' \
+            && ld -r -o "$tmp_dir/fs_formal_raw.o" "$tmp_dir/mod.o" "$tmp_dir/posix.o" $_fs_more \
+               >"$tmp_dir/ld_asm.err" 2>&1; then
+            _fs_asm_ok=1
+            _fs_retry_used="$_fs_retry"
+            break
+          fi
+        fi
+      done
+      if [ "$_fs_asm_ok" = "1" ]; then
+        asm_ok=1
+        raw_o="$tmp_dir/fs_formal_raw.o"
+        if [ -n "$_cap_ref" ] && [ "$_fs_retry_used" = "$_cap_ref" ]; then
+          echo "xlang_compile_std_fs_formal: mod.o+posix.o <- asm (Cap tip REF)"
+        else
+          echo "xlang_compile_std_fs_formal: mod.o+posix.o <- asm (LEGACY bak)"
+        fi
+      else
+        echo "xlang_compile_std_fs_formal: pure-asm std.fs failed" >&2
+        cat "$tmp_dir/mod_asm.log" "$tmp_dir/posix_asm.log" "$tmp_dir/ld_asm.err" >&2 || true
+        exit 1
+      fi
     fi
+
 fi
 
 if [ "$asm_ok" != "1" ]; then
+echo "xlang_compile_std_fs_formal.sh: pure-asm std.fs required; KEEP_C+cc removed (10.93)" >&2
+echo "  os=$_fs_os mach=$_fs_mach" >&2
+exit 1
+# archaeology: former KEEP_C vehicle + cc path (removed 10.93)
 # Vehicle: entry main + import("std.fs") → same co-emit path as tests/fs/main.x.
 # Keep body minimal (match tests/fs/main.x) so typeck/pipeline stays green on mac+Ubuntu.
 vehicle="$tmp_dir/fs_vehicle.x"
@@ -219,8 +370,18 @@ fi
 # resolve without libc opendir. Darwin arm64 and Linux x86_64 compile
 # their asm bodies. Windows compiles the C seed, which calls
 # xlang_dir_cap.h. The four export names stay the same.
+# After tip-cold cd to repo root, compiler-relative paths need
+# $_fs_compiler_dir (set in the asm arm above). Fallback keeps
+# cwd=compiler layout for archaeology callers.
 # PLATFORM: SHARED face.
-_dir_cap_c="seeds/runtime_dir_cap.from_x.c"
+_fs_compiler_dir="${_fs_compiler_dir:-}"
+if [ -z "$_fs_compiler_dir" ]; then
+  _fs_compiler_dir=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
+fi
+_dir_cap_c="$_fs_compiler_dir/seeds/runtime_dir_cap.from_x.c"
+if [ ! -f "$_dir_cap_c" ]; then
+  _dir_cap_c="seeds/runtime_dir_cap.from_x.c"
+fi
 if [ ! -f "$_dir_cap_c" ]; then
   _dir_cap_c="../compiler/seeds/runtime_dir_cap.from_x.c"
 fi
@@ -228,19 +389,34 @@ if [ -f "$_dir_cap_c" ]; then
   _dir_cap_o="$tmp_dir/runtime_dir_cap.o"
   # PLATFORM: MACOS|DARWIN arm64 — runtime_dir_cap_darwin.x via dir-cap-pure.
   # PLATFORM: LINUX x86_64 — runtime_dir_cap_linux.x via -backend asm.
-  # Windows stays cc -c of the seed.
+  # 10.93: Windows skips dir Cap merge (win32.x); no host-cc of the seed.
   _dir_os="$(uname -s 2>/dev/null || echo Unknown)"
   _dir_mach="$(uname -m 2>/dev/null || echo unknown)"
-  _dir_x="src/asm/runtime_dir_cap_darwin.x"
+  _dir_x="$_fs_compiler_dir/src/asm/runtime_dir_cap_darwin.x"
+  if [ ! -f "$_dir_x" ]; then
+    _dir_x="src/asm/runtime_dir_cap_darwin.x"
+  fi
   if [ ! -f "$_dir_x" ]; then
     _dir_x="../compiler/src/asm/runtime_dir_cap_darwin.x"
   fi
-  _dir_lx="src/asm/runtime_dir_cap_linux.x"
+  _dir_lx="$_fs_compiler_dir/src/asm/runtime_dir_cap_linux.x"
+  if [ ! -f "$_dir_lx" ]; then
+    _dir_lx="src/asm/runtime_dir_cap_linux.x"
+  fi
   if [ ! -f "$_dir_lx" ]; then
     _dir_lx="../compiler/src/asm/runtime_dir_cap_linux.x"
   fi
   if [ "$_dir_os" = "Darwin" ] && [ "$_dir_mach" = "arm64" ] && [ -f "$_dir_x" ]; then
-    _ensure="scripts/ensure_host_cc_seed_o.sh"
+    # FixC12f Prefer-M2: dir-cap pure_asm_x_to_o reads $XLANG. Keep it on the
+    # winning fs vehicle (Cap tip REF / LEGACY), not tip-cold hybrid STAGE.
+    # PLATFORM: MACOS Cap tip.
+    if [ -n "${XLANG_BIN:-}" ] && [ -x "$XLANG_BIN" ]; then
+      export XLANG="$XLANG_BIN"
+    fi
+    _ensure="$_fs_compiler_dir/scripts/ensure_host_cc_seed_o.sh"
+    if [ ! -f "$_ensure" ]; then
+      _ensure="scripts/ensure_host_cc_seed_o.sh"
+    fi
     if [ ! -f "$_ensure" ]; then
       _ensure="../compiler/scripts/ensure_host_cc_seed_o.sh"
     fi
@@ -250,13 +426,15 @@ if [ -f "$_dir_cap_c" ]; then
     # PLATFORM: MACOS|DARWIN arm64.
     export CFLAGS
     export PIPELINE_GEN_CFLAGS="${PIPELINE_GEN_CFLAGS-}"
-    if ! bash "$_ensure" dir-cap-pure "$_dir_cap_o" 2>"$tmp_dir/dir_cap.err"; then
+    # ensure expects cwd=compiler for relative seed paths
+    if ! (cd "$_fs_compiler_dir" && bash "$_ensure" dir-cap-pure "$_dir_cap_o") 2>"$tmp_dir/dir_cap.err"; then
       echo "xlang_compile_std_fs_formal.sh: dir Cap pure-asm failed" >&2
       tail -40 "$tmp_dir/dir_cap.err" >&2 || true
       exit 1
     fi
   elif [ "$_dir_os" = "Linux" ] && [ "$_dir_mach" = "x86_64" ] && [ -f "$_dir_lx" ]; then
     # Fail closed. A miss must not cc the seed and look green.
+    # From repo root: -L . + compiler/... entry (tip import root).
     # Retry: the same class of pure-asm try sometimes dies on the first pass.
     # PLATFORM: LINUX x86_64.
     _dc_try=0
@@ -264,8 +442,15 @@ if [ -f "$_dir_cap_c" ]; then
     while [ "$_dc_try" -lt 12 ]; do
       _dc_try=$((_dc_try + 1))
       rm -f "$_dir_cap_o"
-      if "$XLANG_BIN" -backend asm -c -L .. -o "$_dir_cap_o" "$_dir_lx" \
+      if "$XLANG_BIN" -backend asm -c -L . -o "$_dir_cap_o" "$_dir_lx" \
           >"$tmp_dir/dir_cap.err" 2>&1 && [ -s "$_dir_cap_o" ]; then
+        _dc_ok=1
+        break
+      fi
+      # cwd=compiler fallback
+      if (cd "$_fs_compiler_dir" && "$XLANG_BIN" -backend asm -c -L .. -o "$_dir_cap_o" \
+            src/asm/runtime_dir_cap_linux.x >"$tmp_dir/dir_cap.err" 2>&1) \
+          && [ -s "$_dir_cap_o" ]; then
         _dc_ok=1
         break
       fi
@@ -276,7 +461,7 @@ if [ -f "$_dir_cap_c" ]; then
       exit 1
     fi
     for _dc_sym in xlang_dir_opendir xlang_dir_readdir xlang_dir_closedir \
-        xlang_dir_readdir_name_c runtime_dir_cap_linux_x_doc_anchor; do
+        xlang_dir_readdir_name_c runtime_dir_cap_linux_x_doc_anchor xlang_formal_bare_open; do
       if ! nm "$_dir_cap_o" 2>/dev/null | grep -qE " T ${_dc_sym}\$"; then
         echo "xlang_compile_std_fs_formal.sh: Linux dir Cap missing ${_dc_sym}" >&2
         exit 1
@@ -291,20 +476,30 @@ if [ -f "$_dir_cap_c" ]; then
       exit 1
     fi
   else
-    # shellcheck disable=SC2086
-    if ! cc -c $CFLAGS "$_dir_cap_c" -o "$_dir_cap_o" 2>"$tmp_dir/dir_cap.err"; then
-      echo "xlang_compile_std_fs_formal.sh: cc -c dir Cap failed" >&2
-      tail -40 "$tmp_dir/dir_cap.err" >&2 || true
+    case "$_dir_os" in
+      MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+        # 10.93: Windows product dir walk is std/fs/win32.x (FindFirstFileA).
+        # The C seed is empty under _WIN32; do not host-cc it. Skip merge.
+        # PLATFORM: WINDOWS | MSYS | MINGW.
+        echo "xlang_compile_std_fs_formal.sh: skip dir Cap merge on Windows (10.93; win32.x authority)" >&2
+        _dir_cap_o=""
+        ;;
+      *)
+        echo "xlang_compile_std_fs_formal.sh: dir Cap pure-asm required; host-cc seed removed (10.93)" >&2
+        echo "  os=$_dir_os mach=$_dir_mach" >&2
+        exit 1
+        ;;
+    esac
+  fi
+  if [ -n "$_dir_cap_o" ] && [ -s "$_dir_cap_o" ]; then
+    _merged="$tmp_dir/fs_formal_merged.o"
+    if ! ld -r -o "$_merged" "$raw_o" "$_dir_cap_o" 2>"$tmp_dir/dir_ld.err"; then
+      echo "xlang_compile_std_fs_formal.sh: ld -r dir Cap failed" >&2
+      tail -20 "$tmp_dir/dir_ld.err" >&2 || true
       exit 1
     fi
+    raw_o="$_merged"
   fi
-  _merged="$tmp_dir/fs_formal_merged.o"
-  if ! ld -r -o "$_merged" "$raw_o" "$_dir_cap_o" 2>"$tmp_dir/dir_ld.err"; then
-    echo "xlang_compile_std_fs_formal.sh: ld -r dir Cap failed" >&2
-    tail -20 "$tmp_dir/dir_ld.err" >&2 || true
-    exit 1
-  fi
-  raw_o="$_merged"
 fi
 
 # Drop vehicle main + foreign co-emits so fs.o is a pure library face.
@@ -362,4 +557,5 @@ if ! nm "$out_o" 2>/dev/null | grep -q 'std_fs_invalid'; then
   exit 1
 fi
 
+std_o_write_compiler_stamp "$out_o" || true
 echo "xlang_compile_std_fs_formal.sh: OK -> $out_o"

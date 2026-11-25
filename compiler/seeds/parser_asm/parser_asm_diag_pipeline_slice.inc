@@ -1009,11 +1009,7 @@ uint8_t *parser_asm_onefunc_result_pool_ptr_c(struct parser_asm_onefunc_result *
  * XLANG_PTHIN_DIAG_PIPELINE_BODIES_FROM_X：body is pthin_diag_pipeline.x.
  */
 #ifndef XLANG_PTHIN_DIAG_PIPELINE_BODIES_FROM_X
-int32_t parser_asm_get_module_num_imports_c(struct ASTModule *module) {
-  if (!module)
-    return 0;
-  return (int32_t)module->num_imports;
-}
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_DIAG_PIPELINE_BODIES_FROM_X removed */
 #else
 int32_t parser_asm_get_module_num_imports_c(struct ASTModule *module);
 #endif
@@ -1030,15 +1026,6 @@ int32_t parser_get_module_num_imports(struct ASTModule *module) {
  * XLANG_PTHIN_DIAG_PIPELINE_BODIES_FROM_X：body is pthin_diag_pipeline.x.
  */
 #ifndef XLANG_PTHIN_DIAG_PIPELINE_BODIES_FROM_X
-void parser_asm_get_module_import_path_c(struct ASTModule *module, int32_t i, uint8_t *out) {
-  if (!out)
-    return;
-  if (i < 0 || !module || i >= module->num_imports) {
-    out[0] = 0;
-    return;
-  }
-  pipeline_module_import_path_copy(module, i, out, 64);
-}
 #else
 void parser_asm_get_module_import_path_c(struct ASTModule *module, int32_t i, uint8_t *out);
 #endif
@@ -1055,17 +1042,6 @@ void parser_get_module_import_path(struct ASTModule *module, int32_t i, uint8_t 
  * XLANG_PTHIN_DIAG_PIPELINE_BODIES_FROM_X：body is pthin_diag_pipeline.x.
  */
 #ifndef XLANG_PTHIN_DIAG_PIPELINE_BODIES_FROM_X
-int32_t parser_asm_copy_module_import_path64_c(struct ASTModule *module, int32_t i, uint8_t *out) {
-  int32_t path_len;
-
-  parser_asm_get_module_import_path_c(module, i, out);
-  if (!out)
-    return 0;
-  path_len = 0;
-  while (path_len < 64 && out[path_len] != 0)
-    path_len++;
-  return path_len;
-}
 #else
 int32_t parser_asm_copy_module_import_path64_c(struct ASTModule *module, int32_t i, uint8_t *out);
 #endif

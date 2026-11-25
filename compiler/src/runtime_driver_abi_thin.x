@@ -1366,7 +1366,9 @@ export function driver_defines_set_at(defines: *u8, i: i32, s: *u8): void {
  */
 #[no_mangle]
 export function driver_stack_limit_want_bytes(): i64 {
-  let def: i64 = 512 as i64 * 1024 as i64 * 1024 as i64;
+  // Tip Win monofile XT001: lit-left let init needs outer parens (caller
+  // driver_bump_stack_limit was mis-blamed #115). PLATFORM: SHARED.
+  let def: i64 = ((512 as i64) * (1024 as i64) * (1024 as i64));
   unsafe {
     let e: *u8 = link_abi_getenv("XLANG_STACK_LIMIT_MB");
     if (e == 0 as *u8) {
@@ -1781,8 +1783,8 @@ export function driver_pipeline_entry_source_len(): i64 {
 
 // ---- Wave14 Cap residual pure: rt_asm_stub GAS table + OutBuf append (PLATFORM: SHARED) ----
 // Host layout (seeds/runtime_driver_abi.from_x.c driver_codegen_outbuf_abi):
-//   unsigned char data[X_CODEGEN_OUTBUF_CAP_ABI];  // CAP = 9 * 1024 * 1024
-//   int32_t len;                                   // little-endian i32 at offset CAP
+//   int32_t length;                                // at offset 0 (10.94)
+//   unsigned char data[X_CODEGEN_OUTBUF_CAP_ABI];  // CAP = 9 * 1024 * 1024 at +4
 // Cold seed keeps C table/append under #ifndef XLANG_L2_RDABI_THIN_FROM_X.
 // G.7: single product authority for gas_line_* / out_append under PREFER hybrid thin.
 
@@ -3033,8 +3035,8 @@ let g_driver_host_needle_riscv64: u8[8] = [114, 105, 115, 99, 118, 54, 52, 0];
 // ASCII "windows\0"
 let g_driver_host_needle_windows: u8[8] = [119, 105, 110, 100, 111, 119, 115, 0];
 
-/** Fixed sizeof(driver_codegen_outbuf_abi) on product LP64: 9*1024*1024 + 4.
- * Must match seed X_CODEGEN_OUTBUF_CAP_ABI + int32_t len (wave14 OutBuf layout).
+/** Fixed sizeof(driver_codegen_outbuf_abi) on product LP64: 4 + 9*1024*1024.
+ * Must match seed int32_t length + X_CODEGEN_OUTBUF_CAP_ABI (10.94 length-first).
  */
 function driver_abi_sizeof_codegen_outbuf(): usize {
   return 9437188 as usize;
@@ -3050,7 +3052,7 @@ function driver_abi_sizeof_lp64_word(): usize {
   return 8 as usize;
 }
 
-/** Allocate zeroed CodegenOutBuf (9MiB data + i32 len).
+/** Allocate zeroed CodegenOutBuf (i32 length + 9MiB data).
  * Wave23 pure: calloc(1, fixed sizeof). PLATFORM: SHARED LP64.
  */
 #[no_mangle]
@@ -3181,21 +3183,21 @@ export function driver_asm_pctx_apply_host_defaults(ctx: *u8, target: *u8, emit_
         arch = 2;
       }
     }
+  } else {
+    // knife256 / 10.2: default target arm64 on Apple aarch64 before first set.
+    // Do not briefly publish arch=0 (x86_64) when -target is absent.
+    unsafe {
+      ha = xlang_driver_host_default_target_arch();
+    }
+    if (ha != 0) {
+      arch = ha;
+    }
   }
   driver_pipeline_dep_ctx_set_target_arch(ctx, arch);
   unsafe {
     feats = driver_get_pending_target_cpu_features() as i32;
   }
   driver_pipeline_dep_ctx_set_target_cpu_features(ctx, feats);
-  // Host default arch only when -target is absent (seed: if (!t) on Apple aarch64).
-  if (target == 0 as *u8) {
-    unsafe {
-      ha = xlang_driver_host_default_target_arch();
-    }
-    if (ha != 0) {
-      driver_pipeline_dep_ctx_set_target_arch(ctx, ha);
-    }
-  }
   // Object format prefs: host platform residual + windows in triple.
   unsafe {
     macho = xlang_driver_host_prefer_macho(emit_elf_o);
@@ -3235,7 +3237,8 @@ function driver_abi_load_usize_le(p: *u8, off: i32): usize {
     return 0 as usize;
   }
   unsafe {
-    let m: usize = 256 as usize;
+    // Tip Win monofile: bare lit-as let RHS needs parens (size_table_get #228).
+    let m: usize = (256 as usize);
     let m2: usize = m * m;
     let m4: usize = m2 * m2;
     let a0: usize = p[off] as usize;
@@ -3269,8 +3272,9 @@ function driver_abi_store_usize_le(p: *u8, off: i32, v: usize): void {
   }
   unsafe {
     // Same successive /256 + low-byte extract pattern as wave14 i32 LE store (no % op).
-    let m: usize = 256 as usize;
-    let b255: usize = 255 as usize;
+    // Tip Win monofile: bare lit-as let RHS needs parens (size_table_get #228).
+    let m: usize = (256 as usize);
+    let b255: usize = (255 as usize);
     let u0: usize = v;
     p[off] = (u0 & b255) as u8;
     let u1: usize = u0 / m;
@@ -3304,23 +3308,23 @@ export function driver_codegen_outbuf_free(p: *u8): void {
 }
 
 /**
- * Read the live byte length of a CodegenOutBuf (i32 len after the 9MiB data[]).
+ * Read the live byte length of a CodegenOutBuf (i32 length at offset 0).
  * @param p *u8 — outbuf pointer; null → 0
- * @return i32 — current len field (LE at offset CAP), or 0 if p is null
- * Wave24 pure: wave14 LE load. PLATFORM: SHARED LP64.
+ * @return i32 — current length field (LE at offset 0), or 0 if p is null
+ * Wave24 pure: wave14 LE load. PLATFORM: SHARED LP64. 10.94 length-first.
  */
 #[no_mangle]
 export function driver_codegen_outbuf_len(p: *u8): i32 {
   if (p == 0 as *u8) {
     return 0;
   }
-  return driver_abi_load_i32_le(p, driver_abi_codegen_outbuf_cap());
+  return driver_abi_load_i32_le(p, 0);
 }
 
 /**
  * Return pointer to the data[] base of a CodegenOutBuf (first byte of the buffer).
  * @param p *u8 — outbuf pointer; null → null
- * @return *u8 — &data[0], same address as p on product layout (data is first field)
+ * @return *u8 — &data[0] at offset 4 (length is first field after 10.94)
  * Wave24 pure. PLATFORM: SHARED LP64.
  */
 #[no_mangle]
@@ -3328,8 +3332,8 @@ export function driver_codegen_outbuf_data(p: *u8): *u8 {
   if (p == 0 as *u8) {
     return 0 as *u8;
   }
-  // Host layout: unsigned char data[CAP] is the first field; p is already data base.
-  return p;
+  // Host layout: int32_t length @0; unsigned char data[CAP] @+4.
+  return p + 4;
 }
 
 /**
@@ -5828,12 +5832,12 @@ export extern "C" function driver_argv0_basename_is(argv0: *u8, base: *u8): i32;
  * PLATFORM: SHARED path bytes; always emits '/' before "xlang-c" (cold strcat same).
  */
 #[no_mangle]
-export function driver_sibling_path_from_self(self: *u8, out: *u8, cap: i32): i32 {
+export function driver_sibling_path_from_self(argv0_path: *u8, out: *u8, cap: i32): i32 {
   let i: i32 = 0;
   let last: i32 = 0 - 1;
   let j: i32 = 0;
   let c: u8 = 0;
-  if (self == 0 as *u8) {
+  if (argv0_path == 0 as *u8) {
     return 0 - 1;
   }
   if (out == 0 as *u8) {
@@ -5844,7 +5848,7 @@ export function driver_sibling_path_from_self(self: *u8, out: *u8, cap: i32): i3
   }
   // Find last path separator (POSIX / or Windows \\), cap scan 4096.
   while (i < 4096) {
-    c = self[i];
+    c = argv0_path[i];
     if (c == 0) {
       break;
     }
@@ -5868,7 +5872,7 @@ export function driver_sibling_path_from_self(self: *u8, out: *u8, cap: i32): i3
   // Copy dirname excluding trailing separator, then append "/xlang-c".
   j = 0;
   while (j < last) {
-    out[j] = self[j];
+    out[j] = argv0_path[j];
     j = j + 1;
   }
   out[j] = 0;
@@ -5888,8 +5892,9 @@ export function driver_sibling_path_from_self(self: *u8, out: *u8, cap: i32): i3
  */
 #[no_mangle]
 export function driver_dispatch_sibling_try_spawn(argc: i32, argv_opaque: *u8): i32 {
-  let self: *u8 = 0 as *u8;
-  let path: *u8 = 0 as *u8;
+  // tip PE Win: `let self` is P014 keyword — use self_argv0. PLATFORM: SHARED.
+  let self_argv0: *u8 = 0 as *u8;
+  let sib_path: *u8 = 0 as *u8;
   let pr: i32 = 0;
   if (argv_opaque == 0 as *u8) {
     return 0 - 1;
@@ -5897,26 +5902,22 @@ export function driver_dispatch_sibling_try_spawn(argc: i32, argv_opaque: *u8): 
   if (argc < 2) {
     return 0 - 1;
   }
-  // Cap residual: *u8→char** cast + av[0]; G.7 basename; OS access+spawn.
-  // Extern surfaces require unsafe (T001).
   unsafe {
-    self = xlang_driver_sibling_argv0_get(argv_opaque);
-    if (self == 0 as *u8) {
+    self_argv0 = xlang_driver_sibling_argv0_get(argv_opaque);
+    if (self_argv0 == 0 as *u8) {
       return 0 - 1;
     }
-    // G.7: single authority for argv0 basename (rt_util pure).
-    if (driver_argv0_basename_is(self, "xlang-c") != 0) {
+    if (driver_argv0_basename_is(self_argv0, "xlang-c") != 0) {
       return 0 - 1;
     }
   }
-  path = &g_driver_sibling_path_buf[0];
-  pr = driver_sibling_path_from_self(self, path, 512);
+  sib_path = &g_driver_sibling_path_buf[0];
+  pr = driver_sibling_path_from_self(self_argv0, sib_path, 512);
   if (pr != 0) {
     return 0 - 1;
   }
   unsafe {
-    // Cap residual: access X_OK + fork/exec or Windows spawnvp + wait.
-    return xlang_driver_sibling_access_spawn(path, argc, argv_opaque);
+    return xlang_driver_sibling_access_spawn(sib_path, argc, argv_opaque);
   }
   return 0 - 1;
 }

@@ -17,48 +17,7 @@
  * rest 模式下跳过编译避免重复定义。rest 部分（aligned_c + Arena64）始终编译。
  * 宏边界：XLANG_RUNTIME_HEAP_USER_FROM_X */
 #ifndef XLANG_RUNTIME_HEAP_USER_FROM_X
-uint8_t * heap_alloc_c(size_t size) {
-  if ((size ==0)) {
-    return ((uint8_t *)(0));
-  }
-  (void)(({   {
-    uint8_t * r = malloc(size);
-    return r;
-  }
- }));
-  return ((uint8_t *)(0));
-}
-void heap_free_c(uint8_t * ptr) {
-  (void)(({   {
-    (void)(free(ptr));
-  }
- }));
-}
-uint8_t * heap_realloc_c(uint8_t * ptr, size_t new_size) {
-  if ((new_size ==0)) {
-    {
-      (void)(free(ptr));
-    }
-    return ((uint8_t *)(0));
-  }
-  (void)(({   {
-    uint8_t * r = realloc(ptr, new_size);
-    return r;
-  }
- }));
-  return ((uint8_t *)(0));
-}
-uint8_t * heap_alloc_zeroed_c(size_t size) {
-  if ((size ==0)) {
-    return ((uint8_t *)(0));
-  }
-  (void)(({   {
-    uint8_t * r = calloc(1, size);
-    return r;
-  }
- }));
-  return ((uint8_t *)(0));
-}
+/* 记253／9.1: cold under #ifndef XLANG_RUNTIME_HEAP_USER_FROM_X removed */
 #else
 /* rest 模式：thin 函数由 .x 提供，extern 声明供 rest 部分调用 */
 extern uint8_t * heap_alloc_c(size_t size);
@@ -86,67 +45,6 @@ uint8_t *heap_alloc_aligned_c(size_t align_bytes, size_t size) {
 
 /* G-02f-rest：rest→.x 迁移：Arena64 struct + 3 函数真迁 .x，seed 进入 DIRECT 模式 */
 #ifndef XLANG_RUNTIME_HEAP_USER_FROM_X
-/** std.heap Arena64 布局（chunk/cap/off 各 8B）。 */
-typedef struct XlangHeapArena64 {
-    uint8_t *chunk;
-    size_t cap;
-    size_t off;
-} XlangHeapArena64;
-
-/** 初始化 Arena64；cap==0 时用 4096 默认 chunk。 */
-int32_t heap_arena_init_c(XlangHeapArena64 *a, size_t cap) {
-    size_t use_cap;
-    if (!a)
-        return -1;
-    a->chunk = (uint8_t *)0;
-    a->cap = 0;
-    a->off = 0;
-    use_cap = cap;
-    if (use_cap == 0)
-        use_cap = 4096;
-    a->chunk = heap_alloc_aligned_c(64, use_cap);
-    if (!a->chunk)
-        return -1;
-    a->cap = use_cap;
-    return 0;
-}
-
-/** 从 arena bump 分配 size 字节；align 为对象对齐（0 视为 8）。 */
-uint8_t *heap_arena64_alloc_c(XlangHeapArena64 *a, size_t size, size_t align_bytes) {
-    size_t obj_align;
-    size_t cur;
-    size_t rem;
-    size_t gap;
-    size_t next;
-    if (!a || !a->chunk || size == 0)
-        return (uint8_t *)0;
-    obj_align = align_bytes;
-    if (obj_align == 0)
-        obj_align = 8;
-    cur = a->off;
-    rem = cur % obj_align;
-    gap = 0;
-    if (rem != 0)
-        gap = obj_align - rem;
-    next = cur + gap + size;
-    if (next > a->cap)
-        return (uint8_t *)0;
-    {
-        uint8_t *out = a->chunk + cur + gap;
-        a->off = next;
-        return out;
-    }
-}
-
-/** 释放 arena chunk 并重置。 */
-void heap_arena64_deinit_c(XlangHeapArena64 *a) {
-    if (!a)
-        return;
-    heap_free_c(a->chunk);
-    a->chunk = (uint8_t *)0;
-    a->cap = 0;
-    a->off = 0;
-}
 #endif /* XLANG_RUNTIME_HEAP_USER_FROM_X */
 
 #endif /* XLANG_RUNTIME_HEAP_USER_INC */

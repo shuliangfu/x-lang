@@ -21,6 +21,14 @@ fi
 # libm/inc glue for crypto_*_c UNDEF from bare-impl bodies
 xlang_compiler_make -q runtime_crypto_inc_glue.o 2>/dev/null \
   || xlang_compiler_make runtime_crypto_inc_glue.o
+# Cap tip / 9.1: cold ed25519 glue lacks public wrappers; ensure thin+rest.
+if [ -f compiler/scripts/cap_tip_ensure_crypto_leave_darwin.sh ]; then
+  ( cd compiler && bash scripts/cap_tip_ensure_crypto_leave_darwin.sh ) \
+    || echo "run-crypto: WARN ed25519 crypto leave ensure failed" >&2
+elif ! nm compiler/runtime_ed25519_ref10_glue.o 2>/dev/null | grep -q 'T _ed25519_ref10_create_keypair$'; then
+  xlang_compiler_make runtime_ed25519_ref10_glue.o 2>/dev/null \
+    || xlang_compiler_make -B runtime_ed25519_ref10_glue.o || true
+fi
 XLANG="${XLANG:-./compiler/xlang}"
 exe="/tmp/xlang_crypto_$$"
 if ! $XLANG build -L . tests/crypto/main.x -o "$exe" 2>&1; then echo "crypto test: compile failed"; rm -f "$exe"; exit 1; fi

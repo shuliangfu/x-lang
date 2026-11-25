@@ -81,7 +81,9 @@ export function glue_try_binop_load_operand_elf_c(arena: *u8, elf_ctx: *u8, expr
       return -2;
     }
     inner = pipe_load_i32_le(&cell[0], 0);
-    if (inner > 0) {
+    /* Cycle guard: transparent self-peel or A→…→A used to recurse forever
+     * (Cap tip context/mod.x hang in glue_expr_block_transparent_value_ref_at). */
+    if (inner > 0 && inner != expr_ref) {
       return glue_try_binop_load_operand_elf_c(arena, elf_ctx, inner, ctx, ta, to_rbx);
     }
     ko = pipe_load_i32_le(&cell[0], 4);

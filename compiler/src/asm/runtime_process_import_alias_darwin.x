@@ -6,14 +6,14 @@
 //
 // Each name forwards to the process_*_c symbol already in that object.
 // This file does not reimplement spawn, wait, or the path cache.
-// std_process_exit calls libSystem __exit. The .x name uses three
-// leading underscores so the Mach-O undefined symbol is ___exit.
+// std_process_exit calls the C name __exit. The Mach-O writer adds one
+// leading underscore, so the undefined symbol is ___exit (libSystem).
 // __exit ends the process with the given code and does not run atexit,
 // which is the same termination the Cap raw syscall 1 performs.
 // libc _exit stays unused. Linux and Windows keep the C seed.
 // PLATFORM: MACOS|DARWIN arm64.
 
-extern function ___exit(code: i32): void;
+extern function __exit(code: i32): void;
 extern function process_args_count_c(): i32;
 extern function process_arg_c(i: i32): *u8;
 extern function process_getenv_c(name: *u8): *u8;
@@ -37,7 +37,7 @@ extern function process_exec_simple_c(program: *u8): i32;
 extern function process_pipe_c(read_fd: *i32, write_fd: *i32): i32;
 
 /**
- * Hang if ___exit ever returns. Kept in its own function so the exit
+ * Hang if __exit ever returns. Kept in its own function so the exit
  * wrapper has a single call. One loop in this translation unit is the
  * shape this compiler can emit.
  * @return i32 — does not return
@@ -61,7 +61,8 @@ export function runtime_process_import_alias_darwin_x_doc_anchor(): i32 {
 }
 
 /**
- * Terminate this process with code. Does not return when ___exit works.
+ * Terminate this process with code. Does not return when __exit works.
+ * The Mach-O undefined symbol is ___exit.
  * @param code status passed to __exit
  * @return i32 — only if __exit returns, which it does not
  * PLATFORM: MACOS|DARWIN
@@ -69,7 +70,7 @@ export function runtime_process_import_alias_darwin_x_doc_anchor(): i32 {
 #[no_mangle]
 export function std_process_exit(code: i32): i32 {
   unsafe {
-    ___exit(code);
+    __exit(code);
   }
   return proc_alias_spin();
 }

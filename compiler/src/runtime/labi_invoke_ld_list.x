@@ -1948,10 +1948,113 @@ export function labi_formal_std_build_make_cmd(cmd: *u8, cap: i32, xlang_bin: *u
 }
 
 /**
+ * DIG s209: POSIX formal ensure cmd = bash compiler-make.sh (unchanged).
+ * @return i32 — 1 ok, 0 fail
+ * PLATFORM: not WINDOWS (LINUX|MACOS host shell).
+ */
+#[cfg(not(target_os = "windows"))]
+#[no_mangle]
+export function labi_formal_std_dispatch_ensure_cmd(cmd: *u8, cap: i32, xlang_bin: *u8, repo_root: *u8, make_target: *u8, rel_from_repo: *u8, out_abs: *u8): i32 {
+  let _u0: *u8 = rel_from_repo;
+  let _u1: *u8 = out_abs;
+  if (_u0 == 0 as *u8) {
+    return 0;
+  }
+  if (_u1 == 0 as *u8) {
+    return 0;
+  }
+  return labi_formal_std_build_make_cmd(cmd, cap, xlang_bin, repo_root, make_target);
+}
+
+/**
+ * DIG s209: Windows formal ensure — no bash; product host asm -c SRC.x -o OUT.o.
+ * Maps rel `….o` → `….x`, joins under repo_root, fills cmd for cmd.exe/system.
+ * @return i32 — 1 ok, 0 fail
+ * PLATFORM: WINDOWS.
+ */
+#[cfg(target_os = "windows")]
+#[no_mangle]
+export function labi_formal_std_dispatch_ensure_cmd(cmd: *u8, cap: i32, xlang_bin: *u8, repo_root: *u8, make_target: *u8, rel_from_repo: *u8, out_abs: *u8): i32 {
+  let _mt: *u8 = make_target;
+  let src_rel: u8[4096] = [];
+  let src_abs: u8[4096] = [];
+  let n: i32 = 0;
+  let pos: i32 = 0;
+  if (_mt == 0 as *u8) {
+    return 0;
+  }
+  if (cmd == 0 as *u8 || cap <= 0) {
+    return 0;
+  }
+  if (xlang_bin == 0 as *u8 || xlang_bin[0] == 0) {
+    return 0;
+  }
+  if (repo_root == 0 as *u8 || rel_from_repo == 0 as *u8 || out_abs == 0 as *u8) {
+    return 0;
+  }
+  // strlen(rel) without libc — scan to NUL.
+  while (rel_from_repo[n] != 0) {
+    if (n >= 4094) {
+      return 0;
+    }
+    n = n + 1;
+  }
+  if (n < 3) {
+    return 0;
+  }
+  if (rel_from_repo[n - 2] != 46) {
+    return 0;
+  }
+  if (rel_from_repo[n - 1] != 111) {
+    return 0;
+  }
+  // copy rel except final 'o', write 'x'.
+  let i: i32 = 0;
+  while (i < (n - 1)) {
+    src_rel[i] = rel_from_repo[i];
+    i = i + 1;
+  }
+  src_rel[n - 1] = 120;
+  src_rel[n] = 0;
+  if (labi_net_tls_join_repo_rel(&src_abs[0], 4096, repo_root, &src_rel[0]) == 0) {
+    return 0;
+  }
+  pos = labi_net_tls_buf_append(cmd, cap, 0, "set XLANG_FORMAL_STD_ENSURE=1&& \"");
+  if (pos < 0) {
+    return 0;
+  }
+  pos = labi_net_tls_buf_append(cmd, cap, pos, xlang_bin);
+  if (pos < 0) {
+    return 0;
+  }
+  pos = labi_net_tls_buf_append(cmd, cap, pos, "\" -backend asm -c \"");
+  if (pos < 0) {
+    return 0;
+  }
+  pos = labi_net_tls_buf_append(cmd, cap, pos, &src_abs[0]);
+  if (pos < 0) {
+    return 0;
+  }
+  pos = labi_net_tls_buf_append(cmd, cap, pos, "\" -o \"");
+  if (pos < 0) {
+    return 0;
+  }
+  pos = labi_net_tls_buf_append(cmd, cap, pos, out_abs);
+  if (pos < 0) {
+    return 0;
+  }
+  pos = labi_net_tls_buf_append(cmd, cap, pos, "\"");
+  if (pos < 0) {
+    return 0;
+  }
+  return 1;
+}
+
+/**
  * Ensure a formal std|core .o exists under the repo (gitignored after L4 wipe).
- * If `repo_root/rel_from_repo` is missing, run (wave944 0-make):
- *   XLANG_FORMAL_STD_ENSURE=1 XLANG='{bin}' bash '{repo}/tests/lib/compiler-make.sh' '{make_target}'
- * Historical pre-wave944 used `make -C '{repo}/compiler' '{make_target}'` (Makefile deleted).
+ * If `repo_root/rel_from_repo` is missing:
+ *   - LINUX|MACOS (wave944): bash '{repo}/tests/lib/compiler-make.sh' '{make_target}'
+ *   - WINDOWS (DIG s209): '{bin}' -backend asm -c '{rel.x}' -o '{rel.o}' (no bash)
  * Reentrancy: nested ensure while compiling formal .o sees XLANG_FORMAL_STD_ENSURE set
  * and only re-checks existence (no second ensure / no fork-bomb).
  * Product host binary: getenv("XLANG") if X_OK, else first of
@@ -1960,19 +2063,7 @@ export function labi_formal_std_build_make_cmd(cmd: *u8, cap: i32, xlang_bin: *u
  * @param rel_from_repo *u8 — path under repo (e.g. std/vec/vec.o); null/empty → 0
  * @param make_target *u8 — leaf target under compiler/ (e.g. ../std/vec/vec.o); null/empty → 0
  * @return i32 — 1 if object exists after ensure, 0 otherwise
- * Pure orch: path join + XLANG discovery loop + ensure-cmd join (G.7 labi_net_tls_* helpers).
- * Cap residual: link_abi_getenv (pure thin → _impl; wave222); link_abi_path_executable
- *   (X_OK pure thin → _impl; wave221); link_abi_realpath_cap;
- *   link_abi_system (shell ensure pure thin → _impl; wave224);
- *   asm_link_obj_skip_missing (stat existence).
- * Why (wave188): hybrid still had always-mega C body for formal_std_make (getenv+access+
- *   realpath+system make orch). Soft residual sibling of wave187 ensure_std_net.
- * wave221: raw access(X_OK) closed — public pure thin path_executable owns X_OK probe.
- * wave222: raw getenv closed — public pure thin link_abi_getenv owns env lookup.
- * wave224: raw system closed — public pure thin link_abi_system owns shell ensure.
- * wave944: cmd authority = tests/lib/compiler-make.sh (0-make; G.7 with tests hub).
- * Note: export signature must stay single-line (multi-line export drops the function).
- * PLATFORM: SHARED orch — system/bash is host shell (LINUX/MACOS product hosts).
+ * PLATFORM: SHARED orch · WINDOWS asm direct · POSIX bash hub.
  * Track-L: #[no_mangle] keeps surface short name for invoke_cc / on_demand call sites.
  */
 #[no_mangle]
@@ -2114,8 +2205,9 @@ export function xlang_ensure_formal_std_make_o(repo_root: *u8, rel_from_repo: *u
   }
   // freestanding host system residual = fork+execvp sh -c; PATH fixed in invoke_cc child too.
   // wave224 G.7: public pure thin link_abi_system (not raw libc system).
-  let cmd: u8[768] = [];
-  let ok: i32 = labi_formal_std_build_make_cmd(&cmd[0], 768, &xlang_bin[0], repo_root, make_target);
+  // DIG s209: Win dispatch uses asm -c (cmd 2048); POSIX keeps bash hub.
+  let cmd: u8[2048] = [];
+  let ok: i32 = labi_formal_std_dispatch_ensure_cmd(&cmd[0], 2048, &xlang_bin[0], repo_root, make_target, rel_from_repo, &abs[0]);
   if (ok == 0) {
     return 0;
   }

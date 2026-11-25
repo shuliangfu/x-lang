@@ -10,6 +10,9 @@
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS|DARWIN · WINDOWS.
 
 export extern function backend_asm_ctx_slot_offset(ctx: *u8, slot_idx: i32): i32;
+export extern function asm_ctx_local_find_offset(ctx: *u8, name: *u8, name_len: i32): i32;
+export extern function asm_ctx_local_set_offset_by_name(ctx: *u8, name: *u8, name_len: i32, offset: i32): i32;
+export extern function glue_lazy_append_block_let_local(arena: *u8, ctx: *u8, block_ref: i32, let_idx: i32, name: *u8, name_len: i32): i32;
 export extern function backend_enc_store_eax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
 export extern function backend_enc_store_rax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
 export extern function glue_array_temp_bytes_for_let_init(arena: *u8, let_type_ref: i32, init_ref: i32): i32;
@@ -22,6 +25,7 @@ export extern function glue_emit_float_lit_to_rax_elf_c(arena: *u8, elf_ctx: *u8
 export extern function glue_emit_module_from_ctx(ctx: *u8): *u8;
 export extern function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *u8, block_ref: i32, let_idx: i32, init_ref: i32, let_type_ref: i32, ctx: *u8, ta: i32, slice_slot_off: i32): i32;
 export extern function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, let_ty_ref: i32, stack_slot_off: i32): i32;
+export extern function glue_wide_i32_vec_array_bytes(arena: *u8, rty: i32): i32;
 export extern function glue_emit_vector_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32, type_ref: i32): i32;
 export extern function glue_float_promote_src_ty_ref_c(arena: *u8, expr_ref: i32): i32;
 export extern function glue_index_assign_addr_cache_clear(): void;
@@ -37,16 +41,55 @@ export extern function pipeline_asm_try_emit_dyn_coerce_let(arena: *u8, elf_ctx:
 export extern function pipeline_block_let_type_ref(arena: *u8, block_ref: i32, let_idx: i32): i32;
 export extern function pipeline_block_resolve_var_type_ref(arena: *u8, block_ref: i32, name: *u8, nlen: i32): i32;
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
+export extern function glue_expr_block_transparent_value_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_var_name_into(arena: *u8, expr_ref: i32, out: *u8): void;
 export extern function pipeline_expr_var_name_len(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
+export extern function pipeline_type_elem_ref_at(arena: *u8, type_ref: i32): i32;
+export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_set_resolved_type_ref(arena: *u8, expr_ref: i32, ty: i32): void;
+export extern function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i32): i32;
+export extern function pipeline_type_named_name_into(arena: *u8, type_ref: i32, out: *u8): i32;
+export extern function glue_vector_type_lanes_esz_c(arena: *u8, type_ref: i32, out_lanes: *i32, out_esz: *i32): i32;
 
 let g_w2060_emit_let_vn: u8[256] = [];
+// Prefer-M2 SoftCap A2 (10.84): bump-alloc distinct homes without idx gate.
+let g_p1084_softcap_home_bump: i32[1] = [];
 
 /**
  * Emit one let init. w2060: empty [] fixed T[N] zero-fills via fixed_array path.
+ * A call whose type is [N] of an i32 vector wider than 16 bytes uses the
+ * struct call arm (lea slot, mov x8). Every other fixed array, including
+ * a -2 from the fixed-array store, keeps that store.
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — encoder context
+ * @param block_ref i32 — enclosing block
+ * @param idx i32 — let index in the block
+ * @param init_ref i32 — initializer expr
+ * @param slot i32 — let slot index
+ * @param ctx *u8 — AsmFuncCtx
+ * @param ta i32 — target arch
+ * @param lnb *u8 — let name bytes; may be unused by a given arm
+ * @param llen i32 — let name length
  * @return i32 — 0 ok; -1 fail
- * PLATFORM: SHARED freestanding emit.
+ * An integer literal under ADDR_OF is stamped as a pointer to i32.
+ * A float literal under ADDR_OF is stamped as a pointer to f64.
+ * A bool literal under ADDR_OF is stamped as a pointer to bool.
+ * A unary minus of an integer literal under ADDR_OF is stamped
+ * as a pointer to i32. A bitwise not of an integer literal under
+ * ADDR_OF is stamped as a pointer to i32. A logical not of a bool
+ * literal under ADDR_OF is stamped as a pointer to bool. An if-expr
+ * under ADDR_OF whose arms are array literals is stamped as a
+ * pointer to that array. Named soft equality then accepts that
+ * pointer as *i32x4 or *f32x4 or *Vec8i. This emitter writes the declared
+ * pointer onto that ADDR_OF before emit, so the addr peel can
+ * see the SIMD pointee. Kind 25 stamps when the pointee is
+ * Vec8i, named i32x8, named u32x8, named f32x8, named
+ * f32x4, or named Vec4f. Named f32x4 is kind 8 and the
+ * bytes f 3 2 x 4. Named Vec4f is kind 8 and the bytes
+ * V e c 4 f. i32x4 stays unstamped here. The splat store
+ * stays in the addr emitter.
+ * PLATFORM: SHARED freestanding emit. Darwin ARM64 measured.
  */
 #[no_mangle]
 export function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_ref: i32, idx: i32, init_ref: i32, slot: i32, ctx: *u8, ta: i32, lnb: *u8, llen: i32): i32 {
@@ -68,9 +111,65 @@ export function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_re
   let rc: i32 = 0;
   let slot_off: i32 = 0;
   let init_f32_lit: i32 = 0;
+  let addr_op: i32 = 0;
+  let addr_ok: i32 = 0;
+  let addr_pk: i32 = 0;
+  let addr_pt: i32 = 0;
+  let addr_sp: i32 = 0;
+  let copy_ref: i32 = 0;
+  let peel_n: i32 = 0;
+  let peeled: i32 = 0;
+  let vec_lanes: i32[1] = [];
+  let vec_esz: i32[1] = [];
+  let vec_ek: i32 = 0;
 
   unsafe {
     slot_off = backend_asm_ctx_slot_offset(ctx, slot);
+    // Prefer-M2: when the let name is known, prefer name-table offset over
+    // index slot_offset (SoftCap multi: index can be torn while find is clean).
+    // Prefer-M2 SoftCap ensure+fill (10.69 DIG2): if name-find misses, lazy-
+    // append the block-let local then re-find before clamp/store. SoftCap
+    // multi/parity can reach emit with fill_tree not yet registering the
+    // slot; index slot_offset then tears while ensure+fill yields clean home.
+    // PLATFORM: SHARED freestanding emit (Win SoftCap host).
+    if (llen > 0 && lnb != 0 as *u8) {
+      let found: i32 = asm_ctx_local_find_offset(ctx, lnb, llen);
+      if (found < 0) {
+        let ap: i32 = glue_lazy_append_block_let_local(arena, ctx, block_ref, idx, lnb, llen);
+        if (ap == 0) {
+          found = asm_ctx_local_find_offset(ctx, lnb, llen);
+        }
+      }
+      if (found >= 0) {
+        slot_off = found;
+      }
+    }
+    // Prefer-M2 SoftCap A2 (10.84): bump-alloc distinct homes WITHOUT idx!=0.
+    // Dig SoftCap Prefer passes idx/edi=0 for scalar lets, so idx*8 collapsed;
+    // BSS counter yields 24,32,40... for clamp18 singleton OR torn |off|>4096.
+    // Remapped home is written back for Prefer-find; dig SoftCap plant must
+    // also thread Cont ebp / slot_off into i64 enc_store (glue_store edx).
+    // PLATFORM: SHARED freestanding emit (Win SoftCap host).
+    let abs_off: i32 = slot_off;
+    if (abs_off < 0) {
+      abs_off = 0 - abs_off;
+    }
+    let need_home: i32 = 0;
+    if (abs_off > 4096) {
+      need_home = 1;
+    }
+    if (slot_off == 24) {
+      need_home = 1;
+    }
+    if (need_home != 0) {
+      let bump: i32 = g_p1084_softcap_home_bump[0];
+      slot_off = 24 + (bump * 8);
+      g_p1084_softcap_home_bump[0] = bump + 1;
+      if (llen > 0 && lnb != 0 as *u8) {
+        let wb: i32 = asm_ctx_local_set_offset_by_name(ctx, lnb, llen, slot_off);
+        wb = wb;
+      }
+    }
   }
 
   /* F7: TYPE_DYN let-init → 16-byte fat {data, vtable}. Authority lives in
@@ -123,7 +222,28 @@ export function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_re
 
   unsafe {
     if (glue_block_let_is_fixed_array_type(arena, block_ref, idx) != 0) {
-      arr_st = glue_emit_fixed_array_type_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta, pipeline_block_let_type_ref(arena, block_ref, idx), slot_off);
+      let_ty2 = pipeline_block_let_type_ref(arena, block_ref, idx);
+      /*
+       * [N]Vec8i wider than 16 bytes is sret into this let slot.
+       * The fixed-array store would keep the call's pointer. The struct
+       * call arm already leas the slot and moves it to x8. A non-call,
+       * and every array the helper rejects, keeps the fixed-array store.
+       * PLATFORM: SHARED.
+       */
+      if (glue_wide_i32_vec_array_bytes(arena, let_ty2) > 16) {
+        init_ko = pipeline_expr_kind_ord_at(arena, init_ref);
+        if (init_ko == 48 || init_ko == 49) {
+          rc = glue_emit_struct_type_let_init_elf_c(
+              arena, elf_ctx, init_ref, ctx, ta, let_ty2, slot_off);
+          if (rc == 0) {
+            return 0;
+          }
+          if (rc == 0 - 1) {
+            return 0 - 1;
+          }
+        }
+      }
+      arr_st = glue_emit_fixed_array_type_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta, let_ty2, slot_off);
       if (arr_st == 0) {
         return 0;
       }
@@ -144,10 +264,37 @@ export function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_re
       if (vst == 0 - 1) {
         return 0 - 1;
       }
-      /* -2: METHOD_CALL/CALL — G.7 reuse struct CALL sret/dual-GP authority. */
+      /* -2: METHOD_CALL/CALL — G.7 reuse struct CALL sret/dual-GP authority.
+       * `let v = unsafe { *p }` is a block. The vector face peels it,
+       * sees a bare DEREF, and returns -3. Passing the block into
+       * struct let-init misses the DEREF and FIELD copies. A transparent
+       * block (no lets or loops) is replaced by its value, at most four
+       * times, and only a DEREF or a FIELD uses that value. The store
+       * is not through the pointer. PLATFORM: SHARED. */
+      copy_ref = init_ref;
+      peel_n = 0;
+      while (peel_n < 4) {
+        peeled = glue_expr_block_transparent_value_ref_at(arena, copy_ref);
+        if (peeled <= 0) {
+          peel_n = 4;
+        } else {
+          if (peeled == copy_ref) {
+            peel_n = 4;
+          } else {
+            copy_ref = peeled;
+            peel_n = peel_n + 1;
+          }
+        }
+      }
+      init_ko = pipeline_expr_kind_ord_at(arena, copy_ref);
+      if (init_ko != 52) {
+        if (init_ko != 44) {
+          copy_ref = init_ref;
+        }
+      }
       glue_index_assign_addr_cache_clear();
       rc = glue_emit_struct_type_let_init_elf_c(
-          arena, elf_ctx, init_ref, ctx, ta, vtype_ref, slot_off);
+          arena, elf_ctx, copy_ref, ctx, ta, vtype_ref, slot_off);
       if (rc == 0) {
         return 0;
       }
@@ -228,6 +375,249 @@ export function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_re
         init_f32_lit = 1;
         rc = glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, init_ref, ta, let_ty, 0);
       } else {
+        // Kind 51 is ADDR_OF. Kind 0 is the integer literal.
+        // Kind 1 is the float literal. Kind 2 is the bool literal.
+        // Kind 22 is a unary minus. Kind 23 is a bitwise not.
+        // Kind 24 is a logical not. The
+        // operand stamp is a pointer to i32, a pointer to f64, or a
+        // pointer to bool. The declared pointer is the slot type
+        // when its pointee spells a SIMD vector. The addr peel still
+        // accepts kind 8, and kind 13 only for 4 lanes of 4 bytes.
+        // An f32 lane keeps the bool integer bits. A vector unary
+        // keeps the helper temp when that result is nonzero.
+        // PLATFORM: SHARED.
+        if (init_ko == 51) {
+          addr_op = pipeline_expr_unary_operand_ref_at(arena, init_ref);
+          if (addr_op > 0) {
+            addr_ok = pipeline_expr_kind_ord_at(arena, addr_op);
+            if (addr_ok == 0) {
+              if (let_ty > 0) {
+                addr_pk = pipeline_type_kind_ord_at(arena, let_ty);
+                if (addr_pk == 9) {
+                  addr_pt = pipeline_type_elem_ref_at(arena, let_ty);
+                  if (addr_pt > 0) {
+                    addr_sp = asm_type_is_simd_vector_spelling(arena, addr_pt);
+                    if (addr_sp != 0) {
+                      pipeline_expr_set_resolved_type_ref(arena, init_ref, let_ty);
+                    }
+                  }
+                }
+              }
+            }
+            if (addr_ok == 1) {
+              if (let_ty > 0) {
+                addr_pk = pipeline_type_kind_ord_at(arena, let_ty);
+                if (addr_pk == 9) {
+                  addr_pt = pipeline_type_elem_ref_at(arena, let_ty);
+                  if (addr_pt > 0) {
+                    addr_sp = asm_type_is_simd_vector_spelling(arena, addr_pt);
+                    if (addr_sp != 0) {
+                      pipeline_expr_set_resolved_type_ref(arena, init_ref, let_ty);
+                    }
+                  }
+                }
+              }
+            }
+            if (addr_ok == 2) {
+              if (let_ty > 0) {
+                addr_pk = pipeline_type_kind_ord_at(arena, let_ty);
+                if (addr_pk == 9) {
+                  addr_pt = pipeline_type_elem_ref_at(arena, let_ty);
+                  if (addr_pt > 0) {
+                    addr_sp = asm_type_is_simd_vector_spelling(arena, addr_pt);
+                    if (addr_sp != 0) {
+                      pipeline_expr_set_resolved_type_ref(arena, init_ref, let_ty);
+                    }
+                  }
+                }
+              }
+            }
+            if (addr_ok == 22) {
+              if (let_ty > 0) {
+                addr_pk = pipeline_type_kind_ord_at(arena, let_ty);
+                if (addr_pk == 9) {
+                  addr_pt = pipeline_type_elem_ref_at(arena, let_ty);
+                  if (addr_pt > 0) {
+                    addr_sp = asm_type_is_simd_vector_spelling(arena, addr_pt);
+                    if (addr_sp != 0) {
+                      pipeline_expr_set_resolved_type_ref(arena, init_ref, let_ty);
+                    }
+                  }
+                }
+              }
+            }
+            if (addr_ok == 23) {
+              if (let_ty > 0) {
+                addr_pk = pipeline_type_kind_ord_at(arena, let_ty);
+                if (addr_pk == 9) {
+                  addr_pt = pipeline_type_elem_ref_at(arena, let_ty);
+                  if (addr_pt > 0) {
+                    addr_sp = asm_type_is_simd_vector_spelling(arena, addr_pt);
+                    if (addr_sp != 0) {
+                      pipeline_expr_set_resolved_type_ref(arena, init_ref, let_ty);
+                    }
+                  }
+                }
+              }
+            }
+            if (addr_ok == 24) {
+              if (let_ty > 0) {
+                addr_pk = pipeline_type_kind_ord_at(arena, let_ty);
+                if (addr_pk == 9) {
+                  addr_pt = pipeline_type_elem_ref_at(arena, let_ty);
+                  if (addr_pt > 0) {
+                    addr_sp = asm_type_is_simd_vector_spelling(arena, addr_pt);
+                    if (addr_sp != 0) {
+                      pipeline_expr_set_resolved_type_ref(arena, init_ref, let_ty);
+                    }
+                  }
+                }
+              }
+            }
+            // Kind 25 is an if-expr. Both array-literal arms leave
+            // the ADDR_OF pointee as a non-SIMD type, so the peel
+            // never sees the declared vector. The declared pointer
+            // is that type. Stamp it for Vec8i, named i32x8,
+            // named u32x8, named f32x8, named f32x4, or named
+            // Vec4f: kind 8 whose name is one of those, or kind 13
+            // with 8 lanes of 4-byte i32.
+            // Named Vec4f is kind 8 and the bytes V e c 4 f.
+            // i32x4 stays unstamped. The addr emitter stores the
+            // if with the existing let-init. The value form of
+            // Vec4f already returns 4.
+            // PLATFORM: MACOS|ARM64. The type rule is SHARED.
+            if (addr_ok == 25) {
+              if (let_ty > 0) {
+                addr_pk = pipeline_type_kind_ord_at(arena, let_ty);
+                if (addr_pk == 9) {
+                  addr_pt = pipeline_type_elem_ref_at(arena, let_ty);
+                  if (addr_pt > 0) {
+                    addr_sp = asm_type_is_simd_vector_spelling(arena, addr_pt);
+                    if (addr_sp != 0) {
+                      addr_pk = pipeline_type_kind_ord_at(arena, addr_pt);
+                      if (addr_pk == 8) {
+                        vl = pipeline_type_named_name_into(arena, addr_pt, vn);
+                        bt = 0;
+                        if (vl == 5) {
+                          if (vn[0] == 86) {
+                            if (vn[1] == 101) {
+                              if (vn[2] == 99) {
+                                if (vn[3] == 56) {
+                                  if (vn[4] == 105) {
+                                    bt = 1;
+                                  }
+                                }
+                              }
+                            }
+                          }
+                          // ASCII i 3 2 x 8, then u 3 2 x 8, then
+                          // f 3 2 x 8. Named kind 8. f32x4 and
+                          // Vec4f are matched below. i32x4 stays
+                          // declined.
+                          // PLATFORM: MACOS|ARM64.
+                          if (bt == 0) {
+                            if (vn[0] == 105) {
+                              if (vn[1] == 51) {
+                                if (vn[2] == 50) {
+                                  if (vn[3] == 120) {
+                                    if (vn[4] == 56) {
+                                      bt = 1;
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                          if (bt == 0) {
+                            if (vn[0] == 117) {
+                              if (vn[1] == 51) {
+                                if (vn[2] == 50) {
+                                  if (vn[3] == 120) {
+                                    if (vn[4] == 56) {
+                                      bt = 1;
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                          // f32x8 is f 3 2 x 8. The last byte is ASCII 8.
+                          // Named f32x4 is f 3 2 x 4. The last byte is
+                          // ASCII 4. Vec4f and i32x4 do not match.
+                          // PLATFORM: MACOS|ARM64.
+                          if (bt == 0) {
+                            if (vn[0] == 102) {
+                              if (vn[1] == 51) {
+                                if (vn[2] == 50) {
+                                  if (vn[3] == 120) {
+                                    if (vn[4] == 56) {
+                                      bt = 1;
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                          if (bt == 0) {
+                            if (vn[0] == 102) {
+                              if (vn[1] == 51) {
+                                if (vn[2] == 50) {
+                                  if (vn[3] == 120) {
+                                    if (vn[4] == 52) {
+                                      bt = 1;
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                          // Named Vec4f is V e c 4 f. The fourth byte
+                          // is ASCII 4. The last byte is ASCII f.
+                          // Vec8i is V e c 8 i and does not match.
+                          // i32x4 does not match.
+                          // PLATFORM: MACOS|ARM64.
+                          if (bt == 0) {
+                            if (vn[0] == 86) {
+                              if (vn[1] == 101) {
+                                if (vn[2] == 99) {
+                                  if (vn[3] == 52) {
+                                    if (vn[4] == 102) {
+                                      bt = 1;
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                        if (bt != 0) {
+                          pipeline_expr_set_resolved_type_ref(arena, init_ref, let_ty);
+                        }
+                      }
+                      if (addr_pk == 13) {
+                        vec_ek = glue_vector_type_lanes_esz_c(arena, addr_pt, &vec_lanes[0], &vec_esz[0]);
+                        if (vec_ek == 0) {
+                          if (vec_esz[0] == 4) {
+                            if (vec_lanes[0] == 8) {
+                              vec_ek = pipeline_type_elem_ref_at(arena, addr_pt);
+                              bt = 0;
+                              if (vec_ek > 0) {
+                                bt = pipeline_type_kind_ord_at(arena, vec_ek);
+                              }
+                              if (bt == 0) {
+                                pipeline_expr_set_resolved_type_ref(arena, init_ref, let_ty);
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
         rc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta);
       }
     }

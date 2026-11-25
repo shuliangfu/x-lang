@@ -555,7 +555,16 @@ export function pipeline_elf_ctx_append_data_zeros(ctx_bytes: *u8, n: i32): i32 
  */
 #[no_mangle]
 export function pipeline_elf_ctx_data_poke_u8(ctx_bytes: *u8, off: i32, b: i32): i32 {
-  if (ctx_bytes == 0 as *u8 || off < 0 || off >= g_pipe_elf_data_len) {
+  /* note743y.6.4: tip folds off>=g_pipe_elf_data_len to off>=0 inside compound ||.
+   * Split checks; load len via emit_data_len (lea+load, not const 0). */
+  if (ctx_bytes == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (off < 0) {
+    return 0 - 1;
+  }
+  let cur: i32 = pipeline_elf_ctx_emit_data_len(ctx_bytes);
+  if (off >= cur) {
     return 0 - 1;
   }
   unsafe {
@@ -806,8 +815,12 @@ export function pipeline_elf_ctx_reloc_shndx_at(ctx_bytes: *u8, idx: i32): i32 {
     return pipe_elf_shnx_text();
   }
   if (idx < pipe_elf_table_cap()) {
-    if (g_pipe_elf_shndx_sidecar_owner == ctx_bytes && pipe_elf_bss_load_i32(&g_pipe_elf_reloc_shndx[0], idx) != 0) {
-      return pipe_elf_bss_load_i32(&g_pipe_elf_reloc_shndx[0], idx);
+    /* tip-asm: BSS scalar owner assigns lower to stack slots, so the
+     * owner==ctx gate always fails while array stores still hit the
+     * shared Lxml blob. Trust a non-zero sidecar value (0 = unset). */
+    let sh_sc: i32 = pipe_elf_bss_load_i32(&g_pipe_elf_reloc_shndx[0], idx);
+    if (sh_sc != 0) {
+      return sh_sc;
     }
     return pipe_elf_default_reloc_shndx();
   }
@@ -1204,9 +1217,7 @@ export function pipeline_elf_ctx_reloc_r_type_at(ctx_bytes: *u8, r: i32): i32 {
   if (ctx_bytes == 0 as *u8 || r < 0 || r >= pipe_elf_table_cap()) {
     return 0;
   }
-  if (g_pipe_elf_reloc_sidecar_owner != ctx_bytes) {
-    return 0;
-  }
+  /* tip-asm owner scalar is stack-lowered; read typed row unconditionally. */
   return pipe_elf_bss_load_i32(&g_pipe_elf_reloc_r_type[0], r);
 }
 
@@ -1578,14 +1589,13 @@ export function pipeline_elf_ctx_append_reloc_typed(ctx_bytes: *u8, offset: i32,
   if (pipeline_elf_ctx_append_reloc(ctx_bytes, offset, name, name_len) != 0) {
     return -1;
   }
-  // First typed row for this ctx: bind owner and prefill pcrel to 255 so
-  // untyped call slots keep writer-default pcrel=1 (BRANCH26 r_pcrel=0 is
-  // rejected by Darwin ld). Table-path append_reloc never called reset.
-  if (g_pipe_elf_reloc_sidecar_owner != ctx_bytes) {
-    pipeline_elf_ctx_reloc_sidecar_reset(ctx_bytes);
-  }
-  g_pipe_elf_reloc_sidecar_owner = ctx_bytes;
+  // 10.22: tip-asm lowers BSS scalar owner assigns/loads to stack slots, so
+  // `g_pipe_elf_reloc_sidecar_owner != ctx` fires on every typed append and
+  // reloc_sidecar_reset wipes prior absolute64 r_type/shndx — only the last
+  // F7 vtable slot survives (dyn_add_f32 run=139). append_reloc already sets
+  // shndx + r_type=0 + pcrel=255 for the new row; do NOT reset here.
   let ri: i32 = w312_load(ctx_bytes, pipe_elf_off_num_relocs()) - 1;
+  g_pipe_elf_reloc_sidecar_owner = ctx_bytes;
   if (ri >= 0 && ri < pipe_elf_table_cap()) {
     pipe_elf_bss_store_i32(&g_pipe_elf_reloc_r_type[0], ri, r_type);
     if (r_pcrel < 0) {
@@ -2237,7 +2247,7 @@ export function pipeline_elf_write_o_pgo_to_buf(ctx_bytes: *u8, out: *u8): i32 {
 
 
 /**
- * Append n bytes into CodegenOutBuf (data[9437184] + length i32 LE).
+ * Append n bytes into CodegenOutBuf (length@0 + data@+4).
  * @return i32 - 0 ok, -1 overflow
  * PLATFORM: SHARED freestanding ELF leave.
  */
@@ -2252,7 +2262,7 @@ function pipe_elf_out_append(out: *u8, p: *u8, n: i32): i32 {
   let i: i32 = 0;
   while (i < n) {
     unsafe {
-      out[len + i] = p[i];
+      out[4 + len + i] = p[i];
     }
     i = i + 1;
   }
@@ -2496,7 +2506,9 @@ export function pipeline_elf_write_o_standard_to_buf_c(ctx_bytes: *u8, out: *u8)
   let rc_i: i32 = 0;
   while (rc_i < nr) {
     let sd: i32 = pipeline_elf_ctx_reloc_shndx_at(ctx_bytes, rc_i);
-    if (sd == pipe_elf_shnx_data()) {
+    let rt_c: i32 = pipeline_elf_ctx_reloc_r_type_at(ctx_bytes, rc_i);
+    /* absolute64 (200) is always a data-section slot (F7 vtable). */
+    if (sd == pipe_elf_shnx_data() || rt_c == 200) {
       nr_data = nr_data + 1;
     } else {
       nr_text = nr_text + 1;
@@ -2695,8 +2707,9 @@ export function pipeline_elf_write_o_standard_to_buf_c(ctx_bytes: *u8, out: *u8)
     let r: i32 = 0;
     while (r < nr) {
       let r_sd: i32 = pipeline_elf_ctx_reloc_shndx_at(ctx_bytes, r);
+      let r_rt: i32 = pipeline_elf_ctx_reloc_r_type_at(ctx_bytes, r);
       let is_data: i32 = 0;
-      if (r_sd == pipe_elf_shnx_data()) {
+      if (r_sd == pipe_elf_shnx_data() || r_rt == 200) {
         is_data = 1;
       }
       if (is_data != want_data) {

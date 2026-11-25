@@ -90,6 +90,14 @@ case "$XLANG" in
   *) XLANG="$(CDPATH= cd -- "$(dirname "$XLANG")" && pwd)/$(basename "$XLANG")" ;;
 esac
 
+# tip_l4_mac_aside_user_env_seed: when XLANG lives outside the compiler tree
+# (e.g. /tmp/xlang_tip_aside_mac), ensure companions must find seeds beside
+# the exe. Seed that aside dir from the live compiler tree before probes.
+_XLANG_DIR="$(CDPATH= cd -- "$(dirname "$XLANG")" && pwd)"
+if [ "$_XLANG_DIR" != "$COMPILER_DIR" ]; then
+  bash "$COMPILER_DIR/scripts/seed_tip_aside_ensure_companions.sh" "$_XLANG_DIR" || true
+fi
+
 _matrix_uname_s="$(uname -s 2>/dev/null || echo Unknown)"
 _matrix_exe_suffix=""
 case "$_matrix_uname_s" in

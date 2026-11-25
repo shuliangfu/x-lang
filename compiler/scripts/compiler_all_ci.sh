@@ -35,6 +35,11 @@
 # Wave: 880 B7B — drop Makefile multi-token OPT/MAKE/TARGET inject; shell owns defaults.
 
 set -euo pipefail
+# Knife 255 / 10.1: product path forbids typeck/codegen residual host-cc
+# in g05_relink_env (tip allow_legacy + keep typeck_ctfe.o). Archaeology:
+# XLANG_TYPECK_HOST_CC=1. Full cold zero-cc is 10.2.
+XLANG_TYPECK_HOST_CC="${XLANG_TYPECK_HOST_CC:-0}"
+export XLANG_TYPECK_HOST_CC
 
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 COMPILER_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)"

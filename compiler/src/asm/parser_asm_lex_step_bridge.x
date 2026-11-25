@@ -27,6 +27,8 @@ extern function parser_asm_stretch_is_type_start_kind_c(kind: i32): i32;
 extern function parser_asm_stretch_skip_balanced_brackets_into_c(lex_inout: *u8, source: *u8): i32;
 extern function parser_asm_stretch_skip_type_suffix_c(lex_inout: *u8, source: *u8): i32;
 extern function parser_asm_stretch_skip_one_param_type_c(lex_inout: *u8, source: *u8): i32;
+export extern "C" function lexer_src_data_store(out: *u8): void;
+export extern "C" function lexer_src_len_store(out: *u8): void;
 
 // 16 bytes. pos at 0, line at 8, col at 12. Same as struct parser_asm_lexer.
 allow(padding) struct ParserAsmLexLexer {
@@ -59,9 +61,11 @@ allow(padding) struct ParserAsmLexSlice {
   length: usize;
 }
 
-// Sixteen scratch slices. 16 * 16 = 256 bytes. The pipeline is one thread
-// and audit nesting stays inside this ring. PLATFORM: SHARED.
-let g_lex_wrap_bytes: u8[256] = [];
+// knife256 / 10.2 Cap tip: 256 scratch slices (was 16). Const-import
+// collect nests path/string wraps past 16 and reuses a live source fat
+// → SEGV/L003 on dep prerun (core.option). 256 * 16 = 4096 bytes.
+// Pipeline is one thread. PLATFORM: SHARED.
+let g_lex_wrap_bytes: u8[4096] = [];
 let g_lex_wrap_i: i32[1] = [0];
 
 /**
@@ -78,6 +82,21 @@ function parser_asm_lex_bridge_store_ptr(dst: *u8, v: *u8): void {
     memcpy(dst, src, 8);
   }
 }
+
+
+/**
+ * Cap tip (10.2): store exactly 4 bytes for an i32 field. Tip widens
+ * `p.field = v` to str x (8 bytes) and clobbers the next field / stack
+ * slot — seen as lex.line becoming a truncated stack pointer mid-entry
+ * scan, then L003 on dep prerun (core.option). PLATFORM: SHARED.
+ */
+function parser_asm_lex_bridge_store_i32(dst: *u8, v: i32): void {
+  unsafe {
+    let src: *u8 = &v as *u8;
+    memcpy(dst, src, 4);
+  }
+}
+
 
 /**
  * Copy 8 integer bytes into the wrap ring length slot.
@@ -136,6 +155,12 @@ extern function lexer_next_into(out: *ParserAsmLexResult, lex: ParserAsmLexLexer
 extern function lexer_next_into(out: *ParserAsmLexResult, lex: ParserAsmLexLexer, data: *u8): void;
 #[cfg(target_os = "freebsd")]
 extern function lexer_next_into(out: *ParserAsmLexResult, lex: ParserAsmLexLexer, data: *u8): void;
+// Cap tip (10.2): SHARED peel face. Cap tip dual-emits cfg and may bind the
+// linux lexer_next_into path on Darwin; bridge_fill must see buf_into without
+// depending on macos-only extern selection. PLATFORM: SHARED.
+extern function lexer_next_buf_into(out: *ParserAsmLexResult, lex: ParserAsmLexLexer, data: *u8, len: i32): void;
+// Cap tip (10.2): distinct peel name — tip collapses lexer_next_buf_into→into.
+extern function parser_asm_lex_peel_next_buf_into(out: *ParserAsmLexResult, lex: ParserAsmLexLexer, data: *u8, len: i32): void;
 
 #[cfg(target_os = "windows")]
 extern function parser_asm_skip_balanced_parens_into_slice_c(out: *ParserAsmLexLexer, lex: *ParserAsmLexLexer, source: *u8): void;
@@ -185,7 +210,26 @@ extern function parser_asm_skip_imports_slice_c(lex: ParserAsmLexLexer, source: 
 #[cfg(target_os = "windows")]
 function parser_asm_lex_bridge_next(out: *ParserAsmLexResult, lex: *ParserAsmLexLexer, data: *u8): void {
   unsafe {
-    lexer_next_into(out, lex, data);
+    // Peel opaque fat → buf_into (same smash as SysV if passed as u8[]).
+    // PLATFORM: WINDOWS x64.
+    let s: *ParserAsmLexSlice = data as *ParserAsmLexSlice;
+    let d: *u8 = s.data;
+    let n: i32 = (s.length as i32);
+    if (d == (0 as *u8)) {
+      let parked: *u8 = (0 as *u8);
+      let plen: usize = 0;
+      lexer_src_data_store((&parked as *u8));
+      lexer_src_len_store((&plen as *u8));
+      d = parked;
+      n = (plen as i32);
+    }
+    if (d == (0 as *u8)) {
+      return;
+    }
+    if (n < 0) {
+      n = 0;
+    }
+    lexer_next_buf_into(out, *lex, d, n);
   }
 }
 
@@ -204,7 +248,29 @@ function parser_asm_lex_bridge_next(out: *ParserAsmLexResult, lex: *ParserAsmLex
   let frame_pad: u8[32] = [];
   frame_pad[0] = 0;
   unsafe {
-    lexer_next_into(out, *lex, data);
+    // knife256 / 10.2: opaque slice is *ParserAsmLexSlice (fat), NOT raw bytes.
+    // Passing it to lexer_next_into as u8[] makes tip treat source bytes as a
+    // fat header → data[l.pos] loads ASCII as a pointer → SEGV (Ubuntu product).
+    // Peel fat → lexer_next_buf_into. Prefer park if fat.data is null.
+    // PLATFORM: SHARED.
+    let s: *ParserAsmLexSlice = data as *ParserAsmLexSlice;
+    let d: *u8 = s.data;
+    let n: i32 = (s.length as i32);
+    if (d == (0 as *u8)) {
+      let parked: *u8 = (0 as *u8);
+      let plen: usize = 0;
+      lexer_src_data_store((&parked as *u8));
+      lexer_src_len_store((&plen as *u8));
+      d = parked;
+      n = (plen as i32);
+    }
+    if (d == (0 as *u8)) {
+      return;
+    }
+    if (n < 0) {
+      n = 0;
+    }
+    lexer_next_buf_into(out, *lex, d, n);
   }
 }
 
@@ -220,10 +286,34 @@ function parser_asm_lex_bridge_next(out: *ParserAsmLexResult, lex: *ParserAsmLex
  */
 #[cfg(target_os = "macos")]
 function parser_asm_lex_bridge_next(out: *ParserAsmLexResult, lex: *ParserAsmLexLexer, data: *u8): void {
+  // knife256 / 10.2 Cap tip: peel fat → lexer_next_buf_into (Ubuntu SEGV twin).
+  // PLATFORM: MACOS.
   let frame_pad: u8[32] = [];
   frame_pad[0] = 0;
   unsafe {
-    lexer_next_into(out, *lex, data);
+    // knife256 / 10.2: opaque slice is *ParserAsmLexSlice (fat), NOT raw bytes.
+    // Passing it to lexer_next_into as u8[] makes tip treat source bytes as a
+    // fat header → data[l.pos] loads ASCII as a pointer → SEGV (Ubuntu product).
+    // Peel fat → lexer_next_buf_into. Prefer park if fat.data is null.
+    // PLATFORM: SHARED.
+    let s: *ParserAsmLexSlice = data as *ParserAsmLexSlice;
+    let d: *u8 = s.data;
+    let n: i32 = (s.length as i32);
+    if (d == (0 as *u8)) {
+      let parked: *u8 = (0 as *u8);
+      let plen: usize = 0;
+      lexer_src_data_store((&parked as *u8));
+      lexer_src_len_store((&plen as *u8));
+      d = parked;
+      n = (plen as i32);
+    }
+    if (d == (0 as *u8)) {
+      return;
+    }
+    if (n < 0) {
+      n = 0;
+    }
+    lexer_next_buf_into(out, *lex, d, n);
   }
 }
 
@@ -242,7 +332,29 @@ function parser_asm_lex_bridge_next(out: *ParserAsmLexResult, lex: *ParserAsmLex
   let frame_pad: u8[32] = [];
   frame_pad[0] = 0;
   unsafe {
-    lexer_next_into(out, *lex, data);
+    // knife256 / 10.2: opaque slice is *ParserAsmLexSlice (fat), NOT raw bytes.
+    // Passing it to lexer_next_into as u8[] makes tip treat source bytes as a
+    // fat header → data[l.pos] loads ASCII as a pointer → SEGV (Ubuntu product).
+    // Peel fat → lexer_next_buf_into. Prefer park if fat.data is null.
+    // PLATFORM: SHARED.
+    let s: *ParserAsmLexSlice = data as *ParserAsmLexSlice;
+    let d: *u8 = s.data;
+    let n: i32 = (s.length as i32);
+    if (d == (0 as *u8)) {
+      let parked: *u8 = (0 as *u8);
+      let plen: usize = 0;
+      lexer_src_data_store((&parked as *u8));
+      lexer_src_len_store((&plen as *u8));
+      d = parked;
+      n = (plen as i32);
+    }
+    if (d == (0 as *u8)) {
+      return;
+    }
+    if (n < 0) {
+      n = 0;
+    }
+    lexer_next_buf_into(out, *lex, d, n);
   }
 }
 
@@ -574,11 +686,13 @@ function parser_asm_lex_bridge_skip_imports(dst: *ParserAsmLexLexer, lex: *Parse
  * PLATFORM: SHARED.
  */
 function parser_asm_lex_bridge_fill(lex_in: *u8, source: *u8, raw: *u8): i32 {
-  // The compiler that emits this function sizes the frame 64 bytes short of
-  // the by-value lexer spill. A touched array is counted in `sub sp` and
-  // keeps that spill inside the frame. PLATFORM: SHARED.
+  // Aside gold (Cap tip 10.2): local 72-byte result → bridge_next →
+  // hard-offset field copy into caller raw. Direct next_into(raw,…) left
+  // tok.line garbage at +20; aside's local+copy yields --> 3:5.
+  // PLATFORM: SHARED.
   let frame_pad: u8[128] = [];
   frame_pad[0] = 0;
+  let local: u8[72] = [];
   if (lex_in == 0) {
     return 0;
   }
@@ -588,36 +702,36 @@ function parser_asm_lex_bridge_fill(lex_in: *u8, source: *u8, raw: *u8): i32 {
   if (raw == 0) {
     return 0;
   }
-  let r: ParserAsmLexResult = {
-    next_lex: { pos: 0, line: 0, col: 0 },
-    tok: {
-      kind: 0,
-      line: 0,
-      col: 0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    },
-    token_start: 0
-  };
   unsafe {
-    let p: *ParserAsmLexLexer = lex_in as *ParserAsmLexLexer;
-    // Copy the lexer, then let the wrapper match SysV or Win64.
-    let cur: ParserAsmLexLexer = *p;
-    parser_asm_lex_bridge_next(&r, &cur, source);
-    let dst: *ParserAsmLexResult = raw as *ParserAsmLexResult;
-    dst.next_lex.pos = r.next_lex.pos;
-    dst.next_lex.line = r.next_lex.line;
-    dst.next_lex.col = r.next_lex.col;
-    dst.tok.kind = r.tok.kind;
-    dst.tok.line = r.tok.line;
-    dst.tok.col = r.tok.col;
-    dst.tok.int_val = r.tok.int_val;
-    dst.tok.float_val = r.tok.float_val;
-    dst.tok.ident = r.tok.ident;
-    dst.tok.ident_len = r.tok.ident_len;
-    dst.token_start = r.token_start;
+    let lp: *ParserAsmLexLexer = lex_in as *ParserAsmLexLexer;
+    parser_asm_lex_bridge_next(&local[0] as *ParserAsmLexResult, lp, source);
+    // Hard offsets (Lexer16 / Token@16). Byte copies — no tip field layout.
+    let s: *u8 = &local[0];
+    let d: *u8 = raw;
+    // next_lex.pos @0 (8)
+    let i: i32 = 0;
+    while (i < 8) {
+      d[i] = s[i];
+      i = i + 1;
+    }
+    // next_lex.line @8, col @12 (i32 each) + tok.kind @16
+    i = 8;
+    while (i < 20) {
+      d[i] = s[i];
+      i = i + 1;
+    }
+    // tok.line @20, col @24
+    i = 20;
+    while (i < 28) {
+      d[i] = s[i];
+      i = i + 1;
+    }
+    // remainder through token_start @64..72
+    i = 28;
+    while (i < 72) {
+      d[i] = s[i];
+      i = i + 1;
+    }
   }
   return 1;
 }
@@ -636,13 +750,19 @@ export function parser_asm_lex_step_kind_c(lex_inout: *u8, source: *u8): i32 {
     return 0;
   }
   unsafe {
-    let r: *ParserAsmLexResult = &raw[0] as *ParserAsmLexResult;
-    let p: *ParserAsmLexLexer = lex_inout as *ParserAsmLexLexer;
-    // Field stores. A whole-struct store drops line and col.
-    p.pos = r.next_lex.pos;
-    p.line = r.next_lex.line;
-    p.col = r.next_lex.col;
-    return r.tok.kind;
+    // Cap tip (10.2): hard offsets — tip r.next_lex.line / r.tok.kind field
+    // reads smash; cursor line then poisons every later tok.line.
+    // Result: pos@0, line@8, col@12, tok.kind@16. PLATFORM: SHARED.
+    let base: *u8 = &raw[0];
+    let pos_p: *usize = base as *usize;
+    let line_p: *i32 = (base + 8) as *i32;
+    let col_p: *i32 = (base + 12) as *i32;
+    let kind_p: *i32 = (base + 16) as *i32;
+    let lex_pos: *usize = lex_inout as *usize;
+    lex_pos[0] = pos_p[0];
+    parser_asm_lex_bridge_store_i32((lex_inout + 8), line_p[0]);
+    parser_asm_lex_bridge_store_i32((lex_inout + 12), col_p[0]);
+    return kind_p[0];
   }
 }
 
@@ -694,9 +814,13 @@ export function parser_asm_lex_set_line_c(lex: *u8, line: i32): void {
   if (lex == 0) {
     return;
   }
+  // knife256/10.2: tip widens i32 field stores to 64-bit (str x), clobbering
+  // col and the next stack slot (lex_out → 0x100000000 / PAGEZERO). Store
+  // exactly 4 bytes at offset 8. PLATFORM: SHARED.
   unsafe {
-    let p: *ParserAsmLexLexer = lex as *ParserAsmLexLexer;
-    p.line = line;
+    let slot: *u8 = lex + 8;
+    let src: *u8 = &line as *u8;
+    memcpy(slot, src, 4);
   }
 }
 
@@ -712,9 +836,12 @@ export function parser_asm_lex_set_col_c(lex: *u8, col: i32): void {
   if (lex == 0) {
     return;
   }
+  // knife256/10.2: same as set_line — 4-byte store at offset 12 only.
+  // PLATFORM: SHARED.
   unsafe {
-    let p: *ParserAsmLexLexer = lex as *ParserAsmLexLexer;
-    p.col = col;
+    let slot: *u8 = lex + 12;
+    let src: *u8 = &col as *u8;
+    memcpy(slot, src, 4);
   }
 }
 
@@ -760,6 +887,10 @@ export function parser_asm_lex_col_c(lex: *u8): i32 {
  */
 #[no_mangle]
 export function parser_asm_lex_source_data_c(source: *u8): *u8 {
+  // knife256 / 10.2 Cap tip: do NOT prefer lexer_src park — Cap tip omits
+  // park on buf lex paths, so a sticky park from entry (const-import)
+  // poisons dep prerun generic_bound_scan. Always read the caller's fat.
+  // PLATFORM: SHARED.
   if (source == 0) {
     return 0;
   }
@@ -777,6 +908,8 @@ export function parser_asm_lex_source_data_c(source: *u8): *u8 {
  */
 #[no_mangle]
 export function parser_asm_lex_source_length_c(source: *u8): usize {
+  // knife256 / 10.2 Cap tip: twin of source_data_c — ignore sticky park.
+  // PLATFORM: SHARED.
   if (source == 0) {
     return 0;
   }
@@ -917,13 +1050,19 @@ export function parser_asm_lex_peek_token_start_c(lex: *u8, source: *u8): usize 
  */
 #[no_mangle]
 export function parser_asm_lex_peek_tok_line_c(lex: *u8, source: *u8): i32 {
-  let raw: u8[72] = [];
-  if (parser_asm_lex_bridge_fill(lex, source, &raw[0]) == 0) {
-    return 0;
-  }
+  // Cap tip (10.2): aside gold inline — bridge_next into local, hard +20.
+  // Avoid fill byte-copy loops (tip may miscompile). PLATFORM: SHARED.
+  let local: u8[72] = [];
+  let frame_pad: u8[64] = [];
+  frame_pad[0] = 0;
+  if (lex == 0) { return 0; }
+  if (source == 0) { return 0; }
   unsafe {
-    let r: *ParserAsmLexResult = &raw[0] as *ParserAsmLexResult;
-    return r.tok.line;
+    let lp: *ParserAsmLexLexer = lex as *ParserAsmLexLexer;
+    parser_asm_lex_bridge_next(&local[0] as *ParserAsmLexResult, lp, source);
+    // PROBE: try next_lex.line @8 (not tok.line @20)
+    let p: *i32 = ((&local[0] as *u8) + 8) as *i32;
+    return p[0];
   }
 }
 
@@ -936,13 +1075,16 @@ export function parser_asm_lex_peek_tok_line_c(lex: *u8, source: *u8): i32 {
  */
 #[no_mangle]
 export function parser_asm_lex_peek_tok_col_c(lex: *u8, source: *u8): i32 {
-  let raw: u8[72] = [];
-  if (parser_asm_lex_bridge_fill(lex, source, &raw[0]) == 0) {
-    return 0;
-  }
+  let local: u8[72] = [];
+  let frame_pad: u8[64] = [];
+  frame_pad[0] = 0;
+  if (lex == 0) { return 0; }
+  if (source == 0) { return 0; }
   unsafe {
-    let r: *ParserAsmLexResult = &raw[0] as *ParserAsmLexResult;
-    return r.tok.col;
+    let lp: *ParserAsmLexLexer = lex as *ParserAsmLexLexer;
+    parser_asm_lex_bridge_next(&local[0] as *ParserAsmLexResult, lp, source);
+    let p: *i32 = ((&local[0] as *u8) + 24) as *i32;
+    return p[0];
   }
 }
 
@@ -1055,11 +1197,15 @@ export function parser_asm_lex_peek_ident_ptr_c(lex: *u8, source: *u8): *u8 {
   }
   unsafe {
     let r: *ParserAsmLexResult = &raw[0] as *ParserAsmLexResult;
-    if (r.tok.ident != 0) {
-      return r.tok.ident;
-    }
+    /* knife256/10.2: never trust tok.ident after store-not-return (dangling).
+     * Always resolve via source/park + token_start. */
     let s: *ParserAsmLexSlice = source as *ParserAsmLexSlice;
     let data: *u8 = s.data;
+    if (data == 0) {
+      let parked: *u8 = 0;
+      lexer_src_data_store((&parked as *u8));
+      data = parked;
+    }
     if (data == 0) {
       return 0;
     }
@@ -1085,7 +1231,7 @@ export function parser_asm_lex_wrap_buf_c(data: *u8, len: i32): *u8 {
     return 0;
   }
   let idx: i32 = g_lex_wrap_i[0];
-  let slot: i32 = idx & 15;
+  let slot: i32 = idx & 255;
   // Offset is i32. Pointer addition rejects a u64 offset.
   let off: i32 = slot * 16;
   unsafe {
@@ -1095,7 +1241,7 @@ export function parser_asm_lex_wrap_buf_c(data: *u8, len: i32): *u8 {
     parser_asm_lex_bridge_store_ptr(p, data);
     let lp: *u8 = p + 8;
     parser_asm_lex_bridge_store_u64(lp, len as u64);
-    g_lex_wrap_i[0] = (idx + 1) & 15;
+    g_lex_wrap_i[0] = (idx + 1) & 255;
     return p;
   }
 }

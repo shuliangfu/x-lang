@@ -839,19 +839,21 @@ static int32_t win_emit_struct_lit_fields_into_parked_rbx(void *arena, void *elf
       continue;
     if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, iref, ctx, ta) != 0)
       return -1;
-    /* PLATFORM: MACOS|ARM64. A field wider than 8 bytes is not the 8-byte
-     * cap from glue_struct_lit_field_store_sz. VAR (3), FIELD (44), INDEX (47),
-     * CALL (48), and METHOD (49) leave a dual-GP value in x0/x1 when the
-     * layout is 9..16 bytes, or the source address in x0 when it is larger.
-     * pop_rbx writes that address into x1 and drops the high half. STRUCT_LIT
-     * (45) already recurses above. ARRAY_LIT (46) stays on the scalar store.
-     * Copy exactly the layout size: a 16-byte store of a 12-byte field would
-     * run into the next field. The parked base stays on the machine stack.
-     * ta != 1 keeps the one-GPR store below. */
+    /* PLATFORM: MACOS|ARM64 (ta == 1). A field wider than 8 bytes is not
+     * the 8-byte cap from glue_struct_lit_field_store_sz. VAR (3), FIELD
+     * (44), INDEX (47), CALL (48), and METHOD (49) leave a dual-GP value
+     * in x0/x1 when the layout is 9..16 bytes, or the source address in x0
+     * when it is larger. ARRAY_LIT (46) always leaves the payload address
+     * in x0, so a named size of 9..16 uses that address copy. An ARRAY_LIT
+     * wider than 16 stays on the scalar store. Copy exactly the layout
+     * size: a 16-byte store of a 12-byte field would run into the next
+     * field. The parked base stays on the machine stack. ta != 1 keeps
+     * the one-GPR store below. */
     if (ta == 1 &&
-        (iko == 3 || iko == 44 || iko == 47 || iko == 48 || iko == 49)) {
+        (iko == 3 || iko == 44 || iko == 46 || iko == 47 || iko == 48 || iko == 49)) {
       int32_t fty = 0;
       int32_t wide = 0;
+      int32_t use_ptr = 0;
       uint32_t add_x19 = 0;
       if (mod)
         fty = pipeline_expr_struct_lit_field_type_ref_at(arena, mod, lit_ref, fi);
@@ -863,6 +865,12 @@ static int32_t win_emit_struct_lit_fields_into_parked_rbx(void *arena, void *elf
         /* add x19, x19, #store_off — skipped when the field is at 0. */
         add_x19 = 0x91000273u | ((uint32_t)store_off << 10);
         if (wide > 16) {
+          if (iko != 46)
+            use_ptr = 1;
+        } else if (iko == 46) {
+          use_ptr = 1;
+        }
+        if (use_ptr) {
           /* x0 is the source address. Pop the parked base into x1, push it
            * back, and memcpy wide bytes to x19. */
           if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
@@ -878,22 +886,24 @@ static int32_t win_emit_struct_lit_fields_into_parked_rbx(void *arena, void *elf
             return -1;
           continue;
         }
-        /* 9..16: spill the pair before any pop, point x19 at the field,
-         * memcpy wide bytes from sp, then drop only the spill. */
-        if (backend_enc_append_u32_le_c(elf_ctx, 0xA9BF07E0u) != 0)
-          return -1;
-        if (backend_enc_append_u32_le_c(elf_ctx, 0xF9400BF3u) != 0)
-          return -1;
-        if (store_off > 0 &&
-            backend_enc_append_u32_le_c(elf_ctx, add_x19) != 0)
-          return -1;
-        if (backend_enc_append_u32_le_c(elf_ctx, 0x910003E0u) != 0)
-          return -1;
-        if (glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, -3, wide, ta) != 0)
-          return -1;
-        if (backend_enc_append_u32_le_c(elf_ctx, 0x910043FFu) != 0)
-          return -1;
-        continue;
+        if (iko != 46) {
+          /* 9..16: spill the pair before any pop, point x19 at the field,
+           * memcpy wide bytes from sp, then drop only the spill. */
+          if (backend_enc_append_u32_le_c(elf_ctx, 0xA9BF07E0u) != 0)
+            return -1;
+          if (backend_enc_append_u32_le_c(elf_ctx, 0xF9400BF3u) != 0)
+            return -1;
+          if (store_off > 0 &&
+              backend_enc_append_u32_le_c(elf_ctx, add_x19) != 0)
+            return -1;
+          if (backend_enc_append_u32_le_c(elf_ctx, 0x910003E0u) != 0)
+            return -1;
+          if (glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, -3, wide, ta) != 0)
+            return -1;
+          if (backend_enc_append_u32_le_c(elf_ctx, 0x910043FFu) != 0)
+            return -1;
+          continue;
+        }
       }
     }
     if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)

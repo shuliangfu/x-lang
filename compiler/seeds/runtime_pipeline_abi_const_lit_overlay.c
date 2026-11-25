@@ -111,6 +111,15 @@ static int32_t w211_fold_const_expr_i32(void *a, int32_t eref, int32_t *out_imm,
     *out_imm = pipeline_expr_int_val_at(a, eref);
     return 1;
   }
+  /* EXPR_AS = 54 — s177 DIG face: peel `8 as u32` so IO_FIXED_MAX folds.
+   * Recurse on the AS operand; float-target AS is not a const_lit_i32 hit.
+   * PLATFORM: SHARED leftover gcc sidecar twin of tip .x const_lit_fold. */
+  if (ek == 54) {
+    op = pipeline_expr_as_operand_ref_at(a, eref);
+    if (op <= 0)
+      return 0;
+    return w211_fold_const_expr_i32(a, op, out_imm, depth + 1);
+  }
   /* EXPR_NEG = 22 — parser normal form for `const E: i32 = -1`. */
   if (ek == 22) {
     op = pipeline_expr_unary_operand_ref_at(a, eref);

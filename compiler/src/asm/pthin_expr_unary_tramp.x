@@ -197,11 +197,11 @@ export function parser_parse_primary_ptr_into_c(arena: *u8, lex_inout: *u8, sour
   unsafe {
     let p: *ParserAsmLexLexer = lex_inout as *ParserAsmLexLexer;
     pthin_expr_unary_call_primary(arena, p, source, &res);
-    out_ok[0] = res.ok;
-    out_expr_ref[0] = res.expr_ref;
-    p.pos = res.next_lex.pos;
-    p.line = res.next_lex.line;
-    p.col = res.next_lex.col;
+    let rp: *i32 = &res as *i32;
+    out_ok[0] = rp[0];
+    out_expr_ref[0] = rp[1];
+    // Opaque 16-byte cursor. Field stores clobber out_ok (tip CG).
+    memcpy(lex_inout, (&res as *u8) + 8, 16);
   }
   return 1;
 }

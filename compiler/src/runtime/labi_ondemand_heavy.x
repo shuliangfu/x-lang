@@ -395,8 +395,10 @@ export function labi_fk0_sym_count(k: i32): i32 {
   if (k == 8) {
     return 57;
   }
+  // PLATFORM: SHARED — context.o fk0: std_context_* + ctx_*_c (C ABI).
+  // DIG soft hello.o U only ctx_*_c after link_only skip of std.context.
   if (k == 9) {
-    return 4;
+    return 11;
   }
   if (k == 10) {
     return 42;
@@ -1589,14 +1591,23 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
             unsafe {
               let _fe_err: i32 = xlang_ensure_formal_std_make_o(root_net, "std/error/error.o", "../std/error/error.o");
               let _fe_ctx: i32 = xlang_ensure_formal_std_make_o(root_net, "std/context/context.o", "../std/context/context.o");
+              // PLATFORM: SHARED — net/mod.o read_ctx and write_ctx call
+              // std_io_driver_submit_read / submit_write. Those bodies already
+              // live on std/io/driver.o (simple group 16). The user object only
+              // references std_net_*, so group 16 does not fire. G.7: same
+              // need_net companion as error/context. push_obj dedups a later
+              // group-16 hit. Do not add a second driver table.
+              let _fe_drv: i32 = xlang_ensure_formal_std_make_o(root_net, "std/io/driver.o", "../std/io/driver.o");
             }
           }
         }
         let rel_err: *u8 = labi_od_rel_error();
         let rel_ctx: *u8 = labi_od_rel_context();
+        let rel_drv: *u8 = labi_od_simple_group_rel(16);
         unsafe {
           let _pe: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rel_err, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
           let _pc: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rel_ctx, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+          let _pd: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rel_drv, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
         }
         // context.o U atomic_*_i32_c + time_now_monotonic_ns_c (≡ invoke_cc need_context).
         let er_ag: i32 = 0;
@@ -1756,9 +1767,9 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
           }
         }
       }
-      let rh2: *u8 = labi_od_rel_http();
+      let rh_http: *u8 = labi_od_rel_http();
       unsafe {
-        let _ph2: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rh2, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+        let _ph2: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rh_http, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
       }
       let erh: i32 = 0;
       let tph: *u8 = 0 as *u8;
@@ -1785,6 +1796,8 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
         if (root_h[0] != 0) {
           unsafe {
             let _eh: i32 = xlang_ensure_formal_std_make_o(root_h, "std/heap/heap.o", "../std/heap/heap.o");
+            // L4 wipe: heap.o U page_mmap_*; ensure companion leaf (twin need_pm).
+            let _epm_h: i32 = xlang_ensure_formal_std_make_o(root_h, "std/heap/page_mmap.o", "../std/heap/page_mmap.o");
             let _em: i32 = xlang_ensure_formal_std_make_o(root_h, "core/mem/mem.o", "../core/mem/mem.o");
           }
         }
@@ -1826,11 +1839,11 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
         }
       }
       let rs: *u8 = labi_od_rel_set();
-      let rh2: *u8 = labi_od_rel_heap();
+      let rh_set_heap: *u8 = labi_od_rel_heap();
       let rm2: *u8 = labi_od_rel_core_mem();
       unsafe {
         let _s: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rs, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
-        let _sh: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rh2, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+        let _sh: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rh_set_heap, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
         let _sm: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rm2, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
         let _hh: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, "std/hash/hash.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
       }
@@ -2018,6 +2031,21 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
         }
       }
       if (need_pm != 0) {
+        // PLATFORM: SHARED — L4 wipe deletes page_mmap.o; push_obj skip-missing
+        // then leaves std_heap_page_mmap_page_mmap_heap_* UNDEF (run-string
+        // BLD001). Mirror linux.o / sys.o formal ensure. G.7: complete
+        // existing need_pm path; no second table / no host-cc.
+        let root_pm: *u8 = 0 as *u8;
+        unsafe {
+          root_pm = xlang_repo_root_from_argv0(link_argv0);
+        }
+        if (root_pm != 0 as *u8) {
+          if (root_pm[0] != 0) {
+            unsafe {
+              let _epm: i32 = xlang_ensure_formal_std_make_o(root_pm, "std/heap/page_mmap.o", "../std/heap/page_mmap.o");
+            }
+          }
+        }
         let rpm: *u8 = labi_od_rel_page_mmap();
         unsafe {
           let _pm: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rpm, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
@@ -2091,6 +2119,34 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
       if (p_csmod != 0 as *u8) {
         unsafe {
           link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_csmod);
+        }
+      }
+      /*
+       * note743y.6.8: core/slice/mod.o U core_option_{none,some}_*.
+       * User.o for subslice_split_chunks only U core_slice_* so g6 never
+       * fires → BLD001. Co-push formal option.o with needs_core_slice.
+       * PLATFORM: SHARED.
+       */
+      let opt_rel: *u8 = "core/option/option.o";
+      let root_opt: *u8 = 0 as *u8;
+      unsafe {
+        root_opt = xlang_repo_root_from_argv0(link_argv0);
+      }
+      if (root_opt != 0 as *u8) {
+        if (root_opt[0] != 0) {
+          unsafe {
+            let _eopt: i32 = xlang_ensure_formal_std_make_o(root_opt, opt_rel, "../core/option/option.o");
+          }
+        }
+      }
+      let opt_prim: *u8 = 0 as *u8;
+      unsafe {
+        opt_prim = xlang_rel_o_path_from_argv0(link_argv0, opt_rel);
+      }
+      let p_opt: *u8 = labi_od_resolve_or_try(opt_prim, opt_rel, lib_roots, n_lib_roots, bank);
+      if (p_opt != 0 as *u8) {
+        unsafe {
+          link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_opt);
         }
       }
     }
@@ -2451,6 +2507,9 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
                     let _feg: i32 = xlang_ensure_formal_std_make_o(rt15, "std/compress/gzip/gzip.o", "../std/compress/gzip/gzip.o");
                     let _fezs: i32 = xlang_ensure_formal_std_make_o(rt15, "std/compress/zstd/zstd.o", "../std/compress/zstd/zstd.o");
                     let _febr: i32 = xlang_ensure_formal_std_make_o(rt15, "std/compress/brotli/brotli.o", "../std/compress/brotli/brotli.o");
+                    // gzip/zstd/brotli call core.mem. User.o does not.
+                    // PLATFORM: SHARED — same companion as queue → mem.o.
+                    let _fem: i32 = xlang_ensure_formal_std_make_o(rt15, "core/mem/mem.o", "../core/mem/mem.o");
                   }
                 }
               }
@@ -2578,11 +2637,17 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
               let grel: *u8 = "std/compress/gzip/gzip.o";
               let zsrel: *u8 = "std/compress/zstd/zstd.o";
               let brrel: *u8 = "std/compress/brotli/brotli.o";
+              // gzip/zstd/brotli undef core_mem_mem_zero / core_mem_mem_compare.
+              // The earlier core_mem gate only scans user.o, which names
+              // std_compress_* and not core.mem. Push the formal object here.
+              // PLATFORM: SHARED — same companion as queue → mem.o.
+              let mrel: *u8 = labi_od_rel_core_mem();
               unsafe {
                 let _pz: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, zrel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
                 let _pg: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, grel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
                 let _pzs: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, zsrel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
                 let _pbr: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, brrel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+                let _pmem: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, mrel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
               }
             }
             // PLATFORM: SHARED — g12 std.test monofile C dual companions
@@ -2662,6 +2727,8 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
               }
             }
             // g9: co-push glue slice.o after formal mod.o
+            // note743y.6.8: also co-push option.o (mod.o U core_option_*);
+            // g9 fires for split_at_i32 without needs_core_slice (u64/from_ptr table).
             if (sg == 9) {
               let rtg: *u8 = 0 as *u8;
               unsafe {
@@ -2671,12 +2738,17 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
                 if (rtg[0] != 0) {
                   unsafe {
                     let _feg: i32 = xlang_ensure_formal_std_make_o(rtg, "core/slice/slice.o", "../core/slice/slice.o");
+                    let _feo: i32 = xlang_ensure_formal_std_make_o(rtg, "core/option/option.o", "../core/option/option.o");
                   }
                 }
               }
               let csgl: *u8 = labi_od_rel_core_slice();
               unsafe {
                 let _csg: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, csgl, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+              }
+              let orel: *u8 = "core/option/option.o";
+              unsafe {
+                let _cso: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, orel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
               }
             }
           }

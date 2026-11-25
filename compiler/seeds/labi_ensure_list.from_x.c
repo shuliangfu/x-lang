@@ -43,6 +43,9 @@ int link_abi_host_is_linux_x86_64(void);
 int link_abi_host_is_posix_aarch64(void);
 int xlang_link_obj_has_defined_sym(const char *o_path, const char *sym);
 int unlink(const char *path);
+/* Product thread-glue ensure spawns the existing thin+rest script. */
+int setenv(const char *name, const char *value, int overwrite);
+int xlang_spawn_sync(const char *prog, const char *const *argv);
 const char *xlang_runtime_panic_o_path(const char *argv0);
 const char *xlang_runtime_heap_user_o_path(const char *argv0);
 const char *xlang_runtime_test_fn_invoke_o_path(const char *argv0);
@@ -335,10 +338,10 @@ int labi_ensure_catalog_step_at(int i, const char **stem_out, const char **out_b
  * PLATFORM: SHARED orch.
  */
 int link_abi_ensure_from_catalog(const char *argv0, int catalog_idx, const char *product_path) {
-  char comp[4096];
-  char out_o[4096];
-  char src_c[4096];
-  char inc0[4096], inc1[4096], inc2[4096];
+  char comp[1024];
+  char out_o[1024];
+  char src_c[1024];
+  char inc0[1024], inc1[1024], inc2[1024];
   const char *stem;
   const char *out_base;
   const char *seed_base;
@@ -379,7 +382,7 @@ int link_abi_ensure_from_catalog(const char *argv0, int catalog_idx, const char 
   ln_o = 0;
   while (out_base[ln_o] != 0)
     ln_o++;
-  if (dn + 1 + ln_o >= 4096)
+  if (dn + 1 + ln_o >= 1024)
     return -1;
   for (i = 0; i < dn; i++)
     out_o[i] = comp[i];
@@ -392,7 +395,7 @@ int link_abi_ensure_from_catalog(const char *argv0, int catalog_idx, const char 
   ln_seed = 0;
   while (seed_base[ln_seed] != 0)
     ln_seed++;
-  if (dn + 1 + ln_pfx + ln_seed >= 4096)
+  if (dn + 1 + ln_pfx + ln_seed >= 1024)
     return -1;
   for (i = 0; i < dn; i++)
     src_c[i] = comp[i];
@@ -411,7 +414,7 @@ int link_abi_ensure_from_catalog(const char *argv0, int catalog_idx, const char 
   ln_inc = 0;
   while (leaf_inc[ln_inc] != 0)
     ln_inc++;
-  if (dn + 1 + ln_inc >= 4096)
+  if (dn + 1 + ln_inc >= 1024)
     return -1;
   for (i = 0; i < dn; i++)
     inc1[i] = comp[i];
@@ -421,7 +424,7 @@ int link_abi_ensure_from_catalog(const char *argv0, int catalog_idx, const char 
   ln_src = 0;
   while (leaf_src[ln_src] != 0)
     ln_src++;
-  if (dn + 1 + ln_src >= 4096)
+  if (dn + 1 + ln_src >= 1024)
     return -1;
   for (i = 0; i < dn; i++)
     inc2[i] = comp[i];
@@ -437,14 +440,14 @@ int link_abi_ensure_from_catalog(const char *argv0, int catalog_idx, const char 
     if (crc != 0)
       crc = xlang_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
   } else if (flags == 3) {
-    char http_inc[4096];
-    char flag_I[4096];
+    char http_inc[1024];
+    char flag_I[1024];
     const char *http_leaf = "seeds/http";
     int ln_http = 0;
     int ln_http_abs;
     while (http_leaf[ln_http] != 0)
       ln_http++;
-    if (dn + 1 + ln_http >= 4096)
+    if (dn + 1 + ln_http >= 1024)
       return -1;
     for (i = 0; i < dn; i++)
       http_inc[i] = comp[i];
@@ -452,7 +455,7 @@ int link_abi_ensure_from_catalog(const char *argv0, int catalog_idx, const char 
     for (k = 0; k <= ln_http; k++)
       http_inc[dn + 1 + k] = http_leaf[k];
     ln_http_abs = dn + 1 + ln_http;
-    if (2 + ln_http_abs >= 4096)
+    if (2 + ln_http_abs >= 1024)
       return -1;
     flag_I[0] = '-';
     flag_I[1] = 'I';
@@ -479,14 +482,14 @@ int link_abi_ensure_from_catalog(const char *argv0, int catalog_idx, const char 
  * Pure byte join (no snprintf). PLATFORM: SHARED orch; LINUX x86_64 asm; POSIX aarch64 seed.
  */
 int xlang_ensure_runtime_panic_o(const char *argv0) {
-  char comp[4096];
-  char out_o[4096];
-  char src_s[4096];
-  char src_arm[4096];
-  char src_c[4096];
-  char inc0[4096];
-  char inc1[4096];
-  char inc2[4096];
+  char comp[1024];
+  char out_o[1024];
+  char src_s[1024];
+  char src_arm[1024];
+  char src_c[1024];
+  char inc0[1024];
+  char inc1[1024];
+  char inc2[1024];
   const char *o_path;
   const char *have;
   const char *src = NULL;
@@ -507,7 +510,7 @@ int xlang_ensure_runtime_panic_o(const char *argv0) {
   ln_o = 0;
   while (leaf_o[ln_o] != 0)
     ln_o++;
-  if (dn + 1 + ln_o >= 4096)
+  if (dn + 1 + ln_o >= 1024)
     return -1;
   for (i = 0; i < dn; i++)
     out_o[i] = comp[i];
@@ -519,7 +522,7 @@ int xlang_ensure_runtime_panic_o(const char *argv0) {
     int ln_s = 0;
     while (leaf_s[ln_s] != 0)
       ln_s++;
-    if (dn + 1 + ln_s < 4096) {
+    if (dn + 1 + ln_s < 1024) {
       for (i = 0; i < dn; i++)
         src_s[i] = comp[i];
       src_s[dn] = '/';
@@ -536,7 +539,7 @@ int xlang_ensure_runtime_panic_o(const char *argv0) {
     int ln_a = 0;
     while (leaf_a[ln_a] != 0)
       ln_a++;
-    if (dn + 1 + ln_a < 4096) {
+    if (dn + 1 + ln_a < 1024) {
       for (i = 0; i < dn; i++)
         src_arm[i] = comp[i];
       src_arm[dn] = '/';
@@ -551,7 +554,7 @@ int xlang_ensure_runtime_panic_o(const char *argv0) {
     int ln_c = 0;
     while (leaf_c[ln_c] != 0)
       ln_c++;
-    if (dn + 1 + ln_c >= 4096)
+    if (dn + 1 + ln_c >= 1024)
       return -1;
     for (i = 0; i < dn; i++)
       src_c[i] = comp[i];
@@ -571,7 +574,7 @@ int xlang_ensure_runtime_panic_o(const char *argv0) {
     int ln_inc = 0;
     while (leaf_inc[ln_inc] != 0)
       ln_inc++;
-    if (dn + 1 + ln_inc >= 4096)
+    if (dn + 1 + ln_inc >= 1024)
       return -1;
     for (i = 0; i < dn; i++)
       inc1[i] = comp[i];
@@ -584,7 +587,7 @@ int xlang_ensure_runtime_panic_o(const char *argv0) {
     int ln_src = 0;
     while (leaf_src[ln_src] != 0)
       ln_src++;
-    if (dn + 1 + ln_src >= 4096)
+    if (dn + 1 + ln_src >= 1024)
       return -1;
     for (i = 0; i < dn; i++)
       inc2[i] = comp[i];
@@ -610,24 +613,25 @@ int xlang_ensure_runtime_panic_o(const char *argv0) {
  * Peer heap_user_o_path; Cap residual has_defined_sym/unlink stub + resolve/access/cc/stat.
  * Pure byte join (no snprintf). PLATFORM: SHARED orch (direct seed compile).
  */
+/* Twin of src/runtime/labi_ensure_list.x xlang_ensure_runtime_heap_user_o.
+ * The C seed seeds/runtime_heap_user.from_x.c no longer defines
+ * heap_arena_init_c. Spawn this product on src/runtime_heap_user.x.
+ * PLATFORM: SHARED. */
 int xlang_ensure_runtime_heap_user_o(const char *argv0) {
-  char comp[4096];
-  char out_o[4096];
-  char src_c[4096];
-  char inc0[4096];
-  char inc1[4096];
-  char inc2[4096];
+  char comp[1024];
+  char out_o[1024];
+  char src_x[1024];
+  char lib[1024];
   const char *existing;
   const char *have;
-  const char *o_path;
   const char *leaf_o = "runtime_heap_user.o";
-  const char *leaf_c = "seeds/runtime_heap_user.from_x.c";
-  int dn, ln_o, ln_c, i, k, rc, crc;
+  const char *leaf_x = "src/runtime_heap_user.x";
+  const char *av[10];
+  int dn, ln_o, ln_x, i, k, rc, crc, slash, p;
   existing = xlang_runtime_heap_user_o_path(argv0);
   have = asm_link_obj_skip_missing(existing);
   if (have != NULL) {
-    if (xlang_link_obj_has_defined_sym(existing, "heap_arena_init_c") != 0
-        || xlang_link_obj_has_defined_sym(existing, "heap_alloc_c") != 0)
+    if (xlang_link_obj_has_defined_sym(existing, "heap_arena_init_c") != 0)
       return 0;
     (void)unlink(existing);
   }
@@ -642,63 +646,53 @@ int xlang_ensure_runtime_heap_user_o(const char *argv0) {
   ln_o = 0;
   while (leaf_o[ln_o] != 0)
     ln_o++;
-  if (dn + 1 + ln_o >= 4096)
+  if (dn + 1 + ln_o >= 1024)
     return -1;
   for (i = 0; i < dn; i++)
     out_o[i] = comp[i];
   out_o[dn] = '/';
   for (k = 0; k <= ln_o; k++)
     out_o[dn + 1 + k] = leaf_o[k];
-  ln_c = 0;
-  while (leaf_c[ln_c] != 0)
-    ln_c++;
-  if (dn + 1 + ln_c >= 4096)
+  ln_x = 0;
+  while (leaf_x[ln_x] != 0)
+    ln_x++;
+  if (dn + 1 + ln_x >= 1024)
     return -1;
   for (i = 0; i < dn; i++)
-    src_c[i] = comp[i];
-  src_c[dn] = '/';
-  for (k = 0; k <= ln_c; k++)
-    src_c[dn + 1 + k] = leaf_c[k];
-  if (link_abi_path_readable(src_c) == 0) {
-    link_diag_runtime_source_missing("runtime_heap_user", src_c);
+    src_x[i] = comp[i];
+  src_x[dn] = '/';
+  for (k = 0; k <= ln_x; k++)
+    src_x[dn + 1 + k] = leaf_x[k];
+  if (link_abi_path_readable(src_x) == 0) {
+    link_diag_runtime_source_missing("runtime_heap_user", src_x);
     return -1;
   }
-  for (i = 0; i <= dn; i++)
-    inc0[i] = comp[i];
-  {
-    const char *leaf_inc = "include";
-    int ln_inc = 0;
-    while (leaf_inc[ln_inc] != 0)
-      ln_inc++;
-    if (dn + 1 + ln_inc >= 4096)
-      return -1;
-    for (i = 0; i < dn; i++)
-      inc1[i] = comp[i];
-    inc1[dn] = '/';
-    for (k = 0; k <= ln_inc; k++)
-      inc1[dn + 1 + k] = leaf_inc[k];
-  }
-  {
-    const char *leaf_src = "src";
-    int ln_src = 0;
-    while (leaf_src[ln_src] != 0)
-      ln_src++;
-    if (dn + 1 + ln_src >= 4096)
-      return -1;
-    for (i = 0; i < dn; i++)
-      inc2[i] = comp[i];
-    inc2[dn] = '/';
-    for (k = 0; k <= ln_src; k++)
-      inc2[dn + 1 + k] = leaf_src[k];
-  }
-  crc = xlang_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
+  if (argv0 == NULL || argv0[0] == 0)
+    return -1;
+  slash = dn - 1;
+  while (slash > 0 && comp[slash] != '/')
+    slash--;
+  if (slash <= 0)
+    return -1;
+  for (p = 0; p < slash; p++)
+    lib[p] = comp[p];
+  lib[p] = 0;
+  av[0] = argv0;
+  av[1] = "-backend";
+  av[2] = "asm";
+  av[3] = "-c";
+  av[4] = "-L";
+  av[5] = lib;
+  av[6] = "-o";
+  av[7] = out_o;
+  av[8] = src_x;
+  av[9] = NULL;
+  crc = xlang_spawn_sync(argv0, av);
   if (crc != 0) {
     link_diag_runtime_obj_build_status("runtime_heap_user.o", crc);
     return -1;
   }
-  o_path = xlang_runtime_heap_user_o_path(argv0);
-  have = asm_link_obj_skip_missing(o_path);
-  if (have == NULL) {
+  if (xlang_link_obj_has_defined_sym(out_o, "heap_arena_init_c") == 0) {
     link_diag_runtime_obj_missing("runtime_heap_user.o", out_o);
     return -1;
   }
@@ -711,12 +705,12 @@ int xlang_ensure_runtime_heap_user_o(const char *argv0) {
  * PLATFORM: SHARED orch.
  */
 int xlang_ensure_runtime_test_fn_invoke_o(const char *argv0) {
-  char comp[4096];
-  char out_o[4096];
-  char src_c[4096];
-  char inc0[4096];
-  char inc1[4096];
-  char inc2[4096];
+  char comp[1024];
+  char out_o[1024];
+  char src_c[1024];
+  char inc0[1024];
+  char inc1[1024];
+  char inc2[1024];
   const char *existing;
   const char *have;
   const char *o_path;
@@ -739,7 +733,7 @@ int xlang_ensure_runtime_test_fn_invoke_o(const char *argv0) {
   ln_o = 0;
   while (leaf_o[ln_o] != 0)
     ln_o++;
-  if (dn + 1 + ln_o >= 4096)
+  if (dn + 1 + ln_o >= 1024)
     return -1;
   for (i = 0; i < dn; i++)
     out_o[i] = comp[i];
@@ -749,7 +743,7 @@ int xlang_ensure_runtime_test_fn_invoke_o(const char *argv0) {
   ln_c = 0;
   while (leaf_c[ln_c] != 0)
     ln_c++;
-  if (dn + 1 + ln_c >= 4096)
+  if (dn + 1 + ln_c >= 1024)
     return -1;
   for (i = 0; i < dn; i++)
     src_c[i] = comp[i];
@@ -767,7 +761,7 @@ int xlang_ensure_runtime_test_fn_invoke_o(const char *argv0) {
     int ln_inc = 0;
     while (leaf_inc[ln_inc] != 0)
       ln_inc++;
-    if (dn + 1 + ln_inc >= 4096)
+    if (dn + 1 + ln_inc >= 1024)
       return -1;
     for (i = 0; i < dn; i++)
       inc1[i] = comp[i];
@@ -780,7 +774,7 @@ int xlang_ensure_runtime_test_fn_invoke_o(const char *argv0) {
     int ln_src = 0;
     while (leaf_src[ln_src] != 0)
       ln_src++;
-    if (dn + 1 + ln_src >= 4096)
+    if (dn + 1 + ln_src >= 1024)
       return -1;
     for (i = 0; i < dn; i++)
       inc2[i] = comp[i];
@@ -808,12 +802,12 @@ int xlang_ensure_runtime_test_fn_invoke_o(const char *argv0) {
  * PLATFORM: SHARED orch; MACOS homebrew -I always best-effort.
  */
 int xlang_ensure_runtime_tls_mbedtls_bio_o(const char *argv0) {
-  char comp[4096];
-  char out_o[4096];
-  char src_c[4096];
-  char inc0[4096];
-  char inc1[4096];
-  char inc2[4096];
+  char comp[1024];
+  char out_o[1024];
+  char src_c[1024];
+  char inc0[1024];
+  char inc1[1024];
+  char inc2[1024];
   const char *existing;
   const char *have;
   const char *o_path;
@@ -836,7 +830,7 @@ int xlang_ensure_runtime_tls_mbedtls_bio_o(const char *argv0) {
   ln_o = 0;
   while (leaf_o[ln_o] != 0)
     ln_o++;
-  if (dn + 1 + ln_o >= 4096)
+  if (dn + 1 + ln_o >= 1024)
     return -1;
   for (i = 0; i < dn; i++)
     out_o[i] = comp[i];
@@ -846,7 +840,7 @@ int xlang_ensure_runtime_tls_mbedtls_bio_o(const char *argv0) {
   ln_c = 0;
   while (leaf_c[ln_c] != 0)
     ln_c++;
-  if (dn + 1 + ln_c >= 4096)
+  if (dn + 1 + ln_c >= 1024)
     return -1;
   for (i = 0; i < dn; i++)
     src_c[i] = comp[i];
@@ -864,7 +858,7 @@ int xlang_ensure_runtime_tls_mbedtls_bio_o(const char *argv0) {
     int ln_inc = 0;
     while (leaf_inc[ln_inc] != 0)
       ln_inc++;
-    if (dn + 1 + ln_inc >= 4096)
+    if (dn + 1 + ln_inc >= 1024)
       return -1;
     for (i = 0; i < dn; i++)
       inc1[i] = comp[i];
@@ -877,7 +871,7 @@ int xlang_ensure_runtime_tls_mbedtls_bio_o(const char *argv0) {
     int ln_src = 0;
     while (leaf_src[ln_src] != 0)
       ln_src++;
-    if (dn + 1 + ln_src >= 4096)
+    if (dn + 1 + ln_src >= 1024)
       return -1;
     for (i = 0; i < dn; i++)
       inc2[i] = comp[i];
@@ -905,12 +899,12 @@ int xlang_ensure_runtime_tls_mbedtls_bio_o(const char *argv0) {
  * PLATFORM: SHARED orch / LINUX freestanding consumers primary.
  */
 int xlang_ensure_bootstrap_nostdlib_stubs_o(const char *argv0) {
-  char comp[4096];
-  char out_o[4096];
-  char src_c[4096];
-  char inc0[4096];
-  char inc1[4096];
-  char inc2[4096];
+  char comp[1024];
+  char out_o[1024];
+  char src_c[1024];
+  char inc0[1024];
+  char inc1[1024];
+  char inc2[1024];
   const char *existing;
   const char *have;
   const char *o_path;
@@ -935,7 +929,7 @@ int xlang_ensure_bootstrap_nostdlib_stubs_o(const char *argv0) {
   ln_o = 0;
   while (leaf_o[ln_o] != 0)
     ln_o++;
-  if (dn + 1 + ln_o >= 4096)
+  if (dn + 1 + ln_o >= 1024)
     return -1;
   for (i = 0; i < dn; i++)
     out_o[i] = comp[i];
@@ -945,7 +939,7 @@ int xlang_ensure_bootstrap_nostdlib_stubs_o(const char *argv0) {
   ln_c = 0;
   while (leaf_c[ln_c] != 0)
     ln_c++;
-  if (dn + 1 + ln_c >= 4096)
+  if (dn + 1 + ln_c >= 1024)
     return -1;
   for (i = 0; i < dn; i++)
     src_c[i] = comp[i];
@@ -964,7 +958,7 @@ int xlang_ensure_bootstrap_nostdlib_stubs_o(const char *argv0) {
     int ln_inc = 0;
     while (leaf_inc[ln_inc] != 0)
       ln_inc++;
-    if (dn + 1 + ln_inc >= 4096)
+    if (dn + 1 + ln_inc >= 1024)
       return -1;
     for (i = 0; i < dn; i++)
       inc1[i] = comp[i];
@@ -977,7 +971,7 @@ int xlang_ensure_bootstrap_nostdlib_stubs_o(const char *argv0) {
     int ln_src = 0;
     while (leaf_src[ln_src] != 0)
       ln_src++;
-    if (dn + 1 + ln_src >= 4096)
+    if (dn + 1 + ln_src >= 1024)
       return -1;
     for (i = 0; i < dn; i++)
       inc2[i] = comp[i];
@@ -1036,10 +1030,124 @@ int xlang_ensure_runtime_time_os_o(const char *argv0) {
   return link_abi_ensure_from_catalog(argv0, 5, p);
 }
 
-/* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
+/* Catalog host-cc of seeds/runtime_queue_contention.from_x.c defines only
+ * the mutex and worker impls. The smoke, the trampoline, and
+ * queue_smoke_push_back live in src/asm/runtime_queue_contention.x.
+ * Darwin's one merge is scripts/ensure_host_cc_seed_o.sh
+ * try-runtime-os-prefer, which ld -r's that thin with
+ * src/asm/runtime_queue_contention_darwin.x. Call that script when the
+ * object is missing or does not define sync_queue_contention_smoke_c.
+ * The defined-sym cache is keyed by path and is not invalidated, so the
+ * completeness probe copies the object to a fresh /tmp path.
+ * Cold twin of src/runtime/labi_ensure_list.x.
+ * PLATFORM: SHARED — the script owns Darwin pure merge and Linux/Windows seed policy.
+ */
 int xlang_ensure_runtime_queue_contention_o(const char *argv0) {
-  const char *p = xlang_runtime_queue_contention_o_path(argv0);
-  return link_abi_ensure_from_catalog(argv0, 6, p);
+  const char *p;
+  char comp[1024];
+  char script[1024];
+  char chk[64];
+  char rev[16];
+  const char *cp_argv[4];
+  const char *sh_argv[5];
+  const char *prefix = "/tmp/xlang_qc_chk_";
+  static int seq = 0;
+  int n;
+  int i;
+  int r;
+  int rc;
+  int defines;
+
+  p = xlang_runtime_queue_contention_o_path(argv0);
+  if (p == NULL || p[0] == 0)
+    return -1;
+  defines = 0;
+  if (asm_link_obj_skip_missing(p) != NULL) {
+    i = 0;
+    while (prefix[i] != 0) {
+      if (i >= 40)
+        return -1;
+      chk[i] = prefix[i];
+      i++;
+    }
+    n = seq;
+    seq = n + 1;
+    if (n < 0)
+      n = 0;
+    r = 0;
+    if (n == 0) {
+      rev[0] = '0';
+      r = 1;
+    } else {
+      while (n > 0) {
+        if (r >= 12)
+          return -1;
+        rev[r] = (char)('0' + (n % 10));
+        r++;
+        n /= 10;
+      }
+    }
+    while (r > 0) {
+      r--;
+      if (i >= 58)
+        return -1;
+      chk[i] = rev[r];
+      i++;
+    }
+    if (i + 3 >= (int)sizeof chk)
+      return -1;
+    chk[i++] = '.';
+    chk[i++] = 'o';
+    chk[i] = 0;
+    cp_argv[0] = "/bin/cp";
+    cp_argv[1] = p;
+    cp_argv[2] = chk;
+    cp_argv[3] = NULL;
+    if (xlang_spawn_sync("/bin/cp", cp_argv) == 0)
+      defines = xlang_link_obj_has_defined_sym(chk, "sync_queue_contention_smoke_c");
+    (void)unlink(chk);
+  }
+  if (defines != 0)
+    return 0;
+  if (xlang_resolve_compiler_dir(argv0, comp, sizeof comp) != 0)
+    return -1;
+  i = 0;
+  while (comp[i] != 0)
+    i++;
+  {
+    const char *leaf = "/scripts/ensure_host_cc_seed_o.sh";
+    int j = 0;
+    if (i + 40 >= (int)sizeof script)
+      return -1;
+    while (j < i) {
+      script[j] = comp[j];
+      j++;
+    }
+    r = 0;
+    while (leaf[r] != 0)
+      script[j++] = leaf[r++];
+    script[j] = 0;
+  }
+  if (link_abi_path_readable(script) == 0)
+    return -1;
+  /* Child inherits these. Restored after wait so the parent link stays at
+   * the product default. The script reads them when the prefer body runs. */
+  (void)setenv("XLANG_G05_PREFER_X_O", "1", 1);
+  (void)setenv("XLANG_HOST_CC_SEED_FORCE", "1", 1);
+  sh_argv[0] = "/bin/bash";
+  sh_argv[1] = script;
+  sh_argv[2] = "try-runtime-os-prefer";
+  sh_argv[3] = "runtime_queue_contention.o";
+  sh_argv[4] = NULL;
+  rc = xlang_spawn_sync("/bin/bash", sh_argv);
+  (void)setenv("XLANG_G05_PREFER_X_O", "0", 1);
+  (void)setenv("XLANG_HOST_CC_SEED_FORCE", "0", 1);
+  if (rc != 0)
+    return -1;
+  /* Product path was not probed above, so this load is not a stale cache. */
+  if (xlang_link_obj_has_defined_sym(p, "sync_queue_contention_smoke_c") == 0)
+    return -1;
+  return 0;
 }
 
 /* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
@@ -1108,10 +1216,116 @@ int xlang_ensure_runtime_sync_lock_diag_tls_o(const char *argv0) {
   return link_abi_ensure_from_catalog(argv0, 17, p);
 }
 
-/* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
+/* Cold _c wrappers under XLANG_RUNTIME_THREAD_GLUE_FROM_X were removed.
+ * Catalog host-cc of seeds/runtime_thread_glue.from_x.c therefore defines
+ * only *_impl. Public thread_*_c lives in src/asm/runtime_thread_glue.x.
+ * The one thin+rest merge is scripts/ensure_host_cc_seed_o.sh
+ * try-runtime-os-prefer (Darwin retry, Linux prefer, FROM_X rest,
+ * pure_ld_partial_merge). Product -o must call that script when the
+ * object is missing or does not define thread_create_c.
+ * The defined-sym cache is keyed by path and is not invalidated, so the
+ * completeness probe copies the object to a fresh /tmp path.
+ * PLATFORM: SHARED — the script owns Darwin / Linux / Windows policy.
+ * The _impl seed is host-cc'd inside that merge by design.
+ */
 int xlang_ensure_runtime_thread_glue_o(const char *argv0) {
-  const char *p = xlang_runtime_thread_glue_o_path(argv0);
-  return link_abi_ensure_from_catalog(argv0, 18, p);
+  const char *p;
+  char comp[1024];
+  char script[1024];
+  char chk[64];
+  char rev[16];
+  const char *cp_argv[4];
+  const char *sh_argv[5];
+  const char *prefix = "/tmp/xlang_tg_chk_";
+  static int seq = 0;
+  int n;
+  int i;
+  int r;
+  int rc;
+  int defines;
+
+  p = xlang_runtime_thread_glue_o_path(argv0);
+  if (p == NULL || p[0] == 0)
+    return -1;
+  defines = 0;
+  if (asm_link_obj_skip_missing(p) != NULL) {
+    n = seq;
+    if (n < 0)
+      n = 0;
+    seq = n + 1;
+    i = 0;
+    while (prefix[i] != 0 && i < 40) {
+      chk[i] = prefix[i];
+      i++;
+    }
+    r = 0;
+    if (n == 0) {
+      rev[r++] = '0';
+    } else {
+      while (n > 0 && r < 12) {
+        rev[r++] = (char)('0' + (n % 10));
+        n /= 10;
+      }
+    }
+    while (r > 0 && i < 58) {
+      r--;
+      chk[i++] = rev[r];
+    }
+    if (i + 3 >= (int)sizeof chk)
+      return -1;
+    chk[i++] = '.';
+    chk[i++] = 'o';
+    chk[i] = 0;
+    cp_argv[0] = "/bin/cp";
+    cp_argv[1] = p;
+    cp_argv[2] = chk;
+    cp_argv[3] = NULL;
+    if (xlang_spawn_sync("/bin/cp", cp_argv) == 0)
+      defines = xlang_link_obj_has_defined_sym(chk, "thread_create_c");
+    (void)unlink(chk);
+  }
+  if (defines != 0)
+    return 0;
+  if (xlang_resolve_compiler_dir(argv0, comp, sizeof comp) != 0)
+    return -1;
+  i = 0;
+  while (comp[i] != 0)
+    i++;
+  {
+    const char *leaf = "/scripts/ensure_host_cc_seed_o.sh";
+    int j = 0;
+    if (i + 40 >= (int)sizeof script)
+      return -1;
+    while (j < i) {
+      script[j] = comp[j];
+      j++;
+    }
+    r = 0;
+    while (leaf[r] != 0) {
+      script[j++] = leaf[r++];
+    }
+    script[j] = 0;
+  }
+  if (link_abi_path_readable(script) == 0)
+    return -1;
+  /* Child inherits these. Restored after wait so the parent link stays at
+   * the product default. The script reads them when the prefer body runs. */
+  (void)setenv("XLANG_G05_PREFER_X_O", "1", 1);
+  (void)setenv("XLANG_HOST_CC_SEED_FORCE", "1", 1);
+  sh_argv[0] = "/bin/bash";
+  sh_argv[1] = script;
+  sh_argv[2] = "try-runtime-os-prefer";
+  sh_argv[3] = "runtime_thread_glue.o";
+  sh_argv[4] = NULL;
+  rc = xlang_spawn_sync("/bin/bash", sh_argv);
+  (void)setenv("XLANG_G05_PREFER_X_O", "0", 1);
+  (void)setenv("XLANG_HOST_CC_SEED_FORCE", "0", 1);
+  if (rc != 0)
+    return -1;
+  /* Product path was not probed above, so this load is not a stale cache. */
+  if (xlang_link_obj_has_defined_sym(p, "thread_create_c") == 0)
+    return -1;
+  return 0;
 }
 
 /* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */

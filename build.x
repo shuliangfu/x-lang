@@ -20,7 +20,18 @@
 //
 // Role (G.7 single authority for *policy*; execution still multi-layer):
 //   - This file is the **strategy facade** consumed by the legacy build_tool
-//     step table (build_get_step_count / build_get_step_at / build_use_asm_only).
+//     step table (build_get_step_count / build_get_step_at / build_use_asm_only)
+//     + PRODUCT_SCHEDULE authority (build_product_schedule_count /
+//       build_product_schedule_id_at · 10.4 knife 11.01／11.03 demote)
+//     + LINKER_POLICY inventory authority (build_linker_policy_count /
+//       build_linker_policy_entry_at · 10.4 knife 11.04 demote)
+//     + REFRESH_SCHEDULE authority (build_refresh_schedule_count /
+//       build_refresh_schedule_id_at · 10.4 knife 11.05 demote)
+//     + COLD_SCHEDULE authority (build_cold_schedule_count /
+//       build_cold_schedule_id_at · 10.4 knife 11.06 demote)
+//     + PRODUCT_NODES／COLD_NODES inventory authority
+//       (build_product_node_count／entry_at · build_cold_node_count／entry_at ·
+//        10.4 knife 11.07 demote).
 //   - Product orchestration authority today is **`./xbuild` → xlang-build.sh**
 //     plus **compiler/scripts/g05_*.sh** (not Makefile recipes for daily path).
 //   - Cold-start / residual leaf .o graphs use shell catalog + compiler-make hub (Makefile deleted wave942); was
@@ -93,6 +104,14 @@
 //   11.5.3 abi|leak|safe|kernel/*.c — permanent host-cc whitelist (probes · wave741)
 //   11.5.4 probes/**/*.c    — tool/generated artifacts; not product residual (wave741)
 //   Never inputs to g05 / ./xbuild all / product compiler link.
+//   11.5.5 tests/sys/*.c — permanent host-cc whitelist (cap residual · knife 11.11)
+//
+// E2. editors/ tree-sitter make／第三方 .c（§6 10.6 · knife 11.21 · 仓外）
+// -----------------------------------------------------------------------------
+//   Authority: editors/HOST_CC_POLICY.md
+//   editors/tree-sitter-xlang/ Makefile + bindings .c/.cc = editor-only／not product
+//   Generated src/parser.c is gitignored; never g05 / ./xbuild all / product link.
+//   Relocate to submodule／independent release = residual follow-up (not this knife).
 //
 // -----------------------------------------------------------------------------
 // F. Orchestration DAG inventory + schedule (11.1.1 wave742 · 11.1.2 wave743
@@ -100,15 +119,34 @@
 // -----------------------------------------------------------------------------
 //   Authority map: compiler/docs/BUILD_DAG.md
 //   Machine check: compiler/scripts/product_build_dag.sh
+//   PRODUCT_NODES／COLD_NODES inventory ABI (10.4 · knife 11.07 demote):
+//     build_product_node_count／entry_at · build_cold_node_count／entry_at
+//     entry format id|xcode_or_leaf|body_relpath (same as former bash arrays).
+//     product_build_dag.sh loads derived bash caches (G.7 no dual literals).
 //   ./xbuild product-dag | build-dag | cold-dag
 //   ./xbuild product-dag --check
 //   ./xbuild product-dag --dry-run [product|refresh|cold]
 //   ./xbuild product-dag --run product|refresh|cold
 //   Product schedule (11.1.2): ensure_*_gen → migrate → g05_prepare_and_relink
 //     (prepare embeds ensure+link_env; archaeology off product)
-//   Refresh schedule: refresh_gate alone
-//   Cold schedule: dry-run starts with cold_ensure_prereqs; live → outer
-//     bootstrap-driver-seed (embeds driver_seed_ensure_prereqs · wave744)
+//   PRODUCT_SCHEDULE export ABI (10.4 · knife 11.01／11.03 demote):
+//     build_product_schedule_count() / build_product_schedule_id_at(i) → *u8
+//     Ordered ids are the live PRODUCT_SCHEDULE authority for product-dag.
+//     product_build_dag.sh loads a derived bash cache from these exports (G.7).
+//     No hardcoded bash PRODUCT_SCHEDULE literal (knife 11.03 demote).
+//   REFRESH_SCHEDULE export ABI (10.4 · knife 11.05 demote):
+//     build_refresh_schedule_count() / build_refresh_schedule_id_at(i) → *u8
+//     Ordered ids are the live REFRESH_SCHEDULE authority for product-dag.
+//     product_build_dag.sh loads a derived bash cache from these exports (G.7).
+//     No hardcoded bash REFRESH_SCHEDULE=( literal (knife 11.05 demote).
+//     Today: refresh_gate alone.
+//   COLD_SCHEDULE export ABI (10.4 · knife 11.06 demote):
+//     build_cold_schedule_count() / build_cold_schedule_id_at(i) → *u8
+//     Ordered ids are the live COLD_SCHEDULE authority for product-dag.
+//     product_build_dag.sh loads a derived bash cache from these exports (G.7).
+//     No hardcoded bash COLD_SCHEDULE=( literal (knife 11.06 demote).
+//     Dry-run starts with cold_ensure_prereqs; live → outer
+//     bootstrap-driver-seed (embeds driver_seed_ensure_prereqs · wave744).
 //   wave744: DRIVER_SEED_PREREQS *edge satisfaction* is shell
 //     (driver_seed_ensure_prereqs.sh via catalog); Makefile bootstrap-driver-seed
 //     is thin phony (no make-graph $(DRIVER_SEED_PREREQS) deps). List authority
@@ -118,19 +156,22 @@
 //   G.7: DAG lists orchestration edges/owners only; .o inventories stay in
 //   compiler/mk/*.mk + driver_seed_obj_catalog.sh (no dual lists).
 //
-//   11.1.3 host platform (wave745):
+//   11.1.3 host platform (wave745 · 10.4 knife 11.04 demote):
 //     Authority map: compiler/docs/PLATFORM_LINKER.md
-//     Machine: compiler/scripts/host_platform_linker.sh
+//     Machine: compiler/scripts/host_platform_linker.sh (derived cache)
 //     ./xbuild host-platform [--export|--check]
-//     Single shell host OS/arch facts (XLANG_HOST_OS / ARCH / PLATFORM_TAG);
-//     product seed pin = *.linux.x86_64.c (host-portable). Makefile UNAME for
-//     leaf pattern rules residual until 11.3.1 (lists stay mk — G.7).
+//     Live OS/arch detect stays bash (uname facts). Policy inventory ABI
+//     lives in build.x (below). Product seed pin = *.linux.x86_64.c
+//     (host-portable). Makefile UNAME for leaf pattern residual until
+//     11.3.1 (lists stay mk — G.7).
 //
-//   11.1.4 linker policy (wave745):
+//   11.1.4 linker policy (wave745 · 10.4 knife 11.04 demote):
 //     Prefer product xlang_asm_invoke_ld_platform + direct ld|lld|link.exe.
 //     Named residual: bootstrap_driver_seed_link.sh SEED_LINK_CC -o (cold
-//     phase1/final; list still Makefile export). Forbidden: silent default
-//     $(CC) -o as linker without inventory. Pure-ld cold endgame later.
+//     phase1/final). Forbidden: silent default $(CC) -o without inventory.
+//     LINKER_POLICY KEY=VALUE inventory authority = build.x export ABI
+//     (build_linker_policy_count / build_linker_policy_entry_at).
+//     host_platform_linker.sh loads a derived bash cache (G.7 no dual).
 //     ./xbuild linker-policy [--check]
 //
 //   11.3.1 leaf pattern residual path (wave746 inventory · wave747 R4 mode ·
@@ -235,4 +276,191 @@ export function build_get_step_at(i: i32): i32 {
  */
 export function build_get_step_count(): i32 {
   return 7;
+}
+
+/**
+ * Number of product-daily schedule nodes (PRODUCT_SCHEDULE · 10.4 / 11.03).
+ * Order is load-bearing for product-dag dry-run/run; this export is the runner
+ * authority (bash PRODUCT_SCHEDULE is a derived cache only · knife 11.03).
+ * @return i32 always 5 while product schedule is gen×3 → migrate → prepare
+ */
+export function build_product_schedule_count(): i32 {
+  return 5;
+}
+
+/**
+ * Map schedule index → product node id string (PRODUCT_SCHEDULE · 10.4 / 11.03).
+ * Parallel to build_get_step_at for the orchestration schedule (not step table).
+ * product_build_dag.sh loads these ids as the live product schedule.
+ * @param i i32 zero-based index in [0, build_product_schedule_count())
+ * @return *u8 node id C-string, or null if out of range
+ */
+export function build_product_schedule_id_at(i: i32): *u8 {
+  if (i == 0) { return "ensure_migrate_gen"; }
+  if (i == 1) { return "ensure_driver_gen"; }
+  if (i == 2) { return "ensure_lsp_pipeline_gen"; }
+  if (i == 3) { return "migrate_x_objs"; }
+  if (i == 4) { return "g05_prepare_and_relink"; }
+  return 0 as *u8;
+}
+
+/**
+ * Number of linker-policy inventory entries (11.1.4 · 10.4 / 11.04).
+ * KEY=VALUE strings are the runner authority; bash host_platform_linker.sh
+ * holds a derived cache only (knife 11.04 demote). Host uname facts stay bash.
+ * @return i32 entry count
+ */
+export function build_linker_policy_count(): i32 {
+  return 27;
+}
+
+/**
+ * Map inventory index → KEY=VALUE C-string (linker policy · 10.4 / 11.04).
+ * host_platform_linker.sh source-parses these as the live linker inventory.
+ * @param i i32 zero-based index in [0, build_linker_policy_count())
+ * @return *u8 KEY=VALUE C-string, or null if out of range
+ */
+export function build_linker_policy_entry_at(i: i32): *u8 {
+  if (i == 0) { return "LINKER_POLICY=prefer_direct_ld_then_named_cc_residual"; }
+  if (i == 1) { return "LINKER_FORBIDDEN_DEFAULT=silent_cc_as_linker_without_inventory"; }
+  if (i == 2) { return "LINKER_FORBIDDEN_SILENT_CC_AFTER_PURE_FAIL=1"; }
+  if (i == 3) { return "COLD_SEED_LINK_BODY=scripts/bootstrap_driver_seed_link.sh"; }
+  if (i == 4) { return "COLD_SEED_LINK_PURE_LD=1"; }
+  if (i == 5) { return "COLD_SEED_LINK_PURE_LD_VIA=SEED_LINK_LD+MULTIDEF+ENTRY+LD_TAIL_export+pure_ld_shared"; }
+  if (i == 6) { return "COLD_SEED_LINK_CC_RESIDUAL=SEED_LINK_CC_-o_when_PURE_OK_0_or_FORCE_CC_only"; }
+  if (i == 7) { return "COLD_SEED_LINK_DROP_SILENT_FALLBACK=1"; }
+  if (i == 8) { return "RESIDUAL_CC_LINK_SITE=scripts/bootstrap_driver_seed_link.sh"; }
+  if (i == 9) { return "RESIDUAL_CC_LINK_ROLE=cold_phase1_final_SEED_LINK_CC_named_residual_only"; }
+  if (i == 10) { return "RESIDUAL_CC_LINK_LIST_AUTHORITY=Makefile_export_bootstrap-driver-seed-export-phase1/final-link"; }
+  if (i == 11) { return "G05_RELINK_BODY=scripts/g05_relink_xlang.sh"; }
+  if (i == 12) { return "G05_RELINK_PURE_LD=1"; }
+  if (i == 13) { return "G05_RELINK_PURE_LD_VIA=pure_ld_shared.sh"; }
+  if (i == 14) { return "G05_RELINK_CC_RESIDUAL=G05_CC_-o_when_FORCE_CC_or_ineligible_only"; }
+  if (i == 15) { return "G05_RELINK_DROP_SILENT_FALLBACK=1"; }
+  if (i == 16) { return "G05_RELINK_LIST_AUTHORITY=g05_relink_env.sh"; }
+  if (i == 17) { return "PURE_LD_SHARED=scripts/pure_ld_shared.sh"; }
+  if (i == 18) { return "PREFERRED_LD_PARTIAL=scripts/filter_bootstrap_seed_pipeline_o.sh"; }
+  if (i == 19) { return "PREFERRED_PRODUCT_LD=xlang_asm_invoke_ld_platform"; }
+  if (i == 20) { return "PREFERRED_G05_RELINK=scripts/g05_relink_xlang.sh"; }
+  if (i == 21) { return "PREFERRED_COLD_PURE_LD=scripts/bootstrap_driver_seed_link.sh"; }
+  if (i == 22) { return "PREFERRED_PURE_LD_SHARED=scripts/pure_ld_shared.sh"; }
+  if (i == 23) { return "ENDGAME_COLD_LINK_WITHOUT_CC=1"; }
+  if (i == 24) { return "ENDGAME_G05_PURE_LD=1"; }
+  if (i == 25) { return "ENDGAME_DROP_CC_FALLBACK=1"; }
+  if (i == 26) { return "ENDGAME_MAKEFILE_UNAME_SWALLOWED=0"; }
+  return 0 as *u8;
+}
+
+/**
+ * Number of refresh-schedule nodes (REFRESH_SCHEDULE · 10.4 / 11.05).
+ * This export is the runner authority (bash REFRESH_SCHEDULE is a derived
+ * cache only · knife 11.05 demote).
+ * @return i32 always 1 while refresh schedule is refresh_gate alone
+ */
+export function build_refresh_schedule_count(): i32 {
+  return 1;
+}
+
+/**
+ * Map refresh-schedule index → node id string (REFRESH_SCHEDULE · 10.4 / 11.05).
+ * product_build_dag.sh loads these ids as the live refresh schedule.
+ * @param i i32 zero-based index in [0, build_refresh_schedule_count())
+ * @return *u8 node id C-string, or null if out of range
+ */
+export function build_refresh_schedule_id_at(i: i32): *u8 {
+  if (i == 0) { return "refresh_gate"; }
+  return 0 as *u8;
+}
+
+/**
+ * Number of cold-bootstrap schedule nodes (COLD_SCHEDULE · 10.4 / 11.06).
+ * This export is the runner authority (bash COLD_SCHEDULE is a derived
+ * cache only · knife 11.06 demote).
+ * @return i32 always 14 while cold schedule matches dry-run inventory
+ */
+export function build_cold_schedule_count(): i32 {
+  return 14;
+}
+
+/**
+ * Map cold-schedule index → node id string (COLD_SCHEDULE · 10.4 / 11.06).
+ * product_build_dag.sh loads these ids as the live cold schedule.
+ * @param i i32 zero-based index in [0, build_cold_schedule_count())
+ * @return *u8 node id C-string, or null if out of range
+ */
+export function build_cold_schedule_id_at(i: i32): *u8 {
+  if (i == 0) { return "cold_ensure_prereqs"; }
+  if (i == 1) { return "cold_check_i64_abi"; }
+  if (i == 2) { return "cold_pipeline_x"; }
+  if (i == 3) { return "cold_sat"; }
+  if (i == 4) { return "cold_lsp"; }
+  if (i == 5) { return "cold_bridge"; }
+  if (i == 6) { return "cold_user_asm"; }
+  if (i == 7) { return "cold_asm_glue"; }
+  if (i == 8) { return "cold_asm_host"; }
+  if (i == 9) { return "cold_host_stubs"; }
+  if (i == 10) { return "cold_phase1_link"; }
+  if (i == 11) { return "cold_final_link"; }
+  if (i == 12) { return "cold_panic"; }
+  if (i == 13) { return "cold_orchestrator"; }
+  return 0 as *u8;
+}
+
+/**
+ * Number of PRODUCT_NODES inventory entries (10.4 / 11.07).
+ * KEY format id|leaf_or_xcode|body; bash holds derived cache only.
+ * @return i32 entry count
+ */
+export function build_product_node_count(): i32 {
+  return 9;
+}
+
+/**
+ * Map PRODUCT_NODES index → id|leaf_or_xcode|body C-string (10.4 / 11.07).
+ * @param i i32 zero-based index in [0, build_product_node_count())
+ * @return *u8 entry C-string, or null if out of range
+ */
+export function build_product_node_entry_at(i: i32): *u8 {
+  if (i == 0) { return "ensure_migrate_gen|migrate-gen|scripts/ensure_migrate_gen.sh"; }
+  if (i == 1) { return "ensure_driver_gen|driver-gen|scripts/ensure_driver_gen.sh"; }
+  if (i == 2) { return "ensure_lsp_pipeline_gen|lsp-pipeline-gen|scripts/ensure_lsp_pipeline_gen.sh"; }
+  if (i == 3) { return "ensure_archaeology_gen|archaeology-gen|scripts/ensure_archaeology_gen.sh"; }
+  if (i == 4) { return "migrate_x_objs|migrate|scripts/migrate_x_objs.sh"; }
+  if (i == 5) { return "g05_ensure|ensure|scripts/g05_ensure_relink_prereqs.sh"; }
+  if (i == 6) { return "g05_link_env|link-env|scripts/g05_relink_env.sh"; }
+  if (i == 7) { return "g05_prepare_and_relink|link-product|scripts/g05_prepare_and_relink.sh"; }
+  if (i == 8) { return "refresh_gate|refresh-gate|scripts/refresh_xlang_asm_gate.sh"; }
+  return 0 as *u8;
+}
+
+/**
+ * Number of COLD_NODES inventory entries (10.4 / 11.07).
+ * KEY format id|leaf_or_xcode|body; bash holds derived cache only.
+ * @return i32 entry count
+ */
+export function build_cold_node_count(): i32 {
+  return 14;
+}
+
+/**
+ * Map COLD_NODES index → id|leaf_or_xcode|body C-string (10.4 / 11.07).
+ * @param i i32 zero-based index in [0, build_cold_node_count())
+ * @return *u8 entry C-string, or null if out of range
+ */
+export function build_cold_node_entry_at(i: i32): *u8 {
+  if (i == 0) { return "cold_ensure_prereqs|driver-seed-prereqs|scripts/driver_seed_ensure_prereqs.sh"; }
+  if (i == 1) { return "cold_check_i64_abi|check-pipeline-gen-expr-i64-abi|scripts/check_pipeline_gen_expr_i64_abi.sh"; }
+  if (i == 2) { return "cold_pipeline_x|bootstrap-driver-seed-pipeline-x|scripts/bootstrap_driver_seed_rebuild_leaves.sh"; }
+  if (i == 3) { return "cold_sat|bootstrap-driver-seed-sat-rebuild|scripts/bootstrap_driver_seed_rebuild_leaves.sh"; }
+  if (i == 4) { return "cold_lsp|bootstrap-driver-seed-lsp-x-objs|scripts/bootstrap_driver_seed_rebuild_leaves.sh"; }
+  if (i == 5) { return "cold_bridge|bootstrap-driver-seed-bridge|scripts/bootstrap_driver_seed_rebuild_leaves.sh"; }
+  if (i == 6) { return "cold_user_asm|bootstrap-driver-seed-user-asm-seed-objs|scripts/bootstrap_driver_seed_rebuild_leaves.sh"; }
+  if (i == 7) { return "cold_asm_glue|bootstrap-driver-seed-asm-glue-standalone|scripts/bootstrap_driver_seed_rebuild_leaves.sh"; }
+  if (i == 8) { return "cold_asm_host|bootstrap-driver-seed-asm-host|scripts/build_seed_asm_host.sh"; }
+  if (i == 9) { return "cold_host_stubs|bootstrap-driver-seed-host-stubs|scripts/bootstrap_driver_seed_host_stubs.sh"; }
+  if (i == 10) { return "cold_phase1_link|bootstrap-driver-seed-phase1-link|scripts/bootstrap_driver_seed_link.sh"; }
+  if (i == 11) { return "cold_final_link|bootstrap-driver-seed-final-link|scripts/bootstrap_driver_seed_link.sh"; }
+  if (i == 12) { return "cold_panic|bootstrap-driver-seed-panic|scripts/bootstrap_driver_seed_rebuild_leaves.sh"; }
+  if (i == 13) { return "cold_orchestrator|bootstrap-driver-seed|scripts/bootstrap_driver_seed.sh"; }
+  return 0 as *u8;
 }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
+// it under the terms of the GNU Affero General Public (License as published) by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
@@ -30,7 +30,7 @@
 // See implementation.
 
 // Cap-T001 / LANG-007 S0: all export paths that call C/pipeline externs use
-// whole-body unsafe as the FFI gate (PLATFORM: SHARED). Product still may pin C; this is M1 typeck.
+// whole-body (unsafe as the) FFI gate (PLATFORM: SHARED). Product still may pin C; this is M1 typeck.
 
 /** See implementation for details. */
 export extern function pipeline_lsp_diag_parse_typeck_buf(module: *Module, arena: *ASTArena, source_data:
@@ -62,10 +62,10 @@ export extern function lsp_diag_prepare_pipeline_ctx(ctx: *PipelineDepCtx): void
  * @return void
  */
 export function copy_bytes(dest: *u8, src: *u8, n: usize): void {
-  let i: usize = 0 as usize;
+  let i: usize = (0 as usize);
   while (i < n) {
     dest[i] = src[i];
-    i = i + 1 as usize;
+    i = i + (1 as usize);
   }
 }
 export extern function std_heap_alloc(size: usize): *u8;
@@ -120,7 +120,7 @@ out_cap: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: whole-body unsafe FFI gate (Cap-T001).
   // C glue / pipeline_* / heap externs only; no second evaluation path.
   unsafe {
-  if (source == 0 as *u8 || out_buf == 0 as *u8 || out_cap <= 0) {
+  if (source == (0 as *u8) || out_buf == (0 as *u8) || out_cap <= 0) {
     return -1;
   }
   let sl: i32 = source_len;
@@ -128,19 +128,19 @@ out_cap: i32): i32 {
     sl = 0;
   }
   lsp_diag_invalidate_cache();
-  let ncopy: usize = sl as usize;
-  let alloc_bytes: usize = ncopy + 1 as usize;
-  if (alloc_bytes == 0 as usize) {
-    alloc_bytes = 1 as usize;
+  let ncopy: usize = (sl as usize);
+  let alloc_bytes: usize = ncopy + (1 as usize);
+  if (alloc_bytes == (0 as usize)) {
+    alloc_bytes = (1 as usize);
   }
   let mut_buf: *u8 = std_heap_alloc(alloc_bytes);
-  if (mut_buf == 0 as *u8) {
+  if (mut_buf == (0 as *u8)) {
     return -1;
   }
   if (sl > 0) {
     copy_bytes(mut_buf, source, ncopy);
   }
-  mut_buf[sl] = 0 as u8;
+  mut_buf[sl] = (0 as u8);
   
   lsp_diag_collect_begin();
   let rc: i32 = lsp_diag_run_pipeline_on_buf(mut_buf, sl);
@@ -148,14 +148,14 @@ out_cap: i32): i32 {
   std_heap_free(mut_buf);
   let diag_cap: i32 = 65536 + rc * 0;
   let diag_buf: *u8 = std_heap_alloc(diag_cap as usize);
-  if (diag_buf == 0 as *u8) {
+  if (diag_buf == (0 as *u8)) {
     return -1;
   }
   let dn: i32 = lsp_diag_format_diagnostics_json(diag_buf, diag_cap);
   let result_len: i32 = dn;
   if (result_len <= 0) {
-    diag_buf[0] = 91 as u8;
-    diag_buf[1] = 93 as u8;
+    diag_buf[0] = (91 as u8);
+    diag_buf[1] = (93 as u8);
     result_len = 2;
   }
   let resp_len: i32 = lsp_build_response_with_result(id_val, diag_buf, result_len, out_buf,
@@ -176,7 +176,7 @@ export function lsp_find_type_ref_at_pos(arena: *ASTArena, line_1: i32, col_1: i
   // PLATFORM: SHARED — LANG-007 S0: whole-body unsafe FFI gate (Cap-T001).
   // C glue / pipeline_* / heap externs only; no second evaluation path.
   unsafe {
-  if (arena == 0 as *ASTArena) {
+  if (arena == (0 as *ASTArena)) {
     return 0;
   }
   let ei: i32 = 1;
@@ -207,19 +207,19 @@ out_cap: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: whole-body unsafe FFI gate (Cap-T001).
   // C glue / pipeline_* / heap externs only; no second evaluation path.
   unsafe {
-  if (source == 0 as *u8 || out_buf == 0 as *u8 || out_cap <= 0 || source_len < 0) {
+  if (source == (0 as *u8) || out_buf == (0 as *u8) || out_cap <= 0 || source_len < 0) {
     return 0;
   }
   let sl: i32 = source_len;
   if (sl < 0) { sl = 0; }
   /* copy source into heap buffer for pipeline */
-  let ncopy: usize = sl as usize;
-  let ab: usize = ncopy + 1 as usize;
-  if (ab == 0 as usize) { ab = 1 as usize; }
+  let ncopy: usize = (sl as usize);
+  let ab: usize = ncopy + (1 as usize);
+  if (ab == (0 as usize)) { ab = (1 as usize); }
   let mut_buf: *u8 = std_heap_alloc(ab);
-  if (mut_buf == 0 as *u8) { return 0; }
+  if (mut_buf == (0 as *u8)) { return 0; }
   if (sl > 0) { copy_bytes(mut_buf, source, ncopy); }
-  mut_buf[sl] = 0 as u8;
+  mut_buf[sl] = (0 as u8);
   lsp_diag_invalidate_cache();
   lsp_diag_collect_begin();
   let rc: i32 = lsp_diag_run_pipeline_on_buf(mut_buf, sl);
@@ -300,7 +300,7 @@ max_refs: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: whole-body unsafe FFI gate (Cap-T001).
   // C glue / pipeline_* / heap externs only; no second evaluation path.
   unsafe {
-  if (arena == 0 as *ASTArena || out_lines == 0 as *i32 || out_cols == 0 as *i32 || max_refs <= 0) {
+  if (arena == (0 as *ASTArena) || out_lines == (0 as *i32) || out_cols == (0 as *i32) || max_refs <= 0) {
     return 0;
   }
   let ord_call: i32 = 48;
@@ -332,19 +332,19 @@ export function lsp_diag_references_at(source: *u8, source_len: i32, line_0: i32
   // PLATFORM: SHARED — LANG-007 S0: whole-body unsafe FFI gate (Cap-T001).
   // C glue / pipeline_* / heap externs only; no second evaluation path.
   unsafe {
-  if (source == 0 as *u8 || out_lines == 0 as *i32 || out_cols == 0 as *i32 || max_refs <= 0 ||
+  if (source == (0 as *u8) || out_lines == (0 as *i32) || out_cols == (0 as *i32) || max_refs <= 0 ||
   source_len < 0) {
     return 0;
   }
   let sl: i32 = source_len;
   if (sl < 0) { sl = 0; }
-  let ncopy: usize = sl as usize;
-  let ab: usize = ncopy + 1 as usize;
-  if (ab == 0 as usize) { ab = 1 as usize; }
+  let ncopy: usize = (sl as usize);
+  let ab: usize = ncopy + (1 as usize);
+  if (ab == (0 as usize)) { ab = (1 as usize); }
   let mut_buf: *u8 = std_heap_alloc(ab);
-  if (mut_buf == 0 as *u8) { return 0; }
+  if (mut_buf == (0 as *u8)) { return 0; }
   if (sl > 0) { copy_bytes(mut_buf, source, ncopy); }
-  mut_buf[sl] = 0 as u8;
+  mut_buf[sl] = (0 as u8);
   lsp_diag_invalidate_cache();
   lsp_diag_collect_begin();
   let rc: i32 = lsp_diag_run_pipeline_on_buf(mut_buf, sl);
@@ -410,8 +410,8 @@ i32): i32 {
 */
 export function lsp_source_find_function_def(source: *u8, sl: i32, name: *u8, name_len: i32, out_line:
 *i32, out_col: *i32): i32 {
-  if (source == 0 as *u8 || name == 0 as *u8 || name_len <= 0 || sl <= 0 || out_line == 0 as *i32
-  || out_col == 0 as *i32) {
+  if (source == (0 as *u8) || name == (0 as *u8) || name_len <= 0 || sl <= 0 || out_line == (0 as *i32)
+  || out_col == (0 as *i32)) {
     return 0;
   }
   let kw: u8[9] = [102, 117, 110, 99, 116, 105, 111, 110, 32];
@@ -424,7 +424,7 @@ export function lsp_source_find_function_def(source: *u8, sl: i32, name: *u8, na
       boundary = 1;
     } else {
       let prev: u8 = source[i - 1];
-      if (prev == 32 as u8 || prev == 9 as u8 || prev == 10 as u8) {
+      if (prev == (32 as u8) || prev == (9 as u8) || prev == (10 as u8)) {
         boundary = 1;
       }
     }
@@ -456,7 +456,7 @@ export function lsp_source_find_function_def(source: *u8, sl: i32, name: *u8, na
             return 1;
           }
           let ac: u8 = source[after];
-          if (ac == 32 as u8 || ac == 40 as u8 || ac == 10 as u8 || ac == 9 as u8) {
+          if (ac == (32 as u8) || ac == (40 as u8) || ac == (10 as u8) || ac == (9 as u8)) {
             out_line[0] = line;
             out_col[0] = col + 9;
             return 1;
@@ -464,7 +464,7 @@ export function lsp_source_find_function_def(source: *u8, sl: i32, name: *u8, na
         }
       }
     }
-    if (source[i] == 10 as u8) {
+    if (source[i] == (10 as u8)) {
       line = line + 1;
       col = 1;
     } else {
@@ -484,7 +484,7 @@ out_line: *i32, out_col: *i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: whole-body unsafe FFI gate (Cap-T001).
   // C glue / pipeline_* / heap externs only; no second evaluation path.
   unsafe {
-  if (module == 0 as *Module || func_index < 0 || func_index >= module.num_funcs) {
+  if (module == (0 as *Module) || func_index < 0 || func_index >= module.num_funcs) {
     return 0;
   }
   let nl: i32 = pipeline_module_func_name_len_at(module, func_index);
@@ -507,17 +507,17 @@ export function lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32
   // PLATFORM: SHARED — LANG-007 S0: whole-body unsafe FFI gate (Cap-T001).
   // C glue / pipeline_* / heap externs only; no second evaluation path.
   unsafe {
-  if (source == 0 as *u8 || out_line == 0 as *i32 || out_col == 0 as *i32 || source_len < 0) {
+  if (source == (0 as *u8) || out_line == (0 as *i32) || out_col == (0 as *i32) || source_len < 0) {
     return 0;
   }
   let sl: i32 = source_len;
-  let ncopy: usize = sl as usize;
-  let ab: usize = ncopy + 1 as usize;
-  if (ab == 0 as usize) { ab = 1 as usize; }
+  let ncopy: usize = (sl as usize);
+  let ab: usize = ncopy + (1 as usize);
+  if (ab == (0 as usize)) { ab = (1 as usize); }
   let mut_buf: *u8 = std_heap_alloc(ab);
-  if (mut_buf == 0 as *u8) { return 0; }
+  if (mut_buf == (0 as *u8)) { return 0; }
   if (sl > 0) { copy_bytes(mut_buf, source, ncopy); }
-  mut_buf[sl] = 0 as u8;
+  mut_buf[sl] = (0 as u8);
   lsp_diag_invalidate_cache();
   lsp_diag_collect_begin();
   let rc: i32 = lsp_diag_run_pipeline_on_buf(mut_buf, sl);
@@ -582,7 +582,7 @@ export function lsp_collect_semantic_tokens(arena: *ASTArena, out_data: *i32, ou
   // PLATFORM: SHARED — LANG-007 S0: whole-body unsafe FFI gate (Cap-T001).
   // C glue / pipeline_* / heap externs only; no second evaluation path.
   unsafe {
-  if (arena == 0 as *ASTArena || out_data == 0 as *i32 || out_cap < 5) {
+  if (arena == (0 as *ASTArena) || out_data == (0 as *i32) || out_cap < 5) {
     return 0;
   }
   /* See implementation. */
@@ -681,17 +681,17 @@ out_cap: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: whole-body unsafe FFI gate (Cap-T001).
   // C glue / pipeline_* / heap externs only; no second evaluation path.
   unsafe {
-  if (doc_buf == 0 as *u8 || out_buf == 0 as *u8 || out_cap <= 0 || doc_len < 0) {
+  if (doc_buf == (0 as *u8) || out_buf == (0 as *u8) || out_cap <= 0 || doc_len < 0) {
     return -1;
   }
   let sl: i32 = doc_len;
-  let ncopy: usize = sl as usize;
-  let ab: usize = ncopy + 1 as usize;
-  if (ab == 0 as usize) { ab = 1 as usize; }
+  let ncopy: usize = (sl as usize);
+  let ab: usize = ncopy + (1 as usize);
+  if (ab == (0 as usize)) { ab = (1 as usize); }
   let mut_buf: *u8 = std_heap_alloc(ab);
-  if (mut_buf == 0 as *u8) { return -1; }
+  if (mut_buf == (0 as *u8)) { return -1; }
   if (sl > 0) { copy_bytes(mut_buf, doc_buf, ncopy); }
-  mut_buf[sl] = 0 as u8;
+  mut_buf[sl] = (0 as u8);
   lsp_diag_invalidate_cache();
   lsp_diag_collect_begin();
   let rc: i32 = lsp_diag_run_pipeline_on_buf(mut_buf, sl);
@@ -704,14 +704,14 @@ out_cap: i32): i32 {
   let token_cap: i32 = 4096;
   let token_bytes: usize = (token_cap * 4) as usize;
   let token_data_raw: *u8 = std_heap_alloc(token_bytes);
-  let token_data: *i32 = token_data_raw as *i32;
-  if (token_data == 0 as *i32) { return -1; }
+  let token_data: *i32 = (token_data_raw as *i32);
+  if (token_data == (0 as *i32)) { return -1; }
   let n_tokens: i32 = lsp_collect_semantic_tokens(arena, token_data, token_cap);
   
   /* See implementation. */
   let json_cap: i32 = 262144;
   let json_ptr: *u8 = std_heap_alloc(json_cap as usize);
-  if (json_ptr == 0 as *u8) { std_heap_free(token_data as *u8); return -1; }
+  if (json_ptr == (0 as *u8)) { std_heap_free(token_data as *u8); return -1; }
   
   /* See implementation. */
   let prefix: u8[128] = [];

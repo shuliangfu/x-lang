@@ -20,6 +20,7 @@ export extern function pipe_load_i32_le(p: *u8, off: i32): i32;
 export extern function pipe_store_i32_le(p: *u8, off: i32, v: i32): void;
 export extern function pipe_load_ptr_slot(base: *u8, i: i32): *u8;
 export extern function pipe_store_ptr_slot(base: *u8, i: i32, p: *u8): void;
+export extern function glue_index_simd_elem_bytes_c(arena: *u8, ty: i32): i32;
 
 /**
  * Load an i32 that was stored in a pipe cell.
@@ -51,6 +52,8 @@ function w496_cell_ptr(base: *u8): *u8 {
  * @param expr_ref i32 — ARRAY_LIT expression
  * @return i32 — stride in bytes; 4 when the lit should use the default
  * Named i8 returns 1. Named i16 and u16 return 2. TYPE_FN returns 8.
+ * A TYPE_VECTOR element uses glue_index_simd_elem_bytes_c (lanes times
+ * lane size). A 0 from that helper keeps 4. i32, u32, and f32 stay 4.
  * A nested ARRAY_LIT (expr kind 46) returns count times the inner stride.
  * PLATFORM: SHARED — one strong T. Linux, Darwin, and Windows link this ahead of the egg.
  */
@@ -90,7 +93,22 @@ export function pipeline_asm_array_lit_elem_byte_sz_c(arena: *u8, expr_ref: i32)
     if (kind_ord == 2 || kind_ord == 1) {
       return 1;
     }
-    if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14) {
+    if (kind_ord == 0 || kind_ord == 3 || kind_ord == 14) {
+      return 4;
+    }
+    // TYPE_VECTOR as the array element, not a lane of the vector.
+    // Grouping kind 13 with i32 returned 4, so [2]Vec8i = [z, z]
+    // stored one word and lane 0 was not 3. The index stride already
+    // uses this helper. 0 keeps the old 4-byte fallback.
+    // PLATFORM: SHARED.
+    if (kind_ord == 13) {
+      unsafe {
+        pipe_store_i32_le(&cell_i[0], 0, glue_index_simd_elem_bytes_c(arena, elem_ty));
+      }
+      ssz = w496_cell_i32(&cell_i[0]);
+      if (ssz > 0) {
+        return ssz;
+      }
       return 4;
     }
     // TYPE_FN=18 shares the opaque function-pointer width with TYPE_PTR=9.

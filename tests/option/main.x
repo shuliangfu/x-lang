@@ -81,20 +81,20 @@ function main(): i32 {
   option.some_u8(&sm4, 4 as u8);
   option.some_i32(&at1, 1);
   option.some_i32(&at9, 9);
-  let m1: i32 = option.expect_i32(map_i32(sm3, 6));
-  let mapped_u: Option_u8 = map_u8(sm4, 8 as u8);
+  let m1: i32 = option.expect_i32(option.map_i32(sm3, 6));
+  let mapped_u: Option_u8 = option.map_u8(sm4, 8 as u8);
   let m2: u8 = option.expect_u8(mapped_u);
-  let at: i32 = option.expect_i32(and_then_i32(at1, at9));
+  let at: i32 = option.expect_i32(option.and_then_i32(at1, at9));
   if (m1 != 6 || m2 != (8 as u8) || at != 9) { return -13; }
   // See implementation.
   let g: i32 = option.unwrap_or_i32(none_opt, 11);
   if (g != 11) { return -14; }
   // Option_ptr_u8
   let buf: u8[4] = [1, 2, 3, 4];
-  let sp: Option_ptr_u8 = some_ptr_u8(buf);
-  let mp: Option_ptr_u8 = map_ptr_u8(sp, buf);
-  if (!is_some_ptr_u8(mp)) { return -15; }
-  let bp: *u8 = expect_ptr_u8(mp);
+  let sp: Option_ptr_u8 = option.some_ptr_u8(buf);
+  let mp: Option_ptr_u8 = option.map_ptr_u8(sp, buf);
+  if (!option.is_some_ptr_u8(mp)) { return -15; }
+  let bp: *u8 = option.expect_ptr_u8(mp);
   if (bp[0] != (1 as u8)) { return -16; }
   let extra: i32 = m1 + (m2 as i32) + at + g + (bp[0] as i32);
   return a + b + c + (u1 as i32) + (u2 as i32) + extra;

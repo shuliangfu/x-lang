@@ -83,7 +83,7 @@ export extern "C" function free(p: *u8): void;
  * @return ***u8 — address of the process environ pointer
  * PLATFORM: MACOS|DARWIN
  */
-export extern "C" function __NSGetEnviron(): ***u8;
+export extern "C" function _NSGetEnviron(): ***u8;
 
 /**
  * Public getenv face. Defined by runtime_link_abi_user_env.x and, as
@@ -198,7 +198,7 @@ function env_os_owned_set(v: **u8): void {
  */
 function env_os_environ(): **u8 {
   unsafe {
-    let slot: ***u8 = __NSGetEnviron();
+    let slot: ***u8 = _NSGetEnviron();
     if (slot == 0) {
       return 0;
     }
@@ -213,7 +213,7 @@ function env_os_environ(): **u8 {
  */
 function env_os_publish(neu: **u8): void {
   unsafe {
-    let slot: ***u8 = __NSGetEnviron();
+    let slot: ***u8 = _NSGetEnviron();
     env_os_set_ptr(slot as **u8, neu as *u8);
   }
 }
@@ -289,6 +289,13 @@ function env_os_name_ok(name: *u8): i32 {
  * PLATFORM: MACOS|DARWIN
  */
 function env_os_scan(env: **u8, name: *u8, nlen: i32, idx_out: *i32): i32 {
+  // note743y.6.23: tip codegen may call scan before strlen stores nlen (nlen=0).
+  // Always measure name here so setenv cannot publish "=value" entries.
+  let use_nlen: i32 = nlen;
+  unsafe {
+    let sl: i64 = strlen(name);
+    use_nlen = sl as i32;
+  }
   let i: i32 = 0;
   let found: i32 = 0 - 1;
   while (i < 4096) {
@@ -297,7 +304,7 @@ function env_os_scan(env: **u8, name: *u8, nlen: i32, idx_out: *i32): i32 {
       idx_out[0] = found;
       return i;
     }
-    if (found < 0 && env_os_key_eq(ent, name, nlen) == 1) {
+    if (found < 0 && env_os_key_eq(ent, name, use_nlen) == 1) {
       found = i;
     }
     i = i + 1;
@@ -331,11 +338,16 @@ function env_os_copy_slots(dst: **u8, src: **u8, n: i32): void {
  * PLATFORM: MACOS|DARWIN
  */
 function env_os_make_entry(name: *u8, nlen: i32, value: *u8): *u8 {
+  // note743y.6.23: tip may invoke make_entry with stale nlen=0 (strlen not yet stored).
+  let use_nlen: i64 = nlen as i64;
+  unsafe {
+    use_nlen = strlen(name);
+  }
   let vlen: i64 = 0;
   unsafe {
     vlen = strlen(value);
   }
-  let nbytes: i64 = (nlen as i64) + 1 + vlen + 1;
+  let nbytes: i64 = use_nlen + 1 + vlen + 1;
   let entry: *u8 = 0;
   unsafe {
     entry = malloc(nbytes);
@@ -344,13 +356,13 @@ function env_os_make_entry(name: *u8, nlen: i32, value: *u8): *u8 {
     return 0;
   }
   unsafe {
-    memcpy(entry, name, nlen as i64);
+    memcpy(entry, name, use_nlen);
   }
-  entry[nlen] = 61 as u8;
+  entry[use_nlen as i32] = 61 as u8;
   unsafe {
-    memcpy(&entry[nlen + 1], value, vlen);
+    memcpy(&entry[(use_nlen as i32) + 1], value, vlen);
   }
-  entry[nlen + 1 + (vlen as i32)] = 0 as u8;
+  entry[(use_nlen as i32) + 1 + (vlen as i32)] = 0 as u8;
   return entry;
 }
 
@@ -544,17 +556,10 @@ export function env_getenv_exists_c_impl(key: *u8, key_len: i32): i32 {
 }
 
 /**
- * Insert or replace name=value in the Darwin environ block.
- * A new vector is malloc'd on append. The previous vector is freed
- * only when this TU allocated it. Existing entries are not freed.
- * @param name *u8 — NUL-terminated key
- * @param value *u8 — NUL-terminated value, or null for ""
- * @param overwrite i32 — 0 keeps an existing value
- * @return i32 — 0 on success, -1 on failure
- * PLATFORM: MACOS|DARWIN — no libc setenv
+ * Insert or replace name=value (work). nlen_in must be strlen(name).
+ * PLATFORM: MACOS|DARWIN
  */
-#[no_mangle]
-export function env_setenv_c_impl(name: *u8, value: *u8, overwrite: i32): i32 {
+function env_setenv_c_impl_work(name: *u8, value: *u8, overwrite: i32, nlen_in: i64): i32 {
   if (env_os_name_ok(name) == 0) {
     return 0 - 1;
   }
@@ -566,10 +571,7 @@ export function env_setenv_c_impl(name: *u8, value: *u8, overwrite: i32): i32 {
   if (use == 0) {
     use = "";
   }
-  let nlen: i64 = 0;
-  unsafe {
-    nlen = strlen(name);
-  }
+  let nlen: i64 = nlen_in;
   let idx_slot: i32 = 0 - 1;
   let count: i32 = env_os_scan(env, name, nlen as i32, &idx_slot);
   if (idx_slot >= 0 && overwrite == 0) {
@@ -606,6 +608,31 @@ export function env_setenv_c_impl(name: *u8, value: *u8, overwrite: i32): i32 {
   env_os_publish(neu);
   env_os_owned_set(neu);
   return 0;
+}
+
+/**
+ * Insert or replace name=value in the Darwin environ block.
+ * Thin wrapper measures strlen before work so tip cannot schedule
+ * scan/make_entry with nlen=0 (note743y.6.23 setenv_unsetenv exit=2).
+ * @param name *u8 — NUL-terminated key
+ * @param value *u8 — NUL-terminated value, or null for ""
+ * @param overwrite i32 — 0 keeps an existing value
+ * @return i32 — 0 on success, -1 on failure
+ * PLATFORM: MACOS|DARWIN — no libc setenv
+ */
+#[no_mangle]
+export function env_setenv_c_impl(name: *u8, value: *u8, overwrite: i32): i32 {
+  if (name == 0) {
+    return 0 - 1;
+  }
+  let nlen: i64 = 0;
+  unsafe {
+    nlen = strlen(name);
+  }
+  if (nlen <= 0) {
+    return 0 - 1;
+  }
+  return env_setenv_c_impl_work(name, value, overwrite, nlen);
 }
 
 /**
@@ -696,27 +723,19 @@ function env_os_fill_temp(buf: *u8): i32 {
  * @return i32 — bytes excluding NUL, or -1
  * PLATFORM: MACOS|DARWIN
  */
-#[no_mangle]
-export function env_temp_dir_c_impl(out: *u8, out_cap: i32): i32 {
-  if (out == 0 || out_cap <= 0) {
-    return 0 - 1;
-  }
-  if (env_temp_valid == 1 && env_temp_buf != 0 && env_temp_len < (out_cap as i64)) {
-    unsafe {
-      memcpy(out, env_temp_buf, env_temp_len + 1);
-    }
-    return env_temp_len as i32;
-  }
-  let buf: *u8 = env_temp_buf;
+/**
+ * Fill the temp-dir cache at buf and copy into out.
+ * buf is a parameter so tip body_sync cannot hoist `let n = fill(buf)`
+ * above malloc with a null initial binding (env main SEGV).
+ * @param out *u8 — destination
+ * @param out_cap i32 — capacity including the NUL
+ * @param buf *u8 — live 256-byte cache, not null
+ * @return i32 — bytes excluding NUL, or -1
+ * PLATFORM: MACOS|DARWIN
+ */
+function env_temp_dir_with_buf(out: *u8, out_cap: i32, buf: *u8): i32 {
   if (buf == 0) {
-    unsafe {
-      buf = malloc(256);
-    }
-    if (buf == 0) {
-      return 0 - 1;
-    }
-    let buf_slot: **u8 = &env_temp_buf;
-    env_os_set_ptr(buf_slot, buf);
+    return 0 - 1;
   }
   let n: i32 = env_os_fill_temp(buf);
   if (n < 0) {
@@ -729,6 +748,35 @@ export function env_temp_dir_c_impl(out: *u8, out_cap: i32): i32 {
     memcpy(out, buf, (n as i64) + 1);
   }
   return n;
+}
+
+#[no_mangle]
+export function env_temp_dir_c_impl(out: *u8, out_cap: i32): i32 {
+  if (out == 0 || out_cap <= 0) {
+    return 0 - 1;
+  }
+  if (env_temp_valid == 1 && env_temp_buf != 0 && env_temp_len < (out_cap as i64)) {
+    unsafe {
+      memcpy(out, env_temp_buf, env_temp_len + 1);
+    }
+    return env_temp_len as i32;
+  }
+  // No `let n = env_os_fill_temp(...)` in this function — tip body_sync
+  // hoists that let-init to the prologue with buf=0 (memcpy dest null).
+  let cur: *u8 = env_temp_buf;
+  if (cur != 0) {
+    return env_temp_dir_with_buf(out, out_cap, cur);
+  }
+  let neu: *u8 = 0;
+  unsafe {
+    neu = malloc(256);
+  }
+  if (neu == 0) {
+    return 0 - 1;
+  }
+  let buf_slot: **u8 = &env_temp_buf;
+  env_os_set_ptr(buf_slot, neu);
+  return env_temp_dir_with_buf(out, out_cap, neu);
 }
 
 /**
@@ -821,22 +869,21 @@ function env_os_copy_from(dst: *u8, src: *u8, start: i32, n: i32): void {
  * @return i32 — 1 on success, 0 when index is past the end, -1 on error
  * PLATFORM: MACOS|DARWIN
  */
-#[no_mangle]
-export function env_iter_at_c_impl(index: i32, key_out: *u8, key_cap: i32, val_out: *u8, val_cap: i32): i32 {
-  if (index < 0 || key_out == 0 || val_out == 0 || key_cap <= 0 || val_cap <= 0) {
-    return 0 - 1;
-  }
-  let env: **u8 = env_os_environ();
-  if (env == 0) {
-    return 0;
-  }
-  /* Copy the index into a local. Indexing with the parameter itself
-   * loads the first word of the entry and treats that word as the
-   * pointer. A local index loads the slot. PLATFORM: MACOS|DARWIN. */
-  let slot: i32 = index;
-  let ent: *u8 = env[slot];
+/**
+ * Split one non-null environ entry into key/value buffers.
+ * ent is a parameter so tip body_sync cannot hoist `let eq = eq_at(ent)`
+ * above the null check (env_iter SEGV in eq_at ldrb [x0=#0]).
+ * @param ent *u8 — environ entry, not null
+ * @param key_out *u8 — key destination
+ * @param key_cap i32 — key capacity
+ * @param val_out *u8 — value destination
+ * @param val_cap i32 — value capacity
+ * @return i32 — 1 on success, -1 on error
+ * PLATFORM: MACOS|DARWIN
+ */
+function env_iter_at_c_impl_work(ent: *u8, key_out: *u8, key_cap: i32, val_out: *u8, val_cap: i32): i32 {
   if (ent == 0) {
-    return 0;
+    return 0 - 1;
   }
   let eq: i32 = env_os_eq_at(ent);
   if (eq < 0) {
@@ -854,4 +901,26 @@ export function env_iter_at_c_impl(index: i32, key_out: *u8, key_cap: i32, val_o
   key_out[eq] = 0 as u8;
   env_os_copy_from(val_out, ent, eq + 1, vlen);
   return 1;
+}
+
+#[no_mangle]
+export function env_iter_at_c_impl(index: i32, key_out: *u8, key_cap: i32, val_out: *u8, val_cap: i32): i32 {
+  if (index < 0 || key_out == 0 || val_out == 0 || key_cap <= 0 || val_cap <= 0) {
+    return 0 - 1;
+  }
+  let env: **u8 = env_os_environ();
+  if (env == 0) {
+    return 0;
+  }
+  /* Copy the index into a local. Indexing with the parameter itself
+   * loads the first word of the entry and treats that word as the
+   * pointer. A local index loads the slot. PLATFORM: MACOS|DARWIN. */
+  let slot: i32 = index;
+  let ent: *u8 = env[slot];
+  if (ent == 0) {
+    return 0;
+  }
+  // No `let eq = env_os_eq_at(ent)` here — tip hoists that let-init past
+  // the null check with ent=0.
+  return env_iter_at_c_impl_work(ent, key_out, key_cap, val_out, val_cap);
 }

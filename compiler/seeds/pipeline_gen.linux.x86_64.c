@@ -117,8 +117,8 @@ struct parser_ExternParseResult { struct lexer_Lexer next_lex; uint8_t name[256]
 struct parser_TrySkipAllowResult { struct lexer_Lexer lex; int32_t skipped; uint8_t _pad[4]; };
 struct parser_LibraryParseResult { int ok; uint8_t _pad[4]; struct lexer_Lexer next_lex; uint8_t name[256]; int32_t name_len; uint8_t _pad_tail[4]; };
 struct parser_LibraryParseScanResult { int ok; uint8_t _pad[4]; struct lexer_Lexer next_lex; uint8_t name[256]; int32_t name_len; uint8_t param_name[256]; int32_t param_name_len; uint8_t param_type_name[256]; int32_t param_type_len; uint8_t field_name[256]; int32_t field_len; uint8_t _pad_tail[4]; uint8_t _pad_tail2[4]; };
-struct codegen_CodegenOutBuf { uint8_t data[9437184]; int32_t length; };
-struct codegen_outbuf_abi_CodegenOutBuf { uint8_t data[9437184]; int32_t length; };
+struct codegen_CodegenOutBuf { int32_t length; uint8_t data[9437184]; };
+struct codegen_outbuf_abi_CodegenOutBuf { int32_t length; uint8_t data[9437184]; };
 enum asm_types_TargetArch { asm_types_TargetArch_TARGET_X86_64, asm_types_TargetArch_TARGET_ARM64, asm_types_TargetArch_TARGET_RISCV64, asm_types_TargetArch_TARGET_NONE };
 struct platform_elf_ElfLabelEntry { uint8_t name[256]; int32_t name_len; int32_t offset; };
 struct platform_elf_ElfPatchEntry { int32_t rel32_offset; uint8_t name[256]; int32_t name_len; int32_t patch_imm_bits; };

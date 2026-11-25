@@ -44,10 +44,7 @@ int xlang_mbedtls_bio_send_impl(void *ctx, const unsigned char *buf, size_t len)
 }
 
 #ifndef XLANG_RUNTIME_TLS_MBEDTLS_BIO_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-int xlang_mbedtls_bio_send(void *ctx, const unsigned char *buf, size_t len) {
-    return xlang_mbedtls_bio_send_impl(ctx, buf, len);
-}
+/* 记253／9.1: cold under #ifndef XLANG_RUNTIME_TLS_MBEDTLS_BIO_FROM_X removed */
 #endif
 
 /**
@@ -72,10 +69,6 @@ int xlang_mbedtls_bio_recv_impl(void *ctx, unsigned char *buf, size_t len) {
 }
 
 #ifndef XLANG_RUNTIME_TLS_MBEDTLS_BIO_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-int xlang_mbedtls_bio_recv(void *ctx, unsigned char *buf, size_t len) {
-    return xlang_mbedtls_bio_recv_impl(ctx, buf, len);
-}
 #endif
 
 

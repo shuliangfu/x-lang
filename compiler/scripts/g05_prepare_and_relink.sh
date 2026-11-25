@@ -19,6 +19,11 @@
 # NOT physical delete — thin edges + B2 + mk lists + LD / pipeline bags remain.
 
 set -e
+# Knife 255 / 10.1: product path forbids typeck/codegen residual host-cc
+# in g05_relink_env (tip allow_legacy + keep typeck_ctfe.o). Archaeology:
+# XLANG_TYPECK_HOST_CC=1. Full cold zero-cc is 10.2.
+XLANG_TYPECK_HOST_CC="${XLANG_TYPECK_HOST_CC:-0}"
+export XLANG_TYPECK_HOST_CC
 cd "$(dirname "$0")/.."
 
 # Default: sync xlang_asm (historic G05_SYNC_ASM:-1).
@@ -71,6 +76,10 @@ export G05_CC G05_CFLAGS G05_OUT G05_XLANG_C G05_BOOTSTRAP G05_OBJS
 # Keep inner sync off so we do not double-cp; outer block below is the authority.
 export G05_SYNC_ASM=0
 bash scripts/g05_relink_xlang.sh
+# Win tip: driver_run_asm_backend misloads 7th arg (argv) from 0x10(%rbp).
+if [ "$(uname -s 2>/dev/null | cut -c1-5)" = "MINGW" ] || [ "$(uname -o 2>/dev/null)" = "Msys" ] || [ -n "$WINDIR" ]; then
+  python3 scripts/win_pe_argv7_patch.py ./xlang.exe ./xlang ./xlang_asm.exe ./xlang_asm 2>/dev/null || true
+fi
 
 if [ "$SYNC_ASM" = "1" ]; then
   _sync_src="${G05_OUT:-xlang}"
@@ -105,6 +114,32 @@ if [ -x ./xlang_asm ]; then
   _stage2_xl=./xlang_asm
 elif [ -x ./xlang ]; then
   _stage2_xl=./xlang
+fi
+# note743y.6.23: tip-cold tip SEGV on fmt_check_cmd_thin; Cap tip / pin-egg
+# emit. Probe tip; on signal/CG002 miss, switch XLANG to Cap tip / egg so
+# FORCE does not fill g05_xasm_crash.log. PLATFORM: MACOS tip cold.
+if [ "$(uname -s 2>/dev/null || true)" = "Darwin" ] && [ -n "$_stage2_xl" ]; then
+  _s2_probe="$(mktemp "${TMPDIR:-/tmp}/stage2_fmt_probe.XXXXXX.o")"
+  _s2_rc=0
+  "$_stage2_xl" -backend asm -c src/driver/fmt_check_cmd_thin.x -o "$_s2_probe" \
+    >/dev/null 2>&1 || _s2_rc=$?
+  if [ "$_s2_rc" -ne 0 ] || [ ! -s "$_s2_probe" ]; then
+    _s2_alt=""
+    for _s2c in /tmp/cap_tip_l4_safe_406200eef /tmp/cap_tip_l4_safe_* \
+      "${HOME:-}/.cache/xlang_cap_tip_l4" .cap_tip_l4_cache; do
+      [ -x "$_s2c/xlang_asm" ] && { _s2_alt="$_s2c/xlang_asm"; break; }
+      [ -x "$_s2c/xlang" ] && { _s2_alt="$_s2c/xlang"; break; }
+    done
+    if [ -z "$_s2_alt" ] && [ -x seeds/bootstrap_xlangc.darwin.arm64 ]; then
+      _s2_alt=seeds/bootstrap_xlangc.darwin.arm64
+    fi
+    if [ -n "$_s2_alt" ]; then
+      echo "g05_prepare_and_relink: stage2 tip fmt probe FAIL (rc=$_s2_rc) → $_s2_alt" >&2
+      _stage2_xl="$_s2_alt"
+    fi
+  fi
+  rm -f "$_s2_probe"
+  unset _s2_probe _s2_rc _s2_alt _s2c
 fi
 if [ -n "$_stage2_xl" ] \
   && nm "$_stage2_xl" 2>/dev/null | grep -q 'pipeline_asm_modlet_lea_rax_' \

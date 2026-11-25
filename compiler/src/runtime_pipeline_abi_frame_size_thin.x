@@ -4,6 +4,9 @@
 //   w1032/w1033/w1040/w1042 call-spill scratch (leaf 0, small measured,
 //     medium +64 pad and +64 trailer, heavy 2048 floor);
 //   w1043 48-byte cap for param-home-only forwarders (num_params <= 4);
+//   10.22: skip w1043 + reserve 48 when return is TYPE_ARRAY/SLICE (Path B0
+//     durable rar_src/rar_dst spills; else row0_slc frame 0x30 writes fp+0x38
+//     over caller LR → Bus error 138 on ret_index_array_param);
 //   w1047 x86_64 forwarders with 5+ formals reserve shadow + stack args;
 //   w1484 arm64 doubles the call-spill budget (16-byte temp slots);
 //   w1490 locals of blocks reached only through EXPR_IF / EXPR_BLOCK /
@@ -12,6 +15,7 @@
 //     has a call (gp from glue_asm_last_call_max_gp_units_c). The host check
 //     is link_abi_host_is_windows() at run time instead of #ifdef _WIN32.
 // src/runtime_pipeline_abi.x is not edited (pabi is not rebuilt).
+// 10.22: +512 pad when size>=2048 (method_sig expr-temp smash of caller LR).
 // g05_relink_env.sh compiles this with the current product (pure asm, no host
 // cc) and links it ahead of pabi; Windows weakens the pabi_weak T.
 // PLATFORM: SHARED freestanding frame-size · MACOS|ARM64 · LINUX x86_64 · WINDOWS x86_64.
@@ -53,6 +57,11 @@ export extern function ast_pipeline_block_if_then_body_ref(arena: *u8, block_ref
 export extern function ast_pipeline_block_if_else_body_ref(arena: *u8, block_ref: i32, i: i32): i32;
 export extern function pipeline_block_region_body_ref(arena: *u8, block_ref: i32, i: i32): i32;
 export extern function pipeline_block_let_init_ref(arena: *u8, block_ref: i32, i: i32): i32;
+export extern function pipeline_block_let_type_ref(arena: *u8, block_ref: i32, i: i32): i32;
+export extern function ast_ast_block_num_consts(arena: *u8, block_ref: i32): i32;
+export extern function pipeline_block_const_init_ref(arena: *u8, block_ref: i32, i: i32): i32;
+export extern function pipeline_block_const_type_ref(arena: *u8, block_ref: i32, i: i32): i32;
+export extern function pipeline_type_kind_ord_at(arena: *u8, tr: i32): i32;
 export extern function ast_pipeline_block_expr_stmt_ref(arena: *u8, block_ref: i32, i: i32): i32;
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_block_ref_at(arena: *u8, expr_ref: i32): i32;
@@ -260,6 +269,7 @@ function w1500_fs_core(num_params: i32, arena: *u8, block_ref: i32, mod: *u8, fu
   let hoist: i32 = 0;
   let rem: i32 = 0;
   let homes: i32 = 0;
+  let ret_tk: i32 = 0;
   if (arena == (0 as *u8) || block_ref <= 0) {
     return 64;
   }
@@ -302,6 +312,22 @@ function w1500_fs_core(num_params: i32, arena: *u8, block_ref: i32, mod: *u8, fu
   if (mod != (0 as *u8) && func_index >= 0) {
     unsafe {
       ret_sz = glue_func_return_byte_size_c(mod, arena, func_index);
+    }
+    unsafe {
+      ret_tk = pipeline_module_func_return_type_at(mod, func_index);
+    }
+    if (ret_tk > 0) {
+      unsafe {
+        ret_tk = pipeline_type_kind_ord_at(arena, ret_tk);
+      }
+    } else {
+      ret_tk = 0;
+    }
+    // Path B0 durable COMMON copy: rar_src + rar_dst (16+16) + align slack.
+    // Must be in next_off before fill so prologue covers fp+0x38 stores.
+    // PLATFORM: SHARED · TYPE_ARRAY=10 · TYPE_SLICE=11.
+    if (ret_tk == 10 || ret_tk == 11) {
+      next_off = next_off + 48;
     }
     if (ret_sz > 16) {
       next_off = next_off + 8;
@@ -396,12 +422,83 @@ function w1500_fs_core(num_params: i32, arena: *u8, block_ref: i32, mod: *u8, fu
   // w1043: param-home-only forwarders cap at 48 (num_params <= 4).
   // w1503: arm64 saves x19 at [sp+size], so the cap only applies when every
   // home (params, locals, binop left-preserve homes) ends at or below 48.
-  if (ret_sz <= 16 && call_spill == 0 && arr_temp == 0 && wa_temp == 0 && reent_dc == 0 && (is_arm == 0 || next_off + homes * 8 <= 48)) {
+  // 10.22: never cap when return is ARRAY/SLICE — Path B0 needs the +48.
+  if (ret_tk != 10 && ret_tk != 11 && ret_sz <= 16 && call_spill == 0 && arr_temp == 0 && wa_temp == 0 && reent_dc == 0 && (is_arm == 0 || next_off + homes * 8 <= 48)) {
     if (num_params <= 4 && size > 48 && size <= 64) {
       return 48;
     }
   }
   return size;
+}
+
+/**
+ * Extra frame bytes for a slice let initialized by an array literal.
+ * `let x: [][]T = [A]` parks the row fat at next_offset during the body,
+ * after this size was frozen. wrap_row's home was 0x80 in a 0x50 frame,
+ * so the length store covered the caller's saved fp. 80 bytes keeps that
+ * home below the arm64 x19 slot, which sits at size-16.
+ * @param arena *u8 — AST arena; null returns 0
+ * @param block_ref i32 — function body; <=0 returns 0
+ * @return i32 — 80 when such a let exists, else 0
+ * PLATFORM: SHARED.
+ */
+function w1500_fs_slice_row_pad(arena: *u8, block_ref: i32): i32 {
+  if (arena == (0 as *u8) || block_ref <= 0) {
+    return 0;
+  }
+  let n: i32 = 0;
+  unsafe {
+    n = ast_ast_block_num_lets(arena, block_ref);
+  }
+  let i: i32 = 0;
+  while (i < n) {
+    let init_ref: i32 = 0;
+    let ty: i32 = 0;
+    unsafe {
+      init_ref = pipeline_block_let_init_ref(arena, block_ref, i);
+      ty = pipeline_block_let_type_ref(arena, block_ref, i);
+    }
+    if (ty > 0 && init_ref > 0) {
+      let tk: i32 = 0;
+      let ik: i32 = 0;
+      unsafe {
+        tk = pipeline_type_kind_ord_at(arena, ty);
+        ik = pipeline_expr_kind_ord_at(arena, init_ref);
+      }
+      // TYPE_SLICE = 11. ARRAY_LIT = 46.
+      if (tk == 11 && ik == 46) {
+        return 80;
+      }
+    }
+    i = i + 1;
+  }
+  let nc: i32 = 0;
+  unsafe {
+    nc = ast_ast_block_num_consts(arena, block_ref);
+  }
+  i = 0;
+  while (i < nc) {
+    let init_ref: i32 = 0;
+    let ty: i32 = 0;
+    unsafe {
+      init_ref = pipeline_block_const_init_ref(arena, block_ref, i);
+      ty = pipeline_block_const_type_ref(arena, block_ref, i);
+    }
+    if (ty > 0 && init_ref > 0) {
+      let tk: i32 = 0;
+      let ik: i32 = 0;
+      unsafe {
+        tk = pipeline_type_kind_ord_at(arena, ty);
+        ik = pipeline_expr_kind_ord_at(arena, init_ref);
+      }
+      // TYPE_SLICE = 11. ARRAY_LIT = 46. Same pad as a let.
+      if (tk == 11 && ik == 46) {
+        return 80;
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
 }
 
 /**
@@ -431,6 +528,16 @@ export function pipeline_asm_compute_frame_size_c(num_params: i32, arena: *u8, b
   if (arena == (0 as *u8) || block_ref <= 0) {
     return size;
   }
+  // Slice row of an array literal. See w1500_fs_slice_row_pad.
+  // PLATFORM: SHARED.
+  let row_pad: i32 = w1500_fs_slice_row_pad(arena, block_ref);
+  if (row_pad > 0) {
+    size = size + row_pad;
+    rem = size % 16;
+    if (rem != 0) {
+      size = size + (16 - rem);
+    }
+  }
   unsafe {
     win = link_abi_host_is_windows();
     arm = pipeline_asm_host_is_arm64_c();
@@ -441,8 +548,25 @@ export function pipeline_asm_compute_frame_size_c(num_params: i32, arena: *u8, b
   // literal over the arm64 x19 save slot (the second one into the caller's
   // fp/lr); on SysV x86_64 the literal sat under rsp and the emitter's
   // push rax overwrote the line field.
+  // 10.62: on arm64 the prologue parks x19 at [sp,#align(size)]. A by-value
+  // STRUCT_LIT call arg (`sink(Pair { .. })`) takes its temp from next_offset
+  // up through the end of the lit reservation; without a separate +16 those
+  // bytes land on the x19 slot. Reserve lit and x19 apart, then align.
   // PLATFORM: MACOS|ARM64 · LINUX x86_64 (Windows x86_64 below).
-  if (win == 0 || arm != 0) {
+  if (arm != 0) {
+    unsafe {
+      lit = glue_asm_last_struct_lit_temp_bytes_c();
+    }
+    if (lit > 0) {
+      // 10.62: reserve lit and a dedicated 16B gap before prologue x19.
+      size = size + lit + 16;
+      rem = size % 16;
+      if (rem != 0) {
+        size = size + (16 - rem);
+      }
+    }
+    lit = 0;
+  } else if (win == 0) {
     unsafe {
       lit = glue_asm_last_struct_lit_temp_bytes_c();
     }
@@ -519,6 +643,19 @@ export function pipeline_asm_compute_frame_size_c(num_params: i32, arena: *u8, b
         out = out + (16 - rem);
       }
       size = size + out;
+    }
+  }
+  // 10.22: large bodies (e.g. parser_asm_skip_one_trait_method_sig_into_c)
+  // bump next_offset past the prologue frame during expr temps; the first
+  // overrun lands on the caller saved LR (Darwin watch: str [x29,#0xe68]
+  // with frame 0xe60 → EXC_BAD_ACCESS address=0x1 on boundary dyn_*).
+  // Pad when the core frame is already large so emit temps stay inside.
+  // PLATFORM: SHARED.
+  if (size >= 2048) {
+    size = size + 512;
+    rem = size % 16;
+    if (rem != 0) {
+      size = size + (16 - rem);
     }
   }
   return size;

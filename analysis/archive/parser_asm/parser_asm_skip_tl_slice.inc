@@ -957,6 +957,24 @@ typedef struct {
   int32_t method_param_elem_elem_kinds[XLANG_SKIP_TRAIT_METH_MAX][XLANG_SKIP_TRAIT_PARAM_MAX];
   int32_t num_methods;
 } xlang_skip_trait_reg_ent_t;
+/* Linux into_slice-only overlay: XLANG_SKIP_TRAIT_REG_EXTERN → use tip/thin_glue
+ * BSS (static here would be a second private table → unknown trait). */
+#if defined(XLANG_SKIP_TRAIT_REG_EXTERN)
+extern xlang_skip_trait_reg_ent_t g_xlang_skip_trait_reg[XLANG_SKIP_TRAIT_REG_MAX];
+extern int32_t g_xlang_skip_trait_reg_n;
+extern uint8_t g_xlang_skip_impl_trait[XLANG_SKIP_IMPL_SEEN_MAX][64];
+extern int32_t g_xlang_skip_impl_trait_len[XLANG_SKIP_IMPL_SEEN_MAX];
+extern int32_t g_xlang_skip_impl_seen_n;
+extern int32_t g_xlang_skip_impl_line[XLANG_SKIP_IMPL_SEEN_MAX];
+extern int32_t g_xlang_skip_impl_col[XLANG_SKIP_IMPL_SEEN_MAX];
+/* wave428: for-type of `impl Trait for T` (T may be *U). -1 kind = not captured. */
+extern int32_t g_xlang_skip_impl_for_kinds[XLANG_SKIP_IMPL_SEEN_MAX];
+extern int32_t g_xlang_skip_impl_for_is_ptr[XLANG_SKIP_IMPL_SEEN_MAX];
+extern uint8_t g_xlang_skip_impl_for_names[XLANG_SKIP_IMPL_SEEN_MAX][64];
+extern int32_t g_xlang_skip_impl_for_name_lens[XLANG_SKIP_IMPL_SEEN_MAX];
+/* wave425: arena stashed at reset so check can ord return_type_ref without API churn. */
+extern void *g_xlang_trait_check_arena;
+#else
 static xlang_skip_trait_reg_ent_t g_xlang_skip_trait_reg[XLANG_SKIP_TRAIT_REG_MAX];
 static int32_t g_xlang_skip_trait_reg_n;
 static uint8_t g_xlang_skip_impl_trait[XLANG_SKIP_IMPL_SEEN_MAX][64];
@@ -971,6 +989,7 @@ static uint8_t g_xlang_skip_impl_for_names[XLANG_SKIP_IMPL_SEEN_MAX][64];
 static int32_t g_xlang_skip_impl_for_name_lens[XLANG_SKIP_IMPL_SEEN_MAX];
 /* wave425: arena stashed at reset so check can ord return_type_ref without API churn. */
 static void *g_xlang_trait_check_arena;
+#endif
 
 /**
  * Map builtin type token → TypeKind ordinal (align PARSER_ASM_TYPE_* / ast TypeKind).
@@ -1085,8 +1104,13 @@ int32_t xlang_generic_bound_diag_not_impl_c(const uint8_t *ta, int32_t ta_len,
  * inside xlang_trait_check_impls_complete_c (which only gets *Module). Any file
  * exercising generic bounds has at least a trait+struct decl, so at least one
  * skip function runs before the trait checker. PLATFORM: SHARED parse. */
+#if defined(XLANG_SKIP_TRAIT_REG_EXTERN)
+extern uint8_t *g_w439_src_data;
+extern int32_t g_w439_src_len;
+#else
 static uint8_t *g_w439_src_data;
 static int32_t g_w439_src_len;
+#endif
 
 /**
  * TYPE_NAMED spelling "Self" (capital S) — not TOKEN_SELF lowercase binding.
@@ -4445,9 +4469,10 @@ int32_t xlang_skip_trait_check_ret_shape_c(void *module, void *arena,
                     if (pelem != 0) {
                       pgek = pipeline_type_kind_ord_at(arena, pelem);
                     }
+                    /* 10.22: match tip — dims[eend]=extra SLICE, dims[eend+1]=extra PTR */
                     extra_slice = 0;
                     if (eend < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
-                      extra_slice = g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][eend + 1];
+                      extra_slice = g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][eend];
                     if (extra_slice > 0) {
                       while (extra_slice > 0) {
                         if (pgek != XLANG_TRAIT_TY_SLICE || pelem == 0) {
@@ -4464,8 +4489,8 @@ int32_t xlang_skip_trait_check_ret_shape_c(void *module, void *arena,
                       }
                     }
                     extra_ptr = 0;
-                    if (eend < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
-                      extra_ptr = g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][eend];
+                    if (eend + 1 < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                      extra_ptr = g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][eend + 1];
                     if (extra_ptr > 0) {
                       while (extra_ptr > 0) {
                         if (pgek != XLANG_TRAIT_TY_PTR || pelem == 0) {
@@ -4511,6 +4536,49 @@ int32_t xlang_skip_trait_check_ret_shape_c(void *module, void *arena,
                     }
                     pgek = pipeline_type_kind_ord_at(arena, pelem);
                     extra = extra - 1;
+                  }
+                  if (!mm) {
+                    int32_t extra_ptr =
+                        g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][1];
+                    if (extra_ptr > 0) {
+                      while (extra_ptr > 0) {
+                        if (pgek != XLANG_TRAIT_TY_PTR || pelem == 0) {
+                          mm = 1;
+                          break;
+                        }
+                        pelem = pipeline_type_elem_ref_at(arena, pelem);
+                        if (pelem == 0) {
+                          mm = 1;
+                          break;
+                        }
+                        pgek = pipeline_type_kind_ord_at(arena, pelem);
+                        extra_ptr = extra_ptr - 1;
+                      }
+                    }
+                  }
+                } else if (eend == 0) {
+                  /*
+                   * 10.22: ndims=0 `***T` / `**[]T` — tip .x peels dims[0]
+                   * extra SLICE then dims[1] extra PTR; C wave954 omitted
+                   * this arm (direct compare → T001 on ***i32). PLATFORM:
+                   * SHARED. Twin of tip pthin_skip_tl.x eend==0 PTR arm.
+                   */
+                  int32_t extra_slice =
+                      g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][0];
+                  if (extra_slice > 0) {
+                    while (extra_slice > 0) {
+                      if (pgek != XLANG_TRAIT_TY_SLICE || pelem == 0) {
+                        mm = 1;
+                        break;
+                      }
+                      pelem = pipeline_type_elem_ref_at(arena, pelem);
+                      if (pelem == 0) {
+                        mm = 1;
+                        break;
+                      }
+                      pgek = pipeline_type_kind_ord_at(arena, pelem);
+                      extra_slice = extra_slice - 1;
+                    }
                   }
                   if (!mm) {
                     int32_t extra_ptr =
@@ -6290,9 +6358,10 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
                     if (pelem != 0) {
                       pgek = pipeline_type_kind_ord_at(arena, pelem);
                     }
+                    /* 10.22: match tip — dims[eend]=extra SLICE, dims[eend+1]=extra PTR */
                     extra_slice = 0;
                     if (eend < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
-                      extra_slice = g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][eend + 1];
+                      extra_slice = g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][eend];
                     if (extra_slice > 0) {
                       while (extra_slice > 0) {
                         if (pgek != XLANG_TRAIT_TY_SLICE || pelem == 0) {
@@ -6309,8 +6378,8 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
                       }
                     }
                     extra_ptr = 0;
-                    if (eend < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
-                      extra_ptr = g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][eend];
+                    if (eend + 1 < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                      extra_ptr = g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][eend + 1];
                     if (extra_ptr > 0) {
                       while (extra_ptr > 0) {
                         if (pgek != XLANG_TRAIT_TY_PTR || pelem == 0) {
@@ -6356,6 +6425,49 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
                     }
                     pgek = pipeline_type_kind_ord_at(arena, pelem);
                     extra = extra - 1;
+                  }
+                  if (!mm) {
+                    int32_t extra_ptr =
+                        g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][1];
+                    if (extra_ptr > 0) {
+                      while (extra_ptr > 0) {
+                        if (pgek != XLANG_TRAIT_TY_PTR || pelem == 0) {
+                          mm = 1;
+                          break;
+                        }
+                        pelem = pipeline_type_elem_ref_at(arena, pelem);
+                        if (pelem == 0) {
+                          mm = 1;
+                          break;
+                        }
+                        pgek = pipeline_type_kind_ord_at(arena, pelem);
+                        extra_ptr = extra_ptr - 1;
+                      }
+                    }
+                  }
+                } else if (eend == 0) {
+                  /*
+                   * 10.22: ndims=0 `***T` / `**[]T` — tip .x peels dims[0]
+                   * extra SLICE then dims[1] extra PTR; C wave954 omitted
+                   * this arm (direct compare → T001 on ***i32). PLATFORM:
+                   * SHARED. Twin of tip pthin_skip_tl.x eend==0 PTR arm.
+                   */
+                  int32_t extra_slice =
+                      g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][0];
+                  if (extra_slice > 0) {
+                    while (extra_slice > 0) {
+                      if (pgek != XLANG_TRAIT_TY_SLICE || pelem == 0) {
+                        mm = 1;
+                        break;
+                      }
+                      pelem = pipeline_type_elem_ref_at(arena, pelem);
+                      if (pelem == 0) {
+                        mm = 1;
+                        break;
+                      }
+                      pgek = pipeline_type_kind_ord_at(arena, pelem);
+                      extra_slice = extra_slice - 1;
+                    }
                   }
                   if (!mm) {
                     int32_t extra_ptr =
@@ -9660,17 +9772,26 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                                  || ent->method_ret_kinds[mi_reg]
                                         == XLANG_TRAIT_TY_ARRAY)) {
                     /*
-                     * PTR or SLICE outer + PTR or SLICE elem: must be
-                     * PTR-to-SLICE sentinel. dims[0] already holds
-                     * extra SLICE count (from ret_elem_prefix_arr_more
-                     * extra `[]` scanner or line 7048 initial setup).
-                     * Set ndims=-2; the suffix scanner below will add
-                     * more extra wraps before final. Do not invent -3.
+                     * PTR elem + PTR outer (`**T` / `***T`) keeps ndims=0.
+                     * Extra STAR count is dims[1]. Stamping -2 hid it and
+                     * dyn return of `***i32` collapsed (10.22 Linux C
+                     * into_slice vs tip). Twin of tip pthin_skip_tl.x.
+                     * Other PTR/SLICE outer+elem: PTR_TO_SLICE sentinel.
+                     * Do not invent -3. PLATFORM: SHARED.
                      */
-                    int32_t cur_nd = ent->method_ret_elem_array_ndims[mi_reg];
-                    if (cur_nd == 0) {
-                      ent->method_ret_elem_array_ndims[mi_reg] =
-                          XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS;
+                    if (!(ent->method_ret_elem_kinds[mi_reg] == XLANG_TRAIT_TY_PTR
+                          && ent->method_ret_kinds[mi_reg] == XLANG_TRAIT_TY_PTR)) {
+                      int32_t cur_nd = ent->method_ret_elem_array_ndims[mi_reg];
+                      if (cur_nd == 0) {
+                        int32_t extra = 0;
+                        if (ent->method_ret_elem_kinds[mi_reg] == XLANG_TRAIT_TY_SLICE
+                            && ent->method_ret_kinds[mi_reg] == XLANG_TRAIT_TY_PTR)
+                          extra = ent->method_ret_elem_array_dims[mi_reg][0];
+                        if (extra <= 0) {
+                          ent->method_ret_elem_array_ndims[mi_reg] =
+                              XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS;
+                        }
+                      }
                     }
                   }
                   ret_elem_elem_pending = 0;

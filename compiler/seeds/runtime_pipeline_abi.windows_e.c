@@ -11682,7 +11682,7 @@ int32_t codegen_out_buf_len(uint8_t * out) {
   if ((out ==0)) {
     return 0;
   }
-  return pipe_load_i32_le(out, 9437184);
+  return pipe_load_i32_le(out, 0);
 }
 void codegen_out_buf_set_len(uint8_t * out, int32_t n) {
   if ((out ==0)) {
@@ -11692,7 +11692,7 @@ void codegen_out_buf_set_len(uint8_t * out, int32_t n) {
   if ((v < 0)) {
     (void)((v = 0));
   }
-  (void)(pipe_store_i32_le(out, 9437184, v));
+  (void)(pipe_store_i32_le(out, 0, v));
 }
 int32_t pipeline_resolve_path_last_off_get_c(void) {
   return g_pipe_resolve_off;
@@ -13584,7 +13584,7 @@ int32_t cg_se_out_append_bytes(uint8_t * out, uint8_t * p, int32_t n) {
   }
   int32_t i = 0;
   while ((i < n)) {
-    (void)(((out)[(len + i)] = (p)[i]));
+    (void)(((out)[((4 + len) + i)] = (p)[i]));
     (void)((i = (i + 1)));
   }
   (void)(codegen_out_buf_set_len(out, (len + n)));
@@ -29544,12 +29544,13 @@ int32_t glue_vector_var_lane_stack_off_elf_c(uint8_t * arena, uint8_t * ctx, int
   int32_t ltk = 0;
   int32_t field_off = 0;
   uint8_t * mod = 0;
-  int32_t chain_fa[16] = {};
+  /* note743y.6.9: no ={} — avoids GCC movaps under tip rsp misalign. */
+  int32_t chain_fa[16];
   int32_t chain_n = 0;
   int32_t walk_cur = 0;
   int32_t walk_i = 0;
   int32_t fa_ref = 0;
-  uint8_t vname[256] = {};
+  uint8_t vname[256];
   int32_t vlen = 0;
   if ((((((arena ==0) || (ctx ==0)) || (var_expr_ref <=0)) || (lane < 0)) || (esz <=0))) {
     return -1;
@@ -46280,7 +46281,7 @@ int32_t glue_store_retval_pair_to_rbp_elf_c(uint8_t * m, uint8_t * arena, uint8_
   }
   if ((((sz > 16) && (init_ref > 0)) && (arena !=0))) {
     (void)((ko = pipeline_expr_kind_ord_at(arena, init_ref)));
-    ((((ko ==48) || (ko ==49)) || (ko ==47)) ? ({   return glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, slot_off, sz, ta);
+    ((((((ko ==48) || (ko ==49)) || (ko ==47)) || (ko ==45)) || ((ko ==44) || (ko ==3))) ? ({   return glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, slot_off, sz, ta);
  }) : 0);
   }
   if (((((sz > 8) && (sz <=16)) && (init_ref > 0)) && (arena !=0))) {
@@ -55202,7 +55203,7 @@ int32_t pipe_elf_out_append(uint8_t * out, uint8_t * p, int32_t n) {
   }
   int32_t i = 0;
   while ((i < n)) {
-    (void)(((out)[(len + i)] = (p)[i]));
+    (void)(((out)[((4 + len) + i)] = (p)[i]));
     (void)((i = (i + 1)));
   }
   (void)(codegen_out_buf_set_len(out, (len + n)));

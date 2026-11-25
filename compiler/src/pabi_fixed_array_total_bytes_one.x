@@ -12,6 +12,7 @@ export extern function pipeline_type_elem_ref_at(arena: *u8, type_ref: i32): i32
 export extern function pipeline_type_named_name_into(arena: *u8, type_ref: i32, out: *u8): i32;
 export extern function pipeline_asm_emit_module_ref_c(): *u8;
 export extern function glue_type_size_simple(mod: *u8, arena: *u8, type_ref: i32, depth: i32): i32;
+export extern function glue_index_simd_elem_bytes_c(arena: *u8, ty: i32): i32;
 
 /**
  * Total bytes of a TYPE_ARRAY with true-pack leaf widths.
@@ -22,7 +23,10 @@ export extern function glue_type_size_simple(mod: *u8, arena: *u8, type_ref: i32
  * Nested arrays recurse. Named i8, u8, and bool are 1 byte. Named i16
  * and u16 are 2 bytes. Other named types use glue_type_size_simple when
  * a module is present, else 4. A null module still keeps the five
- * true-pack names.
+ * true-pack names. A TYPE_VECTOR element uses
+ * glue_index_simd_elem_bytes_c (lanes times lane size). A 0 from that
+ * helper keeps 4. i32, u32, and f32 stay 4. Named i32x8 is kind 8 and
+ * is not this arm.
  * PLATFORM: SHARED — one strong T. Linux, Darwin, and Windows link this ahead of the egg.
  */
 #[no_mangle]
@@ -62,7 +66,18 @@ export function glue_fixed_array_total_bytes_c(arena: *u8, ty_ref: i32, depth: i
   }
   if (ek == 2 || ek == 1) {
     esz = 1;
-  } else if (ek == 0 || ek == 3 || ek == 13 || ek == 14) {
+  } else if (ek == 13) {
+    // Kind 13 is the vector, not one i32 lane. The slot used 4 here, so
+    // [2]Vec8i occupied 16 bytes while each element store wrote 32.
+    // The next local then covered lane 7. A 0 keeps the old 4.
+    // PLATFORM: SHARED.
+    unsafe {
+      esz = glue_index_simd_elem_bytes_c(arena, elem);
+    }
+    if (esz <= 0) {
+      esz = 4;
+    }
+  } else if (ek == 0 || ek == 3 || ek == 14) {
     esz = 4;
   } else if (ek == 15 || ek == 4 || ek == 5 || ek == 6 || ek == 7 || ek == 9 || ek == 18) {
     esz = 8;

@@ -20,13 +20,17 @@ export extern function pipeline_asm_emit_expr_elf_c(arena: *u8, elf_ctx: *u8, ex
 export extern function backend_enc_load_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
 export extern function backend_enc_mov_rax_to_rbx_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx: *u8, dest_off: i32, nbytes: i32, ta: i32): i32;
+export extern function backend_enc_store_rax_to_rbx_offset_arch(elf_ctx: *u8, off: i32, store_size: i32, ta: i32): i32;
 export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 export extern function pipe_store_ptr_slot(base: *u8, i: i32, val: *u8): void;
 export extern function pipe_load_ptr_slot(base: *u8, i: i32): *u8;
 
 /**
- * DEREF TYPE_ARRAY CALL: park dest, spill payload ptr, memcpy dest-in-rbx.
+ * DEREF TYPE_ARRAY CALL: park dest, spill the call result, write dest-in-rbx.
+ * Eight bytes is the value in x0 ([2]i32). Wider than that is a payload
+ * pointer and is copied. memcpy of the 8-byte value reads 10 and 20 as
+ * an address.
  * Soft Cap tipU: extern call as arg to pipe_store; branch on pipe_load.
  * @return i32 — 0 ok; -1 err; -3 not handled
  * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
@@ -103,7 +107,13 @@ export function glue_emit_assign_deref_array_call_elf_c(arena: *u8, elf_ctx: *u8
     if (pipe_load_i32_le(&rcell[0], 0) != 0) {
       return 0 - 1;
     }
-    pipe_store_i32_le(&rcell[0], 0, glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, 0 - 3, pipe_load_i32_le(&ncell[0], 0), ta));
+    // x19 is the destination. x0 is the call result. Eight bytes is the
+    // array value, not a pointer. PLATFORM: MACOS|ARM64 · LINUX x86_64.
+    if (pipe_load_i32_le(&ncell[0], 0) == 8) {
+      pipe_store_i32_le(&rcell[0], 0, backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta));
+    } else {
+      pipe_store_i32_le(&rcell[0], 0, glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, 0 - 3, pipe_load_i32_le(&ncell[0], 0), ta));
+    }
     if (pipe_load_i32_le(&rcell[0], 0) != 0) {
       return 0 - 1;
     }

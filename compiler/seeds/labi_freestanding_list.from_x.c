@@ -1010,13 +1010,27 @@ void labi_win_ld_append_head(char *bufs, int cap, const char **argv, int *la, in
   labi_win_ld_push(argv, la, max_la, "-m");
   labi_win_ld_push(argv, la, max_la, "i386pep");
   labi_win_ld_push(argv, la, max_la, "-Bdynamic");
+  /* PLATFORM: WINDOWS — console want-exe: without --subsystem console MinGW
+   * pulls crtexewin → U WinMain even when user.o exports T main (DIG soft). */
+  labi_win_ld_push(argv, la, max_la, "--subsystem");
+  labi_win_ld_push(argv, la, max_la, "console");
+  labi_win_ld_push(argv, la, max_la, "-e");
+  labi_win_ld_push(argv, la, max_la, "main");
+  /* PLATFORM: WINDOWS — unicode.o (and peers) carry duplicate T from ld -r
+   * mod_0/mod_1; product WIN_LDFLAGS historically used allow-multiple. Bare
+   * MinGW ld must get the same flag (DIG soft BLD001 multi-def). */
+  labi_win_ld_push(argv, la, max_la, "--allow-multiple-definition");
   for (i = 0; i < sizeof slots / sizeof slots[0]; i++)
     labi_win_ld_push(argv, la, max_la, labi_win_ld_slot(bufs, cap, slots[i]));
 }
 void labi_win_ld_append_tail(char *bufs, int cap, const char **argv, int *la, int max_la) {
   static const char *const libs[] = {"-lmingw32", "-lgcc", "-lmingwex", "-lmsvcrt", "-lkernel32",
                                      "-lpthread", "-ladvapi32", "-lshell32", "-luser32", "-lkernel32",
-                                     "-lmingw32", "-lgcc", "-lmingwex", "-lmsvcrt", "-lkernel32"};
+                                     "-lmingw32", "-lgcc", "-lmingwex", "-lmsvcrt", "-lkernel32",
+                                     /* PLATFORM: WINDOWS — runtime_random_fill U BCrypt*. */
+                                     "-lbcrypt",
+                                     /* PLATFORM: WINDOWS — co-emitted win32/net U WSAStartup. */
+                                     "-lws2_32"};
   size_t i;
   for (i = 0; i < sizeof libs / sizeof libs[0]; i++)
     labi_win_ld_push(argv, la, max_la, libs[i]);

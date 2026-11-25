@@ -4,7 +4,7 @@
 #
 # Authority (G.7):
 #   Single implementation of product frontend *_gen.c production for:
-#     parser_gen.c   (wave324 M4 7.2.2: pin product authority; tip assemble opt-in)
+#     parser_gen.c   (knife 254 / 9.2: prefer parser.x assemble; pin archaeology)
 #     typeck_gen.c   (wave322 M4 7.4.1: prefer typeck.x assemble; pin archaeology)
 #     codegen_gen.c  (wave323 M4 7.4.2: prefer codegen.x assemble; pin archaeology)
 #     lexer_gen.c    (seed pin + contract refresh / force -E / slim) — wave737
@@ -28,9 +28,8 @@
 #   XLANG_TYPECK_ALLOW_PIN=1 — allow seed pin restore / refresh (default 1 for true-cold egg)
 #   XLANG_CODEGEN_FROM_X=1  — force codegen.x assemble path (default prefer when -E works)
 #   XLANG_CODEGEN_ALLOW_PIN=1 — allow seed pin restore (default 1 for true-cold egg)
-#   XLANG_PARSER_FROM_X=1   — tip -E assemble path (default 0: seed pin = product authority)
-#                             Full assemble of parser.x drops surgical seed residuals
-#                             (e.g. generic_bound_scan / dest IF last-dest). Opt-in only.
+#   XLANG_PARSER_FROM_X=1   — tip -E assemble path (default 1: assemble = product authority)
+#                             Seed pin is archaeology / no -E binary only (knife 254 / 9.2).
 #   XLANG_PARSER_ALLOW_PIN=1 — allow seed pin restore (default 1 for true-cold egg)
 #   XLANG_PARSER_GEN_TIMEOUT — seconds for parser -E (default 180)
 #   XLANG_C / XLANG_X — binary names (default xlang-c / xlang-x)
@@ -45,8 +44,8 @@
 #   (tip -E + companions); pin seed is archaeology / no-binary egg only.
 # wave323 (G.7 M4 7.4.2): codegen cold path prefer assemble_codegen_gen_from_x
 #   (tip -E + Cap residual); pin seed archaeology only.
-# wave324 (G.7 M4 7.2.2): parser assemble path exists (assemble_parser_gen_from_x)
-#   but tip -E is incomplete vs surgical seed; product cold uses pin by default.
+# wave324 (G.7 M4 7.2.2): parser assemble path (assemble_parser_gen_from_x).
+# knife 254 / 9.2: product cold defaults to tip assemble; pin is archaeology only.
 # Wave: 736/737 Track MG · pairs with migrate_x_objs.sh + Makefile thin leaves.
 
 set -euo pipefail
@@ -62,11 +61,10 @@ XLANG_TYPECK_ALLOW_PIN="${XLANG_TYPECK_ALLOW_PIN:-1}"
 # Prefer codegen.x assemble whenever a product -E binary works (wave323 / 7.4.2).
 XLANG_CODEGEN_FROM_X="${XLANG_CODEGEN_FROM_X:-1}"
 XLANG_CODEGEN_ALLOW_PIN="${XLANG_CODEGEN_ALLOW_PIN:-1}"
-# wave325 tried tip -E assemble default; residual waves re-assert pin authority:
-# full parser.x -E + assemble loses seed surgical leaves (generic_bound_scan,
-# dest IF last-dest, region ASI, …). Default FROM_X=0; set 1 only for experiments.
-# PLATFORM: SHARED — same pin seeds on Darwin/Linux; Ubuntu gold must not auto-assemble.
-XLANG_PARSER_FROM_X="${XLANG_PARSER_FROM_X:-0}"
+# knife 254 / 9.2: tip assemble is product authority (same policy as typeck/codegen).
+# Pin seed remains archaeology / true-cold egg only (ALLOW_PIN). Do not pin-first.
+# PLATFORM: SHARED — Darwin/Linux tip cold prefer assemble_parser_gen_from_x.
+XLANG_PARSER_FROM_X="${XLANG_PARSER_FROM_X:-1}"
 XLANG_PARSER_ALLOW_PIN="${XLANG_PARSER_ALLOW_PIN:-1}"
 XLANG_PARSER_GEN_TIMEOUT="${XLANG_PARSER_GEN_TIMEOUT:-180}"
 MODE="${1:-all}"
@@ -205,11 +203,13 @@ ensure_xlang_c() {
 }
 
 run_with_timeout() {
-  # $@ = command; uses timeout(1) when present
+  # $@ = command; uses timeout(1) when present.
+  # knife256/10.2: do NOT `|| true` — that masked Cap tip SEGV (139) on tip -E
+  # and let parser_run_tip_e treat a failed -E as success when $out was large.
   if command -v timeout >/dev/null 2>&1; then
-    timeout "$XLANG_PARSER_GEN_TIMEOUT" "$@" || true
+    timeout "$XLANG_PARSER_GEN_TIMEOUT" "$@"
   else
-    "$@" || true
+    "$@"
   fi
 }
 
@@ -293,23 +293,29 @@ parser_x_sources_newer_than_gen() {
 ensure_parser_gen() {
   local seed="seeds/parser_gen.linux.x86_64.c"
   local need_assemble=0
+  local did_assemble=0
 
-  # Product authority = seeds/parser_gen.linux.x86_64.c (surgical pin).
-  # Tip assemble (FROM_X=1) is opt-in only: full parser.x -E drops seed leaves.
-  # PLATFORM: SHARED — pin-first cold; Ubuntu gold must not auto-assemble parser.x.
-  if [ "$XLANG_FORCE_REGEN_GEN" = "1" ] && [ "$XLANG_PARSER_FROM_X" = "1" ]; then
+  # knife 254 / 9.2 policy (G.7):
+  #   product authority = parser.x assemble (assemble_parser_gen_from_x)
+  #   pin seed = archaeology / true-cold egg only (no -E binary)
+  # Prefer assemble when: FORCE, missing gen, .x newer, or contract-fail local.
+  # PLATFORM: SHARED — tip cold assemble-first; pin is not default pin-first.
+  if [ "$XLANG_FORCE_REGEN_GEN" = "1" ]; then
     need_assemble=1
-  elif [ "$XLANG_PARSER_FROM_X" = "1" ] && [ ! -s parser_gen.c ]; then
+  elif [ ! -s parser_gen.c ]; then
     need_assemble=1
-  elif [ "$XLANG_PARSER_FROM_X" = "1" ] && parser_x_sources_newer_than_gen; then
+  elif parser_x_sources_newer_than_gen; then
+    need_assemble=1
+  elif [ "$XLANG_PARSER_FROM_X" = "1" ] && ! grep -q 'wave324 parser M4 cold assemble' parser_gen.c 2>/dev/null; then
+    # knife 254 / 9.2: seed/pin local without assemble banner is not tip authority
     need_assemble=1
   elif [ "$XLANG_PARSER_FROM_X" = "1" ] && ! parser_gen_contract_ok parser_gen.c; then
     need_assemble=1
   fi
 
-  if [ "$need_assemble" = "1" ] && [ "$XLANG_PARSER_FROM_X" = "1" ]; then
+  if [ "$need_assemble" = "1" ]; then
     if parser_assemble_from_x; then
-      :
+      did_assemble=1
     else
       if [ "$XLANG_FORCE_REGEN_GEN" = "1" ]; then
         if [ "$XLANG_PARSER_ALLOW_PIN" = "1" ] && seed_ok "$seed"; then
@@ -320,29 +326,32 @@ ensure_parser_gen() {
           exit 1
         fi
       else
-        log "parser_gen.c: tip assemble unavailable; try local/pin (product pin authority)"
+        log "parser_gen.c: tip assemble unavailable; try local/pin (archaeology)"
+        refresh_gen_from_seed_if_stale parser_gen.c "$seed" parser_gen_contract_ok parser_gen.c || true
       fi
     fi
   fi
 
-  # Default cold / missing gen: restore product pin (not tip assemble).
+  # Local still missing: archaeology seed (true cold, no product -E binary).
   if [ ! -s parser_gen.c ]; then
     if [ "$XLANG_PARSER_ALLOW_PIN" = "1" ] && seed_ok "$seed"; then
       cp -f "$seed" parser_gen.c
-      log "parser_gen.c: restored product pin $seed (FROM_X=${XLANG_PARSER_FROM_X}; pin authority)"
+      log "parser_gen.c: restored archaeology seed $seed (no -E binary; true-cold egg)"
     else
-      log "parser_gen.c: FAIL no assemble and no product pin seed"
+      log "parser_gen.c: FAIL no assemble and no archaeology seed"
       exit 1
     fi
   fi
 
-  # Stale / broken local gen: refresh from seed when pin is authority (default),
-  # or when an assemble artifact fails the product contract.
-  if [ "$XLANG_PARSER_FROM_X" != "1" ] || ! grep -q 'wave324 parser M4 cold assemble' parser_gen.c 2>/dev/null; then
-    if ! parser_gen_contract_ok parser_gen.c; then
-      if seed_ok "$seed" && parser_gen_contract_ok "$seed"; then
-        cp -f "$seed" parser_gen.c
-        log "parser_gen.c: local failed contract → product pin seed"
+  # Contract fail after assemble or stale local: archaeology pin only when ALLOW_PIN.
+  # Assemble remains first; pin is never pin-first (knife 254 / 9.2).
+  if ! parser_gen_contract_ok parser_gen.c; then
+    if [ "$XLANG_PARSER_ALLOW_PIN" = "1" ] && seed_ok "$seed" && parser_gen_contract_ok "$seed"; then
+      cp -f "$seed" parser_gen.c
+      if [ "$did_assemble" = "1" ]; then
+        log "parser_gen.c: tip assemble failed contract → archaeology seed"
+      else
+        log "parser_gen.c: local failed contract → archaeology seed"
       fi
     fi
   fi
@@ -494,15 +503,17 @@ ensure_typeck_gen() {
     fi
   fi
 
-  # Optional: if local is pre-wave322 bare pin without assemble banner, and
-  # FROM_X=1, refresh from archaeology seed only when seed is newer AND we
-  # did not just assemble (post-pull dual-end). Does NOT re-assert pin authority
-  # over typeck.x — seed is a snapshot of last good assemble.
-  if [ "$did_assemble" != "1" ] && [ "$XLANG_TYPECK_ALLOW_PIN" = "1" ]; then
+  # Optional: if local fails product contract, refresh from archaeology seed.
+  # knife256/10.2 note739: ALSO when tip assemble succeeded but contract failed
+  # (tip -E can emit extern-only faces e.g. typeck_match_subject_field_type;
+  # Oct-12+ seed has bodies + note738 copy+name_equal peel). Prior gate only
+  # refreshed when did_assemble!=1, so tip-cold L4 exited 1 with no typeck_x.o.
+  # Does NOT re-assert pin authority over a contract-ok tip assemble.
+  if [ "$XLANG_TYPECK_ALLOW_PIN" = "1" ]; then
     if ! typeck_gen_contract_ok typeck_gen.c; then
       if seed_ok "$seed" && typeck_gen_contract_ok "$seed"; then
         cp -f "$seed" typeck_gen.c
-        log "typeck_gen.c: local failed contract → archaeology seed"
+        log "typeck_gen.c: failed contract → archaeology seed (note739; peel note738)"
       fi
     fi
   fi
@@ -606,6 +617,9 @@ ensure_codegen_gen() {
   elif codegen_x_sources_newer_than_gen; then
     # LANG-005 lesson: unconditional reassemble on source-newer (same as typeck).
     need_assemble=1
+  elif [ "$XLANG_CODEGEN_FROM_X" = "1" ] && ! grep -q 'wave323 codegen M4 cold assemble' codegen_gen.c 2>/dev/null; then
+    # knife 254 / 9.2: seed/pin local without assemble banner is not tip authority
+    need_assemble=1
   elif [ "$XLANG_CODEGEN_FROM_X" = "1" ] && ! codegen_gen_contract_ok codegen_gen.c; then
     need_assemble=1
   fi
@@ -641,11 +655,15 @@ ensure_codegen_gen() {
     fi
   fi
 
-  # Stale local without assemble this run: allow archaeology pin restore if contract fails.
-  if [ "$did_assemble" != "1" ] && [ "$XLANG_CODEGEN_ALLOW_PIN" = "1" ]; then
-    if ! codegen_gen_contract_ok codegen_gen.c; then
-      if seed_ok "$seed" && codegen_gen_contract_ok "$seed"; then
-        cp -f "$seed" codegen_gen.c
+  # Contract fail (stale local OR tip assemble missing surgical leaves such as
+  # codegen_builtin_type_name_into body): archaeology pin only when ALLOW_PIN.
+  # Assemble remains first; pin is never pin-first (knife 254 / 9.2).
+  if ! codegen_gen_contract_ok codegen_gen.c; then
+    if [ "$XLANG_CODEGEN_ALLOW_PIN" = "1" ] && seed_ok "$seed" && codegen_gen_contract_ok "$seed"; then
+      cp -f "$seed" codegen_gen.c
+      if [ "$did_assemble" = "1" ]; then
+        log "codegen_gen.c: tip assemble failed contract → archaeology seed"
+      else
         log "codegen_gen.c: local failed contract → archaeology seed"
       fi
     fi

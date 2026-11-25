@@ -1,13 +1,8 @@
-// See implementation.
+// NEG: bare import const names must not resolve (must use import binding).
 const async_mod = import("std.async");
 
-/** Internal function `main`.
- * Program/test entry point.
- * @return i32
- */
 function main(): i32 {
-  /* Import constants must be named through the import binding. */
-  if (async_mod.POLL_PENDING != 0) { return 1; }
-  if (async_mod.POLL_READY != 1) { return 2; }
+  if (POLL_PENDING != 0) { return 1; }
+  if (POLL_READY != 1) { return 2; }
   return 0;
 }

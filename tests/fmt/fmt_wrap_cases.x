@@ -13,9 +13,9 @@ const option = import("core.option");
 // fmt_test_semicolon_chain: see function docblock below.
 
 /** Internal function `fmt_test_semicolon_chain`.
- * Implements `fmt_test_semicolon_chain`.
- * @return i32
- */
+* Implements `fmt_test_semicolon_chain`.
+* @return i32
+*/
 function fmt_test_semicolon_chain(): i32 {
   let prefix: u8[32] = [];
   prefix[0] = 1; prefix[1] = 2; prefix[2] = 3; prefix[3] = 4; prefix[4] = 5; prefix[5] = 6;
@@ -25,9 +25,9 @@ function fmt_test_semicolon_chain(): i32 {
 
 // fmt_test_long_add: see function docblock below.
 /** Internal function `fmt_test_long_add`.
- * Implements `fmt_test_long_add`.
- * @return i32
- */
+* Implements `fmt_test_long_add`.
+* @return i32
+*/
 function fmt_test_long_add(): i32 {
   let accumulator_name_for_fmt: i32 = 1;
   let another_long_identifier: i32 = 2;
@@ -35,9 +35,9 @@ function fmt_test_long_add(): i32 {
 }
 
 /** Internal function `main`.
- * Program/test entry point.
- * @return i32
- */
+* Program/test entry point.
+* @return i32
+*/
 function main(): i32 {
   let x: i32 = fmt_test_semicolon_chain();
   let y: i32 = fmt_test_long_add();

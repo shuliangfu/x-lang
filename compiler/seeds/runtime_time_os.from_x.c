@@ -125,50 +125,37 @@ int32_t time_local_offset_min_impl(void) {
 #endif
 }
 
-/* === Public API wrappers (only when NOT in FROM_X mode) === */
+/* === Public API wrappers (only when NOT in FROM_X mode) ===
+ * FROM_X (Linux/Windows thin): src/asm/runtime_time_os.x owns time_*_c.
+ * Cold catalog cc (no -D XLANG_RUNTIME_TIME_OS_FROM_X): this TU is the
+ * whole object. 9.1 dropped these wrappers and left only *_impl, so
+ * std/time's time_*_c refs went undefined (Darwin run-time BLD001).
+ * Darwin pure-asm runtime_time_os_darwin.x is the preferred body when
+ * the shell ensure runs; this cold path is what link_abi_ensure_from_catalog
+ * still compiles when compiler/runtime_time_os.o is missing.
+ * PLATFORM: SHARED — same five names as runtime_time_os.x.
+ */
 
 #ifndef XLANG_RUNTIME_TIME_OS_FROM_X
-
-/**
- * Public: monotonic clock in nanoseconds.
- * Cold bootstrap wrapper; FROM_X mode uses .x source.
- */
 int64_t time_now_monotonic_ns_c(void) {
     return time_monotonic_ns_impl();
 }
 
-/**
- * Public: wall clock in nanoseconds since epoch (UTC).
- * Cold bootstrap wrapper; FROM_X mode uses .x source.
- */
 int64_t time_now_wall_ns_c(void) {
     return time_wall_ns_impl();
 }
 
-/**
- * Public: sleep for nanoseconds. No-op if ns <= 0.
- * Cold bootstrap wrapper; FROM_X mode uses .x source.
- */
 void time_sleep_ns_c(int64_t ns) {
     if (ns <= 0) return;
     time_sleep_ns_impl(ns);
 }
 
-/**
- * Public: format current UTC wall clock as RFC3339 string.
- * Cold bootstrap wrapper; FROM_X mode uses .x source.
- */
 int32_t time_format_wall_rfc3339_c(uint8_t *buf, int32_t cap) {
     if (!buf || cap <= 0) return -1;
     return time_format_rfc3339_impl(buf, cap);
 }
 
-/**
- * Public: local timezone offset from UTC in minutes (east positive).
- * Cold bootstrap wrapper; FROM_X mode uses .x source.
- */
 int32_t time_wall_local_offset_min_c(void) {
     return time_local_offset_min_impl();
 }
-
 #endif /* !XLANG_RUNTIME_TIME_OS_FROM_X */

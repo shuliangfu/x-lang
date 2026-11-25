@@ -2571,19 +2571,21 @@ int32_t typeck_resolve_type_alias_ref_local(struct ast_Module * module, struct a
     while ((alias_i < alias_count)) {
       (void)((alias_name_len = pipeline_module_type_alias_name_len(module, alias_i)));
       if ((((alias_name_len ==type_name_len) && (alias_name_len > 0)) && (alias_name_len <=255))) {
+        /* knife256/10.2 note738: copy then typeck_name_equal (match tip typeck.x;
+         * tip pure-asm / old byte_at vs type_name[i] clobbers call-result). */
+        uint8_t alias_name[256] = {};
         (void)((alias_off = 0));
         while ((alias_off < alias_name_len)) {
-          if ((pipeline_module_type_alias_name_byte_at(module, alias_i, alias_off) !=(type_name)[alias_off])) {
-            break;
-          }
+          (alias_name)[alias_off] = pipeline_module_type_alias_name_byte_at(module, alias_i, alias_off);
           (void)((alias_off = (alias_off + 1)));
         }
-        ((alias_off ==alias_name_len) ? ({   (void)((alias_target_ref = pipeline_module_type_alias_target_ref(module, alias_i)));
-  if (ast_ref_is_null(alias_target_ref)) {
-    return type_ref;
-  }
-  return typeck_resolve_type_alias_ref_local(module, arena, alias_target_ref, (depth + 1));
- }) : 0);
+        if (typeck_name_equal(&((alias_name)[0]), alias_name_len, &((type_name)[0]), type_name_len)) {
+          (void)((alias_target_ref = pipeline_module_type_alias_target_ref(module, alias_i)));
+          if (ast_ref_is_null(alias_target_ref)) {
+            return type_ref;
+          }
+          return typeck_resolve_type_alias_ref_local(module, arena, alias_target_ref, (depth + 1));
+        }
       }
       (void)((alias_i = (alias_i + 1)));
     }
@@ -18141,14 +18143,31 @@ static int typeck_is_const_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_re
    * ARRAY_LIT recursion above. PLATFORM: SHARED.
    */
   if (kd == ast_ExprKind_EXPR_STRUCT_LIT) {
+    /* note743y.6.7: imported Split_u8 + nested anon struct lit can cycle
+     * init_ref (A→B→A or init_ref==parent) and blow the stack in this
+     * walker (subslice_split_chunks product -o SEGV). Depth + self-ref
+     * guards; treat over-deep / cyclic as non-const. PLATFORM: SHARED. */
+    static int struct_lit_const_depth;
+    int saved_depth;
     ne = e->struct_lit_num_fields;
+    if (ne < 0 || ne > 256)
+      return 0;
+    if (struct_lit_const_depth > 64)
+      return 0;
+    saved_depth = struct_lit_const_depth;
+    struct_lit_const_depth++;
     for (i = 0; i < ne; i++) {
       int32_t init_ref = pipeline_expr_struct_lit_init_ref(a, expr_ref, i);
-      if (init_ref <= 0)
+      if (init_ref <= 0 || init_ref == expr_ref) {
+        struct_lit_const_depth = saved_depth;
         return 0;
-      if (!typeck_is_const_expr_ref_impl(a, init_ref, const_names, n_const_names))
+      }
+      if (!typeck_is_const_expr_ref_impl(a, init_ref, const_names, n_const_names)) {
+        struct_lit_const_depth = saved_depth;
         return 0;
+      }
     }
+    struct_lit_const_depth = saved_depth;
     return 1;
   }
   /**
@@ -18683,12 +18702,25 @@ static void typeck_fold_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref,
    *           two ALU dependencies.
    */
   if (kd == ast_ExprKind_EXPR_STRUCT_LIT) {
+    /* note743y.6.7: same cycle as is_const walker — nested anon / imported
+     * Split_u8 can loop init_ref and SEGV here. Depth + self-ref guards.
+     * PLATFORM: SHARED. */
+    static int struct_lit_fold_depth;
+    int saved_depth;
     int nf = e->struct_lit_num_fields;
+    if (nf < 0 || nf > 256)
+      return;
+    if (struct_lit_fold_depth > 64)
+      return;
+    saved_depth = struct_lit_fold_depth;
+    struct_lit_fold_depth++;
     for (i = 0; i < nf; i++) {
       int32_t init_ref = pipeline_expr_struct_lit_init_ref(a, expr_ref, i);
-      if (init_ref > 0)
-        typeck_fold_expr_ref_impl(a, init_ref, const_names, const_values, n_const_names);
+      if (init_ref <= 0 || init_ref == expr_ref)
+        continue;
+      typeck_fold_expr_ref_impl(a, init_ref, const_names, const_values, n_const_names);
     }
+    struct_lit_fold_depth = saved_depth;
     return;
   }
 

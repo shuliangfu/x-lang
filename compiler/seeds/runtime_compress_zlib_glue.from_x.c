@@ -71,6 +71,9 @@ int inflateInit2_impl_c(void *strm, int windowBits) {
  * When the guard IS defined, the thin (.x) provides the wrappers and calls
  * _impl_c above.
  *
+ * Tip-cold PREFER=0 hosts only this seed (no thin.x merge). 记253 hollow
+ * left deflateInit2/inflateInit2 UNDEF on Linux run-compress; restore.
+ *
  * 包装 deflateInit2 宏：调用真实 deflateInit2_ 并传入版本和结构体大小。
  * 参数与 libz.x extern function deflateInit2 完全一致。 */
 int deflateInit2(void *strm, int level, int method, int windowBits, int memLevel, int strategy) {

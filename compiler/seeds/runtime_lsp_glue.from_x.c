@@ -195,7 +195,7 @@ static int s_refs_count[LSP_LINE_INDEX_MAX];
 /** 释放 import 依赖缓存（不含 entry 模块 s_cached_mod）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-void lsp_free_import_cache(void) {
+/* 记253／9.1: cold under #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X removed */
 #else /* XLANG_L2_LSP_GLUE_FULL_FROM_X — lsp_free_import_cache → _impl */
 void lsp_free_import_cache_impl(void) {
 #endif /* XLANG_L2_LSP_GLUE_FULL_FROM_X — lsp_free_import_cache */
@@ -224,59 +224,11 @@ static int lsp_hex_nibble(int c) {
 /** 从 file URI 提取本地路径写入 out（简单 file:// 解码，足够 macOS/Linux 开发）。 */
 /* G-02f-251：逻辑源 .x（真迁 pure）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-void lsp_uri_to_fs_path(const char *uri, char *out, size_t cap) {
-    size_t k = 0;
-    const char *p;
-    if (!uri || !out || cap == 0)
-        return;
-    out[0] = '\0';
-    if (strncmp(uri, "file://", 7) != 0)
-        return;
-    p = uri + 7;
-    while (*p && k + 1 < cap) {
-        if (p[0] == '%' && p[1] && p[2]) {
-            int vh = lsp_hex_nibble((unsigned char)p[1]);
-            int vl = lsp_hex_nibble((unsigned char)p[2]);
-            int v = 0;
-            if (vh >= 0)
-                v = vh << 4;
-            if (vl >= 0)
-                v |= vl;
-            out[k++] = (char)v;
-            p += 3;
-            continue;
-        }
-        out[k++] = *p++;
-    }
-    out[k] = '\0';
-}
 #endif /* XLANG_L2_LSP_GLUE_FULL_FROM_X — lsp_uri_to_fs_path */
 
 /** 本地路径 → file URI（空格转 %20）。 */
 /* G-02f-251：逻辑源 .x（真迁 pure）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-void lsp_fs_path_to_uri(const char *path, char *uri, size_t cap) {
-    size_t k = 0;
-    const char *p;
-    if (!path || !uri || cap < 8)
-        return;
-    uri[k++] = 'f';
-    uri[k++] = 'i';
-    uri[k++] = 'l';
-    uri[k++] = 'e';
-    uri[k++] = ':';
-    uri[k++] = '/';
-    uri[k++] = '/';
-    for (p = path; *p && k + 4 < cap; p++) {
-        if (*p == ' ') {
-            uri[k++] = '%';
-            uri[k++] = '2';
-            uri[k++] = '0';
-        } else
-            uri[k++] = *p;
-    }
-    uri[k] = '\0';
-}
 #endif /* XLANG_L2_LSP_GLUE_FULL_FROM_X — lsp_fs_path_to_uri */
 
 
@@ -305,40 +257,11 @@ void lsp_entry_dir_store_prefix(const char *path, int n) {
 
 /* G-02f-252：逻辑源 .x（真迁 last slash）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-int lsp_path_last_slash(const char *path) {
-    int last = -1;
-    int i;
-    if (!path)
-        return -1;
-    for (i = 0; path[i] && i < 4096; i++) {
-        if (path[i] == '/')
-            last = i;
-    }
-    return last;
-}
 #endif /* XLANG_L2_LSP_GLUE_FULL_FROM_X — lsp_path_last_slash */
 
 /** 根据 entry 文件路径更新 import 解析用的 entry_dir。 */
 /* G-02f-252：逻辑源 .x（真迁编排 pure）；槽写 🔒 */
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-void lsp_update_entry_dir(const char *fs_path) {
-    int last;
-    int n;
-    if (!fs_path || !fs_path[0]) {
-        lsp_entry_dir_set_dot();
-        return;
-    }
-    lsp_entry_fs_path_store(fs_path);
-    last = lsp_path_last_slash(fs_path);
-    if (last < 0) {
-        lsp_entry_dir_set_dot();
-        return;
-    }
-    n = last;
-    if (n > 511)
-        n = 511;
-    lsp_entry_dir_store_prefix(fs_path, n);
-}
 #endif /* XLANG_L2_LSP_GLUE_FULL_FROM_X — lsp_update_entry_dir */
 
 
@@ -347,7 +270,6 @@ void lsp_update_entry_dir(const char *fs_path) {
 /** 初始化 libRoots（环境变量 XLANG_LSP_LIB_ROOTS 优先，否则仓库默认布局）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-void lsp_init_lib_roots_once(void) {
 #else /* XLANG_L2_LSP_GLUE_FULL_FROM_X — lsp_init_lib_roots_once → _impl */
 void lsp_init_lib_roots_once_impl(void) {
 #endif /* XLANG_L2_LSP_GLUE_FULL_FROM_X — lsp_init_lib_roots_once */
@@ -442,20 +364,6 @@ void lsp_diag_invalidate_cache(void) {
 }
 /* G-02f-251：逻辑源 .x（真迁 pure 有界拷贝）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-void lsp_diag_copy_text(char *dst, int cap, const char *src) {
-    size_t n = 0;
-    if (!dst || cap <= 0)
-        return;
-    if (!src) {
-        dst[0] = '\0';
-        return;
-    }
-    while (n + 1 < (size_t)cap && src[n] != '\0') {
-        dst[n] = src[n];
-        n++;
-    }
-    dst[n] = '\0';
-}
 #endif /* XLANG_L2_LSP_GLUE_FULL_FROM_X — lsp_diag_copy_text */
 
 
@@ -575,7 +483,6 @@ void *lsp_diag_x_module_ptr(void) {
 /** 返回 LSP X pipeline 用的 PipelineDepCtx 分配尺寸。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-size_t lsp_diag_x_ctx_alloc_size(void) {
 #else /* XLANG_L2_LSP_GLUE_FULL_FROM_X — lsp_diag_x_ctx_alloc_size → _impl */
 int64_t lsp_diag_x_ctx_alloc_size_impl(void) {
 #endif /* XLANG_L2_LSP_GLUE_FULL_FROM_X — lsp_diag_x_ctx_alloc_size */
@@ -611,42 +518,6 @@ void lsp_diag_x_reset_parse_buffers(void) {
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-252：逻辑源 .x（真迁 pure）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-int json_escape_str(const char *msg, char *out, int out_cap) {
-    int k = 0;
-    if (!out || out_cap <= 0)
-        return 0;
-    if (!msg) {
-        out[0] = '\0';
-        return 0;
-    }
-    for (; *msg != '\0' && k < out_cap - 1; msg++) {
-        if (*msg == '"' || *msg == '\\') {
-            if (k + 2 > out_cap - 1)
-                break;
-            out[k++] = '\\';
-            out[k++] = *msg;
-        } else if (*msg == '\n') {
-            if (k + 2 > out_cap - 1)
-                break;
-            out[k++] = '\\';
-            out[k++] = 'n';
-        } else if (*msg == '\r') {
-            if (k + 2 > out_cap - 1)
-                break;
-            out[k++] = '\\';
-            out[k++] = 'r';
-        } else if (*msg == '\t') {
-            if (k + 2 > out_cap - 1)
-                break;
-            out[k++] = '\\';
-            out[k++] = 't';
-        } else {
-            out[k++] = *msg;
-        }
-    }
-    out[k] = '\0';
-    return k;
-}
 #endif /* XLANG_L2_LSP_GLUE_FULL_FROM_X — json_escape_str */
 
 
@@ -658,18 +529,7 @@ int json_escape_str(const char *msg, char *out, int out_cap) {
 unsigned lsp_hash_source(const uint8_t *src, int len);
 #endif
 #ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
-unsigned lsp_hash_source(const uint8_t *src, int len) {
-    uint64_t h = (uint64_t)(unsigned)len;
-    int i = 0;
-    for (; i + 8 <= len; i += 8) {
-        uint64_t x;
-        memcpy(&x, src + i, 8);
-        h = (h * 0x9e3779b97f4a7c15ULL) + x;
-    }
-    for (; i < len; i++)
-        h = (h * 0x9e3779b97f4a7c15ULL) + (uint64_t)(unsigned)src[i];
-    return (unsigned)(h ^ (h >> 32));
-}
+/* 记253／9.1: cold under #ifndef XLANG_L2_LSP_FMT_THIN_FROM_X removed */
 #endif
 
 
@@ -678,7 +538,6 @@ unsigned lsp_hash_source(const uint8_t *src, int len) {
 /** 加载 import 依赖并对 entry 模块做 typeck（含跨模块符号解析）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-void lsp_typeck_entry_module(ASTModule *mod, int only_func_index) {
 #else /* XLANG_L2_LSP_GLUE_FULL_FROM_X — lsp_typeck_entry_module → _impl */
 void lsp_typeck_entry_module_impl(uint8_t *mod_u8, int32_t only) {
     ASTModule *mod = (ASTModule *)mod_u8;
@@ -864,12 +723,6 @@ static ASTModule *lsp_ensure_module(const uint8_t *source, int source_len, int c
 int col_in_ident_span(int line_1, int col_1, int start_line, int start_col, const char *name);
 #endif
 #ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
-int col_in_ident_span(int line_1, int col_1, int start_line, int start_col, const char *name) {
-    if (!name || start_line != line_1 || start_col <= 0) return 0;
-    int len = (int)strlen(name);
-    if (len <= 0) return 0;
-    return col_1 >= start_col && col_1 < start_col + len;
-}
 #endif
 
 
@@ -878,7 +731,6 @@ int col_in_ident_span(int line_1, int col_1, int start_line, int start_col, cons
 /** 判断 (line_1, col_1) 是否与表达式起点一致（1-based）；VAR 按标识符宽度匹配。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-int expr_at(const struct ASTExpr *e, int line_1, int col_1) {
 #else /* XLANG_L2_LSP_GLUE_FULL_FROM_X — expr_at → _impl */
 int32_t expr_at_impl(const uint8_t *e_u8, int32_t line, int32_t col) {
     const struct ASTExpr *e = (const struct ASTExpr *)e_u8;
@@ -900,10 +752,6 @@ int32_t expr_at_impl(const uint8_t *e_u8, int32_t line, int32_t col) {
 int func_name_covers(const struct ASTFunc *f, int line_1, int col_1);
 #endif
 #ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
-int func_name_covers(const struct ASTFunc *f, int line_1, int col_1) {
-    return f && f->name && col_in_ident_span(line_1, col_1, f->line, f->col, f->name);
-
-}
 #endif
 
 
@@ -933,7 +781,6 @@ static struct ASTFunc *find_func_in_module_by_name(const struct ASTModule *mod, 
 /** 求表达式中出现的最大行号（递归）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-int expr_max_line(const struct ASTExpr *e) {
 #else /* XLANG_L2_LSP_GLUE_FULL_FROM_X — expr_max_line → _impl */
 int32_t expr_max_line_impl(const uint8_t *e_u8) {
     const struct ASTExpr *e = (const struct ASTExpr *)e_u8;
@@ -1006,7 +853,6 @@ int32_t expr_max_line_impl(const uint8_t *e_u8) {
 /** 求块内出现的最大行号。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-int block_max_line(const struct ASTBlock *b) {
 #else /* XLANG_L2_LSP_GLUE_FULL_FROM_X — block_max_line → _impl */
 int32_t block_max_line_impl(const uint8_t *b_u8) {
     const struct ASTBlock *b = (const struct ASTBlock *)b_u8;
@@ -1044,7 +890,6 @@ int32_t block_max_line_impl(const uint8_t *b_u8) {
 /** 根据模块构建行→函数索引（每个函数的 [start_line, end_line]），供 get_function_at_line 使用。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-void build_line_index(const struct ASTModule *mod) {
 #else /* XLANG_L2_LSP_GLUE_FULL_FROM_X — build_line_index → _impl */
 void build_line_index_impl(const uint8_t *mod_u8) {
     const struct ASTModule *mod = (const struct ASTModule *)mod_u8;
@@ -1073,7 +918,6 @@ void build_line_index_impl(const uint8_t *mod_u8) {
 /** 返回 func 在 s_line_index 中的下标，未找到返回 -1。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-int line_index_of_func(const struct ASTFunc *func) {
 #else /* XLANG_L2_LSP_GLUE_FULL_FROM_X — line_index_of_func → _impl */
 int32_t line_index_of_func_impl(const uint8_t *f_u8) {
     const struct ASTFunc *func = (const struct ASTFunc *)f_u8;
@@ -1089,7 +933,6 @@ int32_t line_index_of_func_impl(const uint8_t *f_u8) {
 /** 向 func 对应的引用表追加 (line, col)；用于构建引用索引。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-void add_ref_for_func(const struct ASTFunc *func, int line, int col) {
 #else /* XLANG_L2_LSP_GLUE_FULL_FROM_X — add_ref_for_func → _impl */
 void add_ref_for_func_impl(const uint8_t *f_u8, int32_t line, int32_t col) {
     const struct ASTFunc *func = (const struct ASTFunc *)f_u8;
@@ -1109,7 +952,6 @@ void add_ref_for_func_impl(const uint8_t *f_u8, int32_t line, int32_t col) {
 /** 遍历表达式，将 resolved_callee_func / resolved_impl_func 的调用点加入引用索引。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-void collect_refs_index_in_expr(const struct ASTExpr *e) {
 #else /* XLANG_L2_LSP_GLUE_FULL_FROM_X — collect_refs_index_in_expr → _impl */
 void collect_refs_index_in_expr_impl(const uint8_t *e_u8) {
     const struct ASTExpr *e = (const struct ASTExpr *)e_u8;
@@ -1184,7 +1026,6 @@ void collect_refs_index_in_expr_impl(const uint8_t *e_u8) {
 
 
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-void collect_refs_index_in_block(const struct ASTBlock *b) {
 #else /* XLANG_L2_LSP_GLUE_FULL_FROM_X — collect_refs_index_in_block → _impl */
 void collect_refs_index_in_block_impl(const uint8_t *b_u8) {
     const struct ASTBlock *b = (const struct ASTBlock *)b_u8;
@@ -1220,7 +1061,6 @@ void collect_refs_index_in_block_impl(const uint8_t *b_u8) {
 /** 在 build_line_index 之后调用：一次遍历全模块，为每个函数填好引用索引。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-void build_refs_index(const struct ASTModule *mod) {
 #else /* XLANG_L2_LSP_GLUE_FULL_FROM_X — build_refs_index → _impl */
 void build_refs_index_impl(const uint8_t *mod_u8) {
     const struct ASTModule *mod = (const struct ASTModule *)mod_u8;
@@ -1261,7 +1101,6 @@ static struct ASTFunc *get_function_at_line(const struct ASTModule *mod, int lin
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-int find_def_in_expr(const struct ASTModule *mod, const struct ASTExpr *e, int line_1, int col_1, int *out_line, int *out_col) {
 #else /* XLANG_L2_LSP_GLUE_FULL_FROM_X — find_def_in_expr → _impl */
 int32_t find_def_in_expr_impl(const uint8_t *mod_u8, const uint8_t *e_u8, int32_t line, int32_t col, int32_t *ol, int32_t *oc) {
     const struct ASTModule *mod = (const struct ASTModule *)mod_u8;
@@ -1376,7 +1215,6 @@ int32_t find_def_in_expr_impl(const uint8_t *mod_u8, const uint8_t *e_u8, int32_
 /** 在块 b 内所有表达式（const/let init、循环、expr_stmts、final_expr）中查找定义。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-int find_def_in_block(const struct ASTModule *mod, const struct ASTBlock *b, int line_1, int col_1, int *out_line, int *out_col) {
 #else /* XLANG_L2_LSP_GLUE_FULL_FROM_X — find_def_in_block → _impl */
 int32_t find_def_in_block_impl(const uint8_t *mod_u8, const uint8_t *b_u8, int32_t line, int32_t col, int32_t *ol, int32_t *oc) {
     const struct ASTModule *mod = (const struct ASTModule *)mod_u8;
@@ -1418,7 +1256,6 @@ int32_t find_def_in_block_impl(const uint8_t *mod_u8, const uint8_t *b_u8, int32
 /** 在模块中查找位置对应的定义；先按行索引定位到包含该行的函数，只遍历该函数 body，减少大文件下的全 AST 遍历。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-int find_def_in_module(const struct ASTModule *mod, int line_1, int col_1, int *out_line, int *out_col) {
 #else /* XLANG_L2_LSP_GLUE_FULL_FROM_X — find_def_in_module → _impl */
 int32_t find_def_in_module_impl(const uint8_t *mod_u8, int32_t line, int32_t col, int32_t *ol, int32_t *oc) {
     const struct ASTModule *mod = (const struct ASTModule *)mod_u8;
@@ -1821,7 +1658,6 @@ static struct ASTExpr *get_expr_at_in_module(const struct ASTModule *mod, int li
 /** 将 ASTType 格式化为字符串写入 buf，返回长度；cap 为 buf 容量。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-int type_to_string(const struct ASTType *ty, char *buf, int cap) {
 #else /* XLANG_L2_LSP_GLUE_FULL_FROM_X — type_to_string → _impl */
 int32_t type_to_string_impl(const uint8_t *ty_u8, uint8_t *buf, int32_t cap) {
     const struct ASTType *ty = (const struct ASTType *)ty_u8;
@@ -2058,28 +1894,6 @@ int lsp_get_document_len(void) {
 /** 将 (line, character) 转为文档中的字节偏移；line/character 为 0-based。 */
 /* G-02f-253：逻辑源 .x（真迁 pure）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-int line_char_to_offset(const uint8_t *doc, int len, int line, int character) {
-    int cur_line = 0;
-    int i = 0;
-    int col;
-    if (!doc || len < 0 || line < 0 || character < 0)
-        return -1;
-    while (i < len && cur_line < line) {
-        if (doc[i] == '\n')
-            cur_line++;
-        i++;
-    }
-    if (cur_line != line)
-        return -1;
-    col = 0;
-    while (col < character && i < len && doc[i] != '\n') {
-        col++;
-        i++;
-    }
-    if (col != character)
-        return -1;
-    return i;
-}
 #endif /* XLANG_L2_LSP_GLUE_FULL_FROM_X — line_char_to_offset */
 
 
@@ -2153,99 +1967,11 @@ int parse_first_content_change(const uint8_t *body, int len,
 /** 在 body[search_start..length) 中找 "text" 键（支持 "text":"、"text": "、"text" : " 等），取 JSON 字符串值到 out_buf，做 unescape；返回 out 长度，未找到或出错 -1。 */
 /* G-02f-254：逻辑源 .x（真迁 pure）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-int lsp_find_text_value_from(const uint8_t *body, int len, int search_start, uint8_t *out_buf, int out_cap) {
-    const int key6_len = 6;  /* "\"text\"" */
-    int i;
-    if (!body || !out_buf || out_cap <= 0 || len < 0 || search_start < 0)
-        return -1;
-    i = search_start;
-    while (i + key6_len <= len) {
-        if (body[i] != (uint8_t)'"' || body[i + 1] != (uint8_t)'t' || body[i + 2] != (uint8_t)'e' ||
-            body[i + 3] != (uint8_t)'x' || body[i + 4] != (uint8_t)'t' || body[i + 5] != (uint8_t)'"') {
-            i++;
-            continue;
-        }
-        {
-            int s = i + key6_len;
-            int start;
-            int out_len = 0;
-            while (s < len && (body[s] == ' ' || body[s] == '\t' || body[s] == '\n' || body[s] == '\r'))
-                s++;
-            if (s >= len || body[s] != ':') {
-                i++;
-                continue;
-            }
-            s++;
-            while (s < len && (body[s] == ' ' || body[s] == '\t' || body[s] == '\n' || body[s] == '\r'))
-                s++;
-            if (s >= len || body[s] != '"') {
-                i++;
-                continue;
-            }
-            start = s + 1;
-            while (start < len && out_len < out_cap - 1) {
-                uint8_t c = body[start];
-                if (c == '"' && (start == 0 || body[start - 1] != '\\'))
-                    break;
-                if (c == '\\' && start + 1 < len) {
-                    start++;
-                    if (body[start] == 'n') {
-                        out_buf[out_len++] = '\n';
-                        start++;
-                        continue;
-                    }
-                    if (body[start] == 'r') {
-                        out_buf[out_len++] = '\r';
-                        start++;
-                        continue;
-                    }
-                    if (body[start] == 't') {
-                        out_buf[out_len++] = '\t';
-                        start++;
-                        continue;
-                    }
-                    if (body[start] == '"' || body[start] == '\\') {
-                        out_buf[out_len++] = body[start];
-                        start++;
-                        continue;
-                    }
-                    out_buf[out_len++] = body[start];
-                    start++;
-                    continue;
-                }
-                out_buf[out_len++] = c;
-                start++;
-            }
-            out_buf[out_len] = '\0';
-            return (int)out_len;
-        }
-    }
-    return -1;
-}
 #endif /* XLANG_L2_LSP_GLUE_FULL_FROM_X — lsp_find_text_value_from */
 
 /** 在 body[0..length) 中找 didOpen 的 text：先定位到 "textDocument" 对象内再找 "text" 键，取 JSON 字符串值到 out_buf；返回 out 长度，未找到 -1。 */
 /* G-02f-254：逻辑源 .x（真迁 pure）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-int lsp_find_text_value(const uint8_t *body, int len, uint8_t *out_buf, int out_cap) {
-    const char *td = "\"textDocument\"";
-    const int td_len = 14;
-    int i = 0;
-    if (!body || !out_buf || out_cap <= 0 || len < 0)
-        return -1;
-    for (; i + td_len <= len; i++) {
-        if (memcmp(body + i, td, (size_t)td_len) != 0)
-            continue;
-        /* 在 "textDocument" 之后查找 "text" 键，避免误匹配 method 等处的 text */
-        {
-            int n = lsp_find_text_value_from(body, len, i + td_len, out_buf, out_cap);
-            if (n >= 0)
-                return n;
-        }
-    }
-    /* 未找到 textDocument 时回退：整段 body 中找第一个 "text" 键（兼容旧或简化的请求） */
-    return lsp_find_text_value_from(body, len, 0, out_buf, out_cap);
-}
 #endif /* XLANG_L2_LSP_GLUE_FULL_FROM_X — lsp_find_text_value */
 
 
@@ -2311,28 +2037,6 @@ int lsp_build_response_with_result(int id_val, const uint8_t *result_ptr, int re
 /** 在 body[0..length) 中从 start 起找 key（如 "\"line\":\"），返回 key 结束后的偏移，未找到返回 -1。 */
 /* G-02f-122 / G-02f-255：逻辑源 .x（真迁 pure）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
-int lsp_find_key_after(const uint8_t *body, int len, int start, const char *key) {
-    int key_len = 0;
-    if (!body || !key || len < 0 || start < 0)
-        return -1;
-    while (key[key_len] != '\0')
-        key_len++;
-    if (key_len <= 0)
-        return -1;
-    while (start + key_len <= len) {
-        int match = 1;
-        int j;
-        for (j = 0; j < key_len; j++)
-            if (body[start + j] != (uint8_t)key[j]) {
-                match = 0;
-                break;
-            }
-        if (match)
-            return start + key_len;
-        start++;
-    }
-    return -1;
-}
 #endif
 
 /* G-02f-255：JSON key 字面量（.x extract_position 用） */
@@ -2343,16 +2047,6 @@ const char *lsp_json_key_character(void) { return "\"character\":"; }
 /** 从 offset 起解析一个非负整数，写入 *out，返回解析结束后的偏移；非法返回 -1。 */
 /* G-02f-118 / G-02f-255：逻辑源 .x（真迁 pure）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-int lsp_parse_int(const uint8_t *body, int len, int offset, int *out) {
-    if (!body || !out || len < 0 || offset < 0 || offset >= len)
-        return -1;
-    *out = 0;
-    while (offset < len && body[offset] >= '0' && body[offset] <= '9') {
-        *out = *out * 10 + (body[offset] - '0');
-        offset++;
-    }
-    return offset;
-}
 #endif /* XLANG_L2_LSP_GLUE_FULL_FROM_X — lsp_parse_int */
 
 /**
@@ -2361,31 +2055,6 @@ int lsp_parse_int(const uint8_t *body, int len, int offset, int *out) {
  * G-02f-255：逻辑源 .x（真迁编排 pure）；seed 保留同语义 C 供产品 cc。
  */
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-int lsp_extract_position_from_params(const uint8_t *body, int len, int *out_line, int *out_character) {
-    int pos;
-    int line_start;
-    int char_start;
-    int line_end;
-    int char_end;
-    if (!body || len <= 0 || !out_line || !out_character)
-        return -1;
-    pos = lsp_find_key_after(body, len, 0, lsp_json_key_position());
-    if (pos < 0)
-        return -1;
-    line_start = lsp_find_key_after(body, len, pos, lsp_json_key_line());
-    if (line_start < 0)
-        return -1;
-    char_start = lsp_find_key_after(body, len, pos, lsp_json_key_character());
-    if (char_start < 0)
-        return -1;
-    line_end = lsp_parse_int(body, len, line_start, out_line);
-    if (line_end < 0)
-        return -1;
-    char_end = lsp_parse_int(body, len, char_start, out_character);
-    if (char_end < 0)
-        return -1;
-    return 0;
-}
 #endif /* XLANG_L2_LSP_GLUE_FULL_FROM_X — lsp_extract_position_from_params */
 
 /**
@@ -2534,21 +2203,6 @@ int lsp_build_hover_response(int id_val, const uint8_t *body, int body_len,
 int lsp_json_escape_ident(const char *s, char *esc, int esc_cap);
 #endif
 #ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
-int lsp_json_escape_ident(const char *s, char *esc, int esc_cap) {
-    int e = 0;
-    if (!s || !esc || esc_cap < 4)
-        return 0;
-    for (int i = 0; s[i] != '\0' && e < esc_cap - 3; i++) {
-        if (s[i] == '"' || s[i] == '\\') {
-            esc[e++] = '\\';
-            if (e >= esc_cap - 1)
-                break;
-        }
-        esc[e++] = s[i];
-    }
-    esc[e] = '\0';
-    return e;
-}
 #endif
 
 
@@ -2762,19 +2416,6 @@ int lsp_build_document_symbol_response(int id_val, const uint8_t *body, int body
 int lsp_parse_bool_after(const uint8_t *body, int len, int start, const char *key, int *out_val);
 #endif
 #ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
-int lsp_parse_bool_after(const uint8_t *body, int len, int start, const char *key, int *out_val) {
-    int k = lsp_find_key_after(body, len, start, key);
-    if (k < 0 || !out_val) return -1;
-    if (k + 4 <= len && body[k] == 't' && body[k+1] == 'r' && body[k+2] == 'u' && body[k+3] == 'e') {
-        *out_val = 1;
-        return 0;
-    }
-    if (k + 5 <= len && body[k] == 'f' && body[k+1] == 'a' && body[k+2] == 'l' && body[k+3] == 's' && body[k+4] == 'e') {
-        *out_val = 0;
-        return 0;
-    }
-    return -1;
-}
 #endif
 
 
@@ -2873,13 +2514,6 @@ void lsp_format_line_update_depth(const uint8_t *doc, int line_start, int line_l
 int lsp_line_has_block_comment_end(const uint8_t *doc, int start, int len);
 #endif
 #ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
-int lsp_line_has_block_comment_end(const uint8_t *doc, int start, int len) {
-    for (int i = 0; i + 1 < len; i++) {
-        if (doc[start + i] == '*' && doc[start + i + 1] == '/')
-            return 1;
-    }
-    return 0;
-}
 #endif
 
 
@@ -2893,13 +2527,6 @@ int lsp_line_has_block_comment_end(const uint8_t *doc, int start, int len) {
 int lsp_line_is_block_comment(const uint8_t *doc, int content_start, int content_len, int in_block);
 #endif
 #ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
-int lsp_line_is_block_comment(const uint8_t *doc, int content_start, int content_len, int in_block) {
-    if (content_len >= 2 && doc[content_start] == '/' && doc[content_start + 1] == '*')
-        return 1;
-    if (in_block && content_len >= 1 && doc[content_start] == '*')
-        return 1;
-    return 0;
-}
 #endif
 
 
@@ -2924,14 +2551,6 @@ int lsp_fmt_space_after(const uint8_t *doc, int start, int len, int j, uint8_t *
 /* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-uint8_t lsp_fmt_last_out(const uint8_t *out_buf, int out_len) {
-    int k;
-    for (k = out_len - 1; k >= 0; k--) {
-        if (out_buf[k] != ' ' && out_buf[k] != '\t')
-            return out_buf[k];
-    }
-    return 0;
-}
 #endif /* XLANG_L2_LSP_GLUE_FULL_FROM_X — lsp_fmt_last_out */
 #endif
 
@@ -2942,15 +2561,6 @@ uint8_t lsp_fmt_last_out(const uint8_t *out_buf, int out_len) {
 /* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-uint8_t lsp_fmt_prev_src(const uint8_t *doc, int start, int j) {
-    int k;
-    for (k = j - 1; k >= 0; k--) {
-        uint8_t c = doc[start + k];
-        if (c != ' ' && c != '\t' && c != '\r')
-            return c;
-    }
-    return 0;
-}
 #endif /* XLANG_L2_LSP_GLUE_FULL_FROM_X — lsp_fmt_prev_src */
 #endif
 
@@ -2961,9 +2571,6 @@ uint8_t lsp_fmt_prev_src(const uint8_t *doc, int start, int j) {
 /* G-02f-113：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-int lsp_fmt_is_atom_tail(uint8_t c) {
-  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == ')' || c == ']' || c == '}';
-}
 #endif /* XLANG_L2_LSP_GLUE_FULL_FROM_X — lsp_fmt_is_atom_tail */
 #endif
 
@@ -2973,9 +2580,6 @@ int lsp_fmt_is_atom_tail(uint8_t c) {
 /* G-02f-113：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-int lsp_fmt_is_atom_head(uint8_t c) {
-  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '(' || c == '[' || c == '{';
-}
 #endif /* XLANG_L2_LSP_GLUE_FULL_FROM_X — lsp_fmt_is_atom_head */
 #endif
 
@@ -2985,13 +2589,6 @@ int lsp_fmt_is_atom_head(uint8_t c) {
 /* G-02f-113：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-int lsp_fmt_unary_lhs(uint8_t prev) {
-  if (prev == 0)
-    return 1;
-  return prev == '(' || prev == '[' || prev == '{' || prev == ',' || prev == ':' || prev == ';' || prev == '='
-      || prev == '+' || prev == '-' || prev == '*' || prev == '/' || prev == '%' || prev == '&' || prev == '|'
-      || prev == '^' || prev == '!' || prev == '~' || prev == '<' || prev == '>';
-}
 #endif /* XLANG_L2_LSP_GLUE_FULL_FROM_X — lsp_fmt_unary_lhs */
 #endif
 
@@ -3001,18 +2598,6 @@ int lsp_fmt_unary_lhs(uint8_t prev) {
 /* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-int lsp_fmt_src_ws_before(const uint8_t *doc, int start, int j) {
-    int k = j - 1;
-    while (k >= 0) {
-        uint8_t c = doc[start + k];
-        if (c == ' ' || c == '\t')
-            return 1;
-        if (c == '\r')
-            return 0;
-        return 0;
-    }
-    return 0;
-}
 #endif /* XLANG_L2_LSP_GLUE_FULL_FROM_X — lsp_fmt_src_ws_before */
 #endif
 
@@ -3023,18 +2608,6 @@ int lsp_fmt_src_ws_before(const uint8_t *doc, int start, int j) {
 /* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-int lsp_fmt_src_ws_after(const uint8_t *doc, int start, int len, int j) {
-    int k = j + 1;
-    while (k < len) {
-        uint8_t c = doc[start + k];
-        if (c == ' ' || c == '\t')
-            return 1;
-        if (c == '\r' || c == '\n')
-            return 0;
-        return 0;
-    }
-    return 0;
-}
 #endif /* XLANG_L2_LSP_GLUE_FULL_FROM_X — lsp_fmt_src_ws_after */
 #endif
 
@@ -3045,17 +2618,6 @@ int lsp_fmt_src_ws_after(const uint8_t *doc, int start, int len, int j) {
 /* G-02f-122：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-int lsp_fmt_space_before(const uint8_t *doc, int start, int j, uint8_t *out_buf, int *out_len, int out_cap) {
-    uint8_t last;
-    if (lsp_fmt_src_ws_before(doc, start, j))
-        return 0;
-    last = lsp_fmt_last_out(out_buf, *out_len);
-    if (last != 0 && last != ' ' && last != '\t' && *out_len < out_cap - 1) {
-        out_buf[(*out_len)++] = ' ';
-        return 1;
-    }
-    return 0;
-}
 #endif /* XLANG_L2_LSP_GLUE_FULL_FROM_X — lsp_fmt_space_before */
 #endif
 
@@ -3066,22 +2628,6 @@ int lsp_fmt_space_before(const uint8_t *doc, int start, int j, uint8_t *out_buf,
 /* G-02f-123：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-int lsp_fmt_space_after(const uint8_t *doc, int start, int len, int j, uint8_t *out_buf, int *out_len, int out_cap) {
-    int k;
-    if (lsp_fmt_src_ws_after(doc, start, len, j))
-        return 0;
-    for (k = j + 1; k < len; k++) {
-        uint8_t n = doc[start + k];
-        if (n == ' ' || n == '\t' || n == '\r')
-            continue;
-        if (lsp_fmt_is_atom_head(n) && *out_len < out_cap - 1) {
-            out_buf[(*out_len)++] = ' ';
-            return 1;
-        }
-        return 0;
-    }
-    return 0;
-}
 #endif /* XLANG_L2_LSP_GLUE_FULL_FROM_X — lsp_fmt_space_after */
 #endif
 
@@ -3502,27 +3048,6 @@ int xlang_format_x_document(const uint8_t *doc, int doc_len, uint8_t *out_buf, i
 /** 统计文档行数（0-based 最后一行号）与最后一行的字符数。 */
 /* G-02f-253：逻辑源 .x（真迁 pure）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_GLUE_FULL_FROM_X
-void lsp_doc_line_count(const uint8_t *doc, int len, int *out_last_line, int *out_last_line_char) {
-    int lines = 0;
-    int last_char = 0;
-    int i;
-    if (!out_last_line || !out_last_line_char)
-        return;
-    if (!doc || len < 0) {
-        *out_last_line = 0;
-        *out_last_line_char = 0;
-        return;
-    }
-    for (i = 0; i < len; i++) {
-        if (doc[i] == '\n') {
-            lines++;
-            last_char = 0;
-        } else
-            last_char++;
-    }
-    *out_last_line = lines > 0 ? lines - 1 : 0;
-    *out_last_line_char = last_char;
-}
 #endif /* XLANG_L2_LSP_GLUE_FULL_FROM_X — lsp_doc_line_count */
 
 

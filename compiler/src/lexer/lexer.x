@@ -46,21 +46,29 @@ import token;
 // PLATFORM: SHARED — whole token is written through t. Kind is set only in the literal.
 function lexer_tok_with_kind(t: *Token, k: TokenKind): void {
   if (t == 0) { return; }
-  let cur: Token = { kind: (0 as TokenKind), line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-  unsafe { cur = *t; }
+  // Win tip PE: field assign `t.col = …` typecks as i32 not void (XT001).
+  let line0: i32 = t.line;
+  let col0: i32 = t.col;
+  let iv: i64 = t.int_val;
+  let fv: f64 = t.float_val;
+  let id: *u8 = t.ident;
+  let il: i32 = t.ident_len;
   let nxt: Token = {
     kind: k,
-    line: cur.line,
-    col: cur.col,
-    int_val: cur.int_val,
-    float_val: cur.float_val,
-    ident: cur.ident,
-    ident_len: cur.ident_len
+    line: line0,
+    col: col0,
+    int_val: iv,
+    float_val: fv,
+    ident: id,
+    ident_len: il
   };
-  unsafe { *t = nxt; }
+  unsafe {
+    memcpy((t as *u8), (&nxt as *u8), (48 as usize));
+  }
 }
 
 export extern function cfg_eval_expr_c(start: *u8, len: i32): i32;
+
 
 /** See implementation for details. */
 allow(padding) struct Lexer {
@@ -93,6 +101,9 @@ allow(padding) struct LexerBuf {
 
 /** Copy bytes. Token stores use 48; LexerBuf uses 16. */
 export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+export extern "C" function lexer_src_park(data: *u8, len: i32): void;
+export extern "C" function lexer_src_data_store(out: *u8): void;
+export extern "C" function lexer_src_len_store(out: *u8): void;
 
 /**
  * Copy one Token image (48 bytes) onto dst.
@@ -275,7 +286,6 @@ let g_lexer_incomplete_oct: i32 = 0;
 let g_lexer_incomplete_oct_line: i32 = 0;
 let g_lexer_incomplete_oct_col: i32 = 0;
 let g_lexer_incomplete_oct_reported: i32 = 0;
-
 
 /**
  * wave278 Cap residual: sticky invalid digit-separator state for the current parse.
@@ -1535,16 +1545,31 @@ export function lexer_init(out: *Lexer): void {
  */
 // PLATFORM: SHARED — same cursor step as the by-value form. The slot is updated in place.
 export function advance_one(lex: *Lexer, c: u8): void {
+  // Cap tip 10.2: whole-struct `*lex = nxt` / widened i32 field stores smash
+  // line into a truncated stack pointer mid-scan → L003 on dep prerun
+  // (core.option). Field pos + 4-byte memcpy for line/col. PLATFORM: SHARED.
   if (lex == 0) { return; }
-  let cur: Lexer = Lexer { pos: 0, line: 1, col: 1 };
-  unsafe { cur = *lex; }
-  if (c == 10) {
-    let nxt: Lexer = Lexer { pos: cur.pos + 1, line: cur.line + 1, col: 1 };
-    unsafe { *lex = nxt; }
-    return;
+  let pos: usize = 0;
+  let line: i32 = 1;
+  let col: i32 = 1;
+  unsafe {
+    pos = lex.pos;
+    line = lex.line;
+    col = lex.col;
   }
-  let nxt2: Lexer = Lexer { pos: cur.pos + 1, line: cur.line, col: cur.col + 1 };
-  unsafe { *lex = nxt2; }
+  if (c == 10) {
+    pos = pos + 1;
+    line = line + 1;
+    col = 1;
+  } else {
+    pos = pos + 1;
+    col = col + 1;
+  }
+  unsafe {
+    lex.pos = pos;
+    memcpy((lex as *u8) + 8, &line as *u8, 4);
+    memcpy((lex as *u8) + 12, &col as *u8, 4);
+  }
 }
 
 /** Exported function `is_alpha`.
@@ -1774,199 +1799,94 @@ export function match_keyword_buf(data: *u8, data_len: i32, start: usize, len: i
  * tags. PLATFORM: SHARED.
  */
 // PLATFORM: SHARED — Token is written through out. Link name is unchanged.
+
+function lexer_write_ident_token(out: *Token, line0: i32, col0: i32, nlen: i32): void {
+  if (out == 0) { return; }
+  let t: Token = { kind: (59 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
+    float_val: 0.0, ident: (0 as *u8), ident_len: nlen };
+  out.kind = t.kind; out.line = t.line; out.col = t.col;
+  out.int_val = t.int_val; out.float_val = t.float_val;
+  out.ident = t.ident; out.ident_len = t.ident_len;
+}
+
+/**
+ * Write a keyword token through out in a small frame.
+ *
+ * In try_keyword's 0x1278-byte frame, `let t: Token = { kind: 1, ... }` is
+ * stored at one slot (e.g. -0x710) but `out.kind = t.kind` reads a different
+ * slot (e.g. -0x80), so *out.kind stays 0 and `function` becomes TOKEN_IDENT
+ * (P001). A callee keeps the literal and the field stores in one frame.
+ * PLATFORM: SHARED.
+ */
+function lexer_write_simple_token(out: *Token, kind: i32, line0: i32, col0: i32): void {
+  if (out == 0) { return; }
+  let t: Token = {
+    kind: (kind as TokenKind),
+    line: line0,
+    col: col0,
+    int_val: (0 as i64),
+    float_val: 0.0,
+    ident: (0 as *u8),
+    ident_len: 0
+  };
+  out.kind = t.kind;
+  out.line = t.line;
+  out.col = t.col;
+  out.int_val = t.int_val;
+  out.float_val = t.float_val;
+  out.ident = t.ident;
+  out.ident_len = t.ident_len;
+}
+
 export function try_keyword(out: *Token, data: u8[], start: usize, len: usize, line0: i32, col0: i32): void {
   let nlen: i32 = len as i32;
   if (nlen == 8 && (match_keyword(data, start, 8, "function" as *u8) != 0)) {
-    let t: Token = {
-      kind: (1 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 1, line0, col0);
     return;
   }  if (nlen == 3 && (match_keyword(data, start, 3, "let" as *u8) != 0)) {
-    let t: Token = {
-      kind: (2 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 2, line0, col0);
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "const" as *u8) != 0)) {
-    let t: Token = {
-      kind: (3 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 3, line0, col0);
     return;
   }  if (nlen == 2 && (match_keyword(data, start, 2, "if" as *u8) != 0)) {
-    let t: Token = {
-      kind: (4 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 4, line0, col0);
     return;
   }  if (nlen == 4 && (match_keyword(data, start, 4, "else" as *u8) != 0)) {
-    let t: Token = {
-      kind: (5 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 5, line0, col0);
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "while" as *u8) != 0)) {
-    let t: Token = {
-      kind: (6 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 6, line0, col0);
     return;
   }  if (nlen == 4 && (match_keyword(data, start, 4, "loop" as *u8) != 0)) {
-    let t: Token = {
-      kind: (7 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 7, line0, col0);
     return;
   }  if (nlen == 3 && (match_keyword(data, start, 3, "for" as *u8) != 0)) {
-    let t: Token = {
-      kind: (8 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 8, line0, col0);
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "break" as *u8) != 0)) {
-    let t: Token = {
-      kind: (9 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 9, line0, col0);
     return;
   }  if (nlen == 8 && (match_keyword(data, start, 8, "continue" as *u8) != 0)) {
-    let t: Token = {
-      kind: (10 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 10, line0, col0);
     return;
   }  if (nlen == 6 && (match_keyword(data, start, 6, "return" as *u8) != 0)) {
-    let t: Token = {
-      kind: (11 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 11, line0, col0);
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "panic" as *u8) != 0)) {
-    let t: Token = {
-      kind: (12 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 12, line0, col0);
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "defer" as *u8) != 0)) {
-    let t: Token = {
-      kind: (13 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 13, line0, col0);
     return;
   }  if (nlen == 6 && (match_keyword(data, start, 6, "region" as *u8) != 0)) {
-    let t: Token = {
-      kind: (16 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 16, line0, col0);
     return;
   }  if (nlen == 10 && (match_keyword(data, start, 10, "with_arena" as *u8) != 0)) {
-    let t: Token = {
-      kind: (17 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 17, line0, col0);
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "match" as *u8) != 0)) {
-    let t: Token = {
-      kind: (18 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 18, line0, col0);
     return;
   }  try_keyword_b(out, data, start, len, line0, col0);
     return;
@@ -1985,196 +1905,52 @@ export function try_keyword(out: *Token, data: u8[], start: usize, len: usize, l
 function try_keyword_b(out: *Token, data: u8[], start: usize, len: usize, line0: i32, col0: i32): void {
   let nlen: i32 = len as i32;
   if (nlen == 6 && (match_keyword(data, start, 6, "struct" as *u8) != 0)) {
-    let t: Token = {
-      kind: (19 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 19, line0, col0);
     return;
   }  if (nlen == 4 && (match_keyword(data, start, 4, "type" as *u8) != 0)) {
-    let t: Token = {
-      kind: (20 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 20, line0, col0);
     return;
   }  if (nlen == 6 && (match_keyword(data, start, 6, "packed" as *u8) != 0)) {
-    let t: Token = {
-      kind: (21 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 21, line0, col0);
     return;
   }  if (nlen == 3 && (match_keyword(data, start, 3, "soa" as *u8) != 0)) {
-    let t: Token = {
-      kind: (22 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 22, line0, col0);
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "align" as *u8) != 0)) {
-    let t: Token = {
-      kind: (46 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 46, line0, col0);
     return;
   }  if (nlen == 4 && (match_keyword(data, start, 4, "enum" as *u8) != 0)) {
-    let t: Token = {
-      kind: (47 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 47, line0, col0);
     return;
   }  if (nlen == 4 && (match_keyword(data, start, 4, "goto" as *u8) != 0)) {
-    let t: Token = {
-      kind: (48 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 48, line0, col0);
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "trait" as *u8) != 0)) {
-    let t: Token = {
-      kind: (49 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 49, line0, col0);
     return;
   }  if (nlen == 4 && (match_keyword(data, start, 4, "impl" as *u8) != 0)) {
-    let t: Token = {
-      kind: (50 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 50, line0, col0);
     return;
   }  if (nlen == 4 && (match_keyword(data, start, 4, "self" as *u8) != 0)) {
-    let t: Token = {
-      kind: (51 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 51, line0, col0);
     return;
   }  if (nlen == 1 && data[start] == 95) {
-    let t: Token = {
-      kind: (52 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 52, line0, col0);
     return;
   }  if (nlen == 6 && (match_keyword(data, start, 6, "import" as *u8) != 0)) {
-    let t: Token = {
-      kind: (53 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 53, line0, col0);
     return;
   }  if (nlen == 6 && (match_keyword(data, start, 6, "extern" as *u8) != 0)) {
-    let t: Token = {
-      kind: (54 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 54, line0, col0);
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "async" as *u8) != 0)) {
-    let t: Token = {
-      kind: (55 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 55, line0, col0);
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "await" as *u8) != 0)) {
-    let t: Token = {
-      kind: (56 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 56, line0, col0);
     return;
   }  if (nlen == 3 && (match_keyword(data, start, 3, "run" as *u8) != 0)) {
-    let t: Token = {
-      kind: (57 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 57, line0, col0);
     return;
   }  try_keyword_c(out, data, start, len, line0, col0);
     return;
@@ -2193,149 +1969,41 @@ function try_keyword_b(out: *Token, data: u8[], start: usize, len: usize, line0:
 function try_keyword_c(out: *Token, data: u8[], start: usize, len: usize, line0: i32, col0: i32): void {
   let nlen: i32 = len as i32;
   if (nlen == 5 && (match_keyword(data, start, 5, "spawn" as *u8) != 0)) {
-    let t: Token = {
-      kind: (58 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 58, line0, col0);
     return;
   }
   /** export：e x p o r t */  if (nlen == 6 && (match_keyword(data, start, 6, "export" as *u8) != 0)) {
-    let t: Token = {
-      kind: (131 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 131, line0, col0);
     return;
   }  if (nlen == 3 && (match_keyword(data, start, 3, "i32" as *u8) != 0)) {
-    let t: Token = {
-      kind: (60 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 60, line0, col0);
     return;
   }  if (nlen == 4 && (match_keyword(data, start, 4, "bool" as *u8) != 0)) {
-    let t: Token = {
-      kind: (61 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 61, line0, col0);
     return;
   }  if (nlen == 2 && (match_keyword(data, start, 2, "u8" as *u8) != 0)) {
-    let t: Token = {
-      kind: (62 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 62, line0, col0);
     return;
   }  if (nlen == 3 && (match_keyword(data, start, 3, "u32" as *u8) != 0)) {
-    let t: Token = {
-      kind: (63 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 63, line0, col0);
     return;
   }  if (nlen == 3 && (match_keyword(data, start, 3, "u64" as *u8) != 0)) {
-    let t: Token = {
-      kind: (64 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 64, line0, col0);
     return;
   }  if (nlen == 3 && (match_keyword(data, start, 3, "i64" as *u8) != 0)) {
-    let t: Token = {
-      kind: (65 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 65, line0, col0);
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "usize" as *u8) != 0)) {
-    let t: Token = {
-      kind: (66 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 66, line0, col0);
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "isize" as *u8) != 0)) {
-    let t: Token = {
-      kind: (67 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 67, line0, col0);
     return;
   }  if (nlen == 4 && (match_keyword(data, start, 4, "true" as *u8) != 0)) {
-    let t: Token = {
-      kind: (75 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 75, line0, col0);
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "false" as *u8) != 0)) {
-    let t: Token = {
-      kind: (76 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 76, line0, col0);
     return;
   }
   /*
@@ -2343,52 +2011,16 @@ function try_keyword_c(out: *Token, data: u8[], start: usize, len: usize, line0:
    * Bytes: n=110 u=117 l=108 l=108. G.7 single keyword table (try_keyword + buf twin).
    * PLATFORM: SHARED.
    */  if (nlen == 4 && (match_keyword(data, start, 4, "null" as *u8) != 0)) {
-    let t: Token = {
-      kind: (132 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 132, line0, col0);
     return;
   }  if (nlen == 3 && (match_keyword(data, start, 3, "f32" as *u8) != 0)) {
-    let t: Token = {
-      kind: (77 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 77, line0, col0);
     return;
   }  if (nlen == 3 && (match_keyword(data, start, 3, "f64" as *u8) != 0)) {
-    let t: Token = {
-      kind: (78 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 78, line0, col0);
     return;
   }  if (nlen == 4 && (match_keyword(data, start, 4, "void" as *u8) != 0)) {
-    let t: Token = {
-      kind: (79 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 79, line0, col0);
     return;
   }  try_keyword_d(out, data, start, len, line0, col0);
     return;
@@ -2407,107 +2039,31 @@ function try_keyword_c(out: *Token, data: u8[], start: usize, len: usize, line0:
 function try_keyword_d(out: *Token, data: u8[], start: usize, len: usize, line0: i32, col0: i32): void {
   let nlen: i32 = len as i32;
   if (nlen == 5 && (match_keyword(data, start, 5, "i3x4" as *u8) != 0)) {
-    let t: Token = {
-      kind: (68 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 68, line0, col0);
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "i3x8" as *u8) != 0)) {
-    let t: Token = {
-      kind: (69 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 69, line0, col0);
     return;
   }  if (nlen == 6 && (match_keyword(data, start, 6, "i3x16" as *u8) != 0)) {
-    let t: Token = {
-      kind: (70 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 70, line0, col0);
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "u3x4" as *u8) != 0)) {
-    let t: Token = {
-      kind: (71 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 71, line0, col0);
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "u3x8" as *u8) != 0)) {
-    let t: Token = {
-      kind: (72 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 72, line0, col0);
     return;
   }  if (nlen == 6 && (match_keyword(data, start, 6, "u3x16" as *u8) != 0)) {
-    let t: Token = {
-      kind: (73 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 73, line0, col0);
     return;
   }  if (nlen == 2 && (match_keyword(data, start, 2, "as" as *u8) != 0)) {
-    let t: Token = {
-      kind: (128 as TokenKind),
-      line: line0,
-      col: col0,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 128, line0, col0);
     return;
   }
   // Cap 4.2.8: AST name slots are 255 bytes. Longer identifiers set the L012 sticky note.
   if (nlen > 255) {
     lexer_note_ident_too_long(line0, col0);
   }
-  let t: Token = {
-    kind: (59 as TokenKind),
-    line: line0,
-    col: col0,
-    int_val: (0 as i64),
-    float_val: 0.0,
-    ident: (0 as *u8),
-    ident_len: nlen };
-  // Whole-token image. `*out = t` drops ident_len on the Windows bootstrap.
-  // `&t` is a block local. Passing it with outer *Token is T001 unless
-  // the call is in unsafe. The callee copies 48 bytes and drops the pointer.
-  // PLATFORM: SHARED.
-  unsafe { lexer_store_token(out, &t); }
   return;
 }
 
@@ -2516,191 +2072,126 @@ export function try_keyword_buf(out: *Token, data: *u8, data_len: i32, start: us
 i32): void {
   let nlen: i32 = len as i32;
   if (nlen == 8 && (match_keyword_buf(data, data_len, start, 8, "function" as *u8) != 0)) {
-    let t: Token = { kind: (1 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 1, line0, col0);
     return;
   }
   if (nlen == 3 && (match_keyword_buf(data, data_len, start, 3, "let" as *u8) != 0)) {
-    let t: Token = { kind: (2 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 2, line0, col0);
     return;
   }
   if (nlen == 5 && (match_keyword_buf(data, data_len, start, 5, "const" as *u8) != 0)) {
-    let t: Token = { kind: (3 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 3, line0, col0);
     return;
   }
   if (nlen == 2 && (match_keyword_buf(data, data_len, start, 2, "if" as *u8) != 0)) {
-    let t: Token = { kind: (4 as TokenKind), line: line0, col: col0, int_val: (0 as i64), float_val:
-      0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 4, line0, col0);
     return;
   }
   if (nlen == 4 && (match_keyword_buf(data, data_len, start, 4, "else" as *u8) != 0)) {
-    let t: Token = { kind: (5 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 5, line0, col0);
     return;
   }
   if (nlen == 6 && (match_keyword_buf(data, data_len, start, 6, "return" as *u8) != 0)) {
-    let t: Token = { kind: (11 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 11, line0, col0);
     return;
   }
   if (nlen == 6 && (match_keyword_buf(data, data_len, start, 6, "struct" as *u8) != 0)) {
-    let t: Token = { kind: (19 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 19, line0, col0);
     return;
   }
   if (nlen == 4 && (match_keyword_buf(data, data_len, start, 4, "type" as *u8) != 0)) {
-    let t: Token = { kind: (20 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 20, line0, col0);
     return;
   }
   if (nlen == 4 && (match_keyword_buf(data, data_len, start, 4, "enum" as *u8) != 0)) {
-    let t: Token = { kind: (47 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 47, line0, col0);
     return;
   }
   if (nlen == 5 && (match_keyword_buf(data, data_len, start, 5, "match" as *u8) != 0)) {
-    let t: Token = { kind: (18 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 18, line0, col0);
     return;
   }
   if (nlen == 4 && (match_keyword_buf(data, data_len, start, 4, "true" as *u8) != 0)) {
-    let t: Token = { kind: (75 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 75, line0, col0);
     return;
   }
   if (nlen == 5 && (match_keyword_buf(data, data_len, start, 5, "false" as *u8) != 0)) {
-    let t: Token = { kind: (76 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 76, line0, col0);
     return;
   }
   /* wave668: `null` → TOKEN_NULL (132). G.7 ≡ try_keyword. PLATFORM: SHARED. */
   if (nlen == 4 && (match_keyword_buf(data, data_len, start, 4, "null" as *u8) != 0)) {
-    let t: Token = { kind: (132 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 132, line0, col0);
     return;
   }
   if (nlen == 3 && (match_keyword_buf(data, data_len, start, 3, "f64" as *u8) != 0)) {
-    let t: Token = { kind: (78 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 78, line0, col0);
     return;
   }
   if (nlen == 4 && (match_keyword_buf(data, data_len, start, 4, "void" as *u8) != 0)) {
-    let t: Token = { kind: (79 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 79, line0, col0);
     return;
   }
   if (nlen == 3 && (match_keyword_buf(data, data_len, start, 3, "i32" as *u8) != 0)) {
-    let t: Token = { kind: (60 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 60, line0, col0);
     return;
   }
   if (nlen == 4 && (match_keyword_buf(data, data_len, start, 4, "bool" as *u8) != 0)) {
-    let t: Token = { kind: (61 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 61, line0, col0);
     return;
   }
   if (nlen == 2 && (match_keyword_buf(data, data_len, start, 2, "u8" as *u8) != 0)) {
-    let t: Token = { kind: (62 as TokenKind), line: line0, col: col0, int_val: (0 as i64), float_val:
-      0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 62, line0, col0);
     return;
   }
   if (nlen == 5 && (match_keyword_buf(data, data_len, start, 5, "usize" as *u8) != 0)) {
-    let t: Token = { kind: (66 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 66, line0, col0);
     return;
   }
   if (nlen == 5 && (match_keyword_buf(data, data_len, start, 5, "isize" as *u8) != 0)) {
-    let t: Token = { kind: (67 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 67, line0, col0);
     return;
   }
   if (nlen == 2 && (match_keyword_buf(data, data_len, start, 2, "as" as *u8) != 0)) {
-    let t: Token = { kind: (128 as TokenKind), line: line0, col: col0, int_val: (0 as i64), float_val:
-      0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 128, line0, col0);
     return;
   }
   if (nlen == 6 && (match_keyword_buf(data, data_len, start, 6, "import" as *u8) != 0)) {
-    let t: Token = { kind: (53 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 53, line0, col0);
     return;
   }
   if (nlen == 6 && (match_keyword_buf(data, data_len, start, 6, "extern" as *u8) != 0)) {
-    let t: Token = { kind: (54 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 54, line0, col0);
     return;
   }
   if (nlen == 5 && (match_keyword_buf(data, data_len, start, 5, "async" as *u8) != 0)) {
-    let t: Token = { kind: (55 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 55, line0, col0);
     return;
   }
   if (nlen == 5 && (match_keyword_buf(data, data_len, start, 5, "await" as *u8) != 0)) {
-    let t: Token = { kind: (56 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 56, line0, col0);
     return;
   }
   if (nlen == 3 && (match_keyword_buf(data, data_len, start, 3, "run" as *u8) != 0)) {
-    let t: Token = { kind: (57 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 57, line0, col0);
     return;
   }
   if (nlen == 5 && (match_keyword_buf(data, data_len, start, 5, "spawn" as *u8) != 0)) {
-    let t: Token = { kind: (58 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 58, line0, col0);
     return;
   }
   if (nlen == 6 && (match_keyword_buf(data, data_len, start, 6, "export" as *u8) != 0)) {
-    let t: Token = { kind: (131 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 131, line0, col0);
     return;
   }
   if (nlen == 1 && start < (data_len as usize) && data[start] == 95) {
-    let t: Token = { kind: (52 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    lexer_write_simple_token(out, 52, line0, col0);
     return;
   }
   // wave Cap 4.2.8: G.7 mirror try_keyword — L012 when non-keyword span > 255.
   if (nlen > 255) {
     lexer_note_ident_too_long(line0, col0);
   }
-  let t: Token = { kind: (59 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-    float_val: 0.0, ident: (0 as *u8), ident_len: nlen };
-  // Whole-token image. `*out = t` drops ident_len on the Windows bootstrap.
-  // `&t` is a block local. Passing it with outer *Token is T001 unless
-  // the call is in unsafe. The callee copies 48 bytes and drops the pointer.
-  // PLATFORM: SHARED.
-  unsafe { lexer_store_token(out, &t); }
   return;
 }
 
@@ -2710,27 +2201,26 @@ i32): void {
  */
 // PLATFORM: SHARED — result is written through out. Link name is unchanged.
 export function skip_repr_c_attr_if_present(out: *Lexer, lex: Lexer, data: u8[]): void {
-  let l: Lexer = lex;
   if (out == 0) { return; }
-  if (l.pos + (10 as usize) > data.length) {
-    unsafe { *out = l; }
+  if (lex.pos + (10 as usize) > data.length) {
+    unsafe { *out = lex; }
     return;
   }
-  if (data[l.pos] != 35 || data[l.pos + (1 as usize)] != 91) {
-    unsafe { *out = l; }
+  if (data[lex.pos] != 35 || data[lex.pos + (1 as usize)] != 91) {
+    unsafe { *out = lex; }
     return;
   }
-  if (data[l.pos + (2 as usize)] != 114 || data[l.pos + (3 as usize)] != 101 || data[l.pos + (4 as usize)] != 112 ||
-      data[l.pos + (5 as usize)] != 114) {
-    unsafe { *out = l; }
+  if (data[lex.pos + (2 as usize)] != 114 || data[lex.pos + (3 as usize)] != 101 || data[lex.pos + (4 as usize)] != 112 ||
+      data[lex.pos + (5 as usize)] != 114) {
+    unsafe { *out = lex; }
     return;
   }
-  if (data[l.pos + (6 as usize)] != 40 || data[l.pos + (7 as usize)] != 67 || data[l.pos + (8 as usize)] != 41 ||
-      data[l.pos + (9 as usize)] != 93) {
-    unsafe { *out = l; }
+  if (data[lex.pos + (6 as usize)] != 40 || data[lex.pos + (7 as usize)] != 67 || data[lex.pos + (8 as usize)] != 41 ||
+      data[lex.pos + (9 as usize)] != 93) {
+    unsafe { *out = lex; }
     return;
   }
-  let nxt: Lexer = Lexer { pos: l.pos + (10 as usize), line: l.line, col: l.col };
+  let nxt: Lexer = Lexer { pos: lex.pos + (10 as usize), line: lex.line, col: lex.col };
   unsafe { *out = nxt; }
 }
 
@@ -2739,27 +2229,26 @@ export function skip_repr_c_attr_if_present(out: *Lexer, lex: Lexer, data: u8[])
  * See implementation.
  */
 export function skip_cfg_attr_if_present(out: *Lexer, lex: Lexer, data: u8[]): void {
-  let l: Lexer = lex;
   let p: usize = 0;
   let depth: i32 = 0;
   if (out == 0) { return; }
-  if (l.pos + (6 as usize) > data.length) {
-    unsafe { *out = l; }
+  if (lex.pos + (6 as usize) > data.length) {
+    unsafe { *out = lex; }
     return;
   }
-  if (data[l.pos] != 35 || data[l.pos + (1 as usize)] != 91) {
-    unsafe { *out = l; }
+  if (data[lex.pos] != 35 || data[lex.pos + (1 as usize)] != 91) {
+    unsafe { *out = lex; }
     return;
   }
-  if (data[l.pos + (2 as usize)] != 99 || data[l.pos + (3 as usize)] != 102 || data[l.pos + (4 as usize)] != 103) {
-    unsafe { *out = l; }
+  if (data[lex.pos + (2 as usize)] != 99 || data[lex.pos + (3 as usize)] != 102 || data[lex.pos + (4 as usize)] != 103) {
+    unsafe { *out = lex; }
     return;
   }
-  if (data[l.pos + (5 as usize)] != 40) {
-    unsafe { *out = l; }
+  if (data[lex.pos + (5 as usize)] != 40) {
+    unsafe { *out = lex; }
     return;
   }
-  p = l.pos + (6 as usize);
+  p = lex.pos + (6 as usize);
   depth = 1;
   while (p < data.length && depth > 0) {
     if (data[p] == 40) {
@@ -2774,13 +2263,14 @@ export function skip_cfg_attr_if_present(out: *Lexer, lex: Lexer, data: u8[]): v
     return;
   }
   p = p + (1 as usize);
-  let nxt: Lexer = Lexer { pos: p, line: l.line, col: l.col };
+  let nxt: Lexer = Lexer { pos: p, line: lex.line, col: lex.col };
   unsafe { *out = nxt; }
 }
 
 /**
  * B-01 v1: If `l` is at `#[cfg(...)]`, evaluate host match, write TOKEN_ATTR_CFG, return 1.
- * Copies the expression into a stack buffer before cfg_eval_expr_c (avoids C-frontend ambiguity).
+ * Passes &data[expr_start] to cfg_eval_expr_c (no stack u8[256] / hollow BSS).
+ * Tip Linux smash on stack &tmp[0] (wave703) made cfg arms empty → net listen UNDEF.
  * PLATFORM: SHARED — LANG-007 S0: cfg_eval_expr_c is extern FFI inside unsafe (Cap-T001).
  */
 export function lexer_try_cfg_attr_into(out: *LexerResult, l: Lexer, data: u8[]): i32 {
@@ -2819,16 +2309,13 @@ export function lexer_try_cfg_attr_into(out: *LexerResult, l: Lexer, data: u8[])
   if (expr_len <= 0 || expr_len > 255) {
     return 0;
   }
-  let tmp: u8[256] = [];
-  let ti: i32 = 0;
-  while (ti < expr_len) {
-    tmp[ti] = data[expr_start + (ti as usize)];
-    ti = ti + 1;
-  }
+  // wave703 / 10.2: do not copy into stack u8[256] (&tmp[0] tip Linux smash)
+  // or file-level u8[256] BSS in lexer_x.o (tip emits no DATA; adrp hits TEXT).
+  // data[] is the source buffer — pass &data[expr_start] with length bound.
   // PLATFORM: SHARED — LANG-007 S0: extern call requires unsafe (Cap-T001).
   let enabled: i32 = 0;
   unsafe {
-    enabled = cfg_eval_expr_c(&tmp[0], expr_len) as i32;
+    enabled = cfg_eval_expr_c(&data[expr_start], expr_len) as i32;
   }
   p = p + (1 as usize);
   let l2: Lexer = { pos: p, line: l.line, col: l.col };
@@ -2843,7 +2330,7 @@ export function lexer_try_cfg_attr_into(out: *LexerResult, l: Lexer, data: u8[])
   };
   write_next_lex_into(out, l2);
   write_tok_into(out, tok);
-  out.token_start = (0 as usize);
+  lexer_park_token_start(out, (0 as usize));
   return 1;
 }
 
@@ -2881,7 +2368,7 @@ export function lexer_try_repr_c_attr_into(out: *LexerResult, l: Lexer, data: u8
   };
   write_next_lex_into(out, l2);
   write_tok_into(out, tok);
-  out.token_start = (0 as usize);
+  lexer_park_token_start(out, (0 as usize));
   return 1;
 }
 
@@ -2926,7 +2413,7 @@ export function lexer_try_repr_compatible_attr_into(out: *LexerResult, l: Lexer,
   };
   write_next_lex_into(out, l2);
   write_tok_into(out, tok);
-  out.token_start = (0 as usize);
+  lexer_park_token_start(out, (0 as usize));
   return 1;
 }
 
@@ -2964,7 +2451,7 @@ export function lexer_try_soa_attr_into(out: *LexerResult, l: Lexer, data: u8[])
   };
   write_next_lex_into(out, l2);
   write_tok_into(out, tok);
-  out.token_start = (0 as usize);
+  lexer_park_token_start(out, (0 as usize));
   return 1;
 }
 
@@ -3004,7 +2491,7 @@ export function lexer_try_alloc_attr_into(out: *LexerResult, l: Lexer, data: u8[
   };
   write_next_lex_into(out, l2);
   write_tok_into(out, tok);
-  out.token_start = (0 as usize);
+  lexer_park_token_start(out, (0 as usize));
   return 1;
 }
 
@@ -3043,7 +2530,7 @@ export function lexer_try_used_attr_into(out: *LexerResult, l: Lexer, data: u8[]
   };
   write_next_lex_into(out, l2);
   write_tok_into(out, tok);
-  out.token_start = (0 as usize);
+  lexer_park_token_start(out, (0 as usize));
   return 1;
 }
 
@@ -3061,7 +2548,7 @@ export function lexer_try_naked_attr_into(out: *LexerResult, l: Lexer, data: u8[
   advance_one(&l2, 100); advance_one(&l2, 93);
   write_next_lex_into(out, l2);
   write_tok_into(out, { kind: (29 as TokenKind), line: line0, col: col0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 });
-  out.token_start = (0 as usize); return 1;
+  lexer_park_token_start(out, (0 as usize)); return 1;
 }
 
 /**
@@ -3078,7 +2565,7 @@ export function lexer_try_entry_attr_into(out: *LexerResult, l: Lexer, data: u8[
   advance_one(&l2, 101); advance_one(&l2, 93);
   write_next_lex_into(out, l2);
   write_tok_into(out, { kind: (30 as TokenKind), line: line0, col: col0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 });
-  out.token_start = (0 as usize); return 1;
+  lexer_park_token_start(out, (0 as usize)); return 1;
 }
 
 /**
@@ -3097,7 +2584,7 @@ export function lexer_try_no_mangle_attr_into(out: *LexerResult, l: Lexer, data:
   advance_one(&l2, 108); advance_one(&l2, 101); advance_one(&l2, 93);
   write_next_lex_into(out, l2);
   write_tok_into(out, { kind: (32 as TokenKind), line: line0, col: col0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 });
-  out.token_start = (0 as usize); return 1;
+  lexer_park_token_start(out, (0 as usize)); return 1;
 }
 
 /**
@@ -3116,7 +2603,7 @@ export function lexer_try_interrupt_attr_into(out: *LexerResult, l: Lexer, data:
   advance_one(&l2, 112); advance_one(&l2, 116); advance_one(&l2, 93);
   write_next_lex_into(out, l2);
   write_tok_into(out, { kind: (35 as TokenKind), line: line0, col: col0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 });
-  out.token_start = (0 as usize); return 1;
+  lexer_park_token_start(out, (0 as usize)); return 1;
 }
 
 /**
@@ -3133,7 +2620,7 @@ export function lexer_try_send_attr_into(out: *LexerResult, l: Lexer, data: u8[]
   advance_one(&l2, 93);
   write_next_lex_into(out, l2);
   write_tok_into(out, { kind: (36 as TokenKind), line: line0, col: col0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 });
-  out.token_start = (0 as usize); return 1;
+  lexer_park_token_start(out, (0 as usize)); return 1;
 }
 
 /**
@@ -3150,7 +2637,7 @@ export function lexer_try_sync_attr_into(out: *LexerResult, l: Lexer, data: u8[]
   advance_one(&l2, 93);
   write_next_lex_into(out, l2);
   write_tok_into(out, { kind: (37 as TokenKind), line: line0, col: col0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 });
-  out.token_start = (0 as usize); return 1;
+  lexer_park_token_start(out, (0 as usize)); return 1;
 }
 
 /**
@@ -3236,61 +2723,178 @@ function lexer_block_comment_prev_is_path_like(prev: u8): i32 {
  * @param data u8[] — full source buffer (not required to be NUL-terminated)
  * @return Lexer — advanced past whitespace and comments; unchanged on EOF
  */
-// PLATFORM: SHARED — the advanced cursor is written through out.
+// PLATFORM: SHARED — deref-assign emits no store (kind 52), so each
+// return writes pos, line, and col through out. The advanced cursor is that write.
 export function skip_whitespace_and_comments(out: *Lexer, lex: Lexer, data: u8[]): void {
-  let l: Lexer = lex;
+  // 10.2 Cap tip: use u8[] .length / [] like the rest of lexer.x. The
+  // knife256 peel→park→buf path SEGV'd in dep prerun (core.option) when
+  // fat_hdr indirection / PAGEZERO park left a bad sp. PLATFORM: SHARED.
+  if (out == 0) { return; }
+  unsafe {
+    out.pos = lex.pos;
+    out.line = lex.line;
+    out.col = lex.col;
+  }
+  let depth: i32 = 0;
+  while (out.pos < data.length) {
+    let c: u8 = data[out.pos];
+    if (c == 32 || c == 9 || c == 10 || c == 13) {
+      advance_one(out, c);
+    } else if (c == 47 && out.pos + (1 as usize) < data.length && data[out.pos + (1 as usize)] == 47) {
+      while (out.pos < data.length && data[out.pos] != 10) {
+        advance_one(out, data[out.pos]);
+      }
+    } else if (c == 47 && out.pos + (1 as usize) < data.length && data[out.pos + (1 as usize)] == 42) {
+      let open_line: i32 = out.line;
+      let open_col: i32 = out.col;
+      advance_one(out, 47);
+      advance_one(out, 42);
+      depth = 1;
+      while (out.pos < data.length && depth > 0) {
+        if (out.pos + (1 as usize) < data.length && data[out.pos] == 47 && data[out.pos + (1 as usize)] == 42) {
+          let nest_ok: i32 = 1;
+          if (out.pos > (0 as usize)) {
+            let prev: u8 = data[out.pos - (1 as usize)];
+            if (lexer_block_comment_prev_is_path_like(prev) != 0) {
+              nest_ok = 0;
+            }
+          }
+          if (nest_ok != 0) {
+            if (out.pos + (2 as usize) < data.length) {
+              if (data[out.pos + (2 as usize)] == 46) {
+                nest_ok = 0;
+              }
+            }
+          }
+          if (nest_ok != 0) {
+            advance_one(out, 47);
+            advance_one(out, 42);
+            depth = depth + 1;
+          } else {
+            advance_one(out, data[out.pos]);
+          }
+        } else if (out.pos + (1 as usize) < data.length && data[out.pos] == 42 && data[out.pos + (1 as usize)] == 47) {
+          advance_one(out, 42);
+          advance_one(out, 47);
+          depth = depth - 1;
+        } else {
+          advance_one(out, data[out.pos]);
+        }
+      }
+      if (depth > 0) {
+        lexer_note_unclosed_block_comment(open_line, open_col);
+      }
+      depth = 0;
+    } else if (c == 35) {
+      if (out.pos + (1 as usize) < data.length && data[out.pos + (1 as usize)] == 91) {
+        unsafe {
+          out.pos = out.pos;
+          out.line = out.line;
+          out.col = out.col;
+        }
+        return;
+      } else {
+        while (out.pos < data.length && data[out.pos] != 10) {
+          advance_one(out, data[out.pos]);
+        }
+      }
+    } else {
+      unsafe {
+        out.pos = out.pos;
+        out.line = out.line;
+        out.col = out.col;
+      }
+      return;
+    }
+  }
+  unsafe {
+    out.pos = out.pos;
+    out.line = out.line;
+    out.col = out.col;
+  }
+  return;
+}
+
+// PLATFORM: SHARED — deref-assign emits no store (kind 52), so each
+// return writes pos, line, and col through out. The advanced cursor is that write.
+export function skip_whitespace_and_comments_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
+  // knife256 / 10.2 Cap tip: walk call-arg data/len directly — do not park.
+  // Park tip-image reject left sp null (early return → unsynced cursor) or a
+  // smashed image pointer (L003 illegal char) on first dep prerun
+  // (core.option / core.mem alone). Slice twin skip_whitespace_and_comments
+  // already uses u8[] without park. PLATFORM: SHARED.
+  if (data == (0 as *u8)) {
+    unsafe {
+      out.pos = lex.pos;
+      out.line = lex.line;
+      out.col = lex.col;
+    }
+    return;
+  }
+  let n: i32 = len;
+  if (n < 0) {
+    n = 0;
+  }
+  let sp: *u8 = data;
+  let slen: usize = n as usize;
+
+  unsafe {
+    out.pos = lex.pos;
+    out.line = lex.line;
+    out.col = lex.col;
+  }
   // Nesting depth for block comments; 0 means not inside a block comment.
   let depth: i32 = 0;
-  while (l.pos < data.length) {
-    let c: u8 = data[l.pos];
+  while (out.pos < slen) {
+    let c: u8 = sp[out.pos];
     if (c == 32 || c == 9 || c == 10 || c == 13) {
-      advance_one(&l, c);
-    } else if (c == 47 && l.pos + (1 as usize) < data.length && data[l.pos + (1 as usize)] == 47) {
+      advance_one(out, c);
+    } else if (c == 47 && out.pos + (1 as usize) < slen && sp[out.pos + (1 as usize)] == 47) {
       // Line comment // ...
-      while (l.pos < data.length && data[l.pos] != 10) {
-        advance_one(&l, data[l.pos]);
+      while (out.pos < slen && sp[out.pos] != 10) {
+        advance_one(out, sp[out.pos]);
       }
-    } else if (c == 47 && l.pos + (1 as usize) < data.length && data[l.pos + (1 as usize)] == 42) {
+    } else if (c == 47 && out.pos + (1 as usize) < slen && sp[out.pos + (1 as usize)] == 42) {
       // Block comment /* ... */ with nesting (depth counter).
       // Capture open caret before consuming the slash-star pair.
-      let open_line: i32 = l.line;
-      let open_col: i32 = l.col;
-      advance_one(&l, 47);
-      advance_one(&l, 42);
+      let open_line: i32 = out.line;
+      let open_col: i32 = out.col;
+      advance_one(out, 47);
+      advance_one(out, 42);
       depth = 1;
-      while (l.pos < data.length && depth > 0) {
+      while (out.pos < slen && depth > 0) {
         // Prefer path-safe /* nest-open before */ nest-close when both could match.
-        if (l.pos + (1 as usize) < data.length && data[l.pos] == 47 && data[l.pos + (1 as usize)] == 42) {
+        if (out.pos + (1 as usize) < slen && sp[out.pos] == 47 && sp[out.pos + (1 as usize)] == 42) {
           // Decide whether this interior /* is a true nest or a path glob.
           let nest_ok: i32 = 1;
-          if (l.pos > (0 as usize)) {
-            let prev: u8 = data[l.pos - (1 as usize)];
+          if (out.pos > (0 as usize)) {
+            let prev: u8 = sp[out.pos - (1 as usize)];
             if (lexer_block_comment_prev_is_path_like(prev) != 0) {
               nest_ok = 0;
             }
           }
           // /*.ext path globs after newline / outer open (prev not path-like).
           if (nest_ok != 0) {
-            if (l.pos + (2 as usize) < data.length) {
-              if (data[l.pos + (2 as usize)] == 46) {
+            if (out.pos + (2 as usize) < slen) {
+              if (sp[out.pos + (2 as usize)] == 46) {
                 nest_ok = 0;
               }
             }
           }
           if (nest_ok != 0) {
-            advance_one(&l, 47);
-            advance_one(&l, 42);
+            advance_one(out, 47);
+            advance_one(out, 42);
             depth = depth + 1;
           } else {
             // Path glob or non-nest: consume only '/' so '*' is ordinary body text.
-            advance_one(&l, data[l.pos]);
+            advance_one(out, sp[out.pos]);
           }
-        } else if (l.pos + (1 as usize) < data.length && data[l.pos] == 42 && data[l.pos + (1 as usize)] == 47) {
-          advance_one(&l, 42);
-          advance_one(&l, 47);
+        } else if (out.pos + (1 as usize) < slen && sp[out.pos] == 42 && sp[out.pos + (1 as usize)] == 47) {
+          advance_one(out, 42);
+          advance_one(out, 47);
           depth = depth - 1;
         } else {
-          advance_one(&l, data[l.pos]);
+          advance_one(out, sp[out.pos]);
         }
       }
       // EOF with depth > 0: unclosed block comment (body swallowed to EOF).
@@ -3301,33 +2905,36 @@ export function skip_whitespace_and_comments(out: *Lexer, lex: Lexer, data: u8[]
       depth = 0;
     } else if (c == 35) {
       // Bare # line comment; leave #[cfg]/attrs to the token scanner.
-      if (l.pos + (1 as usize) < data.length && data[l.pos + (1 as usize)] == 91) {
-        unsafe { *out = (l); }
+      if (out.pos + (1 as usize) < slen && sp[out.pos + (1 as usize)] == 91) {
+        unsafe {
+          out.pos = out.pos;
+          out.line = out.line;
+          out.col = out.col;
+        }
         return;
       } else {
-        while (l.pos < data.length && data[l.pos] != 10) {
-          advance_one(&l, data[l.pos]);
+        while (out.pos < slen && sp[out.pos] != 10) {
+          advance_one(out, sp[out.pos]);
         }
       }
     } else {
-      unsafe { *out = (l); }
+      unsafe {
+        out.pos = out.pos;
+        out.line = out.line;
+        out.col = out.col;
+      }
       return;
     }
   }
-  unsafe { *out = (l); }
+  unsafe {
+    out.pos = out.pos;
+    out.line = out.line;
+    out.col = out.col;
+  }
   return;
+
 }
 
-/** See implementation for details. */
-/**
- * Same as skip_whitespace_and_comments for raw (data, len) buffers.
- * PLATFORM: SHARED — LANG-007 S0: slice glue is extern; call inside unsafe (Cap-T001).
- */
-export function skip_whitespace_and_comments_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
-  unsafe {
-    skip_whitespace_and_comments(out, lex, lexer_slice_from_raw(data, len));
-  }
-}
 
 /**
  * Slice API for one token. Symbol is lexer_next_slice, matching the host-cc
@@ -3341,90 +2948,74 @@ export function skip_whitespace_and_comments_buf(out: *Lexer, lex: Lexer, data: 
  */
 // PLATFORM: SHARED — LexerResult is written through out. Link name is unchanged.
 export function lexer_next_slice(out: *LexerResult, lex: Lexer, data: u8[]): void {
-  let l: Lexer = lex;
-  skip_whitespace_and_comments(&l, lex, data);
-  if (l.pos >= data.length) {
-    let t: Token = {
-      kind: (0 as TokenKind),
-      line: l.line,
-      col: l.col,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = ({ next_lex: l, tok: t, token_start: (0 as usize) }); }
+  unsafe {
+    out.next_lex = lex;
+  }
+  skip_whitespace_and_comments(&out.next_lex, lex, data);
+  if (out.next_lex.pos >= data.length) {
+    lexer_emit_eof_token(out, out.next_lex);
     return;
   }
-  if (data[l.pos] == 0) {
-    let t: Token = {
-      kind: (0 as TokenKind),
-      line: l.line,
-      col: l.col,
-      int_val: (0 as i64),
-      float_val: 0.0,
-      ident: (0 as *u8),
-      ident_len: 0
-    };
-    unsafe { *out = ({ next_lex: l, tok: t, token_start: (0 as usize) }); }
+  if (data[out.next_lex.pos] == 0) {
+    lexer_emit_eof_token(out, out.next_lex);
     return;
   }
   /* See implementation. */
   let attr_out: LexerResult = {
-    next_lex: l,
-    tok: { kind: (0 as TokenKind), line: l.line, col: l.col, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 },
+    next_lex: out.next_lex,
+    tok: { kind: (0 as TokenKind), line: out.next_lex.line, col: out.next_lex.col, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 },
     token_start: (0 as usize)
   };
-  if (lexer_try_cfg_attr_into(&attr_out, l, data) != 0) {
+  if (lexer_try_cfg_attr_into(&attr_out, out.next_lex, data) != 0) {
     unsafe { *out = (attr_out); }
     return;
   }
-  if (lexer_try_repr_c_attr_into(&attr_out, l, data) != 0) {
+  if (lexer_try_repr_c_attr_into(&attr_out, out.next_lex, data) != 0) {
     unsafe { *out = (attr_out); }
     return;
   }
-  if (lexer_try_repr_compatible_attr_into(&attr_out, l, data) != 0) {
+  if (lexer_try_repr_compatible_attr_into(&attr_out, out.next_lex, data) != 0) {
     unsafe { *out = (attr_out); }
     return;
   }
-  if (lexer_try_soa_attr_into(&attr_out, l, data) != 0) {
+  if (lexer_try_soa_attr_into(&attr_out, out.next_lex, data) != 0) {
     unsafe { *out = (attr_out); }
     return;
   }
-  if (lexer_try_alloc_attr_into(&attr_out, l, data) != 0) {
+  if (lexer_try_alloc_attr_into(&attr_out, out.next_lex, data) != 0) {
     unsafe { *out = (attr_out); }
     return;
   }
-  if (lexer_try_used_attr_into(&attr_out, l, data) != 0) {
+  if (lexer_try_used_attr_into(&attr_out, out.next_lex, data) != 0) {
     unsafe { *out = (attr_out); }
     return;
   }
-  if (lexer_try_naked_attr_into(&attr_out, l, data) != 0) {
+  if (lexer_try_naked_attr_into(&attr_out, out.next_lex, data) != 0) {
     unsafe { *out = (attr_out); }
     return;
   }
-  if (lexer_try_entry_attr_into(&attr_out, l, data) != 0) {
+  if (lexer_try_entry_attr_into(&attr_out, out.next_lex, data) != 0) {
     unsafe { *out = (attr_out); }
     return;
   }
-  if (lexer_try_no_mangle_attr_into(&attr_out, l, data) != 0) {
+  if (lexer_try_no_mangle_attr_into(&attr_out, out.next_lex, data) != 0) {
     unsafe { *out = (attr_out); }
     return;
   }
-  if (lexer_try_interrupt_attr_into(&attr_out, l, data) != 0) {
+  if (lexer_try_interrupt_attr_into(&attr_out, out.next_lex, data) != 0) {
     unsafe { *out = (attr_out); }
     return;
   }
-  if (lexer_try_send_attr_into(&attr_out, l, data) != 0) {
+  if (lexer_try_send_attr_into(&attr_out, out.next_lex, data) != 0) {
     unsafe { *out = (attr_out); }
     return;
   }
-  if (lexer_try_sync_attr_into(&attr_out, l, data) != 0) {
+  if (lexer_try_sync_attr_into(&attr_out, out.next_lex, data) != 0) {
     unsafe { *out = (attr_out); }
     return;
   }
   /* See implementation. */
-  lexer_next_body_into(&attr_out, l, data);
+  lexer_next_body_into(&attr_out, out.next_lex, data);
   unsafe { *out = (attr_out); }
   return;
 }
@@ -3499,7 +3090,7 @@ export function lexer_apply_optional_exponent(l: Lexer, data: u8[], fval: f64, o
       }
     } else {
       while (e > exp) {
-        scale = scale * 0.1;
+        scale = scale / 10.0;
         e = e - 1;
       }
     }
@@ -3517,7 +3108,299 @@ export function lexer_apply_optional_exponent(l: Lexer, data: u8[], fval: f64, o
  * @param data u8[]
  * @return void
  */
+
+/**
+ * knife256 / 10.2: tip may evaluate call args before prior stores to the same
+ * *LexerResult. Separate functions force store-then-load sequencing for the
+ * ident start parked in out.token_start. PLATFORM: SHARED.
+ */
+// tip PE Win XT001: out.token_start field assign fails check_block.
+// token_start @64 after Lexer(16)+Token(48). PLATFORM: SHARED.
+function lexer_park_token_start(out: *LexerResult, pos: usize): void {
+  unsafe {
+    let p: usize = pos;
+    memcpy((out as *u8) + (64 as usize), (&p as *u8), (8 as usize));
+  }
+}
+function lexer_parked_token_start(out: *LexerResult): usize {
+  let p: usize = 0;
+  unsafe {
+    memcpy((&p as *u8), (out as *u8) + (64 as usize), (8 as usize));
+  }
+  return p;
+}
+
+/**
+ * Consume data[lex.pos] in a separate frame and return that byte.
+ *
+ * In the same frame as `data: u8[]`, `let d: u8 = data[l.pos]` is lowered
+ * so d shares the Fat* slot of data; the store clobbers the slice pointer
+ * and the next `data.length` / `data[i]` access SEGV. A callee keeps the
+ * caller's Fat* intact. PLATFORM: SHARED.
+ */
+function lexer_take_byte(lex: *Lexer, data: u8[]): u8 {
+  let d: u8 = data[lex.pos];
+  advance_one(lex, d);
+  return d;
+}
+
+/**
+ * Emit TOKEN_INT through out in a small frame.
+ *
+ * In lexer_next_body_into's huge frame, `let tok: Token = { kind: 80, int_val: ival, ... }`
+ * plus write_tok_into can leave *out.tok.kind=0 (same slot-alias as try_keyword).
+ * A callee keeps the literal and the field/copy stores together. PLATFORM: SHARED.
+ */
+/**
+ * Emit TOKEN_EOF through out in a small frame.
+ *
+ * In lexer_next_impl's frame, `let t: Token = { kind: 0, ... }` is stored
+ * at one slot (e.g. -0xe0) but write_tok_into(out, t) reads another
+ * (e.g. -0x70). The parser then sees a garbage kind at end-of-file
+ * (42 / a stack pointer) instead of TOKEN_EOF=0 and re-peeks forever.
+ * Same slot-alias class as lexer_write_simple_token / lexer_emit_int_token.
+ * A callee keeps the literal and the copy in one small frame.
+ * PLATFORM: SHARED.
+ */
+function lexer_emit_eof_token(out: *LexerResult, l: Lexer): void {
+  if (out == 0) { return; }
+  let tok: Token = { kind: (0 as TokenKind), line: l.line, col: l.col, int_val: (0 as i64),
+    float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
+  write_next_lex_into(out, l);
+  write_tok_into(out, tok);
+}
+
+function lexer_emit_int_token(out: *LexerResult, l: Lexer, start: usize, line0: i32, col0: i32, ival: i64): void {
+  let tok: Token = { kind: (80 as TokenKind), line: line0, col: col0, int_val: ival,
+    float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
+  write_next_lex_into(out, l);
+  write_tok_into(out, tok);
+  lexer_park_token_start(out, start);
+}
+
+/**
+ * Park the number-literal start and seed tok.line / tok.col from the
+ * reliable Lexer fields, in a small frame. Later huge-frame reloads of
+ * start / line0 / col0 alias. PLATFORM: SHARED.
+ */
+function lexer_begin_number_span(out: *LexerResult, start: usize, line0: i32, col0: i32): void {
+  if (out == 0) { return; }
+  let tok: Token = { kind: (0 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
+    float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
+  write_tok_into(out, tok);
+  lexer_park_token_start(out, start);
+}
+
+function lexer_seeded_token_line(out: *LexerResult): i32 {
+  let v: i32 = 0;
+  unsafe { memcpy((&v as *u8), (out as *u8) + (20 as usize), (4 as usize)); }
+  return v;
+}
+
+function lexer_seeded_token_col(out: *LexerResult): i32 {
+  let v: i32 = 0;
+  unsafe { memcpy((&v as *u8), (out as *u8) + (24 as usize), (4 as usize)); }
+  return v;
+}
+
+/**
+ * Re-parse a float literal from data[start, end) in a small frame.
+ *
+ * Do not take the already-folded fval / start / line0 / col0 from
+ * lexer_next_body_into: those huge-frame slots alias, and the 8-arg
+ * Win64 call also only reserved 0x20 of shadow so stack args shift by 8.
+ * PLATFORM: SHARED. WINDOWS is where the wrong slots and the shift were measured.
+ */
+function lexer_parse_float_span(data: u8[], start: usize, end: usize): f64 {
+  // idx8 still folds a ten-dot-zero literal to zero, so scale with (10 as f64).
+  // PLATFORM: SHARED.
+  let i: usize = start;
+  let fval: f64 = (0 as f64);
+  while (i < end && (is_digit(data[i]) != 0 || data[i] == 95)) {
+    if (is_digit(data[i]) != 0) {
+      fval = fval * (10 as f64) + ((data[i] - 48) as f64);
+    }
+    i = i + 1;
+  }
+  if (i < end && data[i] == 46) {
+    i = i + 1;
+    let places: i32 = 0;
+    while (i < end && (is_digit(data[i]) != 0 || data[i] == 95)) {
+      if (is_digit(data[i]) != 0) {
+        fval = fval * (10 as f64) + ((data[i] - 48) as f64);
+        places = places + 1;
+      }
+      i = i + 1;
+    }
+    let pi: i32 = 0;
+    while (pi < places) {
+      fval = fval / (10 as f64);
+      pi = pi + 1;
+    }
+  }
+  if (i < end && (data[i] == 101 || data[i] == 69)) {
+    i = i + 1;
+    let exp_sign: i32 = 1;
+    if (i < end && data[i] == 45) {
+      exp_sign = -1;
+      i = i + 1;
+    } else {
+      if (i < end && data[i] == 43) { i = i + 1; }
+    }
+    let exp: i32 = 0;
+    while (i < end && (is_digit(data[i]) != 0 || data[i] == 95)) {
+      if (is_digit(data[i]) != 0) {
+        exp = exp * 10 + (data[i] - 48);
+      }
+      i = i + 1;
+    }
+    exp = exp * exp_sign;
+    let scale: f64 = (1 as f64);
+    let e: i32 = 0;
+    if (exp > 0) {
+      while (e < exp) {
+        scale = scale * (10 as f64);
+        e = e + 1;
+      }
+    } else {
+      while (e > exp) {
+        scale = scale / (10 as f64);
+        e = e - 1;
+      }
+    }
+    fval = fval * scale;
+  }
+  return fval;
+}
+
+/**
+ * Emit TOKEN_FLOAT through out in a small frame.
+ *
+ * lexer_next_body_into is a huge frame. `let tok: Token = { kind: 81, float_val: fval, ... }`
+ * plus write_tok_into can write a garbage kind into *out (same slot-alias as
+ * lexer_emit_int_token / ident-or-keyword). gdb on `let x: f32 = 0.0` showed
+ * official tok.kind=67632 after the float next, so parse_body_lets_into left
+ * init_handled=0 and dropped the function (funcs=0 / CG002).
+ *
+ * After the kind fix, start / line / col / float_val were still wrong: the
+ * 8-scalar Win64 call loaded aliased huge-frame slots for args 5–8, and the
+ * caller only reserved 0x20 so those stack args shifted by one slot at entry.
+ * Re-parse the already-consumed span (parked + seeded at the first digit or
+ * leading dot from the reliable Lexer fields) and write tok in this callee.
+ * At most four arguments, all in registers. PLATFORM: SHARED.
+ * WINDOWS is where the garbage kind, bad slots, and stack shift were measured.
+ */
+function lexer_emit_float_token(out: *LexerResult, lex: *Lexer, data: u8[]): void {
+  if (out == 0 || lex == 0) { return; }
+  let end_pos: usize = 0;
+  let end_line: i32 = 1;
+  let end_col: i32 = 1;
+  unsafe {
+    end_pos = lex.pos;
+    end_line = lex.line;
+    end_col = lex.col;
+  }
+  let start: usize = lexer_parked_token_start(out);
+  let line0: i32 = lexer_seeded_token_line(out);
+  let col0: i32 = lexer_seeded_token_col(out);
+  let fval: f64 = lexer_parse_float_span(data, start, end_pos);
+  let l: Lexer = { pos: end_pos, line: end_line, col: end_col };
+  let tok: Token = { kind: (81 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
+    float_val: fval, ident: (0 as *u8), ident_len: 0 };
+  write_next_lex_into(out, l);
+  write_tok_into(out, tok);
+  lexer_park_token_start(out, start);
+}
+
+/**
+ * Emit TOKEN_IDENT through out in a small frame.
+ *
+ * lexer_next_body_into is a huge frame. `&out.tok` plus the saved line/col
+ * slots were not the official LexerResult.tok / line / col at the call
+ * (gdb: dest was a temp, rdx a stack pointer, r8 the parked start pos).
+ * lexer_write_ident_token then stored the ident image off to the side, so
+ * tok stayed the previous keyword (false P014 on `let x`). write_tok_into
+ * already memcpy's the 48-byte Token through *LexerResult; use that from a
+ * small callee, same class as lexer_emit_int_token / lexer_emit_eof_token.
+ * PLATFORM: SHARED. WINDOWS is where the dest/arg alias was measured.
+ */
+/**
+ * Emit TOKEN_STRING through out in a small frame.
+ *
+ * lexer_next_body_into is a huge frame. After the close-quote scan, the
+ * locals start / line0 / col0 / slen alias, so write_tok_into stores a
+ * correct kind=130 with garbage line / col / ident_len, and
+ * lexer_park_token_start writes 0 (or a stack pointer) as token_start.
+ * gdb of `const option = import("core.option");` on the Windows work
+ * copy showed kind=130, token_start=0, ident_len=34 (the close-quote
+ * index), line=34, col a stack pointer. The import keyword itself is
+ * TOKEN_IMPORT=53. Parse then skips at the semicolon (P001, num_funcs=0).
+ *
+ * Park the content start and seed line/col at the opening quote from the
+ * reliable Lexer fields (lexer_begin_number_span), then finish here:
+ * ident_len = close_pos - parked_start, consume the close quote, write
+ * tok, and re-park start. At most two arguments, both in registers.
+ * PLATFORM: SHARED. WINDOWS is where the bad STRING slots were measured.
+ */
+function lexer_emit_string_token(out: *LexerResult, lex: *Lexer): void {
+  if (out == 0 || lex == 0) { return; }
+  let end_pos: usize = 0;
+  let end_line: i32 = 1;
+  let end_col: i32 = 1;
+  unsafe {
+    end_pos = lex.pos;
+    end_line = lex.line;
+    end_col = lex.col;
+  }
+  let start: usize = lexer_parked_token_start(out);
+  let line0: i32 = lexer_seeded_token_line(out);
+  let col0: i32 = lexer_seeded_token_col(out);
+  let slen: i32 = (end_pos - start) as i32;
+  let l: Lexer = { pos: end_pos + (1 as usize), line: end_line, col: end_col + 1 };
+  let tok: Token = { kind: (130 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
+    float_val: 0.0, ident: (0 as *u8), ident_len: slen };
+  write_next_lex_into(out, l);
+  write_tok_into(out, tok);
+  lexer_park_token_start(out, start);
+}
+
+function lexer_emit_ident_token(out: *LexerResult, line0: i32, col0: i32, nlen: i32): void {
+  if (out == 0) { return; }
+  let tok: Token = { kind: (59 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
+    float_val: 0.0, ident: (0 as *u8), ident_len: nlen };
+  write_tok_into(out, tok);
+}
+
+/**
+ * Finish an identifier-or-keyword token in a small frame.
+ *
+ * In lexer_next_body_into's huge frame the Token init was stored at one
+ * slot (e.g. -0xc10) while try_keyword(&tok), `kind_i = tok.kind`, and
+ * write_tok_into(out, tok) used another (e.g. -0x280). Keywords hid the
+ * bug because try_keyword wrote kind into the read slot. A following
+ * ident left that slot holding the previous keyword (kind=2 `let`), so
+ * kind_i != 0 and write_tok_into re-emitted `let` as the binding name
+ * (false P014). Keep the Token, the kind test, and the store together
+ * here; the caller only passes *LexerResult plus start/span/line/col.
+ * PLATFORM: SHARED. WINDOWS is where the two-slot alias was measured.
+ */
+function lexer_emit_ident_or_keyword(out: *LexerResult, data: u8[], start: usize, span_len: usize, line0: i32, col0: i32): void {
+  if (out == 0) { return; }
+  let tok: Token = { kind: (0 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
+    float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
+  try_keyword(&tok, data, start, span_len, line0, col0);
+  if ((tok.kind as i32) == 0) {
+    lexer_emit_ident_token(out, line0, col0, (span_len as i32));
+  } else {
+    write_tok_into(out, tok);
+  }
+}
+
 export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): void {
+  // tip PE Ubuntu: do NOT take (&data as *u8) / rewrite the u8[] fat here —
+  // tip PE then treats later data[i] as *Fat and SEGV (ASCII-as-ptr). Cap tip
+  // ecdb indexes u8[] cleanly with no park block; Track L peel uses
+  // lexer_next_buf_into (park prefer lives there). PLATFORM: SHARED.
   let c: u8 = data[l.pos];
   /* See implementation. */
   if (lexer_try_cfg_attr_into(out, l, data) != 0) {
@@ -3563,6 +3446,10 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
     let line0: i32 = l.line;
     let col0: i32 = l.col;
     let start: usize = l.pos + (1 as usize);
+    // Park content start and seed line/col from reliable Lexer fields.
+    // Later huge-frame reloads of start/line0/col0/slen alias.
+    // PLATFORM: SHARED.
+    lexer_begin_number_span(out, l.pos + (1 as usize), l.line, l.col);
     advance_one(&l, 34);
     while (l.pos < data.length && data[l.pos] != 34) {
       if (data[l.pos] == 92) {
@@ -3594,7 +3481,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
             float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
           write_next_lex_into(out, l);
           write_tok_into(out, tok_eof_hex);
-          out.token_start = start;
+          lexer_park_token_start(out, start);
           return;
         }
         lexer_note_invalid_escape(esc_line, esc_col);
@@ -3602,7 +3489,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_esc);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
       }
       advance_one(&l, data[l.pos]);
@@ -3614,32 +3501,30 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
         float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
       write_next_lex_into(out, l);
       write_tok_into(out, tok_eof);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
-    let slen: i32 = (l.pos - start) as i32;
-    advance_one(&l, 34);
-    let tok_str: Token = { kind: (130 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: slen };
-    write_next_lex_into(out, l);
-    write_tok_into(out, tok_str);
-    out.token_start = start;
+    lexer_emit_string_token(out, &l);
     return;
   }
   if ((is_alpha(c) != 0)) {
-    let start: usize = l.pos;
-    let line0: i32 = l.line;
-    let col0: i32 = l.col;
+    // knife256 / 10.2: tip hoists block lets + may eval call args before stores.
+    // Park start via helper (sequenced); peel pointer-to-fat; try_keyword_buf.
+    // PLATFORM: SHARED.
+    lexer_park_token_start(out, l.pos);
+    let line_save: i32 = l.line;
+    let col_save: i32 = l.col;
     advance_one(&l, c);
     while (l.pos < data.length && (is_alnum_underscore(data[l.pos]) != 0)) {
       advance_one(&l, data[l.pos]);
     }
-    let len: usize = l.pos - start;
-    let tok: Token = { kind: (0 as TokenKind), line: line0, col: col0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    try_keyword(&tok, data, start, len, line0, col0);
+    let start_parked: usize = lexer_parked_token_start(out);
+    let span_len: usize = l.pos - start_parked;
     write_next_lex_into(out, l);
-    write_tok_into(out, tok);
-    out.token_start = start;
+    // Huge-frame tok/kind_i slots diverged; finish ident vs keyword in a small callee.
+    // PLATFORM: SHARED.
+    lexer_emit_ident_or_keyword(out, data, start_parked, span_len, line_save, col_save);
+    lexer_park_token_start(out, start_parked);
     return;
   }
   if ((is_digit(c) != 0)) {
@@ -3647,6 +3532,10 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
     let line0: i32 = l.line;
     let col0: i32 = l.col;
     let ival: i64 = 0;
+    // Park start and seed line/col from the Lexer fields (those slots are
+    // reliable). Later huge-frame reloads of start/line0/col0 alias.
+    // PLATFORM: SHARED.
+    lexer_begin_number_span(out, l.pos, l.line, l.col);
     advance_one(&l, c);
     if (c == 48 && l.pos < data.length && (data[l.pos] == 120 || data[l.pos] == 88)) {
       // wave273 Cap residual: `0x`/`0X` requires ≥1 hex digit. Zero digits was silent
@@ -3657,9 +3546,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       // wave277: allow `_` digit separators between hex digits (`0x2_A`, `0x_FF`).
       while (l.pos < data.length) {
         if ((is_hex_digit(data[l.pos]) != 0)) {
-          let hd: u8 = data[l.pos];
-          hval = hval * 16 + (hex_digit_value(hd) as u64);
-          advance_one(&l, hd);
+          hval = hval * 16 + (hex_digit_value(lexer_take_byte(&l, data)) as u64);
           hex_digits = hex_digits + 1;
         } else if (lexer_is_digit_sep(data, l.pos, 1) != 0) {
           advance_one(&l, 95);
@@ -3674,7 +3561,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sep);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
       }
       if (hex_digits == 0) {
@@ -3683,7 +3570,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
       }
       // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
@@ -3693,14 +3580,10 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sfx);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
       }
-      let tok: Token = { kind: (80 as TokenKind), line: line0, col: col0, int_val: hval as i64,
-        float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-      write_next_lex_into(out, l);
-      write_tok_into(out, tok);
-      out.token_start = start;
+      lexer_emit_int_token(out, l, start, line0, col0, hval as i64);
       return;
     }
     // wave276 Cap residual: `0b`/`0B` binary integer (mirror hex L004 path).
@@ -3712,9 +3595,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       // wave277: allow `_` digit separators between binary digits (`0b_101010`).
       while (l.pos < data.length) {
         if ((is_bin_digit(data[l.pos]) != 0)) {
-          let bd: u8 = data[l.pos];
-          bval = bval * 2 + ((bd - 48) as u64);
-          advance_one(&l, bd);
+          bval = bval * 2 + ((lexer_take_byte(&l, data) - 48) as u64);
           bin_digits = bin_digits + 1;
         } else if (lexer_is_digit_sep(data, l.pos, 2) != 0) {
           advance_one(&l, 95);
@@ -3729,7 +3610,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sep);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
       }
       if (bin_digits == 0) {
@@ -3738,7 +3619,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
       }
       // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
@@ -3748,14 +3629,10 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sfx);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
       }
-      let tok_b: Token = { kind: (80 as TokenKind), line: line0, col: col0, int_val: bval as i64,
-        float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-      write_next_lex_into(out, l);
-      write_tok_into(out, tok_b);
-      out.token_start = start;
+      lexer_emit_int_token(out, l, start, line0, col0, bval as i64);
       return;
     }
     // wave276 Cap residual: `0o`/`0O` octal integer (mirror hex L004 path).
@@ -3767,9 +3644,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       // wave277: allow `_` digit separators between octal digits (`0o5_2`).
       while (l.pos < data.length) {
         if ((is_oct_digit(data[l.pos]) != 0)) {
-          let od: u8 = data[l.pos];
-          oval = oval * 8 + ((od - 48) as u64);
-          advance_one(&l, od);
+          oval = oval * 8 + ((lexer_take_byte(&l, data) - 48) as u64);
           oct_digits = oct_digits + 1;
         } else if (lexer_is_digit_sep(data, l.pos, 3) != 0) {
           advance_one(&l, 95);
@@ -3784,7 +3659,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sep);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
       }
       if (oct_digits == 0) {
@@ -3793,7 +3668,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
       }
       // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
@@ -3803,23 +3678,17 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sfx);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
       }
-      let tok_o: Token = { kind: (80 as TokenKind), line: line0, col: col0, int_val: oval as i64,
-        float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-      write_next_lex_into(out, l);
-      write_tok_into(out, tok_o);
-      out.token_start = start;
+      lexer_emit_int_token(out, l, start, line0, col0, oval as i64);
       return;
     }
     ival = ival * 10 + (c - 48);
     // wave277: allow `_` digit separators in decimal ints (`1_000`, `4_2`).
     while (l.pos < data.length) {
       if ((is_digit(data[l.pos]) != 0)) {
-        let d: u8 = data[l.pos];
-        advance_one(&l, d);
-        ival = ival * 10 + (d - 48);
+        ival = ival * 10 + (lexer_take_byte(&l, data) - 48);
       } else if (lexer_is_digit_sep(data, l.pos, 0) != 0) {
         advance_one(&l, 95);
       } else {
@@ -3833,7 +3702,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sep);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
     }
     // wave275 Cap residual: C-style empty fraction after `.` (`1.`, `1.e2`) → TOKEN_FLOAT.
@@ -3842,14 +3711,15 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
     if (l.pos < data.length && data[l.pos] == 46 && lexer_dot_continues_float(data, l.pos) != 0) {
       advance_one(&l, 46);
       let fval: f64 = (ival as f64);
-      let frac: f64 = 0.1;
+      let places: i32 = 0;
+      // Scale with the exact literal 10.0. A 0.1 literal is lexed as 0.0 by
+      // the compiler that builds this file, so frac times 0.1 stored 2.3 as 2.0.
+      // PLATFORM: SHARED.
       // wave277: allow `_` digit separators in float fraction digits.
       while (l.pos < data.length) {
         if ((is_digit(data[l.pos]) != 0)) {
-          let d: u8 = data[l.pos];
-          advance_one(&l, d);
-          fval = fval + frac * (d - 48);
-          frac = frac * 0.1;
+          fval = fval * 10.0 + ((lexer_take_byte(&l, data) - 48) as f64);
+          places = places + 1;
         } else if (lexer_is_digit_sep(data, l.pos, 0) != 0) {
           advance_one(&l, 95);
         } else {
@@ -3863,8 +3733,13 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sep);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
+      }
+      let pi: i32 = 0;
+      while (pi < places) {
+        fval = fval / 10.0;
+        pi = pi + 1;
       }
       // wave274: incomplete exp after fraction → L005 + TOKEN_EOF (not silent exp=0 float).
       // wave275: also covers empty-frac scientific `1.e` / `1.e+` (was host-cc soft residual).
@@ -3873,7 +3748,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
       }
       // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
@@ -3883,14 +3758,10 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sfx);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
       }
-      let tok: Token = { kind: (81 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-        float_val: fval, ident: (0 as *u8), ident_len: 0 };
-      write_next_lex_into(out, l);
-      write_tok_into(out, tok);
-      out.token_start = start;
+      lexer_emit_float_token(out, &l, data);
       return;
     }
     if (l.pos < data.length && (data[l.pos] == 101 || data[l.pos] == 69)) {
@@ -3910,9 +3781,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       // wave277: allow `_` digit separators in float exponent digits (`1e2_0`).
       while (l.pos < data.length) {
         if ((is_digit(data[l.pos]) != 0)) {
-          let d: u8 = data[l.pos];
-          advance_one(&l, d);
-          exp = exp * 10 + (d - 48);
+          exp = exp * 10 + (lexer_take_byte(&l, data) - 48);
           exp_digits = exp_digits + 1;
         } else if (lexer_is_digit_sep(data, l.pos, 0) != 0) {
           advance_one(&l, 95);
@@ -3927,7 +3796,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sep);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
       }
       if (exp_digits == 0) {
@@ -3936,7 +3805,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
       }
       exp = exp * exp_sign;
@@ -3949,7 +3818,8 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
         }
       } else {
         while (e > exp) {
-          scale = scale * 0.1;
+          // Divide by exact ten. A one-tenth literal is stored as zero here.
+          scale = scale / 10.0;
           e = e - 1;
         }
       }
@@ -3961,14 +3831,10 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sfx);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
       }
-      let tok: Token = { kind: (81 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-        float_val: fval, ident: (0 as *u8), ident_len: 0 };
-      write_next_lex_into(out, l);
-      write_tok_into(out, tok);
-      out.token_start = start;
+      lexer_emit_float_token(out, &l, data);
       return;
     }
     // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
@@ -3978,31 +3844,26 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
         float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
       write_next_lex_into(out, l);
       write_tok_into(out, tok_eof_sfx);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
-    let tok: Token = { kind: (80 as TokenKind), line: line0, col: col0, int_val: ival,
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    write_next_lex_into(out, l);
-    write_tok_into(out, tok);
-    /* See implementation. */
-    out.token_start = start;
+    lexer_emit_int_token(out, l, start, line0, col0, ival);
     return;
   }
   if (c == 46 && l.pos + (1 as usize) < data.length && (is_digit(data[l.pos + (1 as usize)]) != 0)) {
     let start: usize = l.pos;
     let line0: i32 = l.line;
     let col0: i32 = l.col;
+    lexer_begin_number_span(out, l.pos, l.line, l.col);
     advance_one(&l, 46);
     let fval: f64 = 0.0;
-    let frac: f64 = 0.1;
+    let ld_places: i32 = 0;
+    // Same ten-scale fold as the digits-before-dot arm. PLATFORM: SHARED.
     // wave277: allow `_` digit separators in float fraction digits.
     while (l.pos < data.length) {
       if ((is_digit(data[l.pos]) != 0)) {
-        let d: u8 = data[l.pos];
-        advance_one(&l, d);
-        fval = fval + frac * (d - 48);
-        frac = frac * 0.1;
+        fval = fval * 10.0 + ((lexer_take_byte(&l, data) - 48) as f64);
+        ld_places = ld_places + 1;
       } else if (lexer_is_digit_sep(data, l.pos, 0) != 0) {
         advance_one(&l, 95);
       } else {
@@ -4016,8 +3877,13 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sep);
-        out.token_start = start;
+        lexer_park_token_start(out, start);
         return;
+    }
+    let ld_pi: i32 = 0;
+    while (ld_pi < ld_places) {
+      fval = fval / 10.0;
+      ld_pi = ld_pi + 1;
     }
     // wave274: incomplete exp after leading-dot float → L005 + TOKEN_EOF.
     if (lexer_apply_optional_exponent(l, data, fval, &l, &fval) != 0) {
@@ -4025,7 +3891,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
         float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
       write_next_lex_into(out, l);
       write_tok_into(out, tok_eof);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
@@ -4035,14 +3901,10 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
         float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
       write_next_lex_into(out, l);
       write_tok_into(out, tok_eof_sfx);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
-    let tok: Token = { kind: (81 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-      float_val: fval, ident: (0 as *u8), ident_len: 0 };
-    write_next_lex_into(out, l);
-    write_tok_into(out, tok);
-    out.token_start = start;
+    lexer_emit_float_token(out, &l, data);
     return;
   }
   // Punctuation/operators: dedicated helper keeps body_into under typeck limits.
@@ -4068,21 +3930,21 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
   let tok: Token = { kind: (0 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
     float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
   if (c == 40) { lexer_tok_with_kind(&tok, (82 as TokenKind)); write_next_lex_into(out, l);
-    write_tok_into(out, tok); out.token_start = start; return; }
+    write_tok_into(out, tok); lexer_park_token_start(out, start); return; }
   if (c == 41) { lexer_tok_with_kind(&tok, (83 as TokenKind)); write_next_lex_into(out, l);
-    write_tok_into(out, tok); out.token_start = start; return; }
+    write_tok_into(out, tok); lexer_park_token_start(out, start); return; }
   if (c == 123) { lexer_tok_with_kind(&tok, (84 as TokenKind)); write_next_lex_into(out, l);
-    write_tok_into(out, tok); out.token_start = start; return; }
+    write_tok_into(out, tok); lexer_park_token_start(out, start); return; }
   if (c == 125) { lexer_tok_with_kind(&tok, (85 as TokenKind)); write_next_lex_into(out, l);
-    write_tok_into(out, tok); out.token_start = start; return; }
+    write_tok_into(out, tok); lexer_park_token_start(out, start); return; }
   if (c == 91) { lexer_tok_with_kind(&tok, (86 as TokenKind)); write_next_lex_into(out, l);
-    write_tok_into(out, tok); out.token_start = start; return; }
+    write_tok_into(out, tok); lexer_park_token_start(out, start); return; }
   if (c == 93) { lexer_tok_with_kind(&tok, (87 as TokenKind)); write_next_lex_into(out, l);
-    write_tok_into(out, tok); out.token_start = start; return; }
+    write_tok_into(out, tok); lexer_park_token_start(out, start); return; }
   if (c == 44) { lexer_tok_with_kind(&tok, (90 as TokenKind)); write_next_lex_into(out, l); write_tok_into(out,
-    tok); out.token_start = start; return; }
+    tok); lexer_park_token_start(out, start); return; }
   if (c == 58) { lexer_tok_with_kind(&tok, (91 as TokenKind)); write_next_lex_into(out, l); write_tok_into(out,
-    tok); out.token_start = start; return; }
+    tok); lexer_park_token_start(out, start); return; }
   if (c == 46) {
     /* See implementation. */
     if (l.pos + (1 as usize) < data.length && data[l.pos] == 46 && data[l.pos + (1 as usize)] == 46) {
@@ -4093,9 +3955,9 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
       lexer_tok_with_kind(&tok, (92 as TokenKind));
     }
     write_next_lex_into(out, l); write_tok_into(out,
-    tok); out.token_start = start; return; }
+    tok); lexer_park_token_start(out, start); return; }
   if (c == 59) { lexer_tok_with_kind(&tok, (95 as TokenKind)); write_next_lex_into(out, l);
-    write_tok_into(out, tok); out.token_start = start; return; }
+    write_tok_into(out, tok); lexer_park_token_start(out, start); return; }
   if (c == 43) {
     /* See implementation. */
     if (l.pos < data.length && data[l.pos] == 61) {
@@ -4106,7 +3968,7 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
     }
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
-    out.token_start = start;
+    lexer_park_token_start(out, start);
     return;
   }
   if (c == 45) {
@@ -4115,7 +3977,7 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
       lexer_tok_with_kind(&tok, (88 as TokenKind));
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     if (l.pos < data.length && data[l.pos] == 61) {
@@ -4123,13 +3985,13 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
       lexer_tok_with_kind(&tok, (107 as TokenKind));
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     lexer_tok_with_kind(&tok, (97 as TokenKind));
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
-    out.token_start = start;
+    lexer_park_token_start(out, start);
     return;
   }
   if (c == 42) {
@@ -4141,7 +4003,7 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
     }
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
-    out.token_start = start;
+    lexer_park_token_start(out, start);
     return;
   }
   if (c == 47) {
@@ -4153,7 +4015,7 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
     }
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
-    out.token_start = start;
+    lexer_park_token_start(out, start);
     return;
   }
   if (c == 37) {
@@ -4165,7 +4027,7 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
     }
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
-    out.token_start = start;
+    lexer_park_token_start(out, start);
     return;
   }
   if (c == 94) {
@@ -4177,18 +4039,18 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
     }
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
-    out.token_start = start;
+    lexer_park_token_start(out, start);
     return;
   }
   if (c == 126) { lexer_tok_with_kind(&tok, (116 as TokenKind)); write_next_lex_into(out, l);
-    write_tok_into(out, tok); out.token_start = start; return; }
+    write_tok_into(out, tok); lexer_park_token_start(out, start); return; }
   if (c == 38) {
     if (l.pos < data.length && data[l.pos] == 38) {
       advance_one(&l, 38);
       lexer_tok_with_kind(&tok, (124 as TokenKind));
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     if (l.pos < data.length && data[l.pos] == 61) {
@@ -4196,13 +4058,13 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
       lexer_tok_with_kind(&tok, (111 as TokenKind));
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     lexer_tok_with_kind(&tok, (101 as TokenKind));
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
-    out.token_start = start;
+    lexer_park_token_start(out, start);
     return;
   }
   if (c == 124) {
@@ -4211,7 +4073,7 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
       lexer_tok_with_kind(&tok, (125 as TokenKind));
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     if (l.pos < data.length && data[l.pos] == 61) {
@@ -4219,13 +4081,13 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
       lexer_tok_with_kind(&tok, (112 as TokenKind));
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     lexer_tok_with_kind(&tok, (102 as TokenKind));
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
-    out.token_start = start;
+    lexer_park_token_start(out, start);
     return;
   }
   if (c == 60) {
@@ -4234,7 +4096,7 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
       lexer_tok_with_kind(&tok, (122 as TokenKind));
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     if (l.pos < data.length && data[l.pos] == 60) {
@@ -4247,13 +4109,13 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
       }
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     lexer_tok_with_kind(&tok, (120 as TokenKind));
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
-    out.token_start = start;
+    lexer_park_token_start(out, start);
     return;
   }
   if (c == 62) {
@@ -4262,7 +4124,7 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
       lexer_tok_with_kind(&tok, (123 as TokenKind));
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     if (l.pos < data.length && data[l.pos] == 62) {
@@ -4275,13 +4137,13 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
       }
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     lexer_tok_with_kind(&tok, (121 as TokenKind));
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
-    out.token_start = start;
+    lexer_park_token_start(out, start);
     return;
   }
   if (c == 33) {
@@ -4290,26 +4152,26 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
       lexer_tok_with_kind(&tok, (119 as TokenKind));
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     lexer_tok_with_kind(&tok, (126 as TokenKind));
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
-    out.token_start = start;
+    lexer_park_token_start(out, start);
     return;
   }
   if (c == 63) { lexer_tok_with_kind(&tok, (127 as TokenKind)); write_next_lex_into(out, l);
-    write_tok_into(out, tok); out.token_start = start; return; }
+    write_tok_into(out, tok); lexer_park_token_start(out, start); return; }
   if (c == 64) { lexer_tok_with_kind(&tok, (129 as TokenKind)); write_next_lex_into(out, l);
-    write_tok_into(out, tok); out.token_start = start; return; }
+    write_tok_into(out, tok); lexer_park_token_start(out, start); return; }
   if (c == 61) {
     if (l.pos < data.length && data[l.pos] == 62) {
       advance_one(&l, 62);
       lexer_tok_with_kind(&tok, (89 as TokenKind));
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     if (l.pos < data.length && data[l.pos] == 61) {
@@ -4317,13 +4179,13 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
       lexer_tok_with_kind(&tok, (118 as TokenKind));
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
-      out.token_start = start;
+      lexer_park_token_start(out, start);
       return;
     }
     lexer_tok_with_kind(&tok, (117 as TokenKind));
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
-    out.token_start = start;
+    lexer_park_token_start(out, start);
     return;
   }
   // wave272 Cap residual: unknown byte was silent TOKEN_EOF → soft P001 / BLD001.
@@ -4348,7 +4210,7 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
   };
   write_next_lex_into(out, l);
   write_tok_into(out, unk);
-  out.token_start = ill_start;
+  lexer_park_token_start(out, ill_start);
 }
 
 /** Exported function `write_next_lex_into`.
@@ -4358,10 +4220,15 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
  * @return void
  */
 export function write_next_lex_into(out: *LexerResult, l: Lexer): void {
-  out.next_lex.pos = l.pos;
-  out.next_lex.line = l.line;
-  out.next_lex.col = l.col;
-  out.token_start = (0 as usize);
+  // Cap tip 10.2: i32 field stores smash neighbors; tip PE Win XT001 on
+  // usize field assign — memcpy all Lexer + token_start. PLATFORM: SHARED.
+  unsafe {
+    let z: usize = 0;
+    memcpy((out as *u8) + 0, &l.pos as *u8, 8);
+    memcpy((out as *u8) + 8, &l.line as *u8, 4);
+    memcpy((out as *u8) + 12, &l.col as *u8, 4);
+    memcpy((out as *u8) + (64 as usize), (&z as *u8), (8 as usize));
+  }
 }
 /** Exported function `write_tok_into`.
  * Write path helper `write_tok_into`.
@@ -4384,23 +4251,21 @@ export function write_tok_into(out: *LexerResult, t: Token): void {
  * @return void
  */
 export function lexer_next_impl(out: *LexerResult, lex: Lexer, data: u8[]): void {
-  let l: Lexer = lex;
-  skip_whitespace_and_comments(&l, lex, data);
-  if (l.pos >= data.length) {
-    let t: Token = { kind: (0 as TokenKind), line: l.line, col: l.col, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    write_next_lex_into(out, l);
-    write_tok_into(out, t);
+  unsafe {
+    out.next_lex = lex;
+  }
+  // 10.2 Cap tip: direct u8[] — no peel/park (PAGEZERO/image SEGV in dep prerun).
+  // PLATFORM: SHARED.
+  skip_whitespace_and_comments(&out.next_lex, lex, data);
+  if (out.next_lex.pos >= data.length) {
+    lexer_emit_eof_token(out, out.next_lex);
     return;
   }
-  if (data[l.pos] == 0) {
-    let t: Token = { kind: (0 as TokenKind), line: l.line, col: l.col, int_val: (0 as i64),
-      float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    write_next_lex_into(out, l);
-    write_tok_into(out, t);
+  if (data[out.next_lex.pos] == 0) {
+    lexer_emit_eof_token(out, out.next_lex);
     return;
   }
-  lexer_next_body_into(out, l, data);
+  lexer_next_body_into(out, out.next_lex, data);
 }
 
 /** Exported function `lexer_next_into`.
@@ -4420,8 +4285,46 @@ export function lexer_next_into(out: *LexerResult, lex: Lexer, data: u8[]): void
  * PLATFORM: SHARED — LANG-007 S0: slice glue is extern; call inside unsafe (Cap-T001).
  */
 export function lexer_next_buf_into(out: *LexerResult, lex: Lexer, data: *u8, len: i32): void {
+  // knife256 / 10.2: never return u8[] from tip — Darwin tip deep-copies at
+  // most 1024 payload bytes into a frame buffer. That truncated view was
+  // parked over the full source, so a block comment whose */ sits past
+  // byte 1024 (e.g. second /** in runtime_io_abi.x) became L001 unclosed.
+  // Store the {data,len} fat into a local empty slice instead (parser twin:
+  // parser_slice_view_store). PLATFORM: SHARED.
+  // Ubuntu product -c P001: Track L calls this path (not body_into).
+  // Park is only the fallback when the caller passed a null buf — a
+  // sticky entry park must not override a later dep buffer.
+  // PLATFORM: SHARED.
   unsafe {
-    lexer_next_into(out, lex, lexer_slice_from_raw(data, len));
+    let n: i32 = len;
+    let d: *u8 = data;
+    let sp: *u8 = (0 as *u8);
+    let slen: usize = 0;
+    lexer_src_data_store((&sp as *u8));
+    lexer_src_len_store((&slen as *u8));
+    // Prefer the caller's buf when it is non-null. A sticky park from the
+    // entry file (const-import) must not override a later dep buffer —
+    // Win tip then re-lexed the entry as const name = import("...") on
+    // core.option and build crashed after validate failed. Park remains
+    // the fallback when data is null (bridge peel). PLATFORM: SHARED.
+    if (d == (0 as *u8) && sp != (0 as *u8)) {
+      d = sp;
+      n = (slen as i32);
+    }
+    let sl: u8[] = [];
+    if (n < 0) { n = 0; }
+    /* Cap tip: omit lexer_src_park (tip-image L003 on dep prerun). */
+    // tip PE Win XT001: no LexerBuf local — poke fat words into sl. PLATFORM: SHARED.
+    memcpy((&sl as *u8), (&d as *u8), (8 as usize));
+    {
+      let nl: usize = (n as usize);
+      memcpy((&sl as *u8) + (8 as usize), (&nl as *u8), (8 as usize));
+    }
+    // Win tip: call impl directly — lexer_next_into dual-ABI cave
+    // (rdx>=0x10000⇒pointer) misclassifies by-value once pos>=64KiB on
+    // large monofiles (backend_call_dispatch SEGV). buf_into already has
+    // by-value Lex + Fat. PLATFORM: SHARED.
+    lexer_next_impl(out, lex, sl);
   }
 }
 
@@ -4437,7 +4340,33 @@ export function lexer_next_buf_into(out: *LexerResult, lex: Lexer, data: *u8, le
  */
 // PLATFORM: SHARED — LexerResult is written through out. The slice path is unchanged.
 export function lexer_next_buf(out: *LexerResult, lex: Lexer, data: *u8, len: i32): void {
+  // knife256 / 10.2: same store-not-return as lexer_next_buf_into (1024 cap).
+  // Park is only the fallback when the caller passed a null buf (twin of lexer_next_buf_into). PLATFORM: SHARED.
   unsafe {
-    lexer_next_slice(out, lex, lexer_slice_from_raw(data, len));
+    let n: i32 = len;
+    let d: *u8 = data;
+    let sp: *u8 = (0 as *u8);
+    let slen: usize = 0;
+    lexer_src_data_store((&sp as *u8));
+    lexer_src_len_store((&slen as *u8));
+    // Prefer the caller's buf when it is non-null. A sticky park from the
+    // entry file (const-import) must not override a later dep buffer —
+    // Win tip then re-lexed the entry as const name = import("...") on
+    // core.option and build crashed after validate failed. Park remains
+    // the fallback when data is null (bridge peel). PLATFORM: SHARED.
+    if (d == (0 as *u8) && sp != (0 as *u8)) {
+      d = sp;
+      n = (slen as i32);
+    }
+    let sl: u8[] = [];
+    if (n < 0) { n = 0; }
+    /* Cap tip: omit lexer_src_park (tip-image L003 on dep prerun). */
+    // tip PE Win XT001: no LexerBuf local — poke fat words into sl. PLATFORM: SHARED.
+    memcpy((&sl as *u8), (&d as *u8), (8 as usize));
+    {
+      let nl: usize = (n as usize);
+      memcpy((&sl as *u8) + (8 as usize), (&nl as *u8), (8 as usize));
+    }
+    lexer_next_slice(out, lex, sl);
   }
 }

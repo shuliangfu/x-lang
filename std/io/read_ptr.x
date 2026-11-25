@@ -47,7 +47,7 @@ let g_io_read_ptr_backend: i32 = 0;
  * The installed product cannot asm-emit this *u8 return.
  * @param handle usize — file descriptor widened to a handle
  * @param timeout_ms u32 — wait budget forwarded to the platform read
- * @return i64 — buffer address in rax, or 0 when the read fails
+ * @return i64 — buffer address in rax; 0 only on read error (r < 0). EOF (r == 0) still returns the buffer with length 0 (10.63).
  * PLATFORM: SHARED
  */
 export function io_read_ptr(handle: usize, timeout_ms: u32): i64 {

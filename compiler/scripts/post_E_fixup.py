@@ -1045,6 +1045,13 @@ def _extract_all_function_signatures(src: str):
     return results
 
 
+
+def rewrite_expr_kind_struct_tag(src: str) -> str:
+    """tip -E may emit `struct ast_ExprKind` for enum ExprKind; field-by-value
+    needs a complete type. Use int32_t (enum ABI). PLATFORM: SHARED / WINDOWS.
+    """
+    return re.sub(r"\bstruct\s+ast_ExprKind\b", "int32_t", src)
+
 def inject_forward_decls(src: str) -> str:
     """Prepend tag forward-decls + function forward-decls as a single block.
 
@@ -1237,6 +1244,7 @@ def main(argv):
     if args.scrub_init_globals:
         src = scrub_init_globals(src)
     src = inject_forward_decls(src)
+    src = rewrite_expr_kind_struct_tag(src)
     if args.append_typeck_bodies:
         src = append_typeck_missing_bodies(src)
 

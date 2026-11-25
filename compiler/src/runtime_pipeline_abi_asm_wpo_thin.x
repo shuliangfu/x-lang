@@ -74,6 +74,10 @@ export extern function pipeline_expr_if_then_ref_at(arena: *u8, expr_ref: i32): 
 export extern function pipeline_expr_index_base_ref(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_index_index_ref(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_match_arm_guard_ref(arena: *u8, expr_ref: i32, i: i32): i32;
+export extern function pipeline_expr_match_arm_result_ref(arena: *u8, expr_ref: i32, i: i32): i32;
+export extern function pipeline_expr_match_matched_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_match_num_arms_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_method_call_arg_ref(arena: *u8, expr_ref: i32, idx: i32): i32;
 export extern function pipeline_expr_method_call_base_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_method_call_name_into(arena: *u8, expr_ref: i32, out64: *u8): void;
@@ -106,6 +110,12 @@ function asm_wpo_ek_block(): i32 { return 26; }
 function asm_wpo_ek_ternary(): i32 { return 27; }
 function asm_wpo_ek_return(): i32 { return 41; }
 function asm_wpo_ek_panic(): i32 { return 42; }
+/**
+ * ExprKind ordinal for match.
+ * @return i32 - 43, the product-pool MATCH ordinal
+ * PLATFORM: SHARED.
+ */
+function asm_wpo_ek_match(): i32 { return 43; }
 function asm_wpo_ek_field(): i32 { return 44; }
 function asm_wpo_ek_struct_lit(): i32 { return 45; }
 function asm_wpo_ek_array_lit(): i32 { return 46; }
@@ -514,6 +524,22 @@ function asm_wpo_call_callee_id(a: *u8, call_expr_ref: i32, caller_mod: *u8, ctx
 
 
 
+
+/**
+ * Forward decls: else-branch pool walks live in small frames so the
+ * count local and the `while (i < n)` compare use the same slot.
+ * Official typool and idx8 both alias that slot in the large
+ * collect_walk frame (nf stored at one spill, compared against an
+ * uninitialized neighbor). PLATFORM: WINDOWS lowering; SHARED semantics.
+ */
+function asm_wpo_collect_walk_consts(a: *u8, block_ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8): void;
+function asm_wpo_collect_walk_lets(a: *u8, block_ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8): void;
+function asm_wpo_collect_walk_whiles(a: *u8, block_ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8): void;
+function asm_wpo_collect_walk_fors(a: *u8, block_ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8): void;
+function asm_wpo_collect_walk_ifs(a: *u8, block_ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8): void;
+function asm_wpo_collect_walk_expr_stmts(a: *u8, block_ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8): void;
+function asm_wpo_collect_walk_labeled(a: *u8, block_ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8): void;
+
 /**
  * Walk one block or one expression and record call edges.
  * @param is_block i32 — non-zero walks a block; zero walks an expression
@@ -524,6 +550,8 @@ function asm_wpo_call_callee_id(a: *u8, call_expr_ref: i32, caller_mod: *u8, ctx
  * @param ctx *u8 — dep context passed to nested walks
  * @param depth i32 — expression recursion depth; capped at 64
  * @return void
+ * A match walks its scrutinee, each arm result, and each arm guard
+ * through this same function. Patterns are not expressions.
  * PLATFORM: SHARED — statement-pool counts are read before idx is compared.
  */
 function asm_wpo_collect_walk(is_block: i32, a: *u8, ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8, depth: i32): void {
@@ -632,97 +660,15 @@ function asm_wpo_collect_walk(is_block: i32, a: *u8, ref: i32, caller_id: i32, c
           i = i + 1;
         }
       } else {
-        let nc: i32 = ast_ast_block_num_consts(a, block_ref);
-        i = 0;
-        while (i < nc) {
-          er = ast_pipeline_block_const_init_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          i = i + 1;
-        }
-        let nl: i32 = ast_ast_block_num_lets(a, block_ref);
-        i = 0;
-        while (i < nl) {
-          er = pipeline_block_let_init_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          i = i + 1;
-        }
-        let nlp: i32 = ast_ast_block_num_loops(a, block_ref);
-        i = 0;
-        while (i < nlp) {
-          er = ast_ast_block_while_cond_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          er = ast_ast_block_while_body_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(1, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          i = i + 1;
-        }
-        let nf: i32 = ast_ast_block_num_for_loops(a, block_ref);
-        i = 0;
-        while (i < nf) {
-          er = ast_ast_block_for_init_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          er = ast_ast_block_for_cond_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          er = ast_ast_block_for_step_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          er = ast_ast_block_for_body_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(1, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          i = i + 1;
-        }
-        let ni: i32 = ast_ast_block_num_if_stmts(a, block_ref);
-        i = 0;
-        while (i < ni) {
-          er = ast_pipeline_block_if_cond_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          er = ast_pipeline_block_if_then_body_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(1, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          er = ast_pipeline_block_if_else_body_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(1, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          i = i + 1;
-        }
-        let nes2: i32 = ast_ast_block_num_expr_stmts(a, block_ref);
-        i = 0;
-        while (i < nes2) {
-          er = ast_pipeline_block_expr_stmt_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          i = i + 1;
-        }
+        asm_wpo_collect_walk_consts(a, block_ref, caller_id, caller_mod, ctx);
+        asm_wpo_collect_walk_lets(a, block_ref, caller_id, caller_mod, ctx);
+        asm_wpo_collect_walk_whiles(a, block_ref, caller_id, caller_mod, ctx);
+        asm_wpo_collect_walk_fors(a, block_ref, caller_id, caller_mod, ctx);
+        asm_wpo_collect_walk_ifs(a, block_ref, caller_id, caller_mod, ctx);
+        asm_wpo_collect_walk_expr_stmts(a, block_ref, caller_id, caller_mod, ctx);
       }
       // Labeled returns (C parser) not always in stmt_order.
-      let nlab: i32 = pipeline_block_num_labeled_stmts(a, block_ref);
-      i = 0;
-      while (i < nlab) {
-        if (pipeline_block_labeled_is_goto(a, block_ref, i) == 0) {
-          er = pipeline_block_labeled_return_expr_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
-          }
-        }
-        i = i + 1;
-      }
+      asm_wpo_collect_walk_labeled(a, block_ref, caller_id, caller_mod, ctx);
       let fer: i32 = ast_ast_block_final_expr_ref(a, block_ref);
       if (fer > 0) {
         asm_wpo_collect_walk(0, a, fer, caller_id, caller_mod, ctx, 0);
@@ -844,6 +790,38 @@ function asm_wpo_collect_walk(is_block: i32, a: *u8, ref: i32, caller_id: i32, c
       }
       return;
     }
+    // MATCH = 43. A call that lives only in the scrutinee, an arm
+    // result, or an arm guard is still a reach edge. Patterns are a
+    // literal or a variant index, not an expression. A missing guard
+    // is not positive, so the recursive walk returns. Checked before
+    // the binop getters so a stale left or right slot cannot hide the
+    // arms. PLATFORM: SHARED.
+    if (ko == asm_wpo_ek_match()) {
+      let mref: i32 = pipeline_expr_match_matched_ref_at(a, expr_ref);
+      if (mref > 0) {
+        if (mref != expr_ref) {
+          asm_wpo_collect_walk(0, a, mref, caller_id, caller_mod, ctx, depth + 1);
+        }
+      }
+      let narm: i32 = pipeline_expr_match_num_arms_at(a, expr_ref);
+      i2 = 0;
+      while (i2 < narm) {
+        let ares: i32 = pipeline_expr_match_arm_result_ref(a, expr_ref, i2);
+        let agd: i32 = pipeline_expr_match_arm_guard_ref(a, expr_ref, i2);
+        if (ares > 0) {
+          if (ares != expr_ref) {
+            asm_wpo_collect_walk(0, a, ares, caller_id, caller_mod, ctx, depth + 1);
+          }
+        }
+        if (agd > 0) {
+          if (agd != expr_ref) {
+            asm_wpo_collect_walk(0, a, agd, caller_id, caller_mod, ctx, depth + 1);
+          }
+        }
+        i2 = i2 + 1;
+      }
+      return;
+    }
     let bl: i32 = pipeline_expr_binop_left_ref_at(a, expr_ref);
     let brt: i32 = pipeline_expr_binop_right_ref_at(a, expr_ref);
     if (bl > 0 || brt > 0) {
@@ -895,6 +873,144 @@ function asm_wpo_collect_walk(is_block: i32, a: *u8, ref: i32, caller_id: i32, c
   }
 }
 
+
+/**
+ * Else-branch / labeled pool walks. Each helper is a small frame so
+ * `let n = count(); while (i < n)` cannot typool-alias the bound
+ * (idx8 stored nf at -0x2a0 and compared i against uninitialized
+ * -0xe0 in the large collect_walk frame). PLATFORM: WINDOWS lowering.
+ */
+function asm_wpo_collect_walk_consts(a: *u8, block_ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8): void {
+  unsafe {
+    let nc: i32 = ast_ast_block_num_consts(a, block_ref);
+    let i: i32 = 0;
+    let er: i32 = 0;
+    while (i < nc) {
+      er = ast_pipeline_block_const_init_ref(a, block_ref, i);
+      if (er > 0) {
+        asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
+      }
+      i = i + 1;
+    }
+  }
+}
+
+function asm_wpo_collect_walk_lets(a: *u8, block_ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8): void {
+  unsafe {
+    let nl: i32 = ast_ast_block_num_lets(a, block_ref);
+    let i: i32 = 0;
+    let er: i32 = 0;
+    while (i < nl) {
+      er = pipeline_block_let_init_ref(a, block_ref, i);
+      if (er > 0) {
+        asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
+      }
+      i = i + 1;
+    }
+  }
+}
+
+function asm_wpo_collect_walk_whiles(a: *u8, block_ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8): void {
+  unsafe {
+    let nlp: i32 = ast_ast_block_num_loops(a, block_ref);
+    let i: i32 = 0;
+    let er: i32 = 0;
+    while (i < nlp) {
+      er = ast_ast_block_while_cond_ref(a, block_ref, i);
+      if (er > 0) {
+        asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
+      }
+      er = ast_ast_block_while_body_ref(a, block_ref, i);
+      if (er > 0) {
+        asm_wpo_collect_walk(1, a, er, caller_id, caller_mod, ctx, 0);
+      }
+      i = i + 1;
+    }
+  }
+}
+
+function asm_wpo_collect_walk_fors(a: *u8, block_ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8): void {
+  unsafe {
+    let nf: i32 = ast_ast_block_num_for_loops(a, block_ref);
+    let i: i32 = 0;
+    let er: i32 = 0;
+    while (i < nf) {
+      er = ast_ast_block_for_init_ref(a, block_ref, i);
+      if (er > 0) {
+        asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
+      }
+      er = ast_ast_block_for_cond_ref(a, block_ref, i);
+      if (er > 0) {
+        asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
+      }
+      er = ast_ast_block_for_step_ref(a, block_ref, i);
+      if (er > 0) {
+        asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
+      }
+      er = ast_ast_block_for_body_ref(a, block_ref, i);
+      if (er > 0) {
+        asm_wpo_collect_walk(1, a, er, caller_id, caller_mod, ctx, 0);
+      }
+      i = i + 1;
+    }
+  }
+}
+
+function asm_wpo_collect_walk_ifs(a: *u8, block_ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8): void {
+  unsafe {
+    let ni: i32 = ast_ast_block_num_if_stmts(a, block_ref);
+    let i: i32 = 0;
+    let er: i32 = 0;
+    while (i < ni) {
+      er = ast_pipeline_block_if_cond_ref(a, block_ref, i);
+      if (er > 0) {
+        asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
+      }
+      er = ast_pipeline_block_if_then_body_ref(a, block_ref, i);
+      if (er > 0) {
+        asm_wpo_collect_walk(1, a, er, caller_id, caller_mod, ctx, 0);
+      }
+      er = ast_pipeline_block_if_else_body_ref(a, block_ref, i);
+      if (er > 0) {
+        asm_wpo_collect_walk(1, a, er, caller_id, caller_mod, ctx, 0);
+      }
+      i = i + 1;
+    }
+  }
+}
+
+function asm_wpo_collect_walk_expr_stmts(a: *u8, block_ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8): void {
+  unsafe {
+    let nes: i32 = ast_ast_block_num_expr_stmts(a, block_ref);
+    let i: i32 = 0;
+    let er: i32 = 0;
+    while (i < nes) {
+      er = ast_pipeline_block_expr_stmt_ref(a, block_ref, i);
+      if (er > 0) {
+        asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
+      }
+      i = i + 1;
+    }
+  }
+}
+
+function asm_wpo_collect_walk_labeled(a: *u8, block_ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8): void {
+  unsafe {
+    let nlab: i32 = pipeline_block_num_labeled_stmts(a, block_ref);
+    let i: i32 = 0;
+    let er: i32 = 0;
+    while (i < nlab) {
+      if (pipeline_block_labeled_is_goto(a, block_ref, i) == 0) {
+        er = pipeline_block_labeled_return_expr_ref(a, block_ref, i);
+        if (er > 0) {
+          asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
+        }
+      }
+      i = i + 1;
+    }
+  }
+}
+
 function asm_wpo_collect_edges_from_expr(a: *u8, expr_ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8, depth: i32): void {
   asm_wpo_collect_walk(0, a, expr_ref, caller_id, caller_mod, ctx, depth);
 }
@@ -903,40 +1019,41 @@ function asm_wpo_collect_from_block(a: *u8, block_ref: i32, caller_id: i32, call
   asm_wpo_collect_walk(1, a, block_ref, caller_id, caller_mod, ctx, 0);
 }
 
-/** User single-file + PGO_HOT and not compiler selfhost. */
-function asm_wpo_is_user_single_file_pgo_entry(): i32 {
+/**
+ * Pointer parameters home in rcx and are reloaded from that home.
+ * Binding `let p: *u8 = some_call()` in a large xlang frame stores the
+ * return at one spill and later reads a different uninitialized slot
+ * (official and idx8 both do this). Pass the pointer into a helper
+ * instead of letting the call result in the caller.
+ * PLATFORM: WINDOWS lowering; SHARED semantics.
+ */
+function asm_wpo_module_is_compiler_selfhost(m: *u8): i32 {
   unsafe {
-    if (pipeline_elf_pgo_hot_enabled() == 0) {
+    if (m == 0 as *u8) {
       return 0;
     }
-    let entry: *u8 = asm_wpo_get_entry();
-    if (entry == 0 as *u8 || g_aw_nmods != 1) {
-      return 0;
+    if (asm_module_is_main_driver_selfhost(m) != 0) {
+      return 1;
     }
-    if (asm_module_is_main_driver_selfhost(entry) != 0) {
-      return 0;
+    if (asm_module_is_pipeline_selfhost(m) != 0 || asm_module_is_typeck_selfhost(m) != 0 ||
+        asm_module_is_backend_selfhost(m) != 0 || asm_module_is_parser_selfhost(m) != 0) {
+      return 1;
     }
-    if (asm_module_is_pipeline_selfhost(entry) != 0 || asm_module_is_typeck_selfhost(entry) != 0 ||
-        asm_module_is_backend_selfhost(entry) != 0 || asm_module_is_parser_selfhost(entry) != 0) {
-      return 0;
-    }
-    return 1;
-
+    return 0;
   }
 }
 
-/** User program main WPO func id; -1 if absent. */
-function asm_wpo_user_main_func_id(): i32 {
+/** User program main WPO func id in one module; -1 if absent. */
+function asm_wpo_user_main_func_id_in(m: *u8): i32 {
   unsafe {
-    let entry: *u8 = asm_wpo_get_entry();
-    if (entry == 0 as *u8) {
+    if (m == 0 as *u8) {
       return -1;
     }
-    let nf: i32 = pipeline_module_num_funcs(entry);
+    let nf: i32 = pipeline_module_num_funcs(m);
     let fi: i32 = 0;
     while (fi < nf) {
-      if (pipeline_module_func_name_equal_at(entry, fi, "main", 4) != 0) {
-        let id: i32 = asm_wpo_func_id_of(entry, fi);
+      if (pipeline_module_func_name_equal_at(m, fi, "main", 4) != 0) {
+        let id: i32 = asm_wpo_func_id_of(m, fi);
         if (id >= 0) {
           return id;
         }
@@ -944,7 +1061,50 @@ function asm_wpo_user_main_func_id(): i32 {
       fi = fi + 1;
     }
     return -1;
+  }
+}
 
+/** User program main WPO func id; -1 if absent. */
+function asm_wpo_user_main_func_id(): i32 {
+  unsafe {
+    return asm_wpo_user_main_func_id_in(asm_wpo_get_entry());
+  }
+}
+
+function asm_wpo_is_user_single_file_pgo_mod(m: *u8): i32 {
+  unsafe {
+    if (pipeline_elf_pgo_hot_enabled() == 0) {
+      return 0;
+    }
+    if (m == 0 as *u8 || g_aw_nmods != 1) {
+      return 0;
+    }
+    if (asm_wpo_module_is_compiler_selfhost(m) != 0) {
+      return 0;
+    }
+    return 1;
+  }
+}
+
+/** User single-file + PGO_HOT and not compiler selfhost. */
+function asm_wpo_is_user_single_file_pgo_entry(): i32 {
+  unsafe {
+    return asm_wpo_is_user_single_file_pgo_mod(asm_wpo_get_entry());
+  }
+}
+
+function asm_wpo_is_user_program_mod(m: *u8): i32 {
+  unsafe {
+    if (m == 0 as *u8 || g_aw_nmods != 1) {
+      return 0;
+    }
+    if (asm_wpo_module_is_compiler_selfhost(m) != 0) {
+      return 0;
+    }
+    if (asm_wpo_user_main_func_id_in(m) >= 0) {
+      return 1;
+    }
+    return 0;
   }
 }
 
@@ -953,22 +1113,7 @@ function asm_wpo_user_main_func_id(): i32 {
  */
 function asm_wpo_is_user_program_entry(): i32 {
   unsafe {
-    let entry: *u8 = asm_wpo_get_entry();
-    if (entry == 0 as *u8 || g_aw_nmods != 1) {
-      return 0;
-    }
-    if (asm_module_is_main_driver_selfhost(entry) != 0) {
-      return 0;
-    }
-    if (asm_module_is_pipeline_selfhost(entry) != 0 || asm_module_is_typeck_selfhost(entry) != 0 ||
-        asm_module_is_backend_selfhost(entry) != 0 || asm_module_is_parser_selfhost(entry) != 0) {
-      return 0;
-    }
-    if (asm_wpo_user_main_func_id() >= 0) {
-      return 1;
-    }
-    return 0;
-
+    return asm_wpo_is_user_program_mod(asm_wpo_get_entry());
   }
 }
 
@@ -1015,7 +1160,7 @@ function asm_wpo_user_pgo_force_main_callee_edge(entry: *u8, a: *u8): i32 {
     if (entry == 0 as *u8 || a == 0 as *u8) {
       return -1;
     }
-    let main_id: i32 = asm_wpo_user_main_func_id();
+    let main_id: i32 = asm_wpo_user_main_func_id_in(entry);
     if (main_id < 0) {
       return -1;
     }
@@ -1168,6 +1313,18 @@ function asm_wpo_reach_fixpoint_expand(): void {
   }
 }
 
+function asm_wpo_try_user_pgo_force_from_mod(m: *u8): void {
+  unsafe {
+    if (m != 0 as *u8 && g_aw_nmods > 0) {
+      let main_callee: i32 = asm_wpo_user_pgo_force_main_callee_edge(m, asm_wpo_arena_slot(0));
+      let main_id: i32 = asm_wpo_user_main_func_id_in(m);
+      if (main_id >= 0 && main_callee >= 0) {
+        asm_wpo_user_pgo_prune_main_edges(main_id, main_callee);
+      }
+    }
+  }
+}
+
 /** BFS mark reachable from root. */
 function asm_wpo_build_reach(): void {
   unsafe {
@@ -1178,14 +1335,7 @@ function asm_wpo_build_reach(): void {
     let ctx: *u8 = asm_wpo_get_dep_ctx();
     asm_wpo_precollect_all_func_edges();
     if (user_pgo != 0) {
-      let entry: *u8 = asm_wpo_get_entry();
-      if (entry != 0 as *u8 && g_aw_nmods > 0) {
-        let main_callee: i32 = asm_wpo_user_pgo_force_main_callee_edge(entry, asm_wpo_arena_slot(0));
-        let main_id: i32 = asm_wpo_user_main_func_id();
-        if (main_id >= 0 && main_callee >= 0) {
-          asm_wpo_user_pgo_prune_main_edges(main_id, main_callee);
-        }
-      }
+      asm_wpo_try_user_pgo_force_from_mod(asm_wpo_get_entry());
     }
     let qh: i32 = 0;
     let qt: i32 = 0;
@@ -1299,6 +1449,39 @@ function asm_wpo_close_std_heap_helpers(): void {
   }
 }
 
+function asm_wpo_mark_user_pgo_main_hot(m: *u8): void {
+  unsafe {
+    let main_id: i32 = asm_wpo_user_main_func_id_in(m);
+    if (main_id >= 0) {
+      g_aw_pgo_hot[main_id] = 1;
+      if (m != 0 as *u8 && g_aw_nmods > 0) {
+        let main_callee: i32 = asm_wpo_user_pgo_force_main_callee_edge(m, asm_wpo_arena_slot(0));
+        if (main_callee >= 0 && g_aw_reachable[main_callee] != 0) {
+          g_aw_pgo_hot[main_callee] = 1;
+        }
+      }
+    }
+  }
+}
+
+function asm_wpo_mark_non_selfhost_main_hot(m: *u8): void {
+  unsafe {
+    if (m != 0 as *u8 && asm_module_is_main_driver_selfhost(m) == 0) {
+      let nf: i32 = pipeline_module_num_funcs(m);
+      let fi: i32 = 0;
+      while (fi < nf) {
+        if (pipeline_module_func_name_equal_at(m, fi, "main", 4) != 0) {
+          let mid: i32 = asm_wpo_func_id_of(m, fi);
+          if (mid >= 0) {
+            g_aw_pgo_hot[mid] = 1;
+          }
+        }
+        fi = fi + 1;
+      }
+    }
+  }
+}
+
 /** Mark PGO hot: root + direct callees (user-PGO special path). */
 function asm_wpo_mark_pgo_hot(): void {
   unsafe {
@@ -1319,33 +1502,10 @@ function asm_wpo_mark_pgo_hot(): void {
     }
     g_aw_pgo_hot[root] = 1;
     if (asm_wpo_is_user_single_file_pgo_entry() != 0) {
-      let main_id: i32 = asm_wpo_user_main_func_id();
-      if (main_id >= 0) {
-        g_aw_pgo_hot[main_id] = 1;
-        let entry: *u8 = asm_wpo_get_entry();
-        if (entry != 0 as *u8 && g_aw_nmods > 0) {
-          let main_callee: i32 = asm_wpo_user_pgo_force_main_callee_edge(entry, asm_wpo_arena_slot(0));
-          if (main_callee >= 0 && g_aw_reachable[main_callee] != 0) {
-            g_aw_pgo_hot[main_callee] = 1;
-          }
-        }
-      }
+      asm_wpo_mark_user_pgo_main_hot(asm_wpo_get_entry());
       return;
     }
-    let entry2: *u8 = asm_wpo_get_entry();
-    if (entry2 != 0 as *u8 && asm_module_is_main_driver_selfhost(entry2) == 0) {
-      let nf: i32 = pipeline_module_num_funcs(entry2);
-      let fi: i32 = 0;
-      while (fi < nf) {
-        if (pipeline_module_func_name_equal_at(entry2, fi, "main", 4) != 0) {
-          let mid: i32 = asm_wpo_func_id_of(entry2, fi);
-          if (mid >= 0) {
-            g_aw_pgo_hot[mid] = 1;
-          }
-        }
-        fi = fi + 1;
-      }
-    }
+    asm_wpo_mark_non_selfhost_main_hot(asm_wpo_get_entry());
     let ei: i32 = 0;
     while (ei < g_aw_nedges) {
       if (g_aw_edge_from[ei] == root) {
@@ -1753,7 +1913,12 @@ export function pipeline_asm_wpo_should_emit_func(m: *u8, fi: i32): i32 {
     if (pipeline_asm_module_func_is_extern_at(m, fi) != 0) {
       return 1;
     }
-    let entry: *u8 = asm_wpo_get_entry();
+    return asm_wpo_should_emit_func_with_entry(m, fi, asm_wpo_get_entry());
+  }
+}
+
+function asm_wpo_should_emit_func_with_entry(m: *u8, fi: i32, entry: *u8): i32 {
+  unsafe {
     if (m == entry && pipeline_module_func_name_equal_at(m, fi, "entry", 5) != 0) {
       return 1;
     }
@@ -1939,8 +2104,18 @@ export function pipeline_asm_wpo_pgo_emit_order_at(m: *u8, order_index: i32): i3
       pipeline_asm_wpo_pgo_emit_order_prepare(m);
     }
     // Belt: reject OOB past array capacity even if emit_n were stale/corrupt.
-    if (order_index < 0 || order_index >= g_aw_pgo_emit_n ||
-        order_index >= asm_wpo_max_funcs()) {
+    // note743y.5: tip -c folded `order_index >= g_aw_pgo_emit_n` to
+    // `>= 0` (BSS global as imm 0) → at() always -1 → mega empty → CG002.
+    // Load emit_n to a local first (same shape as order_count return).
+    // PLATFORM: LINUX tip cold · SHARED.
+    if (order_index < 0) {
+      return -1;
+    }
+    let emit_n: i32 = g_aw_pgo_emit_n;
+    if (order_index >= emit_n) {
+      return -1;
+    }
+    if (order_index >= asm_wpo_max_funcs()) {
       return -1;
     }
     return g_aw_pgo_emit_order[order_index];

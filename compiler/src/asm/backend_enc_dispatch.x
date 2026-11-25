@@ -258,7 +258,7 @@ export function backend_enc_x86_64_load_rax_rbx_disp32_c(elf_ctx: *u8, dst_reg: 
     if (base_reg >= 8) { rex = rex + 1; }
     if (backend_enc_append_u8_c(elf_ctx, rex) != 0) { return 0 - 1; }
     if (backend_enc_append_u8_c(elf_ctx, 139) != 0) { return 0 - 1; }
-    let modrm: i32 = 128 + ((dst_reg & 7) * 8) + (base_reg & 7);
+    let modrm: i32 = (128 + ((dst_reg & 7) * 8) + (base_reg & 7));
     if (backend_enc_append_u8_c(elf_ctx, modrm) != 0) { return 0 - 1; }
     /* SIB required when r/m is rsp/r12 (encoding 4). */
     if ((base_reg & 7) == 4) {
@@ -1256,7 +1256,7 @@ export function backend_enc_cmp_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
 #[no_mangle]
 export function backend_enc_cmp_setcc_movzbl_arch(elf_ctx: *u8, cc: i32, ta: i32): i32 {
   /* setcc/cset writes w0/eax — drop stale VAR-in-rax (w2060 T001). PLATFORM: SHARED. */
-  let rc: i32 = 0 - 1;
+  let rc: i32 = (0 - 1);
   unsafe {
     if (ta == 1) { rc = arch_arm64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc); }
     else if (ta == 2) { rc = arch_riscv64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc); }
@@ -1285,16 +1285,25 @@ export function backend_enc_store_rax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta:
 }
 
 // backend_enc_load_rbp_to_rax_arch: see function docblock below.
-/** Exported function `backend_enc_load_rbp_to_rax_arch`.
- * Implements `backend_enc_load_rbp_to_rax_arch`.
- * @param elf_ctx *u8
- * @param offset i32
- * @param ta i32
- * @return i32
+/**
+ * Load the frame slot at offset into rax (x0).
+ *
+ * The load overwrites rax. The binop VAR-slot cache may still say rax
+ * holds an earlier slot, so a later operand skips its reload and uses
+ * this slot's bits. Drop the rax belief before the load. A caller that
+ * wants the new belief calls glue_binop_var_slot_cache_set_rax after
+ * this returns. PLATFORM: SHARED — the cache is compiler state, not a
+ * guest instruction.
+ *
+ * @param elf_ctx *u8 — code buffer
+ * @param offset i32 — frame slot offset
+ * @param ta i32 — 0 x86_64, 1 arm64, 2 riscv64
+ * @return i32 — 0 when the load is emitted, -1 on encode failure
  */
 #[no_mangle]
 export function backend_enc_load_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
-  // See implementation.
+  // Frame load clobbers rax. Keep the binop slot cache from reusing it.
+  unsafe { glue_binop_var_slot_cache_invalidate_rax(); }
   unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_load_rbp_to_rax(elf_ctx, offset); }
   if (ta == 2) { return arch_riscv64_enc_enc_load_rbp_to_rax(elf_ctx, offset); }
@@ -1677,6 +1686,7 @@ export function backend_enc_call_arch(elf_ctx: *u8, name: *u8, name_len: i32, ta
 
 /* See implementation. */
 export extern "C" function arch_arm64_enc_enc_idiv_rbx(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_udiv_rbx(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_jne(elf_ctx: *u8, label: *u8, label_len: i32): i32;
 export extern "C" function arch_arm64_enc_enc_store_x_reg_to_rbp(elf_ctx: *u8, reg: i32, offset: i32): i32;
 export extern "C" function arch_riscv64_enc_enc_add_a2_a3(elf_ctx: *u8): i32;
@@ -1975,9 +1985,9 @@ export function backend_enc_idiv_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
  */
 #[no_mangle]
 export function backend_enc_div_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
-  // See implementation.
+  // 10.56: arm64 unsigned div is udiv (thin authority); signed stays idiv.
   unsafe {
-  if (ta == 1) { return arch_arm64_enc_enc_idiv_rbx(elf_ctx); }
+  if (ta == 1) { return arch_arm64_enc_enc_udiv_rbx(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_idiv_rbx(elf_ctx); }
   if (arch_x86_64_enc_enc_xor_edx_edx(elf_ctx) != 0) { return 0 - 1; }
   return arch_x86_64_enc_enc_div_rbx(elf_ctx);
@@ -2258,22 +2268,33 @@ export function backend_enc_load_i32_indirect_to_rax_arch(elf_ctx: *u8, ta: i32)
 }
 
 // backend_enc_load_rbp_to_rbx_arch: see function docblock below.
-/** Exported function `backend_enc_load_rbp_to_rbx_arch`.
- * Implements `backend_enc_load_rbp_to_rbx_arch`.
- * @param elf_ctx *u8
- * @param offset i32
- * @param ta i32
- * @return i32
+/**
+ * Load the frame slot at offset into rbx (x1).
+ *
+ * The load overwrites rbx. The binop VAR-slot cache may still say rbx
+ * holds an earlier slot. The next binop then skips its reload. A
+ * restoring step `q = q + rb` after `ix0u = ix0u - t` added the old
+ * ix0u instead of rb, so an odd-exponent square root assembled the
+ * wrong high half. Drop the rbx belief before the load. A caller that
+ * wants the new belief calls glue_binop_var_slot_cache_set_rbx after
+ * this returns. PLATFORM: SHARED — the cache is compiler state, not a
+ * guest instruction.
+ *
+ * @param elf_ctx *u8 — code buffer
+ * @param offset i32 — frame slot offset
+ * @param ta i32 — 0 x86_64, 1 arm64, 2 riscv64
+ * @return i32 — 0 when the load is emitted, -1 on encode failure
  */
 #[no_mangle]
 export function backend_enc_load_rbp_to_rbx_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
-  // See implementation.
+  // Frame load clobbers rbx. Keep the binop slot cache from reusing it.
+  unsafe { glue_binop_var_slot_cache_invalidate_rbx(); }
   unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_load_rbp_to_rbx(elf_ctx, offset); }
   if (ta == 2) { return arch_riscv64_enc_enc_load_rbp_to_rbx(elf_ctx, offset); }
   if (elf_ctx == 0) { return 0 - 1; }
   unsafe {
-    let disp: i32 = 0 - offset;
+    let disp: i32 = (0 - offset);
     let u: u32 = disp as u32;
     let b: u8[7] = [];
     if (disp >= 0 - 128) {
@@ -2312,7 +2333,7 @@ export function backend_enc_store_eax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta:
   if (ta != 0) { return 0 - 1; }
   if (elf_ctx == 0) { return 0 - 1; }
   unsafe {
-    let disp: i32 = 0 - offset;
+    let disp: i32 = (0 - offset);
     let u: u32 = disp as u32;
     let b: u8[7] = [];
     if (disp >= 0 - 128) {

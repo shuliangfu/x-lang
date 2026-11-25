@@ -245,7 +245,7 @@ int32_t parser_asm_stretch_allow_kw_paren_buf_audit_c(void *lex_inout, uint8_t *
  * host-cc does not compile a second authority. Cold (no P9b): lite C
  * stays. classify TOKEN_* pins are asserted above against token.h. */
 #ifndef XLANG_PTHIN_STRETCH_LITE_FROM_X
-#include "parser_asm_emit_heavy_stretch_slice.inc"
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_STRETCH_LITE_FROM_X removed */
 #endif
 /* PLATFORM: SHARED — 7.2.1 already-T shrink (2026-09-12).
  * Hybrid P9a (XLANG_PTHIN_STRETCH_AUDIT_FROM_X) already provides the 1978
@@ -255,8 +255,8 @@ int32_t parser_asm_stretch_allow_kw_paren_buf_audit_c(void *lex_inout, uint8_t *
  * parser_asm_stretch_suite_product_keep.inc in thin rest instead.
  * Chapter 2.9 owns the audit suite. Cold (neither flag): archive stays. */
 #ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X removed */
 #ifndef XLANG_PTHIN_STRETCH_CLASS_CB
-#include "archive_parser_asm_emit_heavy_stretch_suite_slice.inc"
 #endif
 #endif
 

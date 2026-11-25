@@ -57,6 +57,16 @@ export extern function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u
 export extern function pipeline_asm_emit_break_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32): i32;
 export extern function pipeline_asm_emit_continue_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32): i32;
 export extern function pipeline_asm_emit_neg_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function pipeline_expr_binop_left_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_binop_right_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_asm_emit_binop_add_elf_c(arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function pipeline_asm_emit_binop_sub_elf_c(arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function pipeline_asm_emit_binop_mul_elf_c(arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function pipeline_asm_emit_binop_div_elf_c(arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function pipeline_asm_emit_binop_mod_elf_c(arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function pipeline_asm_emit_binop_and_elf_c(arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function pipeline_asm_emit_binop_shift_elf_c(arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32, is_shr: i32): i32;
+export extern function pipeline_asm_emit_binop_bitwise_elf_c(arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32, is_xor: i32): i32;
 export extern function pipeline_asm_emit_bitnot_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 export extern function pipeline_asm_emit_lognot_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 export extern function glue_expr_is_await_at_c(arena: *u8, expr_ref: i32): i32;
@@ -74,14 +84,33 @@ export extern function pipeline_expr_int64_val_at(arena: *u8, expr_ref: i32): i6
 export extern function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_type_kind_ord_at(arena: *u8, ref: i32): i32;
 export extern function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i32, hi: i32, ta: i32): i32;
+export extern function glue_emit_float_lit_to_rax_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ta: i32, force_ty_ref: i32, call_abi_widen_f64: i32): i32;
 export extern function glue_type_named_layout_size_any_module_elf_c(arena: *u8, ty_ref: i32): i32;
 export extern function glue_field_access_field_type_ref_c(arena: *u8, mod: *u8, fa_ref: i32): i32;
 export extern function pipeline_asm_emit_module_ref_c(): *u8;
 export extern function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function pipeline_asm_emit_var_field_access_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function pipeline_asm_emit_field_access_elf_fast_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function glue_field_access_emit_scalar_load_from_rax_elf_c(elf_ctx: *u8, load_sz: i32, ta: i32): i32;
+export extern function pipeline_expr_field_access_load_byte_sz(arena: *u8, mod: *u8, expr_ref: i32): i32;
 export extern function pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx: *u8, ta: i32): i32;
+export extern function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i32): i32;
+export extern function glue_vector_type_lanes_esz_c(arena: *u8, type_ref: i32, out_lanes: *i32, out_esz: *i32): i32;
+export extern function pipeline_asm_emit_vector_binop_let_init_elf_c(
+  arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, dst_off: i32, type_ref: i32
+): i32;
+export extern function backend_enc_arm64_sub_sp_imm12_c(elf_ctx: *u8, imm: i32): i32;
+export extern function backend_enc_arm64_add_sp_imm12_c(elf_ctx: *u8, imm: i32): i32;
+export extern function backend_enc_lea_rbp_to_rbx_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
+export extern function backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_load_qword_rbx8_to_rdx_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_append_u8_c(elf_ctx: *u8, byte: i32): i32;
 
 export extern function pipe_load_i32_le(p: *u8, off: i32): i32;
 export extern function pipe_store_i32_le(p: *u8, off: i32, v: i32): void;
+export extern function pipe_load_ptr_slot(base: *u8, i: i32): *u8;
+export extern function pipe_store_ptr_slot(base: *u8, i: i32, val: *u8): void;
+export extern function pipeline_arena_expr_ptr(a: *u8, ref: i32): *u8;
 
 /**
  * Load i32 from pipe cell (local; tip-stable mid `x=cell_load()`).
@@ -111,18 +140,35 @@ function w495_cell_i32(base: *u8): i32 {
  * PLATFORM: SHARED freestanding emit (Linux/Win fast already emit the same imm64).
  */
 function w1504_emit_wide_int_lit(arena: *u8, elf_ctx: *u8, expr_ref: i32, ta: i32): i32 {
-  let v64: i64 = 0;
-  let i32_max: i64 = 2147483647;
-  let i32_min: i64 = 0;
+  /* note743y.6.12 Soft Cap: ban int64_val_at + `as i32`/`>>32` for lo/hi —
+   * tip U-starves i64 return (rax=expr*) and tip `0x80000000 as i32` → 0.
+   * Read INT_VAL words via expr* + pipe_load_i32_le (off 16/20). */
   let tref: i32 = 0;
   let tk: i32 = 0;
   let lo: i32 = 0;
   let hi: i32 = 0;
+  let ex: *u8 = 0 as *u8;
+  let pcell: u8[8] = [];
+  let fits: i32 = 0;
   unsafe {
-    v64 = pipeline_expr_int64_val_at(arena, expr_ref);
+    pipe_store_ptr_slot(&pcell[0], 0, pipeline_arena_expr_ptr(arena, expr_ref));
+    ex = pipe_load_ptr_slot(&pcell[0], 0);
   }
-  i32_min = 0 - 2147483647 - 1;
-  if (v64 >= i32_min && v64 <= i32_max) {
+  if (ex == (0 as *u8)) {
+    return 0 - 99;
+  }
+  unsafe {
+    lo = pipe_load_i32_le(ex, 16);
+    hi = pipe_load_i32_le(ex, 20);
+  }
+  /* Fits signed i32 iff sign-extend(lo) == (hi:lo). */
+  if (hi == 0 && lo >= 0) {
+    fits = 1;
+  }
+  if (hi == (0 - 1) && lo < 0) {
+    fits = 1;
+  }
+  if (fits != 0) {
     return 0 - 99;
   }
   unsafe {
@@ -136,8 +182,6 @@ function w1504_emit_wide_int_lit(arena: *u8, elf_ctx: *u8, expr_ref: i32, ta: i3
       return 0 - 99;
     }
   }
-  lo = v64 as i32;
-  hi = (v64 >> 32) as i32;
   unsafe {
     return backend_enc_mov_imm64_to_rax_arch(elf_ctx, lo, hi, ta);
   }
@@ -232,6 +276,213 @@ function w1738_named16_field_pair(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: 
 }
 
 /**
+ * Emit a 16-byte SIMD binop into x0:x1 (arm64) or rax:rdx (x86_64).
+ * Scalar add would only keep lane 0. This calls the existing per-lane
+ * slot writer into a 16-byte scratch, then pair-loads. A vector wider
+ * than 16 bytes stays declined (GPR pair, not sret).
+ * @param arena *u8 — AST arena; null is not reached (caller checked the expr)
+ * @param elf_ctx *u8 — object writer
+ * @param expr_ref i32 — binop expr whose type is a SIMD vector
+ * @param ctx *u8 — AsmFuncCtx (frame_size@0 used on x86_64 for scratch)
+ * @param ta i32 — 0 x86_64 or 1 arm64; other arches return -99
+ * @return i32 — 0 when the GPR pair holds the 16-byte result; -1 on
+ *   encode failure; -99 when this arm does not apply
+ * PLATFORM: SHARED — arm64 sub sp + dst -16; x86_64 sub rsp + positive
+ *   magnitude below rbp (lea encodes 0-offset). Measured Linux tip
+ *   `return a+b` for i32x4 kept only lane 0 before this arm.
+ */
+function asm_expr_emit_simd_binop_pair(
+  arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
+): i32 {
+  let cell: u8[8];
+  let lanes_s: i32[1] = [];
+  let esz_s: i32[1] = [];
+  let ty: i32 = 0;
+  let simd: i32 = 0;
+  let lanes: i32 = 0;
+  let esz: i32 = 0;
+  let rc: i32 = 0;
+  let dst: i32 = 0;
+  let fs: i32 = 0;
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  if (ta != 0) {
+    if (ta != 1) {
+      return 0 - 99;
+    }
+  }
+  /* 10.22: Linux tip may leave binop resolved_type unset while VAR
+   * params (a/b in `return a+b`) are typed. Fall back to left then
+   * right before declining to scalar add (lane0-only).
+   * PLATFORM: SHARED — Darwin Cap tip already typed the binop. */
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, pipeline_expr_resolved_type_ref(arena, expr_ref));
+  }
+  ty = w495_cell_i32(&cell[0]);
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, asm_type_is_simd_vector_spelling(arena, ty));
+  }
+  simd = w495_cell_i32(&cell[0]);
+  if (ty <= 0 || simd == 0) {
+    unsafe {
+      left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+    }
+    if (left_ref > 0) {
+      unsafe {
+        pipe_store_i32_le(&cell[0], 0, pipeline_expr_resolved_type_ref(arena, left_ref));
+      }
+      ty = w495_cell_i32(&cell[0]);
+      unsafe {
+        pipe_store_i32_le(&cell[0], 0, asm_type_is_simd_vector_spelling(arena, ty));
+      }
+      simd = w495_cell_i32(&cell[0]);
+    }
+  }
+  if (ty <= 0 || simd == 0) {
+    unsafe {
+      right_ref = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+    }
+    if (right_ref > 0) {
+      unsafe {
+        pipe_store_i32_le(&cell[0], 0, pipeline_expr_resolved_type_ref(arena, right_ref));
+      }
+      ty = w495_cell_i32(&cell[0]);
+      unsafe {
+        pipe_store_i32_le(&cell[0], 0, asm_type_is_simd_vector_spelling(arena, ty));
+      }
+      simd = w495_cell_i32(&cell[0]);
+    }
+  }
+  if (ty <= 0 || simd == 0) {
+    return 0 - 99;
+  }
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, glue_vector_type_lanes_esz_c(arena, ty, &lanes_s[0], &esz_s[0]));
+  }
+  rc = w495_cell_i32(&cell[0]);
+  if (rc != 0 || lanes_s[0] <= 0 || esz_s[0] <= 0) {
+    return 0 - 99;
+  }
+  lanes = lanes_s[0];
+  esz = esz_s[0];
+  if (lanes * esz != 16) {
+    return 0 - 99;
+  }
+  if (ta == 1) {
+    unsafe {
+      pipe_store_i32_le(&cell[0], 0, backend_enc_arm64_sub_sp_imm12_c(elf_ctx, 16));
+    }
+    rc = w495_cell_i32(&cell[0]);
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    dst = 0 - 16;
+  }
+  if (ta == 0) {
+    if (ctx == 0 as *u8) {
+      return 0 - 1;
+    }
+    unsafe {
+      fs = pipe_load_i32_le(ctx, 0);
+    }
+    if (fs < 0) {
+      fs = 0;
+    }
+    dst = 8 + fs + 16;
+    unsafe {
+      if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_append_u8_c(elf_ctx, 131) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_append_u8_c(elf_ctx, 236) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_append_u8_c(elf_ctx, 16) != 0) {
+        return 0 - 1;
+      }
+    }
+  }
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, pipeline_asm_emit_vector_binop_let_init_elf_c(
+      arena, elf_ctx, expr_ref, ctx, ta, dst, ty));
+  }
+  rc = w495_cell_i32(&cell[0]);
+  if (rc != 0) {
+    if (ta == 1) {
+      unsafe {
+        pipe_store_i32_le(&cell[0], 0, backend_enc_arm64_add_sp_imm12_c(elf_ctx, 16));
+      }
+    }
+    if (ta == 0) {
+      unsafe {
+        if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+          return 0 - 1;
+        }
+        if (backend_enc_append_u8_c(elf_ctx, 131) != 0) {
+          return 0 - 1;
+        }
+        if (backend_enc_append_u8_c(elf_ctx, 196) != 0) {
+          return 0 - 1;
+        }
+        if (backend_enc_append_u8_c(elf_ctx, 16) != 0) {
+          return 0 - 1;
+        }
+      }
+    }
+    return 0 - 1;
+  }
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, backend_enc_lea_rbp_to_rbx_arch(elf_ctx, dst, ta));
+  }
+  rc = w495_cell_i32(&cell[0]);
+  if (rc == 0) {
+    unsafe {
+      pipe_store_i32_le(&cell[0], 0, backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx, ta));
+    }
+    rc = w495_cell_i32(&cell[0]);
+  }
+  if (rc == 0) {
+    unsafe {
+      pipe_store_i32_le(&cell[0], 0, backend_enc_load_qword_rbx8_to_rdx_arch(elf_ctx, ta));
+    }
+    rc = w495_cell_i32(&cell[0]);
+  }
+  if (ta == 1) {
+    unsafe {
+      pipe_store_i32_le(&cell[0], 0, backend_enc_arm64_add_sp_imm12_c(elf_ctx, 16));
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    if (w495_cell_i32(&cell[0]) != 0) {
+      return 0 - 1;
+    }
+  }
+  if (ta == 0) {
+    unsafe {
+      if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_append_u8_c(elf_ctx, 131) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_append_u8_c(elf_ctx, 196) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_append_u8_c(elf_ctx, 16) != 0) {
+        return 0 - 1;
+      }
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+  }
+  return 0;
+}
+
+/**
  * Freestanding expr ELF recursion with EXPR_ASM (60) slice0.
  * A named field of 9..16 bytes is pair-loaded before the fast path.
  * Fast path first for every other kind; kind dispatch includes asm!("template") → try_emit.
@@ -293,6 +544,19 @@ export function pipeline_asm_emit_expr_elf_rec(arena: *u8, elf_ctx: *u8, expr_re
       return 0 - 1;
     }
   }
+  /* 10.22: Linux tip mega fast emits scalar ADD for ko==4 before this
+   * rec arm runs. Try 16-byte SIMD binop pair first; -99 keeps fast.
+   * Darwin Cap tip fast declines ADD (-99) so the later arm also worked.
+   * PLATFORM: SHARED. */
+  if (ko >= 4 && ko <= 13) {
+    unsafe {
+      pipe_store_i32_le(&cell_r[0], 0, asm_expr_emit_simd_binop_pair(arena, elf_ctx, expr_ref, ctx, ta));
+    }
+    r = w495_cell_i32(&cell_r[0]);
+    if (r != (0 - 99)) {
+      return r;
+    }
+  }
   unsafe {
     /* PLATFORM: SHARED — tip drops mid `r=pipeline_asm_emit_expr_elf_fast()`; pipe cell. */
     pipe_store_i32_le(&cell_r[0], 0, pipeline_asm_emit_expr_elf_fast(arena, elf_ctx, expr_ref, ctx, ta));
@@ -300,6 +564,16 @@ export function pipeline_asm_emit_expr_elf_rec(arena: *u8, elf_ctx: *u8, expr_re
   r = w495_cell_i32(&cell_r[0]);
   if (r != (0 - 99)) {
     return r;
+  }
+  /* EXPR_FLOAT_LIT = 1. The Darwin fast overlay handles INT_LIT, BOOL_LIT,
+   * and VAR only, then returns -99. The C seed fast emits this kind through
+   * glue_emit_float_lit_to_rax_elf_c. The slow stub returns 0 and writes no
+   * movk, so a compare keeps the leftover left value in x0 (pi cmp pi).
+   * PLATFORM: SHARED. One emitter; this arm is the Darwin rec call site. */
+  if (ko == 1) {
+    unsafe {
+      return glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, expr_ref, ta, 0, 0);
+    }
   }
   if (ko == 25 || ko == 27) {
     unsafe {
@@ -447,6 +721,59 @@ export function pipeline_asm_emit_expr_elf_rec(arena: *u8, elf_ctx: *u8, expr_re
       return pipeline_asm_emit_continue_elf_c(arena, elf_ctx, ctx, ta);
     }
   }
+  /* Cap tip-thin 256/10.2: EXPR_ADD..BITXOR scalar arms. SIMD pair
+   * already tried before emit_expr_elf_fast (10.22 Linux mega).
+   * PLATFORM: SHARED. */
+  if (ko == 4) {
+    unsafe {
+      return pipeline_asm_emit_binop_add_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref), pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta);
+    }
+  }
+  if (ko == 5) {
+    unsafe {
+      return pipeline_asm_emit_binop_sub_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref), pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta);
+    }
+  }
+  if (ko == 6) {
+    unsafe {
+      return pipeline_asm_emit_binop_mul_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref), pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta);
+    }
+  }
+  if (ko == 7) {
+    unsafe {
+      return pipeline_asm_emit_binop_div_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref), pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta);
+    }
+  }
+  if (ko == 8) {
+    unsafe {
+      return pipeline_asm_emit_binop_mod_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref), pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta);
+    }
+  }
+  if (ko == 9) {
+    unsafe {
+      return pipeline_asm_emit_binop_shift_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref), pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta, 0);
+    }
+  }
+  if (ko == 10) {
+    unsafe {
+      return pipeline_asm_emit_binop_shift_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref), pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta, 1);
+    }
+  }
+  if (ko == 11) {
+    unsafe {
+      return pipeline_asm_emit_binop_and_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref), pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta);
+    }
+  }
+  if (ko == 12) {
+    unsafe {
+      return pipeline_asm_emit_binop_bitwise_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref), pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta, 0);
+    }
+  }
+  if (ko == 13) {
+    unsafe {
+      return pipeline_asm_emit_binop_bitwise_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref), pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta, 1);
+    }
+  }
   if (ko == 22) {
     unsafe {
       return pipeline_asm_emit_neg_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
@@ -501,7 +828,27 @@ export function pipeline_asm_emit_expr_elf_rec(arena: *u8, elf_ctx: *u8, expr_re
         return backend_enc_mov_imm32_to_w0_arch(elf_ctx, ns_tag, ta);
       }
     }
-    return 0 - 1;
+    /* 256/10.2: ordinary struct field load via Cap residual var_field. */
+    unsafe {
+      pipe_store_i32_le(&cell_r[0], 0, pipeline_asm_emit_var_field_access_elf_c(arena, elf_ctx, expr_ref, ctx, ta));
+    }
+    r = w495_cell_i32(&cell_r[0]);
+    if (r != (0 - 99)) {
+      return r;
+    }
+    // var_field accepts only a VAR base. An INDEX base such as r[i].a on
+    // a [N]Pair returns -99. The slow stub then returns 0 and writes no
+    // instruction, so the low half of the previous store becomes the
+    // result. The existing field fast path already forms that address
+    // (lvalue of the INDEX, then the field offset) and scalar-loads it.
+    // -99 stays on the slow stub. PLATFORM: SHARED.
+    unsafe {
+      pipe_store_i32_le(&cell_r[0], 0, pipeline_asm_emit_field_access_elf_fast_c(arena, elf_ctx, expr_ref, ctx, ta));
+    }
+    r = w495_cell_i32(&cell_r[0]);
+    if (r != (0 - 99)) {
+      return r;
+    }
   }
   unsafe {
     /* PLATFORM: SHARED — tip drops mid `out_rc=backend_emit_expr_elf_slow()`; direct return. */

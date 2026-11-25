@@ -67,6 +67,25 @@ resolve_shu() {
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
 
 echo "=== http leftover (prefer asm; hard; refuse leftover auto-make) ==="
+# Cap tip L4: local HTTP on 127.0.0.1:18765 for tests/http/main.x
+# (example.com Cap-dial path intermittently returns n==0 empty EOF).
+_XLANG_HTTP_SMOKE_PORT=18765
+_XLANG_HTTP_SMOKE_PID=""
+_xlang_http_smoke_server_stop() {
+  if [ -n "${_XLANG_HTTP_SMOKE_PID}" ]; then
+    kill "${_XLANG_HTTP_SMOKE_PID}" 2>/dev/null || true
+    wait "${_XLANG_HTTP_SMOKE_PID}" 2>/dev/null || true
+    _XLANG_HTTP_SMOKE_PID=""
+  fi
+}
+trap '_xlang_http_smoke_server_stop' EXIT INT TERM
+python3 tests/lib/http_smoke_local_server.py "$_XLANG_HTTP_SMOKE_PORT" &
+_XLANG_HTTP_SMOKE_PID=$!
+sleep 0.15
+if ! kill -0 "${_XLANG_HTTP_SMOKE_PID}" 2>/dev/null; then
+  die "local smoke HTTP server failed to start on 127.0.0.1:${_XLANG_HTTP_SMOKE_PORT}"
+fi
+
 if [ -n "${XLANG:-}" ]; then
   if ! XLANG_BIN="$(resolve_shu)"; then
     die "explicit XLANG not native (refuse leftover XLANG fallthrough / soft auto-make)"

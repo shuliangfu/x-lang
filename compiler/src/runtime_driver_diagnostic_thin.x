@@ -170,61 +170,43 @@ export function driver_diag_append_name(dst: *u8, cap: i32, at: i32, name: *u8, 
  */
 #[no_mangle]
 export function driver_diag_append_i32(dst: *u8, cap: i32, at: i32, val: i32): i32 {
+  // Tip x86: `let dig = t % 10` then use dig reloads a never-written slot
+  // (prints 0). Avoid `%` entirely: peel with /10, ones digit by subtract.
   if (dst == 0) { return at; }
   if (at + 1 >= cap) { return at; }
   let v: i32 = val;
   if (v < 0) {
     dst[at] = 45;
     at = at + 1;
+    if (at + 1 >= cap) { return at; }
     v = 0 - v;
   }
-  let d0: i32 = 0;
-  let d1: i32 = 0;
-  let d2: i32 = 0;
-  let d3: i32 = 0;
-  let d4: i32 = 0;
-  let d5: i32 = 0;
-  let d6: i32 = 0;
-  let d7: i32 = 0;
-  let d8: i32 = 0;
-  let d9: i32 = 0;
-  let dn: i32 = 0;
   if (v == 0) {
-    d0 = 0;
-    dn = 1;
-  } else {
-    let t: i32 = v;
-    while (t > 0) {
-      if (dn >= 10) { break; }
-      let dig: i32 = t % 10;
-      if (dn == 0) { d0 = dig; }
-      if (dn == 1) { d1 = dig; }
-      if (dn == 2) { d2 = dig; }
-      if (dn == 3) { d3 = dig; }
-      if (dn == 4) { d4 = dig; }
-      if (dn == 5) { d5 = dig; }
-      if (dn == 6) { d6 = dig; }
-      if (dn == 7) { d7 = dig; }
-      if (dn == 8) { d8 = dig; }
-      if (dn == 9) { d9 = dig; }
-      t = t / 10;
-      dn = dn + 1;
-    }
+    dst[at] = 48;
+    at = at + 1;
+    dst[at] = 0;
+    return at;
   }
-  let i: i32 = dn - 1;
-  while (i >= 0) {
+  let n: i32 = 0;
+  let tt: i32 = v;
+  while (tt > 0) {
+    n = n + 1;
+    tt = tt / 10;
+  }
+  let i: i32 = n;
+  while (i > 0) {
     if (at + 1 >= cap) { break; }
-    let dig: i32 = 0;
-    if (i == 0) { dig = d0; }
-    if (i == 1) { dig = d1; }
-    if (i == 2) { dig = d2; }
-    if (i == 3) { dig = d3; }
-    if (i == 4) { dig = d4; }
-    if (i == 5) { dig = d5; }
-    if (i == 6) { dig = d6; }
-    if (i == 7) { dig = d7; }
-    if (i == 8) { dig = d8; }
-    if (i == 9) { dig = d9; }
+    let pow: i32 = 1;
+    let j: i32 = 1;
+    while (j < i) {
+      pow = pow * 10;
+      j = j + 1;
+    }
+    let q: i32 = v / pow;
+    let dig: i32 = q;
+    while (dig >= 10) {
+      dig = dig - 10;
+    }
     dst[at] = (dig + 48) as u8;
     at = at + 1;
     i = i - 1;

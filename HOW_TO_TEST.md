@@ -72,7 +72,7 @@ std/net 模块用了 `extern function ntohl(...)` 等声明。在 Linux 上 `nto
 
 ### macOS net 测试失败（bind EPERM）
 macOS 受管沙箱禁止 `bind()` 系统调用（纯 C 也 `Operation not permitted`）。
-这不是代码问题，需要在能联网的环境（如 ubuntu-server）跑。
+这不是代码问题，需要在能联网的环境（如 ubuntu-remote-server）跑。
 
 ## 构建产物说明
 - `compiler/xlang-c` — 真正的 C 前端编译器（约 1MB），用 XLANG_LEGACY_C_FRONTEND=1 构建

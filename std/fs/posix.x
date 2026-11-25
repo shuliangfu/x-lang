@@ -154,10 +154,11 @@ extern "C" function strlen(s: *u8): usize;
 #[cfg(target_os = "linux")]
 extern "C" function __errno_location(): *i32;
 
-// PLATFORM: MACOS|DARWIN — libSystem spells C __error as ___error.
-// This compiler emits the extern name as written, so two underscores stay unresolved.
+// PLATFORM: MACOS|DARWIN — source spells the C name __error.
+// macho_link_name_extra_byte always writes one extra '_', so the object
+// references libSystem ___error. Spelling ___error here emits ____error.
 #[cfg(target_os = "macos")]
-extern "C" function ___error(): *i32;
+extern "C" function __error(): *i32;
 extern "C" function fcntl(fd: i32, cmd: i32, arg: i32): i32;
 extern "C" function usleep(usec: u32): i32;
 extern "C" function madvise(addr: *u8, len: usize, advice: i32): i32;
@@ -526,15 +527,18 @@ export function fs_libc_errno_location(): *i32 {
   return p;
 }
 
-/** Exported function `fs_libc_errno_location`.
- * Implements `fs_libc_errno_location`.
- * @return *i32
+/**
+ * Darwin errno slot. Source spells the C name `__error`.
+ * The Mach-O writer adds one leading underscore, so the object
+ * references libSystem `___error`.
+ * @return *i32 — pointer to errno, or null if the call returns null
+ * PLATFORM: MACOS|DARWIN — Linux sibling calls __errno_location.
  */
 #[cfg(target_os = "macos")]
 export function fs_libc_errno_location(): *i32 {
   let p: *i32 = 0 as *i32;
-  // PLATFORM: MACOS|DARWIN — three underscores match libSystem ___error.
-  unsafe { p = ___error(); }
+  // PLATFORM: MACOS|DARWIN — C name. The writer emits ___error.
+  unsafe { p = __error(); }
   return p;
 }
 /** Exported function `fs_libc_fcntl`.

@@ -14,8 +14,11 @@
 // weak names in this TU go through symbol relocations, never a local bind.
 // Deleted classes stay deleted (see seed comments): no weak -1 stubs for
 // asm_codegen_elf_o / asm_asm_codegen_elf_o / asm_codegen_ast /
-// parser_parse_into_buf / typeck_x_ast / typeck_x_ast_library /
+// parser_parse_into_buf / parser_parse_into / parser_parse_into_init /
+// parser_parse_into_set_main_index / typeck_x_ast / typeck_x_ast_library /
 // codegen_x_ast (first-weak-wins would cover the real body).
+// Bare parse_into_buf / parse_into / parse_into_init / parse_into_set_main_index
+// forward to the strong parser_* faces (knife256 / 10.2; never return -1).
 // parser_ParseIntoResult { i32 ok; i32 main_idx } is 8 bytes and returns in
 // x0 on arm64; it is carried here as i64 (low half ok, high half main_idx).
 // PLATFORM: MACOS arm64 (product); the file itself is target-neutral.
@@ -28,6 +31,10 @@ export extern "C" function driver_cmd_check(argc: i32, argv: *u8): i32;
 export extern "C" function driver_cmd_test(argc: i32, argv: *u8): i32;
 export extern "C" function driver_cmd_run(argc: i32, argv: *u8): i32;
 export extern "C" function asm_codegen_ast(module: *u8, arena: *u8, out_buf: *u8, ctx: *u8): i32;
+export extern "C" function parser_parse_into_buf(arena: *u8, module: *u8, data: *u8, len: i32): i64;
+export extern "C" function parser_parse_into(arena: *u8, module: *u8, source: *u8): i64;
+export extern "C" function parser_parse_into_init(arena: *u8, module: *u8): void;
+export extern "C" function parser_parse_into_set_main_index(module: *u8, main_idx: i32): void;
 export extern "C" function typeck_x_ast(module: *u8, arena: *u8, ctx: *u8): i32;
 export extern "C" function typeck_x_ast_library(module: *u8, arena: *u8, ctx: *u8): i32;
 export extern "C" function memcpy(dst: *u8, src: *u8, n: i64): *u8;
@@ -146,26 +153,36 @@ export function main_run_compiler_c(argc: i32, argv: *u8): i32 {
   }
 }
 
-/** Weak parse_into_buf: ok=-1, main_idx=-1 (i64 -1). PLATFORM: SHARED */
+/** Weak parse_into_buf: forward to strong parser_parse_into_buf. PLATFORM: SHARED */
 #[no_mangle]
 export function parse_into_buf(arena: *u8, module: *u8, data: *u8, len: i32): i64 {
-  return -1 as i64;
+  unsafe {
+    return parser_parse_into_buf(arena, module, data, len);
+  }
 }
 
-/** Weak parse_into: forwards to parse_into_buf(arena, module, null, 0). PLATFORM: SHARED */
+/** Weak parse_into: forward to strong parser_parse_into. PLATFORM: SHARED */
 #[no_mangle]
 export function parse_into(arena: *u8, module: *u8, source: *u8): i64 {
-  return parse_into_buf(arena, module, 0 as *u8, 0);
+  unsafe {
+    return parser_parse_into(arena, module, source);
+  }
 }
 
-/** Weak parse_into_init: no-op. PLATFORM: SHARED */
+/** Weak parse_into_init: swap args then forward to parser_parse_into_init. PLATFORM: SHARED */
 #[no_mangle]
 export function parse_into_init(module: *u8, arena: *u8): void {
+  unsafe {
+    parser_parse_into_init(arena, module);
+  }
 }
 
-/** Weak parse_into_set_main_index: no-op. PLATFORM: SHARED */
+/** Weak parse_into_set_main_index: forward to strong parser_*. PLATFORM: SHARED */
 #[no_mangle]
 export function parse_into_set_main_index(module: *u8, main_idx: i32): void {
+  unsafe {
+    parser_parse_into_set_main_index(module, main_idx);
+  }
 }
 
 /** Weak get_module_num_imports: 0. PLATFORM: SHARED */
@@ -192,24 +209,6 @@ export function parser_get_module_import_path(module: *u8, i: i32, out: *u8): vo
 #[no_mangle]
 export function preprocess_x_buf(source_buf: *u8, source_len: i64, out_buf: *u8, out_cap: i32): i32 {
   return -1;
-}
-
-/** Weak parser_parse_into_init(arena, module) forwards parse_into_init(module, arena). PLATFORM: SHARED */
-#[no_mangle]
-export function parser_parse_into_init(arena: *u8, module: *u8): void {
-  parse_into_init(module, arena);
-}
-
-/** Weak parser_parse_into: forwards to parse_into. PLATFORM: SHARED */
-#[no_mangle]
-export function parser_parse_into(arena: *u8, module: *u8, source: *u8): i64 {
-  return parse_into(arena, module, source);
-}
-
-/** Weak parser_parse_into_set_main_index: forwards. PLATFORM: SHARED */
-#[no_mangle]
-export function parser_parse_into_set_main_index(module: *u8, main_idx: i32): void {
-  parse_into_set_main_index(module, main_idx);
 }
 
 /** Weak parser_get_module_num_imports: forwards. PLATFORM: SHARED */

@@ -2749,7 +2749,11 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
             return;
           }
           let st_res: TopLevelLetResult = { ok: false, next_lex: lex_st };
-          parse_one_top_level_let_into(arena, st_mod, st_r2.next_lex, source, st_r2.tok.kind == token.TokenKind.TOKEN_CONST, &st_res);
+          let st_is_c: i32 = 0;
+          if (st_r2.tok.kind == token.TokenKind.TOKEN_CONST) {
+            st_is_c = 1;
+          }
+          parse_one_top_level_let_into(arena, st_mod, st_r2.next_lex, source, st_is_c, &st_res);
           if (!st_res.ok) {
             out.ok = false;
             return;
@@ -3066,7 +3070,9 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
         out.ok = false;
         return;
       }
-      while_idx_blk = pipeline_block_append_while(arena, block_ref, cond_ref_blk, block_res_blk.block_ref);
+      let body_br_blk: i32 = 0;
+      body_br_blk = block_res_blk.block_ref;
+      while_idx_blk = pipeline_block_append_while(arena, block_ref, cond_ref_blk, body_br_blk);
       if (while_idx_blk < 0) {
         out.ok = false;
         return;
@@ -3130,7 +3136,9 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
         out.ok = false;
         return;
       }
-      while_idx = pipeline_block_append_while(arena, block_ref, cond_ref, block_res.block_ref);
+      let body_br: i32 = 0;
+      body_br = block_res.block_ref;
+      while_idx = pipeline_block_append_while(arena, block_ref, cond_ref, body_br);
       if (while_idx < 0) {
         out.ok = false;
         return;
@@ -4573,13 +4581,19 @@ function parser_string_lit_decode_span(arena: *ASTArena, head_ref: i32, source: 
 }
 
 /** Internal function `parse_body_lets_into`.
- * Implements `parse_body_lets_into`.
- * @param arena *ASTArena
- * @param lex Lexer
- * @param source u8[]
- * @param out *OneFuncResult
- * @param lex_out *Lexer
- * @return bool
+ * Parses a run of body `let` / `const` bindings into the onefunc sidecar.
+ * A `[` initializer that the shallow INT/FLOAT walker cannot finish is
+ * rewind-parsed by `parse_body_let_bracket_compound_init_ref`. That
+ * includes a bare `if` (or while/for/return/let/const/`;`/`}`) still
+ * inside the brackets. The same tokens after a consumed `]` stay the
+ * next statement and are not reparsed.
+ * @param arena *ASTArena — AST arena; the let nodes are appended here
+ * @param lex Lexer — cursor on the first `let` or `const`
+ * @param source u8[] — source bytes
+ * @param out *OneFuncResult — sidecar that receives each binding
+ * @param lex_out *Lexer — cursor after the run; on failure, the stop point
+ * @return bool — false drops the enclosing function (no `_main`)
+ * PLATFORM: SHARED parse.
  */
 function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *OneFuncResult, lex_out: *Lexer): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -4823,8 +4837,20 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
        * parse_body_let_bracket_compound_init_ref rewind-parses from `[`
        * via parse_expr_into; const then append_const. G.7: complete this
        * gate (no second matcher). Top-level const already uses parse_expr.
+       * arr_init_plain is the token after that walk: `;`, let, const,
+       * return, if, while, for, or `}`. Those mean "the next statement
+       * started" only once `]` was consumed and let_init_ref stored.
+       * A bare `[if ...]` breaks the walk on TOKEN_IF with let_init_ref
+       * still 0. Treating that if as plain skips the reparse, sets
+       * init_handled, and drops the function (no `_main`). `(if ...)`
+       * and an ident in element 0 are not in the plain set, so they
+       * already reparse. An if after a closed `[1, 2]` keeps let_init_ref
+       * and stays the next statement.
        * PLATFORM: SHARED parse.
        */
+      if (let_init_ref == 0) {
+        arr_init_plain = false;
+      }
       if ((r.tok.kind as i32) == 128 || !arr_init_plain) {
         let reparsed_ref: i32 =
             parse_body_let_bracket_compound_init_ref(arena, bracket_start, lex, source, &lex, &r);
@@ -6674,7 +6700,11 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
               return;
             }
             let st_res: TopLevelLetResult = { ok: false, next_lex: lex_st };
-            parse_one_top_level_let_into(arena, st_mod, st_r2.next_lex, source, st_r2.tok.kind == token.TokenKind.TOKEN_CONST, &st_res);
+            let st_is_c: i32 = 0;
+            if (st_r2.tok.kind == token.TokenKind.TOKEN_CONST) {
+              st_is_c = 1;
+            }
+            parse_one_top_level_let_into(arena, st_mod, st_r2.next_lex, source, st_is_c, &st_res);
             if (!st_res.ok) {
               set_onefunc_fail(out, lex);
               return;
@@ -7160,7 +7190,9 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         if (!block_res_loop.ok) {
           set_onefunc_fail(out, lex); return;
         }
-        while_idx_loop = pipeline_onefunc_append_while(onefunc_result_pool_ptr(out), cond_ref_loop, block_res_loop.block_ref);
+        let body_br_loop: i32 = 0;
+        body_br_loop = block_res_loop.block_ref;
+        while_idx_loop = pipeline_onefunc_append_while(onefunc_result_pool_ptr(out), cond_ref_loop, body_br_loop);
         if (while_idx_loop < 0) {
           set_onefunc_fail(out, lex); return;
         }
@@ -7209,7 +7241,9 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         if (!block_res.ok) {
           set_onefunc_fail(out, lex); return;
         }
-        while_idx = pipeline_onefunc_append_while(onefunc_result_pool_ptr(out), cond_ref, block_res.block_ref);
+        let body_br_of: i32 = 0;
+        body_br_of = block_res.block_ref;
+        while_idx = pipeline_onefunc_append_while(onefunc_result_pool_ptr(out), cond_ref, body_br_of);
         if (while_idx < 0) {
           set_onefunc_fail(out, lex); return;
         }
@@ -9599,6 +9633,20 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
   let import_res: CollectImportsResult = { lex: lex };
   collect_imports(lex, source, module, &import_res);
   copy_lex_from_import_into(&lex, import_res);
+  // Cap tip 10.2: on zero const-import bindings, collect may leave a non-zero
+  // cursor (dep prerun then lexes mid-buffer → L003). Restart at file head.
+  // Do NOT call lexer_init here — Cap tip lexer_init still smashes rdi/module
+  // (same hazard as collect thin; e5ba88d9d). Field-store only. PLATFORM: SHARED.
+  // Cap tip 10.2: collect may leave a mid-buffer cursor on export-only deps
+  // and sticky L003 from scanning generics/`@` in comments. Restart cursor
+  // when nimp==0 and always clear illegal_char sticky (field-store only —
+  // no lexer_init; Cap tip rdi/module smash). PLATFORM: SHARED.
+  if (get_module_num_imports(module) == 0) {
+    lex.pos = 0 as usize;
+    lex.line = 1;
+    lex.col = 1;
+  }
+  lexer.lexer_illegal_char_reset();
   let loop_count: i32 = 0;
   while (1 == 1) {
     /* See implementation. */
@@ -10956,7 +11004,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
  * See implementation.
  */
 /* See implementation. */
-export extern function parser_parse_one_top_level_let_into_glue(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[], is_const: bool, out: *TopLevelLetResult): void;
+export extern function parser_parse_one_top_level_let_into_glue(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[], is_const: i32, out: *TopLevelLetResult): void;
 /** Exported function `parse_one_top_level_let_into`.
  * Implements `parse_one_top_level_let_into`.
  * @param arena *ASTArena
@@ -10967,7 +11015,7 @@ export extern function parser_parse_one_top_level_let_into_glue(arena: *ASTArena
  * @param out *TopLevelLetResult
  * @return void
  */
-export function parse_one_top_level_let_into(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[], is_const: bool, out: *TopLevelLetResult): void {
+export function parse_one_top_level_let_into(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[], is_const: i32, out: *TopLevelLetResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   parser_parse_one_top_level_let_into_glue(arena, module, lex, source, is_const, out);
@@ -11587,7 +11635,7 @@ export function parser_vector_type_ref_from_ident_spelling_buf(arena: *ASTArena,
  * @param out *TopLevelLetResult
  * @return void
  */
-export function parse_one_top_level_let_into_buf(arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32, is_const: bool, out: *TopLevelLetResult): void {
+export function parse_one_top_level_let_into_buf(arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32, is_const: i32, out: *TopLevelLetResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   // PLATFORM: WINDOWS — do not `let slice = parser_slice_view(...)`.
   // That call-return store copies at most 1024 bytes, and lex.pos is an
@@ -11818,6 +11866,18 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
   let import_res: CollectImportsResult = { lex: lex };
   collect_imports_buf(lex, data, len, module, &import_res);
   copy_lex_from_import_into(&lex, import_res);
+  // Cap tip 10.2: twin of parse_into — reset cursor when no const-imports.
+  // Field-store only (no lexer_init; Cap tip rdi/module smash). PLATFORM: SHARED.
+  // Cap tip 10.2: collect may leave a mid-buffer cursor on export-only deps
+  // and sticky L003 from scanning generics/`@` in comments. Restart cursor
+  // when nimp==0 and always clear illegal_char sticky (field-store only —
+  // no lexer_init; Cap tip rdi/module smash). PLATFORM: SHARED.
+  if (get_module_num_imports(module) == 0) {
+    lex.pos = 0 as usize;
+    lex.line = 1;
+    lex.col = 1;
+  }
+  lexer.lexer_illegal_char_reset();
   let loop_count_buf: i32 = 0;
   while (1 == 1) {
     /* See implementation. */
@@ -12082,7 +12142,12 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       module.pending_export = 0;
       let ntl_before: i32 = module.num_top_level_lets;
       let toplevel_res: TopLevelLetResult = { ok: false, next_lex: lex };
-      parse_one_top_level_let_into_buf(arena, module, r.next_lex, data, len, r.tok.kind == token.TokenKind.TOKEN_CONST, &toplevel_res);
+      /* Cap tip: i32-field==enum as bool call-arg used 64-bit ldr → is_const always 0 (P010 on const). */
+      let tl_is_c: i32 = 0;
+      if (r.tok.kind == token.TokenKind.TOKEN_CONST) {
+        tl_is_c = 1;
+      }
+      parse_one_top_level_let_into_buf(arena, module, r.next_lex, data, len, tl_is_c, &toplevel_res);
       if (toplevel_res.ok) {
         if (pe_tl != 0 && module.num_top_level_lets > ntl_before) {
           pipeline_module_top_level_let_set_is_export(module, module.num_top_level_lets - 1, 1);

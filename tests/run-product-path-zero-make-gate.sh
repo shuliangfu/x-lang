@@ -1149,14 +1149,15 @@ if [ ! -f tests/HOST_CC_POLICY.md ]; then
   bad "missing tests/HOST_CC_POLICY.md (11.5.2–4 wave741)"
 elif ! grep -q '11\.5\.2' tests/HOST_CC_POLICY.md \
   || ! grep -q '11\.5\.3' tests/HOST_CC_POLICY.md \
-  || ! grep -q '11\.5\.4' tests/HOST_CC_POLICY.md; then
-  bad "HOST_CC_POLICY.md must document 11.5.2 / 11.5.3 / 11.5.4"
+  || ! grep -q '11\.5\.4' tests/HOST_CC_POLICY.md \
+  || ! grep -q '11\.5\.5' tests/HOST_CC_POLICY.md; then
+  bad "HOST_CC_POLICY.md must document 11.5.2 / 11.5.3 / 11.5.4 / 11.5.5"
 elif ! grep -qi 'permanent host-cc whitelist' tests/HOST_CC_POLICY.md; then
   bad "HOST_CC_POLICY.md must state permanent host-cc whitelist ruling"
 elif ! grep -qi 'not product' tests/HOST_CC_POLICY.md; then
   bad "HOST_CC_POLICY.md must state these .c files are not product"
 else
-  note "tests/HOST_CC_POLICY.md present (11.5.2–4 wave741)"
+  note "tests/HOST_CC_POLICY.md present (11.5.2–5 wave741/knife 11.11)"
 fi
 
 # Product g05 chain must not compile tests/std-* or abi/leak/safe C harnesses
@@ -1179,6 +1180,12 @@ if [ "${std_c_n:-0}" -ge 40 ]; then
 else
   bad "tests/std-*/*.c inventory collapsed (n=${std_c_n}; expect ≥40 for 11.5.2)"
 fi
+sys_c_n=$(find tests/sys -name '*.c' -type f 2>/dev/null | wc -l | tr -d ' ')
+if [ "${sys_c_n:-0}" -ge 30 ]; then
+  note "tests/sys/*.c inventory floor ok (n=${sys_c_n} ≥ 30; 11.5.5)"
+else
+  bad "tests/sys/*.c inventory collapsed (n=${sys_c_n}; expect ≥30 for 11.5.5)"
+fi
 
 for f in \
   tests/abi/layout_abi.c \
@@ -1194,6 +1201,34 @@ if grep -q 'HOST_CC_POLICY\|11\.5\.2\|tests host-cc' build.x; then
   note "build.x strategy map references tests host-cc policy (wave741)"
 else
   bad "build.x must mention tests host-cc / HOST_CC_POLICY / 11.5.2 (wave741)"
+fi
+
+# knife 11.21: §6 10.6 editors/tree-sitter 仓外／not product
+if [ ! -f editors/HOST_CC_POLICY.md ]; then
+  bad "missing editors/HOST_CC_POLICY.md (10.6 knife 11.21)"
+elif ! grep -qi 'not product' editors/HOST_CC_POLICY.md   || ! grep -qE '仓外|editor-only|out-of-tree' editors/HOST_CC_POLICY.md; then
+  bad "editors/HOST_CC_POLICY.md must state not product + 仓外/editor-only"
+else
+  note "editors/HOST_CC_POLICY.md present (10.6 knife 11.21 仓外)"
+fi
+g05_ts_hits=$(
+  grep -nE 'editors/tree-sitter|tree-sitter-xlang'     compiler/scripts/g05_*.sh 2>/dev/null     | grep -vE ':[0-9]+:[[:space:]]*#'     || true
+)
+if [ -n "$g05_ts_hits" ]; then
+  bad "g05_*.sh must not reference editors/tree-sitter (10.6 not product):"
+  echo "$g05_ts_hits" | head -20 >&2
+else
+  note "g05_*.sh: 0× editors/tree-sitter (10.6 仓外)"
+fi
+for f in   editors/tree-sitter-xlang/Makefile   editors/tree-sitter-xlang/bindings/python/tree_sitter_xlang/binding.c   editors/tree-sitter-xlang/bindings/node/binding.cc
+do
+  [ -f "$f" ] || bad "missing 10.6 editor stub $f"
+done
+[ "$fail" -eq 0 ] && note "10.6 tree-sitter Makefile＋binding stubs present"
+if grep -qE 'editors/HOST_CC_POLICY|tree-sitter|10\.6' build.x; then
+  note "build.x strategy map references editors tree-sitter／10.6 (knife 11.21)"
+else
+  bad "build.x must mention editors/HOST_CC_POLICY or tree-sitter／10.6"
 fi
 
 # wave742/743/744: 11.1.1 inventory + 11.1.2 schedule + 11.3 prereq edges

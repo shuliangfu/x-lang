@@ -654,12 +654,11 @@ function pthin_primary_call_simd(arena: *u8, r0: *PthinPrimaryLexResult, source:
  */
 function pthin_primary_write_back(res: *PthinPrimaryExprResult, lex_inout: *u8, out_ok: *i32, out_expr_ref: *i32): void {
   unsafe {
-    let p: *PthinPrimaryLex = lex_inout as *PthinPrimaryLex;
-    out_ok[0] = res.ok;
-    out_expr_ref[0] = res.expr_ref;
-    p.pos = res.next_lex.pos;
-    p.line = res.next_lex.line;
-    p.col = res.next_lex.col;
+    let rp: *i32 = res as *i32;
+    out_ok[0] = rp[0];
+    out_expr_ref[0] = rp[1];
+    // Opaque 16-byte cursor. Field stores clobber out_ok (tip CG).
+    memcpy(lex_inout, (res as *u8) + 8, 16);
   }
 }
 
@@ -1072,13 +1071,16 @@ function pthin_primary_face_primary(arena: *u8, lex: *u8, source: *u8, out: *u8)
   unsafe {
     memcpy(&cur[0], lex, 16);
     let rc: i32 = parser_asm_parse_primary_x_into_c(arena, &cur[0], source, &ok, &refv, &mc[0], &args[0], &pr[0], &pend[0], &mangled[0], &name[0]);
+    // knife256/10.2: write next_lex back into caller lex_inout. out+8 alone
+    // is not enough — binop_level peeks lex_inout, not out.next_lex.
+    memcpy(lex, &cur[0], 16);
+    memcpy(out + 8, &cur[0], 16);
     if (rc == 0 || ok == 0) {
       op[0] = 0;
       return;
     }
     op[0] = 1;
     op[1] = refv;
-    memcpy(out + 8, &cur[0], 16);
   }
 }
 

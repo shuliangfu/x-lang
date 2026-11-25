@@ -12,6 +12,8 @@
 #include <string.h>
 
 static uint8_t g_w1010_emit_let_vn[256];
+/* Prefer-M2 SoftCap A2 (10.84): bump-alloc distinct homes without idx gate. */
+static int32_t g_p1084_softcap_home_bump;
 
 extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *elf_ctx, uint8_t *bytes, int32_t len);
 
@@ -46,6 +48,9 @@ static int32_t w1010_store_eax_rbp(uint8_t *elf_ctx, int32_t offset) {
 }
 
 extern int32_t backend_asm_ctx_slot_offset(uint8_t *ctx, int32_t slot_idx);
+extern int32_t asm_ctx_local_set_offset_by_name(uint8_t *ctx, uint8_t *name, int32_t name_len, int32_t offset);
+extern int32_t asm_ctx_local_find_offset(uint8_t *ctx, uint8_t *name, int32_t name_len);
+extern int32_t glue_lazy_append_block_let_local(uint8_t *arena, uint8_t *ctx, int32_t block_ref, int32_t let_idx, uint8_t *name, int32_t name_len);
 extern int32_t backend_enc_store_eax_to_rbp_arch(uint8_t *elf_ctx, int32_t offset, int32_t ta);
 extern int32_t backend_enc_store_rax_to_rbp_arch(uint8_t *elf_ctx, int32_t offset, int32_t ta);
 extern int32_t glue_array_temp_bytes_for_let_init(uint8_t *arena, int32_t let_type_ref, int32_t init_ref);
@@ -122,10 +127,48 @@ int32_t glue_block_body_emit_let_init(uint8_t *arena, uint8_t *elf_ctx, int32_t 
   int32_t rc = 0;
   int32_t slot_off = 0;
   int32_t init_f32_lit = 0;
-  (void)lnb;
-  (void)llen;
-
   slot_off = backend_asm_ctx_slot_offset(ctx, slot);
+  /* Prefer-M2: name-find when llen>0 (SoftCap index may be torn).
+   * Prefer-M2 SoftCap ensure+fill (10.69 DIG2): if name-find misses, lazy-
+   * append the block-let local then re-find before clamp/store.
+   * PLATFORM: SHARED freestanding emit (Win SoftCap host). */
+  if (llen > 0 && lnb != 0) {
+    int32_t found = asm_ctx_local_find_offset(ctx, lnb, llen);
+    if (found < 0) {
+      int32_t ap = glue_lazy_append_block_let_local(arena, ctx, block_ref, idx, lnb, llen);
+      if (ap == 0) {
+        found = asm_ctx_local_find_offset(ctx, lnb, llen);
+      }
+    }
+    if (found >= 0) {
+      slot_off = found;
+    }
+  }
+  /* Prefer-M2 SoftCap A2 (10.84): bump-alloc distinct homes WITHOUT idx!=0.
+   * Dig SoftCap Prefer scalar lets keep idx/edi=0; BSS counter yields
+   * 24,32,40... for clamp18 or torn |off|>4096. Writeback Prefer-find.
+   * Dig SoftCap plant must thread remapped slot_off into i64 enc_store.
+   * PLATFORM: SHARED freestanding emit (Win SoftCap host). */
+  {
+    int32_t abs_off = slot_off;
+    int32_t need_home = 0;
+    if (abs_off < 0) {
+      abs_off = 0 - abs_off;
+    }
+    if (abs_off > 4096) {
+      need_home = 1;
+    }
+    if (slot_off == 24) {
+      need_home = 1;
+    }
+    if (need_home != 0) {
+      slot_off = 24 + (g_p1084_softcap_home_bump * 8);
+      g_p1084_softcap_home_bump = g_p1084_softcap_home_bump + 1;
+      if (llen > 0 && lnb != NULL) {
+        (void)asm_ctx_local_set_offset_by_name(ctx, lnb, llen, slot_off);
+      }
+    }
+  }
   rc = pipeline_asm_try_emit_dyn_coerce_let(arena, elf_ctx, block_ref, idx, init_ref, slot_off, ctx, ta);
   if (rc == 1) {
     return 0;

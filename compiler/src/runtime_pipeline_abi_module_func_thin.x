@@ -1179,6 +1179,42 @@ export function pipeline_module_func_owner_from_impl(m: *u8, fi: i32): void {
 }
 
 /**
+ * Copy the latched impl owner for func slot fi into dst.
+ * @param m *u8 — module; unused, the owner table is process-global
+ * @param fi i32 — function slot; out of range returns 0
+ * @param dst *u8 — caller buffer; null returns 0
+ * @param cap i32 — dst capacity; a longer owner returns 0 and writes nothing
+ * @return i32 — owner length, or 0 when this slot has no impl owner
+ * Empty owner means a free function. Callers append this spelling only
+ * when two functions share a name, so a unique method keeps its symbol.
+ * PLATFORM: SHARED — same bytes as pipeline_module_func_owner_binds_base_at.
+ */
+#[no_mangle]
+export function pipeline_module_func_owner_copy(m: *u8, fi: i32, dst: *u8, cap: i32): i32 {
+  let n: i32 = 0;
+  let i: i32 = 0;
+  let off: i32 = 0;
+  if (m == (0 as *u8) || dst == (0 as *u8) || fi < 0 || fi >= W324_PMFO_MAX || cap <= 0) {
+    return 0;
+  }
+  unsafe {
+    n = g_pmfo_owner_len[fi];
+  }
+  if (n <= 0 || n > cap) {
+    return 0;
+  }
+  off = fi * 64;
+  i = 0;
+  while (i < n) {
+    unsafe {
+      dst[i] = g_pmfo_owner[off + i];
+    }
+    i = i + 1;
+  }
+  return n;
+}
+
+/**
  * 1 when row fi may bind associated call on base; empty owner = free/UFCS/legacy.
  * PLATFORM: SHARED
  */

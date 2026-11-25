@@ -33,7 +33,7 @@
 // The setter writes sin6_len 28, unlike the IPv4 setter which leaves
 // sin_len alone. EINPROGRESS is 36. EAGAIN is 35. POLLOUT is 4,
 // POLLERR is 8, POLLHUP is 16. F_SETFL and O_NONBLOCK are both 4.
-// SOL_SOCKET is 65535. SO_REUSEADDR is 4.
+// SOL_SOCKET is 65535. SO_REUSEADDR is 2 (Linux; not SO_ERROR=4).
 // PLATFORM: LINUX
 
 extern "C" function malloc(n: i64): *u8;
@@ -241,7 +241,7 @@ function ipv6_reuse(fd: i32): void {
   let pad: u8[64] = [];
   pad[0] = 0;
   let bit: i32 = 1;
-  unsafe { setsockopt(fd, 1, 4, &bit, 4); }
+  unsafe { setsockopt(fd, 1, 2, &bit, 4); }
 }
 
 /** Bind, listen, and set non-blocking. Each step is one call plus the abort.

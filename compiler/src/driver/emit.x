@@ -70,8 +70,8 @@ allow(padding) struct PipelineDepCtx {
 
 /* See implementation. */
 allow(padding) struct CodegenOutBuf {
-  data: u8[9437184];
   length: i32;
+  data: u8[9437184];
 }
 
 /* See implementation. */
@@ -453,8 +453,8 @@ export function run_x_emit_x(state: *DriverXEmitState): i32 {
   }
   ctx.num_lib_roots = 0;
   emit_copy_lib_roots_to_ctx(emit_state_key(state), &ctx);
-  // CodegenOutBuf.data is u8[9MiB] first — STRUCT_LIT { length: 0 } still trips
-  // data-first mega-field path. Uninit + scalar field assign is the asm-safe form.
+  // CodegenOutBuf.length is first (10.94); data follows at +4. Uninit + scalar
+  // field assign stays the asm-safe form (avoid STRUCT_LIT on mega data[]).
   let out: CodegenOutBuf;
   out.length = 0;
   let source_len: usize = out_len as usize;

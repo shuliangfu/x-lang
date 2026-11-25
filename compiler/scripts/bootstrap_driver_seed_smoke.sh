@@ -112,7 +112,9 @@ run_smoke() {
   export XLANG_ALLOW_HOST_CC=1
   "$bin" -backend c -o "$SMOKE_OUT" "$SMOKE_SRC" 2>&1 | tee "$_log"
   _rc="${PIPESTATUS[0]:-1}"
-  if [ "$_rc" -ne 0 ]; then
+  # note743e: pinned seed can exit 0 while host-cc dies on missing
+  # xlang_va_cap.h (no -Iinclude in invoke_cc). Treat missing OUT like fail.
+  if [ "$_rc" -ne 0 ] || [ ! -x "$SMOKE_OUT" ]; then
     # 回退：xlang-c C 前端不支持 -backend c -o，用 -E + cc 替代
     echo "[$(date '+%H:%M:%S')] seed smoke: -backend c -o failed, trying -E + cc fallback ..."
     # SMOKE_OUT may carry .exe on Windows; strip it for the .c companion path.

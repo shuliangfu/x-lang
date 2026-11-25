@@ -11,7 +11,23 @@ COMP="$ROOT/compiler"
 OUT="$ROOT/std/string/string.o"
 XLANG="${XLANG:-$COMP/xlang}"
 [ -x "$XLANG" ] || XLANG="$COMP/xlang"
+[ -x "$XLANG" ] || XLANG="$COMP/xlang_asm"
 [ -x "$XLANG" ] || { echo "no xlang" >&2; exit 1; }
+# 10.90: _xlang_at_root cds to ROOT; relative XLANG (./xlang_asm) breaks.
+case "$XLANG" in
+  /*) ;;
+  *)
+    _xl_dir=$(CDPATH= cd "$(dirname "$XLANG")" && pwd)
+    XLANG="$_xl_dir/$(basename "$XLANG")"
+    ;;
+esac
+[ -x "$XLANG" ] || { echo "no xlang at $XLANG" >&2; exit 1; }
+# knife256/10.2: Cap tip import resolve needs cwd=ROOT (else IMP001
+# .../std/debug/std/heap.x). Absolute -L alone is not enough.
+_xlang_at_root() {
+  ( cd "$ROOT" && exec "$XLANG" "$@" )
+}
+XLANG_RUN=_xlang_at_root
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT INT TERM
@@ -21,30 +37,60 @@ trap 'rm -rf "$tmp"' EXIT INT TERM
 # the xlang_string_* helpers stay undefined and are resolved by later link
 # (sx.o below, and std.heap at the user link). No host cc for this half.
 # A failure stops here. Do not fall back to -E + cc: that is the execve(cc)
-# this path exists to remove. Windows keeps the C emit until the same nm
-# check has been run there.
-# PLATFORM: MACOS|DARWIN|LINUX — asm. WINDOWS — C emit below.
+# this path exists to remove. 10.93: Windows same fail-closed pure-asm.
+# PLATFORM: MACOS|DARWIN|LINUX|WINDOWS — asm. 10.93: no C emit + host cc.
 mod_asm=0
 case "$(uname -s 2>/dev/null)" in
-  Darwin|Linux)
-    if "$XLANG" -backend asm -c -L "$ROOT" -o "$tmp/mod.o" "$ROOT/std/string/mod.x" \
+  Darwin|Linux|MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+    if "$XLANG_RUN" -backend asm -c -L "$ROOT" -o "$tmp/mod.o" "$ROOT/std/string/mod.x" \
         >"$tmp/mod_asm.log" 2>&1 \
       && [ -s "$tmp/mod.o" ] \
       && nm "$tmp/mod.o" 2>/dev/null | grep -qE ' T _?std_string_new$'; then
       mod_asm=1
       echo "xlang_compile_std_string_o: mod.o <- mod.x (pure-asm)"
     else
-      echo "xlang_compile_std_string_o: pure-asm mod.x failed" >&2
-      cat "$tmp/mod_asm.log" >&2
-      exit 1
+      # 10.77 Prefer-M2b: Cap tip tip-compile CG002s on string/mod.x (known).
+      # Prefer LEGACY bak then Soft Cap Prefer as leaf compile vehicle only
+      # (Soft Cap Prefer NOT raised as tip). Same Cap tip→LEGACY cascade as fs.
+      # PLATFORM: MACOS Cap tip.
+      echo "xlang_compile_std_string_o: pure-asm mod.x failed (primary XLANG)" >&2
+      cat "$tmp/mod_asm.log" >&2 || true
+      case "$(uname -s 2>/dev/null)" in
+        Darwin)
+          for _str_xl in \
+              "$COMP/xlang.product_legacy_bak" \
+              "$COMP/xlang_asm.g05_soft"; do
+            [ -x "$_str_xl" ] || continue
+            [ "$_str_xl" = "$XLANG" ] && continue
+            echo "xlang_compile_std_string_o: Cap tip asm miss; Prefer-M2 $(basename "$_str_xl")" >&2
+            if ( cd "$ROOT" && "$_str_xl" -backend asm -c -L "$ROOT" \
+                   -o "$tmp/mod.o" "$ROOT/std/string/mod.x" ) \
+                 >"$tmp/mod_asm.log" 2>&1 \
+              && [ -s "$tmp/mod.o" ] \
+              && nm "$tmp/mod.o" 2>/dev/null | grep -qE ' T _?std_string_new$'; then
+              mod_asm=1
+              echo "xlang_compile_std_string_o: mod.o <- mod.x (Prefer-M2 $(basename "$_str_xl"))"
+              break
+            fi
+          done
+          ;;
+      esac
+      if [ "$mod_asm" != "1" ]; then
+        echo "xlang_compile_std_string_o: pure-asm mod.x failed" >&2
+        cat "$tmp/mod_asm.log" >&2 || true
+        exit 1
+      fi
     fi
     ;;
 esac
 
 if [ "$mod_asm" != "1" ]; then
+echo "xlang_compile_std_string_o: mod.x pure-asm required; C+cc removed (10.93)" >&2
+exit 1
+# archaeology: former -x -E + cc path for Windows (removed 10.93)
 # mod.x → C via -x -E (entry-only). PLATFORM: WINDOWS.
 # PLATFORM: SHARED — do not rm global /tmp/xlang_xlang_x.*.c (races with concurrent -o).
-if ! "$XLANG" build -x -E -L "$ROOT" "$ROOT/std/string/mod.x" >"$tmp/mod.c" 2>"$tmp/mod.log"; then
+if ! "$XLANG_RUN" build -x -E -L "$ROOT" "$ROOT/std/string/mod.x" >"$tmp/mod.c" 2>"$tmp/mod.log"; then
   echo "xlang_compile_std_string_o: -x -E mod.x failed" >&2
   cat "$tmp/mod.log" >&2
   exit 1
@@ -232,27 +278,19 @@ fi
 # 【Why】产品 xlang 为 XLANG_NO_C_FRONTEND 时 -lib-name 未接线（仅 C 前端 RUN_CC 解析），
 #   路径前缀会把 xlang_string_copy_c 打成 std_string_string_xlang_string_copy_c。
 # 权威裸实现：R2 路径下编译 runtime_string_fast.x（DIRECT 模式，无 ld -r，因无 OS bridge）；
-#   冷路径下用 seeds/runtime_string_fast.from_x.c（与 string.x 同语义）。
+#   10.93: 冷路径也只走 runtime_string_fast.x；禁止 host-cc 种子。
 # -lib-name 接线后可改回 xlang -lib-name "" string.x。
 # PLATFORM: MACOS|DARWIN arm64 and LINUX — runtime_string_fast.x is one TU.
 # Compile it with the asm backend. Nine text symbols, strong.
 # Do not call ensure_host_cc_seed_o.sh here: loading that script runs the
 # seed catalog, and the catalog probes the host compiler.
 # Three tries cover a segfault on an early try. If all three fail, stop.
-# Do not compile seeds/runtime_string_fast.from_x.c with host cc on these
-# hosts. Windows still host-cc's that seed below.
+# 10.93: do not compile seeds/runtime_string_fast.from_x.c with host cc
+# on any host (including Windows).
 sx_pure=0
-_sx_host=0
-case "$(uname -s 2>/dev/null)" in
-  Darwin)
-    if [ "$(uname -m 2>/dev/null)" = "arm64" ]; then
-      _sx_host=1
-    fi
-    ;;
-  Linux)
-    _sx_host=1
-    ;;
-esac
+# 10.93: runtime_string_fast.x is PLATFORM SHARED — pure-asm on every host.
+# Do not host-cc seeds/runtime_string_fast.from_x.c.
+_sx_host=1
 if [ "$_sx_host" = "1" ] && [ -f "$COMP/src/asm/runtime_string_fast.x" ]; then
   _sx_try=0
   while [ "$_sx_try" -lt 3 ]; do
@@ -283,29 +321,44 @@ if [ "$_sx_host" = "1" ] && [ -f "$COMP/src/asm/runtime_string_fast.x" ]; then
     exit 1
   fi
 fi
-if [ "$sx_pure" != "1" ] && [ "$XLANG_G05_PREFER_X_O" = "1" ] && [ -x "$COMP/xlang-c" ] && [ -f "$COMP/src/asm/runtime_string_fast.x" ]; then
-  if XLANG_KEEP_C=1 "$COMP/xlang-c" -L "$ROOT" -L "$COMP/src" -L "$COMP/src/asm" -lib-name "" -o "$tmp/sx.o" "$COMP/src/asm/runtime_string_fast.x" >"$tmp/sx_xlangc.log" 2>&1; then
-    echo "xlang_compile_std_string_o: sx.o <- runtime_string_fast.x (PREFER_X_O R2 DIRECT)"
-    rm -f /tmp/xlang_xlang_x.*.c 2>/dev/null || true
-  else
-    echo "xlang_compile_std_string_o: R2 DIRECT failed, fallback to seed" >&2
-    rm -f /tmp/xlang_xlang_x.*.c 2>/dev/null || true
-    cc $CFLAGS -c "$COMP/seeds/runtime_string_fast.from_x.c" -o "$tmp/sx.o"
-  fi
-elif [ "$sx_pure" != "1" ] && [ -f "$COMP/seeds/runtime_string_fast.from_x.c" ]; then
-  cc $CFLAGS -c "$COMP/seeds/runtime_string_fast.from_x.c" -o "$tmp/sx.o"
-elif [ "$sx_pure" != "1" ]; then
-  XLANG_KEEP_C=1 "$XLANG" build -L "$ROOT" -lib-name "" -o "$tmp/sx.o" "$ROOT/std/string/string.x" >"$tmp/sx.log" 2>&1 || true
-  if [ ! -f "$tmp/sx.o" ]; then
-    if "$XLANG" build -x -E -lib-name "" -L "$ROOT" "$ROOT/std/string/string.x" >"$tmp/sx.c" 2>"$tmp/sx.err"; then
-      cc $CFLAGS -c "$tmp/sx.c" -o "$tmp/sx.o"
-    else
-      echo "xlang_compile_std_string_o: string.x bare failed (no seed, -lib-name unsupported)" >&2
-      cat "$tmp/sx.log" "$tmp/sx.err" 2>/dev/null >&2
-      exit 1
-    fi
-  fi
+# 10.93: no host-cc of seeds/runtime_string_fast.from_x.c; no C-backend sx.
+if [ "$sx_pure" != "1" ]; then
+  echo "xlang_compile_std_string_o: pure-asm string fast required (10.93)" >&2
+  exit 1
 fi
 
 ld -r -o "$OUT" "$tmp/mod.o" "$tmp/sx.o"
+# knife256/10.2: after Cap tip pure-asm string.o, overlay byref String callees.
+_sbr_src="$COMP/src/asm/runtime_string_byref_a64.s"
+_sbr_o="$COMP/build_asm/selfhost_pabi/string_byref_a64.o"
+_oc_sbr=""
+for _c in "${LLVM_OBJCOPY:-}" /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
+  if [ -n "$_c" ] && [ -x "$_c" ]; then _oc_sbr="$_c"; break; fi
+done
+# 10.90: POSIX sh (Ubuntu dash) — no bash arrays; Darwin /bin/sh is bash.
+if [ -f "$_sbr_src" ] && [ -n "$_oc_sbr" ] && [ -s "$OUT" ]; then
+  mkdir -p "$(dirname "$_sbr_o")"
+  if clang -c -arch arm64 "$_sbr_src" -o "$_sbr_o" 2>/dev/null && [ -s "$_sbr_o" ]; then
+    _sbr_redefs=""
+    _sbr_n=0
+    for _s in length_String is_empty_String string_get string_eq string_compare \
+      string_find_char string_rfind_char string_starts_with string_ends_with \
+      string_find_slice string_contains string_copy_to string_eq_view \
+      string_compare_view trim; do
+      _sym="_std_string_${_s}"
+      if nm -gU "$OUT" 2>/dev/null | grep -q "T ${_sym}$"; then
+        _sbr_redefs="$_sbr_redefs --redefine-sym=${_sym}=${_sym}__hollow"
+        _sbr_n=$((_sbr_n + 1))
+      fi
+    done
+    if [ "$_sbr_n" -gt 0 ]; then
+      # shellcheck disable=SC2086
+      "$_oc_sbr" $_sbr_redefs "$OUT" \
+        && ld -r -o "${OUT}.byref_tmp" "$_sbr_o" "$OUT" \
+        && mv -f "${OUT}.byref_tmp" "$OUT" \
+        && echo "xlang_compile_std_string_o: string byref overlay ($_sbr_n)" >&2 \
+        || echo "xlang_compile_std_string_o: WARN string byref overlay failed" >&2
+    fi
+  fi
+fi
 echo "xlang_compile_std_string_o: OK -> $OUT"

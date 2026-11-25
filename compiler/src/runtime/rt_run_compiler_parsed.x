@@ -840,9 +840,14 @@ export function rt_cp_step_load_deps(): i32 {
     n_deps = driver_parsed_work_i_get(pi_ndeps());
   }
   if (n_deps > 0) {
+    /* pipeline_set_dep_slots / pure twin always walk 32 slots; calloc(n_deps)
+     * alone OOB-reads past the table when n_deps < 32 (Win SI check n_deps=3
+     * → SIGSEGV in pipe_load_ptr_slot at i=24 / page boundary). Match the
+     * asm-backend seed tables: driver_ptr_table_calloc(32).
+     * PLATFORM: SHARED — product check with any n_deps in 1..32. */
     unsafe {
-      dar = driver_ptr_table_calloc(n_deps);
-      dmod = driver_ptr_table_calloc(n_deps);
+      dar = driver_ptr_table_calloc(32);
+      dmod = driver_ptr_table_calloc(32);
     }
     if (dar == 0 as *u8) {
       return 1;

@@ -9,13 +9,14 @@ the calls too, so they would skip a wrapper.
 
 This script copies SRC to DST. It adds
 asm_skip_heavy_module_func_body_egg at the same .text offset, then
-marks the original symbol undefined and global. The twelve call sites
+marks the original symbol undefined and global. Call sites
 still name asm_skip_heavy_module_func_body and resolve to the thin
 prefix. The thin calls the _egg alias for the unchanged dispatcher.
 
 It does not rebuild the egg and does not edit SRC. src==dst fails
-closed. The original symbol must be one weak function, and DST must
-keep exactly twelve relocations against that name.
+closed. The original symbol must be one weak function. Dual-mega eggs
+had twelve PLT32 call sites; tip peel leaves two. DST must keep the
+same allowed count against that name.
 
 Usage: g05_pabi_skip_heavy_egg_alias.py SRC DST
 """
@@ -26,7 +27,7 @@ import sys
 
 NAME = "asm_skip_heavy_module_func_body"
 EGG = "asm_skip_heavy_module_func_body_egg"
-RELOCS = 12
+RELOCS_ALLOWED = {2, 12}  # tip peel: 2; dual-mega: 12
 # STB_WEAK | STT_FUNC in the low nibble / high nibble of st_info.
 WEAK_FUNC = 0x22
 GLOBAL_FUNC = 0x12
@@ -148,8 +149,10 @@ def main():
     if info != WEAK_FUNC or shndx == 0 or size <= 0 or value == 0:
         fail("want one defined weak function, got info=%s shndx=%s size=%s value=%s" % (
             hex(info), shndx, size, hex(value)))
-    if reloc_count(src, NAME) != RELOCS:
-        fail("SRC relocation count for %s is not %s" % (NAME, RELOCS))
+    n_rel = reloc_count(src, NAME)
+    if n_rel not in RELOCS_ALLOWED:
+        fail("SRC relocation count for %s is %s, want one of %s" % (
+            NAME, n_rel, sorted(RELOCS_ALLOWED)))
     if find_symbol(bytearray(before), EGG) is not None:
         fail("SRC already defines %s" % EGG)
 
@@ -184,7 +187,7 @@ def main():
     egg_letter, egg_val = nm_row(dst, EGG)
     if egg_letter != "T" or int(egg_val, 16) != value:
         fail("DST alias is %s %s, want T 0x%x" % (egg_letter, egg_val, value))
-    if reloc_count(dst, NAME) != RELOCS:
+    if reloc_count(dst, NAME) != n_rel:
         fail("DST relocation count changed")
     if reloc_count(dst, EGG) != 0:
         fail("call sites followed the alias")

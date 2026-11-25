@@ -606,8 +606,13 @@ ensure_user_env_darwin_pure() {
     return 1
   fi
   if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
-    log "skip $o (up-to-date vs $xsrc)"
-    return 0
+    # note743y.6.23: egg pure-asm left U _NSGetArgc (need __NSGetArgc). Do not
+    # skip a stale object that still has the egg-shaped undef.
+    if ! nm -u "$o" 2>/dev/null | awk '$NF=="_NSGetArgc" || $NF=="_NSGetEnviron" { f=1 } END { exit f?0:1 }'; then
+      log "skip $o (up-to-date vs $xsrc)"
+      return 0
+    fi
+    log "refresh $o (stale U _NSGetArgc/_NSGetEnviron; Darwin libSystem needs __ mangling)"
   fi
   log "pure-asm $xsrc → $o"
   if ! (
@@ -622,6 +627,17 @@ ensure_user_env_darwin_pure() {
       $CC ${CFLAGS:-} -I. -Iinclude -Isrc -c "$seed" -o "$o" || return 1
     fi
   fi
+  # FixC12k8j: tip-pure may leave U _NSGetEnviron; libSystem wants __NSGetEnviron.
+  _k8j_oc=""
+  if command -v llvm-objcopy >/dev/null 2>&1; then _k8j_oc=llvm-objcopy
+  elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then _k8j_oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+  fi
+  if [ -n "$_k8j_oc" ] && [ -s "$o" ] \
+    && nm -u "$o" 2>/dev/null | awk '$NF=="_NSGetEnviron" { f=1 } END { exit f?0:1 }'; then
+    "$_k8j_oc" --redefine-sym '_NSGetEnviron=__NSGetEnviron' "$o" 2>/dev/null \
+      && log "FixC12k8j user_env NSGetEnviron mangling" || true
+  fi
+  unset _k8j_oc
   return 0
 }
 
@@ -722,8 +738,12 @@ ensure_kv_mmap_darwin_pure() {
     return 1
   fi
   if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
-    log "skip $o (up-to-date vs $xsrc)"
-    return 0
+    # note743y.6.23: tip left U ____open (need ___open). Do not skip stale egg.
+    if ! nm -u "$o" 2>/dev/null | awk '$NF=="____open" { f=1 } END { exit f?0:1 }'; then
+      log "skip $o (up-to-date vs $xsrc)"
+      return 0
+    fi
+    log "refresh $o (stale U ____open; libsystem_kernel needs ___open)"
   fi
   log "pure-asm $xsrc → $o"
   # w1191: some pure-asm tries segfault. Retry before the one-shot
@@ -732,9 +752,8 @@ ensure_kv_mmap_darwin_pure() {
   if [ -f scripts/ensure_host_cc_seed_o.sh ] \
     && bash scripts/ensure_host_cc_seed_o.sh kv-mmap-pure "$o"; then
     log "prefer kv mmap ← pure-asm seven symbols (w1191)"
-    return 0
-  fi
-  if ! (
+    # Fall through to tip ____open→___open fix below.
+  elif ! (
     export XLANG_PREFER_ASM_O=1
     pure_asm_x_to_o "$o" "$xsrc"
   ); then
@@ -744,6 +763,23 @@ ensure_kv_mmap_darwin_pure() {
       # shellcheck disable=SC2086
       $CC ${CFLAGS:-} -I. -Iinclude -Isrc -c "$seed" -o "$o" || return 1
     fi
+  fi
+  # note743y.6.23: tip ____open → libsystem ___open (same as log-os).
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ -s "$o" ] && nm -u "$o" 2>/dev/null | awk '$NF=="____open" { f=1 } END { exit f?0:1 }'; then
+    _kv_oc="$(pure_asm_find_objcopy)" || {
+      echo "ensure_host_cc_seed_o kv-mmap: objcopy missing for ____open" >&2
+      return 1
+    }
+    if ! "$_kv_oc" --redefine-sym '____open=___open' "$o"; then
+      echo "ensure_host_cc_seed_o kv-mmap: ____open→___open redefine failed" >&2
+      return 1
+    fi
+    if nm -u "$o" 2>/dev/null | awk '$NF=="____open" { f=1 } END { exit f?0:1 }'; then
+      echo "ensure_host_cc_seed_o kv-mmap: U ____open remains after redefine" >&2
+      return 1
+    fi
+    log "kv mmap: Darwin tip ____open → ___open (note743y.6.23)"
   fi
   return 0
 }
@@ -1185,7 +1221,7 @@ ensure_dir_cap_linux_pure() {
 # __open and __getdirentries64. The .x names use three leading underscores
 # so the undefined symbols are ___open and ___getdirentries64.
 # O_RDONLY|O_DIRECTORY is 1048576. The stream is 1096 bytes.
-# Linux uses ensure_dir_cap_linux_pure. Windows keeps the C seed. No gcc -E.
+# Linux uses ensure_dir_cap_linux_pure. 10.93: no host-cc of the C seed on any host.
 # PLATFORM: MACOS|DARWIN arm64.
 # $1 = output object (default runtime_dir_cap.o, cwd is compiler/).
 ensure_dir_cap_darwin_pure() {
@@ -1198,8 +1234,12 @@ ensure_dir_cap_darwin_pure() {
     return 1
   fi
   if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
-    log "skip $o (up-to-date vs $xsrc)"
-    return 0
+    # note743y.6.23: tip left U ____open (need ___open). Do not skip stale egg.
+    if ! nm -u "$o" 2>/dev/null | awk '$NF=="____open" { f=1 } END { exit f?0:1 }'; then
+      log "skip $o (up-to-date vs $xsrc)"
+      return 0
+    fi
+    log "refresh $o (stale U ____open; libsystem_kernel needs ___open)"
   fi
   mkdir -p "$(dirname "$o")"
   # w1198: some pure-asm tries segfault. Retry before the eight-try
@@ -1236,6 +1276,31 @@ ensure_dir_cap_darwin_pure() {
         rm -f "$o"
         continue
       fi
+      # note743y.6.23: tip ____open / ____getdirentries64 → libsystem names.
+      if nm -u "$o" 2>/dev/null | awk '$NF=="____open" { f=1 } END { exit f?0:1 }'; then
+        _dc_oc="$(pure_asm_find_objcopy)" || {
+          echo "ensure_host_cc_seed_o dir-cap: objcopy missing for ____open" >&2
+          rm -f "$o"
+          continue
+        }
+        if ! "$_dc_oc" --redefine-sym '____open=___open' "$o"; then
+          echo "ensure_host_cc_seed_o dir-cap: ____open→___open redefine failed" >&2
+          rm -f "$o"
+          continue
+        fi
+      fi
+      if nm -u "$o" 2>/dev/null | awk '$NF=="____getdirentries64" { f=1 } END { exit f?0:1 }'; then
+        _dc_oc="$(pure_asm_find_objcopy)" || {
+          echo "ensure_host_cc_seed_o dir-cap: objcopy missing for ____getdirentries64" >&2
+          rm -f "$o"
+          continue
+        }
+        if ! "$_dc_oc" --redefine-sym '____getdirentries64=___getdirentries64' "$o"; then
+          echo "ensure_host_cc_seed_o dir-cap: ____getdirentries64 redefine failed" >&2
+          rm -f "$o"
+          continue
+        fi
+      fi
       if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="___getdirentries64" { n++ } END { exit (n==1)?0:1 }'; then
         echo "ensure_host_cc_seed_o dir-cap: ___getdirentries64 is not undefined" >&2
         rm -f "$o"
@@ -1252,10 +1317,12 @@ ensure_dir_cap_darwin_pure() {
     echo "ensure_host_cc_seed_o dir-cap: pure-asm try $try failed" >&2
     rm -f "$o"
   done
+  # 10.93: fail-closed. Do not host-cc seeds/runtime_dir_cap.from_x.c.
+  # Darwin body is src/asm/runtime_dir_cap_darwin.x only.
+  # PLATFORM: MACOS|DARWIN arm64.
   if [ ! -s "$o" ]; then
-    log "cc -c $seed → $o (pure-asm missing object)"
-    # shellcheck disable=SC2086
-    $CC ${CFLAGS:-} -I. -Iinclude -Isrc -c "$seed" -o "$o" || return 1
+    echo "ensure_host_cc_seed_o dir-cap: pure-asm failed; host-cc seed removed (10.93)" >&2
+    return 1
   fi
   return 0
 }
@@ -1286,7 +1353,15 @@ ensure_process_import_alias_darwin_pure() {
     echo "ensure_host_cc_seed_o process-alias: missing $xsrc" >&2
     return 1
   fi
-  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+  # An empty mktemp placeholder is newer than the .x. -f plus mtime
+  # then skips and ld -r merges a zero-length alias, so process.o
+  # still has no std_process_*. Require a non-empty object that
+  # already exports the import METHOD face.
+  # PLATFORM: SHARED.
+  if [ "$FORCE" != "1" ] && [ -s "$o" ] && [ ! "$xsrc" -nt "$o" ] \
+    && r3_prefer_nm_has_sym "$o" std_process_args_count \
+    && r3_prefer_nm_has_sym "$o" std_process_arg \
+    && r3_prefer_nm_has_sym "$o" std_process_getenv; then
     log "skip $o (up-to-date vs $xsrc)"
     return 0
   fi
@@ -1519,6 +1594,80 @@ ensure_std_fmt_formal_darwin_pure() {
 # Windows keeps the C face. Linux miss does not exec cc.
 # PLATFORM: MACOS|DARWIN arm64 | LINUX.
 # $1 = output object. cwd is compiler/.
+
+# knife256/10.2: Cap tip I32x8 MEMORY returns via Darwin sret(x8); Cap tip .x
+# bodies omit sret stores → shuffle/select leave zeros / SEGV on F32 dual-GP
+# regressions. Overlay hand asm after formal pure-asm. PLATFORM: MACOS arm64.
+# Idempotent: skip if live T already coexists with a *_dead twin (re-entry safe).
+overlay_std_simd_i32x8_cap_sret() {
+  local o="${1:-../std/simd/simd.o}"
+  local asrc="src/asm/std_simd_i32x8_cap_sret_a64.s"
+  local _os _mach oc leaf tmp
+  _os="$(uname -s 2>/dev/null || echo Unknown)"
+  _mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_os" != "Darwin" ] || [ "$_mach" != "arm64" ]; then
+    return 0
+  fi
+  if [ ! -s "$o" ] || [ ! -f "$asrc" ]; then
+    return 0
+  fi
+  if nm "$o" 2>/dev/null | grep -qE ' T _std_simd_shuffle_i32x8_i32_a8$' \
+    && nm "$o" 2>/dev/null | grep -qE ' T _std_simd_select_i32x8_i32x8_i32x8$' \
+    && nm "$o" 2>/dev/null | grep -qE '_std_simd_shuffle_i32x8_i32_a8_.*dead' \
+    && nm "$o" 2>/dev/null | grep -qE '_std_simd_select_i32x8_i32x8_i32x8_.*dead'; then
+    if [ ! "$asrc" -nt "$o" ]; then
+      log "skip Cap tip i32x8 sret overlay (already present)"
+      return 0
+    fi
+  fi
+  oc="${LLVM_OBJCOPY:-}"
+  if [ -z "$oc" ]; then
+    for c in /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
+      [ -x "$c" ] && oc=$c && break
+    done
+  fi
+  [ -n "$oc" ] || {
+    echo "ensure_host_cc_seed_o simd-i32x8-sret: need llvm-objcopy" >&2
+    return 1
+  }
+  # BSD mktemp: X's must be at end of template.
+  leaf="$(mktemp "${TMPDIR:-/tmp}/simd_i32x8_sret.XXXXXX")"
+  tmp="$(mktemp "${TMPDIR:-/tmp}/simd_i32x8_merge.XXXXXX")"
+  mv -f "$leaf" "${leaf}.o"
+  leaf="${leaf}.o"
+  mv -f "$tmp" "${tmp}.o"
+  tmp="${tmp}.o"
+  if ! as -o "$leaf" "$asrc"; then
+    rm -f "$leaf" "$tmp"
+    echo "ensure_host_cc_seed_o simd-i32x8-sret: as failed" >&2
+    return 1
+  fi
+  cp -f "$o" "$tmp"
+  # Unique dead names so a prior overlay's *_dead does not collide.
+  "$oc" --redefine-sym=_std_simd_shuffle_i32x8_i32_a8=_std_simd_shuffle_i32x8_i32_a8_formal_dead "$tmp" 2>/dev/null || true
+  "$oc" --redefine-sym=_std_simd_select_i32x8_i32x8_i32x8=_std_simd_select_i32x8_i32x8_i32x8_formal_dead "$tmp" 2>/dev/null || true
+  # If already overlaid once, live names may already be the leaf — demote those too
+  # under a second unique suffix before re-merging a fresher .s.
+  "$oc" --redefine-sym=_std_simd_shuffle_i32x8_i32_a8=_std_simd_shuffle_i32x8_i32_a8_old_sret_dead "$tmp" 2>/dev/null || true
+  "$oc" --redefine-sym=_std_simd_select_i32x8_i32x8_i32x8=_std_simd_select_i32x8_i32x8_i32x8_old_sret_dead "$tmp" 2>/dev/null || true
+  if ! ld -r -o "$o" "$tmp" "$leaf"; then
+    rm -f "$leaf" "$tmp"
+    echo "ensure_host_cc_seed_o simd-i32x8-sret: ld -r failed" >&2
+    return 1
+  fi
+  rm -f "$leaf" "$tmp"
+  if ! nm "$o" 2>/dev/null | grep -qE ' T _std_simd_shuffle_i32x8_i32_a8$'; then
+    echo "ensure_host_cc_seed_o simd-i32x8-sret: shuffle T missing" >&2
+    return 1
+  fi
+  if ! nm "$o" 2>/dev/null | grep -qE ' T _std_simd_select_i32x8_i32x8_i32x8$'; then
+    echo "ensure_host_cc_seed_o simd-i32x8-sret: select T missing" >&2
+    return 1
+  fi
+  log "overlay Cap tip i32x8 sret → $o"
+  return 0
+}
+
 ensure_std_simd_formal_darwin_pure() {
   local o="${1:-../std/simd/simd.o}"
   local xsrc="src/asm/std_simd_formal_darwin.x"
@@ -1531,14 +1680,18 @@ ensure_std_simd_formal_darwin_pure() {
     return 1
   fi
   if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
-    log "skip $o (up-to-date vs $xsrc)"
-    return 0
+    # Still overlay i32x8 sret (asm leaf may be newer than formal .x).
+    if overlay_std_simd_i32x8_cap_sret "$o"; then
+      log "skip $o (up-to-date vs $xsrc; sret overlay ok)"
+      return 0
+    fi
   fi
   mkdir -p "$(dirname "$o")"
   # Retry before eight-try. Darwin may then use C face. Linux fail-closed.
   # PLATFORM: MACOS|DARWIN arm64 | LINUX.
   if [ -f scripts/ensure_host_cc_seed_o.sh ] \
     && bash scripts/ensure_host_cc_seed_o.sh simd-formal-retry "$o"; then
+    overlay_std_simd_i32x8_cap_sret "$o" || return 1
     log "prefer simd formal ← pure-asm (记224)"
     return 0
   fi
@@ -1565,6 +1718,7 @@ ensure_std_simd_formal_darwin_pure() {
         rm -f "$o"
         continue
       fi
+      overlay_std_simd_i32x8_cap_sret "$o" || { rm -f "$o"; continue; }
       log "pure-asm $xsrc → $o"
       return 0
     fi
@@ -3802,20 +3956,43 @@ ensure_slice_glue_darwin_pure() {
   local o="${1:-../core/slice/slice.o}"
   local xsrc="src/asm/runtime_slice_glue.x"
   local seed="seeds/runtime_slice_glue.from_x.c"
+  local asrc="src/asm/runtime_slice_glue_a64.s"
   local try=0
+  local _sl_s _sl_m
   if [ ! -f "$xsrc" ]; then
     echo "ensure_host_cc_seed_o slice-glue: missing $xsrc" >&2
+    return 1
+  fi
+  mkdir -p "$(dirname "$o")"
+  # note743y.6.23: Cap tip / tip-cold pure-asm of runtime_slice_glue.x is
+  # hollow (builds slice on stack, sret; never str through out=x0). Darwin
+  # arm64 must install hand-asm .s — same leaf as g05_cap_tip_reapply.
+  # PLATFORM: MACOS|DARWIN arm64 only. Linux keeps .x path below.
+  _sl_s="$(uname -s 2>/dev/null || echo Unknown)"
+  _sl_m="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_sl_s" = "Darwin" ] && [ "$_sl_m" = "arm64" ] && [ -f "$asrc" ]; then
+    if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$asrc" -nt "$o" ]; then
+      # Hollow Cap tip .o is ~1.9K with `sub sp,#0xd0`; hand-asm ~1K with stp #-0x30.
+      if otool -tv "$o" 2>/dev/null | grep -q 'stp	x29, x30, \[sp, #-0x30\]!'; then
+        log "skip $o (hand-asm up-to-date vs $asrc)"
+        return 0
+      fi
+    fi
+    if clang -c -o "$o" "$asrc" 2>/dev/null && [ -s "$o" ]; then
+      log "hand-asm $asrc → $o (note743y.6.23 Cap tip .x hollow)"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o slice-glue: hand-asm $asrc → $o failed" >&2
     return 1
   fi
   if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
     log "skip $o (up-to-date vs $xsrc)"
     return 0
   fi
-  mkdir -p "$(dirname "$o")"
   # w1202: some pure-asm tries segfault. Retry before the eight-try
   # path. A failed retry still falls back to that path and then the
   # C seed. Symbols stay strong. No undefined symbols.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # PLATFORM: LINUX (Darwin arm64 handled above).
   if [ -f scripts/ensure_host_cc_seed_o.sh ] \
     && bash scripts/ensure_host_cc_seed_o.sh slice-glue-retry "$o"; then
     log "prefer slice glue ← pure-asm eight symbols (w1202)"
@@ -4197,8 +4374,12 @@ ensure_process_argv_darwin_pure() {
     return 1
   fi
   if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
-    log "skip $o (up-to-date vs $xsrc)"
-    return 0
+    # note743y.6.23: egg left U _NSGetArgc; libSystem needs __NSGetArgc.
+    if ! nm -u "$o" 2>/dev/null | awk '$NF=="_NSGetArgc" { f=1 } END { exit f?0:1 }'; then
+      log "skip $o (up-to-date vs $xsrc)"
+      return 0
+    fi
+    log "refresh $o (stale U _NSGetArgc; Darwin libSystem needs __NSGetArgc)"
   fi
   mkdir -p "$(dirname "$o")"
   # w1195: some pure-asm tries segfault. Retry before the three-try
@@ -4331,6 +4512,27 @@ ensure_process_argv_darwin_pure() {
       echo "ensure_host_cc_seed_o process-argv: process faces are not weak" >&2
       rm -f "$o"
       continue
+    fi
+    # note743y.6.23 / knife256: egg|tip pure-asm of C name _NSGetArgc emits
+    # Mach-O U _NSGetArgc; Cap tip emits U __NSGetArgc (libSystem). Same class
+    # as labi __error→___error. Redefine only when egg-shaped undef is present.
+    # PLATFORM: MACOS|DARWIN arm64.
+    if nm -u "$o" 2>/dev/null | awk '$NF=="_NSGetArgc" { f=1 } END { exit f?0:1 }'; then
+      _pa_oc="$(pure_asm_find_objcopy)" || return 1
+      if ! "$_pa_oc" \
+        --redefine-sym '_NSGetArgc=__NSGetArgc' \
+        --redefine-sym '_NSGetArgv=__NSGetArgv' \
+        "$o"; then
+        echo "ensure_host_cc_seed_o process-argv: NSGet Darwin mangling redefine failed" >&2
+        rm -f "$o"
+        continue
+      fi
+      if nm -u "$o" 2>/dev/null | awk '$NF=="_NSGetArgc" { f=1 } END { exit f?0:1 }'; then
+        echo "ensure_host_cc_seed_o process-argv: U _NSGetArgc remains after redefine" >&2
+        rm -f "$o"
+        continue
+      fi
+      log "process argv: Darwin NSGetArgc/Argv → libSystem mangling (note743y.6.23)"
     fi
     if [ "$_pa_from_retry" = "1" ]; then
       log "prefer process argv ← pure-asm eight symbols (w1529 anchor)"
@@ -4501,9 +4703,38 @@ ensure_process_argv_w1529() {
     unset G05_X_O_SYM_RENAME
     pure_asm_x_to_o "$tmp_o" "$xsrc"
   ) || [ ! -s "$tmp_o" ]; then
-    rm -f "$tmp_o"
-    echo "ensure: $o pure asm of $xsrc failed; no retry, no host cc" >&2
-    return 1
+    # DIG tip_l4 Win: PE tip XT001 arity on process_xlang_argv_get(i) in
+    # process_arg_c; xlang_bi.exe emits the TU. Retry bi/aside then weaken.
+    # PLATFORM: WINDOWS.
+    _argv_ok=0
+    case "$os_s" in
+      Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+        for _xl in ./xlang_bi.exe ./xlang_bi \
+            ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang.exe"} \
+            ./xlang.pre_l4_aside.exe ./xlang.pre_l4_aside; do
+          [ -n "$_xl" ] && [ -x "$_xl" ] || continue
+          rm -f "$tmp_o"
+          if (
+            export XLANG="$_xl"
+            export XLANG_PREFER_ASM_O=1
+            export G05_X_O_WEAK_FUNCS=process_args_count_c,process_arg_c
+            unset G05_X_O_WEAK
+            unset G05_X_O_SYM_RENAME
+            pure_asm_x_to_o "$tmp_o" "$xsrc"
+          ) && [ -s "$tmp_o" ]; then
+            _argv_ok=1
+            echo "ensure: $o via $_xl (Win w1529 bi/aside; tip XT001)" >&2
+            break
+          fi
+          rm -f "$tmp_o"
+        done
+        ;;
+    esac
+    if [ "$_argv_ok" != "1" ]; then
+      rm -f "$tmp_o"
+      echo "ensure: $o pure asm of $xsrc failed; no retry, no host cc" >&2
+      return 1
+    fi
   fi
   if ! process_argv_rename_lxml_w1529 "$tmp_o"; then
     rm -f "$tmp_o"
@@ -4786,6 +5017,19 @@ ensure_strict_glue_w1530() {
     echo "ensure: $o cat of $x_heap and $x_glue failed; no host cc" >&2
     return 1
   fi
+  # tip_l4 Win: pre-strip non-Windows cfg from concat so tip_aside can emit.
+  # PLATFORM: WINDOWS.
+  case "$os_s" in
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+      _sg_pre="$(mktemp "${TMPDIR:-/tmp}/w1530pre.XXXXXX")"
+      _sg_pre_x="${_sg_pre}.x"
+      mv -f "$_sg_pre" "$_sg_pre_x" 2>/dev/null || _sg_pre_x="${_sg_pre}.x"
+      if x_strip_not_windows_cfg "$tmp_x" "$_sg_pre_x"; then
+        mv -f "$_sg_pre_x" "$tmp_x" || cp -f "$_sg_pre_x" "$tmp_x"
+      fi
+      rm -f "$_sg_pre_x"
+      ;;
+  esac
   if ! (
     export XLANG_PREFER_ASM_O=1
     export XLANG_PURE_ASM_TIMEOUT_SEC=180
@@ -4794,9 +5038,39 @@ ensure_strict_glue_w1530() {
     unset G05_X_O_SYM_RENAME
     pure_asm_x_to_o "$tmp_o" "$tmp_x"
   ) || [ ! -s "$tmp_o" ]; then
-    rm -f "$tmp_x" "$tmp_o"
-    echo "ensure: $o pure asm of $x_heap + $x_glue failed; no retry, no host cc" >&2
-    return 1
+    # tip_l4 Win: tip/egg concat P012/XT001; tip_aside+cfg-strip may emit.
+    # PLATFORM: WINDOWS.
+    _sg_ok=0
+    case "$os_s" in
+      Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+        _sg_strip="$(mktemp "${TMPDIR:-/tmp}/w1530strip.XXXXXX")"
+        _sg_strip_x="${_sg_strip}.x"
+        mv -f "$_sg_strip" "$_sg_strip_x" 2>/dev/null || _sg_strip_x="${_sg_strip}.x"
+        if x_strip_not_windows_cfg "$tmp_x" "$_sg_strip_x"; then
+          for _aside in \
+              ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang.exe"} \
+              ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang"} \
+              ./xlang.pre_l4_aside ./xlang.pre_l4_aside.exe ./xlang_bi ./xlang_bi.exe; do
+            if [ -n "$_aside" ] && [ -x "$_aside" ]; then
+              rm -f "$tmp_o"
+              if g05_xasm "$_aside" -backend asm -c "$_sg_strip_x" -o "$tmp_o" >/dev/null 2>&1 \
+                && [ -s "$tmp_o" ]; then
+                _sg_ok=1
+                echo "ensure: $o via tip_aside+cfg-strip $_aside (Win w1530)" >&2
+                break
+              fi
+              rm -f "$tmp_o"
+            fi
+          done
+        fi
+        rm -f "$_sg_strip_x"
+        ;;
+    esac
+    if [ "$_sg_ok" != "1" ]; then
+      rm -f "$tmp_x" "$tmp_o"
+      echo "ensure: $o pure asm of $x_heap + $x_glue failed; no retry, no host cc" >&2
+      return 1
+    fi
   fi
   rm -f "$tmp_x"
   if ! strict_glue_w1530_weaken "$tmp_o"; then
@@ -4964,7 +5238,7 @@ ensure_env_os_darwin_pure() {
   # PLATFORM: MACOS|DARWIN arm64.
   if [ -f scripts/ensure_host_cc_seed_o.sh ] \
     && bash scripts/ensure_host_cc_seed_o.sh env-os-retry "$os_o"; then
-    log "prefer env os ← pure-asm twenty-eight symbols (w1215)"
+    log "prefer env os ← pure-asm thirty symbols (w1215)"
   fi
   while [ "$try" -lt 8 ]; do
     try=$((try + 1))
@@ -5058,8 +5332,12 @@ ensure_log_os_darwin_pure() {
   fi
   if [ "$FORCE" != "1" ] && [ -f "$o" ] \
     && [ ! "$x_thin" -nt "$o" ] && [ ! "$x_os" -nt "$o" ]; then
-    log "skip $o (up-to-date vs $x_thin and $x_os)"
-    return 0
+    # note743y.6.23: tip left U ____open (need ___open). Do not skip stale egg.
+    if ! nm -u "$o" 2>/dev/null | awk '$NF=="____open" { f=1 } END { exit f?0:1 }'; then
+      log "skip $o (up-to-date vs $x_thin and $x_os)"
+      return 0
+    fi
+    log "refresh $o (stale U ____open; libsystem_kernel needs ___open)"
   fi
   mkdir -p "$(dirname "$o")"
   thin_o="$(mktemp "${TMPDIR:-/tmp}/log_thin.XXXXXX.o")"
@@ -5079,7 +5357,7 @@ ensure_log_os_darwin_pure() {
   # PLATFORM: MACOS|DARWIN arm64.
   if [ -f scripts/ensure_host_cc_seed_o.sh ] \
     && bash scripts/ensure_host_cc_seed_o.sh log-os-retry "$os_o"; then
-    log "prefer log os ← pure-asm thirty-four symbols (w1217)"
+    log "prefer log os ← pure-asm thirty-six symbols (w1217)"
   fi
   while [ "$try" -lt 8 ]; do
     try=$((try + 1))
@@ -5139,6 +5417,33 @@ ensure_log_os_darwin_pure() {
       done
       if [ "$_lo_ok" != "1" ]; then
         echo "ensure_host_cc_seed_o log-os: required text symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      # note743y.6.23: tip pure-asm of source ___open emits Mach-O U ____open;
+      # Cap tip emits ___open (libsystem_kernel). Same class as NSGetArgc /
+      # labi __error→___error. Redefine only when tip-shaped undef is present.
+      # PLATFORM: MACOS|DARWIN arm64.
+      if nm -u "$o" 2>/dev/null | awk '$NF=="____open" { f=1 } END { exit f?0:1 }'; then
+        _lo_oc="$(pure_asm_find_objcopy)" || {
+          echo "ensure_host_cc_seed_o log-os: objcopy missing for ____open" >&2
+          rm -f "$o"
+          continue
+        }
+        if ! "$_lo_oc" --redefine-sym '____open=___open' "$o"; then
+          echo "ensure_host_cc_seed_o log-os: ____open→___open redefine failed" >&2
+          rm -f "$o"
+          continue
+        fi
+        if nm -u "$o" 2>/dev/null | awk '$NF=="____open" { f=1 } END { exit f?0:1 }'; then
+          echo "ensure_host_cc_seed_o log-os: U ____open remains after redefine" >&2
+          rm -f "$o"
+          continue
+        fi
+        log "log os: Darwin tip ____open → ___open (note743y.6.23)"
+      fi
+      if ! nm -u "$o" 2>/dev/null | awk '$NF=="___open" { n++ } END { exit (n>=1)?0:1 }'; then
+        echo "ensure_host_cc_seed_o log-os: ___open is not undefined" >&2
         rm -f "$o"
         continue
       fi
@@ -5287,7 +5592,7 @@ ensure_crypto_inc_darwin_pure() {
   # PLATFORM: MACOS|DARWIN arm64.
   if [ -f scripts/ensure_host_cc_seed_o.sh ] \
     && bash scripts/ensure_host_cc_seed_o.sh crypto-os-retry "$os_o"; then
-    log "prefer crypto os ← pure-asm thirty-five symbols (w1218)"
+    log "prefer crypto os ← pure-asm thirty-seven symbols (w1218)"
   fi
   while [ "$try" -lt 8 ]; do
     try=$((try + 1))
@@ -5809,6 +6114,454 @@ ensure_net_udp_batch_darwin_pure() {
   return 0
 }
 
+
+
+# note743e: pure-asm leaf then merge seeds/rt_emit_state_bss_cold (Lxml 9/10).
+# PLATFORM: SHARED. Uses existing cold .c only (no new host-cc TU).
+ensure_deleted_seed_leaf_pure_rt_emit_bss() {
+  local o="src/runtime/rt_emit_state.o"
+  local x=src/runtime/rt_emit_state.x
+  local thin _bss_o _merged miss s
+  [ -f "$x" ] || return 1
+  thin="$(mktemp "${TMPDIR:-/tmp}/rtemit_leaf.XXXXXX")" || return 1
+  rm -f "$thin"
+  thin="${thin}.o"
+  if ! (
+    export XLANG_PREFER_ASM_O=1
+    unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+    pure_asm_x_to_o "$thin" "$x"
+  ) || [ ! -s "$thin" ]; then
+    echo "ensure: rt-emit-state leaf pure-asm failed" >&2
+    rm -f "$thin"
+    return 1
+  fi
+  if rt_emit_state_rename_bss "$thin"; then
+    miss=0
+    for s in $(rt_emit_state_bss_names); do
+      if ! r3_prefer_nm_has_sym "$thin" "$s"; then miss=1; break; fi
+    done
+    if [ "$miss" = "0" ]; then
+      mv -f "$thin" "$o"
+      log "rt-emit-state $o <- leaf pure-asm + rename (note743e)"
+      return 0
+    fi
+  fi
+  _bss_o="$(mktemp "${TMPDIR:-/tmp}/rtemit_bss.XXXXXX")" || true
+  _merged="$(mktemp "${TMPDIR:-/tmp}/rtemit_mrg.XXXXXX")" || true
+  if [ -z "$_bss_o" ] || [ -z "$_merged" ]; then
+    rm -f "$thin" "$_bss_o" "$_merged"
+    return 1
+  fi
+  rm -f "$_bss_o" "$_merged"
+  _bss_o="${_bss_o}.o"
+  if $CC ${BASE_CFLAGS:--Wall -Wextra} -I. -Iinclude -Isrc -c -o "$_bss_o" seeds/rt_emit_state_bss_cold.from_x.c \
+    && pure_ld_partial_merge "$_merged" "$thin" "$_bss_o"; then
+    miss=0
+    for s in $(rt_emit_state_bss_names); do
+      if ! r3_prefer_nm_has_sym "$_merged" "$s"; then miss=1; break; fi
+    done
+    if [ "$miss" = "0" ]; then
+      mv -f "$_merged" "$o"
+      rm -f "$thin" "$_bss_o"
+      log "rt-emit-state $o <- leaf pure-asm + cold BSS (note743e)"
+      return 0
+    fi
+  fi
+  echo "ensure: rt-emit-state leaf+cold BSS failed" >&2
+  rm -f "$thin" "$_bss_o" "$_merged"
+  return 1
+}
+
+# knife 256 / 10.2: pure-asm leaf when C seed was deleted (5.11 / w1533).
+# Mirrors g05_ensure whole-object pure asm; used by bootstrap try-heat.
+# PLATFORM: SHARED. Fail closed — no host-cc fallback.
+# tip_l4 pe_codegen_elf_o_hang: Cap tip / PE tip -c of user_asm_seed_bridge.x
+# can omit the while (ln < 62) ln++ in asm_asm_codegen_elf_o (lib name never
+# advances → hang on non-empty out_lib). Pin-egg emits Cap-good body:
+#   Darwin arm64: mov w0,#0x3e ; add w0,w1,w0
+#   Linux/Win x86_64: mov $0x3e,%eax ; mov $0x1,%ebx ; add %rbx,%rax / %ebx,%eax
+# Authority scopes the check to asm_asm_codegen_elf_o so other adds in the
+# TU cannot false-pass. GNU binutils lacks --disassemble-symbols (llvm only);
+# try GNU --disassemble=SYM then nm+address window. PLATFORM: SHARED.
+uasb_codegen_elf_o_ln_inc_ok() {
+  local o="${1:-}" dumpfile sym addr next rc=1
+  [ -s "$o" ] || return 1
+  # File-backed dump: avoid bash `[ -n "$huge" ]` / printf-argv of a full
+  # objdump body (GNU Linux tip L4 false-failed the gate with empty follow-up).
+  # Prefer unprefixed ELF/PE name; require "<sym>:" (GNU --disassemble=MISSING
+  # still prints a non-empty section header). PLATFORM: SHARED.
+  dumpfile="$(mktemp "${TMPDIR:-/tmp}/uasb_ln.XXXXXX")" || return 1
+  for sym in asm_asm_codegen_elf_o _asm_asm_codegen_elf_o; do
+    : >"$dumpfile"
+    objdump -d --disassemble-symbols="$sym" "$o" >"$dumpfile" 2>/dev/null || true
+    if grep -Fq "<$sym>:" "$dumpfile" 2>/dev/null; then
+      break
+    fi
+    : >"$dumpfile"
+    objdump -d --disassemble="$sym" "$o" >"$dumpfile" 2>/dev/null || true
+    if grep -Fq "<$sym>:" "$dumpfile" 2>/dev/null; then
+      break
+    fi
+    : >"$dumpfile"
+  done
+  if ! grep -Eq '<_?asm_asm_codegen_elf_o>:' "$dumpfile" 2>/dev/null; then
+    # Address window fallback; pick next T by ascending address (nm order ≠ addr).
+    addr="$(nm "$o" 2>/dev/null | tr -d '\r' | awk '$3=="asm_asm_codegen_elf_o" || $3=="_asm_asm_codegen_elf_o" { print $1; exit }')"
+    if [ -n "$addr" ]; then
+      next="$(nm "$o" 2>/dev/null | tr -d '\r' | awk '$2 ~ /^[Tt]$/ { printf "%s %s\n", $1, $3 }' | sort | awk -v a="$addr" '{ if (seen) { print $1; exit } if ($1==a) seen=1 }')"
+      if [ -n "$next" ]; then
+        objdump -d --start-address=0x$addr --stop-address=0x$next "$o" >"$dumpfile" 2>/dev/null || true
+      else
+        objdump -d --start-address=0x$addr "$o" >"$dumpfile" 2>/dev/null || true
+      fi
+    fi
+  fi
+  if [ ! -s "$dumpfile" ]; then
+    rm -f "$dumpfile"
+    return 1
+  fi
+  # Darwin arm64 Cap-good.
+  if grep -Eq 'mov[[:space:]]+w0,[[:space:]]+#0x3e' "$dumpfile" \
+    && grep -Eq 'add[[:space:]]+w0,[[:space:]]+w1,[[:space:]]+w0' "$dumpfile"; then
+    rc=0
+  # Linux / Win x86_64 Cap-good (egg or tip-aside).
+  elif grep -Eq 'mov[[:space:]]+\$0x3e,%eax' "$dumpfile" \
+    && grep -Eq 'mov[[:space:]]+\$0x1,%eb[x]' "$dumpfile" \
+    && grep -Eq 'add[[:space:]]+%(rbx,%rax|ebx,%eax)' "$dumpfile"; then
+    rc=0
+  fi
+  rm -f "$dumpfile"
+  return "$rc"
+}
+
+# tip_l4 pe_codegen_elf_o_hang: egg-first pure-asm for the whole uasb TU.
+# Tip pure_asm_x_to_o "succeeds" with the hang body; pin-egg-on-failure never
+# fires. Prefer seeds/bootstrap_xlangc.$os.$arch via g05_xasm; tip pure only
+# as fallback when it still passes ln++ authority. Ban park. PLATFORM: SHARED.
+uasb_pure_any() {
+  local o="${1:-}"
+  local xsrc="src/asm/user_asm_seed_bridge.x"
+  local _egg_os _egg_arch _egg
+  [ -n "$o" ] && [ -f "$xsrc" ] || return 1
+  _egg_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
+  _egg_arch="$(uname -m 2>/dev/null)"
+  case "$_egg_os" in darwin) _egg_os=darwin ;; linux) _egg_os=linux ;; mingw*|msys*|cygwin*|windows_nt*|windows) _egg_os=windows ;; *) _egg_os="" ;; esac
+  case "$_egg_arch" in x86_64|amd64) _egg_arch=x86_64 ;; arm64|aarch64) _egg_arch=arm64 ;; *) _egg_arch="" ;; esac
+  if [ -n "$_egg_os" ] && [ -n "$_egg_arch" ]; then
+    _egg="seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}"
+    if [ -x "$_egg" ]; then
+      rm -f "$o"
+      # g05_xasm: -o must end in .o or product links (BLD001). PLATFORM: SHARED.
+      if g05_xasm "$_egg" -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 \
+        && [ -s "$o" ] && uasb_codegen_elf_o_ln_inc_ok "$o"; then
+        echo "uasb: pure-asm via pin-egg $_egg (codegen_elf_o ln++)" >&2
+        return 0
+      fi
+      rm -f "$o"
+    fi
+  fi
+  # Tip fallback: only accept if authority passes (rejects hang body).
+  mkdir -p "$(dirname "$o")"
+  local try=0
+  while [ "$try" -lt 3 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+      pure_asm_x_to_o "$o" "$xsrc"
+    ) && [ -s "$o" ] && uasb_codegen_elf_o_ln_inc_ok "$o"; then
+      echo "uasb: pure-asm via tip (codegen_elf_o ln++ ok)" >&2
+      return 0
+    fi
+    rm -f "$o"
+  done
+  # tip_l4 Win: egg/tip/aside -c of uasb.x hits XT001/XP001; a tree bak that
+  # still passes ln++ authority is the tip-cold last resort (not Soft Cap).
+  # Also try tip_aside binary when present (helps other hosts). PLATFORM: SHARED.
+  local _aside _bak
+  for _aside in       ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang.exe"}       ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang"}       ./xlang.pre_l4_aside ./xlang.pre_l4_aside.exe ./xlang_bi ./xlang_bi.exe; do
+    if [ -n "$_aside" ] && [ -x "$_aside" ]; then
+      rm -f "$o"
+      if g05_xasm "$_aside" -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1         && [ -s "$o" ] && uasb_codegen_elf_o_ln_inc_ok "$o"; then
+        echo "uasb: pure-asm via tip_aside $_aside (codegen_elf_o ln++)" >&2
+        return 0
+      fi
+      rm -f "$o"
+    fi
+  done
+  for _bak in       src/asm/user_asm_seed_bridge.o.pre1046n10.bak       src/asm/user_asm_seed_bridge.o.bak       user_asm_seed_bridge.o.bak; do
+    if [ -s "$_bak" ] && uasb_codegen_elf_o_ln_inc_ok "$_bak"; then
+      cp -f "$_bak" "$o" && [ -s "$o" ] || continue
+      echo "uasb: restore tip-cold bak $_bak (codegen_elf_o ln++ authority)" >&2
+      return 0
+    fi
+  done
+  return 1
+}
+
+
+# tip_l4 Win: tip_aside / old egg keep both #[cfg(windows)] and
+# #[cfg(not(windows))] twins and then P012 on nested lets. Strip
+# not-windows cfg bodies into a temp .x before -c. PLATFORM: WINDOWS.
+x_strip_not_windows_cfg() {
+  local src="${1:-}" dst="${2:-}"
+  [ -n "$src" ] && [ -f "$src" ] && [ -n "$dst" ] || return 1
+  # tip_l4 Win tip_aside: drop non-Windows cfg twins (not(windows) / macos /
+  # linux / darwin) plus following attrs + one export/extern body. Keeps
+  # Windows-only bodies so nested lets are not P012-duplicated. PLATFORM: WINDOWS.
+  awk '
+    BEGIN { skip=0; depth=0; started=0 }
+    function is_non_win_cfg(s) {
+      return (s ~ /#\[cfg\(not\(target_os = "windows"\)\)\]/ ||
+              s ~ /#\[cfg\(target_os = "macos"\)\]/ ||
+              s ~ /#\[cfg\(target_os = "darwin"\)\]/ ||
+              s ~ /#\[cfg\(target_os = "linux"\)\]/)
+    }
+    skip==0 && is_non_win_cfg($0) {
+      skip=1; depth=0; started=0; next
+    }
+    skip==1 {
+      if ($0 ~ /^#\[/) next
+      if ($0 ~ /export function/ || $0 ~ /export extern/ || $0 ~ /^function / || $0 ~ /^extern /) started=1
+      # one-line extern decl
+      if (started && $0 ~ /extern/ && $0 !~ /[{]/ && $0 ~ /;/) {
+        skip=0; started=0; depth=0; next
+      }
+      # BusyBox awk: /{/ is invalid; use character class.
+      depth += gsub(/[{]/, "{") - gsub(/[}]/, "}")
+      if (started && depth <= 0) { skip=0; started=0; depth=0 }
+      next
+    }
+    { print }
+  ' "$src" > "$dst" || return 1
+  [ -s "$dst" ] || return 1
+  return 0
+}
+
+ensure_deleted_seed_leaf_pure() {
+  local o="$1"
+  local x=""
+  case "$o" in
+    src/asm/user_asm_seed_bridge.o) x=src/asm/user_asm_seed_bridge.x ;;
+    src/asm/asm_backend_compat_stubs.o) x=src/asm/asm_backend_compat_stubs.x ;;
+    src/asm/backend_x86_64_enc_c.o) x=src/asm/backend_x86_64_enc_c.x ;;
+    src/asm/backend_arm64_enc_c.o) x=src/asm/backend_arm64_enc_c.x ;;
+    src/asm/parser_asm_parse_expr_link.o)
+      # Darwin has a dedicated one-shot helper; other hosts use the .x.
+      if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+        && [ -f src/asm/parser_asm_parse_expr_link_darwin.x ]; then
+        ensure_parse_expr_link_darwin_pure "$o" || return 1
+        return 0
+      fi
+      x=src/asm/parser_asm_parse_expr_link.x
+      ;;
+    src/x_seed_bridge.o) x=src/x_seed_bridge.x ;;
+    src/runtime/rt_emit_state.o)
+      # note743e: prefer then leaf+cold BSS (never unremaned Lxml-only).
+      if ensure_rt_emit_state_prefer; then return 0; fi
+      ensure_deleted_seed_leaf_pure_rt_emit_bss "$o" || return 1
+      return 0
+      ;;
+    *)
+      echo "ensure_host_cc_seed_o: ensure_deleted_seed_leaf_pure: unknown $o" >&2
+      return 1
+      ;;
+  esac
+  if [ ! -f "$x" ]; then
+    echo "ensure_host_cc_seed_o: missing $x for $o" >&2
+    return 1
+  fi
+  # tip_l4 pe_codegen_elf_o_hang: uasb needs egg-first + ln++ authority.
+  # Stale tip bodies look up-to-date vs .x but hang in asm_asm_codegen_elf_o.
+  # PLATFORM: SHARED.
+  if [ "$o" = "src/asm/user_asm_seed_bridge.o" ]; then
+    if [ "${FORCE:-0}" != "1" ] && [ -s "$o" ] && [ ! "$x" -nt "$o" ]       && uasb_codegen_elf_o_ln_inc_ok "$o"; then
+      log "skip $o (up-to-date vs $x; uasb ln++ authority ok)"
+      return 0
+    fi
+    if uasb_pure_any "$o"; then
+      log "pure-asm $x → $o (tip_l4 uasb egg-first; codegen_elf_o ln++)"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o: uasb egg-first/tip pure failed for $x → $o" >&2
+    return 1
+  fi
+  if [ "${FORCE:-0}" != "1" ] && [ -s "$o" ] && [ ! "$x" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $x; deleted-seed pure)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  # tip_l4 Win: tip pure often XT001; pin-egg then tip_aside before tip.
+  # PLATFORM: SHARED.
+  local _egg_os _egg_arch _egg _aside try=0 done=0
+  _egg_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
+  _egg_arch="$(uname -m 2>/dev/null)"
+  case "$_egg_os" in darwin) _egg_os=darwin ;; linux) _egg_os=linux ;; mingw*|msys*|cygwin*|windows_nt|windows) _egg_os=windows ;; *) _egg_os="" ;; esac
+  case "$_egg_arch" in x86_64|amd64) _egg_arch=x86_64 ;; arm64|aarch64) _egg_arch=arm64 ;; *) _egg_arch="" ;; esac
+  if [ -n "$_egg_os" ] && [ -n "$_egg_arch" ]; then
+    _egg="seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}"
+    if [ -x "$_egg" ]; then
+      rm -f "$o"
+      if g05_xasm "$_egg" -backend asm -c "$x" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+        log "pure-asm $x → $o via pin-egg (deleted-seed)"
+        return 0
+      fi
+      rm -f "$o"
+    fi
+  fi
+  for _aside in \
+      ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang.exe"} \
+      ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang"} \
+      ./xlang.pre_l4_aside ./xlang.pre_l4_aside.exe ./xlang_bi ./xlang_bi.exe; do
+    if [ -n "$_aside" ] && [ -x "$_aside" ]; then
+      rm -f "$o"
+      if g05_xasm "$_aside" -backend asm -c "$x" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+        log "pure-asm $x → $o via tip_aside $_aside (deleted-seed)"
+        return 0
+      fi
+      rm -f "$o"
+    fi
+  done
+  # tip_l4 Win enc: tip_aside P012 on cfg twins — strip not-windows then -c.
+  # PLATFORM: WINDOWS.
+  case "$(uname -s 2>/dev/null || echo Unknown)" in
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+      if [ "$o" = "src/asm/backend_x86_64_enc_c.o" ]; then
+        _strip="$(mktemp "${TMPDIR:-/tmp}/enc_win_only.XXXXXX")"
+        _strip_x="${_strip}.x"
+        mv -f "$_strip" "$_strip_x" 2>/dev/null || _strip_x="${_strip}.x"
+        if x_strip_not_windows_cfg "$x" "$_strip_x"; then
+          for _aside in \
+              ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang.exe"} \
+              ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang"} \
+              ./xlang.pre_l4_aside ./xlang.pre_l4_aside.exe ./xlang_bi ./xlang_bi.exe; do
+            if [ -n "$_aside" ] && [ -x "$_aside" ]; then
+              rm -f "$o"
+              if g05_xasm "$_aside" -backend asm -c "$_strip_x" -o "$o" >/dev/null 2>&1 \
+                && [ -s "$o" ]; then
+                rm -f "$_strip_x"
+                log "pure-asm $x → $o via tip_aside+cfg-strip $_aside (Win enc)"
+                return 0
+              fi
+              rm -f "$o"
+            fi
+          done
+        fi
+        rm -f "$_strip_x"
+      fi
+      ;;
+  esac
+  while [ "$try" -lt 3 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+      pure_asm_x_to_o "$o" "$x"
+    ) && [ -s "$o" ]; then
+      done=1
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ "$done" != "1" ]; then
+    echo "ensure_host_cc_seed_o: pure-asm failed for $x → $o (no seed fallback)" >&2
+    return 1
+  fi
+  log "pure-asm $x → $o (knife256 deleted-seed; no host-cc)"
+  return 0
+}
+
+# knife 256 / 10.2: bootstrap try-heat twin of g05 w1516 runtime_asm_io_stubs.
+# PLATFORM: SHARED.
+ensure_runtime_asm_io_stubs_pure() {
+  local o=runtime_asm_io_stubs.o
+  local x=src/asm/runtime_asm_io_stubs.x
+  if [ ! -f "$x" ]; then
+    echo "ensure_host_cc_seed_o: missing $x" >&2
+    return 1
+  fi
+  # 10.65: skip only when .o is strictly newer than .x (same-age after touch
+  # must rebuild; warm leftover from an older compiler must not stick).
+  if [ "${FORCE:-0}" != "1" ] && [ -s "$o" ] && [ "$o" -nt "$x" ] \
+    && nm "$o" 2>/dev/null | grep -q "T _*runtime_asm_io_stubs_x_doc_anchor\$"; then
+    log "skip $o (up-to-date pure-asm w1516/10.65)"
+    return 0
+  fi
+  local try=0 done=0 _aside _pin
+  while [ "$try" -lt 3 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      unset G05_X_O_WEAK G05_X_O_SYM_RENAME
+      # knife256 / 10.2: Darwin pure-ld has no -multiply_defined. Cold stubs
+      # must be weak vs x_seed_bridge / pabi strong io faces or phase1 dups.
+      # Keep sys_* weak too (historic). PLATFORM: SHARED tip cold.
+      export G05_X_O_WEAK_FUNCS="xlang_sys_write,xlang_sys_read,xlang_sys_writev,xlang_sys_mmap,xlang_sys_munmap,xlang_target_cpu_detect_host,io_read,io_write,io_read_ptr,io_read_ptr_len,io_read_batch,io_read_batch_buf,io_write_batch,io_write_batch_buf,io_register_buffer,io_register_buffers_4,io_unregister_buffers,io_wait_readable,xlang_io_register,xlang_io_register_buf,xlang_io_submit_read,xlang_io_submit_write,std_io_driver_submit_write_batch,std_io_driver_submit_read_batch_buf,std_io_driver_submit_write_batch_buf"
+      pure_asm_x_to_o "$o" "$x"
+    ) && [ -s "$o" ] \
+      && nm "$o" 2>/dev/null | grep -q "T _*runtime_asm_io_stubs_x_doc_anchor\$"; then
+      done=1
+      break
+    fi
+    rm -f "$o"
+  done
+  # tip_l4 Win: tip/egg/aside/bi XT001/CG002 on this TU; restore tip-cold pin
+  # with doc_anchor (pthin g05 prereq). PLATFORM: WINDOWS.
+  if [ "$done" != "1" ]; then
+    for _aside in \
+        ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang.exe"} \
+        ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang"} \
+        ./xlang.pre_l4_aside ./xlang.pre_l4_aside.exe ./xlang_bi ./xlang_bi.exe; do
+      if [ -n "$_aside" ] && [ -x "$_aside" ]; then
+        rm -f "$o"
+        if g05_xasm "$_aside" -backend asm -c "$x" -o "$o" >/dev/null 2>&1 \
+          && [ -s "$o" ] \
+          && nm "$o" 2>/dev/null | grep -q "T _*runtime_asm_io_stubs_x_doc_anchor\$"; then
+          done=1
+          echo "io_stubs: pure-asm via tip_aside $_aside (doc_anchor)" >&2
+          break
+        fi
+        rm -f "$o"
+      fi
+    done
+  fi
+  if [ "$done" != "1" ]; then
+    for _pin in \
+        runtime_asm_io_stubs.o.tip_cold_pin \
+        src/asm/runtime_asm_io_stubs.o.tip_cold_pin \
+        /c/xlang_tmp/seeds/runtime_asm_io_stubs.o; do
+      if [ -s "$_pin" ] \
+        && nm "$_pin" 2>/dev/null | grep -q "T _*runtime_asm_io_stubs_x_doc_anchor\$"; then
+        cp -f "$_pin" "$o" && [ -s "$o" ] || continue
+        done=1
+        echo "io_stubs: restore tip-cold pin $_pin (doc_anchor)" >&2
+        break
+      fi
+    done
+  fi
+  if [ "$done" != "1" ]; then
+    echo "ensure_host_cc_seed_o: pure-asm failed for $x → $o (w1516; no seed)" >&2
+    return 1
+  fi
+  # knife256: post-weaken overlapping io T (egg emit may ignore WEAK_FUNCS).
+  # PLATFORM: MACOS|LINUX tip cold · pure-ld no multidef on Darwin.
+  _oc="$(pure_asm_find_objcopy 2>/dev/null || true)"
+  if [ -n "$_oc" ]; then
+    for _ws in       _io_read _io_write _io_read_ptr _io_read_ptr_len       _io_read_batch _io_read_batch_buf _io_write_batch _io_write_batch_buf       _io_register_buffer _io_register_buffers_4 _io_unregister_buffers       _io_wait_readable _xlang_io_register _xlang_io_register_buf       _xlang_io_submit_read _xlang_io_submit_write       _std_io_driver_submit_write_batch _std_io_driver_submit_read_batch_buf _std_io_driver_submit_write_batch_buf
+    do
+      if nm -m "$o" 2>/dev/null | grep -E " ${_ws}\$" | grep -qv weak; then
+        "$_oc" --weaken-symbol="$_ws" "$o" 2>/dev/null || true
+      fi
+    done
+  fi
+  unset _oc _ws
+  log "pure-asm $x → $o (w1516/knife256; no host-cc; io faces weak)"
+  return 0
+}
+
 ensure_one() {
   local out="$1"
   local seed="$2"
@@ -5836,16 +6589,13 @@ ensure_one() {
     return 0
   fi
 
-  # w1516 (5.7b): runtime_asm_io_stubs.o has no C seed any more. It is built
-  # only from src/asm/runtime_asm_io_stubs.x by product pure asm in
-  # scripts/g05_ensure_relink_prereqs.sh. Here we accept an existing object and
-  # never cc. PLATFORM: SHARED.
+  # w1516 (5.7b) / knife 256 (10.2): runtime_asm_io_stubs.o has no C seed.
+  # Build from src/asm/runtime_asm_io_stubs.x via product pure asm (same as
+  # g05_ensure). Bootstrap try-heat must not require g05 first.
+  # PLATFORM: SHARED.
   if [ "$out" = "runtime_asm_io_stubs.o" ]; then
-    if [ -f runtime_asm_io_stubs.o ]; then
-      return 0
-    fi
-    echo "ensure_host_cc_seed_o: runtime_asm_io_stubs.o missing; build it from src/asm/runtime_asm_io_stubs.x via scripts/g05_ensure_relink_prereqs.sh" >&2
-    exit 1
+    ensure_runtime_asm_io_stubs_pure || exit 1
+    return 0
   fi
 
   # w1528 (5.9): src/driver/target_cpu.o has no C seed. Full .x pure asm only.
@@ -5856,22 +6606,95 @@ ensure_one() {
     return 0
   fi
 
+  # 记251／8.8 / knife 256 (10.2): try_inline has no C seed (deleted w1527).
+  # Full .x pure asm only — check BEFORE missing-seed exit (seed path gone).
+  # PLATFORM: SHARED.
+  if [ "$out" = "src/asm/backend_try_inline_dispatch.o" ]; then
+    XLANG_PURE_ASM_ALLOW_U_PANIC=1 ensure_r3_full_x_pure_w1525 "$out" \
+      src/asm/backend_try_inline_dispatch.x \
+      backend_try_inline_dispatch_x_w1527_anchor backend_try_inline_dispatch_slice_marker \
+      glue_asm_ctx_module_ref_c glue_asm_ctx_module_ref_c_impl g02f_load_ptr_at \
+      try_inline_x_plus_k_call_elf || return 1
+    return 0
+  fi
+
+  # w1524 / knife 256 (10.2): call_dispatch C seed deleted; full .x pure-asm.
+  # Must run BEFORE missing-seed exit. PLATFORM: SHARED.
+  if [ "$out" = "src/asm/backend_call_dispatch.o" ]; then
+    ensure_call_dispatch_full_x || return 1
+    return 0
+  fi
+
+  # w1525 / knife 256 (10.2): runtime_io_abi cold seed emptied (orphan #else).
+  # Full .x pure-asm only — never host-cc the broken seed. PLATFORM: SHARED.
+  if [ "$out" = "src/runtime_io_abi.o" ]; then
+    ensure_r3_full_x_pure_w1525 "$out" src/runtime_io_abi.x \
+      runtime_io_abi_x_w1525_anchor runtime_io_abi_slice_marker \
+      runtime_read_file_view_impl xlang_write_path_bytes_impl std_fs_fs_open_write || return 1
+    return 0
+  fi
+
+  # knife 256 / 10.2: diag cold seed emptied; thin+FROM_X rest only. PLATFORM: SHARED.
+  if [ "$out" = "src/diag.o" ]; then
+    ensure_diag_prefer || return 1
+    return 0
+  fi
+
+  # wave852 / knife 256 (10.2): ldpc cold emptied — prefer body, never bare cc.
+  if [ "$out" = "src/lsp/lsp_diag_pipeline_ctx.o" ]; then
+    ensure_ldpc_prefer_one "$out" || return 1
+    return 0
+  fi
+
+  # knife 256 / 10.2: thin_glue hollow monothin — g05 prefer only.
+  if [ "$out" = "parser_asm_thin_glue.o" ]; then
+    ensure_parser_asm_thin_glue_prefer || return 1
+    return 0
+  fi
+
+  # knife 256 / 10.2: seeds deleted in 5.11 (w1533) and rt-slice pure-asm
+  # (w1493–w1496). try-heat → ensure_one must pure-asm the .x, never exit on
+  # missing seed. Fail closed (no host-cc fallback). PLATFORM: SHARED.
   if [ ! -f "$seed" ]; then
-    echo "ensure_host_cc_seed_o: missing seed $seed" >&2
-    exit 1
+    case "$out" in
+      src/asm/user_asm_seed_bridge.o|src/asm/asm_backend_compat_stubs.o|src/asm/backend_x86_64_enc_c.o|src/asm/backend_arm64_enc_c.o|src/asm/parser_asm_parse_expr_link.o|src/x_seed_bridge.o)
+        ensure_deleted_seed_leaf_pure "$out" || exit 1
+        return 0
+        ;;
+      src/runtime/rt_emit_state.o)
+        # note743e: prefer (rename/cold BSS) first; if L4-env pure-asm
+        # flakes, fall back to deleted-seed pure-asm then attach cold BSS.
+        # Hollow weak .bss still covers tip if C names stay missing.
+        # PLATFORM: SHARED.
+        if ensure_rt_emit_state_prefer; then
+          return 0
+        fi
+        echo "ensure: rt-emit-state prefer failed; deleted-seed + cold BSS" >&2
+        ensure_deleted_seed_leaf_pure_rt_emit_bss "$out" || exit 1
+        return 0
+        ;;
+      src/runtime/rt_preamble.o)
+        ensure_rt_preamble_prefer || exit 1
+        return 0
+        ;;
+      src/runtime/rt_stack.o)
+        ensure_rt_stack_prefer || exit 1
+        return 0
+        ;;
+      src/runtime/rt_parse_diag.o)
+        ensure_rt_parse_diag_prefer || exit 1
+        return 0
+        ;;
+      *)
+        echo "ensure_host_cc_seed_o: missing seed $seed" >&2
+        exit 1
+        ;;
+    esac
   fi
   # w862: thin enc publics and the slice marker are in the .x.
   # Do not cc the tail alone. PLATFORM: SHARED.
   if [ "$out" = "src/asm/backend_enc_dispatch.o" ]; then
     ensure_enc_dispatch_pure || return 1
-    return 0
-  fi
-
-  # 记251／8.8: try_inline has no C seed (deleted w1527). Full .x pure asm
-  # only — never host-cc a missing seed, never keep a warm bypass object.
-  # PLATFORM: SHARED.
-  if [ "$out" = "src/asm/backend_try_inline_dispatch.o" ]; then
-    XLANG_PURE_ASM_ALLOW_U_PANIC=1 ensure_r3_full_x_pure_w1525 "$out"       src/asm/backend_try_inline_dispatch.x       backend_try_inline_dispatch_x_w1527_anchor backend_try_inline_dispatch_slice_marker       glue_asm_ctx_module_ref_c glue_asm_ctx_module_ref_c_impl g02f_load_ptr_at       try_inline_x_plus_k_call_elf || return 1
     return 0
   fi
 
@@ -6769,6 +7592,78 @@ ensure_catalog_family() {
   log "$label OK ($n objs via catalog $key)"
 }
 
+# tip_l4 pe_pctx_entry_lib_prefix_segv: Cap tip / PE tip -c of
+# rt_emit_state.x can omit the four pfx/imp/plen/ilen = ctx + off_*()
+# inits in xlang_pipeline_pctx_set_entry_lib_prefix (pfx stays 0 →
+# null strb SEGV on PE hello -c). Pin-egg emits Cap-good body with
+# bl to rt_emit_pctx_off_* before the copy loop. Authority scopes the
+# check to _xlang_pipeline_pctx_set_entry_lib_prefix so other bls in
+# the TU cannot false-pass. Broken tip body (len≈772) has zero bl.
+# PLATFORM: SHARED.
+rt_emit_pctx_set_entry_inits_ok() {
+  local o="${1:-}" dump
+  [ -s "$o" ] || return 1
+  dump="$(objdump -d --disassemble-symbols=_xlang_pipeline_pctx_set_entry_lib_prefix "$o" 2>/dev/null || true)"
+  if [ -z "$dump" ]; then
+    dump="$(objdump -d --disassemble-symbols=xlang_pipeline_pctx_set_entry_lib_prefix "$o" 2>/dev/null || true)"
+  fi
+  if [ -z "$dump" ]; then
+    return 1
+  fi
+  # At least one bl (call off_*); broken omit-body has none.
+  printf '%s\n' "$dump" | grep -Eq '[[:space:]]bl[[:space:]]' || return 1
+  # And ctx+off store: add x0, x0, x1 then str to a frame slot.
+  printf '%s\n' "$dump" | grep -Eq 'add[[:space:]]+x0,[[:space:]]+x0,[[:space:]]+x1' || return 1
+  printf '%s\n' "$dump" | grep -Eq 'str[[:space:]]+x0,[[:space:]]+\[x29,' || return 1
+  return 0
+}
+
+# tip_l4 pe_pctx_entry_lib_prefix_segv: egg-first pure-asm for the whole
+# rt_emit_state TU. Tip pure_asm / tip -c may SEGV or "succeed" with the
+# omit-init body; pin-egg-on-failure never fires. Prefer
+# seeds/bootstrap_xlangc.$os.$arch via g05_xasm; tip pure only as
+# fallback when it still passes set-entry inits authority. Ban park /
+# Cap aside prefer. PLATFORM: SHARED.
+rt_emit_state_pure_any() {
+  local o="${1:-}"
+  local xsrc="src/runtime/rt_emit_state.x"
+  local _egg_os _egg_arch _egg
+  [ -n "$o" ] && [ -f "$xsrc" ] || return 1
+  _egg_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
+  _egg_arch="$(uname -m 2>/dev/null)"
+  case "$_egg_os" in darwin) _egg_os=darwin ;; linux) _egg_os=linux ;; mingw*|msys*|cygwin*|windows_nt*|windows) _egg_os=windows ;; *) _egg_os="" ;; esac
+  case "$_egg_arch" in x86_64|amd64) _egg_arch=x86_64 ;; arm64|aarch64) _egg_arch=arm64 ;; *) _egg_arch="" ;; esac
+  if [ -n "$_egg_os" ] && [ -n "$_egg_arch" ]; then
+    _egg="seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}"
+    if [ -x "$_egg" ]; then
+      rm -f "$o"
+      if g05_xasm "$_egg" -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 \
+        && [ -s "$o" ] && rt_emit_pctx_set_entry_inits_ok "$o"; then
+        echo "rt_emit_state: pure-asm via pin-egg $_egg (pctx set-entry inits)" >&2
+        return 0
+      fi
+      rm -f "$o"
+    fi
+  fi
+  # Tip fallback: only accept if authority passes (rejects omit-init body).
+  mkdir -p "$(dirname "$o")"
+  local try=0
+  while [ "$try" -lt 3 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+      pure_asm_x_to_o "$o" "$xsrc"
+    ) && [ -s "$o" ] && rt_emit_pctx_set_entry_inits_ok "$o"; then
+      echo "rt_emit_state: pure-asm via tip (pctx set-entry inits ok)" >&2
+      return 0
+    fi
+    rm -f "$o"
+  done
+  return 1
+}
+
 # Product install of src/runtime/rt_emit_state.o: pure-asm
 # src/runtime/rt_emit_state.x only. w1493 (终局待办 5.4) deleted
 # seeds/rt_emit_state.from_x.c. The .x now holds the ten shared emit
@@ -6794,8 +7689,12 @@ ensure_rt_emit_state_prefer() {
     return 1
   fi
 
-  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
-    log "skip up-to-date $o (rt-emit-state)"
+  # tip_l4 pe_pctx_entry_lib_prefix_segv: stale tip omit-init body looks
+  # up-to-date vs .x but SEGV on PE hello -c (null strb). Require set-entry
+  # inits authority before skip. PLATFORM: SHARED.
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ] \
+    && rt_emit_pctx_set_entry_inits_ok "$o"; then
+    log "skip up-to-date $o (rt-emit-state; pctx set-entry inits ok)"
     return 0
   fi
 
@@ -6806,15 +7705,17 @@ ensure_rt_emit_state_prefer() {
   fi
   rm -f "$bare_thin"
   thin="${bare_thin}.o"
-  # pure_asm only. Do not fall through to gcc -E of this TU.
-  # w1173: a later pure-asm try can segfault. Darwin retries the whole
-  # translation unit. Other hosts keep the one-shot pure_asm path.
-  # PLATFORM: MACOS|DARWIN arm64 for the retry.
+  # tip_l4: egg-first pure (pin-egg via g05_xasm) before tip/w1173 retry.
+  # Tip -c of this TU currently SEGV (same pctx omit) or emits omit-init.
+  # PLATFORM: SHARED.
   _es_pure=0
-  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+  if rt_emit_state_pure_any "$thin"; then
+    _es_pure=1
+  elif [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
     && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
     && [ -f scripts/ensure_host_cc_seed_o.sh ] \
-    && bash scripts/ensure_host_cc_seed_o.sh rt-emit-state-pure "$thin"; then
+    && bash scripts/ensure_host_cc_seed_o.sh rt-emit-state-pure "$thin" \
+    && rt_emit_pctx_set_entry_inits_ok "$thin"; then
     _es_pure=1
   fi
   if { [ "$_es_pure" = "1" ] || (
@@ -6825,7 +7726,8 @@ ensure_rt_emit_state_prefer() {
     fi
     unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS
     pure_asm_x_to_o "$thin" "$xsrc"
-  ); } && rt_emit_state_rename_bss "$thin"; then
+  ); } && rt_emit_pctx_set_entry_inits_ok "$thin" \
+    && rt_emit_state_rename_bss "$thin"; then
     for s in driver_run_x_emit_c_set_path driver_run_x_emit_c_set_lib \
       driver_run_x_emit_c_set_n_lib_roots driver_run_x_emit_c_set_emit_extern \
       driver_argv_parse_x_emit_c labi_rt_emit_state_slice_marker \
@@ -6840,11 +7742,47 @@ ensure_rt_emit_state_prefer() {
     done
     mv -f "$thin" "$o"
     if [ "$_es_pure" = "1" ]; then
-      log "rt-emit-state $o <- pure-asm $xsrc (w1173 retry) + BSS rename (w1493)"
+      log "rt-emit-state $o <- egg-first/pure-asm $xsrc (tip_l4 pctx inits) + BSS rename (w1493)"
     else
       log "rt-emit-state $o <- pure-asm $xsrc + BSS rename (w1493)"
     fi
     return 0
+  fi
+  # knife256 / 10.2 cold: Lxml rename can fail (egg hash drift / 9 of 10).
+  # Keep pure-asm function faces and merge named BSS from cold seed so
+  # seed-phase1 resolves driver_x_emit_*. PLATFORM: SHARED.
+  if [ -s "$thin" ] || (
+    if [ "${XLANG_PREFER_ASM_O_RT:-1}" = "1" ]; then
+      export XLANG_PREFER_ASM_O=1
+    elif [ "${XLANG_ALLOW_TREE_PREFER_ASM:-0}" != "1" ]; then
+      unset XLANG_PREFER_ASM_O
+    fi
+    unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS
+    pure_asm_x_to_o "$thin" "$xsrc"
+  ); then
+    _bss_cold="seeds/rt_emit_state_bss_cold.from_x.c"
+    _bss_o=$(mktemp "${TMPDIR:-/tmp}/rtemit_bss.XXXXXX") || true
+    if [ -n "$_bss_o" ] && [ -f "$_bss_cold" ] && [ -s "$thin" ]; then
+      rm -f "$_bss_o"
+      _bss_o="${_bss_o}.o"
+      _merged=$(mktemp "${TMPDIR:-/tmp}/rtemit_merged.XXXXXX") || true
+      if [ -n "$_merged" ]         && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_bss_o" "$_bss_cold"         && pure_ld_partial_merge "$_merged" "$thin" "$_bss_o" 2>/dev/null; then
+        miss=0
+        for s in $(rt_emit_state_bss_names); do
+          if ! r3_prefer_nm_has_sym "$_merged" "$s"; then
+            echo "ensure: rt-emit-state cold BSS lacks $s" >&2
+            miss=1
+          fi
+        done
+        if [ "$miss" = "0" ]; then
+          mv -f "$_merged" "$o"
+          rm -f "$thin" "$_bss_o"
+          log "rt-emit-state $o <- pure-asm $xsrc + cold BSS (knife256; Lxml rename skipped)"
+          return 0
+        fi
+      fi
+      rm -f "$_bss_o" "${_merged:-}"
+    fi
   fi
   echo "ensure: rt-emit-state pure-asm failed; no seed fallback (w1493)" >&2
   rm -f "$thin"
@@ -6934,6 +7872,43 @@ rt_emit_state_rename_bss() {
   rt_slice_rename_bss "$1" rt-emit-state 10 $(rt_emit_state_bss_names)
 }
 
+# 10.38: modlet_thin pure-asm emits two module lets as Lxml COMMONs
+# (g_pipeline_asm_modlet, g_pipe_modlet_strpool_seq). Leftover pabi and
+# C-rest still read the C names; without rename, PREFER_ASM creates two
+# tables and the next module-let compile SEGVs. Debt was LINUX
+# XLANG_PABI_THIN_PREFER_ASM=0 (-E+cc). PLATFORM: SHARED.
+pipeline_abi_modlet_bss_names() {
+  echo g_pipeline_asm_modlet g_pipe_modlet_strpool_seq
+}
+
+pipeline_abi_modlet_rename_bss() {
+  # pipefail + objcopy --help|grep -q in pure_asm_find_objcopy can exit 141
+  # (SIGPIPE) on long GNU --help; rename must not flake. PLATFORM: SHARED.
+  local _pf=0
+  case $- in *e*) _pf=1; set +e ;; esac
+  set +o pipefail 2>/dev/null || true
+  # shellcheck disable=SC2046
+  rt_slice_rename_bss "$1" w631-modlet 2 $(pipeline_abi_modlet_bss_names)
+  local rc=$?
+  set -o pipefail 2>/dev/null || true
+  if [ "$_pf" = "1" ]; then set -e; fi
+  return "$rc"
+}
+
+# 10.38: leftover pabi keeps strong BSS g_pipeline_asm_modlet; objcopy
+# --weaken-symbol is a no-op on that BSS (stays b). Redefine away so thin
+# COMMON is the only live table after PREFER merge. PLATFORM: SHARED.
+pipeline_abi_modlet_retire_leftover_bss() {
+  local o="$1" oc
+  [ -s "$o" ] || return 1
+  oc="$(pure_asm_find_objcopy)" || return 1
+  set +o pipefail 2>/dev/null || true
+  "$oc"     --redefine-sym "g_pipeline_asm_modlet=g_pipeline_asm_modlet_pabi_superseded"     --redefine-sym "g_pipe_modlet_strpool_seq=g_pipe_modlet_strpool_seq_pabi_superseded"     --redefine-sym "_g_pipeline_asm_modlet=_g_pipeline_asm_modlet_pabi_superseded"     --redefine-sym "_g_pipe_modlet_strpool_seq=_g_pipe_modlet_strpool_seq_pabi_superseded"     "$o" 2>/dev/null || true
+  set -o pipefail 2>/dev/null || true
+  return 0
+}
+
+
 # Product install of src/runtime/rt_arena_buf.o:
 #   pure-asm src/runtime/rt_arena_buf.x (two buffers + slice marker)
 #   + seeds/rt_arena_buf.from_x.c (128MiB / 2MiB BSS only)
@@ -6960,10 +7935,18 @@ ensure_rt_arena_buf_prefer() {
 
   # Up-to-date: seed, the .x, and project headers. A full-cc .o that predates
   # the deleted C bodies still rebuilds once either input moves.
+  # Win tip-cold DIG: thin-only .o (no BSS) must not skip — gate on
+  # driver_arena_static / driver_module_static (seed rest faces).
   if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$seed" -nt "$o" ]; then
     if [ ! "$xsrc" -nt "$o" ] && ! seed_project_hdrs_newer "$seed" "$o"; then
-      log "skip up-to-date $o (rt-arena-buf)"
-      return 0
+      if r3_prefer_nm_has_sym "$o" "driver_arena_static" \
+        && r3_prefer_nm_has_sym "$o" "driver_module_static" \
+        && r3_prefer_nm_has_sym "$o" "driver_arena_buf" \
+        && r3_prefer_nm_has_sym "$o" "driver_module_buf"; then
+        log "skip up-to-date $o (rt-arena-buf)"
+        return 0
+      fi
+      log "rt-arena-buf $o missing BSS/static faces → force prefer rebuild"
     fi
   fi
 
@@ -6989,7 +7972,8 @@ ensure_rt_arena_buf_prefer() {
       unset XLANG_PREFER_ASM_O
     fi
     unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS
-    pure_asm_x_to_o "$thin" "$xsrc"
+    # note743m: tip CG002 → pin-egg fallback
+    pure_asm_x_to_o_or_pin_egg "$thin" "$xsrc"
   ) && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$rest" \
     && ld_flags="$(r3_prefer_ld_r_flags)" \
     && ld $ld_flags -o "$merged" "$thin" "$rest" \
@@ -7118,6 +8102,20 @@ net_ipv6_os_retry_pure() {
     fi
     rm -f "$o"
   done
+  # tip xlang_asm may CG002 on rt_stack.x while product xlang-c -backend asm
+  # emits the three T symbols (w1496). Prefer that before giving up — still
+  # pure-asm object, no host-cc seed. PLATFORM: MACOS|DARWIN arm64.
+  if [ ! -s "$o" ]; then
+    for _xl in ./xlang-c ./xlang ./bootstrap_xlangc; do
+      if [ -x "$_xl" ] \
+        && g05_xasm "$_xl" -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 \
+        && [ -s "$o" ]; then
+        log "rt-stack-retry: pure-asm via $_xl (xlang_asm CG002 fallback)"
+        break
+      fi
+      rm -f "$o"
+    done
+  fi
   if [ ! -s "$o" ]; then
     return 1
   fi
@@ -7172,6 +8170,9 @@ net_ipv6_os_retry_pure() {
 # w1227: src/asm/runtime_net_sock_fast_darwin.x segfaults on some
 # pure-asm tries and emits on a later try. Every frame is closed.
 # Direct xlang_asm, not pure_asm_x_to_o. Symbols stay strong.
+# Twenty-two text symbols: the old twenty-four counted
+# net_tcp_errno_ptr_c and net_udp_errno_ptr_c, which std/net already
+# emits. This half must not define them.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
 net_sock_os_retry_pure() {
   local o="${1:-}"
@@ -7199,7 +8200,9 @@ net_sock_os_retry_pure() {
     return 1
   fi
   n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
-  if [ "$n" != "24" ]; then
+  # 22 = 15 exports + 7 file-private sock_* helpers. TCP/UDP errno _c
+  # names are defined by std/net/tcp.o and udp.o. PLATFORM: MACOS|DARWIN.
+  if [ "$n" != "22" ]; then
     rm -f "$o"
     return 1
   fi
@@ -7695,7 +8698,7 @@ crypto_os_retry_pure() {
     return 1
   fi
   n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
-  if [ "$n" != "35" ]; then
+  if [ "$n" != "37" ]; then
     rm -f "$o"
     return 1
   fi
@@ -7746,7 +8749,8 @@ log_os_retry_pure() {
     return 1
   fi
   n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
-  if [ "$n" != "34" ]; then
+  # note743y.6.23: +from_env +parse (tip atoi hoist split).
+  if [ "$n" != "36" ]; then
     rm -f "$o"
     return 1
   fi
@@ -7756,6 +8760,20 @@ log_os_retry_pure() {
       return 1
     fi
   done
+  # note743y.6.23: tip emits U ____open from source ___open; Cap tip emits
+  # ___open. Redefine egg-shaped undef before the Cap tip U gate.
+  # PLATFORM: MACOS|DARWIN arm64.
+  if nm -u "$o" 2>/dev/null | awk '$NF=="____open" { f=1 } END { exit f?0:1 }'; then
+    _lo_oc="$(pure_asm_find_objcopy)" || { rm -f "$o"; return 1; }
+    if ! "$_lo_oc" --redefine-sym '____open=___open' "$o"; then
+      rm -f "$o"
+      return 1
+    fi
+    if nm -u "$o" 2>/dev/null | awk '$NF=="____open" { f=1 } END { exit f?0:1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  fi
   for c in ___open _link_abi_getenv _malloc _stat; do
     if ! nm -u "$o" | awk -v s="$c" '$NF==s { n++ } END { exit (n==1)?0:1 }'; then
       rm -f "$o"
@@ -7845,7 +8863,7 @@ env_os_retry_pure() {
     return 1
   fi
   n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
-  if [ "$n" != "28" ]; then
+  if [ "$n" != "30" ]; then
     rm -f "$o"
     return 1
   fi
@@ -7971,7 +8989,7 @@ dynlib_text_retry_pure() {
 rt_stack_retry_pure() {
   local o="${1:-}"
   local xsrc="src/runtime/rt_stack.x"
-  local try n c
+  local try n c _xl
   if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
     return 1
   fi
@@ -7990,6 +9008,19 @@ rt_stack_retry_pure() {
     fi
     rm -f "$o"
   done
+  # tip xlang_asm CG002s on this TU; product xlang-c -backend asm emits the
+  # three T symbols (w1496). Still pure-asm — no host-cc seed.
+  if [ ! -s "$o" ]; then
+    for _xl in ./xlang-c ./xlang ./bootstrap_xlangc; do
+      if [ -x "$_xl" ] \
+        && g05_xasm "$_xl" -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 \
+        && [ -s "$o" ]; then
+        log "rt-stack-retry: pure-asm via $_xl (xlang_asm CG002 fallback)"
+        break
+      fi
+      rm -f "$o"
+    done
+  fi
   if [ ! -s "$o" ]; then
     return 1
   fi
@@ -8807,6 +9838,11 @@ simd_formal_retry_pure() {
     rm -f "$o"
     return 1
   fi
+  # knife256/10.2: Cap tip I32x8 sret overlay (Darwin arm64 only).
+  if ! overlay_std_simd_i32x8_cap_sret "$o"; then
+    rm -f "$o"
+    return 1
+  fi
   return 0
 }
 
@@ -8908,6 +9944,22 @@ dir_cap_retry_pure() {
       return 1
     fi
   done
+  # note743y.6.23: tip may emit ____open / ____getdirentries64; Cap tip
+  # emits the three-underscore libsystem names. Redefine before the gate.
+  if nm -u "$o" 2>/dev/null | awk '$NF=="____open" { f=1 } END { exit f?0:1 }'; then
+    _dc_oc="$(pure_asm_find_objcopy)" || { rm -f "$o"; return 1; }
+    if ! "$_dc_oc" --redefine-sym '____open=___open' "$o"; then
+      rm -f "$o"
+      return 1
+    fi
+  fi
+  if nm -u "$o" 2>/dev/null | awk '$NF=="____getdirentries64" { f=1 } END { exit f?0:1 }'; then
+    _dc_oc="$(pure_asm_find_objcopy)" || { rm -f "$o"; return 1; }
+    if ! "$_dc_oc" --redefine-sym '____getdirentries64=___getdirentries64' "$o"; then
+      rm -f "$o"
+      return 1
+    fi
+  fi
   if ! nm -u "$o" | awk '{ s=$NF } s=="___open" { n++ } END { exit (n==1)?0:1 }'; then
     rm -f "$o"
     return 1
@@ -9268,6 +10320,14 @@ kv_mmap_retry_pure() {
       return 1
     fi
   done
+  # note743y.6.23: tip ____open → ___open.
+  if nm -u "$o" 2>/dev/null | awk '$NF=="____open" { f=1 } END { exit f?0:1 }'; then
+    _kv_oc="$(pure_asm_find_objcopy)" || { rm -f "$o"; return 1; }
+    if ! "$_kv_oc" --redefine-sym '____open=___open' "$o"; then
+      rm -f "$o"
+      return 1
+    fi
+  fi
   return 0
 }
 
@@ -9462,27 +10522,65 @@ diagnostic_thin_darwin_pure() {
 fmt_check_darwin_pure() {
   local o="${1:-}"
   local xsrc="src/driver/fmt_check_cmd_thin.x"
-  local try n c oc
+  local try n c oc _bin _bins="" _c _egg _ok=0
   if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
     return 1
   fi
   if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
     return 1
   fi
-  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+  if [ -z "$o" ] || [ ! -f "$xsrc" ]; then
     return 1
   fi
-  try=0
-  while [ "$try" -lt 12 ]; do
-    try=$((try + 1))
-    rm -f "$o"
-    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
-      break
-    fi
-    rm -f "$o"
+  # note743y.6.23: tip-cold tip/xlang_asm SEGV/CG002 on this thin; Cap tip
+  # cache + pin-egg emit cleanly. Prefer Cap tip / egg BEFORE tip so we do
+  # not fill g05_xasm_crash.log 12× then fail the gate (class note743t
+  # Linux pin-egg-first). PLATFORM: MACOS tip cold · arm64.
+  for _c in /tmp/cap_tip_l4_safe_406200eef /tmp/cap_tip_l4_safe_* \
+    "${HOME:-}/.cache/xlang_cap_tip_l4" .cap_tip_l4_cache; do
+    [ -n "$_c" ] || continue
+    [ -x "$_c/xlang_asm" ] && _bins="$_bins $_c/xlang_asm"
+    [ -x "$_c/xlang" ] && _bins="$_bins $_c/xlang"
   done
-  if [ ! -s "$o" ]; then
+  _egg="seeds/bootstrap_xlangc.darwin.arm64"
+  [ -x "$_egg" ] && _bins="$_bins $_egg"
+  [ -x ./bootstrap_xlangc ] && _bins="$_bins ./bootstrap_xlangc"
+  [ -x ./xlang-c ] && _bins="$_bins ./xlang-c"
+  [ -x ./xlang_asm ] && _bins="$_bins ./xlang_asm"
+  [ -x ./xlang ] && _bins="$_bins ./xlang"
+  [ -z "$_bins" ] && return 1
+  for _bin in $_bins; do
+    try=0
+    while [ "$try" -lt 3 ]; do
+      try=$((try + 1))
+      rm -f "$o"
+      _rc=0
+      if g05_xasm "$_bin" -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1; then
+        _rc=0
+      else
+        _rc=$?
+      fi
+      if [ "$_rc" -eq 0 ] && [ -s "$o" ]; then
+        _ok=1
+        break 2
+      fi
+      # tip SEGV/ILL: do not burn retries on the same broken product.
+      rm -f "$o"
+      if [ "$_rc" -ge 128 ] || [ "$_rc" -eq 124 ]; then
+        break
+      fi
+    done
+  done
+  if [ "$_ok" != "1" ] || [ ! -s "$o" ]; then
     return 1
+  fi
+  # Recovered via Cap tip / egg after tip crash rows: scrub this .x so the
+  # g05 crash gate does not false-fail (same scrub as _g05_pure_overlay).
+  if [ -s "${G05_XASM_CRASH_LOG:-build_asm/g05_xasm_crash.log}" ]; then
+    grep -vF " $xsrc" "${G05_XASM_CRASH_LOG:-build_asm/g05_xasm_crash.log}" \
+      >build_asm/g05_xasm_crash.log.scrub 2>/dev/null || true
+    mv -f build_asm/g05_xasm_crash.log.scrub \
+      "${G05_XASM_CRASH_LOG:-build_asm/g05_xasm_crash.log}" 2>/dev/null || true
   fi
   n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
   if [ "$n" != "66" ]; then
@@ -9714,50 +10812,88 @@ async_cps_codegen_darwin_pure() {
 # w1177: src/runtime/rt_run_compiler_parsed.x segfaults on some
 # pure-asm tries and emits on a later try. Retry the whole translation
 # unit. Direct xlang_asm, not rt_prefer_try_x_to_o. Symbols stay strong.
-# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# knife256/10.2 note733: also Linux x86_64 (Ubuntu tip-cold L4) — seed is
+# 记253 hollow (no T); rt_prefer_try_x_to_o alone often misses T on Linux.
+# PLATFORM: SHARED — Darwin arm64 + Linux x86_64. Other hosts return 1.
+# cwd is compiler/.
 run_compiler_parsed_darwin_pure() {
   local o="${1:-}"
   local xsrc="src/runtime/rt_run_compiler_parsed.x"
-  local try n c
-  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+  local try n c host arch xl
+  host="$(uname -s 2>/dev/null || echo Unknown)"
+  arch="$(uname -m 2>/dev/null || echo unknown)"
+  case "$host-$arch" in
+    Darwin-arm64|Linux-x86_64) ;;
+    *) return 1 ;;
+  esac
+  # 记743g: tip-cold step5 often has only bootstrap_xlangc (no xlang_asm yet).
+  # Seed is 记253 hollow (no T). Prefer product, then bootstrap.
+  # 记743i: tip-cold try-r1 may leave a hollow/partial ./xlang that exists but
+  # cannot emit 69 T; try each candidate until one lands 69 T + contract faces.
+  # 记743l: also try seeds/bootstrap_xlangc.<os>.<arch> pin-egg after products.
+  # PLATFORM: SHARED Darwin arm64 + Linux x86_64.
+  if [ -z "$o" ] || [ ! -f "$xsrc" ]; then
     return 1
   fi
-  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+  _rcp_xls=""
+  [ -x ./xlang_asm ] && _rcp_xls="$_rcp_xls ./xlang_asm"
+  [ -x ./xlang ] && _rcp_xls="$_rcp_xls ./xlang"
+  [ -x ./bootstrap_xlangc ] && _rcp_xls="$_rcp_xls ./bootstrap_xlangc"
+  [ -x ./xlang-c ] && _rcp_xls="$_rcp_xls ./xlang-c"
+  # 记743l: after tip link, cwd products may all be the same SEGV tip;
+  # archived pin-egg still emits 69 T (same authority as note743k lexer).
+  _rcp_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
+  _rcp_arch="$(uname -m 2>/dev/null)"
+  case "$_rcp_os" in darwin) _rcp_os=darwin ;; linux) _rcp_os=linux ;; *) _rcp_os="" ;; esac
+  case "$_rcp_arch" in x86_64|amd64) _rcp_arch=x86_64 ;; arm64|aarch64) _rcp_arch=arm64 ;; *) _rcp_arch="" ;; esac
+  if [ -n "$_rcp_os" ] && [ -n "$_rcp_arch" ]; then
+    _rcp_egg="seeds/bootstrap_xlangc.${_rcp_os}.${_rcp_arch}"
+    [ -x "$_rcp_egg" ] && _rcp_xls="$_rcp_xls $_rcp_egg"
+  fi
+  if [ -z "$_rcp_xls" ]; then
     return 1
   fi
-  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
-    return 1
-  fi
-  try=0
-  while [ "$try" -lt 12 ]; do
-    try=$((try + 1))
-    rm -f "$o"
-    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+  _rcp_ok_xl=0
+  for xl in $_rcp_xls; do
+    try=0
+    while [ "$try" -lt 12 ]; do
+      try=$((try + 1))
+      rm -f "$o"
+      if g05_xasm "$xl" -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+        break
+      fi
+      rm -f "$o"
+    done
+    if [ ! -s "$o" ]; then
+      continue
+    fi
+    n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+    if [ "$n" != "69" ]; then
+      rm -f "$o"
+      continue
+    fi
+    _rcp_faces_ok=1
+    # Darwin nm: _pp_path; Linux ELF: pp_path (no leading _).
+    for c in pp_path pi_argc pz_slen rt_cp_fill_code_io001; do
+      if ! nm "$o" | awk -v s="$c" '$2=="T" && ($3==s || $3=="_" s) { found=1 } END { exit found ? 0 : 1 }'; then
+        _rcp_faces_ok=0
+        break
+      fi
+    done
+    if [ "$_rcp_faces_ok" = "1" ]; then
+      _rcp_ok_xl=1
+      echo "run_compiler_parsed_darwin_pure: OK via $xl (note743l multi-xl+pin-egg)" >&2
       break
     fi
     rm -f "$o"
   done
-  if [ ! -s "$o" ]; then
-    return 1
-  fi
-  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
-  if [ "$n" != "69" ]; then
+  if [ "$_rcp_ok_xl" != "1" ] || [ ! -s "$o" ]; then
     rm -f "$o"
     return 1
   fi
-  for c in _pp_path _pi_argc _pz_slen _rt_cp_fill_code_io001; do
-    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
-      rm -f "$o"
-      return 1
-    fi
-  done
   return 0
 }
 
-# w1176: src/asm/backend_arch_emit_dispatch.x segfaults on some
-# pure-asm tries and emits on a later try. Retry the whole translation
-# unit. Direct xlang_asm, not pure_asm_x_to_o. Symbols stay strong.
-# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
 arch_emit_dispatch_darwin_pure() {
   local o="${1:-}"
   local xsrc="src/asm/backend_arch_emit_dispatch.x"
@@ -10053,47 +11189,90 @@ rt_argv_darwin_pure() {
   return 0
 }
 
-# w1170: src/runtime/rt_fmt_one.x segfaults on some pure-asm tries
-# and emits on a later try. Retry the whole translation unit.
-# Direct xlang_asm, not rt_prefer_try_x_to_o.
-# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
-rt_fmt_one_darwin_pure() {
+# tip_l4: rt_fmt_one.x tip/bootstrap pure often fails on Linux/Win tip-cold;
+# pin-egg emits Cap-good 3 T (driver_fmt_one_file + path helpers). Egg-first
+# on all hosts; Darwin arm64 tip retry retained as fallback.
+# PLATFORM: SHARED. cwd is compiler/.
+rt_fmt_one_pure_any() {
   local o="${1:-}"
   local xsrc="src/runtime/rt_fmt_one.x"
-  local try n c
-  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
-    return 1
-  fi
-  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
-    return 1
-  fi
-  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
-    return 1
-  fi
-  try=0
-  while [ "$try" -lt 12 ]; do
-    try=$((try + 1))
-    rm -f "$o"
-    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
-      break
-    fi
-    rm -f "$o"
-  done
-  if [ ! -s "$o" ]; then
-    return 1
-  fi
-  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
-  if [ "$n" != "3" ]; then
-    rm -f "$o"
-    return 1
-  fi
-  for c in _rt_fmt_path_copy_nul _rt_fmt_path_ends_x _driver_fmt_one_file; do
-    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+  local _egg_os _egg_arch _egg try n c
+  [ -n "$o" ] && [ -f "$xsrc" ] || return 1
+  _egg_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
+  _egg_arch="$(uname -m 2>/dev/null)"
+  case "$_egg_os" in darwin) _egg_os=darwin ;; linux) _egg_os=linux ;;
+    mingw*|msys*|cygwin*) _egg_os=windows ;; *) _egg_os="" ;; esac
+  case "$_egg_arch" in x86_64|amd64) _egg_arch=x86_64 ;; arm64|aarch64) _egg_arch=arm64 ;; *) _egg_arch="" ;; esac
+  if [ -n "$_egg_os" ] && [ -n "$_egg_arch" ]; then
+    _egg="seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}"
+    if [ -x "$_egg" ]; then
       rm -f "$o"
-      return 1
+      if g05_xasm "$_egg" -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 \
+        && [ -s "$o" ]; then
+        n="$(nm "$o" 2>/dev/null | tr -d '\r' | awk '$2=="T"' | wc -l | tr -d ' ')"
+        if [ "$n" = "3" ] \
+          && nm "$o" 2>/dev/null | tr -d '\r' | grep -qE " T _?driver_fmt_one_file$"; then
+          echo "rt-fmt-one: pure-asm via pin-egg $_egg (3 T)" >&2
+          return 0
+        fi
+      fi
+      rm -f "$o"
     fi
-  done
-  return 0
+  fi
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+    && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+    && [ -x ./xlang_asm ]; then
+    try=0
+    while [ "$try" -lt 12 ]; do
+      try=$((try + 1))
+      rm -f "$o"
+      if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+        break
+      fi
+      rm -f "$o"
+    done
+    if [ -s "$o" ]; then
+      n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+      if [ "$n" = "3" ] \
+        && nm "$o" | awk '$2=="T" && ($3=="_driver_fmt_one_file" || $3=="driver_fmt_one_file") { found=1 } END { exit found ? 0 : 1 }'; then
+        return 0
+      fi
+      rm -f "$o"
+    fi
+  fi
+  return 1
+}
+
+rt_fmt_one_darwin_pure() {
+  rt_fmt_one_pure_any "$@"
+}
+
+# tip_l4: rt_dispatch_thin.x tip pure fails on Linux tip-cold; pin-egg OK.
+# PLATFORM: SHARED.
+rt_dispatch_thin_pure_any() {
+  local o="${1:-}"
+  local xsrc="src/runtime/rt_dispatch_thin.x"
+  local _egg_os _egg_arch _egg
+  [ -n "$o" ] && [ -f "$xsrc" ] || return 1
+  _egg_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
+  _egg_arch="$(uname -m 2>/dev/null)"
+  case "$_egg_os" in darwin) _egg_os=darwin ;; linux) _egg_os=linux ;;
+    mingw*|msys*|cygwin*) _egg_os=windows ;; *) _egg_os="" ;; esac
+  case "$_egg_arch" in x86_64|amd64) _egg_arch=x86_64 ;; arm64|aarch64) _egg_arch=arm64 ;; *) _egg_arch="" ;; esac
+  if [ -n "$_egg_os" ] && [ -n "$_egg_arch" ]; then
+    _egg="seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}"
+    if [ -x "$_egg" ]; then
+      rm -f "$o"
+      if g05_xasm "$_egg" -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 \
+        && [ -s "$o" ] \
+        && nm "$o" 2>/dev/null | tr -d '\r' | grep -qE " T _?driver_run_compiler_full$"; then
+        echo "rt-dispatch-thin: pure-asm via pin-egg $_egg" >&2
+        return 0
+      fi
+      rm -f "$o"
+    fi
+  fi
+  return 1
 }
 
 # w1169: src/runtime/rt_compile.x segfaults on the first pure-asm
@@ -10103,14 +11282,43 @@ rt_fmt_one_darwin_pure() {
 rt_compile_darwin_pure() {
   local o="${1:-}"
   local xsrc="src/runtime/rt_compile.x"
-  local try n c
+  local try n c _egg
   if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
     return 1
   fi
   if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
     return 1
   fi
-  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+  if [ -z "$o" ] || [ ! -f "$xsrc" ]; then
+    return 1
+  fi
+  # tip_l4 pe_asm_backend_hollow blast: Cap tip / PE tip -c of rt_compile.x
+  # hits CG002; pin-egg emits Cap-good 32 T incl parse_argv_impl. Prefer egg
+  # via g05_xasm (non-.o mktemp staging). Ban park. PLATFORM: MACOS arm64.
+  _egg="seeds/bootstrap_xlangc.darwin.arm64"
+  if [ -x "$_egg" ]; then
+    rm -f "$o"
+    if g05_xasm "$_egg" -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 \
+      && [ -s "$o" ]; then
+      n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+      if [ "$n" = "32" ]; then
+        local _ok=1
+        for c in _rt_cmp_eq _rt_help_token_is \
+          _driver_compile_state_alloc_c _driver_deps_are_std_core_closure_only; do
+          if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+            _ok=0
+            break
+          fi
+        done
+        if [ "$_ok" = "1" ]; then
+          echo "rt-compile: pure-asm via pin-egg $_egg (32 T)" >&2
+          return 0
+        fi
+      fi
+    fi
+    rm -f "$o"
+  fi
+  if [ ! -x ./xlang_asm ]; then
     return 1
   fi
   try=0
@@ -10310,20 +11518,22 @@ rt_emit_flags_darwin_pure() {
   return 0
 }
 
-# w1165: src/runtime/rt_run_x_emit.x segfaults on the first pure-asm
-# tries and emits on a later try. Retry the whole translation unit.
-# Direct xlang_asm, not rt_prefer_try_x_to_o.
-# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1165 / 10.16: src/runtime/rt_run_x_emit.x may SEGV on early pure-asm
+# tries; retry the whole TU. Direct xlang_asm, not rt_prefer_try_x_to_o
+# (which needs product -E — chicken-egg when only phase1 hollow weak
+# driver_run_x_emit_c remains). PLATFORM: SHARED Darwin arm64 + Linux
+# x86_64 (10.16). cwd is compiler/.
 rt_run_x_emit_darwin_pure() {
   local o="${1:-}"
   local xsrc="src/runtime/rt_run_x_emit.x"
-  local try n c
-  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
-    return 1
-  fi
-  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
-    return 1
-  fi
+  local try n c os arch pref
+  os="$(uname -s 2>/dev/null || echo Unknown)"
+  arch="$(uname -m 2>/dev/null || echo unknown)"
+  case "$os:$arch" in
+    Darwin:arm64) pref=_ ;;
+    Linux:x86_64|Linux:amd64) pref= ;;
+    *) return 1 ;;
+  esac
   if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
     return 1
   fi
@@ -10344,8 +11554,8 @@ rt_run_x_emit_darwin_pure() {
     rm -f "$o"
     return 1
   fi
-  for c in _wp_path _wi_nlib _wz_slen _driver_run_x_emit_c; do
-    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+  for c in wp_path wi_nlib wz_slen driver_run_x_emit_c; do
+    if ! nm "$o" | awk -v s="${pref}$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
       rm -f "$o"
       return 1
     fi
@@ -10400,7 +11610,7 @@ rt_run_asm_backend_darwin_pure() {
 # of those. Leading underscores are stripped (Mach-O vs ELF/COFF).
 # PLATFORM: SHARED.
 rt_abk_authority_check() {
-  local o="${1:-}" syms c
+  local o="${1:-}" syms c _rel
   [ -s "$o" ] || return 1
   syms="$(nm "$o" 2>/dev/null | awk 'NF>=2 { t=$(NF-1); n=$NF; sub(/^_/, "", n); print t, n }')" || return 1
   for c in driver_run_asm_backend ap_path; do
@@ -10409,7 +11619,34 @@ rt_abk_authority_check() {
   for c in driver_asm_work_reset driver_asm_work_p_set; do
     printf '%s\n' "$syms" | awk -v s="$c" '($1=="U" || $1=="T") && $2==s { f=1 } END { exit f ? 0 : 1 }' || return 1
   done
-  printf '%s\n' "$syms" | awk '$2 ~ /^rt_run_asm_backend_rt_ab_/ { f=1 } END { exit f ? 0 : 1 }' || return 1
+  # knife 256 / 10.2: tip emits module-prefixed locals
+  # (rt_run_asm_backend_rt_ab_*); the pin egg emits unprefixed rt_ab_*.
+  # Both carry driver_run_asm_backend + ap_path + work-slot U/T above, which
+  # the cold seed body lacks. Accept either local shape so L4 bootstrap
+  # (egg-only) can pure-asm this leaf. PLATFORM: SHARED.
+  printf '%s\n' "$syms" | awk '$2 ~ /^rt_run_asm_backend_rt_ab_/ || $2 ~ /^rt_ab_/ { f=1 } END { exit f ? 0 : 1 }' || return 1
+  # tip_l4 pe_asm_backend_hollow: Cap tip / PE tip -c of this TU can emit
+  # authority-shaped T symbols while driver_run_asm_backend is hollow (no
+  # step bls into rt_ab_step_read_pp / load_deps; PE ~1276B vs Cap-good
+  # ~1552B). Require CALL/BRANCH relocs to those steps. PLATFORM: SHARED.
+  # tip_l4 Win: mega no_c.o objdump -r is huge/slow; prefer nm T bodies
+  # when object is large (internalized steps after ld -r). PLATFORM: SHARED.
+  _rel=""
+  _osz=$(wc -c <"$o" 2>/dev/null | tr -d " " || echo 0)
+  if [ "${_osz:-0}" -lt 100000 ]; then
+    _rel="$(objdump -r "$o" 2>/dev/null || true)"
+  fi
+  # Single-grep (no grep -q pipeline): pipefail+SIGPIPE otherwise false-fails
+  # when BRANCH lines exist but upstream grep -E is SIGPIPEd.
+  # tip_l4 Win PE: IMAGE_REL_AMD64_REL32 / REL32. After ld -r into
+  # runtime_driver_no_c.o, step calls may be internalized (no external
+  # reloc) — then require T bodies for the two steps. PLATFORM: SHARED.
+  if ! printf '%s\n' "$_rel" | grep -Eq 'BRANCH26.*rt_ab_step_read_pp|CALL26.*rt_ab_step_read_pp|ARM64_RELOC_BRANCH26.*rt_ab_step_read_pp|R_AARCH64_CALL26.*rt_ab_step_read_pp|R_X86_64_PLT32.*rt_ab_step_read_pp|R_X86_64_PC32.*rt_ab_step_read_pp|PLT32.*rt_ab_step_read_pp|PC32.*rt_ab_step_read_pp|IMAGE_REL_AMD64_REL32.*rt_ab_step_read_pp|REL32.*rt_ab_step_read_pp'; then
+    printf '%s\n' "$syms" | awk '$1=="T" && $2=="rt_ab_step_read_pp" { f=1 } END { exit f ? 0 : 1 }' || return 1
+  fi
+  if ! printf '%s\n' "$_rel" | grep -Eq 'BRANCH26.*rt_ab_step_load_deps|CALL26.*rt_ab_step_load_deps|ARM64_RELOC_BRANCH26.*rt_ab_step_load_deps|R_AARCH64_CALL26.*rt_ab_step_load_deps|R_X86_64_PLT32.*rt_ab_step_load_deps|R_X86_64_PC32.*rt_ab_step_load_deps|PLT32.*rt_ab_step_load_deps|PC32.*rt_ab_step_load_deps|IMAGE_REL_AMD64_REL32.*rt_ab_step_load_deps|REL32.*rt_ab_step_load_deps'; then
+    printf '%s\n' "$syms" | awk '$1=="T" && $2=="rt_ab_step_load_deps" { f=1 } END { exit f ? 0 : 1 }' || return 1
+  fi
   return 0
 }
 
@@ -10419,14 +11656,62 @@ rt_abk_authority_check() {
 rt_run_asm_backend_pure_any() {
   local o="${1:-}"
   local xsrc="src/runtime/rt_run_asm_backend.x"
+  local _egg_os _egg_arch _egg
   [ -n "$o" ] && [ -f "$xsrc" ] || return 1
+  # tip_l4 pe_asm_backend_hollow: Cap tip / PE tip -c of this TU hollows
+  # driver_run_asm_backend (no step bls). Pin-egg preserves Cap-good body
+  # with BRANCH relocs into rt_ab_step_read_pp / load_deps. Prefer egg;
+  # tip darwin_pure only as fallback. Ban park as main knife. PLATFORM: SHARED.
+  _egg_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
+  _egg_arch="$(uname -m 2>/dev/null)"
+  case "$_egg_os" in darwin) _egg_os=darwin ;; linux) _egg_os=linux ;; mingw*|msys*|cygwin*|windows_nt*|windows) _egg_os=windows ;; *) _egg_os="" ;; esac
+  case "$_egg_arch" in x86_64|amd64) _egg_arch=x86_64 ;; arm64|aarch64) _egg_arch=arm64 ;; *) _egg_arch="" ;; esac
+  if [ -n "$_egg_os" ] && [ -n "$_egg_arch" ]; then
+    _egg="seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}"
+    if [ -x "$_egg" ]; then
+      rm -f "$o"
+      # g05_xasm: product -c only emits relocatable .o when -o ends in .o;
+      # prefer mktemps are rtpref_*.XXXXXX (no .o) and otherwise egg tries to
+      # link (BLD001) — same class as note at g05_xasm. PLATFORM: SHARED.
+      if g05_xasm "$_egg" -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 \
+        && [ -s "$o" ] && rt_abk_authority_check "$o"; then
+        echo "rt-abk: pure-asm via pin-egg $_egg (non-hollow step bls)" >&2
+        return 0
+      fi
+      rm -f "$o"
+    fi
+  fi
+  # tip_l4 Win: pin-egg XT001 on this TU; tip_aside emits Cap-good body
+  # (authority-checked). PLATFORM: SHARED.
+  local _aside
+  for _aside in \
+      ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang.exe"} \
+      ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang"} \
+      ./xlang.pre_l4_aside ./xlang.pre_l4_aside.exe ./xlang_bi ./xlang_bi.exe; do
+    if [ -n "$_aside" ] && [ -x "$_aside" ]; then
+      rm -f "$o"
+      if g05_xasm "$_aside" -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 \
+        && [ -s "$o" ] && rt_abk_authority_check "$o"; then
+        echo "rt-abk: pure-asm via tip_aside $_aside (non-hollow step bls)" >&2
+        return 0
+      fi
+      rm -f "$o"
+    fi
+  done
+  # knife 256 / 10.2: Darwin tip path wants ./xlang_asm (darwin_pure).
+  # L4 true-cold wipes xlang_asm before bootstrap; fall through to egg
+  # pure_asm_x_to_o (bootstrap_xlangc / xlang-c) with the same authority
+  # check. PLATFORM: SHARED.
   if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
-    && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ]; then
-    rt_run_asm_backend_darwin_pure "$o"
-    return $?
+    && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+    && [ -x ./xlang_asm ]; then
+    if rt_run_asm_backend_darwin_pure "$o"; then
+      return 0
+    fi
   fi
   rm -f "$o"
-  if ! ( export XLANG_PREFER_ASM_O=1; pure_asm_x_to_o "$o" "$xsrc" ); then
+  # note743m: tip CG002 → pin-egg fallback (Linux tip-cold g05)
+  if ! ( export XLANG_PREFER_ASM_O=1; pure_asm_x_to_o_or_pin_egg "$o" "$xsrc" ); then
     rm -f "$o"
     return 1
   fi
@@ -10435,6 +11720,38 @@ rt_run_asm_backend_pure_any() {
     return 1
   fi
   return 0
+}
+
+
+# tip_l4 pe_asm_backend_hollow blast: Cap tip / PE tip -c of rt_dispatch_impl.x
+# hollows driver_run_compiler_full_x_impl_c (drops BRANCH to state_alloc /
+# post_parse; early-return RC=0). Pin-egg preserves Cap-good body. PLATFORM: SHARED.
+rt_dispatch_impl_authority_check() {
+  local o="${1:-}" _rel
+  [ -s "$o" ] || return 1
+  nm "$o" 2>/dev/null | awk '$2=="T" && ($3=="_driver_run_compiler_full_x_impl_c" || $3=="driver_run_compiler_full_x_impl_c") { f=1 } END { exit f ? 0 : 1 }' || return 1
+  _rel="$(objdump -r "$o" 2>/dev/null || true)"
+  printf '%s\n' "$_rel" | grep -Eq 'BRANCH26.*driver_compile_state_alloc_c|CALL26.*driver_compile_state_alloc_c|ARM64_RELOC_BRANCH26.*driver_compile_state_alloc_c|R_AARCH64_CALL26.*driver_compile_state_alloc_c|R_X86_64_PLT32.*driver_compile_state_alloc_c|PLT32.*driver_compile_state_alloc_c' || return 1
+  printf '%s\n' "$_rel" | grep -Eq 'BRANCH26.*driver_run_compiler_full_x_post_parse_impl_c|CALL26.*driver_run_compiler_full_x_post_parse_impl_c|ARM64_RELOC_BRANCH26.*driver_run_compiler_full_x_post_parse_impl_c|R_AARCH64_CALL26.*driver_run_compiler_full_x_post_parse_impl_c|R_X86_64_PLT32.*driver_run_compiler_full_x_post_parse_impl_c|PLT32.*driver_run_compiler_full_x_post_parse_impl_c' || return 1
+  return 0
+}
+
+rt_dispatch_impl_pure_any() {
+  local o="${1:-}" xsrc="src/runtime/rt_dispatch_impl.x" _egg
+  [ -n "$o" ] && [ -f "$xsrc" ] || return 1
+  _egg="seeds/bootstrap_xlangc.darwin.arm64"
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+    && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+    && [ -x "$_egg" ]; then
+    rm -f "$o"
+    if g05_xasm "$_egg" -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 \
+      && [ -s "$o" ] && rt_dispatch_impl_authority_check "$o"; then
+      echo "rt-di: pure-asm via pin-egg $_egg (non-hollow state_alloc/post_parse)" >&2
+      return 0
+    fi
+    rm -f "$o"
+  fi
+  return 1
 }
 
 # w2060: whole-TU pure-asm for a Darwin pthin .x before the per-function
@@ -11630,7 +12947,7 @@ PY
 }
 
 # w1154: src/asm/pthin_skip_tl.x exits 139 as one translation unit.
-# Compile the sixty-three functions separately and ld -r. Brace counts
+# Compile the sixty-four functions separately and ld -r. Brace counts
 # ignore comments. Sibling calls are export-extern.
 # Direct xlang_asm, not pure_asm_x_to_o.
 # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
@@ -11649,7 +12966,7 @@ pthin_skip_tl_darwin_pure() {
   fi
   # w2060: whole-TU first. A split ld -r can hit Lxml duplicate symbols
   # and leave no object; the T count gate below is the same contract.
-  if pthin_whole_tu_prefer "$o" "$xsrc" 63; then
+  if pthin_whole_tu_prefer "$o" "$xsrc" 64; then
     return 0
   fi
   dir="$(mktemp -d "${TMPDIR:-/tmp}/pthinsk.XXXXXX")" || return 1
@@ -11663,7 +12980,7 @@ for i, l in enumerate(lines):
     if l.startswith("export function ") or l.startswith("function "):
         s = i - 1 if i > 0 and lines[i - 1].startswith("#[") else i
         fn_at.append(s)
-if len(fn_at) != 63:
+if len(fn_at) != 64:
     sys.exit(1)
 def delta(line, in_block):
     i = 0
@@ -11753,7 +13070,7 @@ PY
     return 1
   fi
   objs=""
-  for c in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62; do
+  for c in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63; do
     src="$dir/t$c.x"
     obj="$dir/t$c.o"
     try=0
@@ -11780,13 +13097,14 @@ PY
   fi
   rm -rf "$dir"
   n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
-  if [ "$n" != "63" ]; then
+  if [ "$n" != "64" ]; then
     rm -f "$o"
     return 1
   fi
   for c in _parser_asm_parse_one_extern_and_add_into_c \
     _parser_asm_skip_one_trait_header_into_c \
     _p12g_load_i32 \
+    _p12g_elem_ptr_to_slice_ndims \
     _parser_asm_skip_one_trait_body_into_c \
     _p12g_param_copy_name \
     _p12g_ret_copy_name \
@@ -13877,6 +15195,97 @@ PY
   return 0
 }
 
+# tip_l4 pe_diagthin_cstr_len_hang: Cap tip / PE tip eight-piece (or tip
+# whole-file) of diag_thin.x can omit while (n < 4096) n = n + 1 inside
+# diag_cstr_len_bounded (n never advances → hang when rt_ab_diag runs).
+# Pin-egg Cap-good bodies:
+#   Darwin arm64: mov w0,#0x1000 ; mov w1,#0x1 ; add w0,w1,w0
+#   Linux/Win x86_64: mov $0x1000,%eax ; mov $0x1,%e[ab]x ; add
+# File-backed dump (GNU --disassemble= / llvm --disassemble-symbols=);
+# reject empty section headers. PLATFORM: SHARED.
+diagthin_cstr_len_n_inc_ok() {
+  local o="${1:-}" dumpfile="" sym rc=1
+  [ -s "$o" ] || return 1
+  dumpfile="$(mktemp "${TMPDIR:-/tmp}/diagthin_ln.XXXXXX")" || return 1
+  for sym in _diag_cstr_len_bounded diag_cstr_len_bounded \
+    _diagthin_p0_diag_cstr_len_bounded diagthin_p0_diag_cstr_len_bounded; do
+    : >"$dumpfile"
+    objdump -d --disassemble-symbols="$sym" "$o" >"$dumpfile" 2>/dev/null || true
+    if grep -Fq "<$sym>:" "$dumpfile" 2>/dev/null; then
+      break
+    fi
+    : >"$dumpfile"
+    objdump -d --disassemble="$sym" "$o" >"$dumpfile" 2>/dev/null || true
+    if grep -Fq "<$sym>:" "$dumpfile" 2>/dev/null; then
+      break
+    fi
+    : >"$dumpfile"
+  done
+  if ! grep -Eq '<_?(diagthin_p0_)?diag_cstr_len_bounded>:' "$dumpfile" 2>/dev/null; then
+    rm -f "$dumpfile"
+    return 1
+  fi
+  # Darwin arm64 Cap-good.
+  if grep -Eq 'mov[[:space:]]+w0,[[:space:]]+#0x1000' "$dumpfile" \
+    && grep -Eq 'mov[[:space:]]+w1,[[:space:]]+#0x1' "$dumpfile" \
+    && grep -Eq 'add[[:space:]]+w0,[[:space:]]+w1,[[:space:]]+w0' "$dumpfile"; then
+    rc=0
+  # Linux / Win x86_64 Cap-good (bound 4096 + n+=1).
+  elif grep -Eq 'mov[[:space:]]+\$0x1000,%eax' "$dumpfile" \
+    && grep -Eq 'mov[[:space:]]+\$0x1,%e[ab]x' "$dumpfile" \
+    && grep -Eq 'add[[:space:]]+%(rax,%rax|eax,%eax|rbx,%rax|ebx,%eax|eax,%ebx)' "$dumpfile"; then
+    rc=0
+  fi
+  rm -f "$dumpfile"
+  return "$rc"
+}
+
+
+# tip_l4 pe_diagthin_cstr_len_hang: egg-first pure-asm for diag_thin.
+# Tip eight-piece "succeeds" with the hang body; pin-egg-on-failure never
+# fires. Prefer seeds/bootstrap_xlangc.$os.$arch whole-file via g05_xasm
+# (egg handles the full TU; w1140 tip SEGV was tip-only). Tip eight-piece
+# only as fallback when it still passes n++ authority. Ban park / Cap
+# aside prefer. PLATFORM: SHARED (Darwin arm64 eight-piece retained as
+# tip fallback; egg whole-file is host-agnostic when egg exists).
+diag_thin_egg_whole_any() {
+  local o="${1:-}"
+  local xsrc="src/diag_thin.x"
+  local _egg_os _egg_arch _egg n
+  [ -n "$o" ] && [ -f "$xsrc" ] || return 1
+  _egg_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
+  _egg_arch="$(uname -m 2>/dev/null)"
+  case "$_egg_os" in darwin) _egg_os=darwin ;; linux) _egg_os=linux ;; mingw*|msys*|cygwin*|windows_nt*|windows) _egg_os=windows ;; *) _egg_os="" ;; esac
+  case "$_egg_arch" in x86_64|amd64) _egg_arch=x86_64 ;; arm64|aarch64) _egg_arch=arm64 ;; *) _egg_arch="" ;; esac
+  if [ -n "$_egg_os" ] && [ -n "$_egg_arch" ]; then
+    _egg="seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}"
+    # Cap tip L4 hides pin → .cap_tip_l4_aside; egg-first must still find it.
+    # LEGACY bak also emits correct cstr_len n++ when pin is absent.
+    # PLATFORM: SHARED (Darwin Cap tip L4 primary).
+    if [ ! -x "$_egg" ] && [ -x "${_egg}.cap_tip_l4_aside" ]; then
+      _egg="${_egg}.cap_tip_l4_aside"
+    fi
+    if [ ! -x "$_egg" ] && [ -x ./xlang.product_legacy_bak ]; then
+      _egg="./xlang.product_legacy_bak"
+    fi
+    if [ -x "$_egg" ]; then
+      rm -f "$o"
+      if g05_xasm "$_egg" -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 \
+        && [ -s "$o" ] && diagthin_cstr_len_n_inc_ok "$o"; then
+        n="$(nm "$o" 2>/dev/null | awk '$2=="T"' | wc -l | tr -d ' ')"
+        if [ "$n" = "78" ] \
+          && nm "$o" 2>/dev/null | awk '$2=="T" && ($3=="_diag_line_digits" || $3=="diag_line_digits") { found=1 } END { exit found ? 0 : 1 }' \
+          && ! nm "$o" 2>/dev/null | awk '$2=="T" && ($3=="_xlang_panic_" || $3=="xlang_panic_") { found=1 } END { exit found ? 0 : 1 }'; then
+          echo "diag_thin: pure-asm via pin-egg $_egg (cstr_len n++ authority)" >&2
+          return 0
+        fi
+      fi
+      rm -f "$o"
+    fi
+  fi
+  return 1
+}
+
 # w1140: src/diag_thin.x is one translation unit that exits 139.
 # Split it into eight pieces, compile each with xlang_asm, then ld -r.
 # Do not use pure_asm_x_to_o: the pieces reference xlang_panic_ and that
@@ -13885,14 +15294,23 @@ PY
 diag_thin_darwin_pure() {
   local o="${1:-}"
   local xsrc="src/diag_thin.x"
-  local dir c try src obj objs n
+  local dir c try src obj objs n _egg_os _egg_arch _egg _xl
   if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
     return 1
   fi
   if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
     return 1
   fi
-  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+  if [ -z "$o" ] || [ ! -f "$xsrc" ]; then
+    return 1
+  fi
+  # tip_l4 pe_diagthin_cstr_len_hang: egg-first whole-file before eight-piece.
+  # Tip pieces omit n++ in diag_cstr_len_bounded → PE hello hang in rt_ab_diag.
+  # PLATFORM: SHARED egg; Darwin arm64 eight-piece remains tip fallback.
+  if diag_thin_egg_whole_any "$o"; then
+    return 0
+  fi
+  if [ ! -x ./xlang_asm ]; then
     return 1
   fi
   dir="$(mktemp -d "${TMPDIR:-/tmp}/diagthin.XXXXXX")" || return 1
@@ -13932,7 +15350,7 @@ for c in range(groups):
         part = "".join(lines[sigs[i][2] : sigs[i][3]])
         part = "".join(l for l in part.splitlines(True) if not l.startswith("export extern"))
         parts.append(part)
-    Path(out, "g%d.x" % c).write_text(
+    Path(out, "diagthin_p%d.x" % c).write_text(
         "// w1140 split piece. PLATFORM: SHARED.\n"
         + "".join(externs)
         + "\n"
@@ -13946,12 +15364,34 @@ PY
     return 1
   fi
   objs=""
+  _egg_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
+  _egg_arch="$(uname -m 2>/dev/null)"
+  case "$_egg_os" in darwin) _egg_os=darwin ;; linux) _egg_os=linux ;; mingw*|msys*|cygwin*|windows_nt*|windows) _egg_os=windows ;; *) _egg_os="" ;; esac
+  case "$_egg_arch" in x86_64|amd64) _egg_arch=x86_64 ;; arm64|aarch64) _egg_arch=arm64 ;; *) _egg_arch="" ;; esac
+  _egg=""
+  if [ -n "$_egg_os" ] && [ -n "$_egg_arch" ]; then
+    if [ -x "seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}" ]; then
+      _egg="seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}"
+    elif [ -x "seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}.cap_tip_l4_aside" ]; then
+      _egg="seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}.cap_tip_l4_aside"
+    elif [ -x ./xlang.product_legacy_bak ]; then
+      _egg="./xlang.product_legacy_bak"
+    fi
+  fi
   for c in 0 1 2 3 4 5 6 7; do
-    src="$dir/g$c.x"
-    obj="$dir/g$c.o"
+    src="$dir/diagthin_p$c.x"
+    obj="$dir/diagthin_p$c.o"
     try=0
     while [ "$try" -lt 8 ]; do
       try=$((try + 1))
+      rm -f "$obj"
+      # tip_l4: prefer pin-egg per piece; tip xlang_asm only as fallback.
+      # PLATFORM: SHARED.
+      if [ -n "$_egg" ] \
+        && g05_xasm "$_egg" -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 \
+        && [ -s "$obj" ]; then
+        break
+      fi
       rm -f "$obj"
       if g05_xasm ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
         break
@@ -13982,6 +15422,13 @@ PY
     return 1
   fi
   if nm "$o" | awk '$2=="T" && $3=="_xlang_panic_" { found=1 } END { exit found ? 0 : 1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  # tip_l4 pe_diagthin_cstr_len_hang: reject omit-n++ hang body.
+  # PLATFORM: SHARED.
+  if ! diagthin_cstr_len_n_inc_ok "$o"; then
+    echo "diag_thin_darwin_pure: cstr_len n++ authority failed (hang body)" >&2
     rm -f "$o"
     return 1
   fi
@@ -14334,6 +15781,45 @@ ensure_rt_stack_prefer() {
   return 1
 }
 
+
+ensure_rt_run_exec_prefer() {
+  # knife256 / 10.2: g05_relink_env links rt_run_exec.o (knife 254) but it
+  # must NOT join catalog RT_SEED_SLICE_OBJS — phase1 pure-ld then dups
+  # driver_exec_* / driver_run_test against m8_reloc_stubs. g05_ensure
+  # calls this helper alone. Pure-asm .x — no host-cc. PLATFORM: SHARED.
+  local o="src/runtime/rt_run_exec.o"
+  local xsrc="src/runtime/rt_run_exec.x"
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o try-rt-run-exec-prefer: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ] \
+    && nm "$o" 2>/dev/null | grep -E " T _?driver_run_test$" >/dev/null; then
+    log "skip up-to-date $o (rt-run-exec)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  if ! (
+    if [ "${XLANG_PREFER_ASM_O_RT:-1}" = "1" ]; then
+      export XLANG_PREFER_ASM_O=1
+    elif [ "${XLANG_ALLOW_TREE_PREFER_ASM:-0}" != "1" ]; then
+      unset XLANG_PREFER_ASM_O
+    fi
+    unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS
+    # note743m: tip CG002 → pin-egg fallback
+    pure_asm_x_to_o_or_pin_egg "$o" "$xsrc"
+  ); then
+    echo "ensure: rt_run_exec pure-asm failed (no host-cc fallback)" >&2
+    return 1
+  fi
+  if ! nm "$o" 2>/dev/null | grep -E " T _?driver_run_test$" >/dev/null; then
+    echo "ensure: rt_run_exec.o missing driver_run_test after pure-asm" >&2
+    return 1
+  fi
+  log "rt-run-exec $o <- pure-asm $xsrc (knife256; no host-cc)"
+  return 0
+}
+
 ensure_rt_slice() {
   local list o n=0
   list="$(catalog_key_words "RT_SEED_SLICE_OBJS")"
@@ -14592,6 +16078,273 @@ r1_seed_mode_for_o() {
   return 1
 }
 
+
+# knife 256 / 10.2: src/diag.o = diag_thin.x + seed rest with XLANG_L2_DIAG_THIN_FROM_X.
+# Bare cold-cc of seeds/diag.from_x.c hits emptied orphan #else (syntax error).
+# Twin of g05_ensure G-02f-335～346 / w2060. Do not gate on PREFER=1 (sat sets 0).
+# Thin: Darwin arm64 prefers eight-piece xlang_asm (w1140) when present; else
+# egg/tip Track L (-E→cc). PLATFORM: SHARED.
+ensure_diag_prefer() {
+  local o="src/diag.o"
+  local seed="seeds/diag.from_x.c"
+  local thin_x="src/diag_thin.x"
+  local thin_o rest_o
+  local xlang_bin=""
+  if [ ! -f "$seed" ]; then
+    echo "ensure_diag_prefer: missing $seed" >&2
+    return 1
+  fi
+  if [ ! -f "$thin_x" ]; then
+    echo "ensure_diag_prefer: missing $thin_x" >&2
+    return 1
+  fi
+  # tip_l4 pe_diagthin_cstr_len_hang: also require cstr_len n++ authority
+  # before skip (stale tip hang body looks up-to-date vs .x). PLATFORM: SHARED.
+  if [ "${FORCE:-0}" != "1" ] && [ -s "$o" ] && [ ! "$seed" -nt "$o" ] \
+    && [ ! "$thin_x" -nt "$o" ] \
+    && { [ ! -f src/diag.x ] || [ ! src/diag.x -nt "$o" ]; } \
+    && nm "$o" 2>/dev/null | grep -qE " T _?diag_" \
+    && diagthin_cstr_len_n_inc_ok "$o"; then
+    log "skip up-to-date $o (diag thin+FROM_X rest; cstr_len n++ ok)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  # MSYS mktemp rejects XXXXXX.ext (X must be last). Bare XXXXXX then
+  # rename to .o so Win bi -c keys off the suffix. PLATFORM: WINDOWS|SHARED.
+  thin_o="$(mktemp "${TMPDIR:-/tmp}/diag_thin.XXXXXX")" || return 1
+  mv -f "$thin_o" "${thin_o}.o" || { rm -f "$thin_o"; return 1; }
+  thin_o="${thin_o}.o"
+  rest_o="$(mktemp "${TMPDIR:-/tmp}/diag_rest.XXXXXX")" || { rm -f "$thin_o"; return 1; }
+  mv -f "$rest_o" "${rest_o}.o" || { rm -f "$thin_o" "$rest_o"; return 1; }
+  rest_o="${rest_o}.o"
+  # 1) thin
+  # tip_l4: Darwin arm64 uses diag_thin_darwin_pure (egg-first whole-file /
+  # eight-piece with cstr_len n++ authority). No longer require tip
+  # ./xlang_asm up front — egg path does not need it. PLATFORM: SHARED.
+  local thin_ok=0
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+    && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+    && diag_thin_darwin_pure "$thin_o"; then
+    thin_ok=1
+  fi
+  if [ "$thin_ok" != "1" ]; then
+    # DIG tip_l4 Win: tip diag_thin emits hang body (no cstr_len n++;
+    # mangled diag_thin_diag_cstr_len_bounded). xlang_bi.exe emits Cap-good
+    # n++ (auth=0). Try bi before tip. .o-out: bi keys -c off .o suffix.
+    # PLATFORM: WINDOWS.
+    _diag_os="$(uname -s 2>/dev/null || echo Unknown)"
+    case "$_diag_os" in
+      Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+        case "$thin_o" in
+          *.o|*.obj|*.O|*.OBJ) _diag_bi_out="$thin_o" ;;
+          *) _diag_bi_out="${thin_o}.o" ;;
+        esac
+        for _xl in ./xlang_bi.exe ./xlang_bi; do
+          [ -x "$_xl" ] || continue
+          rm -f "$_diag_bi_out"
+          if "$_xl" -backend asm -c "$thin_x" -o "$_diag_bi_out" >/dev/null 2>&1 \
+            && [ -s "$_diag_bi_out" ]; then
+            if [ "$_diag_bi_out" != "$thin_o" ]; then
+              mv -f "$_diag_bi_out" "$thin_o" || cp -f "$_diag_bi_out" "$thin_o"
+              rm -f "$_diag_bi_out"
+            fi
+            if [ -s "$thin_o" ] && diagthin_cstr_len_n_inc_ok "$thin_o"; then
+              echo "ensure_diag_prefer: thin via $_xl (Win bi; cstr_len n++ auth)" >&2
+              thin_ok=1
+              break
+            fi
+          fi
+          rm -f "$thin_o" "$_diag_bi_out"
+        done
+        ;;
+    esac
+  fi
+  if [ "$thin_ok" != "1" ]; then
+    if [ -x ./xlang ]; then xlang_bin=./xlang
+    elif [ -x ./xlang-c ]; then xlang_bin=./xlang-c
+    elif [ -x ./bootstrap_xlangc ]; then xlang_bin=./bootstrap_xlangc
+    fi
+    if [ -n "$xlang_bin" ]; then
+      # Linux tip/Cap tip: -backend asm of diag_thin OK; -E may SEGV/fail (w1140
+      # twin). Prefer pure asm before Track L -E→cc. PLATFORM: SHARED.
+      if "$xlang_bin" -backend asm -o "$thin_o" "$thin_x" 2>/dev/null \
+        && [ -s "$thin_o" ]; then
+        thin_ok=1
+      else
+        local e_c
+        e_c="$(mktemp "${TMPDIR:-/tmp}/diag_thin_e.XXXXXX.c")" || true
+        if [ -n "$e_c" ] \
+          && "$xlang_bin" -E -L .. "$thin_x" >"$e_c" 2>/dev/null \
+          && [ -s "$e_c" ] \
+          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$thin_o" "$e_c" 2>/dev/null \
+          && [ -s "$thin_o" ]; then
+          thin_ok=1
+        fi
+        rm -f "$e_c"
+      fi
+    fi
+  fi
+  if [ "$thin_ok" != "1" ]; then
+    echo "ensure_diag_prefer: thin failed for $thin_x" >&2
+    rm -f "$thin_o" "$rest_o"
+    return 1
+  fi
+  # tip_l4 pe_diagthin_cstr_len_hang: reject omit-n++ hang thin before merge.
+  # PLATFORM: SHARED.
+  if ! diagthin_cstr_len_n_inc_ok "$thin_o"; then
+    echo "ensure_diag_prefer: thin cstr_len n++ authority failed" >&2
+    rm -f "$thin_o" "$rest_o"
+    return 1
+  fi
+  # 2) FROM_X rest (skips emptied cold #else)
+  # shellcheck disable=SC2086
+  if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_L2_DIAG_THIN_FROM_X \
+      -c -o "$rest_o" "$seed"; then
+    echo "ensure_diag_prefer: FROM_X rest cc failed" >&2
+    rm -f "$thin_o" "$rest_o"
+    return 1
+  fi
+  # 3) merge
+  if ! pure_ld_partial_merge "$o" "$thin_o" "$rest_o" 2>/dev/null; then
+    # fallback ld -r
+    if ! ld -r -o "$o" "$thin_o" "$rest_o" 2>/dev/null; then
+      echo "ensure_diag_prefer: merge failed" >&2
+      rm -f "$thin_o" "$rest_o" "$o"
+      return 1
+    fi
+  fi
+  rm -f "$thin_o" "$rest_o"
+  if [ ! -s "$o" ]; then
+    echo "ensure_diag_prefer: empty $o" >&2
+    return 1
+  fi
+  log "diag $o <- $thin_x + FROM_X rest (knife256; no bare cold seed)"
+  return 0
+}
+
+
+# knife 256 / 10.2: parser_asm_thin_glue.o cold monothin seed is hollowed
+# (记253／9.1 removed #include slices). Bare cc → 336B empty → phase1 UNDEFs
+# for xlang_trait_* / xlang_skip_trait_method_* / parser_*_glue.
+# Build via g05 PREFER hybrid (egg Track L / pure-asm pieces + FROM_X rests).
+# Darwin Class CB keeps first-pass hybrid on partial (knife256).
+# nm-gate: never `nm | grep -q` under set -o pipefail (SIGPIPE → false fail).
+# PLATFORM: SHARED.
+ensure_parser_asm_thin_glue_prefer() {
+  local o="parser_asm_thin_glue.o"
+  local n=0
+  local g05log="${TMPDIR:-/tmp}/xlang_ensure_pthin_g05.log"
+  local nmfile
+  nmfile=$(mktemp "${TMPDIR:-/tmp}/xlang_pthin_nm.XXXXXX") || return 1
+  _pthin_nm_gate() {
+    # $1 = nm listing file. Return 0 if trait faces present.
+    grep -E " T _?xlang_trait_reg_reset_c\$" "$1" >/dev/null \
+      && grep -E " T _?xlang_trait_check_impls_complete_c\$" "$1" >/dev/null \
+      && grep -E " T _?xlang_skip_trait_method_slot_c\$" "$1" >/dev/null
+  }
+  # tip_l4 Win: nm-T gate alone false-greens past primary tramp / P6b U
+  # holes (T=294, L4 ld UNDEF). Skip only when those faces are not U.
+  # PLATFORM: SHARED (cheap; Darwin/Linux hybrid rarely carries these U).
+  _pthin_u_tramp_hole() {
+    grep -E " U _?parser_asm_parse_type_ref_ptr_into_c\$" "$1" >/dev/null \
+      || grep -E " U _?parser_asm_empty_ident_braces_prefer_block_ptr_c\$" "$1" >/dev/null \
+      || grep -E " U _?parser_asm_string_lit_append_byte_ptr_c\$" "$1" >/dev/null \
+      || grep -E " U _?parser_asm_struct_lit_append_field_src_c\$" "$1" >/dev/null \
+      || grep -E " U _?parser_asm_struct_lit_append_shorthand_src_c\$" "$1" >/dev/null \
+      || grep -E " U _?parser_finish_struct_lit_ptr_into_c\$" "$1" >/dev/null \
+      || grep -E " U _?parser_parse_expr_ptr_into_c\$" "$1" >/dev/null \
+      || grep -E " U _?parser_asm_finish_struct_lit_from_type_ident_into_c\$" "$1" >/dev/null \
+      || grep -E " U _?parser_lex_from_next_into_glue\$" "$1" >/dev/null \
+      || grep -E " U _?parser_asm_stretch_skip_ws_and_comments_c\$" "$1" >/dev/null \
+      || grep -E " U _?parser_asm_stretch_token_run_len_c\$" "$1" >/dev/null \
+      || grep -E " U _?lexer_src_data_store\$" "$1" >/dev/null \
+      || grep -E " U _?lexer_src_len_store\$" "$1" >/dev/null
+  }
+  if [ "${FORCE:-0}" != "1" ] && [ -s "$o" ]; then
+    nm "$o" >"$nmfile" 2>/dev/null || true
+    if _pthin_nm_gate "$nmfile"; then
+      n=$(grep -c " T " "$nmfile" || true)
+      if [ "${n:-0}" -ge 200 ]; then
+        if _pthin_u_tramp_hole "$nmfile"; then
+          log "pthin prefer: $o has tramp/P6b U hole (T=$n); force rebuild (no false green)"
+        else
+          rm -f "$nmfile"
+          log "skip up-to-date $o (pthin prefer; T=$n trait faces; tramp U=0)"
+          return 0
+        fi
+      fi
+    fi
+  fi
+  if [ ! -f scripts/g05_ensure_relink_prereqs.sh ]; then
+    rm -f "$nmfile"
+    echo "ensure_parser_asm_thin_glue_prefer: missing g05_ensure_relink_prereqs.sh" >&2
+    return 1
+  fi
+  # tip_l4 Linux/Win: g05 fatal-exits on hollow runtime_driver_no_c (rt-abk)
+  # before the P1–P20 thin_glue merge, so prefer saw a missing .o even though
+  # the rest of ensure already heated other leaves. Pre-heal no_c (try-rt-prefer
+  # + abk gate) so g05 reaches thin_glue; prefer still ignores g05's later
+  # diag-seed soft fails when $o is present. PLATFORM: SHARED.
+  if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
+    bash scripts/ensure_host_cc_seed_o.sh try-rt-prefer src/runtime_driver_no_c.o \
+      >/dev/null 2>&1 || true
+    if [ -s src/runtime_driver_no_c.o ] \
+      && ! bash scripts/ensure_host_cc_seed_o.sh rt-abk-authority-check \
+        src/runtime_driver_no_c.o >/dev/null 2>&1; then
+      echo "ensure_parser_asm_thin_glue_prefer: no_c fails rt-abk; FORCE try-rt-prefer" >&2
+      FORCE=1 bash scripts/ensure_host_cc_seed_o.sh try-rt-prefer \
+        src/runtime_driver_no_c.o >/dev/null 2>&1 || true
+    fi
+  fi
+  rm -f "$o"
+  (
+    export XLANG_G05_PREFER_X_O=1
+    # Soft-continue past non-pthin fatals once keep-going is set (diag seed
+    # corruption must not erase a successful thin_glue write). PLATFORM: SHARED.
+    export XLANG_G05_PTHIN_KEEP_GOING=1
+    if [ ! -x ./xlang ] && [ ! -x ./xlang-c ] && [ -x ./bootstrap_xlangc ]; then
+      export XLANG=./bootstrap_xlangc
+    fi
+    bash scripts/g05_ensure_relink_prereqs.sh
+  ) >"$g05log" 2>&1 || true
+  if [ ! -s "$o" ]; then
+    rm -f "$nmfile"
+    echo "ensure_parser_asm_thin_glue_prefer: missing $o after g05 prefer (log=$g05log)" >&2
+    return 1
+  fi
+  nm "$o" >"$nmfile" 2>/dev/null || true
+  if ! _pthin_nm_gate "$nmfile"; then
+    echo "ensure_parser_asm_thin_glue_prefer: nm-gate failed (trait faces; size=$(wc -c <"$o" | tr -d ' '); log=$g05log)" >&2
+    grep -E "xlang_trait_reg_reset|xlang_trait_check_impls|xlang_skip_trait_method_slot" "$nmfile" | head -20 >&2 || true
+    rm -f "$nmfile"
+    return 1
+  fi
+  n=$(grep -c " T " "$nmfile" || true)
+  if [ "${n:-0}" -lt 100 ]; then
+    echo "ensure_parser_asm_thin_glue_prefer: nm-gate failed (T=$n want >=100; log=$g05log)" >&2
+    rm -f "$nmfile"
+    return 1
+  fi
+  # Anti-false-green: hybrid that still U-refs tramp/P6b faces will fail L4 ld
+  # unless the matching objs are on the link line. Prefer must not keep a hole.
+  # PLATFORM: WINDOWS (Darwin/Linux g05 keeps tramp in-tree; Win was the miss).
+  _os="$(uname -s 2>/dev/null || echo Unknown)"
+  case "$_os" in
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+      if _pthin_u_tramp_hole "$nmfile"; then
+        echo "ensure_parser_asm_thin_glue_prefer: Win tramp/P6b U hole after g05 (T=$n; log=$g05log)" >&2
+        grep -E " U _?(parser_asm_parse_type_ref_ptr_into_c|parser_lex_from_next_into_glue|parser_asm_empty_ident|parser_asm_string_lit_append|parser_asm_struct_lit_append|parser_finish_struct_lit|parser_parse_expr_ptr)" "$nmfile" | head -20 >&2 || true
+        rm -f "$nmfile"
+        return 1
+      fi
+      ;;
+  esac
+  rm -f "$nmfile"
+  log "parser_asm_thin_glue.o <- g05 prefer hybrid (knife256; T=$n; tramp U=0)"
+  return 0
+}
+
+
 try_ensure_r1_one() {
   local o="$1"
   local seed_mode seed extras_str
@@ -14616,6 +16369,29 @@ try_ensure_r1_one() {
   # PLATFORM: SHARED · pin egg required for true-cold hybrid.
   if [ "$o" = "src/runtime_pipeline_abi.o" ]; then
     ensure_pipeline_abi_prefer_one "$o" || return 1
+    return 0
+  fi
+  # knife 256 / 10.2: diag seed cold bodies emptied (orphan #else); sat PREFER=0
+  # must not bare-cc. Always thin+FROM_X rest (g05 G-02f-335 twin). PLATFORM: SHARED.
+  if [ "$o" = "src/diag.o" ]; then
+    ensure_diag_prefer || return 1
+    return 0
+  fi
+  # wave852 / knife 256 (10.2): ldpc cold emptied; always pure-asm .x + FROM_X tail.
+  # Do not gate on PREFER (lsp rebuild sets 0). PLATFORM: SHARED.
+  if [ "$o" = "src/lsp/lsp_diag_pipeline_ctx.o" ]; then
+    ensure_ldpc_prefer_one "$o" || return 1
+    return 0
+  fi
+  # wave771 / knife 256 (10.2): other-L2 table (fmt_check / lsp_diag / slc / strict).
+  # Prefer hybrid owns the body; do not bare-cc emptied cold. PLATFORM: SHARED.
+  if [ -n "$(other_l2_prefer_spec_for_out "$o")" ]; then
+    ensure_other_l2_prefer_one "$o" || return 1
+    return 0
+  fi
+  # knife 256 / 10.2: thin_glue hollow monothin → g05 prefer (trait faces).
+  if [ "$o" = "parser_asm_thin_glue.o" ]; then
+    ensure_parser_asm_thin_glue_prefer || return 1
     return 0
   fi
   # w847/w863/w864/w865/w866/w867/w868/w869/w870/w871/w872/w873/w874/w875/w876: alias bodies that live in the .x are not in the seed.
@@ -14653,9 +16429,9 @@ try_ensure_r1_one() {
   esac
   if [ -n "$extras_str" ]; then
     # shellcheck disable=SC2086
-    ensure_one "$o" "$seed" $extras_str
+    ensure_one "$o" "$seed" $extras_str || return 1
   else
-    ensure_one "$o" "$seed"
+    ensure_one "$o" "$seed" || return 1
   fi
   return 0
 }
@@ -14697,8 +16473,46 @@ try_ensure_r3_cold_one() {
     ensure_enc_dispatch_pure || return 1
     return 0
   fi
+  # w1527 / knife 256 (10.2): try_inline seed deleted; full .x pure-asm only.
+  if [ "$o" = "src/asm/backend_try_inline_dispatch.o" ]; then
+    XLANG_PURE_ASM_ALLOW_U_PANIC=1 ensure_r3_full_x_pure_w1525 "$o" \
+      src/asm/backend_try_inline_dispatch.x \
+      backend_try_inline_dispatch_x_w1527_anchor backend_try_inline_dispatch_slice_marker \
+      glue_asm_ctx_module_ref_c glue_asm_ctx_module_ref_c_impl g02f_load_ptr_at \
+      try_inline_x_plus_k_call_elf || return 1
+    return 0
+  fi
+  # w1524 / knife 256 (10.2): call_dispatch seed deleted; full .x pure-asm.
+  if [ "$o" = "src/asm/backend_call_dispatch.o" ]; then
+    ensure_call_dispatch_full_x || return 1
+    return 0
+  fi
+  # w1525 / knife 256 (10.2): runtime_io_abi seed cold emptied; full .x pure-asm.
+  if [ "$o" = "src/runtime_io_abi.o" ]; then
+    ensure_r3_full_x_pure_w1525 "$o" src/runtime_io_abi.x \
+      runtime_io_abi_x_w1525_anchor runtime_io_abi_slice_marker \
+      runtime_read_file_view_impl xlang_write_path_bytes_impl std_fs_fs_open_write || return 1
+    return 0
+  fi
+  # w1525: simd leaves — cold seed is marker-only (336B); use full .x pure-asm.
+  if [ "$o" = "src/asm/simd_enc.o" ]; then
+    ensure_r3_full_x_pure_w1525 "$o" src/asm/simd_enc.x \
+      simd_enc_x_w1525_anchor simd_enc_slice_marker simd_rbp_disp32 || return 1
+    return 0
+  fi
+  if [ "$o" = "src/asm/simd_loop.o" ]; then
+    ensure_r3_full_x_pure_w1525 "$o" src/asm/simd_loop.x \
+      simd_loop_x_w1525_anchor simd_loop_slice_marker \
+      glue_simd_loop_pick_lanes_c glue_expr_same_var_c || return 1
+    return 0
+  fi
   seed="$(seed_for_o "$o")"
-  ensure_one "$o" "$seed"
+  # Deleted-seed R3 leaves: prefer helper owns the pure-asm body (no C fallback).
+  if [ ! -f "$seed" ]; then
+    ensure_r3_prefer_one "$o" || return 1
+    return 0
+  fi
+  ensure_one "$o" "$seed" || return 1
   return 0
 }
 
@@ -15703,6 +17517,11 @@ ensure_enc_dispatch_pure() {
 # older than the active compiler is stale even when its .x is untouched and
 # its anchor is present. Returns 0 when the object is at least as new as the
 # compiler that rt_prefer_try_x_to_o would use. PLATFORM: SHARED.
+# note743j / knife256 (10.2): tip-cold seed may emit R3 full .x with the
+# session egg, then overwrite ./xlang with a tip that XT001/CG002/SEGV on the
+# same .x (Ubuntu tip-cold L4@e98ab4eee). Forcing rebuild via this freshness
+# check then deletes the good seed .o. Callers for w1524/w1525 skip this gate;
+# keep the helper for residual diagnostics. PLATFORM: SHARED.
 r3_o_newer_than_active_compiler() {
   local _o="$1" _c=""
   if [ -x ./xlang ]; then _c=./xlang
@@ -15712,44 +17531,69 @@ r3_o_newer_than_active_compiler() {
   [ -f "$_o" ] && [ ! "$_c" -nt "$_o" ]
 }
 
+# note743j: candidates for R3 full .x pure-asm when tip SEGV/XT001/CG002.
+# Prefer product tip, then bootstrap / xlang-c / xlang_asm / LEGACY bak.
+# Does not use pre_l4_aside (tip-aside ban). PLATFORM: SHARED.
+r3_full_x_pure_xl_candidates() {
+  local _seen="|" _xl
+  for _xl in ${XLANG:+"$XLANG"} ./xlang ./bootstrap_xlangc ./xlang-c ./xlang_asm \
+    ./xlang.product_legacy_bak; do
+    [ -n "$_xl" ] && [ -x "$_xl" ] || continue
+    case "$_seen" in
+      *"|$_xl|"*) continue ;;
+    esac
+    _seen="${_seen}${_xl}|"
+    printf "%s\n" "$_xl"
+  done
+}
+
 ensure_call_dispatch_full_x() {
   local o="src/asm/backend_call_dispatch.o"
   local x_src="src/asm/backend_call_dispatch.x"
   local tmp_o="${o%.o}_full_x_step.o"
+  local _xl _ok=0
   if [ ! -f "$x_src" ]; then
     echo "ensure: call dispatch missing $x_src; no C fallback" >&2
     return 1
   fi
+  # note743j: do not require r3_o_newer_than_active_compiler — tip-cold tip
+  # may be newer than same-session seed .o yet unable to re-emit (XT001).
   if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$x_src" -nt "$o" ] \
     && r3_prefer_nm_has_sym "$o" "backend_call_dispatch_x_w1524_anchor" \
-    && r3_o_newer_than_active_compiler "$o"; then
-    log "skip up-to-date $o (call dispatch full .x w1524)"
+    && r3_prefer_nm_has_sym "$o" "glue_try_std_heap_redirect_sym_local_impl" \
+    && r3_prefer_nm_has_sym "$o" "glue_sysv_arg_byte_size_c"; then
+    log "skip up-to-date $o (call dispatch full .x w1524; note743j keep seed)"
     return 0
   fi
   mkdir -p "$(dirname "$o")" build_asm
-  rm -f "$tmp_o"
-  # w2081: the Windows v1 compiler emits one U xlang_panic_ for the
-  # unsigned divide `imm_bits / 4` in glue_asm_emit_jmp_skip_string_then_lea
-  # (test rbx / jne / call / div, then mask 0x7ffff). The divisor is the
-  # constant 4. Newer Darwin and Linux compilers fold it and emit no
-  # panic reloc. The weak body is W xlang_panic_ in lexer_x.o, the same
-  # opt-in as backend_try_inline_dispatch. Without the flag, pure_asm
-  # deletes a complete object and g1 ensure exits 1.
-  # PLATFORM: SHARED flag; the shape that still emits the check is WINDOWS x86_64.
-  if XLANG_PURE_ASM_ALLOW_U_PANIC=1 rt_prefer_try_x_to_o "$x_src" "$tmp_o" && [ -s "$tmp_o" ] \
-    && r3_prefer_nm_has_sym "$tmp_o" "backend_call_dispatch_x_w1524_anchor" \
-    && r3_prefer_nm_has_sym "$tmp_o" "glue_try_std_heap_redirect_sym_local_impl" \
-    && r3_prefer_nm_has_sym "$tmp_o" "glue_try_std_heap_redirect_sym_local" \
-    && r3_prefer_nm_has_sym "$tmp_o" "glue_sysv_arg_byte_size_c" \
-    && r3_prefer_nm_has_sym "$tmp_o" "backend_call_dispatch_x_doc_anchor"; then
-    mv -f "$tmp_o" "$o"
-    log "call dispatch $o <- $x_src (w1524 full .x, no seed rest, one shot)"
+  # note743j: multi-xl (tip may XT001; try bootstrap/legacy). PLATFORM: SHARED.
+  while IFS= read -r _xl; do
+    [ -n "$_xl" ] || continue
+    rm -f "$tmp_o"
+    if XLANG="$_xl" XLANG_PURE_ASM_ALLOW_U_PANIC=1 rt_prefer_try_x_to_o "$x_src" "$tmp_o" \
+      && [ -s "$tmp_o" ] \
+      && r3_prefer_nm_has_sym "$tmp_o" "backend_call_dispatch_x_w1524_anchor" \
+      && r3_prefer_nm_has_sym "$tmp_o" "glue_try_std_heap_redirect_sym_local_impl" \
+      && r3_prefer_nm_has_sym "$tmp_o" "glue_try_std_heap_redirect_sym_local" \
+      && r3_prefer_nm_has_sym "$tmp_o" "glue_sysv_arg_byte_size_c" \
+      && r3_prefer_nm_has_sym "$tmp_o" "backend_call_dispatch_x_doc_anchor"; then
+      mv -f "$tmp_o" "$o"
+      log "call dispatch $o <- $x_src (w1524 full .x via $_xl; note743j)"
+      return 0
+    fi
+    rm -f "$tmp_o"
+  done < <(r3_full_x_pure_xl_candidates)
+  printf '%s ensure: call dispatch %s failed (note743j multi-xl)\n' \
+    "$(date +%H:%M:%S)" "$x_src" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
+  # note743j: keep same-session seed .o when nm gates still pass (do not rm).
+  if [ -f "$o" ] \
+    && r3_prefer_nm_has_sym "$o" "backend_call_dispatch_x_w1524_anchor" \
+    && r3_prefer_nm_has_sym "$o" "glue_try_std_heap_redirect_sym_local_impl" \
+    && r3_prefer_nm_has_sym "$o" "glue_sysv_arg_byte_size_c"; then
+    log "call dispatch keep seed $o (note743j; tip re-emit failed)"
     return 0
   fi
-  printf '%s ensure: call dispatch %s failed (one shot, w1526)\n' \
-    "$(date +%H:%M:%S)" "$x_src" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
-  # w2055: drop the old object too (see ensure_r3_full_x_pure_w1525).
-  rm -f "$tmp_o" "$o"
+  rm -f "$tmp_o"
   echo "ensure: call dispatch $x_src failed; no retry, no C fallback" >&2
   return 1
 }
@@ -15758,57 +17602,110 @@ ensure_r3_full_x_pure_w1525() {
   # w1525 (5.9): simd_loop.o / simd_enc.o / runtime_io_abi.o are the full .x
   # alone, compiled by the pure asm backend in one shot. Their seed rest only
   # carried the slice marker, which now lives in the .x with a w1525 anchor.
-  # No thin rung, no seed rest, no -E+cc, no cold seed cc, no retry: a failed
-  # build is a real bug to fix, so it returns 1.
+  # No thin rung, no seed rest, no -E+cc, no cold seed cc. knife256/10.2:
+  # Cap tip L4 saw intermittent "lacks xlang_write_path_bytes_impl" on a
+  # non-empty tmp (anchor+slice+read_file_view present; write_path missing).
+  # Retry pure-asm up to 3x (same as w1516 stubs); pin LEGACY heat via XLANG
+  # when xlang.product_legacy_bak exists so Cap tip SEGV heat cannot emit a
+  # truncated rio. PLATFORM: SHARED (Darwin arm64 / Linux x86_64 / Windows).
   # Args: <out.o> <full.x> <sym>... (every sym must be defined in the result;
   # the first is the w1525 anchor used by the up-to-date skip).
-  # PLATFORM: SHARED (Darwin arm64 / Linux x86_64 / Windows x86_64).
   local o="$1" x_src="$2"
   shift 2
   local anchor_sym="$1"
   local tmp_o="${o%.o}_w1525_step.o"
-  local sym
+  local sym try=0 done=0 miss="" _leg="" _saved_xlang="" _keep=0
   if [ ! -f "$x_src" ]; then
     echo "ensure: $o missing $x_src; no C fallback" >&2
     return 1
   fi
   # 记250／8.7: enc class must not rebuild on .x touch (禁令). Missing
-  # object or missing anchor still rebuilds. PLATFORM: SHARED.
+  # object or missing anchor still rebuilds. note743j: drop active-compiler
+  # freshness (tip-cold tip may be newer yet unable to re-emit). PLATFORM: SHARED.
   case "$o" in
     src/asm/simd_enc.o|src/asm/simd_loop.o)
       if [ "$FORCE" != "1" ] && [ -f "$o" ] \
-        && r3_prefer_nm_has_sym "$o" "$anchor_sym" \
-        && r3_o_newer_than_active_compiler "$o"; then
-        log "skip up-to-date $o (full .x pure asm w1525; enc touch-ban 8.7)"
+        && r3_prefer_nm_has_sym "$o" "$anchor_sym"; then
+        log "skip up-to-date $o (full .x pure asm w1525; enc touch-ban 8.7; note743j)"
         return 0
       fi
       ;;
   esac
   if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$x_src" -nt "$o" ] \
-    && r3_prefer_nm_has_sym "$o" "$anchor_sym" \
-    && r3_o_newer_than_active_compiler "$o"; then
-    log "skip up-to-date $o (full .x pure asm w1525)"
-    return 0
+    && r3_prefer_nm_has_sym "$o" "$anchor_sym"; then
+    # rio: also require write_path gate so a truncated prior install cannot skip.
+    if [ "$o" != "src/runtime_io_abi.o" ] \
+      || r3_prefer_nm_has_sym "$o" "xlang_write_path_bytes_impl"; then
+      log "skip up-to-date $o (full .x pure asm w1525; note743j keep seed)"
+      return 0
+    fi
   fi
   mkdir -p "$(dirname "$o")"
-  rm -f "$tmp_o"
-  if ! ( export XLANG_PREFER_ASM_O=1; unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME XLANG_PREFER_ASM_O_ONLY; \
-      pure_asm_x_to_o "$tmp_o" "$x_src" ) || [ ! -s "$tmp_o" ]; then
-    # w2055: also drop the old object, so a stale build cannot pass the
-    # anchor check in g05_ensure. PLATFORM: SHARED.
-    rm -f "$tmp_o" "$o"
-    echo "ensure: $o pure asm of $x_src failed; no C fallback" >&2
+  # note743j: multi-xl × up to 3 tries each (tip XT001/CG002 → bootstrap/legacy).
+  while IFS= read -r _leg; do
+    [ -n "$_leg" ] || continue
+    try=0
+    while [ "$try" -lt 3 ]; do
+      try=$((try + 1))
+      rm -f "$tmp_o"
+      miss=""
+      if ! (
+        export XLANG_PREFER_ASM_O=1
+        export XLANG="$_leg"
+        unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME XLANG_PREFER_ASM_O_ONLY
+        pure_asm_x_to_o "$tmp_o" "$x_src"
+      ) || [ ! -s "$tmp_o" ]; then
+        rm -f "$tmp_o"
+        echo "ensure: $o pure asm of $x_src failed (try $try/3 xl=$_leg); no C fallback" >&2
+        continue
+      fi
+      for sym in "$@"; do
+        if ! r3_prefer_nm_has_sym "$tmp_o" "$sym"; then
+          miss="$sym"
+          break
+        fi
+      done
+      if [ -z "$miss" ]; then
+        done=1
+        break
+      fi
+      echo "ensure: $o from $x_src lacks $miss (try $try/3 xl=$_leg); retry" >&2
+      nm -gU "$tmp_o" 2>/dev/null | grep -E "write_path|slice_marker|w1525_anchor|read_file_view" >&2 || true
+      rm -f "$tmp_o"
+    done
+    [ "$done" = "1" ] && break
+  done < <(r3_full_x_pure_xl_candidates)
+  if [ "$done" != "1" ]; then
+    rm -f "$tmp_o"
+    # note743j: keep same-session seed .o when anchors still pass.
+    _keep=1
+    if [ ! -f "$o" ] || ! r3_prefer_nm_has_sym "$o" "$anchor_sym"; then
+      _keep=0
+    elif [ "$o" = "src/runtime_io_abi.o" ] \
+      && ! r3_prefer_nm_has_sym "$o" "xlang_write_path_bytes_impl"; then
+      _keep=0
+    else
+      for sym in "$@"; do
+        if ! r3_prefer_nm_has_sym "$o" "$sym"; then
+          _keep=0
+          break
+        fi
+      done
+    fi
+    if [ "$_keep" = "1" ]; then
+      log "r3 full .x keep seed $o (note743j; tip re-emit failed)"
+      return 0
+    fi
+    rm -f "$o"
+    if [ -n "$miss" ]; then
+      echo "ensure: $o from $x_src lacks $miss; no C fallback" >&2
+    else
+      echo "ensure: $o pure asm of $x_src failed; no C fallback" >&2
+    fi
     return 1
   fi
-  for sym in "$@"; do
-    if ! r3_prefer_nm_has_sym "$tmp_o" "$sym"; then
-      rm -f "$tmp_o" "$o"
-      echo "ensure: $o from $x_src lacks $sym; no C fallback" >&2
-      return 1
-    fi
-  done
   mv -f "$tmp_o" "$o"
-  log "r3 full .x $o <- $x_src (w1525 pure asm, no seed rest, no host cc)"
+  log "r3 full .x $o <- $x_src (w1525 pure asm via $_leg; note743j)"
   return 0
 }
 
@@ -16022,6 +17919,8 @@ ensure_r3_prefer_one() {
 
   # Cold fallback — same ensure_one as try-r3-cold.
   # Force when prefer path may have left a partial/bad OUT (e.g. nm gate fail).
+  # 10.67: propagate ensure_one failure (old unconditional return 0 swallowed
+  # cold fails; g05 anchor checks were the only backstop). PLATFORM: SHARED.
   if [ ! -f "$seed" ]; then
     echo "ensure_host_cc_seed_o try-r3-prefer: missing seed $seed for $o" >&2
     return 1
@@ -16029,10 +17928,13 @@ ensure_r3_prefer_one() {
   if [ -f "$o" ] && [ "$prefer" = "1" ]; then
     # Prefer attempted: never keep a thin that failed nm / ld semantics.
     FORCE=1
-    ensure_one "$o" "$seed"
+    if ! ensure_one "$o" "$seed"; then
+      FORCE=0
+      return 1
+    fi
     FORCE=0
   else
-    ensure_one "$o" "$seed"
+    ensure_one "$o" "$seed" || return 1
   fi
   return 0
 }
@@ -16048,8 +17950,9 @@ try_ensure_r3_prefer_one() {
   if ! list_has_word "$o" "$list"; then
     return 3
   fi
-  # 记251／8.8: do not swallow ensure_r3_prefer_one failure (old return 0
-  # left a warm/missing .o in place). PLATFORM: SHARED.
+  # 记251／8.8 + 10.67: do not swallow ensure_r3_prefer_one failure (old
+  # entry return 0, and ensure_r3_prefer_one itself used to return 0 after a
+  # failed ensure_one cold fallback). PLATFORM: SHARED.
   ensure_r3_prefer_one "$o" || return 1
   return 0
 }
@@ -16465,8 +18368,13 @@ ensure_labi_prefer_one() {
       log "labi prefer: keep $o (Windows multi-slice not entered; no monofile seed)"
       return 0
     fi
-    echo "ensure_host_cc_seed_o try-labi-prefer: Windows multi-slice not entered; no monofile seed for $o" >&2
-    return 1
+    # tip_l4 Win: L4 wipe deletes labi .o; multi-slice is blocked by leftover
+    # PE (do not flip windows_leftover_pe_cannot_e). Monofile seed host-cc is
+    # the cold twin of the Linux/Darwin ensure_one path below; fail-closed
+    # left sat rebuild permanently red after wipe. PLATFORM: WINDOWS.
+    echo "ensure_host_cc_seed_o try-labi-prefer: Win missing $o; cold monofile seed" >&2
+    ensure_one "$o" "$seed" || return 1
+    return 0
   fi
 
   # Cold full seed (ensure_one twin / PREFER=0).
@@ -16505,8 +18413,9 @@ try_ensure_labi_prefer_one() {
 #   → slice .o (else cold layer seed); rest = seeds/runtime.from_x.c under
 #   XLANG_RT_*_FROM_X for ok layers; merge $CC -r -nostdlib slices + rest → OUT.
 # PLATFORM: SHARED — do NOT merge RT_SEED_SLICE permanent .o into no_c
-#   (arena/emit_state/preamble/stack/parse_diag stay external; FROM_X on rest
-#   leaves them U in no_c — historic Darwin 22× multidef fix).
+#   (arena/emit_state/preamble/stack/parse_diag/rt_run_exec stay external;
+#   FROM_X on rest leaves them U in no_c — historic Darwin 22× multidef fix;
+#   knife254 added rt_run_exec to the g05 slice list — must not merge R7).
 # Prefer fail / partial slices → **refuse** monofile by default (wave320);
 #   set XLANG_RT_ALLOW_MONOFILE_LAST_RESORT=1 to restore monofile + NO_C last resort.
 # wave319: PREFER=0 still multi-slices from cold layer seeds; omit empty mega when full.
@@ -16530,6 +18439,102 @@ rt_prefer_no_c_cflags() {
   fi
 }
 
+# tip_l4 Win: tip -E of large TUs (rdabi thin) corrupts float inits —
+# `name = 0.000000` becomes `name.000000` + NUL padding, and index digits
+# on g_compile_phase_* collapse to _0. Strip NULs, restore statics from
+# the preceding #undef, renumber init assigns, drop dead `ret0.000000`
+# leftovers. PLATFORM: WINDOWS|MSYS|MINGW|CYGWIN.
+rt_prefer_win_sanitize_e_c() {
+  local f="$1" tmp os_s
+  [ -n "$f" ] && [ -f "$f" ] || return 0
+  os_s="$(uname -s 2>/dev/null || echo Unknown)"
+  case "$os_s" in
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*) ;;
+    *) return 0 ;;
+  esac
+  # Only NUL-corrupted -E dumps need sanitize. BusyBox grep -q $'\0'
+  # is not a reliable NUL probe (false positive → rewriter breaks healthy
+  # fmt thin). Compare byte counts with/without NUL. PLATFORM: WINDOWS.
+  _sz="$(wc -c <"$f" | tr -d "[:space:]")"
+  _sz2="$(tr -d "\000" <"$f" | wc -c | tr -d "[:space:]")"
+  if [ -n "$_sz" ] && [ "$_sz" = "$_sz2" ]; then
+    return 0
+  fi
+  tmp="${f}.win_e_sanitize"
+  if command -v python.exe >/dev/null 2>&1; then
+    python.exe - "$f" "$tmp" <<'PY'
+import re, sys
+src, dst = sys.argv[1], sys.argv[2]
+raw = open(src, 'rb').read().replace(b'\x00', b'')
+text = raw.decode('utf-8', 'replace')
+text = re.sub(r'\.0+\s*;', '.000000;', text)
+text = re.sub(r'\.0+\s*\)\)', '.000000))', text)
+lines = text.splitlines(True)
+out = []
+i = 0
+acc_i = 0
+sec_i = 0
+void_acc = 0
+void_sec = 0
+while i < len(lines):
+    ln = lines[i]
+    m = re.match(r'^#undef\s+(g_compile_phase_(?:acc_ms|start_sec)_\d+)\s*$', ln.strip())
+    if m:
+        name = m.group(1)
+        out.append(ln)
+        i += 1
+        while i < len(lines) and lines[i].strip() == '':
+            i += 1
+        if i < len(lines) and re.search(r'static\s+double\s+', lines[i]):
+            out.append('static double %s = 0.0;\n' % name)
+            i += 1
+            while i < len(lines) and lines[i].strip() in ('', ';'):
+                i += 1
+            continue
+        continue
+    if re.match(r'^\s*ret0?\.0+\s*;\s*$', ln) or re.match(r'^\s*ret\s*=\s*0\.0+\s*;\s*$', ln):
+        i += 1
+        continue
+    m2 = re.match(r'^(\s*)g_compile_phase_acc_ms_0\.0+\s*;\s*$', ln)
+    if m2 and 'static' not in ln:
+        out.append('%sg_compile_phase_acc_ms_%d = 0.0;\n' % (m2.group(1), acc_i)); acc_i += 1; i += 1; continue
+    m3 = re.match(r'^(\s*)g_compile_phase_start_sec_0\.0+\s*;\s*$', ln)
+    if m3 and 'static' not in ln:
+        out.append('%sg_compile_phase_start_sec_%d = 0.0;\n' % (m3.group(1), sec_i)); sec_i += 1; i += 1; continue
+    mv = re.match(r'^(\s*)\(void\)\(\(g_compile_phase_acc_ms_0\.0+\s*\)\)\s*;\s*$', ln) or re.match(r'^(\s*)\(void\)\(\(g_compile_phase_acc_ms_0\.0+\s*$', ln)
+    if mv:
+        out.append('%s(void)((g_compile_phase_acc_ms_%d = 0.0));\n' % (mv.group(1), void_acc)); void_acc += 1
+        i += 1
+        while i < len(lines) and lines[i].strip() in ('', ';', '));', ')'):
+            i += 1
+        continue
+    mv2 = re.match(r'^(\s*)\(void\)\(\(g_compile_phase_start_sec_0\.0+\s*\)\)\s*;\s*$', ln) or re.match(r'^(\s*)\(void\)\(\(g_compile_phase_start_sec_0\.0+\s*$', ln)
+    if mv2:
+        out.append('%s(void)((g_compile_phase_start_sec_%d = 0.0));\n' % (mv2.group(1), void_sec)); void_sec += 1
+        i += 1
+        while i < len(lines) and lines[i].strip() in ('', ';', '));', ')'):
+            i += 1
+        continue
+    ln2 = re.sub(r'\b([A-Za-z_][A-Za-z0-9_]*)\.(0+\.?0*)\b', r'\1 = 0.000000', ln)
+    ln2 = re.sub(r'\b([A-Za-z_][A-Za-z0-9_]*[A-Za-z_])0\.(0+\.?0*)\b', r'\1 = 0.000000', ln2)
+    out.append(ln2)
+    i += 1
+open(dst, 'w', encoding='utf-8', newline='\n').write(''.join(out))
+PY
+    if [ -s "$tmp" ]; then
+      mv -f "$tmp" "$f"
+      echo "rt_prefer: Win -E float sanitize $f (NUL/phase floats)" >&2
+      return 0
+    fi
+    rm -f "$tmp"
+  fi
+  if command -v perl >/dev/null 2>&1; then
+    perl -0pi -e 's/\0//g; s/\b([A-Za-z_][A-Za-z0-9_]*)\.(0+\.?0*)\b/$1 = 0.000000/g; s/^\s*ret0?\.0+\s*;\s*$//mg' "$f" 2>/dev/null || true
+    echo "rt_prefer: Win -E float sanitize (perl) $f" >&2
+  fi
+  return 0
+}
+
 rt_prefer_try_x_to_o() {
   _xsrc="$1"
   _xout="$2"
@@ -16548,6 +18553,31 @@ rt_prefer_try_x_to_o() {
     return 1
   fi
   mkdir -p "$(dirname "$_xout")"
+  # tip_l4 Win: tip/egg/tip_aside hollow rt_emit_flags.x (object emits but
+  # no T driver_argv_has_emit_c_flag). xlang_bi supplies Cap-good T; prefer
+  # it first on Windows so R2 thin+rest does not green-lie into no_c.
+  # PLATFORM: WINDOWS|MSYS|MINGW|CYGWIN.
+  case "$_xsrc" in
+    */rt_emit_flags.x|rt_emit_flags.x|*/src/runtime/rt_emit_flags.x|src/runtime/rt_emit_flags.x)
+      _ef_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
+      case "$_ef_os" in
+        mingw*|msys*|cygwin*|windows*)
+          for _ef_bi in ./xlang_bi.exe ./xlang_bi; do
+            if [ -x "$_ef_bi" ]; then
+              rm -f "$_xout"
+              if g05_xasm "$_ef_bi" -backend asm -c "$_xsrc" -o "$_xout" >/dev/null 2>&1 \
+                && [ -s "$_xout" ] \
+                && nm "$_xout" 2>/dev/null | grep -qE " T _?driver_argv_has_emit_c_flag$"; then
+                echo "rt_prefer: emit_flags via xlang_bi $_ef_bi (Win T argv_has_emit)" >&2
+                return 0
+              fi
+              rm -f "$_xout"
+            fi
+          done
+          ;;
+      esac
+      ;;
+  esac
   # Stage 12.0.5 prefer-family pure-asm product default (authorized 2026-08-12):
   #   · XLANG_PREFER_ASM_O_RT defaults to 1 → scoped XLANG_PREFER_ASM_O=1 for
   #     pure_asm_x_to_o only (subshell; does NOT leak tree-level PREFER_ASM_O).
@@ -16570,8 +18600,64 @@ rt_prefer_try_x_to_o() {
     fi
     pure_asm_x_to_o "$_xout" "$_xsrc"
   ); then
-    return 0
+    # tip_l4 Win: reject hollow emit_flags (no T argv_has_emit). PLATFORM: SHARED.
+    case "$_xsrc" in
+      *rt_emit_flags.x)
+        if nm "$_xout" 2>/dev/null | grep -qE " T _?driver_argv_has_emit_c_flag$"; then
+          return 0
+        fi
+        rm -f "$_xout"
+        ;;
+      *) return 0 ;;
+    esac
   fi
+  # tip_l4 Linux/Win: tip/bootstrap pure of many rt_*.x fails (hollow SEGV /
+  # missing T); pin-egg still emits Cap-good bodies (argv/fmt_one/dispatch/…).
+  # Try host egg before -E+$CC so tip-cold multi-slice can complete without
+  # monofile last-resort. PLATFORM: SHARED.
+  _egg_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
+  _egg_arch="$(uname -m 2>/dev/null)"
+  case "$_egg_os" in darwin) _egg_os=darwin ;; linux) _egg_os=linux ;;
+    mingw*|msys*|cygwin*) _egg_os=windows ;; *) _egg_os="" ;; esac
+  case "$_egg_arch" in x86_64|amd64) _egg_arch=x86_64 ;; arm64|aarch64) _egg_arch=arm64 ;; *) _egg_arch="" ;; esac
+  if [ -n "$_egg_os" ] && [ -n "$_egg_arch" ]; then
+    _egg="seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}"
+    if [ -x "$_egg" ]; then
+      rm -f "$_xout"
+      if g05_xasm "$_egg" -backend asm -c "$_xsrc" -o "$_xout" >/dev/null 2>&1         && [ -s "$_xout" ]; then
+        case "$_xsrc" in
+          *rt_emit_flags.x)
+            if nm "$_xout" 2>/dev/null | grep -qE " T _?driver_argv_has_emit_c_flag$"; then
+              return 0
+            fi
+            rm -f "$_xout"
+            ;;
+          *) return 0 ;;
+        esac
+      fi
+      rm -f "$_xout"
+    fi
+  fi
+  # tip_l4 Win: egg often XT001; tip_aside can emit Cap-good bodies (e.g.
+  # rt_run_asm_backend.x). Try pre_l4_aside before -E+$CC. PLATFORM: SHARED.
+  for _aside in       ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang.exe"}       ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang"}       ./xlang.pre_l4_aside ./xlang.pre_l4_aside.exe ./xlang_bi ./xlang_bi.exe; do
+    if [ -n "$_aside" ] && [ -x "$_aside" ]; then
+      rm -f "$_xout"
+      if g05_xasm "$_aside" -backend asm -c "$_xsrc" -o "$_xout" >/dev/null 2>&1         && [ -s "$_xout" ]; then
+        case "$_xsrc" in
+          *rt_emit_flags.x)
+            if nm "$_xout" 2>/dev/null | grep -qE " T _?driver_argv_has_emit_c_flag$"; then
+              return 0
+            fi
+            rm -f "$_xout"
+            continue
+            ;;
+          *) return 0 ;;
+        esac
+      fi
+      rm -f "$_xout"
+    fi
+  done
   # Historic product path: -E → prologue → $CC -c.
   # BSD/macOS mktemp 要求 X 串在模板末尾；勿用 XXXXXX.c
   _xtmp=$(mktemp "${TMPDIR:-/tmp}/rtpref_x.XXXXXX") || return 1
@@ -16595,24 +18681,40 @@ rt_prefer_try_x_to_o() {
   # Ubuntu 主机偶发 -E SIGSEGV：最多 5 次重试（对齐 prove harness b12bf000）。
   # PLATFORM: SHARED harness
   # shellcheck disable=SC2086
+  # Cap tip may accept -E with exit 0 but write 0 bytes (CLI drift vs egg).
+  # tip-cold hybrid (try-pipeline-abi-prefer) needs non-empty -E; fall through
+  # to ./xlang-c / ./bootstrap_xlangc when the preferred tip emits nothing.
+  # PLATFORM: SHARED · Darwin Cap tip aside + Linux gold egg.
   _e_ok=0
-  for _e_try in 1 2 3 4 5; do
-    if "$_xxlang" -E "$_xsrc" >"$_xtmp" 2>/dev/null && [ -s "$_xtmp" ]; then
-      _e_ok=1
-      break
+  _e_bins="$_xxlang"
+  for _ecand in ./xlang-c ./bootstrap_xlangc ./xlang; do
+    if [ -x "$_ecand" ] && [ "$_ecand" != "$_xxlang" ]; then
+      _e_bins="$_e_bins $_ecand"
     fi
-    : >"$_xtmp"
-    if "$_xxlang" -backend c -E "$_xsrc" >"$_xtmp" 2>/dev/null && [ -s "$_xtmp" ]; then
-      _e_ok=1
-      break
-    fi
-    : >"$_xtmp"
+  done
+  for _xxlang_e in $_e_bins; do
+    for _e_try in 1 2 3 4 5; do
+      if "$_xxlang_e" -E "$_xsrc" >"$_xtmp" 2>/dev/null && [ -s "$_xtmp" ]; then
+        _e_ok=1
+        _xxlang="$_xxlang_e"
+        break 2
+      fi
+      : >"$_xtmp"
+      if "$_xxlang_e" -backend c -E "$_xsrc" >"$_xtmp" 2>/dev/null && [ -s "$_xtmp" ]; then
+        _e_ok=1
+        _xxlang="$_xxlang_e"
+        break 2
+      fi
+      : >"$_xtmp"
+    done
   done
   if [ "$_e_ok" != "1" ]; then
     rm -f "$_xtmp"
     return 1
   fi
   fi
+  # tip_l4 Win: sanitize tip -E float NUL / phase-index collapse before prologue.
+  rt_prefer_win_sanitize_e_c "$_xtmp"
   if [ -n "${G05_X_O_WEAK_FUNCS:-}" ]; then
     # Named weak only (G.7 有则补全 on rt_prefer harness).
     # wave771 seed_link_compat: 6 stubs must stay weak so lsp_diag_x /
@@ -16669,7 +18771,25 @@ rt_prefer_try_x_to_o() {
     echo '#ifdef _WIN32'
     # PLATFORM: WINDOWS — -E dumps call POSIX read/write/rmdir; MinGW CRT is
     # _read/_write/_rmdir. win32_compat.h is the alias authority (access too).
+    # tip_l4 Win: fmt thin -E needs xlang_fmt_* walk helpers (same as POSIX
+    # branch); xlang_dir_cap.h supplies Win _findfirst bodies (G.7).
     echo '#include "win32_compat.h"'
+    echo '#include <xlang_dir_cap.h>'
+    echo 'static inline uint8_t *xlang_fmt_opendir(uint8_t *name) {'
+    echo '  return name ? (uint8_t *)xlang_dir_open((const char *)(void *)name) : (uint8_t *)0;'
+    echo '}'
+    echo 'static inline int32_t xlang_fmt_closedir(uint8_t *dirp) {'
+    echo '  return dirp ? (int32_t)xlang_dir_close((void *)dirp) : (int32_t)-1;'
+    echo '}'
+    echo 'static inline int32_t xlang_fmt_access(uint8_t *path, int32_t mode) {'
+    echo '  return path ? (int32_t)access((const char *)path, (int)mode) : (int32_t)-1;'
+    echo '}'
+    echo 'static inline uint8_t *xlang_fmt_readdir_name(uint8_t *dirp) {'
+    echo '  char *n;'
+    echo '  if (!dirp) return (uint8_t *)0;'
+    echo '  n = xlang_dir_readdir_name((void *)dirp);'
+    echo '  return (uint8_t *)(void *)n;'
+    echo '}'
     echo '#else'
     echo '#include <unistd.h>'
     echo '#include <fcntl.h>'
@@ -16786,73 +18906,77 @@ rt_prefer_try_x_to_o() {
     # mkstemp/rename are in that predicate; sed lines below stay as defense for
     # cold/old xlang -E, opendir opaque (intentionally NOT in product skip), and
     # xlang_fmt_*/xlang_driver_* harness helpers defined as static inline above.
-    sed -e '/^#include /d' \
-        -e '/^extern ssize_t read(/d' \
-        -e '/^extern ssize_t write(/d' \
-        -e '/^extern int32_t open(/d' \
-        -e '/^extern int open(/d' \
-        -e '/^extern int32_t fcntl(/d' \
-        -e '/^extern int fcntl(/d' \
-        -e '/^extern int32_t close(/d' \
-        -e '/^extern int close(/d' \
-        -e '/^extern uint8_t \* calloc(/d' \
-        -e '/^extern uint8_t \* malloc(/d' \
-        -e '/^extern void free(/d' \
-        -e '/^extern uint8_t \* memcpy(/d' \
-        -e '/^extern void \* memcpy(/d' \
-        -e '/^extern int32_t memcmp(/d' \
-        -e '/^extern int memcmp(/d' \
-        -e '/^extern char \* getenv(/d' \
-        -e '/^extern uint8_t \* getenv(/d' \
-        -e '/^extern char \* getcwd(/d' \
-        -e '/^extern uint8_t \* getcwd(/d' \
-        -e '/^extern int32_t unlink(/d' \
-        -e '/^extern int unlink(/d' \
-        -e '/^extern size_t strlen(/d' \
-        -e '/^extern int32_t strcmp(/d' \
-        -e '/^extern int strcmp(/d' \
-        -e '/^extern int32_t strncmp(/d' \
-        -e '/^extern int strncmp(/d' \
-        -e '/^extern uint8_t \* strstr(/d' \
-        -e '/^extern char \* strstr(/d' \
-        -e '/^extern uint8_t \* memset(/d' \
-        -e '/^extern void \* memset(/d' \
-        -e '/^extern int32_t setenv(/d' \
-        -e '/^extern int setenv(/d' \
-        -e '/^extern uint8_t \* strerror(/d' \
-        -e '/^extern char \* strerror(/d' \
-        -e '/^extern int32_t system(/d' \
-        -e '/^extern int system(/d' \
-        -e '/^extern int32_t fputs(/d' \
-        -e '/^extern int fputs(/d' \
-        -e '/^extern uint8_t \* opendir(/d' \
-        -e '/^extern void \* opendir(/d' \
-        -e '/^extern DIR \* opendir(/d' \
-        -e '/^extern int32_t closedir(/d' \
-        -e '/^extern int closedir(/d' \
-        -e '/^extern int32_t access(/d' \
-        -e '/^extern int access(/d' \
-        -e '/^extern uint8_t \* xlang_fmt_opendir(/d' \
-        -e '/^extern int32_t xlang_fmt_closedir(/d' \
-        -e '/^extern int32_t xlang_fmt_access(/d' \
-        -e '/^extern uint8_t \* xlang_fmt_readdir_name(/d' \
-        -e '/^extern int32_t xlang_driver_fputs_opaque(/d' \
-        -e '/^extern uint8_t \* xlang_driver_stdout_ptr(/d' \
-        -e '/^extern int32_t xlang_driver_fclose_opaque(/d' \
-        -e '/^extern int32_t xlang_driver_fwrite_opaque(/d' \
-        -e '/^extern uint8_t \* xlang_driver_fopen_write_opaque(/d' \
-        -e '/^extern uint8_t \* xlang_driver_stderr_ptr(/d' \
-        -e '/^extern void xlang_driver_fflush_stdout(/d' \
-        -e '/^extern uint8_t \* xlang_driver_fopen_wb_opaque(/d' \
-        -e '/^extern uint8_t \* xlang_driver_fdopen_wb_opaque(/d' \
-        -e '/^extern uint8_t \* xlang_driver_realpath_opaque(/d' \
-        -e '/^extern uint8_t \* xlang_driver_pipeline_run_x_thread_fn_ptr(/d' \
-        -e '/^extern uint8_t \* xlang_driver_asm_elf_o_thread_fn_ptr(/d' \
-        -e '/^extern int32_t mkstemp(/d' \
-        -e '/^extern int mkstemp(/d' \
-        -e '/^extern int32_t rename(/d' \
-        -e '/^extern int rename(/d' \
-        "$_xtmp"
+    # tip_l4 Win: w64devkit/BusyBox sed treats # as comment inside
+    # /.../; use [#] so -E body is not dropped (fmt thin). PLATFORM: WINDOWS.
+    sed -e '/^[#]include /d' \
+        -e '/^extern ssize_t read[(]/d' \
+        -e '/^extern ssize_t write[(]/d' \
+        -e '/^extern int32_t open[(]/d' \
+        -e '/^extern int open[(]/d' \
+        -e '/^extern int32_t fcntl[(]/d' \
+        -e '/^extern int fcntl[(]/d' \
+        -e '/^extern int32_t close[(]/d' \
+        -e '/^extern int close[(]/d' \
+        -e '/^extern uint8_t \* calloc[(]/d' \
+        -e '/^extern uint8_t \* malloc[(]/d' \
+        -e '/^extern void free[(]/d' \
+        -e '/^extern uint8_t \* memcpy[(]/d' \
+        -e '/^extern void \* memcpy[(]/d' \
+        -e '/^extern int32_t memcmp[(]/d' \
+        -e '/^extern int memcmp[(]/d' \
+        -e '/^extern char \* getenv[(]/d' \
+        -e '/^extern uint8_t \* getenv[(]/d' \
+        -e '/^extern char \* getcwd[(]/d' \
+        -e '/^extern uint8_t \* getcwd[(]/d' \
+        -e '/^extern int32_t unlink[(]/d' \
+        -e '/^extern int unlink[(]/d' \
+        -e '/^extern size_t strlen[(]/d' \
+        -e '/^extern int32_t strcmp[(]/d' \
+        -e '/^extern int strcmp[(]/d' \
+        -e '/^extern int32_t strncmp[(]/d' \
+        -e '/^extern int strncmp[(]/d' \
+        -e '/^extern uint8_t \* strstr[(]/d' \
+        -e '/^extern char \* strstr[(]/d' \
+        -e '/^extern uint8_t \* memset[(]/d' \
+        -e '/^extern void \* memset[(]/d' \
+        -e '/^extern int32_t setenv[(]/d' \
+        -e '/^extern int setenv[(]/d' \
+        -e '/^extern uint8_t \* strerror[(]/d' \
+        -e '/^extern char \* strerror[(]/d' \
+        -e '/^extern int32_t system[(]/d' \
+        -e '/^extern int system[(]/d' \
+        -e '/^extern int32_t fputs[(]/d' \
+        -e '/^extern int fputs[(]/d' \
+        -e '/^extern uint8_t \* opendir[(]/d' \
+        -e '/^extern void \* opendir[(]/d' \
+        -e '/^extern DIR \* opendir[(]/d' \
+        -e '/^extern int32_t closedir[(]/d' \
+        -e '/^extern int closedir[(]/d' \
+        -e '/^extern int32_t access[(]/d' \
+        -e '/^extern int access[(]/d' \
+        -e '/^extern uint8_t \* xlang_fmt_opendir[(]/d' \
+        -e '/^extern int32_t xlang_fmt_closedir[(]/d' \
+        -e '/^extern int32_t xlang_fmt_access[(]/d' \
+        -e '/^extern uint8_t \* xlang_fmt_readdir_name[(]/d' \
+        -e '/^extern int32_t xlang_driver_fputs_opaque[(]/d' \
+        -e '/^extern uint8_t \* xlang_driver_stdout_ptr[(]/d' \
+        -e '/^extern int32_t xlang_driver_fclose_opaque[(]/d' \
+        -e '/^extern int32_t xlang_driver_fwrite_opaque[(]/d' \
+        -e '/^extern uint8_t \* xlang_driver_fopen_write_opaque[(]/d' \
+        -e '/^extern uint8_t \* xlang_driver_stderr_ptr[(]/d' \
+        -e '/^extern void xlang_driver_fflush_stdout[(]/d' \
+        -e '/^extern uint8_t \* xlang_driver_fopen_wb_opaque[(]/d' \
+        -e '/^extern uint8_t \* xlang_driver_fdopen_wb_opaque[(]/d' \
+        -e '/^extern uint8_t \* xlang_driver_realpath_opaque[(]/d' \
+        -e '/^extern uint8_t \* xlang_driver_pipeline_run_x_thread_fn_ptr[(]/d' \
+        -e '/^extern uint8_t \* xlang_driver_asm_elf_o_thread_fn_ptr[(]/d' \
+        -e '/^extern int32_t mkstemp[(]/d' \
+        -e '/^extern int mkstemp[(]/d' \
+        -e '/^extern int32_t rename[(]/d' \
+        -e '/^extern int rename[(]/d' \
+        < "$_xtmp"
+  # tip_l4 Win: BusyBox/w64devkit sed treats argv C:/path as command "C".
+  # Feed body on stdin. PLATFORM: WINDOWS|MSYS|MINGW|CYGWIN.
   } >"${_xtmp}.full" && mv "${_xtmp}.full" "$_xtmp"
   # shellcheck disable=SC2086
   # -x c：mktemp 无扩展名时 clang 否则不当作 C 源
@@ -17105,9 +19229,23 @@ ensure_rt_prefer_one() {
             fi
             if [ "$_rt_argv_ok" = "0" ] && [ -f "$_rt_argv_seed" ]; then
               # shellcheck disable=SC2086
-              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_a_o" "$_rt_argv_seed"; then
+              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_a_o" "$_rt_argv_seed" \
+                && nm "$_rt_a_o" 2>/dev/null | grep -qE " T _?drv_eq_minus_o$"; then
                 _rt_argv_ok=1
                 echo "rt-prefer: R1 argv ← $_rt_argv_seed (G-02f-263 seed slice)"
+              else
+                rm -f "$_rt_a_o"
+                echo "rt-prefer: R1 argv seed lacks drv_eq (记253 hollow) → pure-asm" >&2
+              fi
+            fi
+            # knife256 / 10.2: 记253 removed cold argv drv_eq_*. PLATFORM: SHARED.
+            if [ "$_rt_argv_ok" = "0" ] && [ -f "$_rt_argv_x" ]; then
+              if rt_prefer_try_x_to_o "$_rt_argv_x" "$_rt_a_o" \
+                && nm "$_rt_a_o" 2>/dev/null | grep -qE " T _?drv_eq_minus_o$"; then
+                _rt_argv_ok=1
+                echo "rt-prefer: R1 argv ← pure-asm $_rt_argv_x alone (knife256; no seed-only)"
+              else
+                echo "rt-prefer: R1 argv pure-asm failed (drv_eq_minus_o missing)" >&2
               fi
             fi
           fi
@@ -17132,21 +19270,41 @@ ensure_rt_prefer_one() {
                   || rt_prefer_try_x_to_o "$_rt_ef_x" "$_rt_ef_thin_o"; } \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_EMIT_FLAGS_FROM_X \
                      -c -o "$_rt_ef_rest_o" "$_rt_ef_seed" \
-                && pure_ld_partial_merge "$_rt_e_o" "$_rt_ef_thin_o" "$_rt_ef_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_e_o" "$_rt_ef_thin_o" "$_rt_ef_rest_o" 2>/dev/null \
+                && nm "$_rt_e_o" 2>/dev/null | grep -qE " T _?driver_argv_has_emit_c_flag$"; then
                 _rt_ef_ok=1
                 if [ "$_rt_ef_pure" = "1" ]; then
                   echo "rt-prefer: R2 emit_flags ← pure-asm six symbols (w1166)"
                 else
                   echo "rt-prefer: R2 emit_flags ← full .x + rest (G-02f R2 prefer .x; FROM_X rest H=0)"
                 fi
+              else
+                # tip_l4 Win: tip_aside thin can green without T argv_has_emit;
+                # drop hollow merge so R5/bi can supply Cap-good body.
+                rm -f "$_rt_e_o"
+                echo "rt-prefer: R2 emit_flags merge lacks T driver_argv_has_emit_c_flag → retry" >&2
               fi
               rm -f "$_rt_ef_thin_o" "$_rt_ef_rest_o"
             fi
             if [ "$_rt_ef_ok" = "0" ]; then
               # shellcheck disable=SC2086
-              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_e_o" "$_rt_ef_seed"; then
+              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_e_o" "$_rt_ef_seed" \
+                && nm "$_rt_e_o" 2>/dev/null | grep -qE " T _?driver_argv_has_emit_c_flag$"; then
                 _rt_ef_ok=1
                 echo "rt-prefer: R5-lite emit_flags ← $_rt_ef_seed (G-02f-264 seed slice)"
+              else
+                rm -f "$_rt_e_o"
+                echo "rt-prefer: R5 emit_flags seed lacks argv_has_emit (记253 hollow) → pure-asm" >&2
+              fi
+            fi
+            # knife256 / 10.2: 记253 removed cold emit_flags. PLATFORM: SHARED.
+            if [ "$_rt_ef_ok" = "0" ] && [ -f "$_rt_ef_x" ]; then
+              if rt_prefer_try_x_to_o "$_rt_ef_x" "$_rt_e_o" \
+                && nm "$_rt_e_o" 2>/dev/null | grep -qE " T _?driver_argv_has_emit_c_flag$"; then
+                _rt_ef_ok=1
+                echo "rt-prefer: R5 emit_flags ← pure-asm $_rt_ef_x alone (knife256; no seed-only)"
+              else
+                echo "rt-prefer: R5 emit_flags pure-asm failed (argv_has_emit missing)" >&2
               fi
             fi
           fi
@@ -17201,9 +19359,23 @@ ensure_rt_prefer_one() {
             if [ "$_rt_compile_ok" = "0" ]; then
               # shellcheck disable=SC2086
               # shellcheck disable=SC2046,SC2086
-              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc $(host_cc_win_compat_cflags) -c -o "$_rt_cmp_o" "$_rt_compile_seed"; then
+              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc $(host_cc_win_compat_cflags) -c -o "$_rt_cmp_o" "$_rt_compile_seed" \
+                && nm "$_rt_cmp_o" 2>/dev/null | grep -qE " T _?driver_compile_parse_argv_impl_c$"; then
                 _rt_compile_ok=1
                 echo "rt-prefer: R6 compile pure ← $_rt_compile_seed (G-02f-291~296 seed slice)"
+              else
+                rm -f "$_rt_cmp_o"
+                echo "rt-prefer: R6 compile seed lacks parse_argv_impl (记253 hollow) → pure-asm" >&2
+              fi
+            fi
+            # knife256 / 10.2: 记253 removed cold compile bodies. PLATFORM: SHARED.
+            if [ "$_rt_compile_ok" = "0" ] && [ -f "$_rt_compile_x" ]; then
+              if rt_prefer_try_x_to_o "$_rt_compile_x" "$_rt_cmp_o" \
+                && nm "$_rt_cmp_o" 2>/dev/null | grep -qE " T _?driver_compile_parse_argv_impl_c$"; then
+                _rt_compile_ok=1
+                echo "rt-prefer: R6 compile ← pure-asm $_rt_compile_x alone (knife256; no seed-only)"
+              else
+                echo "rt-prefer: R6 compile pure-asm failed (parse_argv_impl missing)" >&2
               fi
             fi
           fi
@@ -17218,7 +19390,7 @@ ensure_rt_prefer_one() {
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_RUN_EXEC_FROM_X \
                      -c -o "$_rt_run_rest_o" "$_rt_run_seed" \
                 && pure_ld_partial_merge "$_rt_run_o" "$_rt_run_thin_o" "$_rt_run_rest_o" 2>/dev/null \
-                && nm "$_rt_run_o" 2>/dev/null | grep -q " T driver_run_test$"; then
+                && nm "$_rt_run_o" 2>/dev/null | grep -qE " T _?driver_run_test$"; then
                 _rt_run_ok=1
                 echo "rt-prefer: R7 run/exec ← full .x + rest marker (R2 full H=0)"
               else
@@ -17251,9 +19423,26 @@ ensure_rt_prefer_one() {
             fi
             if [ "$_rt_asm_ok" = "0" ] && [ -f "$_rt_asm_seed" ]; then
               # shellcheck disable=SC2086
-              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_asm_o" "$_rt_asm_seed"; then
+              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_asm_o" "$_rt_asm_seed" \
+                && nm "$_rt_asm_o" 2>/dev/null | grep -qE " T _?asm_codegen_ast$"; then
                 _rt_asm_ok=1
                 echo "rt-prefer: R9 asm stub ← $_rt_asm_seed (G-02f-300 seed slice cold)"
+              else
+                # 记253／9.1 emptied cold bodies; marker-only is not a definition.
+                rm -f "$_rt_asm_o"
+                echo "rt-prefer: R9 asm stub seed lacks asm_codegen_ast (记253 hollow) → pure-asm" >&2
+              fi
+            fi
+            # knife256 / 10.2: 记253 removed cold asm_codegen_ast under #ifndef FROM_X.
+            # Seed-only is marker-only; g05 then UNDEF from experimental bridge.
+            # Fall back to pure-asm .x alone (no host-cc). PLATFORM: SHARED.
+            if [ "$_rt_asm_ok" = "0" ] && [ -f "$_rt_asm_stub_x" ]; then
+              if rt_prefer_try_x_to_o "$_rt_asm_stub_x" "$_rt_asm_o" \
+                && nm "$_rt_asm_o" 2>/dev/null | grep -qE " T _?asm_codegen_ast$"; then
+                _rt_asm_ok=1
+                echo "rt-prefer: R9 asm stub ← pure-asm $_rt_asm_stub_x alone (knife256; no seed-only)"
+              else
+                echo "rt-prefer: R9 asm stub pure-asm failed (asm_codegen_ast missing)" >&2
               fi
             fi
           fi
@@ -17266,17 +19455,23 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_entry_x" "$_rt_ent_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_ENTRY_FROM_X \
                      -c -o "$_rt_ent_rest_o" "$_rt_entry_seed" \
-                && pure_ld_partial_merge "$_rt_ent_o" "$_rt_ent_thin_o" "$_rt_ent_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_ent_o" "$_rt_ent_thin_o" "$_rt_ent_rest_o" 2>/dev/null \
+                && nm "$_rt_ent_o" 2>/dev/null | grep -qE " T _?run_compiler_c$"; then
                 _rt_entry_ok=1
                 echo "rt-prefer: R10 entry ← full .x + rest marker (R2 full H=0)"
               fi
               rm -f "$_rt_ent_thin_o" "$_rt_ent_rest_o"
             fi
-            if [ "$_rt_entry_ok" = "0" ]; then
-              # shellcheck disable=SC2086
-              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_ent_o" "$_rt_entry_seed"; then
+            # knife256 / 10.2: 记253 removed cold bodies under #ifndef FROM_X.
+            # Seed-only never defines run_compiler_c; g05 then UNDEF at pure-ld.
+            # Fall back to pure-asm .x alone (no host-cc). PLATFORM: SHARED.
+            if [ "$_rt_entry_ok" = "0" ] && [ -f "$_rt_entry_x" ]; then
+              if rt_prefer_try_x_to_o "$_rt_entry_x" "$_rt_ent_o" \
+                && nm "$_rt_ent_o" 2>/dev/null | grep -qE " T _?run_compiler_c$"; then
                 _rt_entry_ok=1
-                echo "rt-prefer: R10 entry gates ← $_rt_entry_seed (G-02f-301/310 seed slice)"
+                echo "rt-prefer: R10 entry ← pure-asm $_rt_entry_x alone (knife256; no seed-only)"
+              else
+                echo "rt-prefer: R10 entry pure-asm failed (run_compiler_c missing)" >&2
               fi
             fi
           fi
@@ -17290,8 +19485,14 @@ ensure_rt_prefer_one() {
               # be the Darwin step. Linux still uses the existing prefer.
               _rt_diag_thin_ok=0
               if [ "$(uname -s)" = "Darwin" ]; then
+                # knife256 / 10.2 cold: darwin_pure needs xlang_asm (wiped in
+                # true L4). Fall through to egg Track L (bootstrap_xlangc)
+                # before hollow 记253 seed. PLATFORM: DARWIN arm64.
                 if rt_diag_errno_darwin_pure "$_rt_diag_thin_o"; then
                   _rt_diag_thin_ok=1
+                elif rt_prefer_try_x_to_o "$_rt_diag_x" "$_rt_diag_thin_o"; then
+                  _rt_diag_thin_ok=1
+                  echo "rt-prefer: rest diag_errno ← egg pure-asm .x (knife256 cold; no xlang_asm)" >&2
                 fi
               elif rt_prefer_try_x_to_o "$_rt_diag_x" "$_rt_diag_thin_o"; then
                 _rt_diag_thin_ok=1
@@ -17451,67 +19652,76 @@ ensure_rt_prefer_one() {
               fi
             fi
           fi
-          if [ -n "$_rt_fo_o" ] && [ -f "$_rt_fmt_one_seed" ]; then
-            # R2 full H=0：PREFER_X_O=1 时 full .x + rest seed (-D，仅 marker) → cc -r 合并
-            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_fmt_one_x" ]; then
-              _rt_fo_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_fmt_one_thin.XXXXXX") || true
-              _rt_fo_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_fmt_one_rest.XXXXXX") || true
-              _rt_fo_pure=0
-              # w1170: some pure-asm tries segfault. Darwin retries the
-              # whole translation unit. Other hosts keep rt_prefer_try.
-              # PLATFORM: MACOS|DARWIN arm64 for the pure path.
-              if [ -n "$_rt_fo_thin_o" ] && [ -n "$_rt_fo_rest_o" ] \
-                && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
-                && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
-                && [ -f scripts/ensure_host_cc_seed_o.sh ] \
-                && bash scripts/ensure_host_cc_seed_o.sh rt-fmt-one-pure "$_rt_fo_thin_o"; then
-                _rt_fo_pure=1
-              fi
-              if [ -n "$_rt_fo_thin_o" ] && [ -n "$_rt_fo_rest_o" ] \
-                && { [ "$_rt_fo_pure" = "1" ] \
-                  || rt_prefer_try_x_to_o "$_rt_fmt_one_x" "$_rt_fo_thin_o"; } \
+          if [ -n "$_rt_fo_o" ] && [ -f "$_rt_fmt_one_x" ]; then
+            # knife256 / 10.2 / note743y.6.10: 记253／9.1 emptied cold
+            # #ifndef body in seeds/rt_fmt_one.from_x.c. Seed-only is
+            # marker-only → phase1 hollow ret0 wins → fmt silent no-op
+            # (run-fmt-cmd expects "fmt OK"). Product authority is the .x
+            # on every PREFER setting. Marker rest optional when seed
+            # present. PLATFORM: SHARED — no host-cc of emptied cold body.
+            _rt_fo_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_fmt_one_thin.XXXXXX") || true
+            _rt_fo_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_fmt_one_rest.XXXXXX") || true
+                        _rt_fo_pure=0
+            # tip_l4: egg-first on all hosts (Linux tip-cold tip/bootstrap fail).
+            # PLATFORM: SHARED.
+            if [ -n "$_rt_fo_thin_o" ] && rt_fmt_one_pure_any "$_rt_fo_thin_o"; then
+              _rt_fo_pure=1
+            fi
+            if [ -n "$_rt_fo_thin_o" ]               && { [ "$_rt_fo_pure" = "1" ]                 || rt_prefer_try_x_to_o "$_rt_fmt_one_x" "$_rt_fo_thin_o"; }; then
+              if [ -n "$_rt_fo_rest_o" ] && [ -f "$_rt_fmt_one_seed" ] \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_FMT_ONE_FROM_X \
-                     -c -o "$_rt_fo_rest_o" "$_rt_fmt_one_seed" \
+                     -c -o "$_rt_fo_rest_o" "$_rt_fmt_one_seed" 2>/dev/null \
                 && pure_ld_partial_merge "$_rt_fo_o" "$_rt_fo_thin_o" "$_rt_fo_rest_o" 2>/dev/null; then
                 _rt_fo_ok=1
                 if [ "$_rt_fo_pure" = "1" ]; then
                   echo "rt-prefer: rest fmt_one ← pure-asm three symbols (w1170)"
                 else
-                  echo "rt-prefer: rest fmt_one ← full .x + rest marker (R2 full H=0)"
+                  echo "rt-prefer: rest fmt_one ← full .x + rest marker (R2 H=0; knife256)"
                 fi
+              else
+                cp -f "$_rt_fo_thin_o" "$_rt_fo_o" && _rt_fo_ok=1 \
+                  && echo "rt-prefer: rest fmt_one ← pure-asm $_rt_fmt_one_x (knife256; no cold seed body)"
               fi
-              rm -f "$_rt_fo_thin_o" "$_rt_fo_rest_o"
+            fi
+            rm -f "$_rt_fo_thin_o" "$_rt_fo_rest_o"
+            if [ "$_rt_fo_ok" = "1" ]; then
+              if ! nm "$_rt_fo_o" 2>/dev/null | grep -qE " T _?driver_fmt_one_file$"; then
+                echo "rt-prefer: ERROR fmt_one .o lacks T driver_fmt_one_file (note743y.6.10)" >&2
+                rm -f "$_rt_fo_o"
+                _rt_fo_ok=0
+              fi
             fi
             if [ "$_rt_fo_ok" = "0" ]; then
-              # shellcheck disable=SC2086
-              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_fo_o" "$_rt_fmt_one_seed"; then
-                _rt_fo_ok=1
-                echo "rt-prefer: rest fmt_one ← $_rt_fmt_one_seed (G-02f-311 seed slice cold)"
-              fi
+              echo "rt-prefer: ERROR fmt_one pure-asm failed; emptied cold seed is not a fallback (knife256/note743y.6.10)" >&2
             fi
           fi
-          if [ -n "$_rt_dt_o" ] && [ -f "$_rt_dispatch_thin_seed" ]; then
-            # R2 full H=0：PREFER_X_O=1 时 full .x + rest seed (-D，仅 marker) → cc -r 合并
-            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_dispatch_thin_x" ]; then
-              _rt_dt_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_dispatch_thin_thin.XXXXXX") || true
-              _rt_dt_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_dispatch_thin_rest.XXXXXX") || true
-              if [ -n "$_rt_dt_thin_o" ] && [ -n "$_rt_dt_rest_o" ] \
-                && rt_prefer_try_x_to_o "$_rt_dispatch_thin_x" "$_rt_dt_thin_o" \
+          if [ -n "$_rt_dt_o" ] && [ -f "$_rt_dispatch_thin_x" ]; then
+            # knife 256 / 10.2: 记253／9.1 emptied the cold #ifndef body in
+            # seeds/rt_dispatch_thin.from_x.c (orphan braces → cc error).
+            # Product authority is the .x on every PREFER setting (sat rebuild
+            # sets PREFER=0). Marker rest optional when seed present.
+            # PLATFORM: SHARED — no host-cc of the emptied cold seed body.
+            _rt_dt_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_dispatch_thin_thin.XXXXXX") || true
+            _rt_dt_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_dispatch_thin_rest.XXXXXX") || true
+            _rt_dt_pure=0
+            if [ -n "$_rt_dt_thin_o" ] && rt_dispatch_thin_pure_any "$_rt_dt_thin_o"; then
+              _rt_dt_pure=1
+            fi
+            if [ -n "$_rt_dt_thin_o" ]               && { [ "$_rt_dt_pure" = "1" ]                 || rt_prefer_try_x_to_o "$_rt_dispatch_thin_x" "$_rt_dt_thin_o"; }; then
+              if [ -n "$_rt_dt_rest_o" ] && [ -f "$_rt_dispatch_thin_seed" ] \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_DISPATCH_THIN_FROM_X \
-                     -c -o "$_rt_dt_rest_o" "$_rt_dispatch_thin_seed" \
+                     -c -o "$_rt_dt_rest_o" "$_rt_dispatch_thin_seed" 2>/dev/null \
                 && pure_ld_partial_merge "$_rt_dt_o" "$_rt_dt_thin_o" "$_rt_dt_rest_o" 2>/dev/null; then
                 _rt_dt_ok=1
-                echo "rt-prefer: rest dispatch_thin ← full .x + rest marker (R2 H=0)"
+                echo "rt-prefer: rest dispatch_thin ← full .x + rest marker (R2 H=0; knife256)"
+              else
+                cp -f "$_rt_dt_thin_o" "$_rt_dt_o" && _rt_dt_ok=1 \
+                  && echo "rt-prefer: rest dispatch_thin ← pure-asm $_rt_dispatch_thin_x (knife256; no cold seed body)"
               fi
-              rm -f "$_rt_dt_thin_o" "$_rt_dt_rest_o"
             fi
+            rm -f "$_rt_dt_thin_o" "$_rt_dt_rest_o"
             if [ "$_rt_dt_ok" = "0" ]; then
-              # shellcheck disable=SC2086
-              # cold / no PREFER：全 C 体；product 冷路径仍带 ASM_USE_COMPILER_IMPL_C 选 full 分派
-              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_ASM_USE_COMPILER_IMPL_C -c -o "$_rt_dt_o" "$_rt_dispatch_thin_seed"; then
-                _rt_dt_ok=1
-                echo "rt-prefer: rest dispatch_thin ← $_rt_dispatch_thin_seed (G-02f-312 seed slice cold)"
-              fi
+              echo "rt-prefer: ERROR dispatch_thin pure-asm failed; emptied cold seed is not a fallback (knife256)" >&2
             fi
           fi
           if [ -n "$_rt_di_o" ] && [ -f "$_rt_dispatch_impl_seed" ]; then
@@ -17519,22 +19729,50 @@ ensure_rt_prefer_one() {
             if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_dispatch_impl_x" ]; then
               _rt_di_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_dispatch_impl_thin.XXXXXX") || true
               _rt_di_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_dispatch_impl_rest.XXXXXX") || true
+              # tip_l4: Cap/PE -c hollows full_x_impl_c; egg-first + authority.
+              _rt_di_pure=0
+              if [ -n "$_rt_di_thin_o" ] && rt_dispatch_impl_pure_any "$_rt_di_thin_o"; then
+                _rt_di_pure=1
+              fi
               if [ -n "$_rt_di_thin_o" ] && [ -n "$_rt_di_rest_o" ] \
-                && rt_prefer_try_x_to_o "$_rt_dispatch_impl_x" "$_rt_di_thin_o" \
+                && { [ "$_rt_di_pure" = "1" ] \
+                  || { rt_prefer_try_x_to_o "$_rt_dispatch_impl_x" "$_rt_di_thin_o" \
+                       && rt_dispatch_impl_authority_check "$_rt_di_thin_o"; }; } \
                 && $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_DISPATCH_IMPL_FROM_X \
                      -c -o "$_rt_di_rest_o" "$_rt_dispatch_impl_seed" \
-                && pure_ld_partial_merge "$_rt_di_o" "$_rt_di_thin_o" "$_rt_di_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_di_o" "$_rt_di_thin_o" "$_rt_di_rest_o" 2>/dev/null \
+                && rt_dispatch_impl_authority_check "$_rt_di_o"; then
                 _rt_di_ok=1
-                echo "rt-prefer: rest dispatch_impl ← full .x + rest marker (R2 H=0)"
+                if [ "$_rt_di_pure" = "1" ]; then
+                  echo "rt-prefer: rest dispatch_impl ← pure-asm egg (authority state_alloc/post_parse)"
+                else
+                  echo "rt-prefer: rest dispatch_impl ← full .x + rest marker (R2 H=0; authority)"
+                fi
               fi
               rm -f "$_rt_di_thin_o" "$_rt_di_rest_o"
             fi
             if [ "$_rt_di_ok" = "0" ]; then
               # shellcheck disable=SC2086
               # same product NO_C / pipeline / impl flags as runtime rest
-              if $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_di_o" "$_rt_dispatch_impl_seed"; then
+              if $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_di_o" "$_rt_dispatch_impl_seed" \
+                && nm "$_rt_di_o" 2>/dev/null | grep -qE " T _?driver_run_compiler_full_x_impl_c$"; then
                 _rt_di_ok=1
                 echo "rt-prefer: rest dispatch_impl ← $_rt_dispatch_impl_seed (G-02f-313 seed slice)"
+              else
+                rm -f "$_rt_di_o"
+                echo "rt-prefer: rest dispatch_impl seed lacks full_x_impl_c (记253 hollow) → pure-asm" >&2
+              fi
+            fi
+            # knife256 / 10.2: 记253 removed cold dispatch_impl bodies. Seed-only
+            # is marker-only; hollow-fill stubs then silently return 0 at g05.
+            # Fall back to pure-asm .x alone (no host-cc). PLATFORM: SHARED.
+            if [ "$_rt_di_ok" = "0" ] && [ -f "$_rt_dispatch_impl_x" ]; then
+              if rt_prefer_try_x_to_o "$_rt_dispatch_impl_x" "$_rt_di_o" \
+                && nm "$_rt_di_o" 2>/dev/null | grep -qE " T _?driver_run_compiler_full_x_impl_c$"; then
+                _rt_di_ok=1
+                echo "rt-prefer: rest dispatch_impl ← pure-asm $_rt_dispatch_impl_x alone (knife256; no seed-only)"
+              else
+                echo "rt-prefer: rest dispatch_impl pure-asm failed (full_x_impl_c missing)" >&2
               fi
             fi
           fi
@@ -17544,12 +19782,11 @@ ensure_rt_prefer_one() {
               _rt_xe_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_run_x_emit_thin.XXXXXX") || true
               _rt_xe_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_run_x_emit_rest.XXXXXX") || true
               _rt_xe_pure=0
-              # w1165: the first pure-asm tries segfault. Darwin retries
-              # the whole translation unit. Other hosts keep rt_prefer_try.
-              # PLATFORM: MACOS|DARWIN arm64 for the pure path.
+              # w1165 / 10.16: pure-asm first (Darwin arm64 + Linux x86_64).
+              # Avoids -E chicken-egg when product only has phase1 hollow weak
+              # driver_run_x_emit_c. Other hosts keep rt_prefer_try_x_to_o.
+              # PLATFORM: SHARED.
               if [ -n "$_rt_xe_thin_o" ] && [ -n "$_rt_xe_rest_o" ] \
-                && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
-                && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
                 && [ -f scripts/ensure_host_cc_seed_o.sh ] \
                 && bash scripts/ensure_host_cc_seed_o.sh rt-run-x-emit-pure "$_rt_xe_thin_o"; then
                 _rt_xe_pure=1
@@ -17609,36 +19846,81 @@ ensure_rt_prefer_one() {
               _rt_rcp_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_rcp_thin.XXXXXX") || true
               _rt_rcp_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_rcp_rest.XXXXXX") || true
               _rt_rcp_pure=0
-              # w1177: some pure-asm tries segfault. Darwin retries the
-              # whole translation unit. Other hosts keep rt_prefer_try.
-              # Symbols stay strong. PLATFORM: MACOS|DARWIN arm64.
+              # w1177 / knife256 note733: pure-asm retries on Darwin arm64
+              # and Linux x86_64 (记253 hollow seed has no T). Other hosts
+              # keep rt_prefer_try. Symbols stay strong. PLATFORM: SHARED.
               if [ -n "$_rt_rcp_thin_o" ] && [ -n "$_rt_rcp_rest_o" ] \
-                && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
-                && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
                 && [ -f scripts/ensure_host_cc_seed_o.sh ] \
                 && bash scripts/ensure_host_cc_seed_o.sh run-compiler-parsed-pure "$_rt_rcp_thin_o"; then
                 _rt_rcp_pure=1
               fi
               if [ -n "$_rt_rcp_thin_o" ] && [ -n "$_rt_rcp_rest_o" ] \
                 && { [ "$_rt_rcp_pure" = "1" ] \
-                  || rt_prefer_try_x_to_o "$_rt_run_compiler_parsed_x" "$_rt_rcp_thin_o"; } \
-                && $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_RUN_COMPILER_PARSED_FROM_X \
+                  || rt_prefer_try_x_to_o "$_rt_run_compiler_parsed_x" "$_rt_rcp_thin_o"; }; then
+                # shellcheck disable=SC2086
+                if $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_RUN_COMPILER_PARSED_FROM_X \
                      -c -o "$_rt_rcp_rest_o" "$_rt_run_compiler_parsed_seed" \
-                && pure_ld_partial_merge "$_rt_rcp_o" "$_rt_rcp_thin_o" "$_rt_rcp_rest_o" 2>/dev/null; then
-                _rt_rcp_ok=1
-                if [ "$_rt_rcp_pure" = "1" ]; then
-                  echo "rt-prefer: R2 run_compiler_parsed ← pure-asm sixty-nine symbols (w1177)"
-                else
-                  echo "rt-prefer: R2 run_compiler_parsed ← full .x + rest marker (R2 full H=0)"
+                  && pure_ld_partial_merge "$_rt_rcp_o" "$_rt_rcp_thin_o" "$_rt_rcp_rest_o" 2>/dev/null; then
+                  _rt_rcp_ok=1
+                  if [ "$_rt_rcp_pure" = "1" ]; then
+                    echo "rt-prefer: R2 run_compiler_parsed ← pure-asm sixty-nine symbols (w1177)"
+                  else
+                    echo "rt-prefer: R2 run_compiler_parsed ← full .x + rest marker (R2 full H=0)"
+                  fi
+                elif nm "$_rt_rcp_thin_o" 2>/dev/null | grep -E " T _?driver_run_compiler_parsed$" >/dev/null; then
+                  # knife256 / 10.2 note743i: rest is marker-only under FROM_X;
+                  # if ld -r merge fails, thin alone still owns the 69 T faces.
+                  # PLATFORM: SHARED.
+                  cp -f "$_rt_rcp_thin_o" "$_rt_rcp_o"
+                  _rt_rcp_ok=1
+                  echo "rt-prefer: R2 run_compiler_parsed ← pure-asm thin alone (note743i; merge skipped)"
                 fi
               fi
               rm -f "$_rt_rcp_thin_o" "$_rt_rcp_rest_o"
             fi
             if [ "$_rt_rcp_ok" = "0" ]; then
               # shellcheck disable=SC2086
-              if $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_rcp_o" "$_rt_run_compiler_parsed_seed"; then
+              if $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_rcp_o" "$_rt_run_compiler_parsed_seed" \
+                && nm "$_rt_rcp_o" 2>/dev/null | grep -E " T _?driver_run_compiler_parsed$" >/dev/null; then
                 _rt_rcp_ok=1
                 echo "rt-prefer: rest run_compiler_parsed ← $_rt_run_compiler_parsed_seed (G-02f-316 seed slice cold)"
+              else
+                rm -f "$_rt_rcp_o"
+                echo "rt-prefer: rest run_compiler_parsed seed lacks T (记253 hollow) → pure-asm" >&2
+              fi
+            fi
+            # knife256 / 10.2: 记253 removed cold parsed body. PLATFORM: SHARED.
+            # note743i: tip-cold try-r1 must use the 69-T pure helper (multi-xl
+            # fallback), not only rt_prefer_try_x_to_o (often misses T).
+            if [ "$_rt_rcp_ok" = "0" ] && [ -f "$_rt_run_compiler_parsed_x" ]; then
+              # note743l.2/l.3: PREFER=0 rest path; nm|grep -q under pipefail → SIGPIPE 141
+              # (note743f.1 class). grep without -q; keep 69-T trust. PLATFORM: SHARED.
+              _rt_rcp_pure_rc=1
+              if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
+                bash scripts/ensure_host_cc_seed_o.sh run-compiler-parsed-pure "$_rt_rcp_o"
+                _rt_rcp_pure_rc=$?
+              fi
+              _rt_rcp_nm_drv=0
+              if [ -s "$_rt_rcp_o" ] && nm "$_rt_rcp_o" 2>/dev/null | grep -E " T _?driver_run_compiler_parsed$" >/dev/null; then
+                _rt_rcp_nm_drv=1
+              fi
+              _rt_rcp_nm_n=0
+              if [ -s "$_rt_rcp_o" ]; then
+                _rt_rcp_nm_n="$(nm "$_rt_rcp_o" 2>/dev/null | awk '$2=="T"' | wc -l | tr -d ' ')"
+              fi
+              if [ "$_rt_rcp_pure_rc" = "0" ] && [ "$_rt_rcp_nm_drv" = "1" ]; then
+                _rt_rcp_ok=1
+                echo "rt-prefer: rest run_compiler_parsed ← pure-asm sixty-nine (note743i / w1177)"
+              elif [ "$_rt_rcp_pure_rc" = "0" ] && [ -s "$_rt_rcp_o" ] && [ "$_rt_rcp_nm_n" = "69" ]; then
+                _rt_rcp_ok=1
+                echo "rt-prefer: rest run_compiler_parsed ← pure-asm sixty-nine trust-helper (note743l.2; nm_drv=$_rt_rcp_nm_drv)"
+              elif rt_prefer_try_x_to_o "$_rt_run_compiler_parsed_x" "$_rt_rcp_o" \
+                && nm "$_rt_rcp_o" 2>/dev/null | grep -E " T _?driver_run_compiler_parsed$" >/dev/null; then
+                _rt_rcp_ok=1
+                echo "rt-prefer: rest run_compiler_parsed ← pure-asm $_rt_run_compiler_parsed_x alone (knife256; no seed-only)"
+              else
+                echo "rt-prefer: rest run_compiler_parsed pure-asm failed (T missing) pure_rc=$_rt_rcp_pure_rc nm_drv=$_rt_rcp_nm_drv nT=$_rt_rcp_nm_n o=$_rt_rcp_o sz=$(wc -c <"$_rt_rcp_o" 2>/dev/null || echo 0)" >&2
+                nm "$_rt_rcp_o" 2>/dev/null | awk '$2=="T"' | head -5 >&2 || true
               fi
             fi
           fi
@@ -17748,16 +20030,20 @@ ensure_rt_prefer_one() {
             # PLATFORM: SHARED — do NOT merge RT_SEED_SLICE objs into no_c.
             # g05_relink_env always links:
             #   rt_arena_buf / rt_emit_state / rt_preamble / rt_stack / rt_parse_diag
-            # as separate .o. Merging them here caused Darwin 22× duplicate symbols
-            # (parse_diag recovery + arena/emit/preamble/stack). Keep FROM_X on rest
-            # (above) so no_c leaves those symbols U; permanent slice .o provide them.
-            # Still merge non-slice hybrid pieces (content/util/argv/…/fs/fmt/dispatch…).
+            #   / rt_run_exec
+            # as separate .o. Merging the five historic slices caused Darwin 22×
+            # duplicate symbols (parse_diag recovery + arena/emit/preamble/stack).
+            # knife254 / 9.2 also put rt_run_exec on that list (driver_exec_* /
+            # driver_run_test authority); merging R7 into no_c then dups the
+            # permanent src/runtime/rt_run_exec.o at pure-ld (17 symbols).
+            # Keep FROM_X on rest so no_c leaves those symbols U; permanent
+            # slice .o provide them. Still merge non-slice hybrid pieces
+            # (content/util/argv/…/fs/fmt/dispatch…).
             if [ "$_rt_compile_ok" = "1" ]; then
               _rt_link_objs="$_rt_link_objs $_rt_cmp_o"
             fi
-            if [ "$_rt_run_ok" = "1" ]; then
-              _rt_link_objs="$_rt_link_objs $_rt_run_o"
-            fi
+            # R7 rt_run_exec: build/ok for FROM_X + full_slices gate only —
+            # do NOT append $_rt_run_o (RT_SEED_SLICE; knife254/256).
             if [ "$_rt_asm_ok" = "1" ]; then
               _rt_link_objs="$_rt_link_objs $_rt_asm_o"
             fi
@@ -18610,6 +20896,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       pipeline_abi_inject_import_heap_thin "$o" || true
       pipeline_abi_inject_read_file_x_view_thin "$o" || true
+      pipeline_abi_inject_cap_residual_egg_thins "$o" || true
       unset XLANG_PABI_THIN_INJECT_IF_NEWER
       return 0
     fi
@@ -19121,7 +21408,11 @@ ensure_pipeline_abi_prefer_one() {
     # overlays; gcc C99 treats missing decls as errors and aborted hybrid.
     # -Wno-implicit-function-declaration keeps FROM_X rest compilable without
     # editing the banned seed. PLATFORM: SHARED · LINUX from-zero gold.
+    # 10.26: same flag on mega -E thin — helpers call faces defined later in
+    # mega; early export-extern for those faces made pure-ld U (mangled Cap
+    # names). Prefer Wno-implicit over false dual extern+body.
     if XLANG_PREFER_ASM_O_RT=0 G05_X_O_WEAK=1 rt_prefer_try_x_to_o "$x_src" "$thin_o" \
+         -Wno-implicit-function-declaration \
       && $CC $BASE_CFLAGS -Wno-implicit-function-declaration -I. -Iinclude -Isrc \
            -DXLANG_USE_X_PIPELINE \
            -DXLANG_RUNTIME_PIPELINE_ABI_FROM_X \
@@ -19238,6 +21529,7 @@ ensure_pipeline_abi_prefer_one() {
     pipeline_abi_inject_preprocess_malloc_thin "$o" || true
     pipeline_abi_inject_import_heap_thin "$o" || true
     pipeline_abi_inject_read_file_x_view_thin "$o" || true
+      pipeline_abi_inject_cap_residual_egg_thins "$o" || true
     return 0
   fi
 
@@ -19332,6 +21624,7 @@ ensure_pipeline_abi_prefer_one() {
           pipeline_abi_inject_preprocess_malloc_thin "$o" || true
         pipeline_abi_inject_import_heap_thin "$o" || true
         pipeline_abi_inject_read_file_x_view_thin "$o" || true
+      pipeline_abi_inject_cap_residual_egg_thins "$o" || true
         return 0
       fi
     else
@@ -19410,6 +21703,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       pipeline_abi_inject_import_heap_thin "$o" || true
       pipeline_abi_inject_read_file_x_view_thin "$o" || true
+      pipeline_abi_inject_cap_residual_egg_thins "$o" || true
       return 0
     fi
   fi
@@ -19496,6 +21790,7 @@ ensure_pipeline_abi_prefer_one() {
   pipeline_abi_inject_preprocess_malloc_thin "$o" || true
   pipeline_abi_inject_import_heap_thin "$o" || true
   pipeline_abi_inject_read_file_x_view_thin "$o" || true
+      pipeline_abi_inject_cap_residual_egg_thins "$o" || true
   return 0
 }
 
@@ -19614,7 +21909,12 @@ pipeline_abi_weaken_thin_syms_in_obj() {
     esac
     any=1
   done <<EOF
-$(nm -gU "$thin" 2>/dev/null | awk '/ [Tt] / { print $NF }')
+$(nm -gU "$thin" 2>/dev/null | awk '
+  / [Tt] / { print $NF }
+  # 10.38: modlet_thin file-level tables (renamed Lxml→C) must weaken leftover
+  # BSS of the same name or PREFER leaves two tables (SEGV on module lets).
+  / [BbCc] / && ($NF == "g_pipeline_asm_modlet" || $NF == "g_pipe_modlet_strpool_seq" || $NF == "_g_pipeline_asm_modlet" || $NF == "_g_pipe_modlet_strpool_seq") { print $NF }
+')
 EOF
   [ "$any" = "1" ] || return 1
   # PLATFORM: MACOS — llvm-objcopy --weaken-symbol is often a no-op on
@@ -19662,7 +21962,12 @@ $sym
         ;;
     esac
   done <<EOF
-$(nm -gU "$thin" 2>/dev/null | awk '/ [Tt] / { print $NF }')
+$(nm -gU "$thin" 2>/dev/null | awk '
+  / [Tt] / { print $NF }
+  # 10.38: modlet_thin file-level tables (renamed Lxml→C) must weaken leftover
+  # BSS of the same name or PREFER leaves two tables (SEGV on module lets).
+  / [BbCc] / && ($NF == "g_pipeline_asm_modlet" || $NF == "g_pipe_modlet_strpool_seq" || $NF == "_g_pipeline_asm_modlet" || $NF == "_g_pipe_modlet_strpool_seq") { print $NF }
+')
 EOF
   if [ "$still_t" = "1" ]; then
     log "pipeline_abi weaken: Darwin/objcopy weaken no-op → redefine-sym unique *_pabi_supersededN"
@@ -19682,7 +21987,12 @@ $sym
         ;;
     esac
   done <<EOF
-$(nm -gU "$thin" 2>/dev/null | awk '/ [Tt] / { print $NF }')
+$(nm -gU "$thin" 2>/dev/null | awk '
+  / [Tt] / { print $NF }
+  # 10.38: modlet_thin file-level tables (renamed Lxml→C) must weaken leftover
+  # BSS of the same name or PREFER leaves two tables (SEGV on module lets).
+  / [BbCc] / && ($NF == "g_pipeline_asm_modlet" || $NF == "g_pipe_modlet_strpool_seq" || $NF == "_g_pipeline_asm_modlet" || $NF == "_g_pipe_modlet_strpool_seq") { print $NF }
+')
 EOF
   return 0
 }
@@ -19787,6 +22097,17 @@ pipeline_abi_inject_thin_leaf() {
       used_asm=1
     fi
   fi
+  # 10.38: rename modlet Lxml COMMONs onto C table names before weaken/merge
+  # so leftover g_pipeline_asm_modlet is the same object (no dual-table SEGV).
+  # PLATFORM: SHARED — LINUX gold + MACOS Cap.
+  if [ "$used_asm" = "1" ] && [ "$thin_bn" = "runtime_pipeline_abi_modlet_thin.x" ]; then
+    if ! pipeline_abi_modlet_rename_bss "$thin_o"; then
+      log "pipeline_abi ${tag} inject: modlet Lxml→C rename failed; fall back -E+cc"
+      used_asm=0
+      rm -f "$thin_o"
+      thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_thin.XXXXXX.o")"
+    fi
+  fi
   if [ "$used_asm" != "1" ]; then
     if ! "$xlang_bin" -E "$thin_x" >"$gen_c" 2>/dev/null || [ ! -s "$gen_c" ]; then
       log "pipeline_abi ${tag} inject: -E failed"
@@ -19833,6 +22154,13 @@ pipeline_abi_inject_thin_leaf() {
   fi
   cp -f "$o" "$base_o"
   cp -f "$o" "$restore_o"
+  # 10.38: retire leftover modlet BSS names before weaken/merge so thin
+  # COMMON is the sole g_pipeline_asm_modlet. PLATFORM: SHARED.
+  if [ "$used_asm" = "1" ] && [ "$thin_bn" = "runtime_pipeline_abi_modlet_thin.x" ]; then
+    if ! pipeline_abi_modlet_retire_leftover_bss "$base_o"; then
+      log "pipeline_abi ${tag} inject: modlet leftover BSS retire failed"
+    fi
+  fi
   if pipeline_abi_thin_already_defined "$o" "$thin_o"; then
     if ! pipeline_abi_weaken_thin_syms_in_obj "$base_o" "$thin_o"; then
       log "pipeline_abi ${tag} inject skip: already T and cannot weaken leftover"
@@ -21374,16 +23702,10 @@ pipeline_abi_inject_modlet_thin() {
   if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
   export XLANG_PABI_THIN_PREFER_ASM=1
-  # w1504 PLATFORM: LINUX — keep -E+cc for this TU. Pure asm bakes the
-  #   file-level table into its own Lxml_ BSS label while the leftover pabi
-  #   still reads the static g_pipeline_asm_modlet (two tables; the modlet
-  #   index runs past 512 and the next product SEGVs compiling any .x with
-  #   module-level lets). Before the w1504 typeck gen the pure-asm try always
-  #   failed on T001 (nested unsafe blocks), so -E+cc is what every Linux
-  #   product has shipped. Debt 10.38.
-  case "$(uname -s 2>/dev/null)" in
-    Linux) export XLANG_PABI_THIN_PREFER_ASM=0 ;;
-  esac
+  # 10.38: pure-asm both ends. inject_thin_leaf renames the two Lxml
+  # COMMONs onto g_pipeline_asm_modlet / g_pipe_modlet_strpool_seq before
+  # weaken+merge (same table as leftover). Do not force LINUX -E+cc.
+  # PLATFORM: SHARED — LINUX gold + MACOS Cap. Pin ecdb5cc1e unchanged.
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
   pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w631-modlet-prefer"
   rc=$?
@@ -25244,13 +27566,27 @@ pipeline_abi_inject_asm_wpo_thin() {
     return 0
   fi
   # Prefer product xlang over xlang_asm (egg may lag tip CG002 heal).
-  if [ -x "$(pwd)/xlang" ]; then
-    xlang="$(pwd)/xlang"
-  elif [ -x "$(pwd)/xlang_asm" ]; then
-    xlang="$(pwd)/xlang_asm"
-  elif [ -x "$(pwd)/xlang.exe" ]; then
-    xlang="$(pwd)/xlang.exe"
-  else
+  # note743t: Linux tip-cold tip SEGV asm_wpo_thin; try pin-egg first then
+  # product bins (same order as g05_relink_env _g05_pure_overlay). PLATFORM: LINUX.
+  _wpo_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
+  _wpo_arch="$(uname -m 2>/dev/null)"
+  case "$_wpo_os" in darwin) _wpo_os=darwin ;; linux) _wpo_os=linux ;; *) _wpo_os="" ;; esac
+  case "$_wpo_arch" in x86_64|amd64) _wpo_arch=x86_64 ;; arm64|aarch64) _wpo_arch=arm64 ;; *) _wpo_arch="" ;; esac
+  _wpo_egg=""
+  if [ -n "$_wpo_os" ] && [ -n "$_wpo_arch" ]; then
+    _wpo_egg="$(pwd)/seeds/bootstrap_xlangc.${_wpo_os}.${_wpo_arch}"
+  fi
+  _wpo_bins=""
+  if [ "$_wpo_os" = "linux" ] && [ -n "$_wpo_egg" ] && [ -x "$_wpo_egg" ]; then
+    _wpo_bins="$_wpo_egg"
+  fi
+  [ -x "$(pwd)/xlang" ] && _wpo_bins="$_wpo_bins $(pwd)/xlang"
+  [ -x "$(pwd)/xlang_asm" ] && _wpo_bins="$_wpo_bins $(pwd)/xlang_asm"
+  [ -x "$(pwd)/xlang.exe" ] && _wpo_bins="$_wpo_bins $(pwd)/xlang.exe"
+  if [ "$_wpo_os" != "linux" ] && [ -n "$_wpo_egg" ] && [ -x "$_wpo_egg" ]; then
+    _wpo_bins="$_wpo_bins $_wpo_egg"
+  fi
+  if [ -z "$_wpo_bins" ]; then
     log "pipeline_abi w745-asm-wpo-thin: no xlang to -c thin"
     return 1
   fi
@@ -25260,17 +27596,28 @@ pipeline_abi_inject_asm_wpo_thin() {
   # skip pinned leftover thin.o and blocked product PREFER. PLATFORM: SHARED.
   _wpo_log="$(mktemp "${TMPDIR:-/tmp}/pabi_wpo_thin.XXXXXX")"
   rm -f "$thin_o"
-  # -L .. -L . matches product cold emit; -o must end in .o (g05_xasm stages).
-  if ! g05_xasm "$xlang" -backend asm -c -L .. -L . -o "$thin_o" "$thin_x" \
-      >"$_wpo_log" 2>&1 \
-    || [ ! -s "$thin_o" ]; then
+  _wpo_ok=0
+  for xlang in $_wpo_bins; do
+    : >"$_wpo_log"
+    rm -f "$thin_o"
+    # -L .. -L . matches product cold emit; -o must end in .o (g05_xasm stages).
+    if g05_xasm "$xlang" -backend asm -c -L .. -L . -o "$thin_o" "$thin_x" \
+        >"$_wpo_log" 2>&1 \
+      && [ -s "$thin_o" ] \
+      && ! grep -q 'CG002' "$_wpo_log" 2>/dev/null; then
+      _wpo_ok=1
+      # note743t: scrub recovered tip SEGV rows for this thin .x
+      if [ -s "${G05_XASM_CRASH_LOG:-build_asm/g05_xasm_crash.log}" ]; then
+        grep -vF " $thin_x" "${G05_XASM_CRASH_LOG:-build_asm/g05_xasm_crash.log}" \
+          >build_asm/g05_xasm_crash.log.scrub 2>/dev/null || true
+        mv -f build_asm/g05_xasm_crash.log.scrub "${G05_XASM_CRASH_LOG:-build_asm/g05_xasm_crash.log}"
+      fi
+      break
+    fi
+    rm -f "$thin_o"
+  done
+  if [ "$_wpo_ok" != "1" ]; then
     log "pipeline_abi w745-asm-wpo-thin: PREFER -c failed (CG002 or empty)"
-    cat "$_wpo_log" >&2 || true
-    rm -f "$_wpo_log" "$thin_o"
-    return 1
-  fi
-  if grep -q 'CG002' "$_wpo_log" 2>/dev/null; then
-    log "pipeline_abi w745-asm-wpo-thin: CG002 in emit log"
     cat "$_wpo_log" >&2 || true
     rm -f "$_wpo_log" "$thin_o"
     return 1
@@ -25567,16 +27914,42 @@ pipeline_abi_inject_value_abi_thin() {
 pipeline_abi_inject_block_domain_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_block_domain_thin.x"
-  local stamp="src/.pabi_w526_block_domain.stamp"
+  local stamp="src/.pabi_w531_block_domain.stamp"
+  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+  local saved_force="${XLANG_PABI_THIN_FORCE_INJECT-}"
+  local had_prefer=0 had_e_repl=0 had_force=0
+  local rc=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  # PLATFORM: SHARED — hard BAN tip reinject (do not call inject_thin_leaf).
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-    return 0
+  # note743y.6.9 Soft Cap: reinject until tip owns pipeline_patch_block_parent_links
+  # (hybrid rebuild can restore GCC leftover after stamp). HARD BAN only when tip.
+  if [ -f "$stamp" ]; then
+    if command -v objdump >/dev/null 2>&1 \
+      && objdump -d "$o" 2>/dev/null | awk "/<pipeline_patch_block_parent_links>:/,/^\$/" | head -5 \
+        | grep -q endbr64; then
+      log "pipeline_abi w531-block-domain: stamp present but endbr leftover → reinject"
+      rm -f "$stamp"
+    else
+      return 0
+    fi
   fi
-  touch "$stamp"
-  rm -f src/.pabi_w326_block_domain.stamp src/.pabi_w364_block_domain.stamp
-  log "pipeline_abi w526-block-domain: tip CG002+tipU heal stamped; tip PRODUCT reinject HARD BAN (keep prior)"
-  return 0
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
+  if [ "${XLANG_PABI_THIN_FORCE_INJECT+x}" = "x" ]; then had_force=1; fi
+  export XLANG_PABI_THIN_PREFER_ASM=1
+  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+  export XLANG_PABI_THIN_FORCE_INJECT=1
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w531-block-domain-if-nested"
+  rc=$?
+  if [ "$had_prefer" = "1" ]; then export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"; else unset XLANG_PABI_THIN_PREFER_ASM; fi
+  if [ "$had_e_repl" = "1" ]; then export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"; else unset XLANG_PABI_THIN_ALLOW_E_REPLACE; fi
+  if [ "$had_force" = "1" ]; then export XLANG_PABI_THIN_FORCE_INJECT="$saved_force"; else unset XLANG_PABI_THIN_FORCE_INJECT; fi
+  if [ "$rc" -eq 0 ]; then
+    touch "$stamp"
+    rm -f src/.pabi_w526_block_domain.stamp src/.pabi_w326_block_domain.stamp src/.pabi_w364_block_domain.stamp
+    log "pipeline_abi w531-block-domain: Soft Cap reinject kind-walk (note743y.6.9 if_nested); further reinject HARD BAN"
+  fi
+  return "$rc"
 }
 
 
@@ -25593,16 +27966,35 @@ pipeline_abi_inject_block_domain_thin() {
 pipeline_abi_inject_expr_sidecar_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_expr_sidecar_thin.x"
-  local stamp="src/.pabi_w529_expr_sidecar.stamp"
+  local stamp="src/.pabi_w530_expr_sidecar.stamp"
+  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+  local saved_force="${XLANG_PABI_THIN_FORCE_INJECT-}"
+  local had_prefer=0 had_e_repl=0 had_force=0
+  local rc=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  # PLATFORM: SHARED — hard BAN PREFER (do not call inject_thin_leaf).
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+  # note743y.6.5 Soft Cap: w529 stamp-only left egg AS-early glue_var_blk_walk
+  # (subslice_split_chunks SEGV). One PREFER reinject then HARD BAN again.
+  if [ -f "$stamp" ]; then
     return 0
   fi
-  touch "$stamp"
-  rm -f src/.pabi_w327_expr_sidecar.stamp src/.pabi_w365_expr_sidecar.stamp
-  log "pipeline_abi w529-expr-sidecar: tip SEGV+pipe-cell+Darwin tipU stamped; tip PRODUCT reinject HARD BAN (keep prior)"
-  return 0
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
+  if [ "${XLANG_PABI_THIN_FORCE_INJECT+x}" = "x" ]; then had_force=1; fi
+  export XLANG_PABI_THIN_PREFER_ASM=1
+  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+  export XLANG_PABI_THIN_FORCE_INJECT=1
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w530-expr-sidecar-glue-var-blk"
+  rc=$?
+  if [ "$had_prefer" = "1" ]; then export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"; else unset XLANG_PABI_THIN_PREFER_ASM; fi
+  if [ "$had_e_repl" = "1" ]; then export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"; else unset XLANG_PABI_THIN_ALLOW_E_REPLACE; fi
+  if [ "$had_force" = "1" ]; then export XLANG_PABI_THIN_FORCE_INJECT="$saved_force"; else unset XLANG_PABI_THIN_FORCE_INJECT; fi
+  if [ "$rc" -eq 0 ]; then
+    touch "$stamp"
+    rm -f src/.pabi_w529_expr_sidecar.stamp src/.pabi_w327_expr_sidecar.stamp src/.pabi_w365_expr_sidecar.stamp
+    log "pipeline_abi w530-expr-sidecar: Soft Cap reinject glue_var_blk (note743y.6.5); further reinject HARD BAN"
+  fi
+  return "$rc"
 }
 
 
@@ -25820,6 +28212,220 @@ pipeline_abi_inject_ast_forwarders_thin() {
   return "$rc"
 }
 
+
+
+# knife256/10.2: Cap residual egg thins — mega prefers them as extern U;
+# without these overlays phase1 pure-ld misses glue_emit_vector_* /
+# glue_expr_tree_has_* / glue_live_fwd_*_for_defer / glue_try_hw_vector_* /
+# pabi_vector_let_init_nested_one_vlet_wide_elem. PLATFORM: SHARED.
+# Bodies live in dedicated .x leaves (LEGACY -c / pure-asm green).
+pipeline_abi_inject_cap_residual_egg_thins() {
+  local o="$1"
+  local thin_x stamp tag rc=0
+  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
+  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+  local had_newer=0 had_prefer=0 had_e_repl=0
+  local _oc="" _flat_dir="" _thin="" _rest=""
+  [ -s "$o" ] || return 0
+  # Darwin prefer may leave libtool archive; inject_thin_leaf skips archives.
+  # Flatten to MH_OBJECT (same as bootstrap_driver_seed_link) before eggs.
+  # PLATFORM: MACOS · SHARED caller.
+  if pipeline_abi_o_is_libtool_archive "$o"; then
+    for _c in /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
+      if [ -x "$_c" ]; then _oc=$_c; break; fi
+    done
+    if [ -z "$_oc" ] && command -v llvm-objcopy >/dev/null 2>&1; then
+      _oc=$(command -v llvm-objcopy)
+    fi
+    _flat_dir=$(mktemp -d "${TMPDIR:-/tmp}/pabi_egg_flat.XXXXXX")
+    if (
+      cd "$_flat_dir" || exit 1
+      ar -x "$OLDPWD/$o" 2>/dev/null || ar -x "$(cd "$OLDPWD" && pwd)/$o" || exit 1
+      _thin=$(ls pabi_thin.* 2>/dev/null | head -1)
+      _rest=$(ls pabi_rest.* 2>/dev/null | head -1)
+      if [ -n "$_thin" ] && [ -n "$_rest" ]; then
+        if [ -n "$_oc" ]; then
+          while read -r _sym; do
+            "$_oc" --weaken-symbol="$_sym" "$_rest" 2>/dev/null || true
+          done < <(nm -gU "$_thin" 2>/dev/null | awk '/ T /{print $NF}')
+        fi
+        ld -r -o pabi_flat.o "$_thin" "$_rest" || exit 1
+        cp -f pabi_flat.o "$OLDPWD/$o"
+        echo "ensure-host-cc-seed: pipeline_abi egg: flattened libtool $o → MH_OBJECT" >&2
+      else
+        exit 1
+      fi
+    ); then
+      :
+    else
+      log "pipeline_abi egg: flatten failed; eggs rely on phase1 hollow-fill"
+      rm -rf "$_flat_dir"
+      return 0
+    fi
+    rm -rf "$_flat_dir"
+  fi
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then had_newer=1; fi
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
+  unset XLANG_PABI_THIN_INJECT_IF_NEWER
+  export XLANG_PABI_THIN_PREFER_ASM=1
+  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+  for thin_x in \
+    src/runtime_pipeline_abi_modlet_elem_const_thin.x \
+    src/asm/vector_let_init_array_lit_a64.x \
+    src/runtime_pipeline_abi_lane_f32_binop_thin.x \
+    src/runtime_pipeline_abi_block_body_sync_let_order_thin.x \
+    src/runtime_pipeline_abi_hw_vector_add_thin.x \
+    src/runtime_pipeline_abi_lane_scalar_binop_thin.x \
+    src/runtime_pipeline_abi_vector_lane_stack_off_thin.x \
+    src/runtime_pipeline_abi_lane_f32_lit_operand_thin.x \
+    src/runtime_pipeline_abi_has_call_index_thin.x \
+    src/runtime_pipeline_abi_has_nonlocal_var_thin.x \
+    src/runtime_pipeline_abi_defer_use_walk_thin.x \
+    src/pabi_vector_let_init_nested_one.x \
+    src/runtime_pipeline_abi_local_slot_ptr_tramp_thin.x \
+    src/pabi_index_elem_from_type_one.x \
+    src/runtime_pipeline_abi_func_return_byte_size_soft.x \
+    src/runtime_pipeline_abi_struct_lit_fields_thin.x
+  do
+    [ -f "$thin_x" ] || continue
+    tag="w256-egg-$(basename "$thin_x" .x)"
+    stamp="src/.pabi_${tag}.stamp"
+    # Re-inject when sentinel U remains (fresh hybrid) or thin newer than stamp.
+    case "$thin_x" in
+      *modlet_elem_const*) _probe='pipe_modlet_float_expr_trunc_i32' ;;
+      *vector_let_init_array_lit_a64*) _probe='vector_let_init_array_lit_a64_vlet_f32_fill_lane' ;;
+      *lane_f32_binop*) _probe='glue_lane_binop_lhs_is_f32_c' ;;
+      *block_body_sync_let_order*) _probe='pipeline_asm_emit_block_prefix_elf' ;;
+      *hw_vector_add*) _probe='glue_try_hw_vector_add_binop_elf_c' ;;
+      *lane_scalar*) _probe='glue_emit_vector_lane_scalar_binop_elf_c' ;;
+      *vector_lane_stack_off*) _probe='glue_vector_var_lane_stack_off_elf_c' ;;
+      *lane_f32_lit*) _probe='glue_emit_vector_operand_lane_elf_c' ;;
+      *has_call_index*) _probe='glue_expr_tree_has_call_index_c' ;;
+      *has_nonlocal*) _probe='glue_expr_tree_has_nonlocal_var_c' ;;
+      *defer_use*) _probe='glue_live_fwd_collect_expr_uses_for_defer' ;;
+      *nested_one*) _probe='pabi_vector_let_init_nested_one_vlet_wide_elem' ;;
+      *local_slot_ptr_tramp*) _probe='glue_enc_local_slot_ptr_or_addr_elf_c' ;;
+      *pabi_index_elem_from_type*) _probe='glue_index_simd_elem_bytes_c' ;;
+      *func_return_byte_size*) _probe='glue_wide_i32_vec_array_bytes' ;;
+      *struct_lit_fields_thin*) _probe='win_emit_struct_lit_fields_into_parked_rbx' ;;
+      *) _probe='' ;;
+    esac
+    if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ] && [ -n "$_probe" ]; then
+      if pipeline_abi_strong_text_syms "$o" 2>/dev/null | grep -Eq "(^|_)${_probe}$"; then
+        continue
+      fi
+    fi
+    if pipeline_abi_inject_thin_leaf "$o" "$thin_x" "$tag"; then
+      touch "$stamp"
+    else
+      log "pipeline_abi ${tag} inject: WARN failed (phase1 may miss $_probe)"
+      rc=1
+    fi
+  done
+  if [ "$had_newer" = "1" ]; then export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"; fi
+  if [ "$had_prefer" = "1" ]; then export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"; else unset XLANG_PABI_THIN_PREFER_ASM; fi
+  if [ "$had_e_repl" = "1" ]; then export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"; else unset XLANG_PABI_THIN_ALLOW_E_REPLACE; fi
+  # Cap tip Mach-O demote: mega body → __demoted so lane_f32_lit wrapper owns
+  # glue_field_access_call_base_rvalue_elf_c. Prefer nm -gU (archive-safe after
+  # flatten above). PLATFORM: SHARED (objcopy).
+  _oc=""
+  for _c in /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
+    if [ -x "$_c" ]; then _oc=$_c; break; fi
+  done
+  if [ -z "$_oc" ] && command -v llvm-objcopy >/dev/null 2>&1; then
+    _oc=$(command -v llvm-objcopy)
+  fi
+  # note743b: Ubuntu tip-cold has GNU binutils objcopy, not llvm-objcopy.
+  # Without this, short→long alias never runs and phase1 keeps 4 UNDEFs.
+  # PLATFORM: SHARED.
+  if [ -z "$_oc" ] && command -v objcopy >/dev/null 2>&1; then
+    _oc=$(command -v objcopy)
+  fi
+  if [ -z "$_oc" ] && command -v x86_64-linux-gnu-objcopy >/dev/null 2>&1; then
+    _oc=$(command -v x86_64-linux-gnu-objcopy)
+  fi
+  if [ -n "$_oc" ] \
+    && nm -gU "$o" 2>/dev/null | grep -q ' T _glue_field_access_call_base_rvalue_elf_c$' \
+    && ! nm -gU "$o" 2>/dev/null | grep -q ' T _glue_field_access_call_base_rvalue_elf_c__demoted$'; then
+    if "$_oc" --redefine-sym _glue_field_access_call_base_rvalue_elf_c=_glue_field_access_call_base_rvalue_elf_c__demoted "$o" 2>/dev/null; then
+      log "pipeline_abi egg: demoted glue_field_access_call_base_rvalue_elf_c → __demoted"
+    else
+      log "pipeline_abi egg: WARN redefine-sym demote failed"
+    fi
+  fi
+  # knife256/10.2 note743c: for-loop remap (no here-doc); drop U-long gate.
+  # Also re-applied from bootstrap_driver_seed_link pre-ld. PLATFORM: SHARED.
+  pipeline_abi_note743_alias_short_to_long "$o" "$_oc" || true
+  return 0
+}
+
+# knife256/10.2 note743c: remap egg tip-stripped shorts → contract longs.
+# $1=.o $2=optional objcopy. T/t-short without T/t-long; U-long optional.
+# for-loop avoids here-doc stdin hazards. PLATFORM: SHARED.
+pipeline_abi_note743_alias_short_to_long() {
+  local o="$1"
+  local _oc="${2-}"
+  local _short _long _pair _r_tmp _did=0 _c
+  [ -n "$o" ] && [ -f "$o" ] || return 0
+  if [ -z "$_oc" ]; then
+    for _c in /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
+      if [ -x "$_c" ]; then _oc=$_c; break; fi
+    done
+    if [ -z "$_oc" ] && command -v llvm-objcopy >/dev/null 2>&1; then
+      _oc=$(command -v llvm-objcopy)
+    fi
+    if [ -z "$_oc" ] && command -v objcopy >/dev/null 2>&1; then
+      _oc=$(command -v objcopy)
+    fi
+    if [ -z "$_oc" ] && command -v x86_64-linux-gnu-objcopy >/dev/null 2>&1; then
+      _oc=$(command -v x86_64-linux-gnu-objcopy)
+    fi
+  fi
+  if [ -z "$_oc" ]; then
+    log "pipeline_abi note743c: WARN no objcopy; skip short→long alias on $o"
+    return 0
+  fi
+  log "pipeline_abi note743c: _oc=$_oc o=$o"
+  for _pair in \
+    "lane_operand_emit_let_block_chain=pipeline_lane_operand_emit_let_block_chain" \
+    "lane_shr_is_arith=pipeline_lane_shr_is_arith" \
+    "vlet_f32_fill_lane=vector_let_init_array_lit_a64_vlet_f32_fill_lane" \
+    "vlet_wide_elem=pabi_vector_let_init_nested_one_vlet_wide_elem"
+  do
+    _short="${_pair%%=*}"
+    _long="${_pair#*=}"
+    if ! nm "$o" 2>/dev/null | grep -Eq " [Tt] _?${_short}$"; then
+      log "pipeline_abi note743c: skip ${_short} (no T/t short)"
+      continue
+    fi
+    if nm "$o" 2>/dev/null | grep -Eq " [Tt] _?${_long}$"; then
+      log "pipeline_abi note743c: skip ${_short} (long already T)"
+      continue
+    fi
+    if "$_oc" --redefine-sym "${_short}=${_long}" "$o" 2>/dev/null \
+      || "$_oc" --redefine-sym "_${_short}=_${_long}" "$o" 2>/dev/null; then
+      log "pipeline_abi note743c: alias ${_short} → ${_long}"
+      _did=1
+    else
+      log "pipeline_abi note743c: WARN redefine ${_short}→${_long} failed"
+    fi
+  done
+  if [ "$_did" = "1" ]; then
+    _r_tmp=$(mktemp "${TMPDIR:-/tmp}/pabi_note743.XXXXXX.o")
+    if ld -r -o "$_r_tmp" "$o" 2>/dev/null && [ -s "$_r_tmp" ]; then
+      mv -f "$_r_tmp" "$o"
+      log "pipeline_abi note743c: ld -r bind short→long aliases"
+    else
+      rm -f "$_r_tmp"
+      log "pipeline_abi note743c: WARN ld -r bind failed"
+    fi
+  else
+    log "pipeline_abi note743c: no aliases applied"
+  fi
+  return 0
+}
 
 
 # wave323/374/374b/388 M2: parse_orch Cap residual C→.x (was wave284 C thin).
@@ -26508,6 +29114,9 @@ ensure_ldpc_prefer_one() {
     asm_bin="./xlang"
   elif [ -x "./xlang-c" ]; then
     asm_bin="./xlang-c"
+  elif [ -x "./bootstrap_xlangc" ]; then
+    # knife 256 / 10.2: L4 wipe leaves only the pin egg during lsp rebuild.
+    asm_bin="./bootstrap_xlangc"
   fi
   if [ -z "$asm_bin" ]; then
     echo "ensure_host_cc_seed_o try-ldpc-prefer: no asm compiler; C aliases are gone, no fallback" >&2
@@ -26587,7 +29196,7 @@ try_ensure_ldpc_prefer_one() {
   if [ "$o" != "src/lsp/lsp_diag_pipeline_ctx.o" ]; then
     return 3
   fi
-  ensure_ldpc_prefer_one "$o"
+  ensure_ldpc_prefer_one "$o" || return 1
   return 0
 }
 
@@ -26607,13 +29216,23 @@ try_ensure_ldpc_prefer_one() {
 ensure_target_cpu_full_x() {
   # w1528 (5.9): one pure-asm shot of the full .x. Reuses the w1525 helper
   # (G.7: do not open a second pure-asm body). PLATFORM: SHARED.
+  # DIG tip_l4 Win: PE tip P012/T001 on multi-OS target_cpu_pure.x — use
+  # target_cpu_pure_win.x (windows x86_64 bodies only) when present.
   local o="$1"
-  if ensure_r3_full_x_pure_w1525 "$o" src/driver/target_cpu_pure.x \
+  local x_src="src/driver/target_cpu_pure.x"
+  case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*|CYGWIN*|Windows_NT)
+      if [ -f src/driver/target_cpu_pure_win.x ]; then
+        x_src="src/driver/target_cpu_pure_win.x"
+      fi
+      ;;
+  esac
+  if ensure_r3_full_x_pure_w1525 "$o" "$x_src" \
     target_cpu_pure_x_w1528_anchor target_cpu_pure_slice_marker \
     xlang_target_cpu_detect_host xlang_target_cpu_print \
     xlang_target_cpu_generic_for_host xlang_target_cpu_resolve \
     driver_set_pending_target_cpu_features append_feat_name flags_has_token; then
-    log "target_cpu full .x $o (w1528)"
+    log "target_cpu full .x $o (w1528; src=$x_src)"
     return 0
   fi
   return 1
@@ -27111,9 +29730,11 @@ ensure_other_l2_prefer_one() {
 
   mkdir -p "$(dirname "$o")"
 
-  # PREFER thin/full .x + seed-rest only when PREFER=1 (Darwin cold-chain twin).
-  if [ "$prefer" = "1" ] && [ -f "$x_src" ] \
-    && { [ -x ./xlang ] || [ -x ./xlang-c ] || [ -x ./bootstrap_xlangc ]; }; then
+  # knife 256 / 10.2: always try thin+FROM_X rest when a compiler exists.
+  # sat/try-heat often set PREFER=0; bare cold seed is emptied (orphan #else)
+  # for fmt/lsp and must not be host-cc'd. PLATFORM: SHARED.
+  if [ -f "$x_src" ] \
+    && { [ -x ./xlang ] || [ -x ./xlang-c ] || [ -x ./bootstrap_xlangc ] || [ -x ./xlang_asm ]; }; then
     thin_o="$(mktemp "${TMPDIR:-/tmp}/ol2_thin.XXXXXX")"
     rest_o="$(mktemp "${TMPDIR:-/tmp}/ol2_rest.XXXXXX")"
     _thin_ok=0
@@ -27180,10 +29801,19 @@ ensure_other_l2_prefer_one() {
         ;;
     esac
     # shellcheck disable=SC2086
-    if [ "$_thin_ok" = "1" ] \
-      && $CC $BASE_CFLAGS -I. -Iinclude -Isrc $rest_extra -D"$from_x_def" \
-           -c -o "$rest_o" "$seed" \
-      && pure_ld_partial_merge "$o" "$thin_o" "$rest_o" 2>/dev/null; then
+    # tip_l4 Win DIG: surface which hybrid step fails (thin/rest/merge).
+    _ol2_hyb=0
+    if [ "$_thin_ok" != "1" ]; then
+      echo "ensure-host-cc-seed: other-l2 thin failed for $o ($leaf_kind)" >&2
+    elif ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc $rest_extra -D"$from_x_def" \
+           -c -o "$rest_o" "$seed"; then
+      echo "ensure-host-cc-seed: other-l2 rest cc failed for $o ($leaf_kind)" >&2
+    elif ! pure_ld_partial_merge "$o" "$thin_o" "$rest_o"; then
+      echo "ensure-host-cc-seed: other-l2 merge failed for $o ($leaf_kind) thin=$(wc -c <"$thin_o" 2>/dev/null || echo 0) rest=$(wc -c <"$rest_o" 2>/dev/null || echo 0)" >&2
+    else
+      _ol2_hyb=1
+    fi
+    if [ "$_ol2_hyb" = "1" ]; then
       if [ "$_fmt_pure" = "1" ]; then
         log "prefer fmt check ← pure-asm sixty-six symbols (w1182)"
       elif [ "$_lsp_pure" = "1" ]; then
@@ -27206,13 +29836,22 @@ ensure_other_l2_prefer_one() {
     return 0
   fi
 
-  # Cold full seed (ensure_one twin / PREFER=0). fmt keeps USE_X_PIPELINE.
+  # knife 256 / 10.2: fmt/lsp cold seeds emptied — no bare host-cc fallback.
+  case "$leaf_kind" in
+    fmt|fmt_core|lsp)
+      echo "ensure_host_cc_seed_o try-other-l2-prefer: hybrid failed for $o ($leaf_kind); cold seed emptied, no host-cc" >&2
+      return 1
+      ;;
+  esac
+
+  # Cold full seed for leaves whose seed still compiles (e.g. slc).
+  # Propagate ensure_one rc (honesty). PLATFORM: SHARED.
   if [ -f "$o" ] && [ "$prefer" = "1" ]; then
     FORCE=1
-    ensure_one "$o" "$seed" "${cold_extra[@]+"${cold_extra[@]}"}"
+    ensure_one "$o" "$seed" "${cold_extra[@]+"${cold_extra[@]}"}" || return 1
     FORCE=0
   else
-    ensure_one "$o" "$seed" "${cold_extra[@]+"${cold_extra[@]}"}"
+    ensure_one "$o" "$seed" "${cold_extra[@]+"${cold_extra[@]}"}" || return 1
   fi
   return 0
 }
@@ -27226,7 +29865,7 @@ try_ensure_other_l2_prefer_one() {
   if [ -z "$(other_l2_prefer_spec_for_out "$o")" ]; then
     return 3
   fi
-  ensure_other_l2_prefer_one "$o"
+  ensure_other_l2_prefer_one "$o" || return 1
   return 0
 }
 
@@ -28185,8 +30824,6 @@ ensure_net_sock_fast_darwin_pure() {
         _net_close_socket_c \
         _net_tcp_listen_c \
         _net_udp_bind_c \
-        _net_tcp_errno_ptr_c \
-        _net_udp_errno_ptr_c \
         _net_ipv6_errno_ptr_c \
         _runtime_net_sock_fast_x_doc_anchor; do
         if ! nm "$o" 2>/dev/null | awk -v s="$_ns_short" 'BEGIN{if(s~/^_/)s=substr(s,2)} $2=="T" && ($3==s || $3=="_" s) { n++ } END { exit (n==1)?0:1 }'; then
@@ -28437,9 +31074,10 @@ ensure_net_io_batch_fast_darwin_pure() {
 
 
 
-# w246: Darwin|Linux net_dns_fast.o from runtime_net_dns_fast.x (pure-asm).
-# Cap resolve stays U (xlang_dns_cap_resolve_*); same contract as std/net/dns.x.
-# Windows keeps the C seed below. PLATFORM: MACOS|DARWIN|LINUX.
+# w246: Darwin|Linux net_dns_fast.o from runtime_net_dns_fast.x (pure-asm faces).
+# The two xlang_dns_cap_resolve_* exports are the C seed (xlang_dns_cap.h).
+# Export-only cc + ld -r. Do not cc the whole seed over the faces.
+# Windows keeps the full C seed below. PLATFORM: MACOS|DARWIN|LINUX.
 ensure_net_dns_fast_pure() {
   local o="${1:-../std/net/net_dns_fast.o}"
   local xsrc="src/asm/runtime_net_dns_fast.x"
@@ -28470,8 +31108,31 @@ ensure_net_dns_fast_pure() {
           && nm "$o" 2>/dev/null | grep -qE ' T _?net_resolve_ipv4_ex_c$' \
           && nm "$o" 2>/dev/null | grep -qE ' T _?net_resolve_ipv6_ex_c$' \
           && nm "$o" 2>/dev/null | grep -qE ' T _?runtime_net_dns_fast_x_doc_anchor$'; then
-          log "pure-asm $xsrc → $o"
-          return 0
+          # PLATFORM: MACOS|DARWIN|LINUX — faces are the .x. Cap bodies are
+          # xlang_dns_cap_resolve_* in the seed. Full seed cc duplicates the faces.
+          local face_o cap_o
+          face_o="${o}.face"
+          cap_o="${o}.cap"
+          mv "$o" "$face_o"
+          # Darwin minos 11 matches the pure-asm face. No stack protector.
+          # PLATFORM: MACOS|DARWIN uses -mmacos-version-min; LINUX does not.
+          local cap_minos=""
+          if [ "$os" = "Darwin" ]; then
+            cap_minos="-mmacos-version-min=11.0"
+          fi
+          if $CC ${CFLAGS:-} -std=c11 -fno-stack-protector $cap_minos \
+              -I. -Iinclude -Isrc \
+              -DXLANG_NET_DNS_CAP_EXPORT_ONLY -c "$seed" -o "$cap_o" \
+            && ld -r -o "$o" "$face_o" "$cap_o" \
+            && nm "$o" 2>/dev/null | grep -qE ' T _?xlang_dns_cap_resolve_ipv4$' \
+            && nm "$o" 2>/dev/null | grep -qE ' T _?xlang_dns_cap_resolve_ipv6$'; then
+            rm -f "$face_o" "$cap_o"
+            log "pure-asm $xsrc + cap export → $o"
+            return 0
+          fi
+          echo "ensure_host_cc_seed_o net_dns: cap export link failed" >&2
+          rm -f "$o" "$face_o" "$cap_o"
+          return 1
         fi
         echo "ensure_host_cc_seed_o net_dns: pure-asm try $try failed" >&2
         rm -f "$o"
@@ -28490,7 +31151,7 @@ _std_core_net_fast_one() {
   local fast_o="$1" seed="$2" x_src="$3" from_x_def="$4" mode="$5" xbin="${6:-}"
   local prefer="${XLANG_G05_PREFER_X_O:-0}"
   local thin_o rest_o dir
-  # w246: Darwin|Linux net_dns_fast.o pure-asm (Cap U; no seed cc).
+  # w246: Darwin|Linux net_dns_fast.o pure-asm faces + cap export ld -r.
   # PLATFORM: MACOS|DARWIN|LINUX.
   if [ "$(basename "$fast_o")" = "net_dns_fast.o" ]; then
     local nd_s
@@ -28626,6 +31287,21 @@ ensure_std_core_prefer_one() {
     if [ -n "$x_src" ] && [ -f "$x_src" ] && [ "$x_src" -nt "$o" ]; then
       stale=1
     fi
+    # note743y.6.23: Darwin arm64 slice.o must be hand-asm. Cap tip .x pure-asm
+    # is hollow (sret, no str through out). Treat hollow or stale .s as rebuild.
+    if [ "$stale" = "0" ] && [ "$x_src" = "src/asm/runtime_slice_glue.x" ] \
+      && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+      && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ]; then
+      if [ -f src/asm/runtime_slice_glue_a64.s ] \
+        && [ src/asm/runtime_slice_glue_a64.s -nt "$o" ]; then
+        stale=1
+      fi
+      if [ "$stale" = "0" ] && [ -f "$o" ]; then
+        if ! otool -tv "$o" 2>/dev/null | grep -q 'stp	x29, x30, \[sp, #-0x30\]!'; then
+          stale=1
+        fi
+      fi
+    fi
     if [ "$leaf_kind" = "process_merge" ]; then
       if [ -f runtime_process_argv.o ] && [ runtime_process_argv.o -nt "$o" ]; then
         stale=1
@@ -28645,6 +31321,43 @@ ensure_std_core_prefer_one() {
       if [ -f src/asm/runtime_process_import_alias_linux.x ] &&
          [ src/asm/runtime_process_import_alias_linux.x -nt "$o" ]; then
         stale=1
+      fi
+      # mtime misses a warm process.o merged before the import_alias face:
+      # every input is older, but std_process_* was never linked in.
+      # Product -o then leaves the import METHOD names undefined.
+      # PLATFORM: SHARED.
+      if [ "$stale" = "0" ] && ! r3_prefer_nm_has_sym "$o" std_process_args_count; then
+        stale=1
+      fi
+      if [ "$stale" = "0" ] && ! r3_prefer_nm_has_sym "$o" std_process_arg; then
+        stale=1
+      fi
+      if [ "$stale" = "0" ] && ! r3_prefer_nm_has_sym "$o" std_process_getenv; then
+        stale=1
+      fi
+      # PLATFORM: MACOS|DARWIN arm64 — os_glue calls env_setenv_c /
+      # env_unsetenv_c. The product asm linker scans only the user
+      # object, so those undefs inside process.o never pull
+      # runtime_env_os.o. The Darwin merge below absorbs that object.
+      # A process.o that lacks the symbols is stale.
+      if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+        && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ]; then
+        if [ -f runtime_env_os.o ] && [ runtime_env_os.o -nt "$o" ]; then
+          stale=1
+        fi
+        if [ -f src/asm/runtime_env_os.x ] && [ src/asm/runtime_env_os.x -nt "$o" ]; then
+          stale=1
+        fi
+        if [ -f src/asm/runtime_env_os_darwin.x ] \
+          && [ src/asm/runtime_env_os_darwin.x -nt "$o" ]; then
+          stale=1
+        fi
+        if [ "$stale" = "0" ] && ! r3_prefer_nm_has_sym "$o" env_setenv_c; then
+          stale=1
+        fi
+        if [ "$stale" = "0" ] && ! r3_prefer_nm_has_sym "$o" env_unsetenv_c; then
+          stale=1
+        fi
       fi
 
     fi
@@ -28783,8 +31496,11 @@ ensure_std_core_prefer_one() {
 
     process_merge)
       # PLATFORM: SHARED — process.o = args_thin + argv + os_glue + import_alias.
-      # import_alias exports std_process_* for pure-asm import METHOD (G.7 complete
-      # process_merge; C-path co-emit of mod.x is not used on pure-asm product).
+      # PLATFORM: MACOS|DARWIN arm64 also absorbs runtime_env_os.o with weak
+      # text (same pure-asm body as the std.env leaf; a strong runtime_env_os.o
+      # still wins). import_alias exports std_process_* for pure-asm import
+      # METHOD (G.7 complete process_merge; C-path co-emit of mod.x is not
+      # used on pure-asm product).
       # 7.2.1 fourth knife: when the map pointed at the .x authority, regen the
       # stable gen via the product -x -E first (both bare wrappers verified);
       # $seed then names the gen file for the shared compile below.
@@ -28880,20 +31596,95 @@ ensure_std_core_prefer_one() {
           return 1
         fi
       fi
-      # Merge with zero execve(cc): Linux ld -r; Darwin XLANG_ZERO_CC_LD so
-      # pure_ld_partial_merge uses ld -r then libtool (never $CC -r).
-      # PLATFORM: LINUX|DARWIN. Windows stays seed+cc above.
-      if [ "$_alias_os" = "Linux" ]; then
-        if ! /usr/bin/ld -r -o "$o" "$tmp_args" runtime_process_argv.o runtime_process_os_glue.o "$tmp_alias"; then
+      # PLATFORM: MACOS|DARWIN arm64 — absorb runtime_env_os.o.
+      # os_glue calls env_setenv_c / env_unsetenv_c. The product asm
+      # linker scans only the user object, so an undef inside process.o
+      # never pulls the env leaf. This is the same pure-asm body, not a
+      # second libc setenv. Text is weakened on a copy so a later strong
+      # runtime_env_os.o still wins. The doc anchor sits at text offset 0;
+      # Darwin ld -r promotes that one symbol back to strong, so the copy
+      # localizes it first. The on-disk runtime_env_os.o stays strong.
+      # A host-cc of the C seed is refused.
+      _env_weak=""
+      if [ "$_alias_os" = "Darwin" ] && [ "$_alias_mach" = "arm64" ]; then
+        _env_log="$(mktemp "${TMPDIR:-/tmp}/proc_env_os.XXXXXX")"
+        if ! ensure_env_os_darwin_pure runtime_env_os.o >"$_env_log" 2>&1; then
+          cat "$_env_log" >&2
+          rm -f "$_env_log" "$tmp_args" "$tmp_alias"
+          return 1
+        fi
+        if grep -q 'cc -c' "$_env_log"; then
+          echo "ensure_host_cc_seed_o: process_merge refuses host-cc runtime_env_os.o" >&2
+          cat "$_env_log" >&2
+          rm -f "$_env_log" "$tmp_args" "$tmp_alias"
+          return 1
+        fi
+        cat "$_env_log"
+        rm -f "$_env_log"
+        if [ ! -s runtime_env_os.o ] \
+          || ! r3_prefer_nm_has_sym runtime_env_os.o runtime_env_os_darwin_env_os_environ \
+          || ! r3_prefer_nm_has_sym runtime_env_os.o env_setenv_c; then
+          echo "ensure_host_cc_seed_o: process_merge runtime_env_os.o is not the pure-asm Darwin body" >&2
           rm -f "$tmp_args" "$tmp_alias"
           return 1
         fi
-      elif ! XLANG_ZERO_CC_LD=1 _std_core_ld_r "$o" "$tmp_args" runtime_process_argv.o runtime_process_os_glue.o "$tmp_alias"; then
+        _env_weak="$(mktemp "${TMPDIR:-/tmp}/proc_env_weak.XXXXXX")"
+        rm -f "$_env_weak"
+        _env_weak="${_env_weak}.o"
+        if ! cp runtime_env_os.o "$_env_weak"; then
+          rm -f "$tmp_args" "$tmp_alias" "$_env_weak"
+          return 1
+        fi
+        _env_oc="$(pure_asm_find_objcopy)" || {
+          echo "ensure_host_cc_seed_o: process_merge objcopy missing; no host cc" >&2
+          rm -f "$tmp_args" "$tmp_alias" "$_env_weak"
+          return 1
+        }
+        _env_args=()
+        while IFS= read -r _env_sym; do
+          [ -n "$_env_sym" ] || continue
+          _env_args+=(--weaken-symbol="$_env_sym")
+        done <<EOF
+$(nm -gU "$_env_weak" 2>/dev/null | awk '$2=="T" { print $NF }')
+EOF
+        if [ "${#_env_args[@]}" -eq 0 ] \
+          || ! "$_env_oc" "${_env_args[@]}" "$_env_weak" \
+          || ! "$_env_oc" --localize-symbol=_runtime_env_os_x_doc_anchor "$_env_weak" \
+          || ! nm -m "$_env_weak" | awk '/_env_setenv_c$/ && /weak external/ { f=1 } END { exit f ? 0 : 1 }'; then
+          echo "ensure_host_cc_seed_o: process_merge failed to weaken runtime_env_os text" >&2
+          rm -f "$tmp_args" "$tmp_alias" "$_env_weak"
+          return 1
+        fi
+      fi
+      # Merge with zero execve(cc): Linux ld -r; Darwin XLANG_ZERO_CC_LD so
+      # pure_ld_partial_merge uses ld -r then libtool (never $CC -r).
+      # PLATFORM: LINUX|DARWIN. Windows stays seed+cc above.
+      _proc_inputs=("$tmp_args" runtime_process_argv.o runtime_process_os_glue.o "$tmp_alias")
+      if [ -n "$_env_weak" ]; then
+        _proc_inputs+=("$_env_weak")
+      fi
+      if [ "$_alias_os" = "Linux" ]; then
+        if ! /usr/bin/ld -r -o "$o" "${_proc_inputs[@]}"; then
+          rm -f "$tmp_args" "$tmp_alias"
+          [ -n "$_env_weak" ] && rm -f "$_env_weak"
+          return 1
+        fi
+      elif ! XLANG_ZERO_CC_LD=1 _std_core_ld_r "$o" "${_proc_inputs[@]}"; then
         rm -f "$tmp_args" "$tmp_alias"
+        [ -n "$_env_weak" ] && rm -f "$_env_weak"
         return 1
       fi
+      if [ -n "$_env_weak" ]; then
+        if ! nm -m "$o" | awk '/_env_setenv_c$/ && /weak external/ { f=1 } END { exit f ? 0 : 1 }' \
+          || ! nm -m "$o" | awk '/_env_unsetenv_c$/ && /weak external/ { f=1 } END { exit f ? 0 : 1 }'; then
+          echo "ensure_host_cc_seed_o: process_merge env text is not weak in $o" >&2
+          rm -f "$o" "$tmp_args" "$tmp_alias" "$_env_weak"
+          return 1
+        fi
+      fi
       rm -f "$tmp_args" "$tmp_alias"
-      log "process_merge $o <- $seed + argv + os_glue + import_alias (try-std-core-prefer)"
+      [ -n "$_env_weak" ] && rm -f "$_env_weak"
+      log "process_merge $o <- $seed + argv + os_glue + import_alias${_env_weak:+ + env_os(weak)} (try-std-core-prefer)"
       return 0
       ;;
 
@@ -29790,6 +32581,23 @@ ensure_r2_panic_one() {
       return 1
       ;;
   esac
+  # note743y.6.23 / 5.1 Cap tip: egg|tip pure-asm of C name _NSGetEnviron emits
+  # Mach-O U _NSGetEnviron; libSystem exports __NSGetEnviron (same class as
+  # NSGetArgc→__NSGetArgc). Redefine whenever the egg-shaped undef is present,
+  # including skip/up-to-date path, so Cap tip pure-ld does not UNDEF.
+  # PLATFORM: MACOS|DARWIN arm64. No FORCE_CC / host-cc .c.
+  if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && [ -s "$o" ]     && nm -u "$o" 2>/dev/null | awk '$NF=="_NSGetEnviron" { f=1 } END { exit f?0:1 }'; then
+    _pa_oc="$(pure_asm_find_objcopy)" || return 1
+    if ! "$_pa_oc" --redefine-sym '_NSGetEnviron=__NSGetEnviron' "$o"; then
+      echo "ensure_host_cc_seed_o r2-panic: NSGetEnviron Darwin mangling redefine failed" >&2
+      return 1
+    fi
+    if nm -u "$o" 2>/dev/null | awk '$NF=="_NSGetEnviron" { f=1 } END { exit f?0:1 }'; then
+      echo "ensure_host_cc_seed_o r2-panic: U _NSGetEnviron remains after redefine" >&2
+      return 1
+    fi
+    log "r2-panic: Darwin NSGetEnviron → libSystem mangling (note743y.6.23 / 5.1)"
+  fi
   # Keep stamp mtime after successful compile so make prereq stays satisfied.
   touch "$stamp"
   return 0
@@ -30359,7 +33167,33 @@ check_family() {
       *) bad "unknown seed_mode $seed_mode for $label"; continue ;;
     esac
     if [ ! -f "$seed" ]; then
-      bad "missing seed for $o → $seed ($label)"
+      # knife 11.02 / w1492–w1533: many host-cc .from_x.c seeds phys-deleted after
+      # pure-.x product install. --check accepts seed-retired when product .x exists
+      # (honest; not a second .o list; not skip-existence fake-green).
+      # PLATFORM: SHARED — structural honesty only.
+      local _px="" _base
+      _base="$(basename "$o" .o)"
+      for _px in \
+          "${o%.o}.x" \
+          "src/runtime/${_base}.x" \
+          "src/asm/${_base}.x" \
+          "src/driver/${_base}.x" \
+          "src/driver/${_base}_pure.x" \
+          "${_base}.x"; do
+        [ -f "$_px" ] && break
+        _px=""
+      done
+      if [ -z "$_px" ] && [ "$_base" = "target_cpu" ] && [ -f src/driver/target_cpu_pure.x ]; then
+        _px=src/driver/target_cpu_pure.x
+      fi
+      if [ -z "$_px" ] && [ "$_base" = "runtime_scheduler_glue" ] && [ -f src/asm/runtime_scheduler_glue.x ]; then
+        _px=src/asm/runtime_scheduler_glue.x
+      fi
+      if [ -n "$_px" ] && [ -f "$_px" ]; then
+        note "seed retired; pure.x $_px for $o ($label)"
+      else
+        bad "missing seed for $o → $seed ($label)"
+      fi
     fi
     if [ -n "$path_pfx" ]; then
       case "$o" in
@@ -31067,6 +33901,21 @@ R3_COLD_SEED_OBJS DRIVER_SEED_PANIC_OBJS DRIVER_SEED_TYPECK_F64_OBJS DRIVER_SEED
     bad "try-r3-prefer / try_ensure_r3_prefer_one missing (wave763 R3 PREFER thin)"
   else
     note "try-r3-prefer R3 PREFER thin helper present (wave763)"
+  fi
+  # 10.67: cold fallback must not swallow ensure_one failure.
+  if ! awk '
+    /^ensure_r3_prefer_one\(\)/ { in_fn=1 }
+    in_fn && /^}/ { in_fn=0 }
+    in_fn && /ensure_one "\$o" "\$seed"/ {
+      line=$0
+      getline nxt
+      if (line ~ /\|\| return/ || nxt ~ /return 1/ || line ~ /if ! ensure_one/) ok=1
+    }
+    END { exit ok?0:1 }
+  ' "$0"; then
+    bad "ensure_r3_prefer_one must propagate ensure_one cold failure (10.67)"
+  else
+    note "ensure_r3_prefer_one propagates ensure_one cold failure (10.67)"
   fi
   if ! grep -q 'r3_prefer_leaf_spec\|ensure_r3_prefer_one' "$0"; then
     bad "r3 prefer body missing (wave763)"
@@ -32045,11 +34894,34 @@ try_heat_one() {
   try_ensure_gen_x_one "$o"; rc=$?; set -e
   [ "$rc" -eq 0 ] && return 0
   [ "$rc" -ne 3 ] && return "$rc"
+  # knife 256 / 10.2: DRIVER_SEED_PREREQS leaves not in R1 tables but
+  # product-pure-asm (deleted C seed). Claim here so try-heat does not
+  # return 3 and fail bootstrap. PLATFORM: SHARED.
+  case "$o" in
+    runtime_asm_io_stubs.o)
+      ensure_runtime_asm_io_stubs_pure || return 1
+      return 0
+      ;;
+    src/x_seed_bridge.o|src/runtime/rt_emit_state.o|src/asm/user_asm_seed_bridge.o|src/asm/asm_backend_compat_stubs.o|src/asm/backend_x86_64_enc_c.o|src/asm/backend_arm64_enc_c.o|src/asm/parser_asm_parse_expr_link.o)
+      ensure_deleted_seed_leaf_pure "$o" || return 1
+      return 0
+      ;;
+  esac
   # Honest residual: not an ensure-owned leaf (make graph / non-catalog).
   return 3
 }
 
 case "$MODE" in
+  modlet-rename-bss|modlet_rename_bss)
+    # 10.38: rename Lxml COMMONs on a pure-asm modlet.o onto C table names.
+    # cwd is compiler/. PLATFORM: SHARED.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o modlet-rename-bss: need <modlet.o>" >&2
+      exit 2
+    fi
+    pipeline_abi_modlet_rename_bss "$1"
+    exit $?
+    ;;
   net-ipv6-os-retry|net_ipv6_os_retry_pure)
     # w1228: sixteen pure-asm symbols of runtime_net_ipv6_fast_darwin.x.
     # Does not link the thin half and does not write std/net/net_ipv6_fast.o.
@@ -32062,7 +34934,7 @@ case "$MODE" in
     exit $?
     ;;
   net-sock-os-retry|net_sock_os_retry_pure)
-    # w1227: twenty-four pure-asm symbols of runtime_net_sock_fast_darwin.x.
+    # w1227: twenty-two pure-asm symbols of runtime_net_sock_fast_darwin.x.
     # Does not link the thin half and does not write std/net/net_sock_fast.o.
     # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
@@ -32161,7 +35033,7 @@ case "$MODE" in
     exit $?
     ;;
   crypto-os-retry|crypto_os_retry_pure)
-    # w1218: thirty-five pure-asm symbols of runtime_crypto_inc_glue_darwin.x.
+    # w1218: thirty-seven pure-asm symbols of runtime_crypto_inc_glue_darwin.x.
     # Does not write runtime_crypto_inc_glue.o and does not compile the thin half.
     # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
@@ -32194,7 +35066,7 @@ case "$MODE" in
     exit $?
     ;;
   env-os-retry|env_os_retry_pure)
-    # w1215: twenty-eight pure-asm symbols of runtime_env_os_darwin.x.
+    # w1215: thirty pure-asm symbols of runtime_env_os_darwin.x.
     # Does not write runtime_env_os.o and does not compile the thin half.
     # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
@@ -32580,9 +35452,9 @@ case "$MODE" in
     exit $?
     ;;
   run-compiler-parsed-pure|run_compiler_parsed_darwin_pure)
-    # w1177: sixty-nine pure-asm symbols of rt_run_compiler_parsed.x.
+    # w1177 / note733: sixty-nine pure-asm symbols of rt_run_compiler_parsed.x.
     # Does not write runtime_driver_no_c.o unless that path is passed.
-    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    # PLATFORM: SHARED — Darwin arm64 + Linux x86_64. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o run-compiler-parsed-pure: need <out.o>" >&2
       exit 2
@@ -32723,9 +35595,9 @@ case "$MODE" in
     exit $?
     ;;
   rt-run-x-emit-pure|rt_run_x_emit_darwin_pure)
-    # w1165: fifty-seven pure-asm symbols of src/runtime/rt_run_x_emit.x.
+    # w1165 / 10.16: fifty-seven pure-asm symbols of src/runtime/rt_run_x_emit.x.
     # Does not write runtime_driver_no_c.o unless that path is passed.
-    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    # PLATFORM: SHARED Darwin arm64 + Linux x86_64. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o rt-run-x-emit-pure: need <out.o>" >&2
       exit 2
@@ -32754,6 +35626,64 @@ case "$MODE" in
     fi
     rt_abk_authority_check "$1"
     exit $?
+    ;;
+  uasb-ln-inc-ok|uasb_ln_inc_ok)
+    # tip_l4 pe_codegen_elf_o_hang: authority for codegen_elf_o while-ln++.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o uasb-ln-inc-ok: need <obj>" >&2
+      exit 2
+    fi
+    uasb_codegen_elf_o_ln_inc_ok "$1"
+    exit $?
+    ;;
+  uasb-pure|uasb_pure)
+    # tip_l4 pe_codegen_elf_o_hang: egg-first whole-object pure for uasb.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o uasb-pure: need <out.o>" >&2
+      exit 2
+    fi
+    _uasb_out="$1"
+    case "$_uasb_out" in
+      src/asm/user_asm_seed_bridge.o|*/user_asm_seed_bridge.o|user_asm_seed_bridge.o) ;;
+      *)
+        echo "ensure_host_cc_seed_o uasb-pure: not user_asm_seed_bridge.o" >&2
+        exit 3
+        ;;
+    esac
+    set +e
+    uasb_pure_any "$_uasb_out"
+    _uasb_rc=$?
+    set -e
+    exit "$_uasb_rc"
+    ;;
+  rt-emit-pctx-inits-ok|rt_emit_pctx_set_entry_inits_ok)
+    # tip_l4 pe_pctx_entry_lib_prefix_segv: authority for set-entry inits.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o rt-emit-pctx-inits-ok: need <obj>" >&2
+      exit 2
+    fi
+    rt_emit_pctx_set_entry_inits_ok "$1"
+    exit $?
+    ;;
+  rt-emit-state-egg-pure|rt_emit_state_egg_pure)
+    # tip_l4 pe_pctx_entry_lib_prefix_segv: egg-first whole-object pure.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o rt-emit-state-egg-pure: need <out.o>" >&2
+      exit 2
+    fi
+    _rte_out="$1"
+    case "$_rte_out" in
+      src/runtime/rt_emit_state.o|*/rt_emit_state.o|rt_emit_state.o) ;;
+      *)
+        echo "ensure_host_cc_seed_o rt-emit-state-egg-pure: not rt_emit_state.o" >&2
+        exit 3
+        ;;
+    esac
+    set +e
+    rt_emit_state_pure_any "$_rte_out"
+    _rte_rc=$?
+    set -e
+    exit "$_rte_rc"
     ;;
   pthin-let-alias-pure|pthin_let_alias_darwin_pure)
     # w1163: four pure-asm symbols of src/asm/pthin_let_alias.x.
@@ -32867,7 +35797,7 @@ case "$MODE" in
     exit $?
     ;;
   pthin-skip-tl-pure|pthin_skip_tl_darwin_pure)
-    # w1154: sixty-three pure-asm pieces of src/asm/pthin_skip_tl.x.
+    # w1154: sixty-four pure-asm pieces of src/asm/pthin_skip_tl.x.
     # Does not write parser_asm_thin_glue.o unless that path is passed.
     # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
@@ -33020,10 +35950,31 @@ case "$MODE" in
     pthin_expr_ternary_darwin_pure "$1"
     exit $?
     ;;
+  diagthin-cstr-len-ok|diagthin_cstr_len_n_inc_ok)
+    # tip_l4 pe_diagthin_cstr_len_hang: authority for cstr_len while-n++.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o diagthin-cstr-len-ok: need <obj>" >&2
+      exit 2
+    fi
+    diagthin_cstr_len_n_inc_ok "$1"
+    exit $?
+    ;;
+  diag-thin-egg-pure|diag_thin_egg_whole_any)
+    # tip_l4 pe_diagthin_cstr_len_hang: egg-first whole-file pure for diag_thin.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o diag-thin-egg-pure: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    diag_thin_egg_whole_any "$1"
+    _dte_rc=$?
+    set -e
+    exit "$_dte_rc"
+    ;;
   diag-thin-pure|diag_thin_darwin_pure)
-    # w1140: eight pure-asm pieces of src/diag_thin.x. Does not compile the
-    # C rest and does not write src/diag.o unless that path is passed.
-    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    # w1140 + tip_l4: egg-first whole-file (cstr_len n++), else eight pieces.
+    # Does not compile the C rest and does not write src/diag.o unless that
+    # path is passed. PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o diag-thin-pure: need <out.o>" >&2
       exit 2
@@ -33635,6 +36586,17 @@ case "$MODE" in
     set -e
     exit "$_irc"
     ;;
+  inject-cap-egg|inject_cap_egg|inject-cap-residual-egg)
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o inject-cap-egg: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    pipeline_abi_inject_cap_residual_egg_thins "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
   inject-glue-statics|inject_glue_statics)
     # wave332: glue_statics PREFER_ASM (stamp + ALLOW_E_REPLACE).
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
@@ -33670,6 +36632,7 @@ case "$MODE" in
     fi
     set +e
     pipeline_abi_inject_read_file_x_view_thin "$1"
+    pipeline_abi_inject_cap_residual_egg_thins "$1"
     _irc=$?
     set -e
     exit "$_irc"
@@ -34957,6 +37920,9 @@ case "$MODE" in
     ;;
   try-rt-stack-prefer|try-rt-stack)
     ensure_rt_stack_prefer
+    ;;
+  try-rt-run-exec-prefer|try-rt-run-exec|rt-run-exec)
+    ensure_rt_run_exec_prefer
     ;;
   try-xfla-prefer|try-x-frontend-link-alias-prefer)
     ensure_x_frontend_link_alias_prefer

@@ -81,6 +81,8 @@ export extern "C" function pipeline_module_struct_layout_field_offset_at(mod: *u
 export extern "C" function pipeline_expr_field_access_base_ref(arena: *u8, er: i32): i32;
 export extern "C" function pipeline_asm_emit_func_index_c(): i32;
 export extern "C" function pipeline_type_elem_ref_at(arena: *u8, tr: i32): i32;
+export extern "C" function pipeline_type_array_size_at(arena: *u8, tr: i32): i32;
+export extern "C" function glue_array_lit_force_esz_from_elem_type_c(arena: *u8, et: i32): i32;
 export extern "C" function typeck_get_field_offset_from_layout_deps(mod: *u8, pctx: *u8, tname: *u8, tlen: i32, fname: *u8, flen: i32): i32;
 export extern "C" function pipeline_expr_field_access_layout_offset(arena: *u8, mod: *u8, fa: i32): i32;
 export extern "C" function glue_type_named_layout_size_any_module_elf_c(arena: *u8, ty_ref: i32): i32;
@@ -436,11 +438,11 @@ export function asm_local_var_slot_holds_indirect_ptr(arena: *u8, expr_ref: i32,
  */
 #[no_mangle]
 export function glue_local_var_slot_holds_indirect_ptr(arena: *u8, er: i32, asm_ctx: *u8): i32 {
-  let mod_ref: *u8 = 0 as *u8;
+  let mod_ref_u: usize = 0;
   if (asm_ctx != 0) {
-    mod_ref = g02f_load_ptr_at(asm_ctx, 16);
+    mod_ref_u = g02f_load_ptr_at(asm_ctx, 16) as usize;
   }
-  return asm_local_var_slot_holds_indirect_ptr(arena, er, mod_ref, asm_ctx);
+  return asm_local_var_slot_holds_indirect_ptr(arena, er, mod_ref_u as *u8, asm_ctx);
 }
 
 // glue_expr_is_func_param_at: see function docblock below.
@@ -1780,6 +1782,33 @@ export function try_inline_param0_single_field_call_elf(arena: *u8, elf_ctx: *u8
       if (kord == 9 || kord == 11) {
         return 0;
       }
+      // TYPE_ARRAY = 10. Wider than 8 bytes is not the 32-bit load
+      // below. 16 bytes is a register pair. Wider than 16 is the
+      // array address. That load keeps one word, and the caller
+      // copies from the word (SIGSEGV on `return w.xs`). A proven
+      // payload of 8 bytes or less stays on the scalar load. An
+      // unknown size stays on the real call.
+      // PLATFORM: SHARED.
+      if (kord == 10) {
+        let an: i32 = 0;
+        let aet: i32 = 0;
+        let aes: i32 = 0;
+        let abytes: i32 = 0;
+        an = pipeline_type_array_size_at(callee_arena, ret_ty);
+        aet = pipeline_type_elem_ref_at(callee_arena, ret_ty);
+        if (aet > 0) {
+          aes = glue_type_named_layout_size_any_module_elf_c(callee_arena, aet);
+          if (aes <= 0) {
+            aes = glue_array_lit_force_esz_from_elem_type_c(callee_arena, aet);
+          }
+        }
+        if (an > 0 && an <= 1024 && aes > 0 && aes <= 256) {
+          abytes = an * aes;
+        }
+        if (abytes <= 0 || abytes > 8) {
+          return 0;
+        }
+      }
     }
     // Field type when the function return type is missing. Still before encode.
     {
@@ -2041,8 +2070,8 @@ export function try_inline_var_field_sum_binop_elf(
       pctx = pipeline_asm_emit_dep_pipe_c();
     }
     if (pctx == 0) { return 0; }
-    let off_a: i32 = 0 - 1;
-    let off_b: i32 = 0 - 1;
+    let off_a: i32 = (0 - 1);
+    let off_b: i32 = (0 - 1);
     let nd: i32 = pipeline_dep_ctx_ndep(pctx);
     let di: i32 = 0;
     while (di < nd) {

@@ -1,10 +1,10 @@
-// Thin overlay: Cap residual named_builtin size/align → 4 (wave1007).
-// G.7 twin of typeck_x_named_builtin_{align,size} for tip first-wins when
-// typeck_x.o still has 1/2. PLATFORM: WINDOWS overlay · SHARED semantics.
+// Thin overlay: Cap residual named_builtin (10.44: i8→1; i16/u16 stay 4).
+// G.7 twin of typeck_x_named_builtin_{align,size} for tip first-wins.
+// PLATFORM: WINDOWS overlay · SHARED semantics.
 
 /**
- * Align of a named builtin spelling. Cap residual i8/i16/u16 use 4-byte
- * cells (same as INDEX esz-4). True 1/2 pack waits on sext load encoders.
+ * Align of a named builtin spelling. 10.44: i8 is 1-byte; i16/u16 stay
+ * 4-byte cells until halfword field store/load is complete on all paths.
  * @param nm *u8 — type name bytes
  * @param nlen i32 — name length
  * @return i32 — 1, 2, 4, or 8; 0 if unknown
@@ -15,7 +15,7 @@ export function typeck_x_named_builtin_align(nm: *u8, nlen: i32): i32 {
   if (nm == 0 as *u8 || nlen <= 0) {
     return 0;
   }
-  if (nlen == 2 && nm[0] == 105 && nm[1] == 56) { return 4; }
+  if (nlen == 2 && nm[0] == 105 && nm[1] == 56) { return 1; }
   if (nlen == 3 && nm[0] == 105 && nm[1] == 49 && nm[2] == 54) { return 4; }
   if (nlen == 3 && nm[0] == 117 && nm[1] == 49 && nm[2] == 54) { return 4; }
   if (nlen == 3 && nm[0] == 105 && nm[1] == 51 && nm[2] == 50) { return 4; }

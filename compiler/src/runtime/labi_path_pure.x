@@ -117,6 +117,7 @@ let g_labi_bootstrap_nostdlib_stubs_o_path_resolved: u8[4096] = [];
 // wave183: durable thin runtime_*_o_path BSS (≡ mega static PATH_MAX per leaf; 29 leaves).
 // wave184: durable empty C string (≡ mega static char buf[1] for xlang_empty_cstr).
 let g_labi_empty_cstr_buf: u8[1] = [];
+
 let g_labi_asm_io_stubs_o_path_buf: u8[4096] = [];
 let g_labi_process_argv_o_path_buf: u8[4096] = [];
 let g_labi_process_os_glue_o_path_buf: u8[4096] = [];
@@ -129,6 +130,9 @@ let g_labi_queue_contention_o_path_buf: u8[4096] = [];
 let g_labi_dynlib_os_o_path_buf: u8[4096] = [];
 let g_labi_env_os_o_path_buf: u8[4096] = [];
 let g_labi_link_abi_user_env_o_path_buf: u8[4096] = [];
+/* Tip PE: compiler_o_path_copy must not put u8[4096] on the frame
+ * (detect_host / ensure grain). Scratch for resolve_compiler_dir. */
+let g_labi_compiler_o_path_comp_dir: u8[4096] = [];
 let g_labi_backtrace_platform_o_path_buf: u8[4096] = [];
 let g_labi_log_os_o_path_buf: u8[4096] = [];
 let g_labi_math_libm_o_path_buf: u8[4096] = [];
@@ -1411,18 +1415,17 @@ export function xlang_runtime_compiler_o_path_copy(argv0: *u8, leaf: *u8, out: *
     return -1;
   }
   out[0] = 0;
-  // Cap residual: platform compiler-dir resolve into 4096 stack (PATH_MAX upper).
-  let comp_dir: u8[4096] = [];
+  // Cap residual: resolve into same-TU BSS (tip PE u8[4096] frame smash).
   let rc: i32 = 0;
   unsafe {
-    rc = xlang_resolve_compiler_dir(argv0, &comp_dir[0], 4096);
+    rc = xlang_resolve_compiler_dir(argv0, &g_labi_compiler_o_path_comp_dir[0], 4096);
   }
   if (rc != 0) {
     return -1;
   }
   // Pure strlen(comp_dir) / strlen(leaf).
   let dn: i32 = 0;
-  while (comp_dir[dn] != 0) {
+  while (g_labi_compiler_o_path_comp_dir[dn] != 0) {
     dn = dn + 1;
   }
   let ln: i32 = 0;
@@ -1435,10 +1438,10 @@ export function xlang_runtime_compiler_o_path_copy(argv0: *u8, leaf: *u8, out: *
     out[0] = 0;
     return -1;
   }
-  // Byte join: comp_dir[0..dn) + '/' + leaf[0..ln] + NUL.
+  // Byte join: g_labi_compiler_o_path_comp_dir[0..dn) + '/' + leaf[0..ln] + NUL.
   let i: i32 = 0;
   while (i < dn) {
-    out[i] = comp_dir[i];
+    out[i] = g_labi_compiler_o_path_comp_dir[i];
     i = i + 1;
   }
   out[dn] = 47;

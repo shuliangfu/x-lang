@@ -7719,7 +7719,8 @@ typedef struct {
   uint8_t name[XLANG_ASM_MODLET_MAX][128];
   int32_t label_len[XLANG_ASM_MODLET_MAX];
   uint8_t label[XLANG_ASM_MODLET_MAX][24];
-  int32_t init_imm[XLANG_ASM_MODLET_MAX];
+  /* 10.53: 8-byte init cell (lo in low 32, hi in high 32) — matches .x stride. */
+  int64_t init_imm[XLANG_ASM_MODLET_MAX];
   /* Stage 12.0.5: COMMON payload size (8 scalar; N for TYPE_ARRAY module lets).
    * Bit 30 (0x40000000) = TYPE_ARRAY address-decay so u8[8] does not collide
    * with scalar load-qword (labi g_labi_icc_oopt_buf / invoke_cc_list). */
@@ -8723,6 +8724,9 @@ static int32_t pipe_modlet_array_lit_elem_const_val_cold(void *arena, int32_t er
   return 0;
 }
 
+/* 10.53: hi bits from last common_imm_cold f32/f64 fold (prepare packs int64). */
+int32_t g_pipe_modlet_common_imm_hi_stash = 0;
+
 /* wave338 cold twin of pipe_modlet_scalar_init_common_imm.
  * LIT/BOOL + NEG-over-LIT + null TYPE_PTR → COMMON imm. PLATFORM: SHARED. */
 static int32_t pipe_modlet_scalar_init_common_imm_cold(void *arena, int32_t init_ref,
@@ -8732,6 +8736,26 @@ static int32_t pipe_modlet_scalar_init_common_imm_cold(void *arena, int32_t init
   if (is_const != 0 || !arena || init_ref <= 0 || !out_imm)
     return 0;
   ik = pipeline_expr_kind_ord_at(arena, init_ref);
+  /* 10.53: module f32/f64 let → COMMON. out_imm gets lo; hi packed by caller via
+   * temporary — see prepare which stores into int64 init_imm. */
+  if (tk == 14 || tk == 15) {
+    int32_t flo = 0, fhi = 0;
+    if (!pipe_modlet_fold_f64_elem_bits_cold(arena, init_ref, &flo, &fhi))
+      return 0;
+    if (tk == 14) {
+      flo = glue_ieee_f64_bits_to_f32_bits(flo, fhi);
+      fhi = 0;
+    }
+    /* Pack lo|(hi<<32) into *out_imm when used as int32 — NOT enough.
+     * Caller must use cold2. Keep lo here; register site fixed below. */
+    *out_imm = flo;
+    /* Stash hi in thread-local? Use static for single-threaded prepare. */
+    {
+      extern int32_t g_pipe_modlet_common_imm_hi_stash;
+      g_pipe_modlet_common_imm_hi_stash = fhi;
+    }
+    return 1;
+  }
   if (ik == 2) {
     *out_imm = pipeline_expr_int_val_at(arena, init_ref);
     return 1;
@@ -9537,7 +9561,8 @@ XLANG_WEAK int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(void *m, void *a, 
     tk = (type_ref > 0) ? pipeline_type_kind_ord_at(a, type_ref) : 0;
     cell_sz = 8;
     imm = 0;
-    /* wave338: LIT/BOOL + NEG-over-LIT + null TYPE_PTR → COMMON.
+    g_pipe_modlet_common_imm_hi_stash = 0;
+    /* wave338/10.53: LIT/BOOL/null + f32/f64 → COMMON.
      * Twin of pipe_modlet_scalar_init_common_imm. PLATFORM: SHARED. */
     if (pipe_modlet_scalar_init_common_imm_cold(a, init_ref, tk, is_const, &imm) != 0) {
       cell_sz = 8;
@@ -9580,7 +9605,10 @@ XLANG_WEAK int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(void *m, void *a, 
     g_pipeline_asm_modlet_cold.name_len[idx] = name_len;
     for (k = 0; k < name_len; k++)
       g_pipeline_asm_modlet_cold.name[idx][k] = pipeline_module_top_level_let_name_byte_at(m, tl, k);
-    g_pipeline_asm_modlet_cold.init_imm[idx] = imm;
+    g_pipeline_asm_modlet_cold.init_imm[idx] =
+        (int64_t)(uint32_t)imm |
+        ((int64_t)(uint32_t)g_pipe_modlet_common_imm_hi_stash << 32);
+    g_pipe_modlet_common_imm_hi_stash = 0;
     g_pipeline_asm_modlet_cold.cell_size[idx] = cell_sz;
     g_pipeline_asm_modlet_cold.n = idx + 1;
   }
@@ -9703,7 +9731,9 @@ XLANG_WEAK int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(void *m, void *a, 
          * bake_ptr_addr returns 1 = not-an-address (must not trip -1).
          * PLATFORM: SHARED library-TU .data. */
         int32_t pa_b = 0;
-        int32_t imm_b = g_pipeline_asm_modlet_cold.init_imm[i];
+        int64_t imm64_b = g_pipeline_asm_modlet_cold.init_imm[i];
+        int32_t imm_b = (int32_t)(uint32_t)imm64_b;
+        int32_t imm_b_hi = (int32_t)(uint32_t)((uint64_t)imm64_b >> 32);
         if (init_ref2 > 0)
           pa_b = pipe_modlet_scalar_init_is_ptr_addr_cold(a, m, init_ref2);
         if (pa_b != 0) {
@@ -9714,6 +9744,10 @@ XLANG_WEAK int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(void *m, void *a, 
           }
         } else if (pipe_modlet_bake_scalar_imm_to_data_cold((uint8_t *)elf_ctx, data_off, imm_b,
                                                             csz) != 0) {
+          pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
+          return -1;
+        } else if (csz >= 8 && imm_b_hi != 0 &&
+                   pipe_modlet_data_poke_u32_le_cold((uint8_t *)elf_ctx, data_off + 4, imm_b_hi) != 0) {
           pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
           return -1;
         }
@@ -9745,13 +9779,16 @@ XLANG_WEAK int32_t pipeline_asm_modlet_seed_nonzero_inits_elf_c(void *elf_ctx, i
       return 0;
   }
   for (i = 0; i < g_pipeline_asm_modlet_cold.n; i++) {
-    int32_t imm = g_pipeline_asm_modlet_cold.init_imm[i];
+    int64_t imm64 = g_pipeline_asm_modlet_cold.init_imm[i];
+    int32_t lo, hi;
     /* .data-backed arrays must not be scalar-seeded (imm stays 0). */
     if (pipeline_asm_modlet_cell_is_data_cold(g_pipeline_asm_modlet_cold.cell_size[i]))
       continue;
-    if (imm == 0)
+    if (imm64 == 0)
       continue;
-    if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, imm, 0, ta) != 0)
+    lo = (int32_t)(uint32_t)imm64;
+    hi = (int32_t)(uint32_t)((uint64_t)imm64 >> 32);
+    if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, lo, hi, ta) != 0)
       return -1;
     if (pipeline_asm_modlet_store_from_rax_elf_c(elf_ctx, g_pipeline_asm_modlet_cold.name[i],
                                                  g_pipeline_asm_modlet_cold.name_len[i], ta) != 0)
@@ -13824,6 +13861,19 @@ extern int32_t glue_call_return_byte_size_c(void *arena, int32_t call_expr_ref);
     if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, half2, ta) != 0)
       return -1;
     return 0;
+  }
+  /* w1046 (10.46): PE twin of mega glue_store_retval — >16B FIELD(44)/VAR(3)
+   * (and CALL/STRUCT_LIT/ARRAY_LIT) must memcpy from *rax into the let home.
+   * Without this, assign of >16 aggregates only parks rax. PLATFORM: WINDOWS. */
+  if (sz > 16 && arena && init_ref > 0) {
+    int32_t ko_big;
+    extern int32_t glue_copy_large_struct_from_rax_ptr_elf_c(void *elf_ctx, int32_t slot_off,
+                                                            int32_t sz, int32_t ta);
+    ko_big = pipeline_expr_kind_ord_at(arena, init_ref);
+    if (ko_big == 48 || ko_big == 49 || ko_big == 47 || ko_big == 45 || ko_big == 44 ||
+        ko_big == 3) {
+      return glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, slot_off, sz, ta);
+    }
   }
   if (!m || !arena || ty_ref <= 0)
     return 0;
@@ -22212,29 +22262,66 @@ int32_t pipeline_asm_emit_return_elf_impl(void *arena, void *elf_ctx, int32_t ex
   int32_t ret_fi;
   void *ret_mod;
   int32_t ret_st;
+  int32_t win_forced;
+  int32_t sret_act;
+  int32_t sret_home;
+  int32_t sret_sz;
+  int32_t opk;
+  extern int32_t pipeline_asm_emit_ctx_sret_active_get(void);
+  extern int32_t pipeline_asm_emit_ctx_sret_home_off_get(void);
+  extern int32_t pipeline_asm_emit_ctx_sret_ret_sz_get(void);
+  extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+  extern int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref,
+                                                        void *ctx, int32_t ta);
+  extern int32_t glue_copy_large_struct_from_rax_ptr_elf_c(void *elf_ctx, int32_t slot_off, int32_t sz,
+                                                          int32_t ta);
 
   ly = (uint8_t *)pipeline_asm_ctx_layout(ctx);
   ret_op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+  win_forced = 0;
   if (ret_op != 0) {
-    ret_st = -2;
-    ret_rty = 0;
-    ret_rtk = 0;
-    ret_mod = pipeline_asm_emit_module_ref_c();
-    ret_fi = pipeline_asm_emit_func_index_c();
-    if (ret_mod && ret_fi >= 0)
-      ret_rty = pipeline_module_func_return_type_at(ret_mod, ret_fi);
-    if (ret_rty <= 0)
-      ret_rty = pipeline_expr_resolved_type_ref(arena, ret_op);
-    if (ret_rty > 0)
-      ret_rtk = pipeline_type_kind_ord_at(arena, ret_rty);
-    if (ret_rty > 0 && ret_rtk == 10)
-      ret_st = glue_emit_fixed_array_return_durable_ptr_rax_elf_c(arena, elf_ctx, ret_op, ctx, ta,
-                                                                 ret_rty);
-    if (ret_st == -1)
-      return -1;
-    if (ret_st != 0) {
-      if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, ret_op, ctx, ta) != 0)
+    /* w1046 (10.46): Win64 >16B return of VAR(3)/FIELD(44) must memcpy into
+     * the hidden *rcx home. emit_expr value-loads the first qword so a late
+     * copy would treat rax as a pointer. Force lvalue + copy_large, then skip
+     * emit_expr. This TU is already WIN_LEFTOVER_GROW_VEC. PLATFORM: WINDOWS. */
+    if (ta == 0) {
+      sret_act = pipeline_asm_emit_ctx_sret_active_get();
+      sret_home = pipeline_asm_emit_ctx_sret_home_off_get();
+      sret_sz = pipeline_asm_emit_ctx_sret_ret_sz_get();
+      if (sret_act != 0 && sret_home > 0 && sret_sz > 16) {
+        opk = pipeline_expr_kind_ord_at(arena, ret_op);
+        if (opk == 3 || opk == 44) {
+          if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, ret_op, ctx, ta) == 0) {
+            if (glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, sret_home, sret_sz, ta) < 0)
+              return -1;
+            win_forced = 1;
+          }
+        }
+      }
+    }
+    if (win_forced != 0) {
+      ret_st = 0;
+    } else {
+      ret_st = -2;
+      ret_rty = 0;
+      ret_rtk = 0;
+      ret_mod = pipeline_asm_emit_module_ref_c();
+      ret_fi = pipeline_asm_emit_func_index_c();
+      if (ret_mod && ret_fi >= 0)
+        ret_rty = pipeline_module_func_return_type_at(ret_mod, ret_fi);
+      if (ret_rty <= 0)
+        ret_rty = pipeline_expr_resolved_type_ref(arena, ret_op);
+      if (ret_rty > 0)
+        ret_rtk = pipeline_type_kind_ord_at(arena, ret_rty);
+      if (ret_rty > 0 && ret_rtk == 10)
+        ret_st = glue_emit_fixed_array_return_durable_ptr_rax_elf_c(arena, elf_ctx, ret_op, ctx, ta,
+                                                                   ret_rty);
+      if (ret_st == -1)
         return -1;
+      if (ret_st != 0) {
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, ret_op, ctx, ta) != 0)
+          return -1;
+      }
     }
   }
   if (glue_index_scratch_spills_cleanup_all_elf_c(elf_ctx, ta) != 0)
@@ -25591,10 +25678,8 @@ W277_LabeledStmt *pipeline_block_labeled_ptr(void *a, int32_t br, int32_t li) {
   return (W277_LabeledStmt *)grow_vec_at(&sc->labeled_stmts, abs);
 }
 
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t pipeline_block_labeled_return_expr_ref(void *a, int32_t br, int32_t li);
-#else
+/* w1683/w1046: Win leftover egg is C windows_e (parse_orch inject HARD BAN) —
+ * always define; Darwin/Linux never set WIN_LEFTOVER here. */
 int32_t pipeline_block_labeled_return_expr_ref(void *a, int32_t br, int32_t li) {
   W277_Sidecar *sc;
   W277_Block *b;
@@ -25608,20 +25693,16 @@ int32_t pipeline_block_labeled_return_expr_ref(void *a, int32_t br, int32_t li) 
   ls = (W277_LabeledStmt *)grow_vec_at(&sc->labeled_stmts, abs);
   return ls ? (int32_t)ls->return_expr_ref : 0;
 }
-#endif
 
 /** wave379: count of labeled stmts in block (stmt_order kind=7). PLATFORM: SHARED. */
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t pipeline_block_num_labeled_stmts(void *a, int32_t br);
-#else
+/* w1683/w1046: Win leftover egg is C windows_e (parse_orch inject HARD BAN) —
+ * always define; Darwin/Linux never set WIN_LEFTOVER here. */
 int32_t pipeline_block_num_labeled_stmts(void *a, int32_t br) {
   W277_Block *b;
   if (!a || !(b = w277_block_at(a, br)))
     return 0;
   return b->num_labeled_stmts;
 }
-#endif
 
 /* PLATFORM: SHARED, including WINDOWS leftover.
  * w1683 left these five row readers as externs on leftover, so the egg
@@ -26131,10 +26212,11 @@ static void patch_block_expr_parents(void *a, int32_t block_ref) {
 }
 
 static int32_t expr_has_inner_block(void *a, int32_t expr_ref, int32_t parent_block, int32_t depth) {
+  /* note743y.6.9: kind-specific children only (was: every slot → if_nested hang). */
   int32_t kind;
   int32_t inner_blk;
   int32_t ne;
-  int32_t left, right, op, th, el, br, cal;
+  int32_t left, right, op, th, el, cal;
   if (!a || expr_ref <= 0 || depth > 64) return 0;
   memcpy(&ne, (uint8_t *)a + 4, 4);
   if (expr_ref > ne) return 0;
@@ -26148,21 +26230,34 @@ static int32_t expr_has_inner_block(void *a, int32_t expr_ref, int32_t parent_bl
       }
       patch_block_expr_parents(a, inner_blk);
     }
+    return 0;
   }
-  left = pipeline_expr_binop_left_ref_at(a, expr_ref);
-  right = pipeline_expr_binop_right_ref_at(a, expr_ref);
-  op = pipeline_expr_unary_operand_ref_at(a, expr_ref);
-  th = pipeline_expr_if_then_ref_at(a, expr_ref);
-  el = pipeline_expr_if_else_ref_at(a, expr_ref);
-  br = pipeline_expr_block_ref_at(a, expr_ref);
-  cal = pipeline_expr_call_callee_ref_at(a, expr_ref);
-  if (left > 0) expr_has_inner_block(a, left, parent_block, depth + 1);
-  if (right > 0) expr_has_inner_block(a, right, parent_block, depth + 1);
-  if (op > 0) expr_has_inner_block(a, op, parent_block, depth + 1);
-  if (th > 0) expr_has_inner_block(a, th, parent_block, depth + 1);
-  if (el > 0) expr_has_inner_block(a, el, parent_block, depth + 1);
-  if (br > 0 && kind != 26) expr_has_inner_block(a, br, parent_block, depth + 1);
-  if (cal > 0) expr_has_inner_block(a, cal, parent_block, depth + 1);
+  if ((kind >= 4 && kind <= 21) || (kind >= 28 && kind <= 38)) {
+    left = pipeline_expr_binop_left_ref_at(a, expr_ref);
+    if (left > 0 && left != expr_ref) expr_has_inner_block(a, left, parent_block, depth + 1);
+    right = pipeline_expr_binop_right_ref_at(a, expr_ref);
+    if (right > 0 && right != expr_ref) expr_has_inner_block(a, right, parent_block, depth + 1);
+    return 0;
+  }
+  if (kind == 22 || kind == 23 || kind == 24 || kind == 41 || kind == 50 || kind == 51) {
+    op = pipeline_expr_unary_operand_ref_at(a, expr_ref);
+    if (op > 0 && op != expr_ref) expr_has_inner_block(a, op, parent_block, depth + 1);
+    return 0;
+  }
+  if (kind == 25 || kind == 27) {
+    left = pipeline_expr_if_cond_ref_at(a, expr_ref);
+    if (left > 0 && left != expr_ref) expr_has_inner_block(a, left, parent_block, depth + 1);
+    th = pipeline_expr_if_then_ref_at(a, expr_ref);
+    if (th > 0 && th != expr_ref) expr_has_inner_block(a, th, parent_block, depth + 1);
+    el = pipeline_expr_if_else_ref_at(a, expr_ref);
+    if (el > 0 && el != expr_ref) expr_has_inner_block(a, el, parent_block, depth + 1);
+    return 0;
+  }
+  if (kind == 48 || kind == 49) {
+    cal = pipeline_expr_call_callee_ref_at(a, expr_ref);
+    if (cal > 0 && cal != expr_ref) expr_has_inner_block(a, cal, parent_block, depth + 1);
+    return 0;
+  }
   return 0;
 }
 
@@ -26609,17 +26704,11 @@ void pipeline_block_with_arena_fixup_stmt_order(void *a, int32_t br) {
  * Drop kind=2 only when if_in_order>0 (cond fragments); keep fallthrough returns.
  * PLATFORM: SHARED · G.7 single sparse-if rebuild authority.
  */
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1710 PLATFORM: WINDOWS leftover.
- * The egg thin owns pipeline_block_stmt_order_rebuild_sparse_ifs.
- * A same-TU body reads this TU's empty sidecar, counts zero kind-5
- * rows, and writes num_stmt_order = nso + num_if_stmts on the shared
- * block. The egg body reads the real sidecar and returns when those
- * ifs are already in order. The prototype above the counter stays.
- * Both calls in pipeline_module_fixup_with_arena_stmt_orders bind the
- * egg as well. This body stays when either macro is unset.
+/* w1710/w1046: Win leftover egg is C windows_e (no .x thin owns this face
+ * on PE). Always define the body so prefer egg+FROM_X merge has T — same
+ * root as kind_ord / block faces. Darwin/Linux never set WIN_LEFTOVER here.
+ * PLATFORM: SHARED · G.7 single sparse-if rebuild authority.
  */
-#else
 void pipeline_block_stmt_order_rebuild_sparse_ifs(void *a, int32_t br) {
   W277_Block *b;
   W277_Sidecar *sc;
@@ -26730,7 +26819,6 @@ void pipeline_block_stmt_order_rebuild_sparse_ifs(void *a, int32_t br) {
   }
   /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
 }
-#endif
 
 /** 对 module 全部函数体块执行 with_arena stmt_order 修补（parse 后/typeck 前调用）。 */
 void pipeline_module_fixup_with_arena_stmt_orders(void *m, void *a) {
@@ -26812,10 +26900,8 @@ void ast_ast_arena_patch_block_parent_links(void *arena, int32_t block_ref, int3
   pipeline_patch_block_parent_links(arena, block_ref, parent_ref);
 }
 
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t ast_ast_block_num_consts(void *a, int32_t br);
-#else
+/* w1683/w1046: Win leftover egg is C windows_e (parse_orch inject HARD BAN) —
+ * always define; Darwin/Linux never set WIN_LEFTOVER here. */
 int32_t ast_ast_block_num_consts(void *a, int32_t br) {
   W277_Block *b;
   if (!a || br <= 0) return 0;
@@ -26823,11 +26909,8 @@ int32_t ast_ast_block_num_consts(void *a, int32_t br) {
   if (!b) return 0;
   return b->num_consts;
 }
-#endif
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t ast_ast_block_num_lets(void *a, int32_t br);
-#else
+/* w1683/w1046: Win leftover egg is C windows_e (parse_orch inject HARD BAN) —
+ * always define; Darwin/Linux never set WIN_LEFTOVER here. */
 int32_t ast_ast_block_num_lets(void *a, int32_t br) {
   W277_Block *b;
   if (!a || br <= 0) return 0;
@@ -26835,11 +26918,8 @@ int32_t ast_ast_block_num_lets(void *a, int32_t br) {
   if (!b) return 0;
   return b->num_lets;
 }
-#endif
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t ast_ast_block_num_loops(void *a, int32_t br);
-#else
+/* w1683/w1046: Win leftover egg is C windows_e (parse_orch inject HARD BAN) —
+ * always define; Darwin/Linux never set WIN_LEFTOVER here. */
 int32_t ast_ast_block_num_loops(void *a, int32_t br) {
   W277_Block *b;
   if (!a || br <= 0) return 0;
@@ -26847,11 +26927,8 @@ int32_t ast_ast_block_num_loops(void *a, int32_t br) {
   if (!b) return 0;
   return b->num_loops;
 }
-#endif
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t ast_ast_block_num_for_loops(void *a, int32_t br);
-#else
+/* w1683/w1046: Win leftover egg is C windows_e (parse_orch inject HARD BAN) —
+ * always define; Darwin/Linux never set WIN_LEFTOVER here. */
 int32_t ast_ast_block_num_for_loops(void *a, int32_t br) {
   W277_Block *b;
   if (!a || br <= 0) return 0;
@@ -26859,11 +26936,8 @@ int32_t ast_ast_block_num_for_loops(void *a, int32_t br) {
   if (!b) return 0;
   return b->num_for_loops;
 }
-#endif
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t ast_ast_block_num_if_stmts(void *a, int32_t br);
-#else
+/* w1683/w1046: Win leftover egg is C windows_e (parse_orch inject HARD BAN) —
+ * always define; Darwin/Linux never set WIN_LEFTOVER here. */
 int32_t ast_ast_block_num_if_stmts(void *a, int32_t br) {
   W277_Block *b;
   if (!a || br <= 0) return 0;
@@ -26871,12 +26945,9 @@ int32_t ast_ast_block_num_if_stmts(void *a, int32_t br) {
   if (!b) return 0;
   return b->num_if_stmts;
 }
-#endif
 /** M-3: typeck/codegen.x reads Block.num_regions via ast_ prefix. */
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t ast_ast_block_num_regions(void *a, int32_t br);
-#else
+/* w1683/w1046: Win leftover egg is C windows_e (parse_orch inject HARD BAN) —
+ * always define; Darwin/Linux never set WIN_LEFTOVER here. */
 int32_t ast_ast_block_num_regions(void *a, int32_t br) {
   W277_Block *b;
   if (!a || br <= 0) return 0;
@@ -26884,14 +26955,11 @@ int32_t ast_ast_block_num_regions(void *a, int32_t br) {
   if (!b) return 0;
   return b->num_regions;
 }
-#endif
 int32_t ast_ast_block_region_body_ref(void *a, int32_t br, int32_t ri) {
   return pipeline_block_region_body_ref(a, br, ri);
 }
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t ast_ast_block_num_expr_stmts(void *a, int32_t br);
-#else
+/* w1683/w1046: Win leftover egg is C windows_e (parse_orch inject HARD BAN) —
+ * always define; Darwin/Linux never set WIN_LEFTOVER here. */
 int32_t ast_ast_block_num_expr_stmts(void *a, int32_t br) {
   W277_Block *b;
   if (!a || br <= 0) return 0;
@@ -26899,11 +26967,8 @@ int32_t ast_ast_block_num_expr_stmts(void *a, int32_t br) {
   if (!b) return 0;
   return b->num_expr_stmts;
 }
-#endif
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t ast_ast_block_num_stmt_order(void *a, int32_t br);
-#else
+/* w1683/w1046: Win leftover egg is C windows_e (parse_orch inject HARD BAN) —
+ * always define; Darwin/Linux never set WIN_LEFTOVER here. */
 int32_t ast_ast_block_num_stmt_order(void *a, int32_t br) {
   W277_Block *b;
   if (!a || br <= 0) return 0;
@@ -26911,15 +26976,10 @@ int32_t ast_ast_block_num_stmt_order(void *a, int32_t br) {
   if (!b) return 0;
   return b->num_stmt_order;
 }
-#endif
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern uint8_t ast_ast_block_stmt_order_kind(void *a, int32_t br, int32_t si);
-#else
+/* w1683/w1046: Win leftover egg is C windows_e — always define. */
 uint8_t ast_ast_block_stmt_order_kind(void *a, int32_t br, int32_t si) {
   return pipeline_block_stmt_order_kind(a, br, si);
 }
-#endif
 /* PLATFORM: SHARED, including WINDOWS leftover.
  * w1683 left this wrapper as an extern on leftover, so the egg thin owned
  * the symbol and called the egg's pipeline_block_stmt_order_idx. That
@@ -28079,8 +28139,15 @@ void pipeline_expr_struct_lit_field_name_into(void *a, int32_t expr_ref, int32_t
 }
 
 int32_t pipeline_expr_struct_lit_init_ref(void *a, int32_t expr_ref, int32_t j) {
+  /* note743y.6.7: cyclic init_ref==parent SEGV walkers. PLATFORM: SHARED. */
   W278_StructLitField *fe = expr_struct_lit_field_at(a, expr_ref, j, 0);
-  return fe ? fe->init_ref : 0;
+  int32_t init_ref;
+  if (!fe)
+    return 0;
+  init_ref = fe->init_ref;
+  if (init_ref == expr_ref)
+    return 0;
+  return init_ref;
 }
 
 /*
@@ -30320,6 +30387,26 @@ void pipeline_module_func_owner_from_impl(void *m, int32_t fi) {
     return;
   memcpy(g_pmfo_owner[fi], g_pmfo_cur_owner, 64);
   g_pmfo_owner_len[fi] = g_pmfo_cur_len;
+}
+
+/* Copy latched impl owner for func slot fi into dst.
+ * Empty owner = free function. Overload export appends _Owner so A.g and
+ * B.g do not share one mangled symbol (note743y.6.15 / LANG-005).
+ * Lives in seed rest: module_func thin is wave385 HARD BAN reinject, so
+ * the .x definition alone never reaches Linux phase1 pure-ld.
+ * PLATFORM: SHARED — same bytes as pipeline_module_func_owner_binds_base_at. */
+int32_t pipeline_module_func_owner_copy(void *m, int32_t fi, uint8_t *dst,
+                                        int32_t cap) {
+  int32_t n;
+  int32_t i;
+  if (!m || !dst || fi < 0 || fi >= PMFO_MAX || cap <= 0)
+    return 0;
+  n = g_pmfo_owner_len[fi];
+  if (n <= 0 || n > cap)
+    return 0;
+  for (i = 0; i < n; i++)
+    dst[i] = g_pmfo_owner[fi][i];
+  return n;
 }
 
 /* 1 when row fi may bind associated call on base struct name: empty owner
@@ -34317,10 +34404,9 @@ int32_t compound_assign_token_to_expr_kind_from_glue(int32_t kind) {
   return W284_EXPR_SHR_ASSIGN;
 }
 
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref);
-#else
+/* w1683/w1046: Win leftover egg is C windows_e (parse_orch inject HARD BAN /
+ * stamp-only) — no .x thin owns this face on PE. Always define the body so
+ * prefer egg+FROM_X merge has T. Darwin/Linux never set WIN_LEFTOVER here. */
 int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref) {
   void *ex;
   int32_t nexprs;
@@ -34335,7 +34421,6 @@ int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref) {
   /* Expr.kind @0 LE i32 (W278 / pure LE). */
   return w284_load_i32(ex, 0);
 }
-#endif
 
 /* XLANG_PABI_PARSE_ORCH_THIN_END */
 #endif /* WAVE284_PARSE_ORCH_ALWAYS */

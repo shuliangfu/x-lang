@@ -992,6 +992,8 @@ export function parser_asm_consume_qualified_type_ident_name_into_c(source: *u8,
   let kind: i32 = 0;
   let zi: i32 = 0;
   let start: usize = 0;
+  let dest_base: *u8 = 0 as *u8;
+  let src_base: *u8 = 0 as *u8;
   if (source == 0 as *u8 || lex_inout == 0 as *u8 || out == 0 as *u8 || out_len == 0 as *i32 || first_ident_len <= 0) {
     return -1;
   }
@@ -1002,8 +1004,11 @@ export function parser_asm_consume_qualified_type_ident_name_into_c(source: *u8,
       return -1;
     }
     seg_len = first_ident_len;
+    // knife256/10.2 io-context: cap to 255 (name[256]); old 127 left headroom
+    // but 127-total went negative when total>127 and skipped the <=0 guard
+    // on some Cap tip paths — keep writes strictly inside name[256].
     if (seg_len > 255) {
-      seg_len = 127;
+      seg_len = 255;
     }
     parser_asm_copy_slice_to_name64_at_end_buf_c(data, slen, parser_asm_lex_pos_c(lex_inout), seg_len, out);
     total = seg_len;
@@ -1013,7 +1018,7 @@ export function parser_asm_consume_qualified_type_ident_name_into_c(source: *u8,
         out_len[0] = total;
         return 0;
       }
-      if (total >= 127) {
+      if (total >= 255) {
         return -1;
       }
       out[total as usize] = 46;
@@ -1028,7 +1033,7 @@ export function parser_asm_consume_qualified_type_ident_name_into_c(source: *u8,
         return -1;
       }
       if (total + seg_len > 255) {
-        seg_len = 127 - total;
+        seg_len = 255 - total;
       }
       if (seg_len <= 0) {
         return -1;
@@ -1036,11 +1041,20 @@ export function parser_asm_consume_qualified_type_ident_name_into_c(source: *u8,
       kind = parser_asm_lex_step_kind_c(lex_inout, source);
       // Subsequent segments write at out[total]; P1b at_end dest is out[0]
       // only. Index copy matches name64_buf (skip bytes past slen).
+      // note743y.6.3: tip miscompiled out[(total+zi)]=data[start+zi] — it
+      // reused the source address as zi and wrote "LibcArena64" onto the
+      // as_suffix return slot (SEGV/CG002 on std heap/string/encoding).
+      // Use base pointers + a single index so tip cannot fold the addends.
       zi = 0;
       start = parser_asm_lex_pos_c(lex_inout) - (seg_len as usize);
+      dest_base = out + (total as usize);
+      src_base = data + start;
       while (zi < seg_len) {
-        if (start + zi as usize < slen as usize) {
-          out[(total + zi) as usize] = data[start + zi as usize];
+        if (total + zi >= 256) {
+          return -1;
+        }
+        if (start + (zi as usize) < (slen as usize)) {
+          dest_base[zi as usize] = src_base[zi as usize];
         }
         zi = zi + 1;
       }
@@ -1142,7 +1156,7 @@ export function parser_asm_wrap_registered_trait_as_dyn_into_c(arena: *u8, named
  * @param elem_tr i32 — element type_ref; <=0 → 0
  * @param lex_inout *u8 — opaque lexer; mutated; null → 0
  * @param source *u8 — opaque slice; null → 0
- * @param label_scratch *u8 — dest for region label; caller owns ≥64
+ * @param label_scratch *u8 — dest for region label; caller owns ≥256
  *   bytes; null fails the `<ident>` path (no-label `T[]` still works)
  * @return i32 — TYPE_SLICE type_ref, or 0
  * PLATFORM: SHARED type grammar. P3g dest-buffer split of the former
@@ -1175,7 +1189,7 @@ export function parser_asm_parse_postfix_slice_x_into_c(arena: *u8, elem_tr: i32
       parser_asm_lex_step_kind_c(lex_inout, source);
       kind = parser_asm_lex_peek_kind_c(lex_inout, source);
       nlen = parser_asm_lex_peek_ident_len_c(lex_inout, source);
-      if (kind != TOKEN_IDENT || nlen <= 0 || nlen > 63 || label_scratch == 0 as *u8) {
+      if (kind != TOKEN_IDENT || nlen <= 0 || nlen > 255 || label_scratch == 0 as *u8) {
         return 0;
       }
       ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
@@ -1306,7 +1320,7 @@ export function parser_asm_parse_postfix_array_x_into_c(arena: *u8, elem_tr: i32
  * @param arena *u8 — AST arena; null → 0
  * @param lex_inout *u8 — opaque lexer; mutated; null → 0
  * @param source *u8 — opaque slice; null → 0
- * @param label_scratch *u8 — dest for region label; caller owns ≥64
+ * @param label_scratch *u8 — dest for region label; caller owns ≥256
  *   bytes; null fails the `<ident>` path (no-label `[]T` still works)
  * @return i32 — TYPE_ARRAY / TYPE_SLICE type_ref, or 0
  * PLATFORM: SHARED type grammar. P3h dest-buffer split of the former
@@ -1351,7 +1365,7 @@ export function parser_asm_parse_prefix_array_x_into_c(arena: *u8, lex_inout: *u
         parser_asm_lex_step_kind_c(lex_inout, source);
         kind = parser_asm_lex_peek_kind_c(lex_inout, source);
         nlen = parser_asm_lex_peek_ident_len_c(lex_inout, source);
-        if (kind != TOKEN_IDENT || nlen <= 0 || nlen > 63 || label_scratch == 0 as *u8) {
+        if (kind != TOKEN_IDENT || nlen <= 0 || nlen > 255 || label_scratch == 0 as *u8) {
           return 0;
         }
         ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
@@ -1505,7 +1519,7 @@ export function parser_asm_parse_fn_type_x_into_c(arena: *u8, lex_inout: *u8, so
  * @param qn_len_slot *i32 — C-owned length slot for consume_qualified
  *   (language has no &local i32); null fails the IDENT pointee path
  * @param label_scratch *u8 — forwarded to postfix array/slice;
- *   caller owns ≥64 bytes
+ *   caller owns ≥256 bytes
  * @return i32 — TYPE_PTR (possibly postfix ARRAY/SLICE) type_ref, or 0
  * PLATFORM: SHARED type grammar. P3j dest-buffer split of the former
  * inlined STAR arm. PTR writer = init_compound_kind_at (kind 9).
@@ -2171,7 +2185,7 @@ export function parser_asm_vector_type_ref_from_ident_spelling_x_into_c(arena: *
  *   caller owns ≥256 bytes; null → 0
  * @param qn_len_slot *i32 — C-owned length slot; null → 0
  * @param label_scratch *u8 — dest for postfix region label;
- *   caller owns ≥64 bytes; null → 0
+ *   caller owns ≥256 bytes; null → 0
  * @return i32 — type_ref, or 0
  * PLATFORM: SHARED type grammar. P3r dest-buffer split of the former
  * inlined IDENT compositor. Writers stay in the existing arm helpers
@@ -2247,7 +2261,7 @@ export function parser_asm_parse_type_ref_impl_ident_x(arena: *u8, lex_inout: *u
  *   caller owns ≥256 bytes; null → 0
  * @param qn_len_slot *i32 — C-owned length slot; null → 0
  * @param label_scratch *u8 — dest for prefix/postfix/star label;
- *   caller owns ≥64 bytes; null → 0
+ *   caller owns ≥256 bytes; null → 0
  * @return i32 — type_ref, or 0
  * PLATFORM: SHARED type grammar. P3r dest-buffer of the former C
  * compositor. AUDIT stays in the C trampoline. Do not dest-buffer

@@ -15,7 +15,7 @@
 //   Product PREFER_ASM both ends when live get is leftover gcc Darwin weak /
 //   LINUX W (endbr64 sub $0x30). Do not gcc -E. Do not Darwin ld -r a
 //   two-segment thin. Isolated get peer stays BAN.
-// wave2057: asm_ctx_local_find_offset_scoped and
+// wave2057 / 10.91: asm_ctx_local_find_offset_scoped and
 //   backend_emit_loop_body_content_elf_sync live here so PREFER_ASM carries the
 //   w1546 fixes into the product. Before this the lookup sat in
 //   bootstrap_glue_thin (HARD BAN reinject) and the loop body only in the
@@ -349,6 +349,11 @@ export function pipe_al_bbases_slot(s: i32): *u8 {
  * wave267 pure: G.7 single product authority (historical asm_ctx_block_slot_reset).
  * PLATFORM: SHARED - sole provider after asm_locals leave.
  */
+/** LP64 offsetof(AsmFuncCtx, next_offset). PLATFORM: SHARED. */
+function pipe_asm_ctx_off_next_offset(): i32 { return 4; }
+/** LP64 offsetof(AsmFuncCtx, num_locals). PLATFORM: SHARED. */
+function pipe_asm_ctx_off_num_locals(): i32 { return 8; }
+
 #[no_mangle]
 export function asm_ctx_block_slot_reset(ctx: *u8): void {
   let s: i32 = pipe_al_find(ctx, 0);
@@ -367,12 +372,20 @@ export function asm_ctx_block_slot_reset(ctx: *u8): void {
  */
 #[no_mangle]
 export function asm_ctx_local_reset(ctx: *u8): void {
-  let s: i32 = pipe_al_find(ctx, 0);
-  if (s < 0) {
-    return;
+  // create=1: after memset of a reused stack AsmFuncCtx the sidecar may be
+  // missing; still clear frame cursors so a prior function's lets cannot
+  // poison call-init slots in the next function (wrap_cases x+y→y+y).
+  let s: i32 = pipe_al_find(ctx, 1);
+  if (s >= 0) {
+    g_pipe_al_n[s] = 0;
+    g_pipe_al_bn[s] = 0;
   }
-  g_pipe_al_n[s] = 0;
-  g_pipe_al_bn[s] = 0;
+  if (ctx != 0 as *u8) {
+    unsafe {
+      pipe_store_i32_le(ctx, pipe_asm_ctx_off_num_locals(), 0);
+      pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), 0);
+    }
+  }
 }
 
 /**
@@ -395,7 +408,7 @@ export function asm_ctx_local_count(ctx: *u8): i32 {
  * Append one local slot (name + stack offset); returns index or -1.
  * @param ctx *u8 - AsmFuncCtx* key; null -> -1
  * @param name *u8 - local name bytes; null -> -1
- * @param name_len i32 - full name length stored; bytes clamped to 127 into name[128]
+ * @param name_len i32 - full name length stored; bytes clamped to 255 into name[256]
  * @param offset i32 - stack offset (typically negative from rbp)
  * @return i32 - new index >=0, or -1 on fail
  * wave267 pure: G.7 single product authority (historical asm_ctx_local_append).
@@ -486,8 +499,8 @@ export function asm_ctx_local_name_byte_at(ctx: *u8, idx: i32, off: i32): u8 {
   if (off >= nlen) {
     return 0 as u8;
   }
-  // Bytes only stored up to 127; beyond is zero from memset.
-  if (off >= 127) {
+  // Bytes only stored up to 255; beyond is zero from memset.
+  if (off >= 255) {
     return 0 as u8;
   }
   let b: u8 = 0 as u8;
@@ -501,9 +514,9 @@ export function asm_ctx_local_name_byte_at(ctx: *u8, idx: i32, off: i32): u8 {
  * Copy local name into dst (128 bytes, zero-padded). Historical ABI *copy64 name.
  * @param ctx *u8 - AsmFuncCtx* key
  * @param idx i32 - local index
- * @param dst *u8 - destination; null -> no-op; writes 128 bytes
+ * @param dst *u8 - destination; null -> no-op; writes 256 bytes
  * @return void
- * wave267 pure: G.7 single product authority (wave581: name[128] surface).
+ * wave267 pure: G.7 single product authority (Cap 4.2.8: name[256] surface).
  * PLATFORM: SHARED.
  */
 #[no_mangle]
@@ -586,7 +599,7 @@ export function asm_ctx_local_find_offset(ctx: *u8, name: *u8, name_len: i32): i
         while (k < name_len) {
           // Compare against stored bytes (clamp 255); beyond clamp must be zero names only if name_len>255 rare.
           let eb: u8 = 0 as u8;
-          if (k < 127) {
+          if (k < 255) {
             unsafe { eb = ent[k]; }
           }
           let nb: u8 = 0 as u8;
@@ -728,6 +741,54 @@ export function asm_ctx_block_slot_get(ctx: *u8, block_ref: i32): i32 {
   }
   return 0 - 1;
 }
+
+/**
+ * Prefer-M2 SoftCap (10.73 nested_let grain): write back a remapped stack home
+ * for an existing local name so assign/load Prefer-find matches let-init clamp
+ * non-collide homes (`24+(idx*8)`). No-op when name missing.
+ * @return i32 — 0 updated; -1 not found / bad args
+ * PLATFORM: SHARED freestanding emit (Win SoftCap host).
+ */
+#[no_mangle]
+export function asm_ctx_local_set_offset_by_name(ctx: *u8, name: *u8, name_len: i32, offset: i32): i32 {
+  if (ctx == 0 as *u8 || name == 0 as *u8 || name_len <= 0) {
+    return 0 - 1;
+  }
+  let s: i32 = pipe_al_find(ctx, 0);
+  if (s < 0) {
+    return 0 - 1;
+  }
+  let i: i32 = g_pipe_al_n[s] - 1;
+  while (i >= 0) {
+    let ent: *u8 = pipe_al_at(s, i);
+    if (ent != 0 as *u8) {
+      let nlen: i32 = w304_load_i32(ent, pipe_al_off_name_len());
+      if (nlen == name_len) {
+        let k: i32 = 0;
+        let ok: i32 = 1;
+        while (k < name_len) {
+          let b: u8 = 0 as u8;
+          unsafe {
+            b = ent[k];
+          }
+          if (b != name[k]) {
+            ok = 0;
+            k = name_len;
+          } else {
+            k = k + 1;
+          }
+        }
+        if (ok != 0) {
+          w304_store_i32(ent, pipe_al_off_offset(), offset);
+          return 0;
+        }
+      }
+    }
+    i = i - 1;
+  }
+  return 0 - 1;
+}
+
 
 /**
  * Resolve a local name from the current emit scope, then its ancestors.

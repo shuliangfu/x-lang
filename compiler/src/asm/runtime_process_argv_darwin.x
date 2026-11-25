@@ -69,16 +69,16 @@ export let xlang_process_argv: **u8 = 0;
 /**
  * Darwin CRT argc slot.
  * @return *i32 — pointer to the process argc, or null
- * PLATFORM: MACOS|DARWIN — libSystem, symbol __NSGetArgc
+ * PLATFORM: MACOS|DARWIN — libSystem C name _NSGetArgc (Mach-O __NSGetArgc)
  */
-export extern "C" function __NSGetArgc(): *i32;
+export extern "C" function _NSGetArgc(): *i32;
 
 /**
  * Darwin CRT argv slot.
  * @return ***u8 — pointer to the process argv, or null
- * PLATFORM: MACOS|DARWIN — libSystem, symbol __NSGetArgv
+ * PLATFORM: MACOS|DARWIN — libSystem C name _NSGetArgv (Mach-O __NSGetArgv)
  */
-export extern "C" function __NSGetArgv(): ***u8;
+export extern "C" function _NSGetArgv(): ***u8;
 
 /**
  * Doc anchor for this translation unit.
@@ -126,7 +126,7 @@ export function process_xlang_argc_get(): i32 {
     return xlang_process_argc;
   }
   unsafe {
-    let argc_p: *i32 = __NSGetArgc();
+    let argc_p: *i32 = _NSGetArgc();
     if (argc_p == 0) {
       return 0;
     }
@@ -155,8 +155,8 @@ export function process_xlang_argv_get(i: i32): *u8 {
     return bound[i];
   }
   unsafe {
-    let argc_p: *i32 = __NSGetArgc();
-    let argv_p: ***u8 = __NSGetArgv();
+    let argc_p: *i32 = _NSGetArgc();
+    let argv_p: ***u8 = _NSGetArgv();
     if (argc_p == 0 || argv_p == 0) {
       return 0;
     }

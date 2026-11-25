@@ -151,11 +151,11 @@ export function x86_enc_append_i32_le(elf_ctx: *u8, v: i32): i32 {
  */
 #[no_mangle]
 export function x86_enc_movq_from_rbp_neg(elf_ctx: *u8, offset: i32, disp8_modrm: u8, disp32_modrm: u8): i32 {
-  let disp: i32 = 0 - offset;
+  let disp: i32 = (0 - offset);
   let r64: u8 = 72;
   let op: u8 = 139; // 0x8B
-  if (disp >= 0 - 128 && disp <= 0 - 1) {
-    let d8: u8 = disp as u8;
+  if (disp >= (0 - 128) && disp <= (0 - 1)) {
+    let d8: u8 = (disp as u8);
     unsafe {
       if (pipeline_elf_ctx_append_bytes(elf_ctx, &r64, 1) != 0) { return 0 - 1; }
       if (pipeline_elf_ctx_append_bytes(elf_ctx, &op, 1) != 0) { return 0 - 1; }
@@ -182,11 +182,11 @@ export function x86_enc_movq_from_rbp_neg(elf_ctx: *u8, offset: i32, disp8_modrm
  */
 #[no_mangle]
 export function x86_enc_lea_from_rbp_neg(elf_ctx: *u8, offset: i32, disp8_modrm: u8, disp32_modrm: u8): i32 {
-  let disp: i32 = 0 - offset;
+  let disp: i32 = (0 - offset);
   let r64: u8 = 72;
   let op: u8 = 141; // 0x8D
-  if (disp >= 0 - 128 && disp <= 0 - 1) {
-    let d8: u8 = disp as u8;
+  if (disp >= (0 - 128) && disp <= (0 - 1)) {
+    let d8: u8 = (disp as u8);
     unsafe {
       if (pipeline_elf_ctx_append_bytes(elf_ctx, &r64, 1) != 0) { return 0 - 1; }
       if (pipeline_elf_ctx_append_bytes(elf_ctx, &op, 1) != 0) { return 0 - 1; }
@@ -213,10 +213,10 @@ export function x86_enc_lea_from_rbp_neg(elf_ctx: *u8, offset: i32, disp8_modrm:
  */
 #[no_mangle]
 export function x86_enc_movl_from_rbp_neg32(elf_ctx: *u8, offset: i32, disp8_modrm: u8, disp32_modrm: u8): i32 {
-  let disp: i32 = 0 - offset;
+  let disp: i32 = (0 - offset);
   let op: u8 = 139; // 0x8B
-  if (disp >= 0 - 128 && disp <= 0 - 1) {
-    let d8: u8 = disp as u8;
+  if (disp >= (0 - 128) && disp <= (0 - 1)) {
+    let d8: u8 = (disp as u8);
     unsafe {
       if (pipeline_elf_ctx_append_bytes(elf_ctx, &op, 1) != 0) { return 0 - 1; }
       if (pipeline_elf_ctx_append_bytes(elf_ctx, &disp8_modrm, 1) != 0) { return 0 - 1; }
@@ -239,12 +239,12 @@ export function x86_enc_movl_from_rbp_neg32(elf_ctx: *u8, offset: i32, disp8_mod
  */
 #[no_mangle]
 export function x86_enc_store_rax_to_rbp_neg(elf_ctx: *u8, offset: i32): i32 {
-  let disp: i32 = 0 - offset;
+  let disp: i32 = (0 - offset);
   let r64: u8 = 72;
   let op: u8 = 137; // 0x89
-  if (disp >= 0 - 128 && disp <= 0 - 1) {
+  if (disp >= (0 - 128) && disp <= (0 - 1)) {
     let modrm: u8 = 69; // 0x45
-    let d8: u8 = disp as u8;
+    let d8: u8 = (disp as u8);
     unsafe {
       if (pipeline_elf_ctx_append_bytes(elf_ctx, &r64, 1) != 0) { return 0 - 1; }
       if (pipeline_elf_ctx_append_bytes(elf_ctx, &op, 1) != 0) { return 0 - 1; }
@@ -274,14 +274,14 @@ export function x86_enc_store_rax_to_rbp_neg(elf_ctx: *u8, offset: i32): i32 {
 export function x86_enc_store_r64_to_rbp_neg(elf_ctx: *u8, reg: i32, offset: i32): i32 {
   if (elf_ctx == 0 as *u8) { return 0 - 1; }
   if (reg < 0 || reg > 15) { return 0 - 1; }
-  let disp: i32 = 0 - offset;
+  let disp: i32 = (0 - offset);
   let rex: u8 = 72;
   if (reg >= 8) { rex = 76; }
   let op: u8 = 137;
   let lo: i32 = reg & 7;
-  if (disp >= 0 - 128 && disp <= 0 - 1) {
+  if (disp >= (0 - 128) && disp <= (0 - 1)) {
     let modrm: u8 = (69 + lo * 8) as u8;
-    let d8: u8 = disp as u8;
+    let d8: u8 = (disp as u8);
     unsafe {
       if (pipeline_elf_ctx_append_bytes(elf_ctx, &rex, 1) != 0) { return 0 - 1; }
       if (pipeline_elf_ctx_append_bytes(elf_ctx, &op, 1) != 0) { return 0 - 1; }
@@ -307,12 +307,12 @@ export function x86_enc_store_r64_to_rbp_neg(elf_ctx: *u8, reg: i32, offset: i32
  */
 #[no_mangle]
 export function x86_enc_store_rdx_to_rbp_neg(elf_ctx: *u8, offset: i32): i32 {
-  let disp: i32 = 0 - offset;
+  let disp: i32 = (0 - offset);
   let r64: u8 = 72;
   let op: u8 = 137; // 0x89
-  if (disp >= 0 - 128 && disp <= 0 - 1) {
+  if (disp >= (0 - 128) && disp <= (0 - 1)) {
     let modrm: u8 = 85; // 0x55
-    let d8: u8 = disp as u8;
+    let d8: u8 = (disp as u8);
     unsafe {
       if (pipeline_elf_ctx_append_bytes(elf_ctx, &r64, 1) != 0) { return 0 - 1; }
       if (pipeline_elf_ctx_append_bytes(elf_ctx, &op, 1) != 0) { return 0 - 1; }
@@ -343,7 +343,7 @@ export function x86_enc_alu_imm32_to_reg(elf_ctx: *u8, imm: i32, op_prefix: u8, 
   if (imm == 0) { return 0; }
   if (imm >= 0 - 128 && imm <= 127) {
     let op83: u8 = 131; // 0x83
-    let d8: u8 = imm as u8;
+    let d8: u8 = (imm as u8);
     unsafe {
       if (pipeline_elf_ctx_append_bytes(elf_ctx, &op83, 1) != 0) { return 0 - 1; }
       if (pipeline_elf_ctx_append_bytes(elf_ctx, &reg_modrm, 1) != 0) { return 0 - 1; }
@@ -1813,27 +1813,27 @@ export function arch_x86_64_enc_enc_imul_imm_to_ebx(elf_ctx: *u8, imm: i32): i32
 #[no_mangle]
 export function arch_x86_64_enc_enc_mov_arg_reg_to_rax(elf_ctx: *u8, k: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
-  let idx: i32 = k;
-  if (idx < 0) { idx = 0; }
-  if (idx > 63) { idx = 63; }
-  if (idx == 0) {
+  let idx_a2r_win: i32 = k;
+  if (idx_a2r_win < 0) { idx_a2r_win = 0; }
+  if (idx_a2r_win > 63) { idx_a2r_win = 63; }
+  if (idx_a2r_win == 0) {
     let b0: u8[3] = [72, 137, 200];
     return x86_enc_bytes(elf_ctx, b0, 3);
   }
-  if (idx == 1) {
+  if (idx_a2r_win == 1) {
     let b1: u8[3] = [72, 137, 208];
     return x86_enc_bytes(elf_ctx, b1, 3);
   }
-  if (idx == 2) {
+  if (idx_a2r_win == 2) {
     let b2: u8[3] = [76, 137, 192];
     return x86_enc_bytes(elf_ctx, b2, 3);
   }
-  if (idx == 3) {
+  if (idx_a2r_win == 3) {
     let b3: u8[3] = [76, 137, 200];
     return x86_enc_bytes(elf_ctx, b3, 3);
   }
   /* k>=4: mov rax, disp(%rbp); disp = 0x30 + 8*(k-4). disp8 through k=13. */
-  let slot: i32 = idx - 4;
+  let slot: i32 = idx_a2r_win - 4;
   let off: i32 = 48 + slot * 8;
   if (off <= 127) {
     let b4: u8[4] = [72, 139, 69, off as u8];
@@ -1852,26 +1852,26 @@ export function arch_x86_64_enc_enc_mov_arg_reg_to_rax(elf_ctx: *u8, k: i32): i3
 #[no_mangle]
 export function arch_x86_64_enc_enc_mov_arg_reg_to_rax(elf_ctx: *u8, k: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
-  let idx: i32 = k;
-  if (idx < 0) { idx = 0; }
-  if (idx > 5) { idx = 5; }
-  if (idx == 0) {
+  let idx_a2r_sysv: i32 = k;
+  if (idx_a2r_sysv < 0) { idx_a2r_sysv = 0; }
+  if (idx_a2r_sysv > 5) { idx_a2r_sysv = 5; }
+  if (idx_a2r_sysv == 0) {
     let b0: u8[3] = [72, 137, 248];
     return x86_enc_bytes(elf_ctx, b0, 3);
   }
-  if (idx == 1) {
+  if (idx_a2r_sysv == 1) {
     let b1: u8[3] = [72, 137, 240];
     return x86_enc_bytes(elf_ctx, b1, 3);
   }
-  if (idx == 2) {
+  if (idx_a2r_sysv == 2) {
     let b2: u8[3] = [72, 137, 208];
     return x86_enc_bytes(elf_ctx, b2, 3);
   }
-  if (idx == 3) {
+  if (idx_a2r_sysv == 3) {
     let b3: u8[3] = [72, 137, 200];
     return x86_enc_bytes(elf_ctx, b3, 3);
   }
-  if (idx == 4) {
+  if (idx_a2r_sysv == 4) {
     let b4: u8[3] = [76, 137, 192];
     return x86_enc_bytes(elf_ctx, b4, 3);
   }
@@ -1892,27 +1892,27 @@ export function arch_x86_64_enc_enc_mov_arg_reg_to_rax(elf_ctx: *u8, k: i32): i3
 #[no_mangle]
 export function arch_x86_64_enc_enc_mov_rax_to_arg_reg(elf_ctx: *u8, k: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
-  let idx: i32 = k;
-  if (idx < 0) { idx = 0; }
-  if (idx > 63) { idx = 63; }
-  if (idx == 0) {
+  let idx_r2a_win: i32 = k;
+  if (idx_r2a_win < 0) { idx_r2a_win = 0; }
+  if (idx_r2a_win > 63) { idx_r2a_win = 63; }
+  if (idx_r2a_win == 0) {
     let b0: u8[3] = [72, 137, 193];
     return x86_enc_bytes(elf_ctx, b0, 3);
   }
-  if (idx == 1) {
+  if (idx_r2a_win == 1) {
     let b1: u8[3] = [72, 137, 194];
     return x86_enc_bytes(elf_ctx, b1, 3);
   }
-  if (idx == 2) {
+  if (idx_r2a_win == 2) {
     let b2: u8[3] = [73, 137, 192];
     return x86_enc_bytes(elf_ctx, b2, 3);
   }
-  if (idx == 3) {
+  if (idx_r2a_win == 3) {
     let b3: u8[3] = [73, 137, 193];
     return x86_enc_bytes(elf_ctx, b3, 3);
   }
   /* k>=4: mov [rsp+disp], rax; disp = 0x20 + 8*(k-4). disp8 through k=15. */
-  let slot: i32 = idx - 4;
+  let slot: i32 = idx_r2a_win - 4;
   let off: i32 = 32 + slot * 8;
   if (off <= 127) {
     let b4: u8[5] = [72, 137, 68, 36, off as u8];
@@ -1931,26 +1931,26 @@ export function arch_x86_64_enc_enc_mov_rax_to_arg_reg(elf_ctx: *u8, k: i32): i3
 #[no_mangle]
 export function arch_x86_64_enc_enc_mov_rax_to_arg_reg(elf_ctx: *u8, k: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
-  let idx: i32 = k;
-  if (idx < 0) { idx = 0; }
-  if (idx > 5) { idx = 5; }
-  if (idx == 0) {
+  let idx_r2a_sysv: i32 = k;
+  if (idx_r2a_sysv < 0) { idx_r2a_sysv = 0; }
+  if (idx_r2a_sysv > 5) { idx_r2a_sysv = 5; }
+  if (idx_r2a_sysv == 0) {
     let b0: u8[3] = [72, 137, 199];
     return x86_enc_bytes(elf_ctx, b0, 3);
   }
-  if (idx == 1) {
+  if (idx_r2a_sysv == 1) {
     let b1: u8[3] = [72, 137, 198];
     return x86_enc_bytes(elf_ctx, b1, 3);
   }
-  if (idx == 2) {
+  if (idx_r2a_sysv == 2) {
     let b2: u8[3] = [72, 137, 194];
     return x86_enc_bytes(elf_ctx, b2, 3);
   }
-  if (idx == 3) {
+  if (idx_r2a_sysv == 3) {
     let b3: u8[3] = [72, 137, 193];
     return x86_enc_bytes(elf_ctx, b3, 3);
   }
-  if (idx == 4) {
+  if (idx_r2a_sysv == 4) {
     let b4: u8[3] = [73, 137, 192];
     return x86_enc_bytes(elf_ctx, b4, 3);
   }
@@ -2107,26 +2107,26 @@ export function arch_x86_64_enc_enc_load_rbp_to_rdx(elf_ctx: *u8, offset: i32): 
 #[no_mangle]
 export function arch_x86_64_enc_enc_mov_rdx_to_arg_reg(elf_ctx: *u8, k: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
-  let idx: i32 = k;
-  if (idx < 0) { idx = 0; }
-  if (idx > 5) { idx = 5; }
-  if (idx == 0) {
+  let idx_rdx_arg: i32 = k;
+  if (idx_rdx_arg < 0) { idx_rdx_arg = 0; }
+  if (idx_rdx_arg > 5) { idx_rdx_arg = 5; }
+  if (idx_rdx_arg == 0) {
     let b0: u8[3] = [72, 137, 215];
     return x86_enc_bytes(elf_ctx, b0, 3);
   }
-  if (idx == 1) {
+  if (idx_rdx_arg == 1) {
     let b1: u8[3] = [72, 137, 214];
     return x86_enc_bytes(elf_ctx, b1, 3);
   }
-  if (idx == 2) {
+  if (idx_rdx_arg == 2) {
     let b2: u8[3] = [72, 137, 210];
     return x86_enc_bytes(elf_ctx, b2, 3);
   }
-  if (idx == 3) {
+  if (idx_rdx_arg == 3) {
     let b3: u8[3] = [72, 137, 209];
     return x86_enc_bytes(elf_ctx, b3, 3);
   }
-  if (idx == 4) {
+  if (idx_rdx_arg == 4) {
     let b4: u8[3] = [73, 137, 208];
     return x86_enc_bytes(elf_ctx, b4, 3);
   }

@@ -1413,10 +1413,12 @@ export function link_abi_user_o_needs_std_heap_page_mmap(user_o: *u8): i32 {
  */
 #[no_mangle]
 export function labi_od_sys_linux_sym_count(): i32 {
-  // 38 since 2026-09-09: +4 xlang_sys_* FFI externs the co-emitted
-  // std.sys.linux module leaves U (glue = std/sys/linux.o +
-  // compiler/src/asm/freestanding_io_x86_64.o; run-process BLD001 root).
-  return 38;
+  // 34 std.sys.linux export names. The old +4 xlang_sys_* FFI names
+  // are undefs of linux.o, not a reason to pull it. Darwin tcp.o
+  // undefs xlang_sys_connect; that hit pushed linux.o into a hosted
+  // Mach-O link (BLD001 xlang_sys_open / openat).
+  // PLATFORM: SHARED — twin of seeds/labi_od_needle_tables.c.
+  return 34;
 }
 
 /* Class BF: labi_od_sys_linux_sym_at → seeds/labi_od_needle_tables.c (always linked). */
@@ -1624,6 +1626,27 @@ export function link_abi_user_o_needs_std_heap_api(user_o: *u8): i32 {
       }
     }
     i = i + 1;
+  }
+  /* knife256/10.2: string.o may carry U std_heap_arena64_alloc before it is
+   * on ld argv; probe the leaf path so needs_std_heap_import pushes heap.o.
+   * PLATFORM: SHARED — Cap tip encoding/string consumers. */
+  unsafe {
+    let spit: u8[32] = [];
+    let ssym: u8[32] = [];
+    spit[0] = 115; spit[1] = 116; spit[2] = 100; spit[3] = 47;
+    spit[4] = 115; spit[5] = 116; spit[6] = 114; spit[7] = 105;
+    spit[8] = 110; spit[9] = 103; spit[10] = 47; spit[11] = 115;
+    spit[12] = 116; spit[13] = 114; spit[14] = 105; spit[15] = 110;
+    spit[16] = 103; spit[17] = 46; spit[18] = 111; spit[19] = 0;
+    ssym[0] = 115; ssym[1] = 116; ssym[2] = 100; ssym[3] = 95;
+    ssym[4] = 104; ssym[5] = 101; ssym[6] = 97; ssym[7] = 112;
+    ssym[8] = 95; ssym[9] = 97; ssym[10] = 114; ssym[11] = 101;
+    ssym[12] = 110; ssym[13] = 97; ssym[14] = 54; ssym[15] = 52;
+    ssym[16] = 95; ssym[17] = 97; ssym[18] = 108; ssym[19] = 108;
+    ssym[20] = 111; ssym[21] = 99; ssym[22] = 0;
+    if (xlang_link_obj_needs_undef_sym_impl(&spit[0], &ssym[0]) != 0) {
+      return 1;
+    }
   }
   return 0;
 }

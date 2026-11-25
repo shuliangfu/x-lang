@@ -90,6 +90,10 @@ run_case() {
 }
 
 echo "=== random gate (prefer asm; hard) ==="
+if [ -f compiler/scripts/cap_tip_ensure_random_leave_darwin.sh ]; then
+  ( cd compiler && bash scripts/cap_tip_ensure_random_leave_darwin.sh ) \
+    || die "cap_tip_ensure_random failed"
+fi
 XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"

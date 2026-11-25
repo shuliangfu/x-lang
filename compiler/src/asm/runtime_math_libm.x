@@ -84,6 +84,11 @@ export extern "C" function math_fenv_mask_to_fe_impl(mask: i32): i32;
 export extern "C" function math_fenv_fe_to_mask_impl(fe: i32): i32;
 export extern "C" function math_fenv_emit_cap_report_impl(avail: i32): void;
 
+// Hosted byte copy. A store through a punned *u64 is a deref assign, and
+// this compiler does not emit that assign, so floor and ceil publish the
+// truncated bits with memcpy. PLATFORM: SHARED — libc memcpy on the product link.
+extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+
 // === forward declarations for thin functions (called by rest/smoke) ===
 
 export function math_special_near(a: f64, b: f64, eps: f64): i32;
@@ -146,7 +151,9 @@ export function math_special_near(a: f64, b: f64, eps: f64): i32 {
  * clear the low (1075 - e) mantissa bits (truncation toward zero via pure
  * bit subtraction — no borrow), then step one more unit away from zero
  * (f64 subtract/add of 1.0 is exact for every non-integral |x| < 2^52).
- * PLATFORM: SHARED freestanding (no libm).
+ * The truncated bits are copied into v with memcpy. A store through the
+ * punned pointer is not emitted.
+ * PLATFORM: SHARED — no libm; hosted C memcpy on the product link.
  */
 #[no_mangle]
 export function math_floor_c(x: f64): f64 {
@@ -185,7 +192,8 @@ export function math_floor_c(x: f64): f64 {
     return v;
   }
   let t_bits: u64 = bits - (bits & frac_mask);
-  unsafe { *p = t_bits; }
+  // Copy 8 bytes into v. *p = t_bits does not store through p.
+  unsafe { memcpy(&v as *u8, &t_bits as *u8, 8); }
   // Negative non-integer: floor moves one unit toward -inf.
   if ((bits & sign_bit) != 0) {
     return v - 1.0;
@@ -200,7 +208,8 @@ export function math_floor_c(x: f64): f64 {
  *               x unchanged for integers, +-inf and NaN
  * Bit-level mirror of math_floor_c: truncation by mantissa masking, then
  * positive non-integers step one unit toward +inf (exact f64 add of 1.0).
- * PLATFORM: SHARED freestanding (no libm).
+ * The truncated bits are copied into v with memcpy, same as math_floor_c.
+ * PLATFORM: SHARED — no libm; hosted C memcpy on the product link.
  */
 #[no_mangle]
 export function math_ceil_c(x: f64): f64 {
@@ -237,7 +246,8 @@ export function math_ceil_c(x: f64): f64 {
     return v;
   }
   let t_bits: u64 = bits - (bits & frac_mask);
-  unsafe { *p = t_bits; }
+  // Copy 8 bytes into v. *p = t_bits does not store through p.
+  unsafe { memcpy(&v as *u8, &t_bits as *u8, 8); }
   // Positive non-integer: ceil moves one unit toward +inf.
   if ((bits & sign_bit) == 0) {
     return v + 1.0;
@@ -1544,7 +1554,10 @@ export function math_atan2_c(y: f64, x: f64): f64 {
  *    carry into q.
  * All u32 arithmetic wraps (matching C unsigned); m>>1 is expressed as
  * (m - (m&1))/2 so negative m keeps arithmetic-shift semantics regardless
- * of the .x shift lowering. PLATFORM: SHARED freestanding (no libm).
+ * of the .x shift lowering. The tiny probe and the result bits are copied
+ * into their f64 locals with memcpy. A store through the punned pointer
+ * is not emitted.
+ * PLATFORM: SHARED — no libm; hosted C memcpy on the product link.
  */
 #[no_mangle]
 export function math_sqrt_c(x: f64): f64 {
@@ -1553,10 +1566,9 @@ export function math_sqrt_c(x: f64): f64 {
    * so the one-tiny/one+tiny probes collapse to one under round-to-nearest;
    * built from its exact bit pattern (Python-verified). */
   let tiny: f64 = 0.0;
-  unsafe {
-    let pt: *u64 = &tiny as *u64;
-    *pt = 118622047889322841;   /* 0x01a56e1fc2f8f359 = 1.0e-300 */
-  }
+  let tiny_bits: u64 = 118622047889322841; /* 0x01a56e1fc2f8f359 */
+  // *pt = is a deref assign and is not emitted. Copy the 8 bits into tiny.
+  unsafe { memcpy(&tiny as *u8, &tiny_bits as *u8, 8); }
   /* Local copy (parameter reassignment avoided by style). */
   let r: f64 = x;
   let pr: *u64 = &r as *u64;
@@ -1683,10 +1695,9 @@ export function math_sqrt_c(x: f64): f64 {
   }
   hi0 = hi0 + ((m << 20) as u32);  /* exponent scale (wraps like C int) */
   let z: f64 = 0.0;
-  unsafe {
-    let pz: *u64 = &z as *u64;
-    *pz = ((hi0 as u64) << 32) | (lo0 as u64);
-  }
+  let z_bits: u64 = ((hi0 as u64) << 32) | (lo0 as u64);
+  // *pz = is a deref assign and is not emitted. Copy the 8 bits into z.
+  unsafe { memcpy(&z as *u8, &z_bits as *u8, 8); }
   return z;
 }
 
@@ -2390,14 +2401,20 @@ export function math_log_c(x: f64): f64 {
  * @return f64 - |x| with the sign bit cleared; fabs(-0.0) = +0.0; NaN keeps
  *               its payload with the sign bit cleared
  * Bit-level: mask off bit 63 via the computed mask (1 << 63) - 1.
- * PLATFORM: SHARED freestanding (no libm).
+ * The cleared bits are copied back with memcpy. A store through the
+ * punned pointer is not emitted.
+ * PLATFORM: SHARED — no libm; hosted C memcpy on the product link.
  */
 #[no_mangle]
 export function math_fabs_c(x: f64): f64 {
   let v: f64 = x;
   let one: u64 = 1;
   let p: *u64 = &v as *u64;
-  unsafe { *p = *p & ((one << 63) - 1); }
+  let bits: u64 = 0;
+  unsafe { bits = *p; }
+  let cleared: u64 = bits & ((one << 63) - 1);
+  // *p = is a deref assign and is not emitted. Copy the cleared bits into v.
+  unsafe { memcpy(&v as *u8, &cleared as *u8, 8); }
   return v;
 }
 

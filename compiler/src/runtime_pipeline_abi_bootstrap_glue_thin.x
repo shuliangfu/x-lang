@@ -432,10 +432,18 @@ export function asm_type_is_simd_vector(arena: *u8, type_ref: i32): i32 {
 
 /**
  * True if NAMED type spelling is a known SIMD vector name.
- * Cap 4.2.8 Type LE: kind@0 name[256]@4 name_len@260.
- * @param arena *u8
- * @param type_ref i32
- * @return i32
+ * Kind 13 is already a vector and returns 1 before the name list.
+ * Cap 4.2.8 Type LE: kind at byte 0, name[256] at byte 4, name_len at byte 260.
+ * A 6-byte f32x16 name is the same class as i32x16 and u32x16.
+ * glue_vector_type_lanes_esz_c returns -1 when this function returns 0,
+ * and glue_type_size_simple then reports 4. The call is not sret:
+ * the callee returns the array pointer in x0 and the caller loads those
+ * pointer bits as lane 0. Recognizing the name lets the existing
+ * lanes*esz path report 64 and the existing ret_sz > 16 sret path run.
+ * @param arena *u8 - AST arena; null returns 0
+ * @param type_ref i32 - type index; out of range returns 0
+ * @return i32 - 1 when the spelling is a known SIMD name, else 0
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i32): i32 {
@@ -468,6 +476,14 @@ export function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i32): i32
     if (nlen == 5 && w321_bytes_eq(name, "u32x4", 5) != 0) { return 1; }
     if (nlen == 5 && w321_bytes_eq(name, "u32x8", 5) != 0) { return 1; }
     if (nlen == 6 && w321_bytes_eq(name, "u32x16", 6) != 0) { return 1; }
+    // f32x16 is six bytes, so it misses every 5-byte pack above.
+    // Same 16-lane fallback as i32x16 once this gate returns 1.
+    // PLATFORM: SHARED.
+    if (nlen == 6) {
+      if (w321_bytes_eq(name, "f32x16", 6) != 0) {
+        return 1;
+      }
+    }
     if (nlen == 5 && w321_bytes_eq(name, "f32x4", 5) != 0) { return 1; }
     if (nlen == 5 && w321_bytes_eq(name, "f32x8", 5) != 0) { return 1; }
     if (nlen == 5 && w321_bytes_eq(name, "Vec4f", 5) != 0) { return 1; }

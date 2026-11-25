@@ -586,6 +586,14 @@ arena: *ASTArena, expr_ref: i32, ctx: *PipelineDepCtx): i32;
  */
 export extern function pipeline_typeck_match_subject_field_type_c(module: *Module, arena: *ASTArena,
 name: *u8, name_len: i32): i32;
+/**
+ * Body lives in typeck_match_subject_field_thin.x. This mega file does not
+ * rebuild on the current Darwin product (pre-existing extern-call T001 on
+ * residual faces). Call sites stay here.
+ * PLATFORM: SHARED
+ */
+export extern function typeck_match_subject_field_type(module: *Module, arena: *ASTArena,
+name: *u8, name_len: i32): i32;
 /* wave233 pure leave: resolve_type_alias_ref is typeck authority (active_module
  * peel + local walk). Residual C face thins to typeck_resolve_type_alias_ref.
  * Do NOT reintroduce pipeline_typeck_resolve_type_alias_ref_c wrap here (cycle). */
@@ -1441,6 +1449,7 @@ export function typeck_resolve_type_alias_ref_local(module: *Module, arena: *AST
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let type_name: u8[256] = [];
+    let alias_name: u8[256] = [];
     let alias_count: i32 = 0;
     let alias_i: i32 = 0;
     let type_name_len: i32 = 0;
@@ -1464,14 +1473,15 @@ export function typeck_resolve_type_alias_ref_local(module: *Module, arena: *AST
       alias_name_len = pipeline_module_type_alias_name_len(module, alias_i);
       /* wave582 Cap residual: alias names may be up to 255 (TypeAliasEntry.name[256]). */
       if (alias_name_len == type_name_len && alias_name_len > 0 && alias_name_len <= 255) {
+        /* knife256/10.2: tip pure-asm clobbers call-result in rbx when comparing
+         * name_byte_at vs type_name[i] (even via i32 locals). Copy then name_equal
+         * matches typeck_named_type_matches_name_or_alias (Linux tip-cold type_alias). */
         alias_off = 0;
         while (alias_off < alias_name_len) {
-          if (pipeline_module_type_alias_name_byte_at(module, alias_i, alias_off) != type_name[alias_off]) {
-            break;
-          }
+          alias_name[alias_off] = pipeline_module_type_alias_name_byte_at(module, alias_i, alias_off);
           alias_off = alias_off + 1;
         }
-        if (alias_off == alias_name_len) {
+        if (name_equal(&alias_name[0], alias_name_len, &type_name[0], type_name_len)) {
           alias_target_ref = pipeline_module_type_alias_target_ref(module, alias_i);
           if (ast.ref_is_null(alias_target_ref)) {
             return type_ref;
@@ -2131,13 +2141,12 @@ export function typeck_x_named_builtin_align(nm: *u8, nlen: i32): i32 {
   }
   /*
    * Cap residual TYPE_NAMED integers (no TypeKind).
-   * Cell width is 4 — same as Cap residual array INDEX esz-4 — so
-   * bake cells hold folder mask/sext and field loads can use LDRSW /
-   * movslq. True 1/2-byte pack waits on signed byte/halfword load
-   * encoders in the field emit path.
+   * 10.44: i8 is true 1-byte pack (struct field stride + store width).
+   * i16/u16 stay 4 until halfword store/load encoders are wired on all
+   * field paths (INDEX iesz already returns 2 for those names).
    * PLATFORM: SHARED.
    */
-  if (nlen == 2 && nm[0] == 105 && nm[1] == 56) { return 4; }
+  if (nlen == 2 && nm[0] == 105 && nm[1] == 56) { return 1; }
   if (nlen == 3 && nm[0] == 105 && nm[1] == 49 && nm[2] == 54) { return 4; }
   if (nlen == 3 && nm[0] == 117 && nm[1] == 49 && nm[2] == 54) { return 4; }
   if (nlen == 3 && nm[0] == 105 && nm[1] == 51 && nm[2] == 50) { return 4; }
@@ -2157,7 +2166,7 @@ export function typeck_x_named_builtin_align(nm: *u8, nlen: i32): i32 {
 
 /**
  * Size of a named builtin spelling. Align equals size for these scalars.
- * Cap residual i8/i16/u16 use 4-byte cells (wave1007; matches INDEX esz-4).
+ * Cap residual: i8 size 1 (10.44); i16/u16 still 4-byte cells.
  * @param nm *u8 — type name bytes
  * @param nlen i32 — name length
  * @return i32 — 1, 2, 4, or 8; 0 if unknown
@@ -2188,7 +2197,7 @@ export function typeck_x_type_align(module: *Module, arena: *ASTArena, ty_ref: i
     let li: i32 = 0;
     let ba: i32 = 0;
     let nm_buf: *u8 = typeck_scratch64_slot(4);
-    if (ast.ref_is_null(ty_ref) || ty_ref <= 0 || ty_ref > arena.num_types || depth > 64) {
+    if (ast.ref_is_null(ty_ref) || ty_ref <= 0 || ty_ref > arena.num_types || depth > 1024) {
       return 1;
     }
     ko = pipeline_type_kind_ord_at(arena, ty_ref);
@@ -2237,7 +2246,7 @@ export function typeck_x_type_align(module: *Module, arena: *ASTArena, ty_ref: i
  * @param module *Module — owning module for struct_layouts
  * @param arena *ASTArena — type pool for kind/name
  * @param ty_ref i32 — field or local type ref
- * @param depth i32 — recursion depth; >64 → 0 (cycle / absurd nest guard)
+ * @param depth i32 — recursion depth; >1024 → 0 (cycle / absurd nest guard)
  * @return i32 — 1 empty named ZST layout, 0 otherwise
  * PLATFORM: SHARED — matches GCC empty-struct size 0 / A{e:Empty} nest ZST
  */
@@ -2254,7 +2263,7 @@ export function typeck_type_is_empty_struct(module: *Module, arena: *ASTArena, t
     if (module == 0 as *Module || arena == 0 as *ASTArena || ty_ref <= 0) {
       return 0;
     }
-    if (ty_ref > arena.num_types || depth > 64) {
+    if (ty_ref > arena.num_types || depth > 1024) {
       return 0;
     }
     ko = pipeline_type_kind_ord_at(arena, ty_ref);
@@ -2307,7 +2316,7 @@ export function typeck_x_type_size(module: *Module, arena: *ASTArena, ty_ref: i3
     let li2: i32 = 0;
     let bsz: i32 = 0;
     let nm_buf_sz: *u8 = typeck_scratch64_slot(4);
-    if (ast.ref_is_null(ty_ref) || ty_ref <= 0 || ty_ref > arena.num_types || depth > 64) {
+    if (ast.ref_is_null(ty_ref) || ty_ref <= 0 || ty_ref > arena.num_types || depth > 1024) {
       return 0;
     }
     ko = pipeline_type_kind_ord_at(arena, ty_ref);
@@ -2374,11 +2383,11 @@ export function typeck_x_type_size(module: *Module, arena: *ASTArena, ty_ref: i3
  */
 export function typeck_soa_find_layout_idx_by_name(module: *Module, name: *u8, name_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // knife256/10.2: Cap tip codegen clobbers LHS of `f() != name[j]` (x1 reused for
+  // index) → compared j vs name[j] → find_layout always miss → Type.method() fail.
+  // Use typeck_layout_name_equal (name_into buffer) — no post-call indexed load.
   unsafe {
     let k: i32 = 0;
-    let j: i32 = 0;
-    let ln: i32 = 0;
-    let eq: i32 = 0;
     if (module == 0 as *Module || name == 0 as *u8 || name_len <= 0 || name_len > 255) {
       return -1;
     }
@@ -2387,20 +2396,8 @@ export function typeck_soa_find_layout_idx_by_name(module: *Module, name: *u8, n
     // The x86 emit pushes the index and the callee homes rcx over that push.
     let nsl_soa: i32 = pipeline_module_num_struct_layouts_at(module);
     while (k < nsl_soa) {
-      ln = pipeline_module_struct_layout_name_len(module, k);
-      if (ln == name_len) {
-        j = 0;
-        eq = 1;
-        while (j < name_len) {
-          if (pipeline_module_struct_layout_name_byte_at(module, k, j) != name[j]) {
-            eq = 0;
-            break;
-          }
-          j = j + 1;
-        }
-        if (eq != 0) {
-          return k;
-        }
+      if (typeck_layout_name_equal(module, k, name, name_len)) {
+        return k;
       }
       k = k + 1;
     }
@@ -2481,7 +2478,7 @@ export function typeck_soa_find_layout_module_and_idx(module: *Module, name: *u8
  * @param li i32 — struct_layouts index
  * @param field_idx i32 — exclusive end field index (0..num_fields)
  * @param array_len i32 — SoA array length N
- * @param depth i32 — recursion depth (cap 64; forwarded to type size/align)
+ * @param depth i32 — recursion depth (cap 1024; forwarded to type size/align)
  * @return i32 — byte offset of column base for field_idx (0 on bad input)
  * PLATFORM: SHARED — G.7 single authority; .x -> typeck_gen.c -> typeck_x.o.
  */
@@ -2497,7 +2494,7 @@ export function typeck_soa_col_base_for_field(module: *Module, arena: *ASTArena,
     let fsize: i32 = 0;
     let rem: i32 = 0;
     let gap: i32 = 0;
-    if (module == 0 as *Module || arena == 0 as *ASTArena || li < 0 || field_idx < 0 || array_len <= 0 || depth > 64) {
+    if (module == 0 as *Module || arena == 0 as *ASTArena || li < 0 || field_idx < 0 || array_len <= 0 || depth > 1024) {
       return 0;
     }
     col = 0;
@@ -2696,7 +2693,7 @@ export function typeck_soa_field_soa_index(module: *Module, arena: *ASTArena, ex
  * @param arena *ASTArena
  * @param elem_type_ref i32 — candidate SoA struct element type_ref
  * @param array_len i32 — SoA array length N
- * @param depth i32 — recursion depth (cap 64)
+ * @param depth i32 — recursion depth (cap 1024)
  * @return i32 — column-major total bytes, or 0 if not SoA / not found
  * PLATFORM: SHARED — G.7 single authority; .x -> typeck_gen.c -> typeck_x.o.
  */
@@ -2713,7 +2710,7 @@ export function typeck_soa_array_storage_size_glue(module: *Module, arena: *ASTA
     let j: i32 = 0;
     let ftr: i32 = 0;
     let A: i32 = 0;
-    if (module == 0 as *Module || arena == 0 as *ASTArena || elem_type_ref <= 0 || array_len <= 0 || depth > 64) {
+    if (module == 0 as *Module || arena == 0 as *ASTArena || elem_type_ref <= 0 || array_len <= 0 || depth > 1024) {
       return 0;
     }
     /* TYPE_NAMED ord == 8 */
@@ -2762,7 +2759,7 @@ export function typeck_soa_array_storage_size_glue(module: *Module, arena: *ASTA
  * @param module *Module — layout table owner
  * @param arena *ASTArena — type pool for field sizes
  * @param li i32 — struct layout index
- * @param depth i32 — nested-layout depth; above 64 fails
+ * @param depth i32 — nested-layout depth; above 1024 fails
  * @param check_pad i32 — 1 diagnoses implicit padding; 0 only measures
  * @param out_sz *i32 — byte size out; required
  * @param out_al *i32 — alignment out; required
@@ -2813,7 +2810,7 @@ check_pad: i32, out_sz: *i32, out_al: *i32): i32 {
     // PLATFORM: WINDOWS — finish the count call before comparing li.
     // The x86 emit pushes the index and the callee homes rcx over that push.
     let nsl_metrics: i32 = pipeline_module_num_struct_layouts_at(module);
-    if (li < 0 || li >= nsl_metrics || depth > 64) {
+    if (li < 0 || li >= nsl_metrics || depth > 1024) {
       return - 1;
     }
     nf = pipeline_module_struct_layout_num_fields(module, li);
@@ -3033,13 +3030,67 @@ field_name: *u8, field_name_len: i32): i32 {
   }
 }
 
-/* See implementation. */
+/**
+ * Last struct-layout index that supplied a field type.
+ * Index 0 is a real layout, so g_field_ty_cursor_live is the validity bit.
+ * A nested literal's child struct is declared immediately before the parent,
+ * so the next lookup tries this index and the one before it. A hit still
+ * requires the layout name and the field name to match, which is the layout
+ * a scan from index 0 returns when each struct name occurs once. A miss
+ * falls through to that scan and does not change its order.
+ * Lives for one compiler process. PLATFORM: SHARED.
+ */
+let g_field_ty_cursor: i32 = 0;
+let g_field_ty_cursor_live: i32 = 0;
+
+/**
+ * Field type_ref of a named struct layout.
+ * Scans layouts from index 0 and returns the first field whose struct name
+ * and field name match. Before that scan, tries the previous hit and the
+ * layout declared immediately before it (see g_field_ty_cursor).
+ * @param module *Module — struct_layouts owner
+ * @param type_name *u8 — struct name bytes
+ * @param type_name_len i32 — name length; <=0 misses
+ * @param field_name *u8 — field name bytes
+ * @param field_name_len i32 — field name length; <=0 misses
+ * @return i32 — field type_ref, or 0 when no layout field matches
+ * PLATFORM: SHARED.
+ */
 export function get_field_type_ref_from_layout(module: *Module, type_name: *u8, type_name_len: i32,
 field_name: *u8, field_name_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let k: i32 = 0;
     let nsl: i32 = pipeline_module_num_struct_layouts_at(module);
+    let hint_i: i32 = 0;
+    let hk: i32 = 0;
+    /* Two probes, then the original scan. hint 0 is the last hit (another
+     * field of the same struct). hint 1 is the layout declared just before
+     * it (the child of a nested literal). PLATFORM: SHARED. */
+    if (g_field_ty_cursor_live != 0) {
+      hint_i = 0;
+      while (hint_i < 2) {
+        hk = g_field_ty_cursor;
+        if (hint_i == 1) {
+          hk = hk - 1;
+        }
+        if (hk >= 0 && hk < nsl) {
+          if (typeck_layout_name_equal(module, hk, type_name, type_name_len)) {
+            let hj: i32 = 0;
+            let hn: i32 = pipeline_module_struct_layout_num_fields(module, hk);
+            while (hj < hn) {
+              if (typeck_layout_field_name_equal(module, hk, hj, field_name, field_name_len)) {
+                g_field_ty_cursor = hk;
+                g_field_ty_cursor_live = 1;
+                return pipeline_module_struct_layout_field_type_ref(module, hk, hj);
+              }
+              hj = hj + 1;
+            }
+          }
+        }
+        hint_i = hint_i + 1;
+      }
+    }
     while (k < nsl) {
       if (typeck_layout_name_equal(module, k, type_name, type_name_len)) {
         let j: i32 = 0;
@@ -3047,6 +3098,8 @@ field_name: *u8, field_name_len: i32): i32 {
         let nfields_ty: i32 = pipeline_module_struct_layout_num_fields(module, k);
         while (j < nfields_ty) {
           if (typeck_layout_field_name_equal(module, k, j, field_name, field_name_len)) {
+            g_field_ty_cursor = k;
+            g_field_ty_cursor_live = 1;
             return pipeline_module_struct_layout_field_type_ref(module, k, j);
           }
           j = j + 1;
@@ -4110,11 +4163,26 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 /**
+ * Product entry of field-owner reverse inference.
+ * Body: typeck_field_reverse_infer_soft.x. This file keeps the unique-name
+ * scan under typeck_field_reverse_infer_base_type_mega. Do not paste a
+ * second scan here.
+ * @param module *Module — module with struct layouts
+ * @param arena *ASTArena — type/name pool
+ * @param expr_ref i32 — FIELD_ACCESS expr
+ * @param outer_expected i32 — ambient expected of the field result (reserved)
+ * @return i32 — owner TYPE_NAMED ref, or 0
+ * PLATFORM: SHARED.
+ */
+export extern function typeck_field_reverse_infer_base_type(module: *Module, arena: *ASTArena,
+expr_ref: i32, outer_expected: i32): i32;
+
+/**
  * R2 (8.3.3): reverse-infer owner struct type of FIELD_ACCESS from field name.
  *
  * Migrated from C `pipeline_typeck_field_reverse_infer_base_type_c`
  * (pipeline_typeck_field_access.c) to .x authority. Used only by the field_access
- * orchestrator for CALL/METHOD_CALL bases.
+ * orchestrator for CALL/METHOD_CALL/STRUCT_LIT bases.
  *
  * Why: ambient expected of `base.field` is the *field result* type (e.g. i32 for
  * `.v`), not the base type. Passing that into base typeck made bare ret-only
@@ -4125,6 +4193,10 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32 {
  * for that struct so a bare generic CALL base can use it as expected_ret
  * (`mk_default()` → A). Zero or multiple hits → 0 (fail-closed).
  * outer_expected is reserved (parity with C; currently unused).
+ * knife608: linked as typeck_field_reverse_infer_base_type_mega. The soft
+ * entry calls this first. Only a 0 result whose base is a struct literal
+ * is filtered by the literal's element kind (float lit keeps f32/f64,
+ * integer lit keeps the other). A unique name never reaches that filter.
  *
  * @param module *Module — module with struct layouts
  * @param arena *ASTArena — type/name pool
@@ -4133,7 +4205,8 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32 {
  * @return i32 — unique owner TYPE_NAMED ref, or 0
  * PLATFORM: SHARED — G.7 reverse-infer single authority.
  */
-export function typeck_field_reverse_infer_base_type(module: *Module, arena: *ASTArena,
+#[no_mangle]
+export function typeck_field_reverse_infer_base_type_mega(module: *Module, arena: *ASTArena,
 expr_ref: i32, outer_expected: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5834,6 +5907,40 @@ caller_arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
               from_dep_index, caller_arena, nm_buf, nlen);
           }
         }
+        /*
+         * knife256/10.2 Cap tip: *NamedStruct / []Named formals must map the
+         * pointee through the same import-binding NAMED path as by-value
+         * Option_i32 (else score sees *Option_i32 vs *option.Option_i32 and
+         * Cap tip T001 on option.none_i32(&o) while unwrap_or by-value greens).
+         * Recurse get_dep on elem then realloc compound in caller.
+         * PLATFORM: SHARED — closes Cap tip option L2 T001.
+         */
+        let ord_ptr_gd: i32 = 9;
+        let ord_slice_gd: i32 = 11;
+        let ord_linear_gd: i32 = 12;
+        if (kind == ord_ptr_gd || kind == ord_slice_gd || kind == ord_linear_gd) {
+          let elem_gd: i32 = pipeline_type_elem_ref_at(dep_arena, dep_return_type_ref);
+          if (elem_gd > 0) {
+            let inner_gd: i32 = get_dep_return_type_in_caller_arena(from_dep_index, elem_gd,
+              caller_arena, ctx);
+            if (inner_gd > 0) {
+              if (kind == ord_ptr_gd) {
+                return find_or_alloc_ptr_type_ref(caller_arena, inner_gd);
+              }
+              if (kind == ord_linear_gd) {
+                return find_or_alloc_linear_type_ref(caller_arena, inner_gd);
+              }
+              {
+                let rlen_gd: i32 = pipeline_type_region_label_len_at(dep_arena, dep_return_type_ref);
+                let rbuf_gd: *u8 = typeck_scratch64_slot(14);
+                if (rlen_gd > 0) {
+                  pipeline_type_region_label_into(dep_arena, dep_return_type_ref, rbuf_gd);
+                }
+                return pipeline_type_find_or_alloc_slice(caller_arena, inner_gd, rbuf_gd, rlen_gd);
+              }
+            }
+          }
+        }
       }
     }
     return dep_return_type_to_caller_arena(dep_arena, dep_return_type_ref, caller_arena);
@@ -6851,11 +6958,34 @@ name_len: i32, from_dep_index: i32, ctx: *PipelineDepCtx, func_index_out: *i32):
 }
 
 /**
- * See implementation.
- * See implementation.
- * See implementation.
+ * Score one call argument against one formal.
+ * The product entry is typeck_overload_arg_param_score_soft.x. Cap tip
+ * cannot re-emit this mega, so the linked object keeps this text and the
+ * Darwin link aliases it to typeck_overload_arg_param_score_mega. The entry
+ * calls that alias. A chain of two or more unary minuses of one float
+ * literal used to return -1 here (this body peels a single minus). The
+ * entry turns that -1 into the same weak 100 an f32 or f64 formal already
+ * gets for one minus. Do not paste a second score body in this file.
+ * @param caller_arena *ASTArena — caller's expression pool
+ * @param call_expr_ref i32 — EXPR_CALL or EXPR_METHOD_CALL
+ * @param arg_i i32 — argument index
+ * @param param_ty_raw i32 — formal type ref in the callee arena
+ * @param from_dep_index i32 — dep slot, or negative for the caller module
+ * @param ctx *PipelineDepCtx — dep arenas; null when from_dep_index is negative
+ * @return i32 — 1000 exact, 100 weak, 0 or negative on reject
+ * PLATFORM: SHARED.
  */
-export function typeck_overload_arg_param_score(caller_arena: *ASTArena, call_expr_ref: i32, arg_i: i32,
+export extern function typeck_overload_arg_param_score(caller_arena: *ASTArena, call_expr_ref: i32, arg_i: i32,
+param_ty_raw: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32;
+
+/**
+ * Mega body of the argument score. Linked as
+ * typeck_overload_arg_param_score_mega. The entry in
+ * typeck_overload_arg_param_score_soft.x is what call sites bind.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function typeck_overload_arg_param_score_mega(caller_arena: *ASTArena, call_expr_ref: i32, arg_i: i32,
 param_ty_raw: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -6948,7 +7078,11 @@ param_ty_raw: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32 {
       }
     }
     /*
-     * Bare FLOAT_LIT (kind 1) / NEG(FLOAT_LIT) weak-match f32/f64 formals.
+     * Bare FLOAT_LIT (kind 1) / one NEG(FLOAT_LIT) weak-match f32/f64 formals.
+     * A longer minus chain is not peeled here. The entry
+     * typeck_overload_arg_param_score_soft.x turns a -1 from this body into
+     * the same weak 100 when every step is unary minus and the innermost
+     * expr is a float literal. Do not add a second walker in this body.
      * Root (intrinsic_binop_dot): simd.splat(0.0) vs splat(i32)/splat(f32) —
      * both overloads scored -1 (lit defaults f64; no FLOAT_LIT clause) → first_idx
      * splat(i32) → emit U/sret SEGV. Score 100 < exact 1000; i32 stays -1.
@@ -7016,6 +7150,52 @@ param_ty_raw: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32 {
         let pe2: i32 = pipeline_type_elem_ref_at(caller_arena, param_ty);
         if (ae2 > 0 && pe2 > 0 && pipeline_typeck_type_refs_equal_c(caller_arena, ae2, pe2) != 0) {
           return 1000;
+        }
+        /*
+         * knife256/10.2: Cap tip may miss type_refs_equal on import-qualified
+         * vs bare TYPE_NAMED pointees (*option.Option_i32 vs *Option_i32).
+         * Last-segment NAMED soft-exact (same as overload expect_match).
+         * PLATFORM: SHARED — score authority only; no second matcher.
+         */
+        if (ae2 > 0 && pe2 > 0
+            && pipeline_type_kind_ord_at(caller_arena, ae2) == 8
+            && pipeline_type_kind_ord_at(caller_arena, pe2) == 8) {
+          let na2: u8[256] = [];
+          let nb2: u8[256] = [];
+          let la2: i32 = pipeline_type_named_name_into(caller_arena, ae2, &na2[0]);
+          let lb2: i32 = pipeline_type_named_name_into(caller_arena, pe2, &nb2[0]);
+          if (la2 > 0 && lb2 > 0) {
+            let sa2: i32 = 0;
+            let sb2: i32 = 0;
+            let ii2: i32 = 0;
+            while (ii2 < la2) {
+              if (na2[ii2] == 46 as u8) {
+                sa2 = ii2 + 1;
+              }
+              ii2 = ii2 + 1;
+            }
+            ii2 = 0;
+            while (ii2 < lb2) {
+              if (nb2[ii2] == 46 as u8) {
+                sb2 = ii2 + 1;
+              }
+              ii2 = ii2 + 1;
+            }
+            if ((la2 - sa2) == (lb2 - sb2) && (la2 - sa2) > 0) {
+              let eq2: i32 = 1;
+              ii2 = 0;
+              while (ii2 < (la2 - sa2)) {
+                if (na2[sa2 + ii2] != nb2[sb2 + ii2]) {
+                  eq2 = 0;
+                  break;
+                }
+                ii2 = ii2 + 1;
+              }
+              if (eq2 != 0) {
+                return 1000;
+              }
+            }
+          }
         }
         return -1;
       }
@@ -9340,48 +9520,21 @@ decl_kind: i32, init_kind: i32): i32 {
 }
 
 /**
- * Coerce bare float literal (or unary `-` of a float literal) to a float decl type.
+ * Stamp a bare float literal, or a chain of unary minuses of one, onto an
+ * f32 or f64 declaration. The product body is
+ * typeck_coerce_init_float_lit_soft.x. Cap tip cannot re-emit this mega,
+ * and the linked object still holds the old one-peel text; that symbol is
+ * weakened so the thin is the definition. Do not paste a second body here.
  * @param arena *ASTArena — expression pool
  * @param init_ref i32 — init/RHS/return operand expr ref
  * @param decl_ty_ref i32 — destination type ref (f32 or f64)
  * @param decl_kind i32 — TypeKind ordinal of decl_ty_ref
  * @param init_kind i32 — ExprKind ordinal of init_ref
  * @return i32 — 1 if stamped, 0 if not applicable
- * wave316 Cap residual: bare FLOAT_LIT already coerced on let-init; assign/return
- * and unary `-6.0` (EXPR_NEG of FLOAT_LIT) still resolved as default f64 → type mismatch
- * on f32. G.7 single authority — peel NEG once, stamp both NEG and operand.
- * PLATFORM: SHARED — seed typeck_gen + empty_surface + pipeline_glue twin.
+ * PLATFORM: SHARED.
  */
-export function typeck_coerce_init_float_lit_to_decl(arena: *ASTArena, init_ref: i32, decl_ty_ref: i32,
-decl_kind: i32, init_kind: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-    let ord_expr_float: i32 = 1;
-    let ord_neg: i32 = 22;
-    let ord_f32: i32 = 14;
-    let ord_f64: i32 = 15;
-    let op_ref: i32 = 0;
-    if (decl_kind != ord_f32 && decl_kind != ord_f64) {
-      return 0;
-    }
-    if (init_kind == ord_expr_float) {
-      pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
-      return 1;
-    }
-    /* wave316: `let a: f32 = -6.0` / `return -6.0` / `a = -6.0` — EXPR_NEG of FLOAT_LIT. */
-    if (init_kind == ord_neg) {
-      op_ref = pipeline_expr_unary_operand_ref_at(arena, init_ref);
-      if (!ast.ref_is_null(op_ref) && op_ref > 0 && op_ref <= arena.num_exprs) {
-        if (pipeline_expr_kind_ord_at(arena, op_ref) == ord_expr_float) {
-          pipeline_expr_set_resolved_type_ref(arena, op_ref, decl_ty_ref);
-          pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
-          return 1;
-        }
-      }
-    }
-    return 0;
-  }
-}
+export extern function typeck_coerce_init_float_lit_to_decl(arena: *ASTArena, init_ref: i32, decl_ty_ref: i32,
+decl_kind: i32, init_kind: i32): i32;
 
 /**
  * After CALL / METHOD resolve: stamp FLOAT_LIT / `-float` args to formal f32/f64.
@@ -10191,6 +10344,22 @@ decl_ty_ref: i32): i32 {
   unsafe {
     let decl_kind: i32 = 0;
     let init_kind: i32 = 0;
+    let splat_ok: i32 = 0;
+    let elem_ref: i32 = 0;
+    let elem_k: i32 = 0;
+    let op_ref: i32 = 0;
+    let op_k: i32 = 0;
+    let inner_ref: i32 = 0;
+    let inner_k: i32 = 0;
+    let deep_ref: i32 = 0;
+    let deep_k: i32 = 0;
+    let quad_ref: i32 = 0;
+    let quad_k: i32 = 0;
+    let pent_ref: i32 = 0;
+    let pent_k: i32 = 0;
+    let hex_ref: i32 = 0;
+    let hex_k: i32 = 0;
+    let ntypes_s: i32 = 0;
     if (ast.ref_is_null(init_ref) || ast.ref_is_null(decl_ty_ref)) {
       return 0;
     }
@@ -10200,6 +10369,253 @@ decl_ty_ref: i32): i32 {
     }
     decl_kind = pipeline_type_kind_ord_at(arena, decl_ty_ref);
     init_kind = pipeline_expr_kind_ord_at(arena, init_ref);
+    /*
+     * TYPE_VECTOR of i32 (Vec8i) does not take the kind-8 soft equality
+     * that lets `let v: i32x8 = ~1` through. Codegen already splats an
+     * INT_LIT and one, two, three, four, or five more unaries of that lit into
+     * that slot. Stamp the declared vector type so the
+     * let equal-check sees one type. A TYPE_VECTOR of f32 stamps a
+     * FLOAT_LIT and one through fifteen unary minuses of that literal.
+     * Two, four, six, eight, ten, twelve, and fourteen minuses cancel.
+     * Three, five, seven, nine, eleven, thirteen, and fifteen apply
+     * the sign once. A 33rd f32 unary, a bitwise not, a seventh
+     * i32 unary, a VAR, or a binop stays on the later coerces.
+     * Keyword null stays rejected. Two compares, not a chained &&.
+     * The linked body is the thin: cap tip -c of this mega is hollow.
+     * PLATFORM: SHARED — type rule, not a host ABI.
+     */
+    if (decl_kind == 13) {
+      ntypes_s = arena.num_types;
+      elem_ref = pipeline_type_elem_ref_at(arena, decl_ty_ref);
+      if (elem_ref > 0) {
+        if (elem_ref <= ntypes_s) {
+          elem_k = pipeline_type_kind_ord_at(arena, elem_ref);
+          if (elem_k == 0) {
+            if (init_kind == 0) {
+              if (pipeline_expr_is_null_keyword_c(arena, init_ref) == 0) {
+                splat_ok = 1;
+              }
+            }
+            if (init_kind == 22) {
+              op_ref = pipeline_expr_unary_operand_ref_at(arena, init_ref);
+            }
+            if (init_kind == 23) {
+              op_ref = pipeline_expr_unary_operand_ref_at(arena, init_ref);
+            }
+            if (op_ref > 0) {
+              if (op_ref <= arena.num_exprs) {
+                op_k = pipeline_expr_kind_ord_at(arena, op_ref);
+                if (op_k == 0) {
+                  if (pipeline_expr_is_null_keyword_c(arena, op_ref) == 0) {
+                    splat_ok = 1;
+                  }
+                }
+                /*
+                 * One more unary of a non-null INT_LIT, and one, two, or
+                 * four unaries beyond that: ~(-3), ~(~(-3)), ~(~(~(-3))),
+                 * -(~(~(~(-3)))), and -(~(~(~(~(-3))))).
+                 * A seventh unary is kind 22 or 23 at the deepest operand,
+                 * not INT_LIT, so it stays unstamped. The emitter folds
+                 * six and declines seven. VAR, binop, CALL, keyword null, and
+                 * LOGNOT stay off. PLATFORM: SHARED.
+                 */
+                if (op_k == 22) {
+                  inner_ref = pipeline_expr_unary_operand_ref_at(arena, op_ref);
+                }
+                if (op_k == 23) {
+                  inner_ref = pipeline_expr_unary_operand_ref_at(arena, op_ref);
+                }
+                if (inner_ref > 0) {
+                  if (inner_ref <= arena.num_exprs) {
+                    inner_k = pipeline_expr_kind_ord_at(arena, inner_ref);
+                    if (inner_k == 0) {
+                      if (pipeline_expr_is_null_keyword_c(arena, inner_ref) == 0) {
+                        splat_ok = 1;
+                      }
+                    }
+                    if (inner_k == 22) {
+                      deep_ref = pipeline_expr_unary_operand_ref_at(arena, inner_ref);
+                    }
+                    if (inner_k == 23) {
+                      deep_ref = pipeline_expr_unary_operand_ref_at(arena, inner_ref);
+                    }
+                    if (deep_ref > 0) {
+                      if (deep_ref <= arena.num_exprs) {
+                        deep_k = pipeline_expr_kind_ord_at(arena, deep_ref);
+                        if (deep_k == 0) {
+                          if (pipeline_expr_is_null_keyword_c(arena, deep_ref) == 0) {
+                            splat_ok = 1;
+                          }
+                        }
+                        if (deep_k == 22) {
+                          quad_ref = pipeline_expr_unary_operand_ref_at(arena, deep_ref);
+                        }
+                        if (deep_k == 23) {
+                          quad_ref = pipeline_expr_unary_operand_ref_at(arena, deep_ref);
+                        }
+                        if (quad_ref > 0) {
+                          if (quad_ref <= arena.num_exprs) {
+                            quad_k = pipeline_expr_kind_ord_at(arena, quad_ref);
+                            if (quad_k == 0) {
+                              if (pipeline_expr_is_null_keyword_c(arena, quad_ref) == 0) {
+                                splat_ok = 1;
+                              }
+                            }
+                            /*
+                             * Fifth unary of a non-null INT_LIT. Kind 22 and kind 23 are
+                             * separate compares. One more unary of this wrapper is stamped below. A seventh unary stays 22 or 23, so it is not
+                             * stamped. PLATFORM: SHARED.
+                             */
+
+                            if (quad_k == 22) {
+                              pent_ref = pipeline_expr_unary_operand_ref_at(arena, quad_ref);
+                            }
+                            if (quad_k == 23) {
+                              pent_ref = pipeline_expr_unary_operand_ref_at(arena, quad_ref);
+                            }
+                            if (pent_ref > 0) {
+                              if (pent_ref <= arena.num_exprs) {
+                                pent_k = pipeline_expr_kind_ord_at(arena, pent_ref);
+                                if (pent_k == 0) {
+                                  if (pipeline_expr_is_null_keyword_c(arena, pent_ref) == 0) {
+                                    splat_ok = 1;
+                                  }
+                                }
+                                /*
+                                 * Sixth unary of a non-null INT_LIT. Kind 22 and kind 23 are
+                                 * separate compares. A seventh unary stays 22 or 23, so it is
+                                 * not stamped. The new ref is range-checked. The emitter
+                                 * folds six and declines seven. PLATFORM: SHARED.
+                                 */
+                                if (pent_k == 22) {
+                                  hex_ref = pipeline_expr_unary_operand_ref_at(arena, pent_ref);
+                                }
+                                if (pent_k == 23) {
+                                  hex_ref = pipeline_expr_unary_operand_ref_at(arena, pent_ref);
+                                }
+                                if (hex_ref > 0) {
+                                  if (hex_ref <= arena.num_exprs) {
+                                    hex_k = pipeline_expr_kind_ord_at(arena, hex_ref);
+                                    if (hex_k == 0) {
+                                      if (pipeline_expr_is_null_keyword_c(arena, hex_ref) == 0) {
+                                        splat_ok = 1;
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          /*
+           * TYPE_VECTOR of f32 (Vec4f). A FLOAT_LIT, one unary minus of
+           * a FLOAT_LIT, one more unary minus of that, one unary
+           * beyond that, one unary beyond that, one unary beyond
+           * that, one unary beyond that, or one unary beyond that,
+           * or one unary beyond that, is the same splat the emitter
+           * fills. Two, four, six, eight, ten, and twelve minuses
+           * cancel. Three, five, seven, nine, eleven, and thirteen
+           * apply the sign once. Kind 1 and kind 22 are separate
+           * compares. Ten minuses cancel again. Eleven minuses apply
+           * the sign once more. Twelve minuses cancel again. Thirteen
+           * minuses apply the sign once more. Fourteen minuses cancel
+           * again. Fifteen minuses apply the sign once more.
+           * One more than 32 unary minuses stays kind 22 at the inner
+           * operand, so it is not stamped.
+           * Bitwise not stays off. An i32 element does not enter. The
+           * operand refs are range-checked. PLATFORM: SHARED.
+           */
+          if (elem_k == 14) {
+            let fop: i32 = 0;
+            let fop_k: i32 = 0;
+            let f_in: i32 = 0;
+            let f_in_k: i32 = 0;
+            let f_deep: i32 = 0;
+            let f_deep_k: i32 = 0;
+            let f_quad: i32 = 0;
+            let f_quad_k: i32 = 0;
+            let f_pent: i32 = 0;
+            let f_pent_k: i32 = 0;
+            let f_hex: i32 = 0;
+            let f_hex_k: i32 = 0;
+            let f_sept: i32 = 0;
+            let f_sept_k: i32 = 0;
+            let f_oct: i32 = 0;
+            let f_oct_k: i32 = 0;
+            let f_nona: i32 = 0;
+            let f_nona_k: i32 = 0;
+            let f_deca: i32 = 0;
+            let f_deca_k: i32 = 0;
+            let f_undeca: i32 = 0;
+            let f_undeca_k: i32 = 0;
+            let f_duodeca: i32 = 0;
+            let f_duodeca_k: i32 = 0;
+            let f_tredeca: i32 = 0;
+            let f_tredeca_k: i32 = 0;
+            let f_quattuordeca: i32 = 0;
+            let f_quattuordeca_k: i32 = 0;
+            let f_quindecim: i32 = 0;
+            let f_quindecim_k: i32 = 0;
+            if (init_kind == 1) {
+              splat_ok = 1;
+            }
+            /*
+             * Walk EXPR_NEG (kind 22) until the operand is not another
+             * minus. The innermost must be a FLOAT_LIT (kind 1).
+             * An odd count applies the sign once in the emitter. An
+             * even count cancels. Stop at 32 steps so a corrupt kind-22
+             * cycle cannot hang the compile. One more minus stays
+             * declined. Kind 23 and kind 24 do not enter. This is a
+             * loop, not a recursive call: the frame is already near the
+             * cap-tip stack budget. The bound is its own compare. A
+             * chained && clobbers a register in the bootstrap image.
+             * PLATFORM: SHARED.
+             */
+            if (init_kind == 22) {
+              f_in = init_ref;
+              f_deep = 0;
+              f_in_k = 22;
+              while (f_in_k == 22) {
+                if (f_deep < 32) {
+                  f_quad = 0;
+                  f_quad = pipeline_expr_unary_operand_ref_at(arena, f_in);
+                  if (f_quad <= 0) {
+                    f_in_k = 0;
+                  } else {
+                    if (f_quad <= arena.num_exprs) {
+                      f_in = f_quad;
+                      f_deep = f_deep + 1;
+                      f_in_k = pipeline_expr_kind_ord_at(arena, f_in);
+                    } else {
+                      f_in_k = 0;
+                    }
+                  }
+                } else {
+                  f_in_k = 0;
+                }
+              }
+              if (f_in_k == 1) {
+                if (f_deep > 0) {
+                  splat_ok = 1;
+                }
+              }
+            }
+
+          }
+        }
+      }
+    }
+    if (splat_ok == 1) {
+      pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
+      return 1;
+    }
     if (typeck_coerce_init_lit_to_decl(arena, init_ref, decl_ty_ref, decl_kind, init_kind) != 0) {
       return 1;
     }
@@ -10817,17 +11233,42 @@ col: i32): void {
   }
 }
 
-/** Exported function `typeck_check_expr_float_lit`.
- * Implements `typeck_check_expr_float_lit`.
- * @param arena *ASTArena
- * @param expr_ref i32
- * @return i32
+/**
+ * Default-type a FLOAT_LIT to f64 unless a caller already resolved it.
+ * @param arena *ASTArena — expr and type arena; null skips the keep
+ * @param expr_ref i32 — FLOAT_LIT expr; <= 0 skips the keep
+ * @return i32 — always 0 (side-effect stamp only)
+ * Copies f64 bits from the literal into lo@684 / hi@688 first. An
+ * already-resolved type in 1..num_types is kept, matching
+ * typeck_check_expr_int_lit. Assign pre-stamps a TYPE_VECTOR of f32
+ * onto a bare FLOAT_LIT; overwriting that stamp with f64 is what made
+ * `v = 1.0` a mismatch. An unresolved lit still becomes f64, so
+ * let-coerce can restamp f32 or a vector afterwards. The bits stay
+ * written on the keep path.
+ * Two compares, not a chained && : the bootstrap image clobbers the
+ * register a chained compare reuses.
+ * PLATFORM: SHARED. The linked body is the float-lit thin; this
+ * function is the source authority. Cap tip -c of this mega is hollow.
  */
 export function typeck_check_expr_float_lit(arena: *ASTArena, expr_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
+    let already: i32 = 0;
+    let ntypes: i32 = 0;
+    let ft: i32 = 0;
     pipeline_expr_typeck_set_float_bits_from_val(arena, expr_ref);
-    let ft: i32 = ensure_f64_type_ref(arena);
+    if (arena != 0 as *ASTArena) {
+      if (expr_ref > 0) {
+        already = pipeline_expr_resolved_type_ref(arena, expr_ref);
+        ntypes = arena.num_types;
+        if (already > 0) {
+          if (already <= ntypes) {
+            return 0;
+          }
+        }
+      }
+    }
+    ft = ensure_f64_type_ref(arena);
     if (ft != 0) {
       pipeline_expr_set_resolved_type_ref(arena, expr_ref, ft);
     }
@@ -11278,7 +11719,35 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 /**
- * See implementation.
+ * Typecheck an assignment, including compound forms.
+ * @param module *Module — caller module; may be null
+ * @param arena *ASTArena — expr and type arena
+ * @param expr_ref i32 — assign expr (kind 28, or compound 29..39)
+ * @param return_type_ref i32 — enclosing return type; not applied to the LHS
+ * @param ctx *PipelineDepCtx — dep context; may be null
+ * @return i32 — 0 when the assign typechecks, -1 on failure
+ * Plain ASSIGN of an INT_LIT onto a VAR or FIELD of TYPE_VECTOR i32,
+ * of unary minus / bitwise not of an INT_LIT, or of one, two, three, or
+ * five more unaries of that lit, onto a VAR or FIELD of that vector, is stamped
+ * with the LHS type before the RHS is checked. Let-init already
+ * accepts that splat, and the field store fills every lane. Compound
+ * assign, an i32 variable RHS, a binop, keyword null, a seventh unary,
+ * LOGNOT, and deref are not stamped. A TYPE_VECTOR of f32 stamps a
+ * bare FLOAT_LIT, one unary minus of a FLOAT_LIT, one more unary
+ * minus of that, one unary beyond that, and one unary beyond that,
+ * on a VAR or a FIELD. Two minuses cancel. Three minuses apply the
+ * sign once. Four minuses cancel again. Five minuses apply the sign
+ * once more. Six minuses cancel again. Seven minuses apply the sign
+ * once more. Eight minuses cancel again. Nine minuses apply the sign
+ * once more. Ten minuses cancel again. Eleven minuses apply the sign
+ * once more. Twelve minuses cancel again. Thirteen minuses apply the
+ * sign once more. Fourteen minuses cancel again. Fifteen minuses
+ * apply the sign once more. The float-lit checker keeps an
+ * already-resolved type. One more than 32 unary minuses and a bitwise not stay
+ * unstamped. The linked body
+ * is the assign thin;
+ * this function is the source authority.
+ * PLATFORM: SHARED — the type rule is the same on every host.
  */
 export function typeck_check_expr_assign(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
@@ -11428,6 +11897,332 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       lt_kind = pipeline_type_kind_ord_at(arena, lt);
       if (lt_kind == ord_ptr) {
         rhs_ctx = 0;
+      }
+    }
+    /*
+     * Plain ASSIGN of an i32 splat onto a TYPE_VECTOR. Let-init stamps
+     * INT_LIT and unary minus / bitwise not of INT_LIT in
+     * typeck_coerce_init_expr_to_decl. Assign only calls the lit
+     * helper, and that helper stamps kind 13 for integer 0, so
+     * `v = 0` typechecks while `v = 1` / `v = ~1` / `v = -3` stay
+     * "expected ?, found i32". Stamp the RHS before check_expr: the
+     * lit checker no-ops when already resolved, and the unary checker
+     * keeps this type instead of restamping i32. A bare INT_LIT is
+     * stamped for a VAR or a FIELD. Unary minus / bitwise not of an
+     * INT_LIT, and one, two, three, four, or five more unaries of that lit, are
+     * stamped for a VAR or a FIELD. The field store fills every lane of
+     * an INT_LIT wider than 16 bytes, and kind 22 or 23 calls the same
+     * let-init, so `h.v = -(~(~(~(-3))))` is the same splat as the let.
+     * Compound assign (kinds 29..39) is not a splat. An i32 variable, a
+     * binop, keyword null, a seventh unary, LOGNOT, and deref are not
+     * stamped. A TYPE_VECTOR of f32 stamps a bare FLOAT_LIT, one unary
+     * minus of a FLOAT_LIT, one more unary minus of that, one unary
+     * beyond that, and one unary beyond that. Two minuses cancel.
+     * Three minuses apply the sign once. Four minuses cancel again.
+     * Five minuses apply the sign once more. Six minuses cancel again.
+     * Seven minuses apply the sign once more. Eight minuses cancel
+     * again. Nine minuses apply the sign once more. Ten minuses cancel
+     * again. Eleven minuses apply the sign once more. Twelve minuses
+     * cancel again. Thirteen minuses apply the sign once more.
+     * Fourteen minuses cancel again. Fifteen minuses apply the sign
+     * once more. The
+     * float-lit
+     * checker keeps an already-resolved type. One more than 32 unary minuses and a
+     * bitwise not of that float are not stamped.
+     * Two compares, not a chained && : the bootstrap image clobbers
+     * the register a chained compare reuses.
+     * PLATFORM: SHARED — same type rule on every host. The linked body
+     * is the assign thin; this mega is the source authority.
+     */
+    if (expr_kind == ord_assign) {
+      if (!ast.ref_is_null(lt)) {
+        if (lt > 0) {
+          if (pipeline_type_kind_ord_at(arena, lt) == 13) {
+            let splat_elem: i32 = pipeline_type_elem_ref_at(arena, lt);
+            let splat_nt: i32 = arena.num_types;
+            let splat_ok: i32 = 0;
+            let splat_rhs_k: i32 = 0;
+            let splat_lhs_k: i32 = 0;
+            let splat_op: i32 = 0;
+            let splat_op_k: i32 = 0;
+            let splat_in: i32 = 0;
+            let splat_in_k: i32 = 0;
+            let splat_deep: i32 = 0;
+            let splat_deep_k: i32 = 0;
+            let splat_quad: i32 = 0;
+            let splat_quad_k: i32 = 0;
+            let splat_pent: i32 = 0;
+            let splat_pent_k: i32 = 0;
+            let splat_hex: i32 = 0;
+            let splat_hex_k: i32 = 0;
+            if (splat_elem > 0) {
+              if (splat_elem <= splat_nt) {
+                if (pipeline_type_kind_ord_at(arena, splat_elem) == 0) {
+                  splat_lhs_k = pipeline_expr_kind_ord_at(arena, left_ref);
+                  splat_rhs_k = pipeline_expr_kind_ord_at(arena, right_ref);
+                  if (splat_rhs_k == ord_lit) {
+                    if (typeck_expr_is_null_keyword(arena, right_ref) == 0) {
+                      if (splat_lhs_k == ord_var) {
+                        splat_ok = 1;
+                      }
+                      if (splat_lhs_k == ord_field) {
+                        splat_ok = 1;
+                      }
+                    }
+                  }
+                  if (splat_rhs_k == 22) {
+                    splat_op = pipeline_expr_unary_operand_ref_at(arena, right_ref);
+                  }
+                  if (splat_rhs_k == 23) {
+                    splat_op = pipeline_expr_unary_operand_ref_at(arena, right_ref);
+                  }
+                  if (splat_op > 0) {
+                    splat_op_k = pipeline_expr_kind_ord_at(arena, splat_op);
+                    if (splat_op_k == ord_lit) {
+                      if (typeck_expr_is_null_keyword(arena, splat_op) == 0) {
+                        if (splat_lhs_k == ord_var) {
+                          splat_ok = 1;
+                        }
+                        if (splat_lhs_k == ord_field) {
+                          splat_ok = 1;
+                        }
+                      }
+                    }
+                    /*
+                     * One more unary of a non-null INT_LIT, and exactly
+                     * one, two, three, or four unaries beyond that, still only a VAR or a
+                     * FIELD. A seventh unary, an i32 variable, a binop,
+                     * keyword null, and LOGNOT stay unstamped. The
+                     * emitter folds six and declines seven.
+                     * PLATFORM: SHARED.
+                     */
+                    if (splat_op_k == 22) {
+                      splat_in = pipeline_expr_unary_operand_ref_at(arena, splat_op);
+                    }
+                    if (splat_op_k == 23) {
+                      splat_in = pipeline_expr_unary_operand_ref_at(arena, splat_op);
+                    }
+                    if (splat_in > 0) {
+                      splat_in_k = pipeline_expr_kind_ord_at(arena, splat_in);
+                      if (splat_in_k == ord_lit) {
+                        if (typeck_expr_is_null_keyword(arena, splat_in) == 0) {
+                          if (splat_lhs_k == ord_var) {
+                            splat_ok = 1;
+                          }
+                          if (splat_lhs_k == ord_field) {
+                            splat_ok = 1;
+                          }
+                        }
+                      }
+                      if (splat_in_k == 22) {
+                        splat_deep = pipeline_expr_unary_operand_ref_at(arena, splat_in);
+                      }
+                      if (splat_in_k == 23) {
+                        splat_deep = pipeline_expr_unary_operand_ref_at(arena, splat_in);
+                      }
+                      if (splat_deep > 0) {
+                        splat_deep_k = pipeline_expr_kind_ord_at(arena, splat_deep);
+                        if (splat_deep_k == ord_lit) {
+                          if (typeck_expr_is_null_keyword(arena, splat_deep) == 0) {
+                            if (splat_lhs_k == ord_var) {
+                              splat_ok = 1;
+                            }
+                            if (splat_lhs_k == ord_field) {
+                              splat_ok = 1;
+                            }
+                          }
+                        }
+                        if (splat_deep_k == 22) {
+                          splat_quad = pipeline_expr_unary_operand_ref_at(arena, splat_deep);
+                        }
+                        if (splat_deep_k == 23) {
+                          splat_quad = pipeline_expr_unary_operand_ref_at(arena, splat_deep);
+                        }
+                        if (splat_quad > 0) {
+                          splat_quad_k = pipeline_expr_kind_ord_at(arena, splat_quad);
+                          if (splat_quad_k == ord_lit) {
+                            if (typeck_expr_is_null_keyword(arena, splat_quad) == 0) {
+                              if (splat_lhs_k == ord_var) {
+                                splat_ok = 1;
+                              }
+                              if (splat_lhs_k == ord_field) {
+                                splat_ok = 1;
+                              }
+                            }
+                          }
+                          /*
+                           * Fifth unary of a non-null INT_LIT. Kind 22 and kind 23 are
+                           * separate compares. One more unary of this wrapper is stamped below. A seventh unary stays 22 or 23, so it is not
+                           * stamped. PLATFORM: SHARED.
+                           */
+
+                          if (splat_quad_k == 22) {
+                            splat_pent = pipeline_expr_unary_operand_ref_at(arena, splat_quad);
+                          }
+                          if (splat_quad_k == 23) {
+                            splat_pent = pipeline_expr_unary_operand_ref_at(arena, splat_quad);
+                          }
+                          if (splat_pent > 0) {
+                            splat_pent_k = pipeline_expr_kind_ord_at(arena, splat_pent);
+                            if (splat_pent_k == ord_lit) {
+                              if (typeck_expr_is_null_keyword(arena, splat_pent) == 0) {
+                                if (splat_lhs_k == ord_var) {
+                                  splat_ok = 1;
+                                }
+                                if (splat_lhs_k == ord_field) {
+                                  splat_ok = 1;
+                                }
+                              }
+                            }
+                            /*
+                             * Sixth unary of a non-null INT_LIT. Kind 22 and kind 23 are
+                             * separate compares. A seventh unary stays 22 or 23, so it is
+                             * not stamped. The emitter folds six and declines seven.
+                             * Still only a VAR or a FIELD. PLATFORM: SHARED.
+                             */
+                            if (splat_pent_k == 22) {
+                              splat_hex = pipeline_expr_unary_operand_ref_at(arena, splat_pent);
+                            }
+                            if (splat_pent_k == 23) {
+                              splat_hex = pipeline_expr_unary_operand_ref_at(arena, splat_pent);
+                            }
+                            if (splat_hex > 0) {
+                              splat_hex_k = pipeline_expr_kind_ord_at(arena, splat_hex);
+                              if (splat_hex_k == ord_lit) {
+                                if (typeck_expr_is_null_keyword(arena, splat_hex) == 0) {
+                                  if (splat_lhs_k == ord_var) {
+                                    splat_ok = 1;
+                                  }
+                                  if (splat_lhs_k == ord_field) {
+                                    splat_ok = 1;
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+                /*
+                 * TYPE_VECTOR of f32 (Vec4f). A bare FLOAT_LIT, one
+                 * unary minus of a FLOAT_LIT, one more unary minus of
+                 * that, one unary beyond that, and one unary beyond
+                 * that, on a VAR or a FIELD, is the splat the let-init
+                 * already fills. Two minuses cancel. Three minuses
+                 * apply the sign once. Four minuses cancel again.
+                 * Five minuses apply the sign once more. Six minuses
+                 * cancel again. Seven minuses apply the sign once
+                 * more. Eight minuses cancel again. Nine minuses apply
+                 * the sign once more. Kind 22 and kind 1 are separate
+                 * compares. The float-lit checker keeps an
+                 * already-resolved type, so the kind-1 stamp survives.
+                 * The unary checker keeps the one-deep, two-deep,
+                 * three-deep, four-deep, five-deep, six-deep,
+                 * seven-deep, eight-deep, nine-deep, ten-deep, eleven-deep,
+                 * twelve-deep, thirteen-deep, fourteen-deep, and fifteen-deep stamps. At most 32 unary minuses are stamped. A 33rd unary
+                 * stays kind 22.
+                 * Bitwise not stays off. The unary operand ref
+                 * is range-checked. An i32 element does not enter.
+                 * PLATFORM: SHARED.
+                 */
+                if (pipeline_type_kind_ord_at(arena, splat_elem) == 14) {
+                  let fop: i32 = 0;
+                  let fop_k: i32 = 0;
+                  let f_in: i32 = 0;
+                  let f_in_k: i32 = 0;
+                  let f_deep: i32 = 0;
+                  let f_deep_k: i32 = 0;
+                  let f_quad: i32 = 0;
+                  let f_quad_k: i32 = 0;
+                  let f_pent: i32 = 0;
+                  let f_pent_k: i32 = 0;
+                  let f_hex: i32 = 0;
+                  let f_hex_k: i32 = 0;
+                  let f_sept: i32 = 0;
+                  let f_sept_k: i32 = 0;
+                  let f_oct: i32 = 0;
+                  let f_oct_k: i32 = 0;
+                  let f_nona: i32 = 0;
+                  let f_nona_k: i32 = 0;
+                  let f_deca: i32 = 0;
+                  let f_deca_k: i32 = 0;
+                  let f_undeca: i32 = 0;
+                  let f_undeca_k: i32 = 0;
+                  let f_duodeca: i32 = 0;
+                  let f_duodeca_k: i32 = 0;
+                  let f_tredeca: i32 = 0;
+                  let f_tredeca_k: i32 = 0;
+                  let f_quattuordeca: i32 = 0;
+                  let f_quattuordeca_k: i32 = 0;
+                  let f_quindecim: i32 = 0;
+                  let f_quindecim_k: i32 = 0;
+                  splat_lhs_k = pipeline_expr_kind_ord_at(arena, left_ref);
+                  splat_rhs_k = pipeline_expr_kind_ord_at(arena, right_ref);
+                  /*
+                   * Walk EXPR_NEG (kind 22) until the operand is not another
+                   * minus. The innermost must be a FLOAT_LIT (kind 1).
+                   * An odd count applies the sign once in the emitter. An
+                   * even count cancels. Stop at 32 steps so a corrupt kind-22
+                   * cycle cannot hang the compile. One more minus stays
+                   * declined. Kind 23 and kind 24 do not enter. This is a
+                   * loop, not a recursive call: the frame is already near the
+                   * cap-tip stack budget. The bound is its own compare. A
+                   * chained && clobbers a register in the bootstrap image.
+                   * PLATFORM: SHARED.
+                   */
+                  if (splat_rhs_k == 22) {
+                    f_in = right_ref;
+                    f_deep = 0;
+                    f_in_k = 22;
+                    while (f_in_k == 22) {
+                      if (f_deep < 32) {
+                        f_quad = 0;
+                        f_quad = pipeline_expr_unary_operand_ref_at(arena, f_in);
+                        if (f_quad <= 0) {
+                          f_in_k = 0;
+                        } else {
+                          if (f_quad <= arena.num_exprs) {
+                            f_in = f_quad;
+                            f_deep = f_deep + 1;
+                            f_in_k = pipeline_expr_kind_ord_at(arena, f_in);
+                          } else {
+                            f_in_k = 0;
+                          }
+                        }
+                      } else {
+                        f_in_k = 0;
+                      }
+                    }
+                    if (f_in_k == 1) {
+                      if (f_deep > 0) {
+                        if (splat_lhs_k == ord_var) {
+                          splat_ok = 1;
+                        }
+                        if (splat_lhs_k == ord_field) {
+                          splat_ok = 1;
+                        }
+                      }
+                    }
+                  }
+
+                  if (splat_rhs_k == 1) {
+                    if (splat_lhs_k == ord_var) {
+                      splat_ok = 1;
+                    }
+                    if (splat_lhs_k == ord_field) {
+                      splat_ok = 1;
+                    }
+                  }
+                }
+              }
+            }
+            if (splat_ok == 1) {
+              pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
+            }
+          }
+        }
       }
     }
     if (check_expr(module, arena, right_ref, rhs_ctx, ctx) != 0) {
@@ -12528,16 +13323,13 @@ name_len: i32): i32 {
     while (ai < n_alias) {
       alen = pipeline_module_type_alias_name_len(module, ai);
       if (alen == name_len && alen > 0) {
-        same = 1;
+        /* knife256/10.2: same tip pure-asm rbx clobber — copy then name_equal. */
         bi = 0;
         while (bi < alen) {
-          if (pipeline_module_type_alias_name_byte_at(module, ai, bi) != name[bi]) {
-            same = 0;
-            break;
-          }
+          snm[bi] = pipeline_module_type_alias_name_byte_at(module, ai, bi);
           bi = bi + 1;
         }
-        if (same != 0) {
+        if (name_equal(&snm[0], alen, name, name_len)) {
           return 1;
         }
       }
@@ -13084,99 +13876,6 @@ ctx: *PipelineDepCtx): i32 {
         }
       }
       ai = ai + 1;
-    }
-    return 0;
-  }
-}
-
-/**
- * Resolve unbound VAR as a field of the active match subject struct type.
- * wave234 G.7 pure leave: was Cap residual pipeline_typeck_match_subject_field_type_c.
- * Subject cells live in runtime_pipeline_abi pure BSS (set/get).
- * @param module *Module — current module (must equal subject module pointer)
- * @param arena *ASTArena — type pool for TYPE_NAMED name + field type_ref
- * @param name *u8 — VAR identifier bytes (not necessarily NUL-terminated)
- * @param name_len i32 — byte length; must be > 0
- * @return i32 — field type_ref (>0) on hit; 0 if no active subject or no field
- * PLATFORM: SHARED freestanding typeck — G.7 single subject-field authority.
- */
-export function typeck_match_subject_field_type(module: *Module, arena: *ASTArena, name: *u8,
-name_len: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-    let ty: i32 = 0;
-    let subj_mod: *Module = 0 as *Module;
-    let tnm: u8[256] = [];
-    let tnl: i32 = 0;
-    let nsl: i32 = 0;
-    let k: i32 = 0;
-    let fl: i32 = 0;
-    let nf: i32 = 0;
-    let fi: i32 = 0;
-    let fnl: i32 = 0;
-    let j: i32 = 0;
-    let bi: i32 = 0;
-    /* name_eq: not `match` — `match` is a reserved keyword (match expr). */
-    let name_eq: i32 = 0;
-    let fnm: u8[256] = [];
-    if (module == 0 as *Module || arena == 0 as *ASTArena || name == 0 as *u8 || name_len <= 0) {
-      return 0;
-    }
-    ty = pipeline_typeck_match_subject_ty_get_c();
-    subj_mod = pipeline_typeck_match_subject_mod_get_c();
-    if (ty <= 0 || subj_mod != module) {
-      return 0;
-    }
-    /* TYPE_NAMED ord == 8 */
-    if (pipeline_type_kind_ord_at(arena, ty) != 8) {
-      return 0;
-    }
-    tnl = pipeline_type_named_name_into(arena, ty, &tnm[0]);
-    if (tnl <= 0) {
-      return 0;
-    }
-    nsl = pipeline_module_num_struct_layouts_at(module);
-    k = 0;
-    while (k < nsl) {
-      fl = pipeline_module_struct_layout_name_len(module, k);
-      if (fl == tnl) {
-        name_eq = 1;
-        bi = 0;
-        while (bi < fl && name_eq != 0) {
-          if (pipeline_module_struct_layout_name_byte_at(module, k, bi) != tnm[bi]) {
-            name_eq = 0;
-          }
-          bi = bi + 1;
-        }
-        if (name_eq != 0) {
-          nf = pipeline_module_struct_layout_num_fields(module, k);
-          fi = 0;
-          while (fi < nf) {
-            fnl = pipeline_module_struct_layout_field_name_len(module, k, fi);
-            if (fnl == name_len) {
-              j = 0;
-              while (j < 128) {
-                fnm[j] = 0;
-                j = j + 1;
-              }
-              pipeline_module_struct_layout_field_name_into(module, k, fi, &fnm[0]);
-              name_eq = 1;
-              j = 0;
-              while (j < fnl && name_eq != 0) {
-                if (fnm[j] != name[j]) {
-                  name_eq = 0;
-                }
-                j = j + 1;
-              }
-              if (name_eq != 0) {
-                return pipeline_module_struct_layout_field_type_ref(module, k, fi);
-              }
-            }
-            fi = fi + 1;
-          }
-        }
-      }
-      k = k + 1;
     }
     return 0;
   }
@@ -14751,8 +15450,8 @@ export function typeck_type_is_aggregate_cmp_operand(module: *Module, arena: *AS
  * C integer promotions for compare operands (Defect D / 9.6.1 residual).
  * Sub-int families (u8 / NAMED i8,i16,u16) that true-widen to i32 are
  * stamped to i32 so `u8 == i32` is not mixed-type T001.
- * Does NOT apply usual arithmetic conversions: i32 vs i64 / u32 vs i32
- * stay mismatch (wave666).
+ * Usual-arith i32↔i64 is applied later in binop_cmp (10.37); u32↔i32
+ * and int↔bool stay mismatch (wave666).
  * @param arena *ASTArena — type/expr pool
  * @param expr_ref i32 — operand expr to stamp when promoted
  * @param ty_ref i32 — current resolved type of expr_ref
@@ -14791,6 +15490,8 @@ function typeck_cmp_promote_subint_to_i32(arena: *ASTArena, expr_ref: i32, ty_re
  * wave317: f32 peer + bare FLOAT_LIT coerce. wave657: hard-fail aggregate operands.
  * wave665: LOGAND/LOGOR require bool. wave666: mixed operand types hard-fail
  * except Defect D C integer promotions (sub-int → i32) inside the equal gate.
+ * 10.37: after sub-int→i32, usual-arith stamp narrower int to a 64-bit peer
+ * (i32 vs i64 / neg lit / `0 - 10000`) so compare is not T001.
  * @param module *Module
  * @param arena *ASTArena
  * @param expr_ref i32 — EQ/NE/LT/LE/GT/GE expr
@@ -14935,8 +15636,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
        * (or host warning-only for distinct pointer types).
        * Policy (strict, Cap residual): operands must be equal after peer lit coerce
        * (G.7 reuse typeck_coerce_init_lit_to_decl for bare INT_LIT / 0→ptr; float lit
-       * already coerced above). No float widen, no int↔bool, no i32 vs i64 usual
-       * arithmetic conversions (those were the wave666 false greens).
+       * already coerced above). No float widen, no int↔bool. 10.37 adds usual-arith
+       * stamp when one peer is 64-bit int (after Defect D sub-int→i32).
        * Defect D / 9.6.1 residual: C integer promotions ARE applied — sub-int
        * families (u8 / NAMED i8,i16,u16) stamp to i32 so `u8 == i32` is not T001.
        * Soft: unknown/null operand type (incomplete resolve) is not a hard leaf.
@@ -14965,6 +15666,27 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
             }
             if (typeck_cmp_promote_subint_to_i32(arena, bop_r, rt_cmp) != 0) {
               rt_cmp = pipeline_expr_resolved_type_ref(arena, bop_r);
+            }
+          }
+          /*
+           * 10.37 Cap residual: usual arithmetic conversions when one peer is
+           * 64-bit int (i64/u64/usize/isize). Stamp the narrower operand so
+           * `i64 > -1` / `i64 > (0 - 10000)` / `i32 == i64` are not T001.
+           * Does not open i32↔u32 or int↔bool (wave666 still holds).
+           * PLATFORM: SHARED — typeck.x pure-asm authority.
+           */
+          if (!type_refs_equal(arena, lt_cmp, rt_cmp)) {
+            lko_cmp = pipeline_type_kind_ord_at(arena, lt_cmp);
+            rko_cmp = pipeline_type_kind_ord_at(arena, rt_cmp);
+            /* kind_ord: u64=4 i64=5 usize=6 isize=7 (glue_type_kind_is_64bit_int). */
+            if ((lko_cmp == 4 || lko_cmp == 5 || lko_cmp == 6 || lko_cmp == 7)
+            && typeck_integer_widen_ok_refs(arena, lt_cmp, rt_cmp)) {
+              pipeline_expr_set_resolved_type_ref(arena, bop_r, lt_cmp);
+              rt_cmp = lt_cmp;
+            } else if ((rko_cmp == 4 || rko_cmp == 5 || rko_cmp == 6 || rko_cmp == 7)
+            && typeck_integer_widen_ok_refs(arena, rt_cmp, lt_cmp)) {
+              pipeline_expr_set_resolved_type_ref(arena, bop_l, rt_cmp);
+              lt_cmp = rt_cmp;
             }
           }
           if (!type_refs_equal(arena, lt_cmp, rt_cmp)) {
@@ -15405,7 +16127,10 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      * STRUCT_LIT join (pin-seed array→slice lit path): anonymous
      * `{ xs: [10,32] }.xs` has no type name; reverse-infer unique layout so
      * base stamps TYPE_NAMED and field type is [N]T for array_to_slice_ok.
-     * EXPR_STRUCT_LIT ord = 45. PLATFORM: SHARED.
+     * Two layouts that share the field name stay 0 here in the mega scan.
+     * The soft entry then keeps the layout whose element kind matches the
+     * array literal (1.0 → f32/f64, 1 → not). EXPR_STRUCT_LIT ord = 45.
+     * PLATFORM: SHARED.
      */
     base_expected = 0;
     base_kind = pipeline_expr_kind_ord_at(arena, base_ref);
@@ -15473,8 +16198,22 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
  * (`!i32`, `!f32`) → C truthiness false green; if/while already require bool.
  * Root cause (wave677): unary -true stamped bool then host/fs treated as int
  * false green; ~true fell to return mismatch. G.7: invalid_bool_binop.
- * Allowed: ~int, -int, -float, !bool (LOGNOT→bool). Rejected: ~f32/f64, ~ptr,
- * -ptr, -bool, ~bool, aggregate -/~/!, and non-bool LOGNOT operands.
+ * Allowed: ~int, -int, -float, !bool (LOGNOT→bool), unary - on
+ * TYPE_VECTOR (kind 13), and bitwise not of a TYPE_VECTOR whose
+ * element is i32 (kind 0, Vec8i). Arithmetic already allows a
+ * same-size vector pair. Rejected: ~f32/f64 (scalar and Vec4f),
+ * ~ptr, -ptr, -bool, ~bool, aggregate -/~/! (including ! on a vector
+ * and ~ on a non-i32 vector), vector comparison, and non-bool
+ * LOGNOT operands.
+ * An already-resolved unary minus or bitwise not of a non-null INT_LIT,
+ * or of one, two, three, four, or five more unaries of that lit, whose type is an i32
+ * TYPE_VECTOR keeps that stamp. Assign pre-stamps `~1` / `-3`,
+ * `~(-3)` / `-(~1)`, and `-(~(~(~(-3))))` onto Vec8i; the immediate operand
+ * is typechecked with expected 0 and the demoted body is not called, so
+ * it cannot restamp i32. A seventh unary is not kept. A TYPE_VECTOR of
+ * f32 keeps one unary minus whose operand is a FLOAT_LIT. A second
+ * unary and a bitwise not are not kept. Let-init does not
+ * pre-stamp, so it still uses the later coerce.
  * PLATFORM: SHARED — seed typeck_gen + empty_surface same commit (G.7).
  */
 export function typeck_check_expr_unary(module: *Module, arena: *ASTArena, expr_ref: i32,
@@ -15494,6 +16233,273 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     let op_ko: i32 = 0;
     let line_u: i32 = 0;
     let col_u: i32 = 0;
+    /*
+     * Assign of `~1` / `-3` onto an i32 TYPE_VECTOR pre-stamps this
+     * unary with that vector type. The demoted body restamps i32 and
+     * would drop the splat. When this expr is already a TYPE_VECTOR of
+     * i32 and the operand is a non-null INT_LIT, or one, two, three, four, or five
+     * more unaries of one, typecheck the immediate operand with
+     * expected 0 and keep the stamp. Expected 0 keeps that operand a
+     * scalar. A seventh unary falls through. A TYPE_VECTOR of f32 keeps
+     * one unary minus of a FLOAT_LIT, one more unary minus of that,
+     * one unary beyond that, and one unary beyond that. Two minuses
+     * cancel. Three minuses apply the sign once. Four minuses cancel
+     * again. Five minuses apply the sign once more. Six minuses
+     * cancel again. Seven minuses apply the sign once more.
+     * Eight minuses cancel again. Nine minuses apply the sign
+     * once more. Ten minuses cancel again. Eleven minuses
+     * apply the sign once more. Twelve minuses cancel
+     * again. Thirteen minuses apply the sign once more.
+     * Fourteen minuses cancel again.
+     * Fifteen minuses apply the sign once more.
+     * One more than 32 unary minuses falls through.
+     * Let-init does not pre-stamp,
+     * so it falls through to coerce. LOGNOT never sets the keep flag.
+     * Two compares, not a chained && : the bootstrap image
+     * clobbers the register a chained compare reuses.
+     * PLATFORM: SHARED — same keep rule as the linked unary thin.
+     */
+    {
+      let pre_tr: i32 = 0;
+      let pre_keep: i32 = 0;
+      let pre_elem: i32 = 0;
+      let pre_ek: i32 = 0;
+      let pre_op_k: i32 = 0;
+      let pre_in: i32 = 0;
+      let pre_in_k: i32 = 0;
+      let pre_deep: i32 = 0;
+      let pre_deep_k: i32 = 0;
+      let pre_quad: i32 = 0;
+      let pre_quad_k: i32 = 0;
+      let pre_pent: i32 = 0;
+      let pre_pent_k: i32 = 0;
+      let pre_hex: i32 = 0;
+      let pre_hex_k: i32 = 0;
+      let pre_nt: i32 = 0;
+      if (expr_kind == ord_neg) {
+        pre_keep = 1;
+      }
+      if (expr_kind == ord_bitnot) {
+        pre_keep = 1;
+      }
+      if (pre_keep == 1) {
+        pre_keep = 0;
+        pre_tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
+        pre_nt = arena.num_types;
+        if (pre_tr > 0) {
+          if (pre_tr <= pre_nt) {
+            if (pipeline_type_kind_ord_at(arena, pre_tr) == 13) {
+              pre_elem = pipeline_type_elem_ref_at(arena, pre_tr);
+              if (pre_elem > 0) {
+                if (pre_elem <= pre_nt) {
+                  pre_ek = pipeline_type_kind_ord_at(arena, pre_elem);
+                  if (pre_ek == 0) {
+                    if (op_ref > 0) {
+                      pre_op_k = pipeline_expr_kind_ord_at(arena, op_ref);
+                      if (pre_op_k == 0) {
+                        if (typeck_expr_is_null_keyword(arena, op_ref) == 0) {
+                          pre_keep = 1;
+                        }
+                      }
+                      /*
+                       * One more unary of a non-null INT_LIT, and
+                       * exactly one, two, three, or four unaries beyond that. The keep
+                       * below checks op_ref with expected 0, so the inner
+                       * unaries stay scalar. A seventh unary is not
+                       * INT_LIT. LOGNOT does not set pre_keep.
+                       * PLATFORM: SHARED.
+                       */
+                      if (pre_op_k == ord_neg) {
+                        pre_in = pipeline_expr_unary_operand_ref_at(arena, op_ref);
+                      }
+                      if (pre_op_k == ord_bitnot) {
+                        pre_in = pipeline_expr_unary_operand_ref_at(arena, op_ref);
+                      }
+                      if (pre_in > 0) {
+                        pre_in_k = pipeline_expr_kind_ord_at(arena, pre_in);
+                        if (pre_in_k == 0) {
+                          if (typeck_expr_is_null_keyword(arena, pre_in) == 0) {
+                            pre_keep = 1;
+                          }
+                        }
+                        if (pre_in_k == ord_neg) {
+                          pre_deep = pipeline_expr_unary_operand_ref_at(arena, pre_in);
+                        }
+                        if (pre_in_k == ord_bitnot) {
+                          pre_deep = pipeline_expr_unary_operand_ref_at(arena, pre_in);
+                        }
+                        if (pre_deep > 0) {
+                          pre_deep_k = pipeline_expr_kind_ord_at(arena, pre_deep);
+                          if (pre_deep_k == 0) {
+                            if (typeck_expr_is_null_keyword(arena, pre_deep) == 0) {
+                              pre_keep = 1;
+                            }
+                          }
+                          if (pre_deep_k == ord_neg) {
+                            pre_quad = pipeline_expr_unary_operand_ref_at(arena, pre_deep);
+                          }
+                          if (pre_deep_k == ord_bitnot) {
+                            pre_quad = pipeline_expr_unary_operand_ref_at(arena, pre_deep);
+                          }
+                          if (pre_quad > 0) {
+                            pre_quad_k = pipeline_expr_kind_ord_at(arena, pre_quad);
+                            if (pre_quad_k == 0) {
+                              if (typeck_expr_is_null_keyword(arena, pre_quad) == 0) {
+                                pre_keep = 1;
+                              }
+                            }
+                            /*
+                             * Fifth unary of a non-null INT_LIT. Kind 22 and kind 23 are
+                             * separate compares. One more unary of this wrapper is stamped below. A seventh unary stays 22 or 23, so it is not
+                             * stamped. PLATFORM: SHARED.
+                             */
+
+                            if (pre_quad_k == ord_neg) {
+                              pre_pent = pipeline_expr_unary_operand_ref_at(arena, pre_quad);
+                            }
+                            if (pre_quad_k == ord_bitnot) {
+                              pre_pent = pipeline_expr_unary_operand_ref_at(arena, pre_quad);
+                            }
+                            if (pre_pent > 0) {
+                              pre_pent_k = pipeline_expr_kind_ord_at(arena, pre_pent);
+                              if (pre_pent_k == 0) {
+                                if (typeck_expr_is_null_keyword(arena, pre_pent) == 0) {
+                                  pre_keep = 1;
+                                }
+                              }
+                              /*
+                               * Sixth unary of a non-null INT_LIT. Kind 22 and kind 23 are
+                               * separate compares. A seventh unary stays 22 or 23, so it is
+                               * not kept. The keep below still checks op_ref with expected 0.
+                               * PLATFORM: SHARED.
+                               */
+                              if (pre_pent_k == ord_neg) {
+                                pre_hex = pipeline_expr_unary_operand_ref_at(arena, pre_pent);
+                              }
+                              if (pre_pent_k == ord_bitnot) {
+                                pre_hex = pipeline_expr_unary_operand_ref_at(arena, pre_pent);
+                              }
+                              if (pre_hex > 0) {
+                                pre_hex_k = pipeline_expr_kind_ord_at(arena, pre_hex);
+                                if (pre_hex_k == 0) {
+                                  if (typeck_expr_is_null_keyword(arena, pre_hex) == 0) {
+                                    pre_keep = 1;
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+                /*
+                 * TYPE_VECTOR of f32. Assign pre-stamps one unary minus
+                 * of a FLOAT_LIT, one more unary minus of that, one
+                 * unary beyond that, and one unary beyond that. Kind
+                 * 22 and kind 1 are separate compares. Two minuses
+                 * cancel. Three minuses apply the sign once. Four
+                 * minuses cancel again. Five minuses apply the sign
+                 * once more. Six minuses cancel again. Seven minuses
+                 * apply the sign once more. Eight minuses cancel again.
+                 * Nine minuses apply the sign once more. Ten minuses
+                 * cancel again. Eleven minuses apply the sign once
+                 * more. Twelve minuses cancel again.
+                 * Thirteen minuses apply the sign once more.
+                 * Fourteen minuses cancel again.
+                 * Fifteen minuses apply the sign once more.
+                 * At most 32 unary minuses are kept, so a 33rd
+                 * it is not kept.
+                 * Bitwise not stays
+                 * off. The operand ref
+                 * is range-checked. The keep below still typechecks the
+                 * immediate operand with expected 0. PLATFORM: SHARED.
+                 */
+                if (pre_ek == 14) {
+                  let f_in: i32 = 0;
+                  let f_in_k: i32 = 0;
+                  let f_deep: i32 = 0;
+                  let f_deep_k: i32 = 0;
+                  let f_quad: i32 = 0;
+                  let f_quad_k: i32 = 0;
+                  let f_pent: i32 = 0;
+                  let f_pent_k: i32 = 0;
+                  let f_hex: i32 = 0;
+                  let f_hex_k: i32 = 0;
+                  let f_sept: i32 = 0;
+                  let f_sept_k: i32 = 0;
+                  let f_oct: i32 = 0;
+                  let f_oct_k: i32 = 0;
+                  let f_nona: i32 = 0;
+                  let f_nona_k: i32 = 0;
+                  let f_deca: i32 = 0;
+                  let f_deca_k: i32 = 0;
+                  let f_undeca: i32 = 0;
+                  let f_undeca_k: i32 = 0;
+                  let f_duodeca: i32 = 0;
+                  let f_duodeca_k: i32 = 0;
+                  let f_tredeca: i32 = 0;
+                  let f_tredeca_k: i32 = 0;
+                  let f_quattuordeca: i32 = 0;
+                  let f_quattuordeca_k: i32 = 0;
+                  let f_quindecim: i32 = 0;
+                  let f_quindecim_k: i32 = 0;
+                  /*
+                   * Walk EXPR_NEG (kind 22) until the operand is not another
+                   * minus. The innermost must be a FLOAT_LIT (kind 1).
+                   * An odd count applies the sign once in the emitter. An
+                   * even count cancels. Stop at 32 steps so a corrupt kind-22
+                   * cycle cannot hang the compile. One more minus stays
+                   * declined. Kind 23 and kind 24 do not enter. This is a
+                   * loop, not a recursive call: the frame is already near the
+                   * cap-tip stack budget. The bound is its own compare. A
+                   * chained && clobbers a register in the bootstrap image.
+                   * PLATFORM: SHARED.
+                   */
+                  if (expr_kind == ord_neg) {
+                    f_in = expr_ref;
+                    f_deep = 0;
+                    f_in_k = 22;
+                    while (f_in_k == 22) {
+                      if (f_deep < 32) {
+                        f_quad = 0;
+                        f_quad = pipeline_expr_unary_operand_ref_at(arena, f_in);
+                        if (f_quad <= 0) {
+                          f_in_k = 0;
+                        } else {
+                          if (f_quad <= arena.num_exprs) {
+                            f_in = f_quad;
+                            f_deep = f_deep + 1;
+                            f_in_k = pipeline_expr_kind_ord_at(arena, f_in);
+                          } else {
+                            f_in_k = 0;
+                          }
+                        }
+                      } else {
+                        f_in_k = 0;
+                      }
+                    }
+                    if (f_in_k == 1) {
+                      if (f_deep > 0) {
+                        pre_keep = 1;
+                      }
+                    }
+                  }
+
+                }
+              }
+            }
+          }
+        }
+      }
+      if (pre_keep == 1) {
+        if (check_expr(module, arena, op_ref, 0, ctx) != 0) {
+          return -1;
+        }
+        return 0;
+      }
+    }
     if (check_expr(module, arena, op_ref, return_type_ref, ctx) != 0) {
       return - 1;
     }
@@ -15505,11 +16511,56 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      * helper from wave657/658; diag invalid_aggregate_cmp (message covers unary).
      */
     if (!ast.ref_is_null(op_tr) && op_tr > 0 && op_tr <= arena.num_types) {
-      if (typeck_type_is_aggregate_cmp_operand(module, arena, op_tr) != 0) {
-        line_u = pipeline_expr_line_at(arena, expr_ref);
-        col_u = pipeline_expr_col_at(arena, expr_ref);
-        driver_diagnostic_typeck_invalid_aggregate_cmp(line_u, col_u);
-        return -1;
+      /*
+       * TYPE_VECTOR (kind 13) is a SIMD value. The aggregate helper
+       * still returns 1 so comparison, logical not, and bitwise not
+       * of a non-i32 element stay rejected. Arithmetic already skips
+       * that helper for a kind-13 pair. Unary minus did not, so
+       * `let v: Vec8i = -a` was T001 while `let v: i32x8 = -a`
+       * (TYPE_NAMED, kind 8) was not. Bitwise not of an i32 element
+       * skips the helper the same way. Two compares, not a chained
+       * && : the bootstrap image clobbers the register a chained
+       * compare reuses.
+       * PLATFORM: SHARED — this exemption. The helper stays SHARED.
+       */
+      let vec_skip: i32 = 0;
+      let elem_ref: i32 = 0;
+      let elem_k: i32 = 0;
+      let ntypes_u: i32 = 0;
+      if (pipeline_type_kind_ord_at(arena, op_tr) == 13) {
+        if (expr_kind == ord_neg) {
+          vec_skip = 1;
+        }
+        /*
+         * Vec8i is TYPE_VECTOR of i32 (kind 0). Named i32x8 is kind 8
+         * and never hits this helper, so `let v: i32x8 = ~a` already
+         * typechecks. Kind 13 of i32 did not, so `let v: Vec8i = ~a`
+         * was T001 before codegen. Vec4f is kind 13 of f32 (kind 14):
+         * ~ of that stays in the aggregate helper. Logical not does
+         * not set vec_skip. Two compares, not a chained && : the
+         * bootstrap image clobbers the register a chained compare reuses.
+         * PLATFORM: SHARED — this exemption. The helper stays SHARED.
+         */
+        if (expr_kind == ord_bitnot) {
+          ntypes_u = arena.num_types;
+          elem_ref = pipeline_type_elem_ref_at(arena, op_tr);
+          if (elem_ref > 0) {
+            if (elem_ref <= ntypes_u) {
+              elem_k = pipeline_type_kind_ord_at(arena, elem_ref);
+              if (elem_k == 0) {
+                vec_skip = 1;
+              }
+            }
+          }
+        }
+      }
+      if (vec_skip == 0) {
+        if (typeck_type_is_aggregate_cmp_operand(module, arena, op_tr) != 0) {
+          line_u = pipeline_expr_line_at(arena, expr_ref);
+          col_u = pipeline_expr_col_at(arena, expr_ref);
+          driver_diagnostic_typeck_invalid_aggregate_cmp(line_u, col_u);
+          return -1;
+        }
       }
     }
     if (expr_kind == ord_lognot) {
@@ -17959,8 +19010,13 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       }
     }
 
-    /* Same-module free-fn UFCS: method(self, args...) / auto-ref *T self. */
-    if (base_ty > 0 && method_nlen > 0) {
+    /* Same-module free-fn UFCS: method(self, args...) / auto-ref *T self.
+     * knife256/10.2 Cap tip: skip when receiver is a free type-param.
+     * Blank both-NAMED equal greened free T vs struct A (bound_method_nobound);
+     * free T must hit generic_bound then LANG-004, not UFCS. Keep import
+     * hollow NAMED equal for Result/Option/String. PLATFORM: SHARED Cap tip. */
+    if (base_ty > 0 && method_nlen > 0
+        && typeck_type_is_free_type_param(module, arena, base_ty) == 0) {
       let uj: i32 = 0;
       let uf_best: i32 = 0 - 1;
       let uf_best_score: i32 = 0 - 1;
@@ -18572,9 +19628,24 @@ return_type_ref: i32, ctx: *PipelineDepCtx, field_i: i32, num_fields: i32): i32 
     if (field_i >= num_fields) {
       return 0;
     }
+    /* note743y.6.6: imported Split_u8 + nested anon struct lit can leave
+     * init_ref == parent (or out-of-range), and check_expr recurses forever
+     * through typeck_check_expr_struct_lit. Skip cyclic / bogus inits.
+     * PLATFORM: SHARED — subslice_split_chunks SEGV on Ubuntu tip. */
+    if (num_fields < 0 || num_fields > 256) {
+      return 0 - 1;
+    }
     init_sl = pipeline_expr_struct_lit_init_ref(arena, expr_ref, field_i);
+    if (ast.ref_is_null(init_sl) || init_sl <= 0 || init_sl == expr_ref) {
+      return typeck_check_expr_struct_lit_field(module, arena, expr_ref, return_type_ref, ctx,
+      field_i + 1, num_fields);
+    }
+    if (init_sl > arena.num_exprs) {
+      return typeck_check_expr_struct_lit_field(module, arena, expr_ref, return_type_ref, ctx,
+      field_i + 1, num_fields);
+    }
     /* expected=0: do not pass outer function return type into field METHOD_CALL/CALL. */
-    if (!ast.ref_is_null(init_sl) && check_expr(module, arena, init_sl, no_expected, ctx) != 0) {
+    if (check_expr(module, arena, init_sl, no_expected, ctx) != 0) {
       return - 1;
     }
     return typeck_check_expr_struct_lit_field(module, arena, expr_ref, return_type_ref, ctx,
@@ -18748,6 +19819,10 @@ export function typeck_check_expr_struct_lit(
     let name_buf: u8[256] = [];
     let tr: i32 = 0;
     let ord_named: i32 = 8;
+    /* note743y.6.6: refuse absurd field counts before recursive field walk. */
+    if (num_fields < 0 || num_fields > 256) {
+      return 0 - 1;
+    }
     name_len = pipeline_expr_struct_lit_type_name_len(arena, expr_ref);
     /**
      * LANG-009: named `Type { fields }` / `Type<Args> { fields }` (parse-mangled
@@ -23333,15 +24408,38 @@ ret_ty: i32): i32 {
 }
 
 /**
+ * Product entry of generic method UFCS.
+ * Body: typeck_method_call_generic_ufcs_soft.x. This file keeps the
+ * n_gp>0 pattern-unify scan as typeck_method_call_generic_ufcs_mega.
+ * The entry also accepts impl<T: Trait> Foo<T> methods whose self is
+ * written Foo, when each bound is implemented by the type argument.
+ * @param module *Module — caller module
+ * @param arena *ASTArena — expression and type pool
+ * @param expr_ref i32 — METHOD_CALL
+ * @param base_ty i32 — receiver type
+ * @param method_nm *u8 — method name bytes
+ * @param method_nlen i32 — method name length
+ * @param num_args i32 — extra arguments, not counting self
+ * @return i32 — 1 stamped, 0 no match
+ * PLATFORM: SHARED.
+ */
+export extern function typeck_method_call_generic_ufcs(module: *Module, arena: *ASTArena, expr_ref: i32,
+base_ty: i32, method_nm: *u8, method_nlen: i32, num_args: i32): i32;
+
+/**
  * Generic method_call UFCS: pattern-unify formal self with concrete receiver,
  * verify non-self args (after subst), stamp mono return + call_resolve.
  * Only functions with n_gp>0 enter (non-generic take0(self: i32x4) is not T).
+ * Linked as typeck_method_call_generic_ufcs_mega. A 0 result is not final:
+ * the soft entry still tries an impl header whose self spelling is the
+ * bare for-type (Foo vs Foo<A>).
  * @return i32 — 1 success (stamped), 0 no match
  * PLATFORM: SHARED freestanding typeck.
  */
-export function typeck_method_call_generic_ufcs(module: *Module, arena: *ASTArena, expr_ref: i32,
+#[no_mangle]
+export function typeck_method_call_generic_ufcs_mega(module: *Module, arena: *ASTArena, expr_ref: i32,
 base_ty: i32, method_nm: *u8, method_nlen: i32, num_args: i32): i32 {
-  // PLATFORM: SHARED — sole generic method UFCS authority (wave494 / wave252).
+  // PLATFORM: SHARED — mega body of generic method UFCS (wave494 / wave252).
   unsafe {
     let nf: i32 = 0;
     let fi: i32 = 0;

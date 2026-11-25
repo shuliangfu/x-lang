@@ -14,6 +14,31 @@ on:
   #   branches: [ dev,main ]
 
 jobs:
+
+  # Knife 255 / 10.1: product-path 0-make PATH probe + typeck host-cc contract.
+  # Full run-product-path-zero-make-gate.sh also scans leaf/seed residuals from
+  # 9.1 seed emptying; those are tracked separately. This job is the CI gate.
+  product-path-zero-make:
+    name: Product path 0-make / no typeck host-cc (10.1)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: 10.1 product-path contracts
+        run: |
+          set -euo pipefail
+          bash tests/run-product-path-zero-make-path-probe.sh
+          # typeck/codegen residual $CC only under XLANG_TYPECK_HOST_CC=1
+          if grep -nE '\$G05_CC.*typeck_ctfe_tu|\$G05_CC.*typeck_cap_residual_tu|\$G05_CC.*codegen_cap_residual_tu' \
+              compiler/scripts/g05_relink_env.sh | grep -v 'XLANG_TYPECK_HOST_CC'; then
+            echo "::error::g05_relink_env still host-ccs typeck/codegen residual outside archaeology escape"
+            exit 1
+          fi
+          grep -q 'XLANG_TYPECK_HOST_CC' compiler/scripts/g05_prepare_and_relink.sh
+          grep -q 'XLANG_TYPECK_HOST_CC' compiler/scripts/compiler_all_ci.sh
+          grep -q 'typeck_allow_legacy.x' compiler/scripts/g05_relink_env.sh
+          echo "10.1 CI contracts OK"
+
   linux:
     name: Linux (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -46,7 +71,7 @@ jobs:
             exit 1
           fi
           if [ ! -f compiler/xlang-c ] || [ ! -x compiler/xlang-c ]; then
-            echo "::error::compiler/xlang-c not found (make all should produce xlang-c alongside xlang)"
+            echo "::error::compiler/xlang-c not found (./xbuild compiler-all should produce xlang-c alongside xlang)"
             exit 1
           fi
       - name: Full CI test suite
@@ -126,7 +151,7 @@ jobs:
             exit 1
           fi
           if [ ! -f compiler/xlang-c ] || [ ! -x compiler/xlang-c ]; then
-            echo "::error::compiler/xlang-c not found (make all should produce xlang-c alongside xlang)"
+            echo "::error::compiler/xlang-c not found (./xbuild compiler-all should produce xlang-c alongside xlang)"
             exit 1
           fi
       - name: Full CI test suite
@@ -172,7 +197,7 @@ jobs:
             exit 1
           fi
           if [ ! -f compiler/xlang-c ] || [ ! -x compiler/xlang-c ]; then
-            echo "::error::compiler/xlang-c not found (make all should produce xlang-c alongside xlang)"
+            echo "::error::compiler/xlang-c not found (./xbuild compiler-all should produce xlang-c alongside xlang)"
             exit 1
           fi
       - name: Full CI test suite
@@ -210,7 +235,7 @@ jobs:
         with:
           msystem: MSYS
           update: false
-          install: make gcc diffutils python3 sed gawk zlib-devel brotli curl unzip
+          install: gcc diffutils python3 sed gawk zlib-devel brotli curl unzip
       - name: Build compiler (xlang)
         run: ./xbuild compiler-all
         env:
@@ -222,7 +247,7 @@ jobs:
             exit 1
           fi
           if [ ! -f compiler/xlang-c ] || [ ! -x compiler/xlang-c ]; then
-            echo "::error::compiler/xlang-c not found (make all should produce xlang-c alongside xlang)"
+            echo "::error::compiler/xlang-c not found (./xbuild compiler-all should produce xlang-c alongside xlang)"
             exit 1
           fi
       - name: B-hybrid xlang_asm smoke (A-08)

@@ -525,11 +525,21 @@ static const char *const labi_fk0_sym_at_g8[57] = {
   "std_error_chain_wrap",
   "std_error_error_module_anchor"
 };
-static const char *const labi_fk0_sym_at_g9[4] = {
+/* PLATFORM: SHARED — context.o fk0: std_context_* (mod public) + ctx_*_c
+ * (context.x C ABI). DIG soft hello.o only U ctx_*_c after link_only skip of
+ * std.context co-emit; std_context_* needles alone never opened the gate. */
+static const char *const labi_fk0_sym_at_g9[11] = {
   "std_context_background",
   "std_context_deadline_ns",
   "std_context_is_cancelled",
-  "std_context_remaining_ns"
+  "std_context_remaining_ns",
+  "ctx_background_c",
+  "ctx_with_cancel_c",
+  "ctx_with_deadline_c",
+  "ctx_with_timeout_c",
+  "ctx_cancel_c",
+  "ctx_is_cancelled_c",
+  "ctx_free_c"
 };
 static const char *const labi_fk0_sym_at_g10[42] = {
   "std_vec_new_retVec_u8",
@@ -838,7 +848,7 @@ static const struct labi_fk0_sym_at_row labi_fk0_sym_at_rows[] = {
   { labi_fk0_sym_at_g6, 12 },
   { labi_fk0_sym_at_g7, 11 },
   { labi_fk0_sym_at_g8, 57 },
-  { labi_fk0_sym_at_g9, 4 },
+  { labi_fk0_sym_at_g9, 11 },
   { labi_fk0_sym_at_g10, 42 },
   { labi_fk0_sym_at_g11, 9 },
   { labi_fk0_sym_at_g12, 13 },
@@ -1465,8 +1475,15 @@ const char *labi_od_core_mem_sym_at(int i) {
   return labi_od_core_mem_sym_at_tab[i];
 }
 
-/* Class BF: table form of labi_od_sys_linux_sym_at. PLATFORM: SHARED. */
-static const char *const labi_od_sys_linux_sym_at_tab[38] = {
+/* Class BF: table form of labi_od_sys_linux_sym_at.
+ * PLATFORM: SHARED — 34 std.sys.linux export names only.
+ * Do not list xlang_sys_close / xlang_sys_openat / xlang_sys_exit /
+ * xlang_sys_connect. Those are FFI undefs of linux.o itself (the
+ * provider is freestanding io, not linux.o). Darwin hosted net also
+ * undefs xlang_sys_connect from tcp.o; a hit here set need_sl, pushed
+ * std/sys/linux.o, and left xlang_sys_open / openat with no Mach-O
+ * provider (freestanding_io_x86_64.o is absent on Darwin). */
+static const char *const labi_od_sys_linux_sym_at_tab[34] = {
   "std_sys_linux_linux_syscall_nr_read_amd64",
   "std_sys_linux_linux_syscall_nr_write_amd64",
   "std_sys_linux_linux_syscall_nr_open_amd64",
@@ -1500,11 +1517,7 @@ static const char *const labi_od_sys_linux_sym_at_tab[38] = {
   "std_sys_linux_linux_munmap",
   "std_sys_linux_linux_msync_sync",
   "std_sys_linux_linux_mmap_file_available",
-  "std_sys_linux_linux_sys_module_anchor",
-  "xlang_sys_close",
-  "xlang_sys_openat",
-  "xlang_sys_exit",
-  "xlang_sys_connect"
+  "std_sys_linux_linux_sys_module_anchor"
 };
 const char *labi_od_sys_linux_sym_at(int i) {
   if (i < 0)

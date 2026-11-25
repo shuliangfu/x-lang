@@ -2411,13 +2411,7 @@ int32_t parser_asm_parser_token_is_label_start_slice_c(struct parser_asm_lexer_r
 
 /* G-02f-329 P20a foundation lexer_init：默认 inline；hybrid 时在 pthin_foundation */
 #ifndef XLANG_PTHIN_FOUNDATION_FROM_X
-struct parser_asm_lexer parser_asm_lexer_init_c(void) {
-  struct parser_asm_lexer lex;
-  lex.pos = 0;
-  lex.line = 1;
-  lex.col = 1;
-  return lex;
-}
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_FOUNDATION_FROM_X removed */
 #else
 struct parser_asm_lexer parser_asm_lexer_init_c(void);
 #endif
@@ -2428,7 +2422,7 @@ struct parser_asm_lexer parser_asm_lexer_init_c(void);
 
 /* G-02f-281 P1 lex/skip：默认 #include；hybrid 时由 pthin_lex_skip.from_x.c 提供 */
 #ifndef XLANG_PTHIN_LEX_SKIP_FROM_X
-#include "parser_asm_lex_skip_slice.inc"
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_LEX_SKIP_FROM_X removed */
 #else
 void parser_asm_lex_from_result_val_into(struct parser_asm_lexer *out, struct parser_asm_lexer_result r);
 void parser_asm_copy_slice_to_name64_buf_c(uint8_t *source, int32_t source_len, size_t start, int32_t nlen, uint8_t *out);
@@ -2460,7 +2454,7 @@ int labi_pthin_lex_skip_slice_marker(void);
 
 /* G-02f-328 P19 helpers：默认 #include；hybrid 时在 pthin_helpers.from_x.c */
 #ifndef XLANG_PTHIN_HELPERS_FROM_X
-#include "parser_asm_helpers_slice.inc"
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_HELPERS_FROM_X removed */
 #else
 int32_t parser_asm_import_path_dot_segment_len_c(struct parser_asm_token tok);
 int32_t parser_import_path_dot_segment_len_glue(struct parser_asm_token tok);
@@ -2507,7 +2501,7 @@ int labi_pthin_helpers_slice_marker(void);
 
 /* G-02f-323 P14 skip_if：默认 #include；hybrid 时在 pthin_skip_if.from_x.c */
 #ifndef XLANG_PTHIN_SKIP_IF_FROM_X
-#include "parser_asm_skip_if_slice.inc"
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_SKIP_IF_FROM_X removed */
 #else
 void parser_asm_skip_trait_impl_block_raw_c(struct parser_asm_lexer *out, struct parser_asm_lexer start, struct parser_asm_slice_u8 *source);
 void parser_asm_skip_one_if_core_into_slice_c(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
@@ -2640,7 +2634,6 @@ struct ast_Expr {
 
 /* G-02f-329 P20 foundation expr 底座：默认 #include；hybrid 时在 pthin_foundation.from_x.c */
 #ifndef XLANG_PTHIN_FOUNDATION_FROM_X
-#include "parser_asm_foundation_slice.inc"
 #else
 struct parser_asm_ast_expr parser_asm_arena_expr_get_c(void *arena, int32_t ref);
 void parser_asm_expr_set_common_zeros_c(struct parser_asm_ast_expr *e);
@@ -2649,7 +2642,7 @@ int labi_pthin_foundation_slice_marker(void);
 
 /* G-02f-280 P3 type_ref：默认 #include；hybrid 时函数体在 pthin_type_ref.from_x.c */
 #ifndef XLANG_PTHIN_TYPE_REF_FROM_X
-#include "parser_asm_type_ref_slice.inc"
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_TYPE_REF_FROM_X removed */
 #else
 /* 布局 / TypeKind 须与 type_ref_slice.inc 一致（as_suffix 等后续 slice 依赖）。 */
 struct ast_Type {
@@ -2698,8 +2691,7 @@ int labi_pthin_type_ref_slice_marker(void);
 #endif
 /* G-02f-287 P6 fn/block（前半）：struct_layout + library；后半见 let_alias 之后 */
 #ifndef XLANG_PTHIN_FN_BLOCK_FROM_X
-#include "parser_asm_struct_layout_slice.inc"
-#include "parser_asm_library_slice.inc"
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_FN_BLOCK_FROM_X removed */
 #else
 int32_t parser_asm_struct_layout_name_exists_arr_c(void *module, uint8_t *nm, int32_t nlen);
 int32_t parser_asm_struct_layout_first_name_match_idx_c(void *module, uint8_t *nm, int32_t nlen);
@@ -2714,9 +2706,7 @@ int labi_pthin_fn_block_slice_marker(void);
 #endif
 /* G-02f-279 P2 let/alias：默认仍 #include；hybrid 时函数体在 pthin_let_alias.from_x.c */
 #ifndef XLANG_PTHIN_LET_ALIAS_FROM_X
-#include "parser_asm_body_let_slice.inc"
-#include "parser_asm_top_level_let_slice.inc"
-#include "parser_asm_type_alias_slice.inc"
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_LET_ALIAS_FROM_X removed */
 #else
 /* 布局须与 slice.inc 一致（其它 slice 仍用完整类型）。 */
 struct parser_asm_parse_expr_result {
@@ -2752,8 +2742,6 @@ int labi_pthin_let_alias_slice_marker(void);
 #endif
 /* G-02f-287 P6 fn/block（后半）：one_function_buf + block_from_res */
 #ifndef XLANG_PTHIN_FN_BLOCK_FROM_X
-#include "parser_asm_one_function_buf_slice.inc"
-#include "parser_asm_block_from_res_slice.inc"
 #else
 void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *out, void *arena,
                                               struct parser_asm_lexer lex, uint8_t *data, int32_t len);
@@ -2766,9 +2754,7 @@ int32_t parser_asm_append_block_lets_from_res_c(void *arena, int32_t block_ref,
 /* G-02f-286 P5 ctrl：默认 #include；hybrid 时在 pthin_ctrl.from_x.c
  * rest 须保留 parse_block_result（primary 等同 TU 仍可能需要布局）。 */
 #ifndef XLANG_PTHIN_CTRL_FROM_X
-#include "parser_asm_if_stmt_slice.inc"
-#include "parser_asm_match_subject_slice.inc"
-#include "parser_asm_if_expr_slice.inc"
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_CTRL_FROM_X removed */
 #else
 struct parser_asm_parse_block_result {
   int32_t ok;
@@ -2795,7 +2781,7 @@ int labi_pthin_ctrl_slice_marker(void);
 #endif
 /* G-02f-288 P7 simd：默认 #include；hybrid 时在 pthin_simd.from_x.c */
 #ifndef XLANG_PTHIN_SIMD_FROM_X
-#include "parser_asm_simd_builtin_slice.inc"
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_SIMD_FROM_X removed */
 #else
 void parser_asm_parse_at_simd_builtin_into_c(void *arena, struct parser_asm_lexer_result r0,
                                              struct parser_asm_slice_u8 *source,
@@ -2804,7 +2790,7 @@ int labi_pthin_simd_slice_marker(void);
 #endif
 /* G-02f-285 P4 as_suffix：默认 #include；hybrid 时在 pthin_expr_as_suffix.from_x.c */
 #ifndef XLANG_PTHIN_EXPR_AS_SUFFIX_FROM_X
-#include "parser_asm_as_suffix_slice.inc"
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_EXPR_AS_SUFFIX_FROM_X removed */
 #else
 void parser_asm_parse_as_suffix_into_slice_c(void *arena, struct parser_asm_slice_u8 *source,
                                             struct parser_asm_parse_expr_result *out);
@@ -2814,8 +2800,7 @@ int labi_pthin_expr_as_suffix_slice_marker(void);
  * （primary 调用 finish_struct_lit 内 parse_struct_lit_fields — 须同 TU；
  * P4bi dest-buffer 在 pthin_expr_primary.x，C trampoline 同 TU 持 name[256]） */
 #ifndef XLANG_PTHIN_EXPR_PRIMARY_FROM_X
-#include "parser_asm_finish_struct_lit_slice.inc"
-#include "parser_asm_primary_slice.inc"
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_EXPR_PRIMARY_FROM_X removed */
 #else
 void parser_asm_parse_anonymous_struct_lit_c(void *arena, struct parser_asm_lexer lex_in_brace,
                                             struct parser_asm_slice_u8 *source,
@@ -2831,7 +2816,7 @@ int labi_pthin_expr_primary_slice_marker(void);
 #endif
 /* G-02f-283 P4 unary：默认 #include；hybrid 时在 pthin_expr_unary.from_x.c */
 #ifndef XLANG_PTHIN_EXPR_UNARY_FROM_X
-#include "parser_asm_unary_slice.inc"
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_EXPR_UNARY_FROM_X removed */
 #else
 /* unary_slice.inc declared this for later slices. The definition stays
  * in the AST object. PLATFORM: SHARED. */
@@ -2843,7 +2828,7 @@ int labi_pthin_expr_unary_slice_marker(void);
 #endif
 /* G-02f-284 P4 binop：默认 #include；hybrid 时在 pthin_expr_binop.from_x.c */
 #ifndef XLANG_PTHIN_EXPR_BINOP_FROM_X
-#include "parser_asm_expr_binop_slice.inc"
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_EXPR_BINOP_FROM_X removed */
 #else
 void parser_asm_parse_term_into_slice_c(void *arena, struct parser_asm_lexer lex,
                                        struct parser_asm_slice_u8 *source,
@@ -2879,7 +2864,7 @@ int labi_pthin_expr_binop_slice_marker(void);
 #endif
 /* G-02f-285 P4 ternary/assign：默认 #include；hybrid 时在 pthin_expr_ternary.from_x.c */
 #ifndef XLANG_PTHIN_EXPR_TERNARY_FROM_X
-#include "parser_asm_ternary_assign_slice.inc"
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_EXPR_TERNARY_FROM_X removed */
 #else
 void parser_asm_parse_ternary_into_slice_c(void *arena, struct parser_asm_lexer lex,
                                           struct parser_asm_slice_u8 *source,
@@ -2891,12 +2876,7 @@ int labi_pthin_expr_ternary_slice_marker(void);
 #endif
 /* G-02f-290/318 P9 stretch lite + suite：默认 #include；hybrid 时在 pthin_stretch.from_x.c */
 #ifndef XLANG_PTHIN_STRETCH_FROM_X
-#include "parser_asm_emit_heavy_stretch_slice.inc"
-struct parser_asm_lexer parser_asm_skip_one_struct_slice_c(struct parser_asm_lexer lex,
-                                                            struct parser_asm_slice_u8 *source);
-struct parser_asm_lexer parser_asm_skip_imports_slice_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-struct parser_asm_lexer_result parser_asm_diag_after_imports_then_structs_slice_c(
-    struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_STRETCH_FROM_X removed */
 #else
 int32_t parser_asm_stretch_token_run_len_c(int32_t kind);
 int32_t parser_asm_stretch_import_path_validate_c(const uint8_t *path, int32_t path_len);
@@ -2924,10 +2904,6 @@ struct parser_asm_lexer_result parser_asm_diag_after_imports_then_structs_slice_
 #ifdef XLANG_PARSER_STRETCH_AUDIT
 #include "archive_parser_asm_emit_heavy_stretch_suite_slice.inc"
 #elif !defined(XLANG_PTHIN_STRETCH_AUDIT_FROM_X)
-/* Class BA: product keep — no suite symbol-string bloat.
- * Stays when XLANG_PTHIN_STRETCH_FROM_X drops the lite slice and the
- * audit .x is not linked. PLATFORM: SHARED. */
-#include "parser_asm_stretch_suite_product_keep.inc"
 #else
 /* PLATFORM: SHARED — chapter 2.9. Audit bodies are the .x object.
  * The Class BA marker stays here and still returns 0. */
@@ -2940,7 +2916,7 @@ int labi_pthin_stretch_suite_slice_marker(void) {
  * Non-product smoke may still include seeds/ wrapper (→ archive). 瘦 parser_x.o 无 parse_into_buf 时由 seed slice 提供。 */
 /* G-02f-289 P8 seed_parse：默认 #include wrapper；hybrid 时在 pthin_seed_parse.from_x.c */
 #ifndef XLANG_PTHIN_SEED_PARSE_FROM_X
-#include "../../analysis/archive/parser_asm/parser_asm_seed_parse_into_buf_slice.inc" /* Class BZ */
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_SEED_PARSE_FROM_X removed */
 #else
 struct parser_asm_seed_parse_into_result {
   int32_t ok;
@@ -2967,7 +2943,7 @@ int labi_pthin_seed_parse_slice_marker(void);
 /** 参数/返回值标量；diag body residual + top_level skip（G-02f-327 P18）。 */
 /* G-02f-327 P18 body_tl：默认 #include；hybrid 时在 pthin_body_tl.from_x.c */
 #ifndef XLANG_PTHIN_BODY_TL_FROM_X
-#include "parser_asm_body_tl_slice.inc"
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_BODY_TL_FROM_X removed */
 #else
 int32_t parser_asm_is_fn_sig_scalar_type_token_c(int32_t kind);
 int32_t parser_asm_diag_first_ident_len_slice_c(struct parser_asm_slice_u8 *source);
@@ -2992,7 +2968,7 @@ int labi_pthin_body_tl_slice_marker(void);
 
 /* G-02f-320 P11 imports：默认 #include；hybrid 时在 pthin_imports.from_x.c */
 #ifndef XLANG_PTHIN_IMPORTS_FROM_X
-#include "parser_asm_imports_slice.inc"
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_IMPORTS_FROM_X removed */
 #else
 int32_t parser_asm_try_skip_const_import_stmt(struct parser_asm_lexer *lex,
                                               struct parser_asm_slice_u8 *source);
@@ -3015,7 +2991,7 @@ int labi_pthin_imports_slice_marker(void);
 
 /* G-02f-325 P16 diag_pipeline：默认 #include；hybrid 时在 pthin_diag_pipeline.from_x.c */
 #ifndef XLANG_PTHIN_DIAG_PIPELINE_FROM_X
-#include "parser_asm_diag_pipeline_slice.inc"
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_DIAG_PIPELINE_FROM_X removed */
 #else
 int32_t parser_asm_diag_parse_one_after_collect_imports_slice_c(struct parser_asm_slice_u8 *source, void *module, void *arena);
 int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int32_t len, void *module, void *arena);
@@ -3035,7 +3011,7 @@ int labi_pthin_diag_pipeline_slice_marker(void);
 
 /* G-02f-321 P12 skip_tl：默认 #include；hybrid 时在 pthin_skip_tl.from_x.c */
 #ifndef XLANG_PTHIN_SKIP_TL_FROM_X
-#include "../../analysis/archive/parser_asm/parser_asm_skip_tl_slice.inc" /* Class BZ */
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_SKIP_TL_FROM_X removed */
 #else
 void parser_asm_skip_one_struct_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
 void parser_asm_skip_one_enum_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
@@ -3056,7 +3032,7 @@ int labi_pthin_skip_tl_slice_marker(void);
 
 /* G-02f-326 P17 diag_late：默认 #include；hybrid 时在 pthin_diag_late.from_x.c */
 #ifndef XLANG_PTHIN_DIAG_LATE_FROM_X
-#include "parser_asm_diag_late_slice.inc"
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_DIAG_LATE_FROM_X removed */
 #else
 struct parser_asm_lexer_result parser_asm_diag_after_imports_then_structs_slice_c( struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
 struct parser_asm_lexer_result parser_asm_diag_after_imports_then_structs_buf_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
@@ -3070,7 +3046,7 @@ int labi_pthin_diag_late_slice_marker(void);
 
 /* G-02f-322 P13 try_skip_allow：默认 #include；hybrid 时在 pthin_try_skip_allow.from_x.c */
 #ifndef XLANG_PTHIN_TRY_SKIP_ALLOW_FROM_X
-#include "parser_asm_try_skip_allow_slice.inc"
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_TRY_SKIP_ALLOW_FROM_X removed */
 #else
 void parser_asm_write_try_skip_allow_result(struct parser_asm_try_skip_allow_result *out, struct parser_asm_lexer lex, int32_t skipped);
 struct parser_asm_try_skip_allow_result parser_asm_try_skip_allow_padding_struct_slice_c( struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
@@ -3083,7 +3059,7 @@ int labi_pthin_try_skip_allow_slice_marker(void);
 
 /* G-02f-324 P15 library：默认 #include；hybrid 时在 pthin_library.from_x.c */
 #ifndef XLANG_PTHIN_LIBRARY_FROM_X
-#include "parser_asm_library_wrap_slice.inc"
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_LIBRARY_FROM_X removed */
 #else
 void parser_asm_parse_one_function_library_into_slice_c(struct parser_asm_library_parse_result *out, void *arena, void *module, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
 struct parser_asm_library_parse_result parser_asm_parse_one_function_library_buf_c( void *arena, void *module, struct parser_asm_lexer lex, uint8_t *data, int32_t len);
@@ -3099,7 +3075,7 @@ int labi_pthin_library_slice_marker(void);
 
 /* G-02f-319 P10 glue tail：默认 #include；hybrid 时在 pthin_glue.from_x.c */
 #ifndef XLANG_PTHIN_GLUE_FROM_X
-#include "parser_asm_glue_tail_slice.inc"
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_GLUE_FROM_X removed */
 #else
 /* rest 仍可能转发到 tail 实现（ld -r 解析） */
 void parser_asm_skip_one_function_full_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,

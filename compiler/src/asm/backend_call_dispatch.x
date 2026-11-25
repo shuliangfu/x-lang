@@ -33,6 +33,7 @@ export extern function parser_get_module_import_path(mod: *u8, ix: i32, path_byt
 export extern function pipeline_module_num_funcs(m: *u8): i32;
 export extern function pipeline_asm_module_func_is_extern_at(m: *u8, i: i32): i32;
 export extern function pipeline_module_func_name_equal_at(m: *u8, i: i32, name: *u8, nlen: i32): i32;
+export extern function pipeline_module_func_owner_copy(m: *u8, fi: i32, dst: *u8, cap: i32): i32;
 export extern function parser_get_module_num_imports(mod: *u8): i32;
 export extern function pipeline_module_import_path_len(mod: *u8, idx: i32): i32;
 export extern function pipeline_module_import_path_byte_at(mod: *u8, idx: i32, k: i32): u8;
@@ -278,6 +279,7 @@ export extern function pipeline_expr_call_resolved_func_index_at(arena: *u8, er:
 export extern function driver_get_current_dep_path_for_codegen(): *u8;
 export extern function pipeline_asm_module_func_name_len_at(m: *u8, fi: i32): i32;
 export extern function pipeline_asm_module_func_name_copy64(m: *u8, fi: i32, dst: *u8): void;
+export extern function codegen_find_impl_method_for_type(module: *u8, arena: *u8, method_name: *u8, method_name_len: i32, receiver_type_ref: i32): i32;
 export extern function pipeline_module_func_num_params_at(m: *u8, fi: i32): i32;
 export extern function pipeline_module_func_is_variadic_at(m: *u8, fi: i32): i32;
 export extern function pipeline_module_func_param_type_ref_at(m: *u8, fi: i32, pi: i32): i32;
@@ -359,6 +361,7 @@ export extern function glue_call_return_byte_size_c(arena: *u8, call_expr_ref: i
  * PLATFORM: SHARED — wave191 pure leave.
  */
 export extern function glue_type_named_layout_size_any_module_elf_c(arena: *u8, ty_ref: i32): i32;
+export extern function glue_sysv_dual_gp_byte_size_c(arena: *u8, ty_ref: i32): i32;
 /** AAPCS64: mov x8, x0 (set Indirect Result Location). PLATFORM: MACOS|ARM64. */
 export extern function glue_arm64_mov_x0_to_x8_elf_c(elf: *u8): i32;
 /** AAPCS64: mov x0, x8 (save incoming sret dest). PLATFORM: MACOS|ARM64. */
@@ -762,18 +765,22 @@ export function call_dispatch_store_i32_le(p: *u8, off: i32, v: i32): void {
 #[no_mangle]
 export function call_dispatch_load_ptr_le(p: *u8, off: i32): *u8 {
   if (p == 0) { return 0 as *u8; }
+  /* knife 254 / 9.2: tip pure-asm emits mul w for usize*, so m2*m2 (=2^32)
+   * wraps to 0 and high pointer bytes are dropped → mod_ref SEGV on Darwin
+   * tip cold hello/option/si. Build lo/hi with small muls then hi<<32 (lsl x).
+   * PLATFORM: SHARED — LP64 LE ptr load. */
   let m: usize = 256;
-  let m2: usize = m * m;
-  let m4: usize = m2 * m2;
-  let a: usize = p[off] as usize;
-  a = a + (p[off + 1] as usize) * m;
-  a = a + (p[off + 2] as usize) * m2;
-  a = a + (p[off + 3] as usize) * (m2 * m);
-  a = a + (p[off + 4] as usize) * m4;
-  a = a + (p[off + 5] as usize) * (m4 * m);
-  a = a + (p[off + 6] as usize) * (m4 * m2);
-  a = a + (p[off + 7] as usize) * (m4 * m2 * m);
-  return a as *u8;
+  let m2: usize = 65536;
+  let m3: usize = 16777216;
+  let lo: usize = p[off] as usize;
+  lo = lo + (p[off + 1] as usize) * m;
+  lo = lo + (p[off + 2] as usize) * m2;
+  lo = lo + (p[off + 3] as usize) * m3;
+  let hi: usize = p[off + 4] as usize;
+  hi = hi + (p[off + 5] as usize) * m;
+  hi = hi + (p[off + 6] as usize) * m2;
+  hi = hi + (p[off + 7] as usize) * m3;
+  return (lo + (hi << 32)) as *u8;
 }
 
 // glue_asm_call_reg_max: see function docblock below.
@@ -835,10 +842,10 @@ export function glue_asm_emit_jmp_skip_string_then_lea(ctx_bytes: *u8, ta: i32, 
       let raw: i32 = slen + 1;
       let pad: i32 = (4 - (raw & 3)) & 3;
       let skip: i32 = raw + pad;
-      let imm26: i32 = 1 + (skip / 4);
+      let imm26: i32 = (1 + (skip / 4));
       if (imm26 <= 0) { return 0 - 1; }
       if (imm26 >= 33554432) { return 0 - 1; }
-      let b_inst: u32 = 335544320 as u32 | ((imm26 as u32) & 67108863 as u32); // 0x14000000 | imm26
+      let b_inst: u32 = (335544320 as u32 | ((imm26 as u32) & 67108863 as u32)); // 0x14000000 | imm26
       let b4: u8[4] = [];
       b4[0] = (b_inst & 255) as u8;
       b4[1] = ((b_inst / 256) & 255) as u8;
@@ -854,11 +861,11 @@ export function glue_asm_emit_jmp_skip_string_then_lea(ctx_bytes: *u8, ta: i32, 
         pi = pi + 1;
       }
       // ADR x0, string: imm = -skip (Rd=0 for both reg_k).
-      let imm: i32 = 0 - skip;
+      let imm: i32 = (0 - skip);
       let imm_bits: u32 = (imm as u32) & 2097151 as u32; // 0x1FFFFF
       let immlo: u32 = imm_bits & (3 as u32);
       let immhi: u32 = (imm_bits / (4 as u32)) & 524287 as u32; // 0x7FFFF
-      let adr_inst: u32 = 268435456 as u32 | (immlo * (536870912 as u32)) | (immhi * (32 as u32)); // 0x10000000 | ...
+      let adr_inst: u32 = (268435456 as u32 | (immlo * (536870912 as u32)) | (immhi * (32 as u32))); // 0x10000000 | ...
       let adr4: u8[4] = [];
       adr4[0] = (adr_inst & 255) as u8;
       adr4[1] = ((adr_inst / 256) & 255) as u8;
@@ -887,7 +894,7 @@ export function glue_asm_emit_jmp_skip_string_then_lea(ctx_bytes: *u8, ta: i32, 
     if (pipeline_elf_ctx_append_bytes(ctx_bytes, sbuf, slen) != 0) { return 0 - 1; }
     let z0: u8 = 0;
     if (pipeline_elf_ctx_append_bytes(ctx_bytes, &z0, 1) != 0) { return 0 - 1; }
-    let d: i32 = 0 - slen - 8;
+    let d: i32 = ((0 - slen) - 8);
     let u: u32 = d as u32;
     let lea7: u8[7] = [];
     lea7[0] = 72; // 0x48
@@ -1185,10 +1192,12 @@ export function w1545_win_epi_prefix_c(elf_ctx: *u8): i32 {
  * PLATFORM: SHARED — Windows slice returns and the arm64 by-value gate both use this.
  */
 function w1545_callee_class(arena: *u8, expr_ref: i32): i32 {
+  // Tip Win monofile XT001: `let m: *u8` here made caller
+  // w1545_win_extern_slice_ret_sz (#298) fail check_block. Reuse arena
+  // for the resolved module pointer instead. PLATFORM: SHARED.
   let ms: u8[8] = [];
   let fs: i32[1] = [];
   let ds: i32[1] = [];
-  let m: *u8 = 0 as *u8;
   let rc: i32 = 0;
   if (arena == 0 as *u8 || expr_ref <= 0) { return 0; }
   fs[0] = 0 - 1;
@@ -1199,10 +1208,10 @@ function w1545_callee_class(arena: *u8, expr_ref: i32): i32 {
     rc = glue_asm_resolve_call_target_module_c(arena, expr_ref, &ms[0], &fs[0], &ds[0]);
   }
   if (rc != 0 || fs[0] < 0) { return 0; }
-  m = call_dispatch_load_ptr_le(&ms[0], 0);
-  if (m == 0 as *u8) { return 0; }
+  arena = call_dispatch_load_ptr_le(&ms[0], 0);
+  if (arena == 0 as *u8) { return 0; }
   unsafe {
-    if (pipeline_module_func_is_extern_at(m, fs[0]) != 0) { return 2; }
+    if (pipeline_module_func_is_extern_at(arena, fs[0]) != 0) { return 2; }
   }
   return 1;
 }
@@ -1343,27 +1352,45 @@ export function glue_sysv_arg_byte_size_c(arena: *u8, ctx: *u8, pty: i32, arg_re
           if (alt > sz) { sz = alt; }
         }
       } else {
-        // Non-CALL VAR/FIELD/…: MEMORY-class widen when soft (ctx may be null).
-        // Only TYPE_NAMED named_layout >16 (ErrorChain 20B). Do NOT use
-        // type_ref_byte_size — ARRAY payload (e.g. [2]Wide=40) would undo E*
-        // pack (ret_idx(a) / slice_oob). PLATFORM: SHARED · LINUX SysV gold.
-        if (sz <= 16) {
+        // Non-CALL VAR/FIELD/…: soft sz≤8 must recover 9–16 INTEGER dual-GP.
+        // knife256/10.2 Cap tip: local struct Lex and TYPE_NAMED Lexer both
+        // soft-floor to 8; kind==8-only gate missed non-NAMED layouts so Cap
+        // tip still 1-GP packed (lexpack probe). Widen via named_layout /
+        // type_ref / dual_gp when result is 9–16 only (ARRAY E* pack stays
+        // ≤8). PLATFORM: SHARED · LINUX SysV gold · MACOS|ARM64 Cap tip.
+        if (sz <= 8) {
+          // knife256/10.2: widen 9–16 (dual-GP) AND >16 (AAPCS64 byref /
+          // SysV MEMORY). Prior alt<=16-only left String(260) at soft 8 →
+          // Cap tip loaded first qword into x0 for length(s) → SEGV.
+          // ARRAY/SLICE/PTR still forced to 8 below. PLATFORM: SHARED.
           if (pty > 0) {
-            if (pipeline_type_kind_ord_at(arena, pty) == 8) {
-              alt = glue_type_named_layout_size_any_module_elf_c(arena, pty);
-              if (alt > 16) {
+            alt = glue_type_named_layout_size_any_module_elf_c(arena, pty);
+            if (alt > 8) {
+              if (alt > sz) { sz = alt; }
+            }
+            if (sz <= 8) {
+              alt = pipeline_asm_type_ref_byte_size_c(arena, pty);
+              if (alt > 8) {
                 if (alt > sz) { sz = alt; }
               }
             }
+            alt = glue_sysv_dual_gp_byte_size_c(arena, pty);
+            if (alt > sz) { sz = alt; }
           }
           tr = pipeline_expr_resolved_type_ref(arena, arg_ref);
           if (tr > 0) {
-            if (pipeline_type_kind_ord_at(arena, tr) == 8) {
-              alt = glue_type_named_layout_size_any_module_elf_c(arena, tr);
-              if (alt > 16) {
+            alt = glue_type_named_layout_size_any_module_elf_c(arena, tr);
+            if (alt > 8) {
+              if (alt > sz) { sz = alt; }
+            }
+            if (sz <= 8) {
+              alt = pipeline_asm_type_ref_byte_size_c(arena, tr);
+              if (alt > 8) {
                 if (alt > sz) { sz = alt; }
               }
             }
+            alt = glue_sysv_dual_gp_byte_size_c(arena, tr);
+            if (alt > sz) { sz = alt; }
           }
         }
       }
@@ -1373,6 +1400,23 @@ export function glue_sysv_arg_byte_size_c(arena: *u8, ctx: *u8, pty: i32, arg_re
       if (arena != 0 as *u8) {
         sz = pipeline_asm_type_ref_byte_size_c(arena, pty);
       }
+    }
+  }
+  // knife256/10.2: ARRAY/SLICE/PTR call-arg is always E* (8B). named_layout /
+  // type_ref_byte_size on u8[12] return 12 and undid call_arg_value decay
+  // (print packed x0=ptr,x1=ptr,x2=len). Gate after widen. PLATFORM: SHARED.
+  if (arena != 0 as *u8) {
+    if (arg_ref > 0) {
+      tr = pipeline_expr_resolved_type_ref(arena, arg_ref);
+      if (tr > 0) {
+        ko = pipeline_type_kind_ord_at(arena, tr);
+        // TYPE_PTR=9 TYPE_ARRAY=10 TYPE_SLICE=11
+        if (ko == 9 || ko == 10 || ko == 11) { return 8; }
+      }
+    }
+    if (pty > 0) {
+      ko = pipeline_type_kind_ord_at(arena, pty);
+      if (ko == 9 || ko == 10 || ko == 11) { return 8; }
     }
   }
   if (sz <= 0) { return 8; }
@@ -1494,7 +1538,8 @@ function glue_emit_arm64_host_mem_arg_addr_to_rax_c(
  * PLATFORM: MACOS|ARM64 AAPCS64.
  */
 function glue_aapcs64_hfa_nregs_c(arena: *u8, ctx: *u8, ty: i32): i32 {
-  let m: *u8 = 0 as *u8;
+  // Tip Win monofile XT001: avoid `let m: *u8` (caller check_block). PLATFORM: SHARED.
+  let m: usize = 0;
   let nm: u8[256] = [];
   let nlen: i32 = 0;
   let li: i32 = 0;
@@ -1510,29 +1555,29 @@ function glue_aapcs64_hfa_nregs_c(arena: *u8, ctx: *u8, ty: i32): i32 {
   }
   if (ctx != (0 as *u8)) {
     unsafe {
-      m = glue_emit_module_from_ctx(ctx);
+      m = glue_emit_module_from_ctx(ctx) as usize;
     }
   }
-  if (m == (0 as *u8)) {
+  if (m == 0) {
     unsafe {
-      m = pipeline_asm_emit_module_ref_c();
+      m = pipeline_asm_emit_module_ref_c() as usize;
     }
   }
-  if (m == (0 as *u8)) { return 0; }
+  if (m == 0) { return 0; }
   unsafe {
     nlen = pipeline_type_named_name_into(arena, ty, &nm[0]);
   }
   if (nlen <= 0 || nlen > 255) { return 0; }
-  li = glue_asm_fmt_any_find_layout(m, &nm[0], nlen);
+  li = glue_asm_fmt_any_find_layout(m as *u8, &nm[0], nlen);
   if (li < 0) { return 0; }
   unsafe {
-    nf = pipeline_module_struct_layout_num_fields(m, li);
+    nf = pipeline_module_struct_layout_num_fields(m as *u8, li);
   }
   if (nf < 1 || nf > 4) { return 0; }
   j = 0;
   while (j < nf) {
     unsafe {
-      fty = pipeline_module_struct_layout_field_type_ref(m, li, j);
+      fty = pipeline_module_struct_layout_field_type_ref(m as *u8, li, j);
       ftk = pipeline_type_kind_ord_at(arena, fty);
     }
     if (ftk != 14 && ftk != 15) { return 0; }
@@ -2219,7 +2264,7 @@ export function glue_emit_call_args_elf_sysv_f32_xmm_c(arena: *u8, elf: *u8, er:
           // w1044/w1041: single-GP EXPR_VAR reuses stack home on the default
           // f32_xmm packer. Skip TYPE_ARRAY/SLICE — emit LEAs those homes.
           // PLATFORM: SHARED x86_64 SysV.
-          let home_off_f: i32 = 0 - 1;
+          let home_off_f: i32 = (0 - 1);
           if (is_sse_f[i] == 0 && gp_units_f[i] == 1
               && pipeline_expr_kind_ord_at(arena, arg_ref_f) == 3
               && w1521_win_mem_byref_sz(glue_sysv_arg_byte_size_c(arena, ctx, glue_call_param_type_ref_at(arena, er, i), arg_ref_f)) == 0) {
@@ -2556,11 +2601,11 @@ export function glue_asm_build_call_export_sym_c(
         if (path[0] != 0) {
           if (dep_mod != 0) {
             let want_np: i32 = pipeline_expr_call_num_args_at(arena, call_expr_ref);
-            let use_fi: i32 = 0 - 1;
+            let use_fi: i32 = (0 - 1);
             let r_func: i32 = pipeline_expr_call_resolved_func_index_at(arena, call_expr_ref);
             let r_dep: i32 = pipeline_expr_call_resolved_dep_index_at(arena, call_expr_ref);
             let mid: u8[256] = [];
-            let mid_len: i32 = 0 - 1;
+            let mid_len: i32 = (0 - 1);
             let da: *u8 = dep_arena;
             if (da == 0 as *u8) { da = arena; }
             // CALL expr + resolved_func_index live in the caller arena.
@@ -2647,7 +2692,7 @@ export function glue_asm_build_call_export_sym_c(
           // parser_parse_one_function_impl. Scan past the extern and use
           // that definition's export symbol. No twin: keep the raw extern
           // name (glue and libc declarations).
-          let twin_ix: i32 = 0 - 1;
+          let twin_ix: i32 = (0 - 1);
           if (clen > 0) {
             let scan_i: i32 = 0;
             let nfuncs_scan: i32 = pipeline_module_num_funcs(mod);
@@ -2896,6 +2941,20 @@ export function glue_asm_build_func_export_sym_c(m: *u8, a: *u8, func_ix: i32, o
     if (glue_asm_std_c_wrapper_fname_needs_export_c_suffix(&fname[0], fname_len) != 0) {
       pos = glue_asm_append_export_c_suffix(out, pos, out_cap);
     }
+    /* LANG-005: same-name overload impl methods — append _Owner so B.g≠A.g. */
+    let own: u8[64] = [];
+    let olen: i32 = pipeline_module_func_owner_copy(m, func_ix, &own[0], 63);
+    if (olen > 0) {
+      if (pos + 1 + olen >= out_cap) { return 0 - 1; }
+      out[pos] = 95;
+      pos = pos + 1;
+      let oi: i32 = 0;
+      while (oi < olen) {
+        out[pos] = own[oi];
+        pos = pos + 1;
+        oi = oi + 1;
+      }
+    }
     if (pos > 0) { return pos; }
   }
   return 0 - 1;
@@ -2921,8 +2980,72 @@ export function glue_asm_build_func_export_sym_c(m: *u8, a: *u8, func_ix: i32, o
  * @return i32 — 1 emitted, 0 not applicable, -1 hard fail
  * PLATFORM: SHARED — METHOD_CALL + CALL; wave108 opens aarch64 (ADR x0 + mov len w1).
  */
+
+// typool of glue_asm_try_emit_fmt_string_lit_import_call_elf_c hoists
+// `u8[4096]=[]` to `lea -0x30(%rbp)` (the ta home) and zeros upward
+// through saved rbx/rbp/ret before the field_len early return, so the
+// first import METHOD (option.none_i32, field_len=8) AVs in typool
+// fmt_lit. Same class as typool of fmt_any's `u8[256]`. Keep the
+// print/println predicate in a tiny frame with no large array; the
+// bodies (and their buffers) run only on a real fmt.print* match.
+function w1521_is_fmt_print_field(pre_buf: *u8, pre_len: i32, field_name: *u8, field_len: i32): i32 {
+  if (pre_buf == (0 as *u8)) { return 0; }
+  if (field_name == (0 as *u8)) { return 0; }
+  if (glue_asm_prefix_is_fmt_or_debug(pre_buf, pre_len) == 0) { return 0; }
+  unsafe {
+    if (field_len == 7) {
+      if (field_name[0]==112&&field_name[1]==114&&field_name[2]==105&&field_name[3]==110
+          &&field_name[4]==116&&field_name[5]==108&&field_name[6]==110) {
+        return 1;
+      }
+      return 0;
+    }
+    if (field_len == 5) {
+      if (field_name[0]==112&&field_name[1]==114&&field_name[2]==105&&field_name[3]==110&&field_name[4]==116) {
+        return 1;
+      }
+      return 0;
+    }
+    return 0;
+  }
+  return 0;
+}
+
 #[no_mangle]
 export function glue_asm_try_emit_fmt_string_lit_import_call_elf_c(
+  arena: *u8, elf_ctx: *u8, call_expr_ref: i32, ctx: *u8, ta: i32,
+  pre_buf: *u8, pre_len: i32, field_name: *u8, field_len: i32
+): i32 {
+  if (arena == 0 as *u8) { return 0; }
+  if (elf_ctx == 0) { return 0; }
+  if (ctx == 0 as *u8) { return 0; }
+  if (call_expr_ref <= 0) { return 0; }
+  if (ta != 0) {
+    if (ta != 1) { return 0; }
+  }
+  if (w1521_is_fmt_print_field(pre_buf, pre_len, field_name, field_len) == 0) { return 0; }
+  return glue_asm_try_emit_fmt_string_lit_import_call_body(
+    arena, elf_ctx, call_expr_ref, ctx, ta, pre_buf, pre_len, field_name, field_len);
+}
+
+#[no_mangle]
+export function glue_asm_try_emit_fmt_any_import_call_elf_c(
+  arena: *u8, elf_ctx: *u8, call_expr_ref: i32, ctx: *u8, ta: i32,
+  pre_buf: *u8, pre_len: i32, field_name: *u8, field_len: i32
+): i32 {
+  if (arena == 0 as *u8) { return 0; }
+  if (elf_ctx == 0) { return 0; }
+  if (ctx == 0 as *u8) { return 0; }
+  if (call_expr_ref <= 0) { return 0; }
+  if (ta != 0) {
+    if (ta != 1) { return 0; }
+  }
+  if (w1521_is_fmt_print_field(pre_buf, pre_len, field_name, field_len) == 0) { return 0; }
+  return glue_asm_try_emit_fmt_any_import_call_body(
+    arena, elf_ctx, call_expr_ref, ctx, ta, pre_buf, pre_len, field_name, field_len);
+}
+
+function glue_asm_try_emit_fmt_string_lit_import_call_body(
   arena: *u8, elf_ctx: *u8, call_expr_ref: i32, ctx: *u8, ta: i32,
   pre_buf: *u8, pre_len: i32, field_name: *u8, field_len: i32
 ): i32 {
@@ -3115,8 +3238,8 @@ base_off: i32, depth: i32): i32 {
   let fty: i32 = 0;
   let foff: i32 = 0;
   let ftk: i32 = 0;
-  let is_some_j: i32 = 0 - 1;
-  let value_j: i32 = 0 - 1;
+  let is_some_j: i32 = (0 - 1);
+  let value_j: i32 = (0 - 1);
   let sub: i32 = 0;
   let is_opt: i32 = 0;
   if (m == 0 as *u8 || arena == 0 as *u8 || out == 0 as *u8 || ty <= 0 || cap <= 0) {
@@ -3308,8 +3431,7 @@ base_off: i32, depth: i32): i32 {
  * @return i32 — 1 emitted, 0 not applicable, -1 hard fail
  * PLATFORM: SHARED — print_any; calls std_fmt_json_println_schema / _print_schema.
  */
-#[no_mangle]
-export function glue_asm_try_emit_fmt_any_import_call_elf_c(
+function glue_asm_try_emit_fmt_any_import_call_body(
   arena: *u8, elf_ctx: *u8, call_expr_ref: i32, ctx: *u8, ta: i32,
   pre_buf: *u8, pre_len: i32, field_name: *u8, field_len: i32
 ): i32 {
@@ -3645,7 +3767,7 @@ export function pipeline_asm_emit_call_args_elf_c(
     let sret_sh: i32 = 0;
     // -2: nothing parked. Only the global flag parks; w1545_pend reloads
     // rcx itself later. PLATFORM: x86_64. AAPCS64 leaves this at -2.
-    let sret_park: i32 = 0 - 2;
+    let sret_park: i32 = (0 - 2);
     if (ta == 0) {
       sret_sh = pipeline_asm_emit_call_sret_reg_shift_c();
       // w1545: hidden return pointer (rcx) of this call. PLATFORM: WINDOWS.
@@ -3786,12 +3908,13 @@ export function pipeline_asm_emit_call_args_elf_c(
             fp_cur = fp_cur + hn;
           }
         } else if (glue_arg_ref_is_f64_width_c(arena, ctx, ar_i, pty_i) != 0
-            || (pty_i <= 0 && glue_arg_ref_is_sse_float_c(arena, ar_i, pty_i) != 0)) {
-          /* AAPCS64 FP class: f64 scalars pass in v0-v7 (fmov dK of the rax
-           * bits at reload), independent of the GP cursor (x0-x7). Variadic
-           * f32 extras (no formal, pty<=0) also take a v-slot so Cap va_arg<f32>
-           * walking the FP save sees them. Named f32 stays GP this wave
-           * (callee param home is f64-only).
+            || glue_arg_ref_is_sse_float_c(arena, ar_i, pty_i) != 0) {
+          /* AAPCS64 FP class: f32 and f64 scalars pass in v0-v7 (fmov dK of
+           * the rax bits at reload), independent of the GP cursor (x0-x7).
+           * Param home reads kind 14 and kind 15 from sK/dK. A named f32
+           * left in a GP disagrees with that home (f32_id / from_lanes).
+           * Variadic f32 extras (pty<=0) stay on the same v-slot so
+           * va_arg<f32> still sees them.
            * PLATFORM: MACOS|ARM64 AAPCS64. */
           gp_units[i] = 1;
           gp_start[i] = 0 - 1;
@@ -3822,7 +3945,7 @@ export function pipeline_asm_emit_call_args_elf_c(
         if (gp_start[i] >= 0 || fp_slot[i] >= 0) {
           let arg_ref: i32 = pipeline_expr_call_arg_ref(arena, expr_ref, i);
           if (arg_ref != 0) {
-            let home_off: i32 = 0 - 1;
+            let home_off: i32 = (0 - 1);
             /* w2060: >16B byref — lea / materialize address into rax. */
             if (is_mem_a[i] == 2) {
               if (glue_emit_arm64_host_mem_arg_addr_to_rax_c(
@@ -4017,7 +4140,7 @@ export function pipeline_asm_emit_call_args_elf_c(
         if (gp_start[i] >= 0) {
           let arg_ref: i32 = pipeline_expr_call_arg_ref(arena, expr_ref, i);
           if (arg_ref != 0) {
-            let home_off: i32 = 0 - 1;
+            let home_off: i32 = (0 - 1);
             if (is_sse[i] == 0 && gp_units[i] == 1
                 && pipeline_expr_kind_ord_at(arena, arg_ref) == 3
                 && w1521_win_mem_byref_sz(glue_sysv_arg_byte_size_c(arena, ctx, glue_call_param_type_ref_at(arena, expr_ref, i), arg_ref)) == 0) {
@@ -4546,47 +4669,246 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
   return w1521_sret_wrap(arena, elf_ctx, expr_ref, ctx, ta, 1);
 }
 
-function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+// typool in the large emit_method_body frame stores a scalar in one slot and
+// compares / passes another uninitialized slot (nargs stored at -0x1e0, passed
+// from -0x4048; try_emit status stored at -0x1f8, compared from -0x4af8).
+// Compute and guard those values in a small-frame helper so store and compare
+// share a slot. Return -1 fail, 1 early-emitted, 0 continue.
+function w1521_emit_method_early(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
   if (arena == 0 as *u8) { return 0 - 1; }
   if (elf_ctx == 0) { return 0 - 1; }
   if (ctx == 0 as *u8) { return 0 - 1; }
   unsafe {
-    let mod_ref: *u8 = call_dispatch_load_ptr_le(ctx, 16);
     let nargs: i32 = pipeline_expr_method_call_num_args_at(arena, expr_ref);
-    /** Product parses core.xlang_io_submit_*_batch as METHOD_CALL with >5 args; seed _impl is authority. */
     if (nargs < 0) { return 0 - 1; }
     if (nargs > 96) { return 0 - 1; }
-    let base_ref: i32 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
     let name_len: i32 = pipeline_expr_method_call_name_len(arena, expr_ref);
     if (name_len <= 0) { return 0 - 1; }
     if (name_len > 255) { return 0 - 1; }
     let name: u8[256] = [];
     pipeline_expr_method_call_name_into(arena, expr_ref, &name[0]);
-    /* stage10 S3.1 slice2 (10.1.1): dot-call raw_syscall0..6 shape
-     * (linux.raw_syscall3(...) parses here; before dyn/UFCS/try_inline). */
-    {
-      let rs_mc: i32 = try_emit_raw_syscall_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
-      if (rs_mc < 0) { return 0 - 1; }
-      if (rs_mc > 0) { return 0; }
+    let rs_mc: i32 = try_emit_raw_syscall_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+    if (rs_mc < 0) { return 0 - 1; }
+    if (rs_mc > 0) { return 1; }
+    let va_mc: i32 = try_emit_va_cap_builtin_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+    if (va_mc < 0) { return 0 - 1; }
+    if (va_mc > 0) { return 1; }
+    let at_mc: i32 = try_emit_atomic_builtin_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+    if (at_mc < 0) { return 0 - 1; }
+    if (at_mc > 0) { return 1; }
+    let sd_mc: i32 = try_emit_simd_lang_builtin_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+    if (sd_mc < 0) { return 0 - 1; }
+    if (sd_mc > 0) { return 1; }
+    return 0;
+  }
+  return 0 - 1;
+}
+
+// typool of w1521_emit_method_body_tail stores method base_ref at one slot
+// (-0x1e8) and later passes/compares a different uninitialized slot (-0x4050,
+// live 246). The same class stored ff_ok = 0 in the -0x1f8 cluster and then
+// set/compared ff_ok at -0x4b10, so the Cap/TYPE_FN field arm fired on
+// leftover stack garbage. Compute those scalars in small-frame helpers;
+// typool of `if (helper() != 0)` uses %eax, and each helper stores and
+// passes the same slot.
+function w1521_method_base_ref(arena: *u8, expr_ref: i32): i32 {
+  unsafe {
+
+    return pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+  }
+  return 0;
+}
+
+function w1521_method_base_nz(arena: *u8, expr_ref: i32): i32 {
+  unsafe {
+
+    let br: i32 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    if (br != 0) { return 1; }
+    return 0;
+  }
+  return 0;
+}
+
+function w1521_method_base_gt0(arena: *u8, expr_ref: i32): i32 {
+  unsafe {
+
+    let br: i32 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    if (br > 0) { return 1; }
+    return 0;
+  }
+  return 0;
+}
+
+function w1521_method_base_kind_ord(arena: *u8, expr_ref: i32): i32 {
+  unsafe {
+
+    let br: i32 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    return pipeline_expr_kind_ord_at(arena, br);
+  }
+  return 0;
+}
+
+function w1521_method_base_var_name_len(arena: *u8, expr_ref: i32): i32 {
+  unsafe {
+
+    let br: i32 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    return pipeline_expr_var_name_len(arena, br);
+  }
+  return 0;
+}
+
+function w1521_method_base_var_name_into(arena: *u8, expr_ref: i32, dst: *u8): i32 {
+  unsafe {
+
+    let br: i32 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    pipeline_expr_var_name_into(arena, br, dst);
+    return br;
+  }
+  return 0;
+}
+
+function w1521_method_base_resolved_type(arena: *u8, expr_ref: i32): i32 {
+  unsafe {
+
+    let br: i32 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    return pipeline_expr_resolved_type_ref(arena, br);
+  }
+  return 0;
+}
+
+function w1521_emit_lvalue_method_base(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  unsafe {
+
+    let br: i32 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    return pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, br, ctx, ta);
+  }
+  return 0 - 1;
+}
+
+function w1521_emit_expr_method_base(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  unsafe {
+
+    let br: i32 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    return pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, br, ctx, ta);
+  }
+  return 0 - 1;
+}
+
+function w1521_glue_emit_one_call_arg_method_base(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  unsafe {
+
+    let br: i32 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    return glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, br, 0, ctx, ta);
+  }
+  return 0 - 1;
+}
+
+// typool of w1521_emit_method_body_tail stores dep_idx / r_fn / mod_ref /
+// base_len at -0x200 / -0x1f8 / -0x1d8 / -0x2d0 and later compares
+// -0x4168 / -0x4160 / -0x4040 / -0x4bc0, so the import METHOD arm never
+// runs and typool still returns 0. Predicate helpers so typool of
+// `if (helper() != 0)` uses %eax. Do not keep `let n = helper(); if (n > 0)`
+// in a large typool frame.
+function w1521_method_dep_is_dyn(arena: *u8, expr_ref: i32): i32 {
+  unsafe {
+
+    if (pipeline_expr_call_resolved_dep_index_at(arena, expr_ref) == (0 - 2)) { return 1; }
+    return 0;
+  }
+  return 0;
+}
+
+function w1521_method_rfn_lt0(arena: *u8, expr_ref: i32): i32 {
+  unsafe {
+
+    if (pipeline_expr_call_resolved_func_index_at(arena, expr_ref) < 0) { return 1; }
+    return 0;
+  }
+  return 0;
+}
+
+function w1521_method_rfn(arena: *u8, expr_ref: i32): i32 {
+  unsafe {
+
+    return pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+  }
+  return 0 - 1;
+}
+
+function w1521_method_mod_ref_nz(ctx: *u8): i32 {
+  if (ctx == (0 as *u8)) { return 0; }
+  unsafe {
+
+    if (call_dispatch_load_ptr_le(ctx, 16) != (0 as *u8)) { return 1; }
+    return 0;
+  }
+  return 0;
+}
+
+function w1521_method_mod_ref(ctx: *u8): *u8 {
+  if (ctx == (0 as *u8)) { return 0 as *u8; }
+  unsafe {
+
+    return call_dispatch_load_ptr_le(ctx, 16);
+  }
+  return 0 as *u8;
+}
+
+function w1521_method_base_kind_is_var(arena: *u8, expr_ref: i32): i32 {
+  unsafe {
+
+    let br: i32 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    if (pipeline_expr_kind_ord_at(arena, br) == 3) { return 1; }
+    return 0;
+  }
+  return 0;
+}
+
+function w1521_method_base_len_in_255(arena: *u8, expr_ref: i32): i32 {
+  unsafe {
+
+    let br: i32 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    let n: i32 = pipeline_expr_var_name_len(arena, br);
+    if (n > 0) {
+      if (n <= 255) { return 1; }
     }
-    /* Cap 10.7.1 slice12: va_* Cap METHOD_CALL (x86_64). */
-    {
-      let va_mc: i32 = try_emit_va_cap_builtin_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
-      if (va_mc < 0) { return 0 - 1; }
-      if (va_mc > 0) { return 0; }
-    }
-    /* 10.4.1 slice1: atomic_load/store/cas_i32 METHOD_CALL (x86_64 only). */
-    {
-      let at_mc: i32 = try_emit_atomic_builtin_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
-      if (at_mc < 0) { return 0 - 1; }
-      if (at_mc > 0) { return 0; }
-    }
-    /* 10.5.1 slice0: add_f32x4 / mul_f32x4 language SIMD builtins (x86 SSE). */
-    {
-      let sd_mc: i32 = try_emit_simd_lang_builtin_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
-      if (sd_mc < 0) { return 0 - 1; }
-      if (sd_mc > 0) { return 0; }
-    }
+    return 0;
+  }
+  return 0;
+}
+
+function w1521_method_import_bind_eq(arena: *u8, expr_ref: i32, mod_ref: *u8, j: i32): i32 {
+  if (mod_ref == (0 as *u8)) { return 0; }
+  unsafe {
+
+    if (pipeline_module_import_kind_at(mod_ref, j) != 1) { return 0; }
+    if (w1521_method_base_len_in_255(arena, expr_ref) == 0) { return 0; }
+    let n: i32 = w1521_method_base_var_name_len(arena, expr_ref);
+    let nm: u8[256] = [];
+    w1521_method_base_var_name_into(arena, expr_ref, &nm[0]);
+    if (glue_asm_import_binding_name_equal(mod_ref, j, &nm[0], n) != 0) { return 1; }
+    return 0;
+  }
+  return 0;
+}
+
+// Cap/TYPE_FN field method arm. idx8 tail typool stored ff_ok init and
+// base_ref in one band and later compared/passed different slots, so
+// is_none_i32 entered this arm with r8=246 into emit_lvalue. Keep this
+// helper's frame small: same-slot scalars, return -1 / 1 emitted / 0
+// fall through (including stack-arg Cap, which must keep UFCS).
+function w1521_try_emit_method_field_fn(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  unsafe {
+
+    if (arena == 0 as *u8) { return 0 - 1; }
+    if (elf_ctx == 0) { return 0 - 1; }
+    if (ctx == 0 as *u8) { return 0 - 1; }
+    let mod_ref: *u8 = call_dispatch_load_ptr_le(ctx, 16);
+    let nargs: i32 = pipeline_expr_method_call_num_args_at(arena, expr_ref);
+    let base_ref: i32 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    let name_len: i32 = pipeline_expr_method_call_name_len(arena, expr_ref);
+    let name: u8[256] = [];
+    pipeline_expr_method_call_name_into(arena, expr_ref, &name[0]);
     /*
      * 10.3.3 slice3: METHOD_CALL `h.f(args)` when `f` is Cap/TYPE_FN field.
      * typeck stamps ret; emit loads field into rax/x0 then Cap blr (no self arg).
@@ -4699,7 +5021,7 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
           }
           if (nargs == 0) {
             if (backend_enc_blr_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
-            return 0;
+            return 1;
           }
           ff_reg_max = glue_asm_call_reg_max(ta);
           if (ff_reg_max < 1) { ff_reg_max = 6; }
@@ -4737,10 +5059,471 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
             }
             if (backend_enc_blr_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
           }
-          return 0;
+          return 1;
         }
       }
     }
+    return 0;
+  }
+  return 0 - 1;
+}
+
+// Import-binding METHOD_CALL `option.none_i32(...)` / `m.f(...)`.
+// typool of this arm in w1521_emit_method_body_tail compared the wrong
+// mod_ref / base_len slots and returned 0 without emitting a call.
+// Small-wrapper 3-way calls this helper; predicates use %eax. Return
+// -1 fail / 1 emitted / 0 fall through (no matching import).
+function w1521_try_emit_import_method(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  if (arena == 0 as *u8) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (ctx == 0 as *u8) { return 0 - 1; }
+  unsafe {
+
+    if (w1521_method_mod_ref_nz(ctx) == 0) { return 0; }
+    if (w1521_method_base_gt0(arena, expr_ref) == 0) { return 0; }
+    if (w1521_method_base_kind_is_var(arena, expr_ref) == 0) { return 0; }
+    if (w1521_method_base_len_in_255(arena, expr_ref) == 0) { return 0; }
+    let mod_ref: *u8 = w1521_method_mod_ref(ctx);
+    if (mod_ref == (0 as *u8)) { return 0; }
+    let name_len: i32 = pipeline_expr_method_call_name_len(arena, expr_ref);
+    if (name_len <= 0) { return 0; }
+    if (name_len > 255) { return 0 - 1; }
+    let name: u8[256] = [];
+    pipeline_expr_method_call_name_into(arena, expr_ref, &name[0]);
+    let nargs: i32 = pipeline_expr_method_call_num_args_at(arena, expr_ref);
+    if (nargs < 0) { return 0 - 1; }
+    let j: i32 = 0;
+    let nimp: i32 = parser_get_module_num_imports(mod_ref);
+    while (j < nimp) {
+      if (w1521_method_import_bind_eq(arena, expr_ref, mod_ref, j) != 0) {
+        let pre_buf: u8[128] = [];
+        let pre_len: i32 = glue_asm_fill_c_prefix_from_module_import(mod_ref, j, &pre_buf[0]);
+        if (pre_len <= 0) { return 0 - 1; }
+        // PLATFORM: SHARED — fmt.println string lit (METHOD_CALL). G.7 seed _impl same leaf.
+        let fmt_lit: i32 = glue_asm_try_emit_fmt_string_lit_import_call_elf_c(
+          arena, elf_ctx, expr_ref, ctx, ta, &pre_buf[0], pre_len, &name[0], name_len);
+        if (fmt_lit < 0) { return 0 - 1; }
+        if (fmt_lit > 0) { return 1; }
+        /* PLATFORM: SHARED — fmt.println(composite) JSON any (print_any). */
+        let fmt_any: i32 = glue_asm_try_emit_fmt_any_import_call_elf_c(
+          arena, elf_ctx, expr_ref, ctx, ta, &pre_buf[0], pre_len, &name[0], name_len);
+        if (fmt_any < 0) { return 0 - 1; }
+        if (fmt_any > 0) { return 1; }
+        let sym_flat: u8[256] = [];
+        /*
+         * PLATFORM: SHARED — import METHOD mangle (G.7 ≡ seed).
+         * Bare pre+name → U std_string_length / std_string_is_empty while
+         * string.o exports length_String / is_empty_String. Seed
+         * glue_asm_mangle_import_binding_call_sym_c is authority; pure PREFER
+         * must call the same surface (not bare build).
+         */
+        let sym_len: i32 = glue_asm_mangle_import_binding_call_sym_c(
+          arena, ctx, expr_ref, mod_ref, j, &pre_buf[0], pre_len, &name[0], name_len, 1, &sym_flat[0]
+        );
+        if (sym_len <= 0) { return 0 - 1; }
+        let n_ov: i32 = pipeline_codegen_call_num_args_override(&pre_buf[0], pre_len, &name[0], name_len, nargs);
+        /*
+         * PLATFORM: SHARED freestanding multi-arg · MACOS|ARM64 AAPCS64 + LINUX x86 SysV.
+         * Root (mac option residual): import-binding METHOD_CALL must spill-then-load
+         * (same as pipeline_asm_emit_call_args_elf_c / seed wave602). Direct place via
+         * x0 temp after nested CALL clobbers Option in x0 (unwrap_or(some(42),0)→0).
+         * Root (run-result 173 residual): pure import METHOD path hard-coded gp_units=1
+         * and used arg index as GP index → Result_i32 (16B INTEGER dual-GP) only packed
+         * lows into x0/x1; host core_result_or_i32 expects x0:x1 + x2:x3 → return -3.
+         * Free CALL already uses size→units + gp_start; import METHOD must match.
+         * Root (run-slice subslice_split_chunks SEGV): pure import METHOD started
+         * gp_cur at 0 while let-init sret had already placed hidden dest in rdi and
+         * set call_sret_reg_shift=1. Args overwrote rdi with arg0 → callee
+         * core_slice_split_at_i32 (sret, slice*, at) read at-as-pointer → SEGV.
+         * Seed twin already starts gp_cur at sret_sh; pure .x must match.
+         * G.7: one discipline for free CALL and import METHOD_CALL (dual-GP + sret).
+         */
+        {
+          let spill_off_m: i32[96] = [];
+          let gp_start_m: i32[96] = [];
+          let gp_units_m: i32[96] = [];
+          // is_mem_m: 0=reg/int, 1=x86 SysV MEMORY stack, 2=arm64 host-indirect lea.
+          let is_mem_m: i32[96] = [];
+          let is_sse_m: i32[96] = [];
+          let is_f64_m: i32[96] = [];
+          let arg_sz_m: i32[96] = [];
+          let i_m: i32 = 0;
+          let mem_stack_m: i32 = 0;
+          let xmm_cur_m: i32 = 0;
+          // PLATFORM: SHARED — SysV 6 (rdi..r9) / AAPCS64 8 (x0–x7).
+          // Seed twin pipeline_asm_emit_method_call_elf_c_impl must call this
+          // (not hardcode 6): Darwin product L2 is the seed; csv.parse_row's
+          // 7th GP is x6. Free CALL / UFCS already use glue_asm_call_reg_max.
+          let reg_max_m: i32 = glue_asm_call_reg_max(ta);
+          // SysV hidden sret consumes rdi (GP0); shift formals by sret_sh.
+          // PLATFORM: SHARED — LINUX+MACOS x86_64 SysV; AAPCS64 uses x8 (sret_sh=0).
+          let sret_sh_m: i32 = 0;
+          let sret_park_m: i32 = (0 - 2);
+          if (ta == 0) {
+            sret_sh_m = pipeline_asm_emit_call_sret_reg_shift_c();
+            if (sret_sh_m == 0) { sret_sh_m = w1545_pend_is(expr_ref); }
+            // Same flag scope as free CALL. Nested args must not
+            // inherit rdi/rcx. PLATFORM: LINUX+WINDOWS x86_64.
+            sret_park_m = w1546_park_call_sret_arg0(elf_ctx, ctx, ta);
+            if (sret_park_m == (0 - 1)) { return 0 - 1; }
+          }
+          let gp_cur_m: i32 = sret_sh_m;
+          if (reg_max_m < 1) { reg_max_m = 6; }
+          // w1521: arm64 X-to-X import METHOD (std .x bodies) → stack MEMORY.
+          let x_callee_m: i32 = 0;
+          if (ta == 1) {
+            x_callee_m = w1521_callee_is_xlang(arena, expr_ref);
+          }
+          /*
+           * Classify large POD for import METHOD → host-C std .o (string.o):
+           * - PLATFORM: LINUX|x86_64 SysV — MEMORY by-value on stack (gcc formals
+           *   at [rbp+0x10..]; run-string length(String) residual when lea→rdi).
+           * - PLATFORM: MACOS|ARM64 AAPCS64 — large composite as pointer in GP
+           *   (lea; host-C std_string_length_String takes x0=&String).
+           * Pure→pure UFCS still uses MEMORY stack on its own path (wave602).
+           * G.7: one authority with seed is_mem=1 (x86) / is_mem=2 (arm64).
+           */
+          while (i_m < nargs) {
+            let ar_m: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_m);
+            let pty_m: i32 = glue_call_param_type_ref_at(arena, expr_ref, i_m);
+            let sz_m: i32 = glue_sysv_arg_byte_size_c(arena, ctx, pty_m, ar_m);
+            let u_m: i32 = glue_sysv_arg_gp_units_from_size_c(sz_m);
+            spill_off_m[i_m] = 0 - 1;
+            is_mem_m[i_m] = 0;
+            is_sse_m[i_m] = 0;
+            is_f64_m[i_m] = 0;
+            arg_sz_m[i_m] = sz_m;
+            gp_start_m[i_m] = 0 - 1;
+            gp_units_m[i_m] = 0;
+            // PLATFORM: LINUX+MACOS x86_64 SysV — f32/f64 extras go xmm0–7.
+            // PLATFORM: MACOS|ARM64 AAPCS64 — same extras go s0–s7 / d0–d7
+            // (host-C gcc reads FP regs). Encoder now has fmov sK,w0.
+            // Param home reads f32 (kind 14) and f64 (kind 15) from
+            // sK/dK. Import METHOD, UFCS, the free CALL packer,
+            // and param home all use v-slots for both widths.
+            if (ta == 0 || ta == 1) {
+              is_sse_m[i_m] = glue_arg_ref_is_sse_float_c(arena, ar_m, pty_m);
+              is_f64_m[i_m] = glue_arg_ref_is_f64_width_c(arena, ctx, ar_m, pty_m);
+            }
+            if (is_sse_m[i_m] != 0) {
+              // PLATFORM: WINDOWS x86_64 — positional slot. gp_cur_m
+              // already includes the sret shift. Slot >= 4 clears
+              // is_sse so it is not a System V push.
+              // PLATFORM: LINUX+MACOS x86_64 SysV · MACOS|ARM64 — xmm/v file.
+              let win_m: i32 = 0;
+              if (ta == 0) {
+                unsafe {
+                  if (link_abi_host_is_windows() != 0) { win_m = 1; }
+                }
+              }
+              if (win_m != 0) {
+                let use_xmm_m: i32 = 0;
+                let slot_m: i32 = 0;
+                w1547_win_place_float(&gp_cur_m, &use_xmm_m, &slot_m);
+                gp_start_m[i_m] = slot_m;
+                gp_units_m[i_m] = 1;
+                if (use_xmm_m == 0) {
+                  is_sse_m[i_m] = 0;
+                }
+              } else {
+                if (xmm_cur_m >= 8) { return 0 - 1; }
+                gp_start_m[i_m] = xmm_cur_m;
+                gp_units_m[i_m] = 1;
+                xmm_cur_m = xmm_cur_m + 1;
+              }
+            } else {
+              if (u_m < 1) { u_m = 1; }
+              if (u_m > 2) { u_m = 2; }
+              if (glue_sysv_arg_is_memory_by_value_c(sz_m) != 0) {
+                if (ta == 0) {
+                  // x86 SysV MEMORY: stack only (not lea into GP).
+                  is_mem_m[i_m] = 1;
+                  gp_start_m[i_m] = 0 - 1;
+                  gp_units_m[i_m] = 0;
+                } else {
+                  // w2060: ta==1 — HFA -> V regs; else byref helper.
+                  let hn_m: i32 = glue_aapcs64_hfa_nregs_c(arena, ctx, pty_m);
+                  if (hn_m != 0) {
+                    is_mem_m[i_m] = 0;
+                    is_sse_m[i_m] = 1;
+                    is_f64_m[i_m] = 1;
+                    if (xmm_cur_m + hn_m <= 8) {
+                      gp_start_m[i_m] = xmm_cur_m;
+                      gp_units_m[i_m] = hn_m;
+                      xmm_cur_m = xmm_cur_m + hn_m;
+                    } else {
+                      return 0 - 1;
+                    }
+                  } else if (glue_aapcs64_arg_is_byref_c(arena, ctx, pty_m, sz_m) != 0) {
+                    is_mem_m[i_m] = 2;
+                    if (gp_cur_m + 1 <= reg_max_m) {
+                      gp_start_m[i_m] = gp_cur_m;
+                      gp_units_m[i_m] = 1;
+                      gp_cur_m = gp_cur_m + 1;
+                    } else {
+                      gp_start_m[i_m] = 0 - 1;
+                      gp_units_m[i_m] = 1;
+                    }
+                  } else {
+                    return 0 - 1;
+                  }
+                }
+              } else if (gp_cur_m + u_m <= reg_max_m) {
+                gp_start_m[i_m] = gp_cur_m;
+                gp_units_m[i_m] = u_m;
+                gp_cur_m = gp_cur_m + u_m;
+              } else {
+                gp_start_m[i_m] = 0 - 1;
+                gp_units_m[i_m] = u_m;
+              }
+            }
+            i_m = i_m + 1;
+          }
+          // x86: MEMORY multi-word + excess integer stack (high→low) before reg load.
+          // PLATFORM: LINUX+MACOS x86_64 SysV — pad first for 16-align (seed twin).
+          if (ta == 0) {
+            let raw_mem: i32 = 0;
+            let pushed_total: i32 = 0;
+            i_m = 0;
+            while (i_m < nargs) {
+              if (is_mem_m[i_m] == 1) {
+                raw_mem = raw_mem + ((arg_sz_m[i_m] + 7) & (0 - 8));
+              } else if (gp_start_m[i_m] < 0) {
+                // A 9–16B INTEGER that missed the GP file is two
+                // eightbytes, matching the push below.
+                // PLATFORM: LINUX+MACOS x86_64 SysV.
+                if (gp_units_m[i_m] >= 2) {
+                  raw_mem = raw_mem + 16;
+                } else {
+                  raw_mem = raw_mem + 8;
+                }
+              }
+              i_m = i_m + 1;
+            }
+            while (((raw_mem + pushed_total) & 15) != 0) {
+              if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
+              if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+              pushed_total = pushed_total + 8;
+            }
+            i_m = nargs - 1;
+            while (i_m >= 0) {
+              if (is_mem_m[i_m] == 1) {
+                let arg_mem: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_m);
+                let pushed: i32 = 0;
+                if (arg_mem == 0) { return 0 - 1; }
+                pushed = pipeline_asm_push_sysv_memory_by_value_elf_c(
+                  arena, elf_ctx, ctx, arg_mem, arg_sz_m[i_m], ta);
+                if (pushed < 0) { return 0 - 1; }
+                pushed_total = pushed_total + pushed;
+              } else if (gp_start_m[i_m] < 0) {
+                let arg_stk: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_m);
+                if (arg_stk != 0) {
+                  if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_stk, i_m, ctx, ta) != 0) {
+                    return 0 - 1;
+                  }
+                  let nb_m: i32 = glue_sysv_push_int_stack_arg_elf_c(elf_ctx, ta, gp_units_m[i_m]);
+                  if (nb_m < 0) { return 0 - 1; }
+                  pushed_total = pushed_total + nb_m;
+                }
+              }
+              i_m = i_m - 1;
+            }
+            mem_stack_m = pushed_total;
+          }
+          // Emit + spill register-class args (dual-GP; arm64 >16B → lea).
+          i_m = 0;
+          while (i_m < nargs) {
+            if (gp_start_m[i_m] >= 0) {
+              let arg_ref_m: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_m);
+              if (arg_ref_m != 0) {
+                if (is_mem_m[i_m] == 2) {
+                  // PLATFORM: MACOS|ARM64 — host-C large POD addr into GP
+                  // (VAR lea / nested CALL sret→temp+lea; save outer x8).
+                  if (glue_emit_arm64_host_mem_arg_addr_to_rax_c(
+                        arena, elf_ctx, ctx, arg_ref_m, arg_sz_m[i_m], ta) != 0) {
+                    return 0 - 1;
+                  }
+                } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref_m, i_m, ctx, ta) != 0) {
+                  return 0 - 1;
+                }
+                let so_m: i32 = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, gp_units_m[i_m]);
+                if (so_m < 0) { return 0 - 1; }
+                spill_off_m[i_m] = so_m;
+              }
+            }
+            i_m = i_m + 1;
+          }
+          // arm64 excess: place on [sp] via x0 *before* final GP load (do not clobber GPs).
+          // Skip is_mem==2 (already in GP); only true excess integer stack.
+          // w1521: is_mem==3 (X-to-X MEMORY) reserves + stores like UFCS wave606.
+          if (ta == 1) {
+            let stk_pos_m: i32 = 0;
+            let nw_m: i32 = 0;
+            let any3_m: i32 = 0;
+            i_m = 0;
+            while (i_m < nargs) {
+              if (is_mem_m[i_m] == 3) {
+                any3_m = 1;
+                nw_m = nw_m + glue_sysv_arg_stack_words_c(arg_sz_m[i_m], 0);
+              } else if (gp_start_m[i_m] < 0 && is_mem_m[i_m] != 2) {
+                nw_m = nw_m + 1;
+              }
+              i_m = i_m + 1;
+            }
+            if (any3_m != 0) {
+              mem_stack_m = (nw_m * 8 + 15) & (0 - 16);
+              if (backend_enc_call_stack_reserve_arch(elf_ctx, mem_stack_m, ta) != 0) { return 0 - 1; }
+            }
+            i_m = 0;
+            while (i_m < nargs) {
+              if (is_mem_m[i_m] == 3) {
+                let arg_m3: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_m);
+                if (arg_m3 == 0) { return 0 - 1; }
+                let moff_m3: i32 = glue_call_stk_extra_align(stk_pos_m, arg_sz_m[i_m], ta);
+                let st_m3: i32 = pipeline_asm_store_memory_by_value_to_sp_elf_c(
+                  arena, elf_ctx, ctx, arg_m3, arg_sz_m[i_m], ta, moff_m3);
+                if (st_m3 < 0) { return 0 - 1; }
+                stk_pos_m = glue_call_stk_extra_advance(moff_m3, st_m3, ta);
+              } else if (gp_start_m[i_m] < 0) {
+                if (is_mem_m[i_m] != 2) {
+                  let arg_stk_a: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_m);
+                  if (arg_stk_a != 0) {
+                    if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_stk_a, i_m, ctx, ta) != 0) {
+                      return 0 - 1;
+                    }
+                    /* wave614: natural-packing cursor (see
+                     * glue_call_stk_extra_*). */
+                    let aoff_m: i32 = glue_call_stk_extra_align(stk_pos_m, arg_sz_m[i_m], ta);
+                    if (backend_enc_store_arg_sp_offset_arch(elf_ctx, aoff_m, arg_sz_m[i_m], ta) != 0) {
+                      return 0 - 1;
+                    }
+                    stk_pos_m = glue_call_stk_extra_advance(aoff_m, arg_sz_m[i_m], ta);
+                  }
+                }
+              }
+              i_m = i_m + 1;
+            }
+          }
+          // Load high→low so x0/rax temp does not wipe lower final GPs.
+          // Dual-GP: load into gp_start_m and gp_start_m+1 (not bare arg index).
+          // SSE: reload bits then movd/movq into xmm[k] (≡ seed _impl).
+          i_m = nargs - 1;
+          while (i_m >= 0) {
+            if (spill_off_m[i_m] >= 0) {
+              if (is_sse_m[i_m] != 0) {
+                if (backend_enc_load_rbp_to_rax_arch(elf_ctx, spill_off_m[i_m], ta) != 0) {
+                  return 0 - 1;
+                }
+                if (is_f64_m[i_m] != 0) {
+                  if (backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx, gp_start_m[i_m], ta) != 0) {
+                    return 0 - 1;
+                  }
+                } else if (backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx, gp_start_m[i_m], ta) != 0) {
+                  return 0 - 1;
+                }
+              } else if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, spill_off_m[i_m], gp_start_m[i_m], gp_units_m[i_m]) != 0) {
+                return 0 - 1;
+              }
+            }
+            i_m = i_m - 1;
+          }
+          if (w1546_reload_call_sret_arg0(elf_ctx, sret_park_m, ta) != 0) { return 0 - 1; }
+          if (w1545_pend_rcx_emit(elf_ctx, expr_ref) != 0) { return 0 - 1; }
+          if (glue_asm_enc_call_redirected(elf_ctx, &sym_flat[0], sym_len, ta) != 0) { return 0 - 1; }
+          // Cleanup: MEMORY multi-word bytes when tracked; else nargs-based.
+          {
+            let cln_m: i32 = mem_stack_m;
+            if (cln_m <= 0) {
+              cln_m = glue_asm_call_stack_cleanup_bytes(ta, n_ov);
+            }
+            if (cln_m < 0) { return 0 - 1; }
+            if (cln_m > 0) {
+              if (backend_enc_call_stack_cleanup_arch(elf_ctx, cln_m, ta) != 0) { return 0 - 1; }
+            }
+          }
+        }
+        /*
+         * PLATFORM: SHARED freestanding — after import METHOD_CALL, harvest
+         * ret into full GPR (i32 sxtw / u32 zxt / f32 xmm). G.7 complete:
+         * seed _impl always harvests here; pure .x previously returned after
+         * cleanup only → AAPCS64 `ldr w0` zero-extends -1 to 0xFFFFFFFF,
+         * then full-x0 signed cmp (`call() >= 0`) is true (run-mem exit 8).
+         * Free CALL already harvests via glue_asm_emit_call_with_cleanup;
+         * import METHOD must match (same authority glue_asm_harvest_call_ret_to_gpr_c).
+         */
+        if (glue_asm_harvest_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0) {
+          return 0 - 1;
+        }
+        // PLATFORM: MACOS|ARM64 AAPCS64 — host-C returns f32/f64 in s0/d0.
+        // Shared harvest is x86-only so local xlang f32 CALL stays GP-in/GP-out.
+        // Import METHOD callee is gcc: move s0/d0 → w0/x0 after the no-op harvest.
+        if (ta == 1) {
+          let rk_m: i32 = pipeline_asm_call_return_type_kind_ord_c(arena, expr_ref);
+          if (rk_m == 14) {
+            if (backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, 0, ta) != 0) {
+              return 0 - 1;
+            }
+          } else if (rk_m == 15) {
+            if (backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, 0, ta) != 0) {
+              return 0 - 1;
+            }
+          }
+        }
+        return 1;
+      }
+      j = j + 1;
+    }
+    return 0;
+  }
+  return 0 - 1;
+}
+
+// Hooked symbol: keep this a small-frame wrapper so typool's 3-way on `st`
+// stores and compares the same slot. Heavy work is in early + field-fn +
+// import-method + tail. Field-fn must not stay in the large tail: typool
+// passed the wrong base_ref slot (246) and compared the wrong ff_ok slot.
+// Import METHOD must not stay in the large tail either: typool compared
+// the wrong mod_ref / base_len slots and skipped mangle/call emit.
+function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  if (arena == 0 as *u8) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (ctx == 0 as *u8) { return 0 - 1; }
+  let st: i32 = w1521_emit_method_early(arena, elf_ctx, expr_ref, ctx, ta);
+  if (st < 0) { return 0 - 1; }
+  if (st > 0) { return 0; }
+  st = w1521_try_emit_method_field_fn(arena, elf_ctx, expr_ref, ctx, ta);
+  if (st < 0) { return 0 - 1; }
+  if (st > 0) { return 0; }
+  st = w1521_try_emit_import_method(arena, elf_ctx, expr_ref, ctx, ta);
+  if (st < 0) { return 0 - 1; }
+  if (st > 0) { return 0; }
+  return w1521_emit_method_body_tail(arena, elf_ctx, expr_ref, ctx, ta);
+}
+
+function w1521_emit_method_body_tail(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  if (arena == 0 as *u8) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (ctx == 0 as *u8) { return 0 - 1; }
+  unsafe {
+    // note743y.5: tip frame was 0x18e8 while locals used to -0x34b0 (SEGV in
+    // import METHOD). Pad so tip-emitted prologue covers nested spill arrays.
+    // Official typool of `u8[16384] = []` unrolls 256 zero-bytes from a
+    // shallow -0x98(%rbp) through saved rbx/rbp and the return address
+    // (option/SI build SIGSEGV RIP=0 after emit_method_body). Keep the
+    // pad allocation; do not zero-init the whole array. Touch only [0].
+    let _frame_pad_y5_m: u8[16384];
+    _frame_pad_y5_m[0] = 0;
+    let mod_ref: *u8 = call_dispatch_load_ptr_le(ctx, 16);
+    /** Product parses core.xlang_io_submit_*_batch as METHOD_CALL with >5 args; seed _impl is authority. */
+    // nargs/name_len/try_emit early-outs already ran in w1521_emit_method_early
+    // (small frame). Re-fetch scalars and the name buffer for later uses here.
+    let nargs: i32 = pipeline_expr_method_call_num_args_at(arena, expr_ref);
+    let base_ref: i32 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    let name_len: i32 = pipeline_expr_method_call_name_len(arena, expr_ref);
+    let name: u8[256] = [];
+    pipeline_expr_method_call_name_into(arena, expr_ref, &name[0]);
+    // Cap/TYPE_FN field-fn arm lives in w1521_try_emit_method_field_fn
+    // (small frame). The wrapper already ran it and 3-way-branched.
     // wave359: bootstrap i32.double → 2*x when not UFCS-resolved free fn.
     let r_fn: i32 = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
     /*
@@ -4766,9 +5549,8 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
      * Without this branch, dyn calls fall into try_inline_param0_single_field_call_elf
      * which reads dyn_obj.data low 4 bytes as a value → SIGBUS on later blr.
      */
-    let dep_idx: i32 = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
-    if (dep_idx == -2) {
-      let slot: i32 = r_fn;
+    if (w1521_method_dep_is_dyn(arena, expr_ref) != 0) {
+      let slot: i32 = w1521_method_rfn(arena, expr_ref);
       if (slot < 0) { return 0 - 1; }
       /*
        * Emit extras first (x0 not live yet), spill each to the frame.
@@ -4809,15 +5591,16 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
           }
         }
         /* PLATFORM: LINUX|x86_64 SysV — f32/f64 extras go xmm0–7 then stack.
-         * PLATFORM: MACOS|ARM64 AAPCS64 — f64 extras take v-slots (callee
-         * param home reads dK since the AAPCS64 f64 boundary wave); f32
-         * stays GP-bits (param home is f64-only this wave). */
+         * PLATFORM: MACOS|ARM64 AAPCS64 — f32 and f64 extras take v-slots.
+         * Param home reads kind 14 and kind 15 from sK/dK, so a named f32
+         * in a GP misses the formal. */
         if (ta == 0) {
           is_sse_e[ei] = glue_arg_ref_is_sse_float_c(arena, arg_ex, 0);
           is_f64_e[ei] = glue_arg_ref_is_f64_width_c(arena, ctx, arg_ex, 0);
         } else {
           is_f64_e[ei] = glue_arg_ref_is_f64_width_c(arena, ctx, arg_ex, 0);
-          is_sse_e[ei] = is_f64_e[ei];
+          is_sse_e[ei] = glue_arg_ref_is_sse_float_c(arena, arg_ex, 0);
+          if (is_f64_e[ei] != 0) { is_sse_e[ei] = 1; }
         }
         if (is_sse_e[ei] != 0) {
           // PLATFORM: WINDOWS x86_64 — extras share the positional cursor
@@ -4868,7 +5651,7 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
        * receivers use the existing lvalue-LEA authority (G.7). emit_expr
        * would load the first 8 bytes (data ptr) and [x0,#8] would then
        * read past the concrete payload — SIGSEGV / exit=112 false-green. */
-      if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+      if (w1521_emit_lvalue_method_base(arena, elf_ctx, expr_ref, ctx, ta) != 0) {
         return 0 - 1;
       }
       /* x0 = &dyn_obj; load vtable ptr from dyn_obj+8 into x1. */
@@ -4889,7 +5672,7 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
       let data_off: i32 = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 1);
       if (data_off < 0) { return 0 - 1; }
       /* nargs>=2 extras occupy rdx/x2; park the fn ptr first. */
-      let fn_off: i32 = 0 - 1;
+      let fn_off: i32 = (0 - 1);
       if (nargs >= 2) {
         let cur_fn: i32 = call_dispatch_load_i32_le(ctx, 4);
         fn_off = cur_fn + 16;
@@ -4995,17 +5778,17 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
       }
       return 0;
     }
-    if (r_fn < 0) {
+    if (w1521_method_rfn_lt0(arena, expr_ref) != 0) {
       if (nargs == 0) {
         if (name_len == 6) {
-          if (base_ref != 0) {
+          if (w1521_method_base_nz(arena, expr_ref) != 0) {
             if (name[0] == 100) {
               if (name[1] == 111) {
                 if (name[2] == 117) {
                   if (name[3] == 98) {
                     if (name[4] == 108) {
                       if (name[5] == 101) {
-                        if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+                        if (w1521_emit_expr_method_base(arena, elf_ctx, expr_ref, ctx, ta) != 0) {
                           return 0 - 1;
                         }
                         if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
@@ -5015,405 +5798,6 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
                     }
                   }
                 }
-              }
-            }
-          }
-        }
-      }
-    }
-    if (mod_ref != 0) {
-      if (base_ref > 0) {
-        if (pipeline_expr_kind_ord_at(arena, base_ref) == 3) {
-          let base_len: i32 = pipeline_expr_var_name_len(arena, base_ref);
-          if (base_len > 0) {
-            // wave580 Cap: import binding name content cap 255.
-            if (base_len <= 255) {
-              let base_name: u8[256] = [];
-              pipeline_expr_var_name_into(arena, base_ref, &base_name[0]);
-              let j: i32 = 0;
-              let nimp: i32 = parser_get_module_num_imports(mod_ref);
-              while (j < nimp) {
-                if (pipeline_module_import_kind_at(mod_ref, j) == 1) {
-                  if (glue_asm_import_binding_name_equal(mod_ref, j, &base_name[0], base_len) != 0) {
-                    let pre_buf: u8[128] = [];
-                    let pre_len: i32 = glue_asm_fill_c_prefix_from_module_import(mod_ref, j, &pre_buf[0]);
-                    if (pre_len <= 0) { return 0 - 1; }
-                    // PLATFORM: SHARED — fmt.println string lit (METHOD_CALL). G.7 seed _impl same leaf.
-                    let fmt_lit: i32 = glue_asm_try_emit_fmt_string_lit_import_call_elf_c(
-                      arena, elf_ctx, expr_ref, ctx, ta, &pre_buf[0], pre_len, &name[0], name_len);
-                    if (fmt_lit < 0) { return 0 - 1; }
-                    if (fmt_lit > 0) { return 0; }
-                    /* PLATFORM: SHARED — fmt.println(composite) JSON any (print_any). */
-                    let fmt_any: i32 = glue_asm_try_emit_fmt_any_import_call_elf_c(
-                      arena, elf_ctx, expr_ref, ctx, ta, &pre_buf[0], pre_len, &name[0], name_len);
-                    if (fmt_any < 0) { return 0 - 1; }
-                    if (fmt_any > 0) { return 0; }
-                    let sym_flat: u8[256] = [];
-                    /*
-                     * PLATFORM: SHARED — import METHOD mangle (G.7 ≡ seed).
-                     * Bare pre+name → U std_string_length / std_string_is_empty while
-                     * string.o exports length_String / is_empty_String. Seed
-                     * glue_asm_mangle_import_binding_call_sym_c is authority; pure PREFER
-                     * must call the same surface (not bare build).
-                     */
-                    let sym_len: i32 = glue_asm_mangle_import_binding_call_sym_c(
-                      arena, ctx, expr_ref, mod_ref, j, &pre_buf[0], pre_len, &name[0], name_len, 1, &sym_flat[0]
-                    );
-                    if (sym_len <= 0) { return 0 - 1; }
-                    let n_ov: i32 = pipeline_codegen_call_num_args_override(&pre_buf[0], pre_len, &name[0], name_len, nargs);
-                    /*
-                     * PLATFORM: SHARED freestanding multi-arg · MACOS|ARM64 AAPCS64 + LINUX x86 SysV.
-                     * Root (mac option residual): import-binding METHOD_CALL must spill-then-load
-                     * (same as pipeline_asm_emit_call_args_elf_c / seed wave602). Direct place via
-                     * x0 temp after nested CALL clobbers Option in x0 (unwrap_or(some(42),0)→0).
-                     * Root (run-result 173 residual): pure import METHOD path hard-coded gp_units=1
-                     * and used arg index as GP index → Result_i32 (16B INTEGER dual-GP) only packed
-                     * lows into x0/x1; host core_result_or_i32 expects x0:x1 + x2:x3 → return -3.
-                     * Free CALL already uses size→units + gp_start; import METHOD must match.
-                     * Root (run-slice subslice_split_chunks SEGV): pure import METHOD started
-                     * gp_cur at 0 while let-init sret had already placed hidden dest in rdi and
-                     * set call_sret_reg_shift=1. Args overwrote rdi with arg0 → callee
-                     * core_slice_split_at_i32 (sret, slice*, at) read at-as-pointer → SEGV.
-                     * Seed twin already starts gp_cur at sret_sh; pure .x must match.
-                     * G.7: one discipline for free CALL and import METHOD_CALL (dual-GP + sret).
-                     */
-                    {
-                      let spill_off_m: i32[96] = [];
-                      let gp_start_m: i32[96] = [];
-                      let gp_units_m: i32[96] = [];
-                      // is_mem_m: 0=reg/int, 1=x86 SysV MEMORY stack, 2=arm64 host-indirect lea.
-                      let is_mem_m: i32[96] = [];
-                      let is_sse_m: i32[96] = [];
-                      let is_f64_m: i32[96] = [];
-                      let arg_sz_m: i32[96] = [];
-                      let i_m: i32 = 0;
-                      let mem_stack_m: i32 = 0;
-                      let xmm_cur_m: i32 = 0;
-                      // PLATFORM: SHARED — SysV 6 (rdi..r9) / AAPCS64 8 (x0–x7).
-                      // Seed twin pipeline_asm_emit_method_call_elf_c_impl must call this
-                      // (not hardcode 6): Darwin product L2 is the seed; csv.parse_row's
-                      // 7th GP is x6. Free CALL / UFCS already use glue_asm_call_reg_max.
-                      let reg_max_m: i32 = glue_asm_call_reg_max(ta);
-                      // SysV hidden sret consumes rdi (GP0); shift formals by sret_sh.
-                      // PLATFORM: SHARED — LINUX+MACOS x86_64 SysV; AAPCS64 uses x8 (sret_sh=0).
-                      let sret_sh_m: i32 = 0;
-                      let sret_park_m: i32 = 0 - 2;
-                      if (ta == 0) {
-                        sret_sh_m = pipeline_asm_emit_call_sret_reg_shift_c();
-                        if (sret_sh_m == 0) { sret_sh_m = w1545_pend_is(expr_ref); }
-                        // Same flag scope as free CALL. Nested args must not
-                        // inherit rdi/rcx. PLATFORM: LINUX+WINDOWS x86_64.
-                        sret_park_m = w1546_park_call_sret_arg0(elf_ctx, ctx, ta);
-                        if (sret_park_m == (0 - 1)) { return 0 - 1; }
-                      }
-                      let gp_cur_m: i32 = sret_sh_m;
-                      if (reg_max_m < 1) { reg_max_m = 6; }
-                      // w1521: arm64 X-to-X import METHOD (std .x bodies) → stack MEMORY.
-                      let x_callee_m: i32 = 0;
-                      if (ta == 1) {
-                        x_callee_m = w1521_callee_is_xlang(arena, expr_ref);
-                      }
-                      /*
-                       * Classify large POD for import METHOD → host-C std .o (string.o):
-                       * - PLATFORM: LINUX|x86_64 SysV — MEMORY by-value on stack (gcc formals
-                       *   at [rbp+0x10..]; run-string length(String) residual when lea→rdi).
-                       * - PLATFORM: MACOS|ARM64 AAPCS64 — large composite as pointer in GP
-                       *   (lea; host-C std_string_length_String takes x0=&String).
-                       * Pure→pure UFCS still uses MEMORY stack on its own path (wave602).
-                       * G.7: one authority with seed is_mem=1 (x86) / is_mem=2 (arm64).
-                       */
-                      while (i_m < nargs) {
-                        let ar_m: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_m);
-                        let pty_m: i32 = glue_call_param_type_ref_at(arena, expr_ref, i_m);
-                        let sz_m: i32 = glue_sysv_arg_byte_size_c(arena, ctx, pty_m, ar_m);
-                        let u_m: i32 = glue_sysv_arg_gp_units_from_size_c(sz_m);
-                        spill_off_m[i_m] = 0 - 1;
-                        is_mem_m[i_m] = 0;
-                        is_sse_m[i_m] = 0;
-                        is_f64_m[i_m] = 0;
-                        arg_sz_m[i_m] = sz_m;
-                        gp_start_m[i_m] = 0 - 1;
-                        gp_units_m[i_m] = 0;
-                        // PLATFORM: LINUX+MACOS x86_64 SysV — f32/f64 extras go xmm0–7.
-                        // PLATFORM: MACOS|ARM64 AAPCS64 — same extras go s0–s7 / d0–d7
-                        // (host-C gcc reads FP regs). Encoder now has fmov sK,w0.
-                        // Since the AAPCS64 f64 boundary wave, xlang-compiled
-                        // callees home f64 formals from dK too (param home),
-                        // so import-METHOD, UFCS leave, the CALL packer and
-                        // param home all agree on v-slots for f64. f32 local
-                        // formals still home from GP (f64-only wave scope).
-                        if (ta == 0 || ta == 1) {
-                          is_sse_m[i_m] = glue_arg_ref_is_sse_float_c(arena, ar_m, pty_m);
-                          is_f64_m[i_m] = glue_arg_ref_is_f64_width_c(arena, ctx, ar_m, pty_m);
-                        }
-                        if (is_sse_m[i_m] != 0) {
-                          // PLATFORM: WINDOWS x86_64 — positional slot. gp_cur_m
-                          // already includes the sret shift. Slot >= 4 clears
-                          // is_sse so it is not a System V push.
-                          // PLATFORM: LINUX+MACOS x86_64 SysV · MACOS|ARM64 — xmm/v file.
-                          let win_m: i32 = 0;
-                          if (ta == 0) {
-                            unsafe {
-                              if (link_abi_host_is_windows() != 0) { win_m = 1; }
-                            }
-                          }
-                          if (win_m != 0) {
-                            let use_xmm_m: i32 = 0;
-                            let slot_m: i32 = 0;
-                            w1547_win_place_float(&gp_cur_m, &use_xmm_m, &slot_m);
-                            gp_start_m[i_m] = slot_m;
-                            gp_units_m[i_m] = 1;
-                            if (use_xmm_m == 0) {
-                              is_sse_m[i_m] = 0;
-                            }
-                          } else {
-                            if (xmm_cur_m >= 8) { return 0 - 1; }
-                            gp_start_m[i_m] = xmm_cur_m;
-                            gp_units_m[i_m] = 1;
-                            xmm_cur_m = xmm_cur_m + 1;
-                          }
-                        } else {
-                          if (u_m < 1) { u_m = 1; }
-                          if (u_m > 2) { u_m = 2; }
-                          if (glue_sysv_arg_is_memory_by_value_c(sz_m) != 0) {
-                            if (ta == 0) {
-                              // x86 SysV MEMORY: stack only (not lea into GP).
-                              is_mem_m[i_m] = 1;
-                              gp_start_m[i_m] = 0 - 1;
-                              gp_units_m[i_m] = 0;
-                            } else {
-                              // w2060: ta==1 — HFA -> V regs; else byref helper.
-                              let hn_m: i32 = glue_aapcs64_hfa_nregs_c(arena, ctx, pty_m);
-                              if (hn_m != 0) {
-                                is_mem_m[i_m] = 0;
-                                is_sse_m[i_m] = 1;
-                                is_f64_m[i_m] = 1;
-                                if (xmm_cur_m + hn_m <= 8) {
-                                  gp_start_m[i_m] = xmm_cur_m;
-                                  gp_units_m[i_m] = hn_m;
-                                  xmm_cur_m = xmm_cur_m + hn_m;
-                                } else {
-                                  return 0 - 1;
-                                }
-                              } else if (glue_aapcs64_arg_is_byref_c(arena, ctx, pty_m, sz_m) != 0) {
-                                is_mem_m[i_m] = 2;
-                                if (gp_cur_m + 1 <= reg_max_m) {
-                                  gp_start_m[i_m] = gp_cur_m;
-                                  gp_units_m[i_m] = 1;
-                                  gp_cur_m = gp_cur_m + 1;
-                                } else {
-                                  gp_start_m[i_m] = 0 - 1;
-                                  gp_units_m[i_m] = 1;
-                                }
-                              } else {
-                                return 0 - 1;
-                              }
-                            }
-                          } else if (gp_cur_m + u_m <= reg_max_m) {
-                            gp_start_m[i_m] = gp_cur_m;
-                            gp_units_m[i_m] = u_m;
-                            gp_cur_m = gp_cur_m + u_m;
-                          } else {
-                            gp_start_m[i_m] = 0 - 1;
-                            gp_units_m[i_m] = u_m;
-                          }
-                        }
-                        i_m = i_m + 1;
-                      }
-                      // x86: MEMORY multi-word + excess integer stack (high→low) before reg load.
-                      // PLATFORM: LINUX+MACOS x86_64 SysV — pad first for 16-align (seed twin).
-                      if (ta == 0) {
-                        let raw_mem: i32 = 0;
-                        let pushed_total: i32 = 0;
-                        i_m = 0;
-                        while (i_m < nargs) {
-                          if (is_mem_m[i_m] == 1) {
-                            raw_mem = raw_mem + ((arg_sz_m[i_m] + 7) & (0 - 8));
-                          } else if (gp_start_m[i_m] < 0) {
-                            // A 9–16B INTEGER that missed the GP file is two
-                            // eightbytes, matching the push below.
-                            // PLATFORM: LINUX+MACOS x86_64 SysV.
-                            if (gp_units_m[i_m] >= 2) {
-                              raw_mem = raw_mem + 16;
-                            } else {
-                              raw_mem = raw_mem + 8;
-                            }
-                          }
-                          i_m = i_m + 1;
-                        }
-                        while (((raw_mem + pushed_total) & 15) != 0) {
-                          if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
-                          if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
-                          pushed_total = pushed_total + 8;
-                        }
-                        i_m = nargs - 1;
-                        while (i_m >= 0) {
-                          if (is_mem_m[i_m] == 1) {
-                            let arg_mem: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_m);
-                            let pushed: i32 = 0;
-                            if (arg_mem == 0) { return 0 - 1; }
-                            pushed = pipeline_asm_push_sysv_memory_by_value_elf_c(
-                              arena, elf_ctx, ctx, arg_mem, arg_sz_m[i_m], ta);
-                            if (pushed < 0) { return 0 - 1; }
-                            pushed_total = pushed_total + pushed;
-                          } else if (gp_start_m[i_m] < 0) {
-                            let arg_stk: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_m);
-                            if (arg_stk != 0) {
-                              if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_stk, i_m, ctx, ta) != 0) {
-                                return 0 - 1;
-                              }
-                              let nb_m: i32 = glue_sysv_push_int_stack_arg_elf_c(elf_ctx, ta, gp_units_m[i_m]);
-                              if (nb_m < 0) { return 0 - 1; }
-                              pushed_total = pushed_total + nb_m;
-                            }
-                          }
-                          i_m = i_m - 1;
-                        }
-                        mem_stack_m = pushed_total;
-                      }
-                      // Emit + spill register-class args (dual-GP; arm64 >16B → lea).
-                      i_m = 0;
-                      while (i_m < nargs) {
-                        if (gp_start_m[i_m] >= 0) {
-                          let arg_ref_m: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_m);
-                          if (arg_ref_m != 0) {
-                            if (is_mem_m[i_m] == 2) {
-                              // PLATFORM: MACOS|ARM64 — host-C large POD addr into GP
-                              // (VAR lea / nested CALL sret→temp+lea; save outer x8).
-                              if (glue_emit_arm64_host_mem_arg_addr_to_rax_c(
-                                    arena, elf_ctx, ctx, arg_ref_m, arg_sz_m[i_m], ta) != 0) {
-                                return 0 - 1;
-                              }
-                            } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref_m, i_m, ctx, ta) != 0) {
-                              return 0 - 1;
-                            }
-                            let so_m: i32 = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, gp_units_m[i_m]);
-                            if (so_m < 0) { return 0 - 1; }
-                            spill_off_m[i_m] = so_m;
-                          }
-                        }
-                        i_m = i_m + 1;
-                      }
-                      // arm64 excess: place on [sp] via x0 *before* final GP load (do not clobber GPs).
-                      // Skip is_mem==2 (already in GP); only true excess integer stack.
-                      // w1521: is_mem==3 (X-to-X MEMORY) reserves + stores like UFCS wave606.
-                      if (ta == 1) {
-                        let stk_pos_m: i32 = 0;
-                        let nw_m: i32 = 0;
-                        let any3_m: i32 = 0;
-                        i_m = 0;
-                        while (i_m < nargs) {
-                          if (is_mem_m[i_m] == 3) {
-                            any3_m = 1;
-                            nw_m = nw_m + glue_sysv_arg_stack_words_c(arg_sz_m[i_m], 0);
-                          } else if (gp_start_m[i_m] < 0 && is_mem_m[i_m] != 2) {
-                            nw_m = nw_m + 1;
-                          }
-                          i_m = i_m + 1;
-                        }
-                        if (any3_m != 0) {
-                          mem_stack_m = (nw_m * 8 + 15) & (0 - 16);
-                          if (backend_enc_call_stack_reserve_arch(elf_ctx, mem_stack_m, ta) != 0) { return 0 - 1; }
-                        }
-                        i_m = 0;
-                        while (i_m < nargs) {
-                          if (is_mem_m[i_m] == 3) {
-                            let arg_m3: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_m);
-                            if (arg_m3 == 0) { return 0 - 1; }
-                            let moff_m3: i32 = glue_call_stk_extra_align(stk_pos_m, arg_sz_m[i_m], ta);
-                            let st_m3: i32 = pipeline_asm_store_memory_by_value_to_sp_elf_c(
-                              arena, elf_ctx, ctx, arg_m3, arg_sz_m[i_m], ta, moff_m3);
-                            if (st_m3 < 0) { return 0 - 1; }
-                            stk_pos_m = glue_call_stk_extra_advance(moff_m3, st_m3, ta);
-                          } else if (gp_start_m[i_m] < 0) {
-                            if (is_mem_m[i_m] != 2) {
-                              let arg_stk_a: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_m);
-                              if (arg_stk_a != 0) {
-                                if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_stk_a, i_m, ctx, ta) != 0) {
-                                  return 0 - 1;
-                                }
-                                /* wave614: natural-packing cursor (see
-                                 * glue_call_stk_extra_*). */
-                                let aoff_m: i32 = glue_call_stk_extra_align(stk_pos_m, arg_sz_m[i_m], ta);
-                                if (backend_enc_store_arg_sp_offset_arch(elf_ctx, aoff_m, arg_sz_m[i_m], ta) != 0) {
-                                  return 0 - 1;
-                                }
-                                stk_pos_m = glue_call_stk_extra_advance(aoff_m, arg_sz_m[i_m], ta);
-                              }
-                            }
-                          }
-                          i_m = i_m + 1;
-                        }
-                      }
-                      // Load high→low so x0/rax temp does not wipe lower final GPs.
-                      // Dual-GP: load into gp_start_m and gp_start_m+1 (not bare arg index).
-                      // SSE: reload bits then movd/movq into xmm[k] (≡ seed _impl).
-                      i_m = nargs - 1;
-                      while (i_m >= 0) {
-                        if (spill_off_m[i_m] >= 0) {
-                          if (is_sse_m[i_m] != 0) {
-                            if (backend_enc_load_rbp_to_rax_arch(elf_ctx, spill_off_m[i_m], ta) != 0) {
-                              return 0 - 1;
-                            }
-                            if (is_f64_m[i_m] != 0) {
-                              if (backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx, gp_start_m[i_m], ta) != 0) {
-                                return 0 - 1;
-                              }
-                            } else if (backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx, gp_start_m[i_m], ta) != 0) {
-                              return 0 - 1;
-                            }
-                          } else if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, spill_off_m[i_m], gp_start_m[i_m], gp_units_m[i_m]) != 0) {
-                            return 0 - 1;
-                          }
-                        }
-                        i_m = i_m - 1;
-                      }
-                      if (w1546_reload_call_sret_arg0(elf_ctx, sret_park_m, ta) != 0) { return 0 - 1; }
-                      if (w1545_pend_rcx_emit(elf_ctx, expr_ref) != 0) { return 0 - 1; }
-                      if (glue_asm_enc_call_redirected(elf_ctx, &sym_flat[0], sym_len, ta) != 0) { return 0 - 1; }
-                      // Cleanup: MEMORY multi-word bytes when tracked; else nargs-based.
-                      {
-                        let cln_m: i32 = mem_stack_m;
-                        if (cln_m <= 0) {
-                          cln_m = glue_asm_call_stack_cleanup_bytes(ta, n_ov);
-                        }
-                        if (cln_m < 0) { return 0 - 1; }
-                        if (cln_m > 0) {
-                          if (backend_enc_call_stack_cleanup_arch(elf_ctx, cln_m, ta) != 0) { return 0 - 1; }
-                        }
-                      }
-                    }
-                    /*
-                     * PLATFORM: SHARED freestanding — after import METHOD_CALL, harvest
-                     * ret into full GPR (i32 sxtw / u32 zxt / f32 xmm). G.7 complete:
-                     * seed _impl always harvests here; pure .x previously returned after
-                     * cleanup only → AAPCS64 `ldr w0` zero-extends -1 to 0xFFFFFFFF,
-                     * then full-x0 signed cmp (`call() >= 0`) is true (run-mem exit 8).
-                     * Free CALL already harvests via glue_asm_emit_call_with_cleanup;
-                     * import METHOD must match (same authority glue_asm_harvest_call_ret_to_gpr_c).
-                     */
-                    if (glue_asm_harvest_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0) {
-                      return 0 - 1;
-                    }
-                    // PLATFORM: MACOS|ARM64 AAPCS64 — host-C returns f32/f64 in s0/d0.
-                    // Shared harvest is x86-only so local xlang f32 CALL stays GP-in/GP-out.
-                    // Import METHOD callee is gcc: move s0/d0 → w0/x0 after the no-op harvest.
-                    if (ta == 1) {
-                      let rk_m: i32 = pipeline_asm_call_return_type_kind_ord_c(arena, expr_ref);
-                      if (rk_m == 14) {
-                        if (backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, 0, ta) != 0) {
-                          return 0 - 1;
-                        }
-                      } else if (rk_m == 15) {
-                        if (backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, 0, ta) != 0) {
-                          return 0 - 1;
-                        }
-                      }
-                    }
-                    return 0;
-                  }
-                }
-                j = j + 1;
               }
             }
           }
@@ -5502,9 +5886,9 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
       let xmm_cur_u: i32 = 0;
       let reg_max_u: i32 = glue_asm_call_reg_max(ta);
       let sret_sh_u: i32 = 0;
-      let sret_park_u: i32 = 0 - 2;
+      let sret_park_u: i32 = (0 - 2);
       let gp_cur_u: i32 = 0;
-      if (base_ref != 0) { has_recv = 1; }
+      if (w1521_method_base_nz(arena, expr_ref) != 0) { has_recv = 1; }
       /*
        * Associated Type.method(): resolved callee nparams == nargs (no implicit
        * self). `P.mk()` / `P.id(7)` / `P.get(p)` — type-name receiver is not
@@ -5536,7 +5920,7 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
           if (r_dep2 < 0) {
             if (mod_ref != 0) {
               let p0: i32 = pipeline_module_func_param_type_ref_at(mod_ref, r_fn2, 0);
-              let bty: i32 = pipeline_expr_resolved_type_ref(arena, base_ref);
+              let bty: i32 = w1521_method_base_resolved_type(arena, expr_ref);
               if (p0 > 0) {
                 if (bty > 0) {
                   // TYPE_PTR kind ord = 9
@@ -5572,7 +5956,7 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
         let u_u: i32 = 0;
         if (has_recv != 0) {
           if (i_u == 0) {
-            ar_u = base_ref;
+            ar_u = w1521_method_base_ref(arena, expr_ref);
           } else {
             ar_u = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_u - has_recv);
           }
@@ -5601,14 +5985,15 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
         gp_start_u[i_u] = 0 - 1;
         gp_units_u[i_u] = 0;
         // Same-layer twin of import METHOD SSE classify (G.7 有则补全).
-        // PLATFORM: MACOS|ARM64 AAPCS64 — f64 extras take v-slots (callee
-        // param home reads dK); f32 stays GP-bits this wave.
+        // PLATFORM: MACOS|ARM64 AAPCS64 — f32 and f64 take v-slots. Param
+        // home reads kind 14 and kind 15 from sK/dK.
         if (ta == 0) {
           is_sse_u[i_u] = glue_arg_ref_is_sse_float_c(arena, ar_u, pty_u);
           is_f64_u[i_u] = glue_arg_ref_is_f64_width_c(arena, ctx, ar_u, pty_u);
         } else {
           is_f64_u[i_u] = glue_arg_ref_is_f64_width_c(arena, ctx, ar_u, pty_u);
-          is_sse_u[i_u] = is_f64_u[i_u];
+          is_sse_u[i_u] = glue_arg_ref_is_sse_float_c(arena, ar_u, pty_u);
+          if (is_f64_u[i_u] != 0) { is_sse_u[i_u] = 1; }
         }
         if (is_sse_u[i_u] != 0) {
           // PLATFORM: WINDOWS x86_64 — same positional float as import METHOD.
@@ -5712,7 +6097,7 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
           let arg_pl: i32 = 0;
           if (has_recv != 0) {
             if (i_u == 0) {
-              arg_pl = base_ref;
+              arg_pl = w1521_method_base_ref(arena, expr_ref);
             } else {
               arg_pl = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_u - has_recv);
             }
@@ -5731,10 +6116,10 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
               if (has_recv != 0) {
                 if (i_u == 0) {
                   if (need_aref != 0) {
-                    if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+                    if (w1521_emit_lvalue_method_base(arena, elf_ctx, expr_ref, ctx, ta) != 0) {
                       return 0 - 1;
                     }
-                  } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, base_ref, 0, ctx, ta) != 0) {
+                  } else if (w1521_glue_emit_one_call_arg_method_base(arena, elf_ctx, expr_ref, ctx, ta) != 0) {
                     return 0 - 1;
                   }
                 } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_pl, i_u, ctx, ta) != 0) {
@@ -5780,7 +6165,7 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
           let arg_rg: i32 = 0;
           if (has_recv != 0) {
             if (i_u == 0) {
-              arg_rg = base_ref;
+              arg_rg = w1521_method_base_ref(arena, expr_ref);
             } else {
               arg_rg = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_u - has_recv);
             }
@@ -5797,10 +6182,10 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
             } else if (has_recv != 0) {
               if (i_u == 0) {
                 if (need_aref != 0) {
-                  if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+                  if (w1521_emit_lvalue_method_base(arena, elf_ctx, expr_ref, ctx, ta) != 0) {
                     return 0 - 1;
                   }
-                } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, base_ref, 0, ctx, ta) != 0) {
+                } else if (w1521_glue_emit_one_call_arg_method_base(arena, elf_ctx, expr_ref, ctx, ta) != 0) {
                   return 0 - 1;
                 }
               } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_rg, i_u, ctx, ta) != 0) {
@@ -5827,7 +6212,7 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
             let arg_sk: i32 = 0;
             if (has_recv != 0) {
               if (i_u == 0) {
-                arg_sk = base_ref;
+                arg_sk = w1521_method_base_ref(arena, expr_ref);
               } else {
                 arg_sk = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_u - has_recv);
               }
@@ -5846,10 +6231,10 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
                 if (has_recv != 0) {
                   if (i_u == 0) {
                     if (need_aref != 0) {
-                      if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+                      if (w1521_emit_lvalue_method_base(arena, elf_ctx, expr_ref, ctx, ta) != 0) {
                         return 0 - 1;
                       }
-                    } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, base_ref, 0, ctx, ta) != 0) {
+                    } else if (w1521_glue_emit_one_call_arg_method_base(arena, elf_ctx, expr_ref, ctx, ta) != 0) {
                       return 0 - 1;
                     }
                   } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_sk, i_u, ctx, ta) != 0) {
@@ -5899,7 +6284,7 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
         let r_fn_call: i32 = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
         let r_dep_call: i32 = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
         let call_sym: u8[256] = [];
-        let call_sym_len: i32 = 0 - 1;
+        let call_sym_len: i32 = (0 - 1);
         if (r_fn_call >= 0) {
           if (r_dep_call < 0) {
             if (mod_ref != 0) {
@@ -5914,6 +6299,50 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
                 if (da_u == 0 as *u8) { da_u = arena; }
                 call_sym_len = glue_asm_build_func_export_sym_c(dm_u, da_u, r_fn_call, &call_sym[0], 256);
               }
+            }
+          }
+        }
+        // Bound-method / LANG-005: typeck leaves func_ix=-1 (C6 mono on C
+        // backend). Asm has no mono_active; bare method name then hits libc
+        // (clone→clone@GLIBC, run=255). Prefer same-module name+arity
+        // (self+extras == n_place) export sym, then find_impl on concrete
+        // receiver, then bare name. PLATFORM: SHARED.
+        if (call_sym_len <= 0 && mod_ref != 0 as *u8 && name_len > 0) {
+          let nfunc_bm: i32 = pipeline_module_num_funcs(mod_ref);
+          let fi_bm: i32 = 0;
+          let fname_bm: u8[256] = [];
+          while (fi_bm < nfunc_bm) {
+            let fl_bm: i32 = pipeline_asm_module_func_name_len_at(mod_ref, fi_bm);
+            let np_bm: i32 = pipeline_module_func_num_params_at(mod_ref, fi_bm);
+            let match_bm: i32 = 0;
+            let bi_bm: i32 = 0;
+            if (fl_bm == name_len && np_bm == n_place) {
+              pipeline_asm_module_func_name_copy64(mod_ref, fi_bm, &fname_bm[0]);
+              match_bm = 1;
+              bi_bm = 0;
+              while (bi_bm < name_len) {
+                if (fname_bm[bi_bm] != name[bi_bm]) {
+                  match_bm = 0;
+                  bi_bm = name_len;
+                } else {
+                  bi_bm = bi_bm + 1;
+                }
+              }
+            }
+            if (match_bm != 0) {
+              call_sym_len = glue_asm_build_func_export_sym_c(mod_ref, arena, fi_bm, &call_sym[0], 256);
+              fi_bm = nfunc_bm;
+            } else {
+              fi_bm = fi_bm + 1;
+            }
+          }
+        }
+        if (call_sym_len <= 0 && mod_ref != 0 as *u8 && name_len > 0 && w1521_method_base_nz(arena, expr_ref) != 0) {
+          let recv_ty_bm: i32 = w1521_method_base_resolved_type(arena, expr_ref);
+          if (recv_ty_bm > 0) {
+            let impl_fi_bm: i32 = codegen_find_impl_method_for_type(mod_ref, arena, &name[0], name_len, recv_ty_bm);
+            if (impl_fi_bm >= 0) {
+              call_sym_len = glue_asm_build_func_export_sym_c(mod_ref, arena, impl_fi_bm, &call_sym[0], 256);
             }
           }
         }
@@ -6083,7 +6512,7 @@ function try_emit_raw_syscall_call_elf_c(
     let nlen: i32 = 0;
     let n_args: i32 = 0;
     let is_method: i32 = 0;
-    let arity: i32 = 0 - 1;
+    let arity: i32 = (0 - 1);
     let pfx: u8[11] = [114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108];
     let i: i32 = 0;
     let off: i32[8] = [];
@@ -6212,10 +6641,67 @@ function try_emit_raw_syscall_call_elf_c(
 function try_emit_va_cap_ov_select_elf_c(
   elf_ctx: *u8, ctx: *u8, ta: i32, is_fp: i32, gp_n: i32
 ): i32 {
-  /* Class BK: Cap residual body retired (always miss). */
-  return 0;
+  unsafe {
+    let end_delta: i32 = 0;
+    let step: i32 = (0 - 1);
+    let cc: i32 = 3;
+    let lbl_sv: u8[64] = [];
+    let lbl_dn: u8[64] = [];
+    let n_sv: i32 = 0;
+    let n_dn: i32 = 0;
+    if (elf_ctx == 0 as *u8 || ctx == 0 as *u8) { return 0 - 1; }
+    if (gp_n < 6) { gp_n = 6; }
+    /* PLATFORM: LINUX|x86_64 rbp-off walks down (step=-1, LE).
+     * PLATFORM: LINUX|aarch64 / MACOS|ARM64 x29+off walks up (step=+1, GE). */
+    if (ta == 1) {
+      step = 1;
+      cc = 5;
+    }
+    /* header(24) + GP save; FP class_end is past FP save too. */
+    end_delta = 24 + gp_n * 8;
+    if (is_fp != 0) { end_delta = end_delta + 64; }
+    n_sv = pipeline_asm_emit_next_label_c(ctx, &lbl_sv[0], 64);
+    n_dn = pipeline_asm_emit_next_label_c(ctx, &lbl_dn[0], 64);
+    if (n_sv <= 0 || n_dn <= 0) { return 0 - 1; }
+    /* rbx = class_cursor (mov does not clobber flags we have not set yet). */
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    /* rax = header (parked r10 / x8). */
+    if (ta == 1) {
+      if (arch_arm64_enc_enc_mov_x8_to_rax(elf_ctx) != 0) { return 0 - 1; }
+    } else {
+      if (arch_x86_64_enc_enc_mov_r10_to_rax(elf_ctx) != 0) { return 0 - 1; }
+    }
+    if (backend_enc_add_imm_to_rax_arch(elf_ctx, step * end_delta, ta) != 0) {
+      return 0 - 1;
+    }
+    /* rax = class_end, rbx = class_cursor. cmp cursor, end. */
+    if (backend_enc_cmp_rbx_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    /* x86 cc=3 LE; aarch64 cc=5 GE. */
+    if (backend_enc_cmp_setcc_movzbl_arch(elf_ctx, cc, ta) != 0) { return 0 - 1; }
+    if (backend_enc_test_eax_eax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    if (backend_enc_jz_arch(elf_ctx, &lbl_sv[0], n_sv, ta) != 0) { return 0 - 1; }
+    /* overflow: ov_cell = header + step*16 (x86 -16, aarch64 +16). */
+    if (ta == 1) {
+      if (arch_arm64_enc_enc_mov_x8_to_rax(elf_ctx) != 0) { return 0 - 1; }
+    } else {
+      if (arch_x86_64_enc_enc_mov_r10_to_rax(elf_ctx) != 0) { return 0 - 1; }
+    }
+    if (backend_enc_add_imm_to_rax_arch(elf_ctx, step * 16, ta) != 0) { return 0 - 1; }
+    if (ta == 1) {
+      if (arch_arm64_enc_enc_mov_x0_to_x3(elf_ctx) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_ldr_x0_x3(elf_ctx) != 0) { return 0 - 1; }
+    } else {
+      if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0) { return 0 - 1; }
+      if (arch_x86_64_enc_enc_movq_mem_rcx_to_rax(elf_ctx) != 0) { return 0 - 1; }
+    }
+    if (backend_enc_jmp_arch(elf_ctx, &lbl_dn[0], n_dn, ta) != 0) { return 0 - 1; }
+    if (backend_enc_label_arch(elf_ctx, &lbl_sv[0], n_sv, 0, ta) != 0) { return 0 - 1; }
+    /* in-save: slot = class_cursor (rbx); writeback stays class_cell. */
+    if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    if (backend_enc_label_arch(elf_ctx, &lbl_dn[0], n_dn, 0, ta) != 0) { return 0 - 1; }
+    return 0;
+  }
 }
-
 /**
  * Cap 10.7.1 slice12–18: language va_start / va_end / va_arg_{i32,i64,ptr} /
  * typed va_arg<T>(ap) including f32/f64 + stack extras → asm Cap.
@@ -6250,10 +6736,374 @@ function try_emit_va_cap_ov_select_elf_c(
 function try_emit_va_cap_builtin_call_elf_c(
   arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
 ): i32 {
-  /* Class BK: Cap residual body retired (always miss). */
-  return 0;
-}
+  if (arena == 0 as *u8 || elf_ctx == 0 || ctx == 0 as *u8 || expr_ref <= 0) {
+    return 0;
+  }
+  if (ta != 0 && ta != 1) {
+    return 0;
+  }
+  unsafe {
+    let ko: i32 = 0;
+    let name: u8[256] = [];
+    let nlen: i32 = 0;
+    let n_args: i32 = 0;
+    let is_method: i32 = 0;
+    let which: i32 = 0;
+    let i: i32 = 0;
+    let nm_start: u8[8] = [118, 97, 95, 115, 116, 97, 114, 116]; /* va_start */
+    let nm_end: u8[6] = [118, 97, 95, 101, 110, 100]; /* va_end */
+    let nm_argi32_full: u8[10] = [118, 97, 95, 97, 114, 103, 95, 105, 51, 50]; /* va_arg_i32 */
+    let nm_argi64_full: u8[10] = [118, 97, 95, 97, 114, 103, 95, 105, 54, 52]; /* va_arg_i64 */
+    let nm_argptr_full: u8[10] = [118, 97, 95, 97, 114, 103, 95, 112, 116, 114]; /* va_arg_ptr */
+    let nm_arg_typed: u8[6] = [118, 97, 95, 97, 114, 103]; /* va_arg */
+    let ty_ref: i32 = 0;
+    let tk: i32 = 0;
+    let tsz: i32 = 0;
+    let ap_ref: i32 = 0;
+    let ap_off: i32 = 0;
+    let cur: i32 = 0;
+    let save_off: i32 = 0;
+    let mod: *u8 = 0 as *u8;
+    let fi: i32 = 0;
+    let np: i32 = 0;
+    let k: i32 = 0;
+    let gp_n: i32 = 6;
+    let fp_n: i32 = 8;
+    let np_gp: i32 = 0;
+    let np_fp: i32 = 0;
+    let gp_save: i32 = 0;
+    let fp_save: i32 = 0;
+    let ov: i32 = 0;
+    let ov_n: i32 = 8;
+    let named_stk: i32 = 0;
+    let stk_pos: i32 = 0;
+    let pty: i32 = 0;
+    let is_fp: i32 = 0;
 
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+    if (ko == 49) {
+      nlen = pipeline_expr_method_call_name_len(arena, expr_ref);
+      if (nlen <= 0 || nlen > 255) { return 0; }
+      pipeline_expr_method_call_name_into(arena, expr_ref, &name[0]);
+      n_args = pipeline_expr_method_call_num_args_at(arena, expr_ref);
+      is_method = 1;
+    } else if (ko == 48) {
+      let callee_ref: i32 = pipeline_expr_call_callee_ref_at(arena, expr_ref);
+      let cko: i32 = 0;
+      if (callee_ref <= 0) { return 0; }
+      cko = pipeline_expr_kind_ord_at(arena, callee_ref);
+      if (cko == 44) {
+        nlen = pipeline_expr_field_access_name_len(arena, callee_ref);
+        if (nlen <= 0 || nlen > 255) { return 0; }
+        pipeline_expr_field_access_name_into(arena, callee_ref, &name[0]);
+      } else if (cko == 3) {
+        nlen = pipeline_expr_var_name_len(arena, callee_ref);
+        if (nlen <= 0 || nlen > 255) { return 0; }
+        pipeline_expr_var_name_into(arena, callee_ref, &name[0]);
+      } else {
+        return 0;
+      }
+      n_args = pipeline_expr_call_num_args_at(arena, expr_ref);
+    } else {
+      return 0;
+    }
+
+    which = 0;
+    if (nlen == 8) {
+      i = 0;
+      while (i < 8) {
+        if (name[i] != nm_start[i]) { i = 99; }
+        else { i = i + 1; }
+      }
+      if (i == 8) { which = 1; }
+    }
+    if (which == 0 && nlen == 6) {
+      i = 0;
+      while (i < 6) {
+        if (name[i] != nm_end[i]) { i = 99; }
+        else { i = i + 1; }
+      }
+      if (i == 6) { which = 2; }
+      if (which == 0) {
+        i = 0;
+        while (i < 6) {
+          if (name[i] != nm_arg_typed[i]) { i = 99; }
+          else { i = i + 1; }
+        }
+        if (i == 6) { which = 6; }
+      }
+    }
+    if (which == 0 && nlen == 10) {
+      i = 0;
+      while (i < 10) {
+        if (name[i] != nm_argi32_full[i]) { i = 99; }
+        else { i = i + 1; }
+      }
+      if (i == 10) { which = 3; }
+      if (which == 0) {
+        i = 0;
+        while (i < 10) {
+          if (name[i] != nm_argi64_full[i]) { i = 99; }
+          else { i = i + 1; }
+        }
+        if (i == 10) { which = 4; }
+      }
+      if (which == 0) {
+        i = 0;
+        while (i < 10) {
+          if (name[i] != nm_argptr_full[i]) { i = 99; }
+          else { i = i + 1; }
+        }
+        if (i == 10) { which = 5; }
+      }
+    }
+    if (which == 0) { return 0; }
+
+    /* va_end(ap): Cap no-op (do not emit call). */
+    if (which == 2) {
+      if (n_args != 1) { return 0; }
+      return 1;
+    }
+
+    if (which == 1) {
+      /* va_start(ap, last): need ap as local VAR. */
+      if (n_args != 2) { return 0; }
+      if (is_method != 0) {
+        ap_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, 0);
+      } else {
+        ap_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+      }
+      if (ap_ref <= 0) { return 0 - 1; }
+      if (pipeline_expr_kind_ord_at(arena, ap_ref) != 3) { return 0; }
+      ap_off = glue_asm_local_var_stack_off_scoped(arena, ctx, ap_ref);
+      if (ap_off < 16) { return 0 - 1; }
+
+      mod = call_dispatch_load_ptr_le(ctx, 16);
+      fi = pipeline_asm_emit_func_index_c();
+      np = 0;
+      if (mod != 0 as *u8 && fi >= 0) {
+        np = pipeline_module_func_num_params_at(mod, fi);
+      }
+      if (np < 0) { np = 0; }
+      gp_n = 6;
+      if (ta == 1) { gp_n = 8; }
+      fp_n = 8;
+      /* Named params consume GP or XMM/NEON independently (SysV / AAPCS). */
+      np_gp = 0;
+      np_fp = 0;
+      k = 0;
+      while (k < np) {
+        pty = 0;
+        if (mod != 0 as *u8 && fi >= 0) {
+          pty = pipeline_module_func_param_type_ref_at(mod, fi, k);
+        }
+        if (glue_call_param_is_f32_c(arena, pty) != 0) {
+          np_fp = np_fp + 1;
+        } else {
+          np_gp = np_gp + 1;
+        }
+        k = k + 1;
+      }
+      /* Named stack formals sit at the front of the incoming overflow area. */
+      named_stk = 0;
+      if (np_gp > gp_n) { named_stk = named_stk + (np_gp - gp_n); }
+      if (np_fp > fp_n) { named_stk = named_stk + (np_fp - fp_n); }
+      if (np_gp > gp_n) { np_gp = gp_n; }
+      if (np_fp > fp_n) { np_fp = fp_n; }
+
+      /* Reserve header(24) + GP save + FP save + shared OV in call-spill
+       * scratch (frame already ≥512). ov_n=8 extra 8-byte slots, one copy.
+       * PLATFORM: LINUX|x86_64 SysV · LINUX|aarch64 AAPCS (cross-emit). */
+      cur = call_dispatch_load_i32_le(ctx, 4);
+      save_off = cur + 16;
+      if (save_off < 16) { save_off = 16; }
+      gp_save = save_off + 24;
+      ov_n = 8;
+      fp_save = gp_save + gp_n * 8;
+      ov = fp_save + fp_n * 8;
+      call_dispatch_store_i32_le(ctx, 4, ov + ov_n * 8);
+
+      /* Spill GP arg regs while entry values still live. */
+      k = 0;
+      while (k < gp_n) {
+        if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, k, ta) != 0) { return 0 - 1; }
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, gp_save + k * 8, ta) != 0) {
+          return 0 - 1;
+        }
+        k = k + 1;
+      }
+      /* Spill FP arg regs (xmmK / vK) as 8-byte slots. G.7 existing encoders. */
+      k = 0;
+      while (k < fp_n) {
+        if (backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, k, ta) != 0) { return 0 - 1; }
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, fp_save + k * 8, ta) != 0) {
+          return 0 - 1;
+        }
+        k = k + 1;
+      }
+
+      /* Copy incoming stack extras once into shared OV. G.7 existing
+       * load_rbp_pos / load_x29_pos (param_home twins). rax/x0 is free: GP
+       * and FP files already spilled. */
+      stk_pos = 16;
+      if (ta == 1) {
+        /* PLATFORM: LINUX|aarch64 — prologue grows frame by 16 (x19). */
+        cur = call_dispatch_load_i32_le(ctx, 0);
+        if (cur > 16) { stk_pos = cur; }
+        stk_pos = stk_pos + 16;
+      }
+      stk_pos = stk_pos + named_stk * 8;
+      k = 0;
+      while (k < ov_n) {
+        if (ta == 1) {
+          if (backend_enc_load_x29_pos_to_rax_arch(elf_ctx, stk_pos + k * 8, ta) != 0) {
+            return 0 - 1;
+          }
+        } else {
+          if (backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, stk_pos + k * 8, ta) != 0) {
+            return 0 - 1;
+          }
+        }
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, ov + k * 8, ta) != 0) {
+          return 0 - 1;
+        }
+        k = k + 1;
+      }
+
+      /* header[0] = &GP[np_gp] (first trailing GP). */
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, gp_save + np_gp * 8, ta) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, save_off, ta) != 0) { return 0 - 1; }
+      /* header[8] = &FP[np_fp] (first trailing FP). */
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, fp_save + np_fp * 8, ta) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, save_off + 8, ta) != 0) { return 0 - 1; }
+      /* header[16] = &OV[0] (shared overflow; named_stk already skipped in copy). */
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, ov, ta) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, save_off + 16, ta) != 0) { return 0 - 1; }
+      /* *ap = &header. */
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, save_off, ta) != 0) { return 0 - 1; }
+      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, ap_off, ta) != 0) { return 0 - 1; }
+      if (ta == 1) {
+        /* x3 = &ap; x0 = header; str x0, [x3]. G.7 existing encoders. */
+        if (arch_arm64_enc_enc_mov_x0_to_x3(elf_ctx) != 0) { return 0 - 1; }
+        if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+        if (arch_arm64_enc_enc_str_x0_x3(elf_ctx) != 0) { return 0 - 1; }
+        return 1;
+      }
+      if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0) { return 0 - 1; }
+      if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+      if (arch_x86_64_enc_enc_movq_rax_to_mem_rcx(elf_ctx) != 0) { return 0 - 1; }
+      return 1;
+    }
+
+    /* which == 6: typed va_arg<T>(ap) → classify T into 3/4/5/7/8. */
+    if (which == 6) {
+      if (n_args != 1) { return 0; }
+      if (pipeline_expr_call_num_type_args_at(arena, expr_ref) < 1) { return 0; }
+      ty_ref = pipeline_expr_call_type_arg_ref_at(arena, expr_ref, 0);
+      if (ty_ref <= 0) { return 0; }
+      tk = pipeline_type_kind_ord_at(arena, ty_ref);
+      /* TYPE_F32=14 / TYPE_F64=15: FP cursor (slice16). */
+      if (tk == 14) {
+        which = 7;
+      } else if (tk == 15) {
+        which = 8;
+      } else {
+        mod = call_dispatch_load_ptr_le(ctx, 16);
+        tsz = glue_type_size_simple(mod, arena, ty_ref, 0);
+        if (tk == 9) {
+          which = 5;
+        } else if (tsz >= 8) {
+          which = 4;
+        } else {
+          which = 3;
+        }
+      }
+    }
+    /* 3=i32 4=i64 5=ptr (GP) · 7=f32 8=f64 (FP). */
+    if (which < 3 || which == 6 || which > 8) { return 0; }
+    is_fp = 0;
+    if (which >= 7) { is_fp = 1; }
+    if (n_args != 1) { return 0; }
+    if (is_method != 0) {
+      ap_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, 0);
+    } else {
+      ap_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+    }
+    if (ap_ref <= 0) { return 0 - 1; }
+    if (pipeline_expr_kind_ord_at(arena, ap_ref) != 3) { return 0; }
+    ap_off = glue_asm_local_var_stack_off_scoped(arena, ctx, ap_ref);
+    if (ap_off < 16) { return 0 - 1; }
+
+    /* *ap = header; GP cursor at header[0], FP at header[8], OV at header[16].
+     * Park header, load class cursor, then slice18 shared-OV select. */
+    gp_n = 6;
+    if (ta == 1) { gp_n = 8; }
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, ap_off, ta) != 0) { return 0 - 1; }
+    if (ta == 1) {
+      /* x3=&ap; x0=header; park x8; optional +8; x3=&cursor_cell; ldr cursor. */
+      if (arch_arm64_enc_enc_mov_x0_to_x3(elf_ctx) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_ldr_x0_x3(elf_ctx) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_mov_rax_to_x8(elf_ctx) != 0) { return 0 - 1; }
+      if (is_fp != 0) {
+        /* PLATFORM: MACOS|ARM64 / LINUX|aarch64 — x29+off; header[8] is +8. */
+        if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0) { return 0 - 1; }
+      }
+      if (arch_arm64_enc_enc_mov_x0_to_x3(elf_ctx) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_ldr_x0_x3(elf_ctx) != 0) { return 0 - 1; }
+      if (try_emit_va_cap_ov_select_elf_c(elf_ctx, ctx, ta, is_fp, gp_n) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+      if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 0, 1, 0, ta) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_mov_x0_to_x4(elf_ctx) != 0) { return 0 - 1; }
+      if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+      /* Next slot is higher x29-off → +8. PLATFORM: MACOS|ARM64 / LINUX|aarch64. */
+      if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_str_x0_x3(elf_ctx) != 0) { return 0 - 1; }
+      if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, 4, ta) != 0) { return 0 - 1; }
+      return 1;
+    }
+    if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0) { return 0 - 1; }
+    if (arch_x86_64_enc_enc_movq_mem_rcx_to_rax(elf_ctx) != 0) { return 0 - 1; }
+    if (arch_x86_64_enc_enc_mov_rax_to_r10(elf_ctx) != 0) { return 0 - 1; }
+    if (is_fp != 0) {
+      /* header+8 rbp-off = lower addr = pointer-8 (same -8 as slot walk). */
+      if (backend_enc_add_imm_to_rax_arch(elf_ctx, 0 - 8, ta) != 0) { return 0 - 1; }
+    }
+    if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0) { return 0 - 1; }
+    if (arch_x86_64_enc_enc_movq_mem_rcx_to_rax(elf_ctx) != 0) { return 0 - 1; }
+    if (try_emit_va_cap_ov_select_elf_c(elf_ctx, ctx, ta, is_fp, gp_n) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    if (which == 3 || which == 7) {
+      /* i32/f32: eax = *(i32*)cursor; park in edx across bump. */
+      if (arch_x86_64_enc_enc_movl_mem_rax_to_eax(elf_ctx) != 0) { return 0 - 1; }
+      if (arch_x86_64_enc_enc_mov_eax_to_edx(elf_ctx) != 0) { return 0 - 1; }
+    } else {
+      /* i64 / ptr / f64: rax = *cursor; park in r10 across bump. */
+      if (arch_x86_64_enc_enc_movq_mem_rax_to_rax(elf_ctx) != 0) { return 0 - 1; }
+      if (arch_x86_64_enc_enc_mov_rax_to_r10(elf_ctx) != 0) { return 0 - 1; }
+    }
+    if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    /* Spill layout: save+k*8 is rbp-(save_off+k*8); next slot is lower addr → -8. */
+    if (backend_enc_add_imm_to_rax_arch(elf_ctx, 0 - 8, ta) != 0) { return 0 - 1; }
+    if (arch_x86_64_enc_enc_movq_rax_to_mem_rcx(elf_ctx) != 0) { return 0 - 1; }
+    if (which == 3 || which == 7) {
+      if (arch_x86_64_enc_enc_mov_edx_to_eax(elf_ctx) != 0) { return 0 - 1; }
+    } else {
+      if (arch_x86_64_enc_enc_mov_r10_to_rax(elf_ctx) != 0) { return 0 - 1; }
+    }
+    return 1;
+  }
+}
 /**
  * Stage 10 (10.4.1) slice1–3 + (10.4.2) fences + arm64 i32/fence:
  * atomic load/store/cas i16/i32/i64 (x86) and i32 (aarch64 LSE),
@@ -7819,9 +8669,14 @@ export function glue_asm_type_ref_to_suffix_c(a: *u8, type_ref: i32, out: *u8, o
       return 0;
     }
     // NAMED / user types: prefer type name (String, StrView, Vec_u8, …).
+    // knife256/10.2: Cap tip dep wrap smash can leave name_len>0 with zero
+    // bytes → mid length_ (false len) → U _std_string_length_. Reject empty.
     let n2: i32 = pipeline_type_named_name_into(a, type_ref, out);
     if (n2 > 0) {
       if (n2 < out_cap) {
+        if (out[0] == 0) {
+          return 0;
+        }
         let si: i32 = 0;
         while (si < n2) {
           if (out[si] == 46) { // '.'
@@ -8026,8 +8881,8 @@ export function glue_asm_score_import_binding_func_ix_c(
   if (field_len <= 0) { return 0 - 1; }
   if (res_arena == 0 as *u8) { res_arena = arena; }
   unsafe {
-    let best: i32 = 0 - 1;
-    let best_score: i32 = 0 - 1;
+    let best: i32 = (0 - 1);
+    let best_score: i32 = (0 - 1);
     let nfunc: i32 = pipeline_module_num_funcs(res_mod);
     let fi: i32 = 0;
     while (fi < nfunc) {
@@ -8271,9 +9126,9 @@ export function glue_asm_mangle_import_binding_call_sym_c(
       want_np = pipeline_expr_call_num_args_at(arena, expr_ref);
     }
     let mid: u8[256] = [];
-    let mid_len: i32 = 0 - 1;
-    let sym_len: i32 = 0 - 1;
-    let use_fi: i32 = 0 - 1;
+    let mid_len: i32 = (0 - 1);
+    let sym_len: i32 = (0 - 1);
+    let use_fi: i32 = (0 - 1);
     let res_mod: *u8 = 0 as *u8;
     let res_arena: *u8 = arena;
     if (dp != 0 as *u8) {
@@ -8326,7 +9181,7 @@ export function glue_asm_mangle_import_binding_call_sym_c(
            * PLATFORM: SHARED — typeck r_func is the pick authority. */
           if (use_fi >= 0) {
             if (glue_module_func_overload_count_c(res_mod, field_name, field_len) > 1) {
-              let sc_best: i32 = 0 - 1;
+              let sc_best: i32 = (0 - 1);
               let scored: i32 = glue_asm_score_import_binding_func_ix_c(
                 arena, expr_ref, res_mod, res_arena, field_name, field_len, want_np, is_method, &sc_best
               );
@@ -8368,6 +9223,15 @@ export function glue_asm_mangle_import_binding_call_sym_c(
           let nfunc_res2: i32 = pipeline_module_num_funcs(res_mod);
           if (use_fi < nfunc_res2) {
             mid_len = glue_asm_build_func_overload_mid_c(res_mod, res_arena, use_fi, &mid[0], 64);
+            // knife256/10.2: empty dep type names → bare mid despite overloads.
+            // Force caller-arg mid (entry arena types are intact). PLATFORM: SHARED.
+            if (mid_len > 0) {
+              if (glue_module_func_overload_count_c(res_mod, field_name, field_len) > 1) {
+                if (mid_len == field_len) {
+                  mid_len = 0 - 1;
+                }
+              }
+            }
             if (mid_len > 0) {
               // PLATFORM: SHARED — same bare gate as export sym builder.
               let mpre: i32 = glue_asm_link_prefix_len_after_nomangle_c(res_mod, use_fi, pre_len);
@@ -8823,7 +9687,7 @@ export function glue_try_std_encoding_redirect_sym_local(name: *u8, nlen: i32, o
   }
   let suffix_len: i32 = nlen - prefix_len;
   if (suffix_len <= 0) { return 0; }
-  let out_len: i32 = 9 + suffix_len + 2; // encoding_ + suffix + _c
+  let out_len: i32 = (9 + suffix_len + 2); // encoding_ + suffix + _c
   if (out_len >= cap) { return 0; }
   // encoding_
   out[0]=101; out[1]=110; out[2]=99; out[3]=111; out[4]=100; out[5]=105; out[6]=110; out[7]=103; out[8]=95;
@@ -9204,14 +10068,15 @@ export function pipeline_asm_emit_vtable_wrapper_def(elf_ctx: *u8, ta: i32, modu
     let macho: i32 = pipeline_elf_ctx_macho_leading_underscore(elf_ctx);
     let sym_nm: u8[170] = [];
     let sym_nlen: i32 = wrap_nlen;
+    let k_sym: i32 = 0;
     if (macho != 0) {
       sym_nm[0] = 95;
-      let k: i32 = 0;
-      while (k < wrap_nlen && k < 168) { sym_nm[k + 1] = wrap_nm[k]; k = k + 1; }
+      k_sym = 0;
+      while (k_sym < wrap_nlen && k_sym < 168) { sym_nm[k_sym + 1] = wrap_nm[k_sym]; k_sym = k_sym + 1; }
       sym_nlen = wrap_nlen + 1;
     } else {
-      let k: i32 = 0;
-      while (k < wrap_nlen && k < 169) { sym_nm[k] = wrap_nm[k]; k = k + 1; }
+      k_sym = 0;
+      while (k_sym < wrap_nlen && k_sym < 169) { sym_nm[k_sym] = wrap_nm[k_sym]; k_sym = k_sym + 1; }
     }
     let entry_off: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
     if (entry_off < 0) { return 0 - 1; }
@@ -9383,14 +10248,15 @@ export function pipeline_asm_emit_module_vtable_statics(elf_ctx: *u8, ta: i32, m
       let macho: i32 = pipeline_elf_ctx_macho_leading_underscore(elf_ctx);
       let vt_sym: u8[152] = [];
       let vt_sym_nlen: i32 = vt_nlen;
+      let k_vt: i32 = 0;
       if (macho != 0) {
         vt_sym[0] = 95;
-        let k: i32 = 0;
-        while (k < vt_nlen && k < 150) { vt_sym[k + 1] = vt_nm[k]; k = k + 1; }
+        k_vt = 0;
+        while (k_vt < vt_nlen && k_vt < 150) { vt_sym[k_vt + 1] = vt_nm[k_vt]; k_vt = k_vt + 1; }
         vt_sym_nlen = vt_nlen + 1;
       } else {
-        let k: i32 = 0;
-        while (k < vt_nlen && k < 151) { vt_sym[k] = vt_nm[k]; k = k + 1; }
+        k_vt = 0;
+        while (k_vt < vt_nlen && k_vt < 151) { vt_sym[k_vt] = vt_nm[k_vt]; k_vt = k_vt + 1; }
       }
       /* F7: vtable static data goes to __DATA,__const section (separate from
        * __TEXT,__text which rejects absolute pointer relocations). Override the
@@ -9435,14 +10301,15 @@ export function pipeline_asm_emit_module_vtable_statics(elf_ctx: *u8, ta: i32, m
           }
           let wrap_sym: u8[170] = [];
           let wrap_sym_nlen: i32 = wrap_nlen;
+          let k_ws: i32 = 0;
           if (macho != 0) {
             wrap_sym[0] = 95;
-            let k: i32 = 0;
-            while (k < wrap_nlen && k < 168) { wrap_sym[k + 1] = wrap_nm[k]; k = k + 1; }
+            k_ws = 0;
+            while (k_ws < wrap_nlen && k_ws < 168) { wrap_sym[k_ws + 1] = wrap_nm[k_ws]; k_ws = k_ws + 1; }
             wrap_sym_nlen = wrap_nlen + 1;
           } else {
-            let k: i32 = 0;
-            while (k < wrap_nlen && k < 169) { wrap_sym[k] = wrap_nm[k]; k = k + 1; }
+            k_ws = 0;
+            while (k_ws < wrap_nlen && k_ws < 169) { wrap_sym[k_ws] = wrap_nm[k_ws]; k_ws = k_ws + 1; }
           }
           if (pipeline_elf_ctx_append_reloc_absolute64(elf_ctx, slot_off,
                   &wrap_sym[0], wrap_sym_nlen) != 0) {
@@ -9564,14 +10431,15 @@ export function pipeline_asm_try_emit_dyn_coerce_let(arena: *u8, elf_ctx: *u8,
     let macho: i32 = pipeline_elf_ctx_macho_leading_underscore(elf_ctx);
     let vt_sym: u8[162] = [];
     let vt_sym_nlen: i32 = vt_nlen;
+    let k_dyn: i32 = 0;
     if (macho != 0) {
       vt_sym[0] = 95;
-      let k: i32 = 0;
-      while (k < vt_nlen && k < 160) { vt_sym[k + 1] = vt_nm[k]; k = k + 1; }
+      k_dyn = 0;
+      while (k_dyn < vt_nlen && k_dyn < 160) { vt_sym[k_dyn + 1] = vt_nm[k_dyn]; k_dyn = k_dyn + 1; }
       vt_sym_nlen = vt_nlen + 1;
     } else {
-      let k: i32 = 0;
-      while (k < vt_nlen && k < 161) { vt_sym[k] = vt_nm[k]; k = k + 1; }
+      k_dyn = 0;
+      while (k_dyn < vt_nlen && k_dyn < 161) { vt_sym[k_dyn] = vt_nm[k_dyn]; k_dyn = k_dyn + 1; }
     }
     if (backend_enc_lea_sym_to_reg_arch(elf_ctx, 1, &vt_sym[0], vt_sym_nlen, ta) != 0) {
       return 0 - 1;

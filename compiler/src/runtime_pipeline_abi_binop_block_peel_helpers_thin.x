@@ -89,6 +89,9 @@ export function glue_expr_block_transparent_value_ref_at(arena: *u8, expr_ref: i
       if (pipe_load_i32_le(&cell[0], 28) == 6 && pipe_load_i32_le(&cell[0], 32) >= 0) {
         if (pipe_load_i32_le(&cell[0], 36) > 0) {
           if (pipe_load_i32_le(&cell[0], 40) == 0 && pipe_load_i32_le(&cell[0], 44) == 0 && pipe_load_i32_le(&cell[0], 48) > 0) {
+            if (pipe_load_i32_le(&cell[0], 48) == expr_ref) {
+              return 0;
+            }
             return pipe_load_i32_le(&cell[0], 48);
           }
         }
@@ -96,6 +99,11 @@ export function glue_expr_block_transparent_value_ref_at(arena: *u8, expr_ref: i
       return 0;
     }
     if (pipe_load_i32_le(&cell[0], 16) <= 1 && pipe_load_i32_le(&cell[0], 24) > 0) {
+      /* Refuse self-peel: Cap tip hang when kind mis-tags and final_expr==expr_ref
+       * (try_binop load_operand recurses with no cycle guard). PLATFORM: SHARED. */
+      if (pipe_load_i32_le(&cell[0], 24) == expr_ref) {
+        return 0;
+      }
       return pipe_load_i32_le(&cell[0], 24);
     }
     return 0;

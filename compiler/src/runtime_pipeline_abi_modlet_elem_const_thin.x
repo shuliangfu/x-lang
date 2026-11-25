@@ -572,6 +572,33 @@ function pipe_modlet_array_lit_elem_const_walk(
 }
 
 /**
+ * Truncate one float expression toward zero into an i32 word.
+ * pipe_modlet_array_lit_elem_const_val returns the IEEE bits when a
+ * bare FLOAT_LIT is typed f32 or f64, and returns 0 when that literal
+ * has no cast. An integer SIMD lane needs the magnitude, not those
+ * bits. This entry calls the existing walk with target kind 0
+ * (TYPE_I32). The walk owns the exponent loop. Inf, NaN, and a
+ * magnitude that does not fit in i32 return 0 and leave out_val
+ * untouched. |x| < 1 returns 1 and stores 0. 7.0 stores 7. A negative
+ * value stores the two's-complement i32. out_hi is null, so a 64-bit
+ * pattern is not produced.
+ * @param arena *u8 - AST arena; null returns 0
+ * @param eref i32 - FLOAT_LIT, or a float tree the walk accepts; <= 0 returns 0
+ * @param out_val *i32 - truncated i32; null returns 0
+ * @return i32 - 1 when out_val holds the truncated word; 0 otherwise
+ * PLATFORM: MACOS|DARWIN / WINDOWS.
+ */
+#[no_mangle]
+export function pipe_modlet_float_expr_trunc_i32(
+  arena: *u8, eref: i32, out_val: *i32
+): i32 {
+  if (arena == (0 as *u8) || eref <= 0 || out_val == (0 as *i32)) {
+    return 0;
+  }
+  return pipe_modlet_array_lit_elem_const_walk(arena, eref, 0, out_val, 0 as *i32);
+}
+
+/**
  * Fold one module-array element into a single i32 word.
  * EXPR_LIT (ek 0) and EXPR_BOOL_LIT (ek 2) share int_val: true is 1
  * and false is 0. EXPR_NEG (ek 22) folds its operand with this function.

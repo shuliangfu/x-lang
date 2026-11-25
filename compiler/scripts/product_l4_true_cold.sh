@@ -12,8 +12,8 @@
 #   1) Wipe ALL *.o under compiler/ std/ core/ (no selective delete)
 #   2) Delete product binaries that must be this-wave rebuilds
 #   3) remaining_o must be 0 before rebuild
-#   4) Pin linux.x86_64 seed gens into host-local *_gen.c (typeck_gen is
-#      gitignored and otherwise survives .o wipe with stale void-main)
+#   4) Frontend *_gen.c: tip assemble authority (9.2); seed pin only when
+#      XLANG_L4_ALLOW_SEED_PIN=1 (archaeology). Default drops stale parser/codegen gens
 #   5) bootstrap-driver-seed (shell; Makefile deleted wave941)
 #   6) g05_prepare_and_relink --sync → this-wave xlang_asm
 #   7) product L2 matrix (product_l2_matrix.sh — never ad-hoc set -e /tmp/rv)
@@ -29,7 +29,7 @@
 #   second body. Update this script when the L4 recipe changes.
 #   Related (not a second L4 product entry):
 #     XLANG_L4_COLD=1 tests/run-all-bstrict.sh  — bstrict-internal purge path;
-#     product L4 still goes through this script so matrix + seed pin stay one.
+#     product L4 still goes through this script so matrix + gen policy stay one.
 #
 # Usage (repo root):
 #   ./xbuild l4
@@ -42,6 +42,7 @@
 #   XLANG_L4_LOG       log path (default: /tmp/xlang_l4_<host>_<sha>.log)
 #   XLANG_L4_NO_BSTRICT=1  same as --no-bstrict
 #   XLANG_L4_REBUILD_ONLY=1 same as --rebuild-only
+#   XLANG_L4_ALLOW_SEED_PIN=1  archaeology: pin seeds/*_gen → local (default 0 / 9.2)
 #   XLANG_BSTRICT_SCRIPT_TIMEOUT  forwarded to run-all-bstrict
 #                                 Darwin L4 default 1200s (mega asm gates
 #                                 ~840s serial). Ubuntu keeps 300s.
@@ -67,6 +68,151 @@ SCRIPT_DIR="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
 COMPILER_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)"
 ROOT="$(CDPATH= cd -- "$COMPILER_DIR/.." && pwd)"
 cd "$ROOT"
+
+
+# tip_l4_mac_aside_user_env_seed: tip-aside hosts resolve compiler_dir via
+# dirname(exe). Without seeding <aside>/seeds/runtime_link_abi_user_env.from_x.c
+# Mac tip_aside L2 is 0/5 BLD001. Shared helper owns the copy; do NOT raise Soft
+# Cap / Cap tip Prefer. PLATFORM: SHARED (Darwin tip-aside primary).
+_l4_seed_tip_aside_ensure_companions() {
+  local aside_dir="$1"
+  if [ -z "$aside_dir" ] || [ ! -d "$aside_dir" ]; then
+    return 0
+  fi
+  # Subprocess (not source) so helper set -eu cannot leak into L4.
+  bash "$SCRIPT_DIR/seed_tip_aside_ensure_companions.sh" "$aside_dir" || true
+  log "step2b: tip-aside ensure companions seed pass → $aside_dir"
+}
+
+
+# knife256/10.2 Cap tip-aware: wipe deletes tip xlang needed by try-pipeline-abi-prefer
+# hybrid thin+rest (记248/8.5 bans cold full seed). Restore a same-host aside if set.
+# XLANG_L4_TIP_ASIDE=dir containing xlang[/xlang_asm]; else compiler/xlang.pre_l4_aside*.
+# Ban: scp product binaries across hosts. PLATFORM: SHARED.
+_l4_restore_tip_aside() {
+  local aside="${XLANG_L4_TIP_ASIDE:-}"
+  local cand=""
+  # knife256/10.2 note737: Linux tip-cold must NOT revive pre_l4_aside*
+  # (Oct-19 asides hollow typeck; g05 fail left aside as bstrict product).
+  # Darwin Cap tip opts in via XLANG_L4_TIP_ASIDE=dir.
+  case "$(uname -s 2>/dev/null)" in
+    Linux)
+      if [ -z "$aside" ]; then
+        log "step2b: skip tip aside restore on Linux tip-cold (no XLANG_L4_TIP_ASIDE)"
+        return 0
+      fi
+      ;;
+  esac
+  if [ -n "$aside" ] && [ -x "$aside/xlang" ]; then
+    cand="$aside/xlang"
+  elif [ -x "$COMPILER_DIR/xlang.pre_l4_aside_c445bc042" ]; then
+    cand="$COMPILER_DIR/xlang.pre_l4_aside_c445bc042"
+  elif [ -x "$COMPILER_DIR/xlang.pre_l4_aside" ]; then
+    cand="$COMPILER_DIR/xlang.pre_l4_aside"
+  elif [ -x "$COMPILER_DIR/xlang.pre_result_soft.bak" ]; then
+    cand="$COMPILER_DIR/xlang.pre_result_soft.bak"
+  fi
+  # Always seed the aside *directory* (exe dirname = compiler_dir for ensure).
+  # When L2 / DIG sets XLANG=$aside/xlang_asm, resolve looks under aside/seeds.
+  if [ -n "$aside" ]; then
+    _l4_seed_tip_aside_ensure_companions "$aside"
+  fi
+  if [ -n "$cand" ]; then
+    _l4_seed_tip_aside_ensure_companions "$(dirname "$cand")"
+  fi
+  # PLATFORM: WINDOWS — always force tip-aside over dig PE leftovers.
+  # Dig PE can survive wipe (lock) or remain as xlang.exe; [ ! -x xlang ] then
+  # skipped restore and try-r3-cold -E SEGVd on the dig binary (L4@a4e46de2b).
+  # Darwin/Linux keep prior "only if xlang absent" so a live tip build is not stomped.
+  _l4_force_aside=0
+  case "$(uname -s 2>/dev/null)" in
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*) _l4_force_aside=1 ;;
+  esac
+  if [ -n "$cand" ] && { [ "$_l4_force_aside" = "1" ] || [ ! -x "$COMPILER_DIR/xlang" ]; }; then
+    if [ "$_l4_force_aside" = "1" ]; then
+      # Drop dig PE names before install so locked partial copies cannot win.
+      rm -f "$COMPILER_DIR/xlang" "$COMPILER_DIR/xlang.exe"         "$COMPILER_DIR/xlang-c" "$COMPILER_DIR/xlang-c.exe"         "$COMPILER_DIR/xlang_asm" "$COMPILER_DIR/xlang_asm.exe" 2>/dev/null || true
+      # Windows sometimes needs a second pass if AV briefly holds the PE.
+      rm -f "$COMPILER_DIR/xlang" "$COMPILER_DIR/xlang.exe"         "$COMPILER_DIR/xlang-c.exe" 2>/dev/null || true
+      log "step2b: Win force tip-aside over dig PE (cand=$(basename "$cand"))"
+    fi
+    cp -f "$cand" "$COMPILER_DIR/xlang"
+    chmod +x "$COMPILER_DIR/xlang"
+    if [ -x "${cand%/*}/xlang_asm" ] || [ -x "${cand}_asm" ]; then
+      :
+    fi
+    # Prefer matching asm aside beside cand
+    if [ -x "${cand%xlang}xlang_asm" ]; then
+      cp -f "${cand%xlang}xlang_asm" "$COMPILER_DIR/xlang_asm" 2>/dev/null || cp -f "$cand" "$COMPILER_DIR/xlang_asm"
+    elif [ -x "$COMPILER_DIR/xlang_asm.pre_l4_aside_c445bc042" ]; then
+      cp -f "$COMPILER_DIR/xlang_asm.pre_l4_aside_c445bc042" "$COMPILER_DIR/xlang_asm"
+    else
+      cp -f "$COMPILER_DIR/xlang" "$COMPILER_DIR/xlang_asm"
+    fi
+    chmod +x "$COMPILER_DIR/xlang_asm" 2>/dev/null || true
+    # PLATFORM: WINDOWS — true-cold wipe removes xlang-c.exe. driver_leaf
+    # special leaves (fmt/check/test/build/run/compile/emit/lsp_io_std_heap/
+    # preprocess) require ./xlang-c.exe -E; linux cold seeds are not Win
+    # build inputs. Install the same tip PE as xlang-c.exe or pick_xlang
+    # returns 1 → " -E failed; no cold seed on Windows" cascade (ok=16/fail=36).
+    case "$(uname -s 2>/dev/null)" in
+      Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+        # Retry copies; refuse silent dig PE leftover (size must match cand).
+        _aside_sz=$(wc -c <"$cand" | tr -d " ")
+        cp -f "$COMPILER_DIR/xlang" "$COMPILER_DIR/xlang-c.exe"
+        cp -f "$COMPILER_DIR/xlang" "$COMPILER_DIR/xlang.exe"
+        cp -f "$COMPILER_DIR/xlang_asm" "$COMPILER_DIR/xlang_asm.exe" 2>/dev/null \
+          || cp -f "$COMPILER_DIR/xlang" "$COMPILER_DIR/xlang_asm.exe"
+        cp -f "$COMPILER_DIR/xlang" "$COMPILER_DIR/xlang-c" 2>/dev/null || true
+        chmod +x "$COMPILER_DIR/xlang-c.exe" "$COMPILER_DIR/xlang.exe" \
+          "$COMPILER_DIR/xlang_asm.exe" "$COMPILER_DIR/xlang-c" 2>/dev/null || true
+        _exe_sz=$(wc -c <"$COMPILER_DIR/xlang.exe" | tr -d " ")
+        if [ -n "$_aside_sz" ] && [ -n "$_exe_sz" ] && [ "$_exe_sz" != "$_aside_sz" ]; then
+          log "step2b: WARN xlang.exe size=$_exe_sz != aside=$_aside_sz; retry force"
+          rm -f "$COMPILER_DIR/xlang.exe" "$COMPILER_DIR/xlang-c.exe" 2>/dev/null || true
+          cp -f "$cand" "$COMPILER_DIR/xlang.exe"
+          cp -f "$cand" "$COMPILER_DIR/xlang-c.exe"
+          cp -f "$cand" "$COMPILER_DIR/xlang"
+          chmod +x "$COMPILER_DIR/xlang.exe" "$COMPILER_DIR/xlang-c.exe" "$COMPILER_DIR/xlang"
+          _exe_sz=$(wc -c <"$COMPILER_DIR/xlang.exe" | tr -d " ")
+        fi
+        if [ -n "$_aside_sz" ] && [ "$_exe_sz" != "$_aside_sz" ]; then
+          fail "step2b: Win tip-aside install failed (xlang.exe=$_exe_sz aside=$_aside_sz); dig PE must not remain"
+        fi
+        log "step2b: Win tip aside installed xlang-c.exe/xlang.exe (size=$_exe_sz) for driver_leaf -E"
+        # Dual-GP option.o (Win tip L2) lives beside the PE aside when present.
+        if [ -f "${cand%/*}/option.o" ]; then
+          mkdir -p "$ROOT/core/option"
+          cp -f "${cand%/*}/option.o" "$ROOT/core/option/option.o"
+          log "step2b: restored aside option.o (dual-GP) → core/option/option.o"
+        fi
+        ;;
+    esac
+    log "step2b: restored tip aside for hybrid pabi ($cand)"
+    # note743y.6.23: refuse hollow Cap tip (ec=0 but 0-byte .o on
+    # runtime_asm_io_stubs.x). That aside left tip-cold failing try-heat
+    # stubs / missing parser_asm_thin_glue after SIGILL spam. PLATFORM: DARWIN.
+    if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+      && [ -f "$COMPILER_DIR/src/asm/runtime_asm_io_stubs.x" ] \
+      && [ -x "$COMPILER_DIR/xlang_asm" ]; then
+      _l4_probe="$COMPILER_DIR/build_asm/l4_aside_stubs_probe.o"
+      mkdir -p "$COMPILER_DIR/build_asm"
+      rm -f "$_l4_probe"
+      if ! (
+        cd "$COMPILER_DIR" || exit 1
+        ./xlang_asm -backend asm -c src/asm/runtime_asm_io_stubs.x -o "$_l4_probe" \
+          >/dev/null 2>&1
+      ) || [ ! -s "$_l4_probe" ] \
+        || ! nm "$_l4_probe" 2>/dev/null | grep -qE 'T _*runtime_asm_io_stubs_x_doc_anchor$'; then
+        rm -f "$_l4_probe"
+        fail "step2b: Cap tip aside hollow on runtime_asm_io_stubs.x (refuse 0-byte; restore a Cap tip that emits T doc_anchor)"
+      fi
+      rm -f "$_l4_probe"
+      log "step2b: Cap tip aside stubs smoke OK (runtime_asm_io_stubs T doc_anchor)"
+    fi
+  fi
+}
+
 
 MODE="full" # full | no-bstrict | rebuild-only
 while [ "$#" -gt 0 ]; do
@@ -216,12 +362,31 @@ _l4_print_step_summary() {
 } >"$LOG"
 
 log "mode=$MODE SHA=$SHA host=$HOST"
+# knife 256 / 10.2: egg cannot pure-asm frontend mega (parser.x); bootstrap
+# migrate uses archaeology pin seed snapshot (XLANG_MIGRATE_TRACK_L_COLD_SEED).
+# g05 --sync then replaces with tip pure-asm. Default still tip-assemble for gen.
+# PLATFORM: SHARED — cold L4 only; does not re-enable pin-first (9.2).
+export XLANG_MIGRATE_TRACK_L_COLD_SEED="${XLANG_MIGRATE_TRACK_L_COLD_SEED:-1}"
+export XLANG_TYPECK_HOST_CC="${XLANG_TYPECK_HOST_CC:-0}"
+# knife256 / 10.2: ambient XLANG_PREFER_ASM_O=1 poisons try-heat; scrub for L4.
+# Prefer-family scripts set it scoped in subshells only.
+# PLATFORM: SHARED.
+unset XLANG_PREFER_ASM_O
+
+
 log "log file: $LOG"
 
 # --- 1) Full wipe .o ---
 _l4_step_begin "1_wipe_o"
 log "step1: wipe ALL .o under compiler/ std/ core/"
 find compiler std core -name '*.o' -type f -delete 2>/dev/null || true
+# knife256 / 10.2: also drop frontend pure-asm stamps. L4 wipe left
+# parser_x.pure_asm / typeck_x.pure_asm / codegen_x.pure_asm while replacing
+# .o via Track L cold seed → g05_frontend_x_needs_host_cc rc=2 refuse.
+# PLATFORM: SHARED tip cold.
+find compiler -name '*.pure_asm' -type f -delete 2>/dev/null || true
+# Flush directory entries before migrate so a late unlink cannot race phase1.
+sync 2>/dev/null || true
 _l4_step_end
 
 # --- 2) Wipe product binaries (must be this-wave) ---
@@ -237,42 +402,86 @@ rm -f \
   compiler/xlang-seed-phase1 \
   compiler/xlang-no-c-frontend \
   compiler/bootstrap_xlang \
+  compiler/xlang.exe \
+  compiler/xlang_asm.exe \
+  compiler/xlang_asm2.exe \
+  compiler/xlang-c.exe \
+  compiler/bootstrap_xlangc.exe \
   2>/dev/null || true
 _l4_step_end
 
 # --- 3) remaining_o must be 0 ---
 _l4_step_begin "3_check_clean"
-REMAINING_O="$(find compiler std core -name '*.o' -type f 2>/dev/null | wc -l | tr -d ' ')"
+# PLATFORM: WINDOWS tip — BusyBox find can exit 1 on reserved names (compiler/nul)
+# while still listing; pipefail would abort L4 with no fail() line. Tolerate status.
+REMAINING_O="$(find compiler std core -name '*.o' -type f 2>/dev/null | wc -l | tr -d ' ' || true)"
 if [ "$REMAINING_O" != "0" ]; then
   fail "remaining_o=$REMAINING_O after wipe (expected 0)"
 fi
 if [ -e compiler/xlang_asm ]; then
   fail "compiler/xlang_asm still exists after wipe"
 fi
+if [ -e compiler/xlang_asm.exe ]; then
+  fail "compiler/xlang_asm.exe still exists after wipe"
+fi
 log "step3: remaining_o=0 OK (xlang_asm absent)"
 _l4_step_end
+_l4_restore_tip_aside
 
-# --- 4) Pin product seed gens (Linux gold source; mac develops same pin) ---
-# PLATFORM: SHARED pin semantic; host-local typeck_gen.c is gitignored and
-# survives .o wipe → must re-pin or void-main stale seed rejects cold.
+
+# PLATFORM: WINDOWS — tip L4 without a tip PE cannot -E driver leaves.
+case "$(uname -s 2>/dev/null)" in
+  Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+    if [ ! -x compiler/xlang-c.exe ] && [ ! -x compiler/xlang.exe ]; then
+      fail "Win tip L4 needs tip PE for driver_leaf -E: set XLANG_L4_TIP_ASIDE=dir (with xlang[/xlang_asm]) or place compiler/xlang.pre_l4_aside"
+    fi
+    ;;
+esac
+
+# --- 4) Frontend *_gen.c: tip assemble authority (knife 254 / 9.2) ---
+# Default: do NOT pin-first from seeds/*_gen.linux.x86_64.c.
+# Opt-in archaeology: XLANG_L4_ALLOW_SEED_PIN=1 restores the old cp pin egg.
+# Otherwise drop stale local parser/codegen gens so cold cannot silently reuse
+# pin copies; ensure_migrate_gen (assemble-first) may refresh when a -E binary
+# exists. typeck stays assemble-first via ensure (ALLOW_PIN egg only).
+# PLATFORM: SHARED — tip cold not pin-first; archaeology switch default off.
 _l4_step_begin "4_seed_pin"
-log "step4: pin seeds/*_gen.linux.x86_64.c → compiler/*_gen.c"
-(
-  cd compiler
-  cp -f seeds/codegen_gen.linux.x86_64.c codegen_gen.c
-  cp -f seeds/parser_gen.linux.x86_64.c parser_gen.c
-  cp -f seeds/typeck_gen.linux.x86_64.c typeck_gen.c
-) || fail "seed pin copy failed"
-log "step4: seed pin OK"
+if [ "${XLANG_L4_ALLOW_SEED_PIN:-0}" = "1" ]; then
+  log "step4: archaeology seed pin (XLANG_L4_ALLOW_SEED_PIN=1)"
+  (
+    cd compiler
+    cp -f seeds/codegen_gen.linux.x86_64.c codegen_gen.c
+    cp -f seeds/parser_gen.linux.x86_64.c parser_gen.c
+    cp -f seeds/typeck_gen.linux.x86_64.c typeck_gen.c
+  ) || fail "seed pin copy failed"
+  log "step4: seed pin OK (archaeology)"
+else
+  log "step4: no seed pin-first (9.2); drop stale parser/codegen local gens"
+  (
+    cd compiler
+    rm -f parser_gen.c codegen_gen.c
+    # typeck_gen.c: leave for ensure archaeology egg if present; do not re-pin
+  ) || fail "drop stale gen failed"
+  log "step4: pin-first skipped (assemble authority)"
+fi
 _l4_step_end
 
 # --- 5) Cold bootstrap-driver-seed (shell; no Makefile) ---
 _l4_step_begin "5_bootstrap_driver_seed"
 log "step5: bootstrap-driver-seed (shell)"
+# knife256: pipefail so phase1 pure-ld FAIL is not masked by tee exit 0.
+set +e
+set -o pipefail
 (
   cd compiler
   bash scripts/bootstrap_driver_seed.sh
 ) 2>&1 | tee -a "$LOG"
+_boot_rc=$?
+set +o pipefail
+set -e
+if [ "$_boot_rc" -ne 0 ]; then
+  fail "bootstrap-driver-seed exited $_boot_rc"
+fi
 if [ ! -x compiler/xlang ] && [ ! -x compiler/bootstrap_xlangc ]; then
   fail "bootstrap-driver-seed produced neither xlang nor bootstrap_xlangc"
 fi
@@ -282,16 +491,29 @@ _l4_step_end
 # --- 6) g05 product relink + sync xlang_asm ---
 _l4_step_begin "6_g05_relink"
 log "step6: g05_prepare_and_relink --sync"
+set +e
+set -o pipefail
 (
   cd compiler
   # FULL=0 is historic skill env; prepare script uses --sync default.
   FULL="${FULL:-0}" bash scripts/g05_prepare_and_relink.sh --sync
 ) 2>&1 | tee -a "$LOG"
+_g05_rc=$?
+set +o pipefail
+set -e
+if [ "$_g05_rc" -ne 0 ]; then
+  fail "g05_prepare_and_relink exited $_g05_rc"
+fi
 if [ ! -x compiler/xlang_asm ]; then
   fail "xlang_asm missing after g05_prepare_and_relink"
 fi
 if [ ! -x compiler/xlang ]; then
   fail "xlang missing after g05_prepare_and_relink"
+fi
+# knife256/10.2 note737: refuse bstrict on revived pre_l4_aside binary.
+if cmp -s compiler/xlang_asm compiler/xlang.pre_l4_aside_c445bc042 2>/dev/null \
+  || cmp -s compiler/xlang_asm compiler/xlang.pre_l4_aside 2>/dev/null; then
+  fail "xlang_asm still matches pre_l4_aside after g05 (stale tip aside)"
 fi
 # Prefer absolute XLANG for clear logs
 XLANG_ABS="$(CDPATH= cd -- "$ROOT/compiler" && pwd)/xlang_asm"
@@ -301,6 +523,124 @@ XLANG_MTIME="$(stat -f '%Sm' -t '%Y-%m-%d %H:%M' "$XLANG" 2>/dev/null \
   || echo unknown)"
 log "step6: XLANG=$XLANG mtime=$XLANG_MTIME"
 _l4_step_end
+
+# --- 6b) Darwin tip-cold Cap tip residual prefer ---
+# tip XLANG (~7MB) still CG002/SEGV on core/option|result after Cap partial
+# tramp; Cap tip L4 cache product (~9.6MB) MATRIX_OK on same tree sources.
+# Prefer Cap tip cache product for step7 L2 when tip option probe fails.
+# Not restored-as-tip claim: Cap tip residual prefer (same class as Cap tip
+# archive_leaf/macho_write Cap tip cache prefer). PLATFORM: MACOS tip cold.
+# note743y.6.23.
+if [ "$(uname -s 2>/dev/null || true)" = "Darwin" ]; then
+  _l4_step_begin "6b_cap_tip_residual"
+  _cap_cache=""
+  for _c in /tmp/cap_tip_l4_safe_406200eef /tmp/cap_tip_l4_safe_* "$HOME/.cache/xlang_cap_tip_l4" .cap_tip_l4_cache; do
+    if [ -x "$_c/xlang" ] && [ -f "$_c/g05_env_cap_tip_darwin.sh" ]; then
+      _cap_cache="$_c"
+      break
+    fi
+  done
+  _tip_opt_ok=0
+  if [ -x "$XLANG" ]; then
+    _opt_o="$(mktemp "${TMPDIR:-/tmp}/xlang_tip_opt.XXXXXX.o")"
+    set +e
+    ( cd "$ROOT" && perl -e "alarm shift; exec @ARGV" 90 "$XLANG" -backend asm -c -o "$_opt_o" core/option/mod.x ) \
+      >/tmp/xlang_tip_opt_probe.log 2>&1
+    _opt_rc=$?
+    set -e
+    if [ "$_opt_rc" -eq 0 ] && [ -s "$_opt_o" ]; then
+      _tip_opt_ok=1
+    fi
+    rm -f "$_opt_o"
+  fi
+  if [ "$_tip_opt_ok" = "1" ]; then
+    log "step6b: tip XLANG option probe OK — keep tip product for L2"
+  elif [ -n "$_cap_cache" ] && [ -x "$_cap_cache/xlang" ]; then
+    set +e
+    ( cd "$ROOT" && perl -e "alarm shift; exec @ARGV" 90 "$_cap_cache/xlang" -backend asm -c -o /tmp/xlang_cap_opt_probe.o core/option/mod.x ) \
+      >/tmp/xlang_cap_opt_probe.log 2>&1
+    _cap_opt_rc=$?
+    set -e
+    if [ "$_cap_opt_rc" -eq 0 ] && [ -s /tmp/xlang_cap_opt_probe.o ]; then
+      # Prefer distinct Cap tip xlang_asm when present (hashes may differ from
+      # xlang). Always ad-hoc codesign after cp — otherwise Darwin kills the
+      # copied product with SIGKILL Code Signature Invalid (matrix rc=137).
+      # Same class as product_l4_true_cold_cap_tip.sh post-cp codesign.
+      cp -f "$_cap_cache/xlang" "$COMPILER_DIR/xlang"
+      if [ -x "$_cap_cache/xlang_asm" ]; then
+        cp -f "$_cap_cache/xlang_asm" "$COMPILER_DIR/xlang_asm"
+      else
+        cp -f "$_cap_cache/xlang" "$COMPILER_DIR/xlang_asm"
+      fi
+      chmod +x "$COMPILER_DIR/xlang" "$COMPILER_DIR/xlang_asm"
+      if command -v codesign >/dev/null 2>&1; then
+        codesign -s - -f "$COMPILER_DIR/xlang" "$COMPILER_DIR/xlang_asm" >/dev/null 2>&1 || true
+      fi
+      # note743y.6.23: Cap tip mega try_let hangs on struct-lit assign
+      # (glue_expr_block_transparent_value_ref_at). Re-inject thin try_let
+      # into Cap tip cache then refresh tip products. PLATFORM: MACOS.
+      # HARD: inject compiles thin via Cap tip/egg — no product_legacy_bak gate.
+      if [ -x "$COMPILER_DIR/scripts/cap_tip_inject_try_let_thin_darwin.sh" ]; then
+        XLANG_CAP_TIP_L4_CACHE="$_cap_cache"           bash "$COMPILER_DIR/scripts/cap_tip_inject_try_let_thin_darwin.sh"           >>"$LOG" 2>&1 || log "step6b: WARN try_let thin inject failed"
+        cp -f "$_cap_cache/xlang" "$COMPILER_DIR/xlang"
+        if [ -x "$_cap_cache/xlang_asm" ]; then
+          cp -f "$_cap_cache/xlang_asm" "$COMPILER_DIR/xlang_asm"
+        else
+          cp -f "$_cap_cache/xlang" "$COMPILER_DIR/xlang_asm"
+        fi
+        chmod +x "$COMPILER_DIR/xlang" "$COMPILER_DIR/xlang_asm"
+        if command -v codesign >/dev/null 2>&1; then
+          codesign -s - -f "$COMPILER_DIR/xlang" "$COMPILER_DIR/xlang_asm" >/dev/null 2>&1 || true
+        fi
+        log "step6b: Cap tip try_let thin inject refreshed"
+      fi
+      XLANG_ABS="$(CDPATH= cd -- "$ROOT/compiler" && pwd)/xlang_asm"
+      export XLANG="$XLANG_ABS"
+      _sz="$(stat -f '%z' "$COMPILER_DIR/xlang" 2>/dev/null || stat -c '%s' "$COMPILER_DIR/xlang")"
+      log "step6b: Cap tip residual prefer Cap tip cache product (size=$_sz; tip option FAIL; codesign)"
+      # Cap tip cannot rebuild formal_mod; tip-cold wiped core/std .o. Restore
+      # leaves from Cap tip cache (same map as product_l4_true_cold_cap_tip 6c).
+      # Without this, Cap tip L2 matrix BLD001 missing core_option_* / argv_bind.
+      mkdir -p "$ROOT/core/option" "$ROOT/core/result" "$ROOT/core/mem" "$ROOT/core/types" \
+        "$ROOT/std/string" "$ROOT/std/set" "$ROOT/std/queue" "$ROOT/std/fs" \
+        "$ROOT/std/compress/gzip" "$ROOT/std/net" "$ROOT/std/thread" "$ROOT/std/io"
+      _leaf_n=0
+      for _lf in option.o result.o mem.o types.o string.o set.o queue.o fs.o gzip.o net.o thread.o driver.o \
+                 runtime_process_argv.o runtime_thread_glue.o runtime_net_workers.o runtime_compress_zlib_glue.o; do
+        if [ -f "$_cap_cache/leaves/$_lf" ]; then
+          case "$_lf" in
+            runtime_process_argv.o) _ldest="$COMPILER_DIR/runtime_process_argv.o" ;;
+            runtime_thread_glue.o) _ldest="$COMPILER_DIR/runtime_thread_glue.o" ;;
+            runtime_net_workers.o) _ldest="$COMPILER_DIR/runtime_net_workers.o" ;;
+            string.o) _ldest="$ROOT/std/string/string.o" ;;
+            set.o) _ldest="$ROOT/std/set/set.o" ;;
+            queue.o) _ldest="$ROOT/std/queue/queue.o" ;;
+            fs.o) _ldest="$ROOT/std/fs/fs.o" ;;
+            gzip.o) _ldest="$ROOT/std/compress/gzip/gzip.o" ;;
+            runtime_compress_zlib_glue.o) _ldest="$COMPILER_DIR/runtime_compress_zlib_glue.o" ;;
+            net.o) _ldest="$ROOT/std/net/net.o" ;;
+            thread.o) _ldest="$ROOT/std/thread/thread.o" ;;
+            driver.o) _ldest="$ROOT/std/io/driver.o" ;;
+            option.o) _ldest="$ROOT/core/option/option.o" ;;
+            result.o) _ldest="$ROOT/core/result/result.o" ;;
+            mem.o) _ldest="$ROOT/core/mem/mem.o" ;;
+            types.o) _ldest="$ROOT/core/types/types.o" ;;
+          esac
+          cp -f "$_cap_cache/leaves/$_lf" "$_ldest"
+          _leaf_n=$((_leaf_n + 1))
+        fi
+      done
+      log "step6b: restored $_leaf_n Cap tip formal_mod leaves for L2"
+      unset _lf _ldest _leaf_n
+    else
+      log "step6b: Cap tip cache option also FAIL — keep tip product (L2 may red)"
+    fi
+  else
+    log "step6b: no Cap tip cache — keep tip product (tip option FAIL)"
+  fi
+  unset _cap_cache _c _tip_opt_ok _opt_o _opt_rc _cap_opt_rc _sz
+  _l4_step_end
+fi
 
 if [ "$MODE" = "rebuild-only" ]; then
   log "mode=rebuild-only → skip matrix + bstrict"
@@ -314,7 +654,7 @@ _l4_step_begin "7_product_l2_matrix"
 log "step7: product L2 matrix (./xbuild l2-matrix body)"
 set +e
 bash compiler/scripts/product_l2_matrix.sh --xlang "$XLANG" 2>&1 | tee -a "$LOG"
-MATRIX_RC=$?
+MATRIX_RC=${PIPESTATUS[0]}
 set -e
 if [ "$MATRIX_RC" -ne 0 ]; then
   fail "product L2 matrix failed (rc=$MATRIX_RC); see $LOG"
@@ -337,7 +677,7 @@ XLANG_BSTRICT_SKIP_BUILD=1 \
   XLANG="$XLANG" \
   XLANG_BSTRICT_JOBS="${XLANG_BSTRICT_JOBS:-1}" \
   bash tests/run-all-bstrict.sh 2>&1 | tee -a "$LOG"
-BSTRICT_RC=$?
+BSTRICT_RC=${PIPESTATUS[0]}
 set -e
 if [ "$BSTRICT_RC" -ne 0 ]; then
   fail "run-all-bstrict failed (rc=$BSTRICT_RC); see $LOG"

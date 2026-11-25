@@ -157,13 +157,7 @@ int32_t parser_asm_let_alias_pack_commit_alias_c(void *pack, void *module, int32
 }
 
 #ifndef XLANG_PTHIN_LET_ALIAS_BODIES_FROM_X
-/** Copy ident into name_buf (content up to 255; buffer capacity 128). wave581 Cap residual. */
-static void parser_asm_top_level_let_copy_ident_name_c(struct parser_asm_slice_u8 *source, size_t token_start,
-                                                       int32_t name_len, uint8_t *name_buf) {
-  if (!name_buf || name_len <= 0)
-    return;
-  parser_asm_copy_slice_to_name64_slice_c(source, token_start, name_len, name_buf);
-}
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_LET_ALIAS_BODIES_FROM_X removed */
 #endif /* !XLANG_PTHIN_LET_ALIAS_BODIES_FROM_X copy_ident */
 
 /**

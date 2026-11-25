@@ -5,6 +5,8 @@
 // .x owns driver_run_asm_backend; product PREFER rest is marker only (business H=0).
 // Cap residual (driver_abi): FILE*/pctx fields/host defaults/defines/**u8/work slots/
 //   C frontend precheck (product NO_C always skips).
+
+extern function lexer_src_park(data: *u8, len: i32): void;
 // Steps: read_pp / early / parse / load_deps / open_out / prerun / pipeline / finish.
 // PLATFORM: SHARED — surface short names are the link-name contract (Track L).
 // Comment rule: never put star-slash sequences inside block comments.
@@ -719,6 +721,12 @@ export function rt_ab_step_read_pp(): i32 {
     driver_asm_work_p_set(ap_src(), src);
     driver_asm_work_z_set(az_slen(), src_len);
     diag_set_file(path, src, src_len);
+    // knife256/10.2: park FULL preprocessed source before tip u8[] can
+    // clamp the first lexer_next to 1024 (first export fn sits past 1024
+    // in runtime_io_abi.x → intermittent P001). PLATFORM: SHARED.
+    if (src_len > 0 && src_len < (2147483647 as usize)) {
+      lexer_src_park(src, src_len as i32);
+    }
   }
   return 0;
 }
@@ -1342,6 +1350,10 @@ function rt_ab_dep_waits_unvisited(ds: *u8, dl: *u8, dp: *u8, n_deps: i32, slot:
   let open_b: u8 = 0;
   let q: u8 = 0;
   let path_buf: u8[65] = [];
+  // Local u8[N][idx] in the official Win face uses scale-8 qword
+  // stores (idx8 typool slot width), which smash the frame. *u8 index
+  // already compiles as byte scale (rt_ab_prerun_next_slot / seen[s]).
+  let path_buf_p: *u8 = 0 as *u8;
   let k: i32 = 0;
   let g: i32 = 0;
   let sv: u8 = 0;
@@ -1438,7 +1450,8 @@ function rt_ab_dep_waits_unvisited(ds: *u8, dl: *u8, dp: *u8, n_deps: i32, slot:
         if (q == 34) {
           p = p + 1;
           unsafe {
-            memset(&path_buf[0], 0, 65);
+            path_buf_p = &path_buf[0];
+            memset(path_buf_p, 0, 65);
           }
           k = 0;
           while (k < 64) {
@@ -1455,7 +1468,7 @@ function rt_ab_dep_waits_unvisited(ds: *u8, dl: *u8, dp: *u8, n_deps: i32, slot:
               break;
             }
             unsafe {
-              path_buf[k] = c;
+              path_buf_p[k] = c;
             }
             k = k + 1;
             p = p + 1;
@@ -1463,8 +1476,8 @@ function rt_ab_dep_waits_unvisited(ds: *u8, dl: *u8, dp: *u8, n_deps: i32, slot:
           if (k > 0) {
             if (k < 65) {
               unsafe {
-                path_buf[k] = 0;
-                g = xlang_find_loaded_import_index(&path_buf[0], dp, n_deps);
+                path_buf_p[k] = 0;
+                g = xlang_find_loaded_import_index(path_buf_p, dp, n_deps);
               }
               if (g >= 0) {
                 if (g < 32) {
@@ -1572,6 +1585,11 @@ export function rt_ab_step_prerun(): i32 {
   let skip_tk: i32 = 0;
   let need_import_map: i32 = 0;
   let prerun_seen: u8[32] = [];
+  // Same local u8[N] scale-8 smash as path_buf: official prerun zeroed
+  // prerun_seen[0..31] as 8-byte stores starting at rbp-0xe8, which
+  // overwrites n_deps, saved rbp, and the return address (rip=0).
+  // Address through *u8 so the store is a single byte (scale 1).
+  let prerun_seen_p: *u8 = 0 as *u8;
   let prerun_zi: i32 = 0;
   let prerun_step: i32 = 0;
   let prerun_topo: i32 = 0;
@@ -1601,9 +1619,12 @@ export function rt_ab_step_prerun(): i32 {
   if (n_deps > 32) {
     prerun_topo = 0;
   }
+  prerun_seen_p = &prerun_seen[0];
   prerun_zi = 0;
   while (prerun_zi < 32) {
-    prerun_seen[prerun_zi] = 0;
+    unsafe {
+      prerun_seen_p[prerun_zi] = 0;
+    }
     prerun_zi = prerun_zi + 1;
   }
   if (emit_elf != 0) {
@@ -1612,7 +1633,7 @@ export function rt_ab_step_prerun(): i32 {
         prerun_step = 0;
         while (prerun_step < n_deps) {
           if (prerun_topo != 0) {
-            j = rt_ab_prerun_next_slot(ds, dl, dp, n_deps, &prerun_seen[0]);
+            j = rt_ab_prerun_next_slot(ds, dl, dp, n_deps, prerun_seen_p);
           } else {
             j = prerun_step;
           }
@@ -1635,7 +1656,9 @@ export function rt_ab_step_prerun(): i32 {
           if (prerun_topo != 0) {
             if (j >= 0) {
               if (j < 32) {
-                prerun_seen[j] = 1;
+                unsafe {
+                  prerun_seen_p[j] = 1;
+                }
               }
             }
           }
@@ -1648,7 +1671,7 @@ export function rt_ab_step_prerun(): i32 {
   prerun_step = 0;
   while (prerun_step < n_deps) {
     if (prerun_topo != 0) {
-      j = rt_ab_prerun_next_slot(ds, dl, dp, n_deps, &prerun_seen[0]);
+      j = rt_ab_prerun_next_slot(ds, dl, dp, n_deps, prerun_seen_p);
     } else {
       j = prerun_step;
     }
@@ -1799,7 +1822,9 @@ export function rt_ab_step_prerun(): i32 {
     if (prerun_topo != 0) {
       if (j >= 0) {
         if (j < 32) {
-          prerun_seen[j] = 1;
+          unsafe {
+            prerun_seen_p[j] = 1;
+          }
         }
       }
     }

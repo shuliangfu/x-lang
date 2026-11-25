@@ -144,13 +144,16 @@ function pel_call(arena: *u8, lo: u64, hi: u64, source: *u8, out: *u8): void {
  * @param out pointer to the 24-byte result
  * PLATFORM: MACOS|DARWIN
  */
+/* knife256/10.2: return i32 0 so tip-CG void+memcpy does not leave dst
+ * pointer in x0 (parse_one_function_impl epilogue reuses leftover x0 as
+ * status → P001 no functions on import method / field call). */
 #[no_mangle]
-export function parse_expr_into(arena: *u8, lo: u64, hi: u64, source: *u8, out: *u8): void {
+export function parse_expr_into(arena: *u8, lo: u64, hi: u64, source: *u8, out: *u8): i32 {
   if (source == 0) {
-    return;
+    return 0;
   }
   if (out == 0) {
-    return;
+    return 0;
   }
   let data: *u8 = pel_load_ptr(source);
   let lenp: *u8 = source + 8;
@@ -164,4 +167,5 @@ export function parse_expr_into(arena: *u8, lo: u64, hi: u64, source: *u8, out: 
   let outp: *u8 = &outbuf[0];
   pel_call(arena, lo, hi, srcp, outp);
   pel_copy(out, outp, 24);
+  return 0;
 }

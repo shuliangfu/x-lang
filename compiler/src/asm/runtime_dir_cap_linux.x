@@ -30,6 +30,25 @@ extern "C" function malloc(n: u64): *u8;
 extern "C" function free(p: *u8): void;
 extern "C" function memcpy(dst: *u8, src: *u8, n: u64): *u8;
 
+/* 记216／tip-cold: linux.x calls xlang_formal_bare_open (C formal remaps
+ * open→that name). Provide the trampoline here so fs formal ld -r closes
+ * the U without host-cc. Never under formal_mod #define open. */
+extern "C" function open(path: *u8, flags: i32, mode: i32): i32;
+
+/**
+ * Libc open under the formal_mod clash name.
+ * @param path NUL-terminated path
+ * @param flags open flags
+ * @param mode mode when creating
+ * @return i32 — fd or -1
+ * PLATFORM: LINUX x86_64 tip cold.
+ */
+#[no_mangle]
+export function xlang_formal_bare_open(path: *u8, flags: i32, mode: i32): i32 {
+  unsafe { return open(path, flags, mode); }
+}
+
+
 /**
  * Copy 4 bytes out of the stream into an i32.
  * @param p source address

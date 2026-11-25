@@ -140,12 +140,7 @@ static void parser_asm_set_onefunc_fail_c(struct parser_asm_onefunc_result *out,
 }
 
 #ifndef XLANG_PTHIN_FN_BLOCK_ONEFUNC_BUF_HDR_FROM_X
-/** 返回值类型 token 是否允许（标量 / void / ident）。 */
-static int32_t parser_asm_onefunc_buf_return_type_ok_c(int32_t kind) {
-  return kind == (int32_t)TOKEN_I32 || kind == (int32_t)TOKEN_I64 || kind == (int32_t)TOKEN_BOOL
-         || kind == (int32_t)TOKEN_VOID || kind == (int32_t)TOKEN_U8 || kind == (int32_t)TOKEN_U32
-         || kind == (int32_t)TOKEN_U64 || kind == (int32_t)TOKEN_USIZE || kind == (int32_t)TOKEN_IDENT;
-}
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_FN_BLOCK_ONEFUNC_BUF_HDR_FROM_X removed */
 #endif
 
 /**
@@ -160,9 +155,6 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
   uint8_t pname_buf[256];
   uint8_t *out_pool;
 #ifndef XLANG_PTHIN_FN_BLOCK_ONEFUNC_BUF_HDR_FROM_X
-  int32_t param_idx;
-  int32_t param_name_len;
-  int32_t param_type_ref;
 #endif
   int32_t ret_type_ref;
   int32_t name_len;

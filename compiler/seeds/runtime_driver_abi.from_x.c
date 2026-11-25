@@ -2352,8 +2352,8 @@ int32_t driver_preamble_fputs(uint8_t *s, uint8_t *stream) {
 #define X_CODEGEN_OUTBUF_CAP_ABI (9 * 1024 * 1024)
 #endif
 struct driver_codegen_outbuf_abi {
-    unsigned char data[X_CODEGEN_OUTBUF_CAP_ABI];
     int32_t length;
+    unsigned char data[X_CODEGEN_OUTBUF_CAP_ABI];
 };
 
 extern const char *driver_x_emit_c_path;

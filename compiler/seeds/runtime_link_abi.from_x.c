@@ -1075,17 +1075,92 @@ int xlang_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_
 #endif
 #if defined(_WIN32) || defined(_WIN64)
     {
-        /* MinGW process.h 提供 _pgmptr 全局变量（char*），是当前进程可执行文件完整路径
-         * （含 .exe 与盘符）。无需 #include <windows.h>，避免与 token.h 的 TOKEN_TYPE 冲突。 */
+        /* PLATFORM: WINDOWS — Dig aside soft verify: cwd = repo root, _pgmptr =
+         * aside PE dir (no seeds/). Prefer cwd-relative compiler/ when markers
+         * exist; bare dirname(_pgmptr) is last resort (tip-in-compiler).
+         * MinGW _pgmptr: full exe path without windows.h (token.h TOKEN_TYPE). */
         extern char *_pgmptr;
-        const char *exe_path = _pgmptr;
+        char cwd[PATH_MAX];
+        char cand[PATH_MAX];
+        size_t n;
+        char *slash;
+        const char *exe_path;
+
+        /* 1) cwd-relative compiler/ (repo-root soft verify). */
+        if (xlang_path_access("compiler/runtime_panic.o", R_OK) == 0 ||
+            xlang_path_access("compiler/seeds/runtime_panic.from_x.c", R_OK) == 0) {
+            if (8 >= out_dir_sz)
+                return -1;
+            memcpy(out_dir, "compiler", 9);
+            return 0;
+        }
+
+        /* 2) absolute getcwd()/compiler when markers exist. */
+        if (getcwd(cwd, sizeof(cwd) - 1) != NULL) {
+            n = strlen(cwd);
+            if (n + 40 < sizeof(cand)) {
+                memcpy(cand, cwd, n);
+                memcpy(cand + n, "/compiler/runtime_panic.o", 26);
+                if (xlang_path_access(cand, R_OK) == 0) {
+                    memcpy(cand + n, "/compiler", 10);
+                    if (n + 9 >= out_dir_sz)
+                        return -1;
+                    memcpy(out_dir, cand, n + 10);
+                    return 0;
+                }
+                memcpy(cand, cwd, n);
+                memcpy(cand + n, "/compiler/seeds/runtime_panic.from_x.c", 38);
+                if (xlang_path_access(cand, R_OK) == 0) {
+                    memcpy(cand + n, "/compiler", 10);
+                    if (n + 9 >= out_dir_sz)
+                        return -1;
+                    memcpy(out_dir, cand, n + 10);
+                    return 0;
+                }
+            }
+        }
+
+        /* 3) exe-dir when it itself looks like a compiler tree. */
+        exe_path = _pgmptr;
         if (exe_path && exe_path[0]) {
-            size_t n = strlen(exe_path);
+            n = strlen(exe_path);
             if (n >= sizeof(buf))
                 n = sizeof(buf) - 1;
             memcpy(buf, exe_path, n);
             buf[n] = '\0';
-            char *slash = xlang_path_last_sep(buf);
+            slash = xlang_path_last_sep(buf);
+            if (slash) {
+                *slash = '\0';
+                n = strlen(buf);
+                if (n + 32 < sizeof(cand)) {
+                    memcpy(cand, buf, n);
+                    memcpy(cand + n, "/runtime_panic.o", 17);
+                    if (xlang_path_access(cand, R_OK) == 0) {
+                        if (n >= out_dir_sz)
+                            return -1;
+                        memcpy(out_dir, buf, n + 1);
+                        return 0;
+                    }
+                    memcpy(cand, buf, n);
+                    memcpy(cand + n, "/seeds/runtime_panic.from_x.c", 29);
+                    if (xlang_path_access(cand, R_OK) == 0) {
+                        if (n >= out_dir_sz)
+                            return -1;
+                        memcpy(out_dir, buf, n + 1);
+                        return 0;
+                    }
+                }
+            }
+        }
+
+        /* 4) Historical: dirname(_pgmptr) even without marker. */
+        if (exe_path && exe_path[0]) {
+            n = strlen(exe_path);
+            if (n >= sizeof(buf))
+                n = sizeof(buf) - 1;
+            memcpy(buf, exe_path, n);
+            buf[n] = '\0';
+            slash = xlang_path_last_sep(buf);
             if (slash) {
                 *slash = '\0';
                 if (strlen(buf) >= out_dir_sz)
@@ -1209,6 +1284,16 @@ const char *xlang_repo_root_from_argv0(const char *argv0) {
     buf[0] = '\0';
     /* Primary: compiler dir from self/exe or argv0 → parent is repo root. */
     if (xlang_resolve_compiler_dir(argv0, comp, sizeof comp) == 0 && comp[0]) {
+        /* DIG s207: Win resolve may return relative "compiler" when cwd is
+         * already the repo root. That string has no sep, so stripping parent
+         * cleared buf and formal_ensure early-out skipped context companions
+         * (atomic_glue / time_os). Treat bare "compiler" as cwd-repo.
+         * PLATFORM: WINDOWS (relative resolve) · SHARED consumer. */
+        if (strcmp(comp, "compiler") == 0) {
+            buf[0] = '.';
+            buf[1] = '\0';
+            return buf;
+        }
         if (strlen(comp) < sizeof(buf)) {
             memcpy(buf, comp, strlen(comp) + 1);
             last = xlang_path_last_sep(buf);
@@ -1325,9 +1410,23 @@ const char *xlang_asm_ld_try_under_lib_roots(const char *rel, const char **lib_r
 /* G-02f-270/L L3：realpath+skip 主体始终在 rest（thin shell 在 labi_path_io）。
  * 注意：impl 调用 asm_link_obj_skip_missing（hybrid 时由 L3 提供）。 */
 const char *xlang_runtime_o_realpath_if_exists_impl(const char *path, char *resolved) {
-    if (!path || !path[0] || !resolved || link_abi_realpath_cap(path, resolved) == NULL)
+    size_t n;
+    if (!path || !path[0] || !resolved)
         return NULL;
-    return asm_link_obj_skip_missing(resolved);
+    /* POSIX: realpath then confirm regular nonempty file. */
+    if (link_abi_realpath_cap(path, resolved) != NULL)
+        return asm_link_obj_skip_missing(resolved);
+    /* PLATFORM: WINDOWS — link_abi_realpath_cap is null. Accept the candidate
+     * path when the file already exists (DIG soft: compiler/runtime_panic.o
+     * under repo cwd). Without this, ensure_* always rebuilds then still cannot
+     * see out_o via panic_o_path → BLD001 missing after cc -c. */
+    if (asm_link_obj_skip_missing(path) == NULL)
+        return NULL;
+    n = strlen(path);
+    if (n >= PATH_MAX)
+        return NULL;
+    memcpy(resolved, path, n + 1);
+    return resolved;
 }
 
 /* G-02f-270 L3 path IO public thin（非 hybrid 时 rest 自带；hybrid 时由 L3 提供） */
@@ -4027,6 +4126,11 @@ static size_t g_defined_cache_blob_len;
 static char g_all_cache_blob[XLANG_UNDEF_CACHE_BLOB_MAX];
 static size_t g_all_cache_blob_len;
 static int g_undef_cache_ready;
+/* PLATFORM: SHARED — mkstemp creates an empty path then emit fills COFF/ELF.
+ * A probe between create and write can arm ready+empty for that path; later
+ * append_std fk0 then never reloads and misses U ctx_*_c. Cache key includes
+ * file size so post-emit reloads. G.7: complete existing per-path cache. */
+static size_t g_undef_cache_filesize;
 
 static int xlang_nameblob_append(char *blob, size_t *len, const char *name) {
     size_t n;
@@ -4097,6 +4201,7 @@ static void xlang_undef_cache_reset(void) {
     g_defined_cache_blob_len = 0;
     g_all_cache_blob_len = 0;
     g_undef_cache_ready = 0;
+    g_undef_cache_filesize = 0;
 }
 
 static int xlang_undef_cache_append_name(const char *name) {
@@ -4499,15 +4604,21 @@ static int xlang_nm_t_fill_defined_cache(const char *o_path) {
 
 static int xlang_undef_cache_load(const char *o_path) {
     size_t n;
+    size_t fsz = 0;
+    struct stat st;
     if (!o_path || !o_path[0])
         return 0;
-    if (g_undef_cache_ready && strcmp(g_undef_cache_path, o_path) == 0)
+    if (xlang_path_stat(o_path, &st) == 0 && S_ISREG(st.st_mode) && st.st_size > 0)
+        fsz = (size_t)st.st_size;
+    if (g_undef_cache_ready && strcmp(g_undef_cache_path, o_path) == 0
+        && g_undef_cache_filesize == fsz)
         return 1;
     xlang_undef_cache_reset();
     n = strlen(o_path);
     if (n >= sizeof(g_undef_cache_path))
         return 0;
     memcpy(g_undef_cache_path, o_path, n + 1);
+    g_undef_cache_filesize = fsz;
 #if defined(__APPLE__)
     if (xlang_macho64_obj_fill_undef_cache(o_path)) {
         g_undef_cache_ready = 1;
@@ -5977,6 +6088,14 @@ int xlang_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const
              * ld.exe on PATH (≡ the old gcc driver line); missing → BLD001,
              * no gcc fallback. User/std -l stay before the runtime tail. */
             static char xlang_win_ld_bufs[12 * 1024];
+            const char *user_o = o_path;
+            extern char *driver_asm_tmp_path_kept(void);
+            /* DIG soft: mutable tmp slot can be empty by ld time; prefer kept. */
+            if (!user_o || !user_o[0]) {
+                char *kept = driver_asm_tmp_path_kept();
+                if (kept && kept[0])
+                    user_o = kept;
+            }
             la = 0;
             ld_bank->n = 0;
             memset(ld_bank->slots, 0, sizeof ld_bank->slots);
@@ -5986,12 +6105,58 @@ int xlang_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const
             labi_win_ld_append_head(xlang_win_ld_bufs, 1024, argv, &la, XLANG_LD_ARGV_CAP);
             argv[la++] = "-o";
             argv[la++] = exe_path;
-            argv[la++] = o_path;
-            xlang_asm_ld_append_std_objs_for_user(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, XLANG_LD_ARGV_CAP, &ldflags);
-            xlang_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, XLANG_LD_ARGV_CAP, &ldflags);
+            argv[la++] = user_o;
+            /* PLATFORM: WINDOWS — DIG soft: mutable o_path/tmp slot may be empty
+             * by ld time while kept still holds the user .o. append_std fk0
+             * skips formal ensure when user_o empty (user_ok=0) and only
+             * skip-missing-pushes whatever already exists (e.g. unicode.o);
+             * context.o never ensure'd → U ctx_*_c. Pass kept-aware user_o so
+             * fk0 scans the real object and ensure+push fires. G.7: complete
+             * existing win_ld kept path; do not add a second probe. */
+            {
+                /* DIG s201: prove fk0/undef after kept-aware user_o. */
+                extern int labi_std_fk0_user_needs_rel(const char *user_o, const char *rel);
+                extern int xlang_link_obj_needs_undef_sym(const char *o_path, const char *sym);
+                FILE *flog = fopen("C:/xlang_tmp/dig_l2_rc1_verify_2026-11-11/_s201_fk0.txt", "w");
+                if (flog) {
+                    struct stat st2;
+                    int st_rc = xlang_path_stat(user_o, &st2);
+                    fprintf(flog, "user_o=[%s] stat_rc=%d size=%lld\n",
+                            user_o ? user_o : "(null)", st_rc,
+                            (st_rc == 0) ? (long long)st2.st_size : -1LL);
+                    fprintf(flog, "nu_ctx=%d\n",
+                            xlang_link_obj_needs_undef_sym(user_o, "ctx_background_c"));
+                    fprintf(flog, "fk0_ctx=%d\n",
+                            labi_std_fk0_user_needs_rel(user_o, "std/context/context.o"));
+                    fclose(flog);
+                }
+            }
+            xlang_asm_ld_append_std_objs_for_user(link_eff, user_o, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, XLANG_LD_ARGV_CAP, &ldflags);
+            xlang_asm_ld_append_on_demand_user_objs(link_eff, user_o, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, XLANG_LD_ARGV_CAP, &ldflags);
             xlang_asm_ld_append_user_extra_o_files(argv, &la, XLANG_LD_ARGV_CAP);
             labi_win_ld_append_tail(xlang_win_ld_bufs, 1024, argv, &la, XLANG_LD_ARGV_CAP);
+            /* PLATFORM: WINDOWS — soft hello co-emits WSAStartup; ensure winsock
+             * even if freestanding_list twin lags (DIG s202). G.7: same flag as
+             * labi_win_ld_append_tail -lws2_32; push is idempotent for ld. */
+            if (la < XLANG_LD_ARGV_CAP - 1)
+                argv[la++] = "-lws2_32";
             argv[la] = NULL;
+            {
+                /* DIG s196/s200: dump win_ld argv + tmp slot + kept user_o. */
+                extern uint8_t *driver_asm_tmp_path_slot(void);
+                FILE *wlog = fopen("C:/xlang_tmp/dig_l2_rc1_verify_2026-11-11/_win_ld_argv.txt", "w");
+                if (wlog) {
+                    int wi;
+                    uint8_t *slot = driver_asm_tmp_path_slot();
+                    fprintf(wlog, "o_path=%p [%s]\n", (void *)o_path, o_path ? o_path : "(null)");
+                    fprintf(wlog, "slot=%p [%s]\n", (void *)slot, slot ? (char *)slot : "(null)");
+                    fprintf(wlog, "user_o=%p [%s]\n", (void *)user_o, user_o ? user_o : "(null)");
+                    for (wi = 0; wi < la; wi++) {
+                        fprintf(wlog, "[%d] %s\n", wi, argv[wi] ? argv[wi] : "(null)");
+                    }
+                    fclose(wlog);
+                }
+            }
             {
                 int rc = xlang_spawn_sync(labi_win_ld_slot(xlang_win_ld_bufs, 1024, 0), (const char *const *)argv);
                 if (rc != 0) {

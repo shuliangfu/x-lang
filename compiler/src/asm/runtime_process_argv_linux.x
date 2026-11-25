@@ -329,17 +329,25 @@ export function process_xlang_argc_get(): i32 {
  */
 #[no_mangle]
 export function process_xlang_argv_get(i: i32): *u8 {
+  // Load file-level argc/argv into locals before compare. Tip asm used to
+  // lower `i >= xlang_process_argc` as `i >= 0`, so every valid index
+  // returned null (run-process args exit=2). Same load-first pattern as
+  // process_xlang_argc_get. PLATFORM: LINUX x86_64.
+  let n: i32 = 0;
   let bound: **u8 = 0;
   if (i < 0) {
     return 0;
   }
-  if (xlang_process_argc <= 0 || xlang_process_argv == 0) {
+  n = xlang_process_argc;
+  bound = xlang_process_argv;
+  if (n <= 0 || bound == 0) {
     xlang_process_argv_bind_from_crt();
+    n = xlang_process_argc;
+    bound = xlang_process_argv;
   }
-  if (xlang_process_argv == 0 || i >= xlang_process_argc) {
+  if (bound == 0 || i >= n) {
     return 0;
   }
-  bound = xlang_process_argv;
   return bound[i];
 }
 

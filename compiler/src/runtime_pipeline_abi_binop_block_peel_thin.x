@@ -26,6 +26,10 @@ export extern function pipeline_asm_emit_module_ref_c(): *u8;
 export extern function asm_module_top_level_const_lit_i32(mod: *u8, arena: *u8, name: *u8, nlen: i32, out: *i32): i32;
 export extern function backend_enc_mov_imm32_to_rbx_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
 export extern function backend_enc_mov_imm32_to_w0_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
+export extern function glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_push_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_pop_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_mov_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function glue_asm73_evict_cache_if_live_pressure_elf_c(ta: i32, elf_ctx: *u8): void;
 export extern function glue_binop_var_slot_cache_hit_rbx(ctx: *u8, off: i32): i32;
 export extern function glue_binop_try_reload_spill_off_elf_c(elf_ctx: *u8, ctx: *u8, off: i32, ta: i32, to_rbx: i32): i32;
@@ -159,6 +163,64 @@ export function glue_expr_block_transparent_value_ref_at(arena: *u8, expr_ref: i
  * @return i32 - face-specific status
  * PLATFORM: SHARED freestanding emit.
  */
+/**
+ * Sign-extend a folded i32 const after mov imm32.
+ * mov w / mov to ebx zero-extends, so -7 becomes 0x00000000fffffff9
+ * and loses a 64-bit compare against sxtw -7. u32 stays zero-extended.
+ * i32 is kind 0, i64 is 5, isize is 7. A missing type does not extend.
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — encoder
+ * @param ctx *u8 — function frame
+ * @param expr_ref i32 — VAR whose imm was just emitted
+ * @param ta i32 — 0 x86_64, 1 arm64
+ * @param to_rbx i32 — non-zero means the imm is in rbx
+ * @return i32 — 0 ok; -1 encode failure
+ * PLATFORM: SHARED.
+ */
+function peel_sxt_folded_signed_imm(arena: *u8, elf_ctx: *u8, ctx: *u8, expr_ref: i32, ta: i32, to_rbx: i32): i32 {
+  let tr: i32 = 0;
+  let tk: i32 = 0;
+  unsafe {
+    tr = glue_var_decl_type_ref_elf_c(arena, ctx, expr_ref);
+  }
+  if (tr <= 0) {
+    return 0;
+  }
+  unsafe {
+    tk = pipeline_type_kind_ord_at(arena, tr);
+  }
+  if (tk != 0 && tk != 5 && tk != 7) {
+    return 0;
+  }
+  if (to_rbx != 0) {
+    unsafe {
+      if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0) {
+        return 0 - 1;
+      }
+      if (glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx, ta) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) {
+        return 0 - 1;
+      }
+    }
+    return 0;
+  }
+  unsafe {
+    if (glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+  }
+  return 0;
+}
+
+#[no_mangle]
 export function glue_try_binop_load_operand_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, to_rbx: i32): i32 {
   unsafe {
     let ko: i32 = 0;
@@ -205,6 +267,11 @@ export function glue_try_binop_load_operand_elf_c(arena: *u8, elf_ctx: *u8, expr
               if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, mod_imm, ta) != 0) {
                 return -1;
               }
+            }
+            // mov imm32 zero-extends. A signed const needs sxtw before cmp x.
+            // PLATFORM: SHARED.
+            if (peel_sxt_folded_signed_imm(arena, elf_ctx, ctx, expr_ref, ta, to_rbx) != 0) {
+              return -1;
             }
             return 0;
           }

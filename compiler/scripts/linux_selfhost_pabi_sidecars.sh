@@ -22,16 +22,50 @@ if [ "$(uname -s)" != "Linux" ]; then
   echo "linux_selfhost_pabi_sidecars: skip $(uname -s)"
   exit 0
 fi
-if [ ! -x ./xlang ]; then
-  echo "linux_selfhost_pabi_sidecars: ./xlang missing" >&2
+# note743o: tip-cold tip/bootstrap may be CG002; try each product then
+# seeds/bootstrap_xlangc.<os>.<arch> (same pin-egg as note743k/l/m/n).
+# PLATFORM: LINUX.
+_sidecar_xls=""
+for _c in ./xlang ./xlang_asm ./bootstrap_xlangc ./xlang-c; do
+  if [ -x "$_c" ]; then
+    case " $_sidecar_xls " in
+      *" $_c "*) ;;
+      *) _sidecar_xls="$_sidecar_xls $_c" ;;
+    esac
+  fi
+done
+_sc_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
+_sc_arch="$(uname -m 2>/dev/null)"
+case "$_sc_os" in darwin) _sc_os=darwin ;; linux) _sc_os=linux ;; *) _sc_os="" ;; esac
+case "$_sc_arch" in x86_64|amd64) _sc_arch=x86_64 ;; arm64|aarch64) _sc_arch=arm64 ;; *) _sc_arch="" ;; esac
+if [ -n "$_sc_os" ] && [ -n "$_sc_arch" ]; then
+  _sc_egg="seeds/bootstrap_xlangc.${_sc_os}.${_sc_arch}"
+  if [ -x "$_sc_egg" ]; then
+    case " $_sidecar_xls " in
+      *" $_sc_egg "*) ;;
+      *) _sidecar_xls="$_sidecar_xls $_sc_egg" ;;
+    esac
+  fi
+fi
+if [ -z "$_sidecar_xls" ]; then
+  echo "linux_selfhost_pabi_sidecars: no xl / pin-egg" >&2
   exit 1
 fi
 
 OUT=build_asm/selfhost_pabi
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/selfhost_pabi.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
-rm -rf "$OUT"
+# note743s: never rm -rf "$OUT". g05_ensure evals g05_relink_env first and
+# drops pure overlays (call_spill / cltd_cqo / elf_layout_64k / …) into the
+# same dir; a full wipe then leaves G05_OBJS listing ghosts → MISSING×19.
+# Clear only sidecar-owned faces (+ READY / egg stub); keep peer overlays.
+# PLATFORM: LINUX.
 mkdir -p "$OUT"
+_sidecar_owned="slot.o esz.o loc.o lea.o rec.o two.o one.o as.o sizeof.o base.o spill.o assign.o modlet.o pabi_alias.o elem_const.o index_elem_from_type.o index_elem_true_i8.o index_elem_wrap.o emit_index_arms_true_i8.o emit_index_elf_true_i8.o assign_index_true_i8.o force_esz_true_i8.o array_lit_esz_true_i8.o index_base_rbx_egg_stub.o index_base_rbx_egg_stub.s READY"
+for _sf in $_sidecar_owned; do
+  rm -f "$OUT/$_sf"
+done
+rm -f "$OUT"/runtime_pipeline_abi_fnptr_as_*.o
 
 # Weaken every global function except the names passed after dst.
 weaken_keep() {
@@ -53,8 +87,19 @@ weaken_keep() {
 compile_one() {
   local src="$1"
   local dst="$2"
+  local xl
   echo "linux_selfhost_pabi_sidecars: $src"
-  timeout 240 ./xlang -c -backend asm -o "$dst" "$src"
+  for xl in $_sidecar_xls; do
+    rm -f "$dst"
+    if timeout 240 "$xl" -c -backend asm -o "$dst" "$src" >/dev/null 2>&1 \
+      && [ -s "$dst" ]; then
+      echo "linux_selfhost_pabi_sidecars: OK via $xl (note743o)" >&2
+      return 0
+    fi
+    rm -f "$dst"
+  done
+  echo "linux_selfhost_pabi_sidecars: ERROR pure-asm failed for $src" >&2
+  return 1
 }
 
 compile_one src/runtime_pipeline_abi_slot_bytes_thin.x "$WORK/slot.o"
@@ -62,7 +107,26 @@ compile_one src/runtime_pipeline_abi_fnptr_array_esz_thin.x "$WORK/esz.o"
 compile_one src/runtime_pipeline_abi_asm_locals_thin.x "$WORK/loc.o"
 compile_one src/runtime_pipeline_abi_fixed_array_copy_helpers_thin.x "$WORK/lea.o"
 compile_one src/runtime_pipeline_abi_asm_expr_helpers_thin.x "$WORK/rec.o"
-compile_one src/runtime_pipeline_abi_fixed_array_copy_thin.x "$WORK/two_raw.o"
+# note743p / w987: PREFER_ASM_O so DIV/MOD in the copy thin do not emit
+# extra xlang_panic_ relocs. Without it egg/tip emits 4; nop_panic expected
+# 2 (bounds checks) or 0 when PREFER drops all panic faces. PLATFORM: LINUX.
+echo "linux_selfhost_pabi_sidecars: src/runtime_pipeline_abi_fixed_array_copy_thin.x"
+_two_ok=0
+for xl in $_sidecar_xls; do
+  rm -f "$WORK/two_raw.o"
+  if timeout 240 env XLANG_PREFER_ASM_O=1 "$xl" -c -backend asm \
+    -o "$WORK/two_raw.o" src/runtime_pipeline_abi_fixed_array_copy_thin.x >/dev/null 2>&1 \
+    && [ -s "$WORK/two_raw.o" ]; then
+    echo "linux_selfhost_pabi_sidecars: OK via $xl PREFER (note743p)" >&2
+    _two_ok=1
+    break
+  fi
+  rm -f "$WORK/two_raw.o"
+done
+if [ "$_two_ok" != "1" ]; then
+  echo "linux_selfhost_pabi_sidecars: ERROR pure-asm failed for fixed_array_copy_thin" >&2
+  exit 1
+fi
 compile_one src/runtime_pipeline_abi_for_call_args_thin.x "$WORK/one.o"
 compile_one src/runtime_pipeline_abi_fnptr_as_thin.x "$WORK/as_raw.o"
 compile_one src/runtime_pipeline_abi_elf_codegen_forwarders_thin.x "$WORK/forwarders.o"
@@ -136,6 +200,9 @@ for s in secs:
         s["size"] = len(keep)
         continue
     blobs[s["i"]] = bytes(blob)
+# note743p.1: contract stays expected 2 (bounds checks). Do not widen the
+# count gate. PREFER_ASM_O on copy thin only drops DIV/MOD extras; if the
+# object has no xlang_panic_ at all, the early exit above already applies.
 if noped != 2:
     raise SystemExit("expected 2 panic calls, noped %d" % noped)
 out = bytearray(data[:64])
@@ -160,12 +227,12 @@ print("noped", noped)
 PY
 python3 "$WORK/nop_panic.py" "$WORK/two_raw.o" "$WORK/two_stripped.o"
 
-# w1491: pipe_slot_bytes_named_in_mod stays strong too. The copy in
-# runtime_pipeline_abi.o jumps to its epilogue from the name-match while
-# (returns 1), so every struct local got an 8/16-byte slot and overlapped
-# its neighbours (runtime_read_file_malloc_impl view vs out_len).
-# w1512: asm_fixed_array_total_bytes_mod has the same bug in the pabi copy
-# (returns 1, so a local [N]Struct got an 8-byte slot); keep slot.o's.
+# w1491／10.15: pipe_slot_bytes_named_in_mod stays strong as G.7 thin twin.
+# Historical tip-asm mega pabi jumped to the epilogue after the name-match
+# while (returned 1 → 8/16-byte struct slots). 2026-10-25: tip-asm of the
+# real body + match-exit stress returns 48 not 1 (probes p_10_15_*); keep
+# slot.o as authoritative thin (same body as runtime_pipeline_abi.x).
+# w1512: asm_fixed_array_total_bytes_mod kept strong the same way.
 weaken_keep "$WORK/slot.o" "$OUT/slot.o" pipe_local_slot_bytes_mod pipe_slot_bytes_named_in_mod \
   asm_fixed_array_total_bytes_mod
 weaken_keep "$WORK/esz.o" "$OUT/esz.o" \
@@ -175,9 +242,12 @@ weaken_keep "$WORK/esz.o" "$OUT/esz.o" \
 weaken_keep "$WORK/loc.o" "$OUT/loc.o" pipeline_asm_local_offset_c
 weaken_keep "$WORK/lea.o" "$OUT/lea.o" glue_call_arg_var_use_lea_not_load_elf_c
 weaken_keep "$WORK/rec.o" "$OUT/rec.o" pipeline_asm_emit_expr_elf_rec
+# 10.22: keep emit_return so Path B0b STRUCT_LIT.field->[]T is first-wins
+# on Linux gold (else mega egg return leaves from_lit run=0).
 weaken_keep "$WORK/two_stripped.o" "$OUT/two.o" \
   glue_struct_lit_store_fixed_array_field_elf_c \
-  pipeline_asm_emit_array_lit_flat_elf_c
+  pipeline_asm_emit_array_lit_flat_elf_c \
+  pipeline_asm_emit_return_elf_impl
 weaken_keep "$WORK/one.o" "$OUT/one.o" pipeline_asm_emit_expr_elf_for_call_args
 weaken_keep "$WORK/as_raw.o" "$OUT/as.o" pipeline_asm_emit_as_elf_impl
 weaken_keep "$WORK/forwarders.o" "$OUT/sizeof.o" pipeline_sizeof_elf_ctx
@@ -232,20 +302,69 @@ fi
 # relocs (nop_panic expected 2, tip now emits 4 without PREFER).
 # PLATFORM: LINUX.
 echo "linux_selfhost_pabi_sidecars: src/runtime_pipeline_abi_modlet_thin.x"
-timeout 240 env XLANG_PREFER_ASM_O=1 ./xlang -c -backend asm \
-  -o "$OUT/modlet.o" src/runtime_pipeline_abi_modlet_thin.x
+_modlet_ok=0
+for xl in $_sidecar_xls; do
+  rm -f "$OUT/modlet.o"
+  if timeout 240 env XLANG_PREFER_ASM_O=1 "$xl" -c -backend asm \
+    -o "$OUT/modlet.o" src/runtime_pipeline_abi_modlet_thin.x >/dev/null 2>&1 \
+    && [ -s "$OUT/modlet.o" ]; then
+    echo "linux_selfhost_pabi_sidecars: modlet OK via $xl (note743o)" >&2
+    _modlet_ok=1
+    break
+  fi
+  rm -f "$OUT/modlet.o"
+done
+if [ "$_modlet_ok" != "1" ]; then
+  echo "linux_selfhost_pabi_sidecars: modlet tip failed" >&2
+  exit 1
+fi
+# 10.38: rename Lxml COMMONs onto g_pipeline_asm_modlet /
+# g_pipe_modlet_strpool_seq so first-wins shares leftover's table name.
+# PLATFORM: LINUX. cwd is compiler/ when sidecars runs.
+if ! bash scripts/ensure_host_cc_seed_o.sh modlet-rename-bss "$OUT/modlet.o"; then
+  echo "linux_selfhost_pabi_sidecars: modlet Lxml→C rename failed" >&2
+  exit 1
+fi
 if objdump -r "$OUT/modlet.o" | grep -q 'xlang_panic_'; then
   echo "linux_selfhost_pabi_sidecars: modlet panic reloc survived" >&2
   exit 1
 fi
 
 # nm from compiler/ — the object with the assign and spill bytes.
-_base_addr=$(nm src/runtime_pipeline_abi.o | awk '$3=="glue_try_index_var_or_field_base_to_rbx_elf_c"{print $1; exit}')
-if [ -z "$_base_addr" ]; then
-  echo "linux_selfhost_pabi_sidecars: index base symbol missing" >&2
-  exit 1
-fi
+# note743r / note743f: tip peel may leave glue_try_index_*_rbx as U-only
+# (no address). Require T/W; if missing, synthesize the historical egg
+# face (ret -2), ld -r into the alias, then add _rest. No host-cc .c.
+# PLATFORM: LINUX x86_64.
+_base_addr=$(nm src/runtime_pipeline_abi.o | awk '$2 ~ /^[TtWw]$/ && $3=="glue_try_index_var_or_field_base_to_rbx_elf_c"{print $1; found=1} END{exit 0}')
+_base_addr=$(printf '%s\n' "$_base_addr" | head -n1)
 cp -f src/runtime_pipeline_abi.o "$OUT/pabi_alias.o"
+if [ -z "$_base_addr" ]; then
+  _egg_s="$OUT/index_base_rbx_egg_stub.s"
+  _egg_o="$OUT/index_base_rbx_egg_stub.o"
+  cat > "$_egg_s" <<'EOF'
+.globl glue_try_index_var_or_field_base_to_rbx_elf_c
+.type glue_try_index_var_or_field_base_to_rbx_elf_c, @function
+glue_try_index_var_or_field_base_to_rbx_elf_c:
+    movl $0xfffffffe, %eax
+    ret
+.size glue_try_index_var_or_field_base_to_rbx_elf_c, .-glue_try_index_var_or_field_base_to_rbx_elf_c
+EOF
+  if ! as --64 -o "$_egg_o" "$_egg_s"; then
+    echo "linux_selfhost_pabi_sidecars: index base egg stub assemble failed" >&2
+    exit 1
+  fi
+  if ! ld -r -o "$OUT/pabi_alias.o" src/runtime_pipeline_abi.o "$_egg_o"; then
+    echo "linux_selfhost_pabi_sidecars: ld -r tip+egg stub failed" >&2
+    exit 1
+  fi
+  _base_addr=$(nm "$OUT/pabi_alias.o" | awk '$2 ~ /^[TtWw]$/ && $3=="glue_try_index_var_or_field_base_to_rbx_elf_c"{print $1; found=1} END{exit 0}')
+  _base_addr=$(printf '%s\n' "$_base_addr" | head -n1)
+  if [ -z "$_base_addr" ]; then
+    echo "linux_selfhost_pabi_sidecars: index base symbol missing after egg stub" >&2
+    exit 1
+  fi
+  echo "linux_selfhost_pabi_sidecars: tip U-only index base; synthesized egg (note743r)" >&2
+fi
 objcopy --add-symbol "glue_try_index_var_or_field_base_to_rbx_elf_rest=.text:0x${_base_addr},global,function" "$OUT/pabi_alias.o"
 # The source object is not modified. The alias is an extra name for the
 # same text so the new strong body can call it.
@@ -285,24 +404,28 @@ fi
 # here. Do not PREFER
 # runtime_pipeline_abi_fnptr_array_esz_thin.x. PLATFORM: LINUX.
 echo "linux_selfhost_pabi_sidecars: w2061 index_elem three .x"
-_ie_xl=./xlang_asm
-if [ ! -x "$_ie_xl" ]; then
-  _ie_xl=./xlang
-fi
 _ie_one() {
   local src="$1"
   local dst="$2"
   local sym="$3"
+  local xl
   echo "linux_selfhost_pabi_sidecars: $src"
-  timeout 240 "$_ie_xl" -backend asm -c -o "$dst" "$src"
-  if ! nm "$dst" | grep -q " T ${sym}\$"; then
-    echo "linux_selfhost_pabi_sidecars: $src lacks strong $sym" >&2
-    exit 1
-  fi
-  if nm "$dst" | grep -q 'xlang_panic_'; then
-    echo "linux_selfhost_pabi_sidecars: $src references xlang_panic_" >&2
-    exit 1
-  fi
+  for xl in $_sidecar_xls; do
+    rm -f "$dst"
+    if timeout 240 "$xl" -backend asm -c -o "$dst" "$src" >/dev/null 2>&1 \
+      && [ -s "$dst" ] \
+      && nm "$dst" 2>/dev/null | grep -E " T ${sym}\$" >/dev/null; then
+      if nm "$dst" 2>/dev/null | grep -E 'xlang_panic_' >/dev/null; then
+        rm -f "$dst"
+        continue
+      fi
+      echo "linux_selfhost_pabi_sidecars: OK via $xl (note743o)" >&2
+      return 0
+    fi
+    rm -f "$dst"
+  done
+  echo "linux_selfhost_pabi_sidecars: $src lacks strong $sym (all xl)" >&2
+  exit 1
 }
 _ie_one src/pabi_index_elem_from_type_one.x \
   "$OUT/index_elem_from_type.o" \
@@ -336,8 +459,19 @@ _ie_one src/pabi_elem_byte_sz_one.x \
 # w1017: elem_const tip (DIV/MOD by zero → 0). First-wins over stale
 # modlet folder when full modlet_thin T001. PLATFORM: LINUX.
 echo "linux_selfhost_pabi_sidecars: w1017 elem_const tip"
-if ! timeout 240 env XLANG_PREFER_ASM_O=1 ./xlang -c -backend asm \
-    -o "$OUT/elem_const.o" src/runtime_pipeline_abi_modlet_elem_const_thin.x; then
+_ec_ok=0
+for xl in $_sidecar_xls; do
+  rm -f "$OUT/elem_const.o"
+  if timeout 240 env XLANG_PREFER_ASM_O=1 "$xl" -c -backend asm \
+      -o "$OUT/elem_const.o" src/runtime_pipeline_abi_modlet_elem_const_thin.x >/dev/null 2>&1 \
+      && [ -s "$OUT/elem_const.o" ]; then
+    echo "linux_selfhost_pabi_sidecars: elem_const OK via $xl (note743o)" >&2
+    _ec_ok=1
+    break
+  fi
+  rm -f "$OUT/elem_const.o"
+done
+if [ "$_ec_ok" != "1" ]; then
   echo "linux_selfhost_pabi_sidecars: elem_const tip failed" >&2
   exit 1
 fi

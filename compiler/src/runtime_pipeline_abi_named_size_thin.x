@@ -31,6 +31,7 @@ export extern function pipeline_dep_ctx_ndep(ctx: *u8): i32;
 export extern function pipeline_dep_ctx_module_at(ctx: *u8, idx: i32): *u8;
 export extern function pipeline_dep_ctx_arena_at(ctx: *u8, idx: i32): *u8;
 export extern function glue_vector_type_lanes_esz_c(arena: *u8, type_ref: i32, out_lanes: *i32, out_esz: *i32): i32;
+export extern function typeck_x_named_builtin_size(nm: *u8, nlen: i32): i32;
 
 /**
  * Local copy of glue_layout_name_matches_named_type_c.
@@ -102,7 +103,7 @@ function named_size_layout_matches_c(m: *u8, k: i32, name: *u8, nlen: i32): i32 
  * @param m *u8 — Module*; null skips the current-module layout walk
  * @param a *u8 — ASTArena*; null returns 0
  * @param ty_ref i32 — type ref; must be in 1 .. arena type count
- * @param depth i32 — recursion depth; above 64 returns 0
+ * @param depth i32 — recursion depth; above 1024 returns 0
  * @return i32 — byte size; 0 on miss of a non-named type, 4 on a named miss
  * The egg weak body still exact-matches and is not the linked body.
  * PLATFORM: SHARED — Linux first-wins, Darwin weak egg, Windows weaken.
@@ -128,7 +129,7 @@ export function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): 
   let dep: *u8 = 0 as *u8;
   let sz: i32 = 0;
   let vok: i32 = 1;
-  if (a == (0 as *u8) || ty_ref <= 0 || depth > 64) {
+  if (a == (0 as *u8) || ty_ref <= 0 || depth > 1024) {
     return 0;
   }
   unsafe {
@@ -260,6 +261,13 @@ export function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): 
     }
     if (vok == 0 && vl > 0 && ves > 0) {
       return vl * ves;
+    }
+    /* 10.44: Cap residual i8/i16/u16 — named_builtin_size (i8→1). */
+    unsafe {
+      sz = typeck_x_named_builtin_size(&name[0], nlen);
+    }
+    if (sz == 1 || sz == 2 || sz == 4 || sz == 8) {
+      return sz;
     }
     return 4;
   }

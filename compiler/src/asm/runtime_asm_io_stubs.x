@@ -422,14 +422,17 @@ let g_rais_read_ptr_len: i32[1] = [0];
 let g_rais_read_ptr_gen: u64[1] = [0];
 let g_rais_read_ptr_backend: i32[1] = [0];
 
-/** Zero-copy read into the single buffer; EOF/error returns null. PLATFORM: SHARED */
+/** Zero-copy read into the single buffer.
+ * Error (r < 0) returns null. EOF (r == 0) returns the buffer with length 0
+ * so ReadPtrView stays valid for an empty read. PLATFORM: SHARED — 10.63
+ */
 #[no_mangle]
 export function io_read_ptr(handle: u32, timeout_ms: u32): *u8 {
   g_rais_read_ptr_gen[0] = g_rais_read_ptr_gen[0] + 1;
   g_rais_read_ptr_backend[0] = 0;
   g_rais_read_ptr_len[0] = 0;
   let r: i64 = io_read(handle as i32, &g_rais_read_ptr_buf[0], 4096, 0);
-  if (r <= 0) { return 0 as *u8; }
+  if (r < 0) { return 0 as *u8; }
   g_rais_read_ptr_len[0] = r as i32;
   return &g_rais_read_ptr_buf[0];
 }
@@ -1071,17 +1074,39 @@ export function std_io_ptr_view(handle: usize, timeout_ms: u32): RaisReadPtrView
   return v;
 }
 
-/** io.ptr_view_valid: non-null ptr and current gen. PLATFORM: SHARED */
+/** io.ptr_view_valid: non-null ptr and current gen.
+ * Darwin Cap tip callers pass &ReadPtrView in x0 (hidden byref); linux/windows
+ * tip pass the 24B by value on the stack. PLATFORM: per-OS — 10.63
+ */
+#[cfg(target_os = "macos")]
+#[no_mangle]
+export function std_io_ptr_view_valid(vp: *RaisReadPtrView): i32 {
+  if (vp.ptr == 0 as *u8) { return 0; }
+  return std_io_ptr_valid(vp.gen);
+}
+#[cfg(target_os = "linux")]
+#[no_mangle]
+export function std_io_ptr_view_valid(v: RaisReadPtrView): i32 {
+  if (v.ptr == 0 as *u8) { return 0; }
+  return std_io_ptr_valid(v.gen);
+}
+#[cfg(target_os = "windows")]
 #[no_mangle]
 export function std_io_ptr_view_valid(v: RaisReadPtrView): i32 {
   if (v.ptr == 0 as *u8) { return 0; }
   return std_io_ptr_valid(v.gen);
 }
 
-/** io.stdin_ptr_view. PLATFORM: SHARED */
+/** io.stdin_ptr_view. Inline pack (no nested sret call: Linux tip
+ * overwrites rdi/sret with the handle arg). PLATFORM: SHARED — 10.63
+ */
 #[no_mangle]
 export function std_io_stdin_ptr_view(): RaisReadPtrView {
-  return std_io_ptr_view(std_io_stdin(), 0);
+  let p: *u8 = io_read_ptr(0, 0);
+  let n: i32 = io_read_ptr_len();
+  let g: u64 = g_rais_read_ptr_gen[0];
+  let v: RaisReadPtrView = RaisReadPtrView { ptr: p, length: n, pad0: 0, gen: g };
+  return v;
 }
 
 /** register_provided stub: always 0. PLATFORM: SHARED */
@@ -1096,14 +1121,25 @@ export function std_io_unregister_provided(): void {
   return;
 }
 
-/** Zero-copy stdin slice. PLATFORM: SHARED */
+/** Zero-copy stdin slice. PLATFORM: SHARED
+ * tip body_sync pass0 must not hoist a RaisSliceU8 let past the if that
+ * writes length (that left length=0 in the cell and a scalar-only return).
+ * Return the struct lit from each arm so dual-GP (x0=data,x1=len) is set
+ * at the return site. Same ABI as Cap tip Oct22 stubs. */
 #[no_mangle]
 export function std_io_read_stdin_ptr_slice(): RaisSliceU8 {
   let d: *u8 = io_read_ptr(0, 0);
-  let n: usize = 0;
-  if (d != 0 as *u8) { n = g_rais_read_ptr_len[0] as usize; }
-  let s: RaisSliceU8 = RaisSliceU8 { data: d, length: n };
-  return s;
+  if (d != (0 as *u8)) {
+    let n: usize = (g_rais_read_ptr_len[0] as usize);
+    let s: RaisSliceU8 = [];
+    s.data = d;
+    s.length = n;
+    return s;
+  }
+  let z: RaisSliceU8 = [];
+  z.data = d;
+  z.length = (0 as usize);
+  return z;
 }
 
 /** io.stdin_slice. PLATFORM: SHARED */
@@ -1112,14 +1148,21 @@ export function std_io_stdin_slice(): RaisSliceU8 {
   return std_io_read_stdin_ptr_slice();
 }
 
-/** Zero-copy slice on a handle. PLATFORM: SHARED */
+/** Zero-copy slice on a handle. PLATFORM: SHARED — same pass0/dual-GP shape. */
 #[no_mangle]
 export function std_io_read_ptr_slice(handle: usize, timeout_ms: u32): RaisSliceU8 {
   let d: *u8 = io_read_ptr(handle as u32, timeout_ms);
-  let n: usize = 0;
-  if (d != 0 as *u8) { n = g_rais_read_ptr_len[0] as usize; }
-  let s: RaisSliceU8 = RaisSliceU8 { data: d, length: n };
-  return s;
+  if (d != (0 as *u8)) {
+    let n: usize = (g_rais_read_ptr_len[0] as usize);
+    let s: RaisSliceU8 = [];
+    s.data = d;
+    s.length = n;
+    return s;
+  }
+  let z: RaisSliceU8 = [];
+  z.data = d;
+  z.length = (0 as usize);
+  return z;
 }
 
 // ---- batch / uring / fixed / driver / backend stubs ----

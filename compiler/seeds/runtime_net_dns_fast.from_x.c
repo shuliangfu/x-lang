@@ -9,6 +9,15 @@
 #include <string.h>
 #include <xlang_dns_cap.h>
 
+/*
+ * PLATFORM: MACOS|DARWIN|LINUX — pure-asm runtime_net_dns_fast.x already
+ * defines the faces (net_resolve_* / net_dns_*). Compile this TU with
+ * -DXLANG_NET_DNS_CAP_EXPORT_ONLY to emit only the two Cap exports below.
+ * Windows and a full seed compile leave the macro unset and keep the faces.
+ * Do not cc this whole file over the Darwin .x object: the faces would duplicate.
+ */
+#ifndef XLANG_NET_DNS_CAP_EXPORT_ONLY
+
 int32_t net_resolve_ipv4_ex_c(uint8_t *hostname, uint32_t *out_addr, int32_t *out_err);
 int32_t net_resolve_ipv6_ex_c(uint8_t *hostname, uint8_t *out_addr_16, int32_t *out_err);
 
@@ -21,10 +30,7 @@ int32_t net_dns_ai_addconfig_c_impl_c(void) {
 }
 
 #ifndef XLANG_RUNTIME_NET_DNS_FAST_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-int32_t net_dns_ai_addconfig_c(void) {
-    return net_dns_ai_addconfig_c_impl_c();
-}
+/* 记253／9.1: cold under #ifndef XLANG_RUNTIME_NET_DNS_FAST_FROM_X removed */
 #endif
 
 int32_t net_dns_map_gai_error_c_impl_c(int err) {
@@ -38,10 +44,6 @@ int32_t net_dns_map_gai_error_c_impl_c(int err) {
 }
 
 #ifndef XLANG_RUNTIME_NET_DNS_FAST_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-int32_t net_dns_map_gai_error_c(int err) {
-    return net_dns_map_gai_error_c_impl_c(err);
-}
 #endif
 
 int32_t net_dns_ensure_wsa_c_impl_c(void) {
@@ -49,10 +51,6 @@ int32_t net_dns_ensure_wsa_c_impl_c(void) {
 }
 
 #ifndef XLANG_RUNTIME_NET_DNS_FAST_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-int32_t net_dns_ensure_wsa_c(void) {
-    return net_dns_ensure_wsa_c_impl_c();
-}
 #endif
 
 uint32_t net_resolve_ipv4_c(uint8_t *hostname) {
@@ -62,6 +60,8 @@ uint32_t net_resolve_ipv4_c(uint8_t *hostname) {
         return 0;
     return addr;
 }
+
+#endif /* !XLANG_NET_DNS_CAP_EXPORT_ONLY */
 
 /**
  * Cap residual 9.1.7 slice2: IPv4 resolve via xlang_dns_cap.h.
@@ -79,6 +79,8 @@ int32_t xlang_dns_cap_resolve_ipv6(uint8_t *hostname, uint8_t *out_addr_16, int3
     return (int32_t)xlang_dns_resolve_ipv6((const char *)hostname, out_addr_16, out_err);
 }
 
+#ifndef XLANG_NET_DNS_CAP_EXPORT_ONLY
+
 int32_t net_resolve_ipv4_ex_c(uint8_t *hostname, uint32_t *out_addr, int32_t *out_err) {
     return xlang_dns_cap_resolve_ipv4(hostname, out_addr, out_err);
 }
@@ -86,3 +88,5 @@ int32_t net_resolve_ipv4_ex_c(uint8_t *hostname, uint32_t *out_addr, int32_t *ou
 int32_t net_resolve_ipv6_ex_c(uint8_t *hostname, uint8_t *out_addr_16, int32_t *out_err) {
     return xlang_dns_cap_resolve_ipv6(hostname, out_addr_16, out_err);
 }
+
+#endif /* !XLANG_NET_DNS_CAP_EXPORT_ONLY */

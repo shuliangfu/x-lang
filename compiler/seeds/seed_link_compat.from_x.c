@@ -56,25 +56,7 @@ int32_t xlang_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, i
 
 /* G-02f-440：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_SEED_LINK_COMPAT_FROM_X
-XLANG_WEAK int32_t lsp_diag_lsp_build_diagnostics_response(int32_t id_val, uint8_t * source, int32_t source_len, uint8_t * out_buf, int32_t out_cap) {
-  return (0 - 1);
-}
-
-XLANG_WEAK int32_t lsp_diag_lsp_build_semantic_tokens_response(int32_t id_val, uint8_t * doc_buf, int32_t doc_len, uint8_t * out_buf, int32_t out_cap) {
-  return (0 - 1);
-}
-
-XLANG_WEAK int32_t lsp_diag_hover_at(uint8_t * source, int32_t source_len, int32_t line_0, int32_t col_0, uint8_t * out_buf, int32_t out_cap) {
-  return (0 - 1);
-}
-
-XLANG_WEAK int32_t lsp_diag_references_at(uint8_t * source, int32_t source_len, int32_t line_0, int32_t col_0, int32_t * out_lines, int32_t * out_cols, int32_t max_refs) {
-  return (0 - 1);
-}
-
-XLANG_WEAK int32_t lsp_diag_definition_at(uint8_t * source, int32_t source_len, int32_t line_0, int32_t col_0, int32_t * out_line, int32_t * out_col) {
-  return (0 - 1);
-}
+/* 记253／9.1: cold under #ifndef XLANG_SEED_LINK_COMPAT_FROM_X removed */
 #endif /* XLANG_SEED_LINK_COMPAT_FROM_X */
 
 extern uint8_t *lsp_io_std_heap_std_heap_alloc(size_t size);
@@ -117,26 +99,6 @@ extern int32_t append_asm_line(struct codegen_CodegenOutBuf *out, uint8_t *ptr, 
 
 /* G-02f-440：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_SEED_LINK_COMPAT_FROM_X
-XLANG_WEAK uint8_t *typeck_lsp_alloc(size_t size) {
-  return lsp_io_lsp_alloc(size);
-}
-
-
-XLANG_WEAK void typeck_lsp_free(uint8_t * ptr) {
-  (void)(({   {
-    (void)(lsp_io_lsp_free(ptr));
-  }
- }));
-}
-
-XLANG_WEAK int32_t typeck_lsp_is_null(uint8_t * ptr) {
-  (void)(({   {
-    int32_t r = lsp_io_lsp_is_null(ptr);
-    return r;
-  }
- }));
-  return 0;
-}
 #endif /* XLANG_SEED_LINK_COMPAT_FROM_X */
 
 XLANG_WEAK ptrdiff_t typeck_read_message(int32_t fd, uint8_t *body_out, int32_t body_cap, uint8_t *state_buf) {
@@ -144,14 +106,6 @@ XLANG_WEAK ptrdiff_t typeck_read_message(int32_t fd, uint8_t *body_out, int32_t 
 }
 
 #ifndef XLANG_SEED_LINK_COMPAT_FROM_X
-XLANG_WEAK int32_t typeck_lsp_main_impl(void) {
-  (void)(({   {
-    int32_t r = lsp_main_impl();
-    return r;
-  }
- }));
-  return 0;
-}
 #endif /* XLANG_SEED_LINK_COMPAT_FROM_X */
 
 XLANG_WEAK int32_t typeck_lsp_build_diagnostics_response(int32_t id_val, uint8_t *source, int32_t source_len,
@@ -192,37 +146,6 @@ XLANG_WEAK int32_t typeck_lsp_diag_definition_at(uint8_t *source, int32_t source
 
 /* G-02f-440：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_SEED_LINK_COMPAT_FROM_X
-XLANG_WEAK uint8_t *typeck_std_heap_alloc(size_t size) {
-  return lsp_io_std_heap_std_heap_alloc(size);
-}
-
-XLANG_WEAK uint8_t *typeck_std_heap_alloc_zeroed(size_t size) {
-  return lsp_io_std_heap_std_heap_alloc_zeroed(size);
-}
-
-
-XLANG_WEAK void typeck_std_heap_free(uint8_t * ptr) {
-  (void)(({   {
-    (void)(lsp_io_std_heap_std_heap_free(ptr));
-  }
- }));
-}
-
-XLANG_WEAK int32_t std_sys_read_file_into(uint8_t * path, uint8_t * buf, int32_t cap) {
-  (void)(({   {
-    int32_t r = std_sys_os_read_file_into(path, buf, cap);
-    return r;
-  }
- }));
-  return 0;
-}
-
-XLANG_WEAK void std_heap_free_u8_ptr(uint8_t * ptr) {
-  (void)(({   {
-    (void)(std_heap_free(ptr));
-  }
- }));
-}
 #endif /* XLANG_SEED_LINK_COMPAT_FROM_X */
 
 XLANG_WEAK int32_t std_io_read_usize_u8_ptr_usize_u32(size_t handle, uint8_t *ptr, size_t len,
@@ -237,21 +160,6 @@ XLANG_WEAK int32_t std_io_write_usize_u8_ptr_usize_u32(size_t handle, uint8_t *p
 
 /* G-02f-440：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_SEED_LINK_COMPAT_FROM_X
-XLANG_WEAK void ast_pipeline_module_struct_layout_set_packed(uint8_t * module, int32_t idx, int32_t v) {
-  (void)(({   {
-    (void)(pipeline_module_struct_layout_set_packed(module, idx, v));
-  }
- }));
-}
-
-XLANG_WEAK int32_t backend_asm_ctx_slot_offset(uint8_t * ctx, int32_t slot_idx) {
-  (void)(({   {
-    int32_t r = asm_ctx_local_offset_at(ctx, slot_idx);
-    return r;
-  }
- }));
-  return 0;
-}
 #endif /* XLANG_SEED_LINK_COMPAT_FROM_X */
 
 /*
@@ -327,66 +235,6 @@ int32_t backend_fold_func_return_operand_ref(void *arena, struct ast_Module *mod
 /* G-02f-132：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-440：thin+rest PREFER_X_O guard */
 #ifndef XLANG_SEED_LINK_COMPAT_FROM_X
-int32_t xlang_expr_is_func_param_at(void *arena, struct ast_Module *mod, int32_t func_idx, int32_t expr_ref,
-                                          int32_t param_ix) {
-  /* Cap 4.2.8: copy32 / var_name_into write 256 bytes. */
-  uint8_t pbuf[256];
-  uint8_t vbuf[256];
-  int32_t plen;
-  int32_t vlen;
-  int32_t k;
-
-  if (!arena || !mod || expr_ref <= 0 || param_ix < 0 || pipeline_expr_kind_ord_at(arena, expr_ref) != 3)
-    return 0;
-  plen = pipeline_module_func_param_name_len_at(mod, func_idx, param_ix);
-  vlen = pipeline_expr_var_name_len(arena, expr_ref);
-  if (plen <= 0 || plen != vlen || plen > 255)
-    return 0;
-  pipeline_module_func_param_name_copy32(mod, func_idx, param_ix, pbuf);
-  pipeline_expr_var_name_into(arena, expr_ref, vbuf);
-  for (k = 0; k < plen; k++) {
-    if (pbuf[k] != vbuf[k])
-      return 0;
-  }
-  return 1;
-
-}
-
-
-/* G-02f-131：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t xlang_expr_is_param0_field_access(void *arena, struct ast_Module *mod, int32_t func_idx, int32_t expr_ref) {
-  if (!arena || !mod || func_idx < 0 || expr_ref <= 0 || pipeline_expr_kind_ord_at(arena, expr_ref) != 44)
-    return 0;
-  return xlang_expr_is_func_param_at(arena, mod, func_idx, pipeline_expr_field_access_base_ref(arena, expr_ref), 0);
-
-}
-
-
-/* G-02f-131：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t xlang_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, int32_t name_len) {
-  int32_t fi;
-  int32_t flen;
-  /* Cap 4.2.8: func_name_copy64 memset(dst,0,256); align with seed_link_compat.x. */
-  uint8_t fb[256];
-  int32_t k;
-
-  if (!mod || !name || name_len <= 0 || name_len > 255)
-    return -1;
-  for (fi = 0; fi < pipeline_module_num_funcs(mod); fi++) {
-    flen = pipeline_asm_module_func_name_len_at(mod, fi);
-    if (flen != name_len)
-      continue;
-    pipeline_asm_module_func_name_copy64(mod, fi, fb);
-    for (k = 0; k < name_len; k++) {
-      if (fb[k] != name[k])
-        break;
-    }
-    if (k == name_len)
-      return fi;
-  }
-  return -1;
-
-}
 #endif /* XLANG_SEED_LINK_COMPAT_FROM_X */
 
 

@@ -40,8 +40,8 @@ struct PipelineDepCtx {
 };
 
 struct CodegenOutBuf {
-  uint8_t data[9437184];
   int32_t len;
+  uint8_t data[9437184];
 };
 
 struct DriverXEmitState {

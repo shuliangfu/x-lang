@@ -432,16 +432,22 @@ let g_pipe_elf_ws_seg2: u8[152] = [];
 let g_pipe_elf_ws_lc: u8[48] = [];
 let g_pipe_elf_ws_ent: u8[256] = [];
 
+/**
+ * Extra strtab byte for one Mach-O leading '_'.
+ * Darwin adds that byte to every C identifier, including names that
+ * already start with '_' (`__error` becomes `___error`, `__NSGetEnviron`
+ * becomes `___NSGetEnviron`). Returning 0 for a leading '_' left the
+ * std.net reloc as `__error`, which libSystem does not define.
+ * A null name adds no byte.
+ * @param name_ptr *u8 — C identifier bytes; null returns 0
+ * @return i32 — 1 when a '_' must be written, 0 when name_ptr is null
+ * PLATFORM: MACOS|DARWIN — Mach-O strtab only. ELF does not call this.
+ */
 function pipe_macho_link_name_extra_byte(name_ptr: *u8): i32 {
   if (name_ptr == 0 as *u8) {
     return 0;
   }
-  unsafe {
-    if (name_ptr[0] != 95) {
-      return 1;
-    }
-  }
-  return 0;
+  return 1;
 }
 
 /**
@@ -741,7 +747,9 @@ export function pipeline_macho_write_o_to_buf_c(ctx_bytes: *u8, out: *u8): i32 {
   if (w314_out_append(out, lc_bv, lc_build_size) != 0) {
     return -1;
   }
-  let lc_sym: *u8 = &g_pipe_elf_ws_lc[0] + (24 as usize);
+  // Knife 255 / 10.1: tip Darwin CG002 on `&g[0] + imm` in one expr; split.
+  let _lc_base: *u8 = &g_pipe_elf_ws_lc[0];
+  let lc_sym: *u8 = _lc_base + (24 as usize);
   unsafe {
     w314_memset(lc_sym, 0, 24 as usize);
     lc_sym[0] = 2; lc_sym[4] = 24;

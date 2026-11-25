@@ -33,6 +33,10 @@
 # 环境：XLANG=编译器路径（默认 ./xlang → ./xlang_asm → ./xlang-c）
 # PLATFORM: SHARED — catalog + compile body; host-cc CFLAGS may add LINUX -D_GNU_SOURCE.
 set -e
+# 10.75: compiler/ABI freshness for cached core/std .o
+_SOC_INC="$(CDPATH= cd "$(dirname "$0")" && pwd)/std_o_compiler_freshness.inc.sh"
+# shellcheck source=std_o_compiler_freshness.inc.sh
+. "$_SOC_INC"
 
 # PLATFORM: MACOS — match macho.x LC_BUILD_VERSION minos 11.0.0.
 # c_face ensure compiles before the main CFLAGS bag; keep one Darwin extra.
@@ -855,6 +859,11 @@ case "${1:-}" in
             break
           fi
         done
+        # 10.75: compiler/ABI stamp
+        if [ "$_str_stale" = "0" ] && std_o_stale_vs_compiler "$out_o"; then
+          _str_stale=1
+          echo "xlang_compile_std_module: stale vs compiler $out_o (string_formal)" >&2
+        fi
         if [ "$_str_stale" = "0" ]; then
           echo "xlang_compile_std_module: skip up-to-date $out_o (string_formal)" >&2
           exit 0
@@ -1043,6 +1052,11 @@ case "${1:-}" in
         if [ "$_rt_darwin" = "1" ] && [ -f "$_rt_x" ] && [ "$_rt_x" -nt "$out_o" ]; then
           _pure_newer=1
         fi
+        # 10.75: compiler/ABI stamp
+        if [ "$_pure_newer" != "1" ] && std_o_stale_vs_compiler "$out_o"; then
+          _pure_newer=1
+          echo "xlang_compile_std_module: stale vs compiler $out_o (formal_mod/c_face/$_key)" >&2
+        fi
         if [ "$_pure_newer" != "1" ]; then
           echo "xlang_compile_std_module: skip up-to-date $out_o (formal_mod/c_face/$_key)" >&2
           exit 0
@@ -1058,7 +1072,8 @@ case "${1:-}" in
           echo "xlang_compile_std_module.sh: debug formal pure-asm failed" >&2
           exit 1
         fi
-        echo "xlang_compile_std_module.sh: OK (debug formal pure-asm -> $out_o)"
+        std_o_write_compiler_stamp "$out_o" || true
+echo "xlang_compile_std_module.sh: OK (debug formal pure-asm -> $out_o)"
         exit 0
       fi
       if [ "$_as_darwin" = "1" ]; then
@@ -1070,7 +1085,8 @@ case "${1:-}" in
           echo "xlang_compile_std_module.sh: async formal pure-asm failed" >&2
           exit 1
         fi
-        echo "xlang_compile_std_module.sh: OK (async formal pure-asm -> $out_o)"
+        std_o_write_compiler_stamp "$out_o" || true
+echo "xlang_compile_std_module.sh: OK (async formal pure-asm -> $out_o)"
         exit 0
       fi
       if [ "$_io_darwin" = "1" ]; then
@@ -1082,7 +1098,8 @@ case "${1:-}" in
           echo "xlang_compile_std_module.sh: io formal pure-asm failed" >&2
           exit 1
         fi
-        echo "xlang_compile_std_module.sh: OK (io formal pure-asm -> $out_o)"
+        std_o_write_compiler_stamp "$out_o" || true
+echo "xlang_compile_std_module.sh: OK (io formal pure-asm -> $out_o)"
         exit 0
       fi
       if [ "$_drv_darwin" = "1" ]; then
@@ -1094,7 +1111,8 @@ case "${1:-}" in
           echo "xlang_compile_std_module.sh: driver formal pure-asm failed" >&2
           exit 1
         fi
-        echo "xlang_compile_std_module.sh: OK (driver formal pure-asm -> $out_o)"
+        std_o_write_compiler_stamp "$out_o" || true
+echo "xlang_compile_std_module.sh: OK (driver formal pure-asm -> $out_o)"
         exit 0
       fi
       if [ "$_fm_darwin" = "1" ]; then
@@ -1106,7 +1124,8 @@ case "${1:-}" in
           echo "xlang_compile_std_module.sh: fmt formal pure-asm failed" >&2
           exit 1
         fi
-        echo "xlang_compile_std_module.sh: OK (fmt formal pure-asm -> $out_o)"
+        std_o_write_compiler_stamp "$out_o" || true
+echo "xlang_compile_std_module.sh: OK (fmt formal pure-asm -> $out_o)"
         exit 0
       fi
       if [ "$_sm_darwin" = "1" ]; then
@@ -1118,7 +1137,8 @@ case "${1:-}" in
           echo "xlang_compile_std_module.sh: simd formal pure-asm failed" >&2
           exit 1
         fi
-        echo "xlang_compile_std_module.sh: OK (simd formal pure-asm -> $out_o)"
+        std_o_write_compiler_stamp "$out_o" || true
+echo "xlang_compile_std_module.sh: OK (simd formal pure-asm -> $out_o)"
         exit 0
       fi
       if [ "$_cz_darwin" = "1" ]; then
@@ -1130,7 +1150,8 @@ case "${1:-}" in
           echo "xlang_compile_std_module.sh: compress formal pure-asm failed" >&2
           exit 1
         fi
-        echo "xlang_compile_std_module.sh: OK (compress formal pure-asm -> $out_o)"
+        std_o_write_compiler_stamp "$out_o" || true
+echo "xlang_compile_std_module.sh: OK (compress formal pure-asm -> $out_o)"
         exit 0
       fi
       if [ "$_rt_darwin" = "1" ]; then
@@ -1161,7 +1182,8 @@ case "${1:-}" in
         echo "xlang_compile_std_module.sh: c_face cc -c failed for $_csrc → $out_o" >&2
         exit 1
       fi
-      echo "xlang_compile_std_module.sh: OK (c_face $_csrc -> $out_o)"
+      std_o_write_compiler_stamp "$out_o" || true
+echo "xlang_compile_std_module.sh: OK (c_face $_csrc -> $out_o)"
       exit 0
     fi
     BARE_IMPL="$_bare"
@@ -1195,6 +1217,11 @@ case "${1:-}" in
           break
         fi
       done
+      # 10.75: compiler/ABI stamp (product ABI change with unchanged sources)
+      if [ "$_fm_stale" = "0" ] && std_o_stale_vs_compiler "$out_o"; then
+        _fm_stale=1
+        echo "xlang_compile_std_module: stale vs compiler $out_o (formal_mod/$_key)" >&2
+      fi
       if [ "$_fm_stale" = "0" ]; then
         echo "xlang_compile_std_module: skip up-to-date $out_o (formal_mod/$_key)" >&2
         exit 0
@@ -1234,6 +1261,52 @@ XLANG_BIN="${XLANG:-./xlang}"
 [ -x "$XLANG_BIN" ] || XLANG_BIN="./xlang_asm"
 [ -x "$XLANG_BIN" ] || XLANG_BIN="./xlang-c"
 [ -x "$XLANG_BIN" ] || XLANG_BIN="../compiler/xlang"
+# knife256/10.2: Cap tip import resolve needs cwd=ROOT (else IMP001
+# .../std/debug/std/heap.x). Rewrite -L .. and ../ sources; run at ROOT.
+case "$XLANG_BIN" in
+  /*) ;;
+  *) XLANG_BIN="$(CDPATH= cd -- "$(dirname "$XLANG_BIN")" && pwd)/$(basename "$XLANG_BIN")" ;;
+esac
+XLANG_BIN_REAL="$XLANG_BIN"
+XLANG_REPO_ROOT="$(CDPATH= cd -- .. && pwd)"
+# PLATFORM: SHARED — /bin/sh (dash has no arrays). A joined string drops the
+# empty word in `-lib-name ""`, so bare impls compile as
+# std_context_context_ctx_*_c and the nm gate rejects them.
+xlang_bin_at_root() {
+  _xl_argc=$#
+  _xl_i=1
+  while [ "$_xl_i" -le "$_xl_argc" ]; do
+    eval "_xl_a${_xl_i}=\${$_xl_i}"
+    _xl_i=$((_xl_i + 1))
+  done
+  set --
+  _xl_i=1
+  while [ "$_xl_i" -le "$_xl_argc" ]; do
+    eval "_xl_cur=\${_xl_a${_xl_i}}"
+    _xl_next=$((_xl_i + 1))
+    if [ "$_xl_cur" = "-L" ] && [ "$_xl_next" -le "$_xl_argc" ]; then
+      eval "_xl_val=\${_xl_a${_xl_next}}"
+      if [ "$_xl_val" = ".." ]; then
+        set -- "$@" -L "$XLANG_REPO_ROOT"
+      else
+        set -- "$@" -L "$_xl_val"
+      fi
+      _xl_i=$((_xl_next + 1))
+      continue
+    fi
+    case "$_xl_cur" in
+      ../*)
+        set -- "$@" "$XLANG_REPO_ROOT/${_xl_cur#../}"
+        ;;
+      *)
+        set -- "$@" "$_xl_cur"
+        ;;
+    esac
+    _xl_i=$((_xl_i + 1))
+  done
+  ( cd "$XLANG_REPO_ROOT" && exec "$XLANG_BIN_REAL" "$@" )
+}
+XLANG_RUN=xlang_bin_at_root
 [ -x "$XLANG_BIN" ] || { echo "xlang_compile_std_module.sh: no xlang/xlang_asm/xlang-c found" >&2; exit 1; }
 
 # 【Why 根源】-x -E 生成瘦 C TU（emit_c_only=1 + emit_extern_imports=1），
@@ -1277,7 +1350,7 @@ probe_err="$tmp_dir/probe.err"
 printf 'function probe_fn(): i32 { return 0; }\n' > "$probe_x"
 # 产品 x-pipeline 当前不识别 -lib-name（会当文件路径 → IO001）；仅 C 前端 RUN_CC 支持。
 # 误判会把 -lib-name 传给 x 路径，或跳过 bare 后处理 → 双前缀符号（std_sync_sync_mutex_*）。
-if "$XLANG_BIN" -x -E -lib-name "" "$probe_x" >"$probe_c" 2>"$probe_err" \
+if "$XLANG_RUN" -x -E -lib-name "" "$probe_x" >"$probe_c" 2>"$probe_err" \
   && grep -q 'probe_fn' "$probe_c" \
   && ! grep -q 'cannot read file' "$probe_err" \
   && ! grep -q 'IO001' "$probe_err"; then
@@ -1292,7 +1365,7 @@ if [ "$LIB_NAME_SUPPORTED" != "1" ] && command -v nm >/dev/null 2>&1; then
   probe_ax="$tmp_dir/probe_asm.x"
   probe_ao="$tmp_dir/probe_asm.o"
   printf 'export function probe_fn(): i32 { return 0; }\n' > "$probe_ax"
-  if "$XLANG_BIN" -backend asm -lib-name "" -c "$probe_ax" -o "$probe_ao" >/dev/null 2>"$probe_err" \
+  if "$XLANG_RUN" -backend asm -lib-name "" -c "$probe_ax" -o "$probe_ao" >/dev/null 2>"$probe_err" \
     && nm "$probe_ao" 2>/dev/null | grep -qE ' T _?probe_fn$'; then
     LIB_NAME_SUPPORTED=1
   fi
@@ -1327,7 +1400,7 @@ for x_path in "$@"; do
       _opt_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_opt_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/option_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?core_option_some_i32$' \
@@ -1357,7 +1430,7 @@ for x_path in "$@"; do
       _res_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_res_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/result_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?core_result_ok_i32$' \
@@ -1387,7 +1460,7 @@ for x_path in "$@"; do
       _dbgcore_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_dbgcore_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/debug_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?core_debug_assert$' \
@@ -1417,7 +1490,7 @@ for x_path in "$@"; do
       _types_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_types_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/types_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?core_types_size_of_i32$' \
@@ -1448,7 +1521,7 @@ for x_path in "$@"; do
       _mem_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_mem_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/mem_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?core_mem_mem_copy$' \
@@ -1479,7 +1552,7 @@ for x_path in "$@"; do
       _builtin_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_builtin_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/builtin_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?core_builtin_copy$' \
@@ -1509,7 +1582,7 @@ for x_path in "$@"; do
       _cmp_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_cmp_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/cmp_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?core_cmp_cmp_i32$' \
@@ -1540,7 +1613,7 @@ for x_path in "$@"; do
       _assert_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_assert_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/assert_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?core_assert_assert$' \
@@ -1573,7 +1646,7 @@ for x_path in "$@"; do
       _bt_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_bt_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/backtrace_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_backtrace_capture$' \
@@ -1605,7 +1678,7 @@ for x_path in "$@"; do
       _th_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_th_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/thread_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_thread_id$' \
@@ -1637,7 +1710,7 @@ for x_path in "$@"; do
       _ch_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_ch_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/channel_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_channel_bounded$' \
@@ -1670,7 +1743,7 @@ for x_path in "$@"; do
       _at_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_at_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/atomic_mod_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_atomic_load_i32_ptr$' \
@@ -1700,7 +1773,7 @@ for x_path in "$@"; do
       _atx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_atx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/atomic_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?atomic_f_atomic_v1_marker_c$'; then
@@ -1730,7 +1803,7 @@ for x_path in "$@"; do
       _sy_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_sy_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/sync_mod_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sync_new_mutex$' \
@@ -1761,7 +1834,7 @@ for x_path in "$@"; do
       _syx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_syx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/sync_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?sync_f_sync_v1_marker_c$' \
@@ -1790,7 +1863,7 @@ for x_path in "$@"; do
       _qx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_qx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/queue_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?queue_f_queue_v1_marker_c$' \
@@ -1815,7 +1888,7 @@ for x_path in "$@"; do
       _io_backend_x_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_io_backend_x_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/io_backend_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_io_backend_handle_from_fd$' \
@@ -1834,7 +1907,7 @@ for x_path in "$@"; do
       _io_core_x_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_io_core_x_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/io_core_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_io_core_xlang_io_complete_read_async$' \
@@ -1853,7 +1926,7 @@ for x_path in "$@"; do
       _io_driver_x_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_io_driver_x_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/io_driver_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?driver_read_ptr$' \
@@ -1872,7 +1945,7 @@ for x_path in "$@"; do
       _io_io_trait_x_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_io_io_trait_x_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/io_io_trait_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_io_io_trait_io_trait_module_anchor$'; then
@@ -1890,7 +1963,7 @@ for x_path in "$@"; do
       _io_read_ptr_x_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_io_read_ptr_x_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/io_read_ptr_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_io_read_ptr_io_read_ptr$' \
@@ -1909,7 +1982,7 @@ for x_path in "$@"; do
       _io_stubs_x_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_io_stubs_x_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/io_stubs_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_io_stubs_io_provided_buffer_ptr$' \
@@ -1928,7 +2001,7 @@ for x_path in "$@"; do
       _io_sync_x_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_io_sync_x_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/io_sync_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_io_sync_io_libc_read$' \
@@ -1947,7 +2020,7 @@ for x_path in "$@"; do
       _sys_freebsd_x_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_sys_freebsd_x_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/sys_freebsd_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_freebsd_freebsd_exit$' \
@@ -1966,7 +2039,7 @@ for x_path in "$@"; do
       _sys_linux_io_u_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_sys_linux_io_u_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/sys_linux_io_u_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_linux_io_uring_io_uring_available$'; then
@@ -1984,7 +2057,7 @@ for x_path in "$@"; do
       _io_mod_x_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_io_mod_x_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/io_mod_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_io_from_fd$' \
@@ -2004,7 +2077,7 @@ for x_path in "$@"; do
       _debug_mod_x_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_debug_mod_x_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/debug_mod_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_debug_assert$' \
@@ -2023,7 +2096,7 @@ for x_path in "$@"; do
       _fmt_mod_x_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_fmt_mod_x_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/fmt_mod_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_fmt_format_i32$' \
@@ -2042,7 +2115,7 @@ for x_path in "$@"; do
       _async_mod_x_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_async_mod_x_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/async_mod_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_async_async_module_anchor$' \
@@ -2062,7 +2135,7 @@ for x_path in "$@"; do
       _codec_mod_x_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_codec_mod_x_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/codec_mod_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_codec_adapter_base64_encode$' \
@@ -2081,7 +2154,7 @@ for x_path in "$@"; do
       _metrics_mod__os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_metrics_mod__os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/metrics_mod__asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_metrics_counter$' \
@@ -2100,7 +2173,7 @@ for x_path in "$@"; do
       _mem_mod_x_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_mem_mod_x_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/mem_mod_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_mem_copy$' \
@@ -2120,7 +2193,7 @@ for x_path in "$@"; do
       _simd_builtin_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_simd_builtin_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/simd_builtin_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_simd_builtin_add_f32x4$' \
@@ -2140,7 +2213,7 @@ for x_path in "$@"; do
       _db_mod_x_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_db_mod_x_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/db_mod_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_db_is_deprecated$' \
@@ -2161,7 +2234,7 @@ for x_path in "$@"; do
       _aet_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_aet_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/aet_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_async_executor_trait_executor_trait_module_anchor$'; then
@@ -2180,7 +2253,7 @@ for x_path in "$@"; do
       _atb_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_atb_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/atb_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_atomic_builtin_atomic_load_i32$' \
@@ -2201,7 +2274,7 @@ for x_path in "$@"; do
       _cmc_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_cmc_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/cmc_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?compress_common_zero_c_marker_c$'; then
@@ -2220,7 +2293,7 @@ for x_path in "$@"; do
       _smm_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_smm_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/smm_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_simd_hw_available$' \
@@ -2241,7 +2314,7 @@ for x_path in "$@"; do
       _ppx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_ppx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/ppx_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?process_args_count_c$' \
@@ -2261,7 +2334,7 @@ for x_path in "$@"; do
       _rrx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_rrx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/rrx_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?runtime_abort$' \
@@ -2281,7 +2354,7 @@ for x_path in "$@"; do
       _btx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_btx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/btx_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?backtrace_f_backtrace_v1_marker_c$' \
@@ -2308,7 +2381,7 @@ for x_path in "$@"; do
       _rtm_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_rtm_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/rtm_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_runtime_ready$' \
@@ -2336,7 +2409,7 @@ for x_path in "$@"; do
       _cpm_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_cpm_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/cpm_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_compress_init$' \
@@ -2364,7 +2437,7 @@ for x_path in "$@"; do
       _rxm_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_rxm_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/rxm_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_regex_compile$' \
@@ -2392,7 +2465,7 @@ for x_path in "$@"; do
       _chx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_chx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/chx_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?channel_f_channel_v1_marker_c$'; then
@@ -2418,7 +2491,7 @@ for x_path in "$@"; do
       _thx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_thx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/thx_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?thread_f_thread_v1_marker_c$'; then
@@ -2438,14 +2511,14 @@ for x_path in "$@"; do
       esac
       ;;
     ../std/fs/mod.x|std/fs/mod.x)
-      # PLATFORM: MACOS|DARWIN|LINUX — std.fs mod.x (记239).
+      # PLATFORM: MACOS|DARWIN|LINUX|WINDOWS — std.fs mod.x (记239 / 10.93).
       # Tip asm emits std_fs_*; -x -E fails typeck on std.io co-emit.
       # Product fs.o via fs_formal already pure-asm; this arm covers bare
-      # module.sh compiles. Fail-closed; Windows keeps C.
+      # module.sh compiles. Fail-closed; 10.93 Windows same (no C+cc).
       _fsm_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_fsm_os" in
-        Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+        Darwin|Linux|MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/fsm_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_fs_invalid$' \
@@ -2468,14 +2541,14 @@ for x_path in "$@"; do
       esac
       ;;
     ../std/string/mod.x|std/string/mod.x)
-      # PLATFORM: MACOS|DARWIN|LINUX — std.string mod.x (记238).
+      # PLATFORM: MACOS|DARWIN|LINUX|WINDOWS — std.string mod.x (记238 / 10.93).
       # Product string.o via xlang_compile_std_string_o already pure-asm;
       # bare module.sh -x -E→cc still hits this leaf. Fail-closed.
-      # Tip emits std_string_*. Windows keeps C path.
+      # Tip emits std_string_*. 10.93: Windows same (no C+cc).
       _strm_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_strm_os" in
-        Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+        Darwin|Linux|MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/strm_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_string_new$' \
@@ -2504,7 +2577,7 @@ for x_path in "$@"; do
       _pathm_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_pathm_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/pathm_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_path_basename$' \
@@ -2533,7 +2606,7 @@ for x_path in "$@"; do
       _procm_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_procm_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/procm_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_process_exit$' \
@@ -2563,7 +2636,7 @@ for x_path in "$@"; do
       _siom_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_siom_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/siom_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_socketio_client_init$' \
@@ -2593,7 +2666,7 @@ for x_path in "$@"; do
       _tia_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_tia_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/tia_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_net_tls_stub_net_tls_is_available_c$' \
@@ -2618,7 +2691,7 @@ for x_path in "$@"; do
       _netm_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_netm_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/netm_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_net_connect$' \
@@ -2651,7 +2724,7 @@ for x_path in "$@"; do
       _httpm_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_httpm_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/httpm_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_http_get$' \
@@ -2683,7 +2756,7 @@ for x_path in "$@"; do
       _hx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_hx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/http_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?http_f_http_v1_marker_c$'; then
@@ -2711,7 +2784,7 @@ for x_path in "$@"; do
       _aes_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_aes_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/aes_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?crypto_aes_gcm_marker_c$' \
@@ -2741,7 +2814,7 @@ for x_path in "$@"; do
       _cca_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_cca_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/cca_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?crypto_chacha_aead_marker_c$' \
@@ -2772,7 +2845,7 @@ for x_path in "$@"; do
       _ccp_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_ccp_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/ccp_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?crypto_chacha_core_marker_c$' \
@@ -2801,7 +2874,7 @@ for x_path in "$@"; do
       _ccore_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_ccore_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/ccore_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?crypto_mem_eq_c$' \
@@ -2829,7 +2902,7 @@ for x_path in "$@"; do
       _cmod_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_cmod_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/cmod_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_crypto_ED25519_SEED_LEN$' \
@@ -2860,7 +2933,7 @@ for x_path in "$@"; do
       _ed_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_ed_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/ed_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?crypto_ed25519_public_from_seed_c$' \
@@ -2893,7 +2966,7 @@ for x_path in "$@"; do
       _sec_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_sec_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/sec_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?security_f_zero_c_marker_c$' \
@@ -2927,7 +3000,7 @@ for x_path in "$@"; do
       _secm_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_secm_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/secm_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_security_key_len$' \
@@ -2961,7 +3034,7 @@ for x_path in "$@"; do
       _arrowm_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_arrowm_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/arrowm_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_db_arrow_new_f32$' \
@@ -2992,7 +3065,7 @@ for x_path in "$@"; do
       _arrowx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_arrowx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/arrowx_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?arrow_column_f32_create_c$' \
@@ -3025,7 +3098,7 @@ for x_path in "$@"; do
       _vecm_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_vecm_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/vecm_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_vec_new_retVec_i32$' \
@@ -3060,7 +3133,7 @@ for x_path in "$@"; do
       _mathm_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_mathm_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/mathm_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_math_pi$' \
@@ -3091,12 +3164,13 @@ for x_path in "$@"; do
     ../std/math/math.x|std/math/math.x)
       # PLATFORM: MACOS|DARWIN|LINUX — bare-impl file for std.math.
       # -lib-name "" keeps math_pi_c, math_e_c, and math_tau_c.
-      # A miss stops here. mod.x has its own arm (记213). Windows keeps the C path.
-      # Do not fall through to cc for this file.
+      # Prefer pure-asm. tip Linux XT001 on math_tau_c→math_pi_c call: fall
+      # back to seeds/std_math_constants.from_x.c (not a new host-cc product).
+      # mod.x has its own arm (记213). Windows keeps the C path.
       _math_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_math_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/math_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?math_pi_c$' \
@@ -3111,8 +3185,29 @@ for x_path in "$@"; do
             idx=$((idx + 1))
             continue
           fi
-          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          _math_seed="seeds/std_math_constants.from_x.c"
+          if [ ! -f "$_math_seed" ]; then
+            _math_seed="../compiler/seeds/std_math_constants.from_x.c"
+          fi
+          if [ -f "$_math_seed" ] \
+            && cc -c -I. -Iinclude -Isrc -o "$obj" "$_math_seed" \
+                >"$tmp_dir/math_x_seed_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?math_pi_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?math_e_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?math_tau_c$'; then
+            echo "xlang_compile_std_module: $obj <- $_math_seed (cold-seed; tip-asm miss)" >&2
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm+seed failed for $x_path" >&2
           cat "$tmp_dir/math_x_asm_${idx}.log" >&2
+          cat "$tmp_dir/math_x_seed_${idx}.log" 2>/dev/null >&2 || true
           exit 1
           ;;
       esac
@@ -3125,7 +3220,7 @@ for x_path in "$@"; do
       _gz_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_gz_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/gz_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_gzip_compress$' \
@@ -3161,7 +3256,7 @@ for x_path in "$@"; do
       _gzl_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_gzl_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/gzip_lib_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_libz_compress_gzip_compress_c$' \
@@ -3195,7 +3290,7 @@ for x_path in "$@"; do
       _zstd_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_zstd_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/zstd_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zstd_zstd_available$' \
@@ -3233,7 +3328,7 @@ for x_path in "$@"; do
       _zstl_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_zstl_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/zstd_lib_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zstd_lib_compress_zstd_compress_c$' \
@@ -3269,7 +3364,7 @@ for x_path in "$@"; do
       _br_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_br_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/br_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_brotli_available$' \
@@ -3307,7 +3402,7 @@ for x_path in "$@"; do
       _brl_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_brl_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/brotli_lib_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_lib_compress_brotli_compress_c$' \
@@ -3346,7 +3441,7 @@ for x_path in "$@"; do
       _linux_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_linux_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/linux_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_linux_linux_syscall_nr_getpid_arm64$' \
@@ -3384,7 +3479,7 @@ for x_path in "$@"; do
       _err_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_err_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/err_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_error_fs_err_not_found$' \
@@ -3420,7 +3515,7 @@ for x_path in "$@"; do
       _uni_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_uni_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/uni_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_unicode_ascii_cat_lookup$' \
@@ -3456,7 +3551,7 @@ for x_path in "$@"; do
       _unix_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_unix_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/unix_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_unicode_unicode_category$' \
@@ -3489,23 +3584,49 @@ for x_path in "$@"; do
       # Do not pass -lib-name "". Exports stay std_context_*.
       # A miss stops here. context.x has its own bare-impl arm (记212). Windows keeps the C path.
       # Do not fall through to cc for this file.
+      # note743y.6.23: Cap tip mega try_let hung on `_rc = { handle: … }`
+      # (transparent_value_ref busy-loop). Root fix = thin try_let inject
+      # into Cap tip (cap_tip_inject_try_let_thin_darwin.sh). Bound
+      # wall-clock only — NO product_legacy_bak / LEGACY residual
+      # (manager nail 2026-10-24). Fail hard if tip/Cap tip miss.
       _ctx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_ctx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
-              >"$tmp_dir/ctx_x_asm_${idx}.log" 2>&1 \
-            && [ -s "$obj" ] \
-            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_context_background$' \
-            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_context_with_cancel$' \
-            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_context_with_deadline$' \
-            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_context_with_timeout$' \
-            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_context_is_cancelled$' \
-            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_context_deadline_ns$' \
-            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_context_remaining_ns$' \
-            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_context_get_value$' \
-            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_context_set_value$' \
-            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_context_cancel$' \
-            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_context_free$'; then
+          _ctx_nm_ok() {
+            [ -s "$1" ] \
+              && nm "$1" 2>/dev/null | grep -qE ' T _?std_context_background$' \
+              && nm "$1" 2>/dev/null | grep -qE ' T _?std_context_with_cancel$' \
+              && nm "$1" 2>/dev/null | grep -qE ' T _?std_context_with_deadline$' \
+              && nm "$1" 2>/dev/null | grep -qE ' T _?std_context_with_timeout$' \
+              && nm "$1" 2>/dev/null | grep -qE ' T _?std_context_is_cancelled$' \
+              && nm "$1" 2>/dev/null | grep -qE ' T _?std_context_deadline_ns$' \
+              && nm "$1" 2>/dev/null | grep -qE ' T _?std_context_remaining_ns$' \
+              && nm "$1" 2>/dev/null | grep -qE ' T _?std_context_get_value$' \
+              && nm "$1" 2>/dev/null | grep -qE ' T _?std_context_set_value$' \
+              && nm "$1" 2>/dev/null | grep -qE ' T _?std_context_cancel$' \
+              && nm "$1" 2>/dev/null | grep -qE ' T _?std_context_free$'
+          }
+          _ctx_ok=0
+          _ctx_to="${XLANG_CONTEXT_ASM_TIMEOUT:-120}"
+          case "$x_path" in
+            ../*) _ctx_src="$XLANG_REPO_ROOT/${x_path#../}" ;;
+            /*) _ctx_src="$x_path" ;;
+            *) _ctx_src="$XLANG_REPO_ROOT/$x_path" ;;
+          esac
+          rm -f "$obj"
+          # perl cannot exec the XLANG_RUN shell function — use BIN_REAL at ROOT.
+          if command -v perl >/dev/null 2>&1; then
+            ( cd "$XLANG_REPO_ROOT" && perl -e "alarm shift; exec @ARGV" "$_ctx_to" \
+              "$XLANG_BIN_REAL" -backend asm -c -L "$XLANG_REPO_ROOT" -o "$obj" "$_ctx_src" ) \
+              >"$tmp_dir/ctx_x_asm_${idx}.log" 2>&1 || true
+          else
+            "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/ctx_x_asm_${idx}.log" 2>&1 || true
+          fi
+          if _ctx_nm_ok "$obj"; then
+            _ctx_ok=1
+          fi
+          if [ "$_ctx_ok" = 1 ]; then
             echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
             if [ -z "$obj_files" ]; then
               obj_files="$obj"
@@ -3530,7 +3651,7 @@ for x_path in "$@"; do
       _hash_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_hash_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/hash_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_hash_default_hasher$' \
@@ -3567,7 +3688,7 @@ for x_path in "$@"; do
       _hashx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_hashx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/hashx_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?hash_default_algo_c$' \
@@ -3603,7 +3724,7 @@ for x_path in "$@"; do
       _cfg_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_cfg_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/cfg_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_config_err_ok$' \
@@ -3640,7 +3761,7 @@ for x_path in "$@"; do
       _cfgx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_cfgx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/ctx_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?cfg_strncpy$' \
@@ -3678,7 +3799,7 @@ for x_path in "$@"; do
       _ctxx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_ctxx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/ctxx_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?ctx_background_c$' \
@@ -3715,7 +3836,7 @@ for x_path in "$@"; do
       _dt_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_dt_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/dt_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_datetime_now_utc$' \
@@ -3752,7 +3873,7 @@ for x_path in "$@"; do
       _dtx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_dtx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/dtx_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?datetime_now_utc_c$' \
@@ -3788,7 +3909,7 @@ for x_path in "$@"; do
       _que_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_que_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/que_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_queue_new_retQueue_i32$' \
@@ -3824,7 +3945,7 @@ for x_path in "$@"; do
       _set_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_set_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/set_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_set_new_i32_retSet_i32$' \
@@ -3863,7 +3984,7 @@ for x_path in "$@"; do
       _pm_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_pm_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/page_mmap_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_heap_page_mmap_page_mmap_heap_available$' \
@@ -3895,7 +4016,7 @@ for x_path in "$@"; do
       _sm_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_sm_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/macos_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_macos_macos_write_available$' \
@@ -3930,7 +4051,7 @@ for x_path in "$@"; do
       _zl_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_zl_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/zlib_mod_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zlib_deflate$' \
@@ -3960,7 +4081,7 @@ for x_path in "$@"; do
       _zlx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_zlx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/zlib_lib_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zlib_libz_compress_deflate_c$' \
@@ -3992,7 +4113,7 @@ for x_path in "$@"; do
       _sres_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_sres_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/std_result_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_result_ok$' \
@@ -4024,7 +4145,7 @@ for x_path in "$@"; do
       _sopt_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_sopt_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/std_option_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_option_some$' \
@@ -4055,7 +4176,7 @@ for x_path in "$@"; do
       _cslice_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_cslice_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/core_slice_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?core_slice_len_u8$' \
@@ -4069,6 +4190,8 @@ for x_path in "$@"; do
             && nm "$obj" 2>/dev/null | grep -qE ' T _?core_slice_get_u64$' \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?core_slice_chunks_len_u8$'; then
             echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            # note743y.6.23: keep Cap tip mod.o split_at (out-ptr). Hand-asm
+            # slice.o has no split_at; demote caused UNDEF at run-slice.
             if [ -z "$obj_files" ]; then
               obj_files="$obj"
             else
@@ -4093,7 +4216,7 @@ for x_path in "$@"; do
       _cstr_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_cstr_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/core_str_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?core_str_bytes_view$' \
@@ -4125,7 +4248,7 @@ for x_path in "$@"; do
       _citer_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_citer_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/core_iter_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?core_iterator_iter_i32$' \
@@ -4156,7 +4279,7 @@ for x_path in "$@"; do
       _cfmt_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_cfmt_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/core_fmt_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?core_fmt_fmt_i32_to_buf$' \
@@ -4190,7 +4313,7 @@ for x_path in "$@"; do
       _sbytes_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_sbytes_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/std_bytes_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_bytes_from_external$' \
@@ -4223,7 +4346,7 @@ for x_path in "$@"; do
       _stime_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_stime_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/std_time_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_time_now_monotonic_ns$' \
@@ -4256,7 +4379,7 @@ for x_path in "$@"; do
       _sran_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_sran_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/std_random_mod_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_random_fill_bytes$' \
@@ -4287,7 +4410,7 @@ for x_path in "$@"; do
       _sranx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_sranx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/std_random_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?random_u32_c$' \
@@ -4319,7 +4442,7 @@ for x_path in "$@"; do
       _sffi_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_sffi_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/std_ffi_mod_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_ffi_cstr_len$' \
@@ -4350,7 +4473,7 @@ for x_path in "$@"; do
       _sffix_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_sffix_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/std_ffi_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?ffi_cstr_len_c$' \
@@ -4382,7 +4505,7 @@ for x_path in "$@"; do
       _ssort_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_ssort_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/std_sort_mod_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sort_sort_i32_ptr_i32$' \
@@ -4413,7 +4536,7 @@ for x_path in "$@"; do
       _ssortx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_ssortx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/std_sort_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sort_sort_sort_qsort_i32$' \
@@ -4445,7 +4568,7 @@ for x_path in "$@"; do
       _stest_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_stest_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/std_test_mod_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_test_expect$' \
@@ -4478,7 +4601,7 @@ for x_path in "$@"; do
       _stestx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_stestx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/std_test_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?test_expect_c$' \
@@ -4510,7 +4633,7 @@ for x_path in "$@"; do
       _sb64_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_sb64_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/std_b64_mod_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_base64_encode_standard$' \
@@ -4542,7 +4665,7 @@ for x_path in "$@"; do
       _sb64x_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_sb64x_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/std_b64_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?base64_encode_standard_c$' \
@@ -4576,7 +4699,7 @@ for x_path in "$@"; do
       _senc_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_senc_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/std_enc_mod_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_encoding_utf8_valid$' \
@@ -4606,7 +4729,7 @@ for x_path in "$@"; do
       _sencx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_sencx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/std_enc_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?encoding_utf8_valid_c$' \
@@ -4638,7 +4761,7 @@ for x_path in "$@"; do
       _surl_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_surl_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/std_url_mod_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_url_parse$' \
@@ -4670,7 +4793,7 @@ for x_path in "$@"; do
       _surlx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_surlx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/std_url_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?url_parse_c$' \
@@ -4702,7 +4825,7 @@ for x_path in "$@"; do
       _slog_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_slog_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/std_log_mod_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_log_log$' \
@@ -4734,7 +4857,7 @@ for x_path in "$@"; do
       _slogx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_slogx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/std_log_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?log_write_c$' \
@@ -4766,7 +4889,7 @@ for x_path in "$@"; do
       _scache_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_scache_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/std_cache_mod_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_cache_new_lru$' \
@@ -4798,7 +4921,7 @@ for x_path in "$@"; do
       _scachex_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_scachex_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/std_cache_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?cache_lru_create_c$' \
@@ -4829,7 +4952,7 @@ for x_path in "$@"; do
       _sjson_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_sjson_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/std_json_mod_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_json_parse_null$' \
@@ -4860,7 +4983,7 @@ for x_path in "$@"; do
       _sjsonx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_sjsonx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/std_json_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?json_parse_null_c$' \
@@ -4894,7 +5017,7 @@ for x_path in "$@"; do
       _smap_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_smap_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/std_map_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_map_insert_Map_i32_i32_ptr_i32_i32$' \
@@ -4925,7 +5048,7 @@ for x_path in "$@"; do
       _star_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_star_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/std_tar_mod_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_tar_write_header$' \
@@ -4956,7 +5079,7 @@ for x_path in "$@"; do
       _starx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_starx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/std_tar_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?tar_write_header_c$' \
@@ -4987,7 +5110,7 @@ for x_path in "$@"; do
       _sheap_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_sheap_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/std_heap_mod_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_heap_map_find$' \
@@ -5018,7 +5141,7 @@ for x_path in "$@"; do
       _sheapc_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_sheapc_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/std_heap_libc_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_heap_libc_heap_alloc_i32_c$' \
@@ -5048,7 +5171,7 @@ for x_path in "$@"; do
       _sheapo_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_sheapo_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/std_heap_ops_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_heap_ops_map_i32_i32_find_c$' \
@@ -5079,7 +5202,7 @@ for x_path in "$@"; do
       _sdyn_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_sdyn_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/std_dyn_mod_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_dynlib_open$' \
@@ -5109,7 +5232,7 @@ for x_path in "$@"; do
       _sdynx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_sdynx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/std_dyn_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?dynlib_open_c$' \
@@ -5140,7 +5263,7 @@ for x_path in "$@"; do
       _ssql_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_ssql_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/std_sql_mod_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_db_sqlite_open_u8_ptr$' \
@@ -5169,7 +5292,7 @@ for x_path in "$@"; do
       _ssqlx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_ssqlx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/std_sql_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?db_open_c$' \
@@ -5200,7 +5323,7 @@ for x_path in "$@"; do
       _scsv_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_scsv_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/std_csv_mod_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_csv_parse_row$' \
@@ -5230,7 +5353,7 @@ for x_path in "$@"; do
       _scsvx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_scsvx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/std_csv_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?csv_parse_row_c$' \
@@ -5260,7 +5383,7 @@ for x_path in "$@"; do
       _stimex_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_stimex_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/std_time_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?time_now_wall_sec_c$' \
@@ -5291,7 +5414,7 @@ for x_path in "$@"; do
       _suuid_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_suuid_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/std_uuid_mod_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_uuid_parse$' \
@@ -5320,7 +5443,7 @@ for x_path in "$@"; do
       _suuidx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_suuidx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/std_uuid_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?uuid_parse_c$' \
@@ -5351,7 +5474,7 @@ for x_path in "$@"; do
       _self_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_self_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/std_elf_mod_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_elf_write_min_reloc$' \
@@ -5381,7 +5504,7 @@ for x_path in "$@"; do
       _selfx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_selfx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/std_elf_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?elf64_write_min_reloc_c$' \
@@ -5411,7 +5534,7 @@ for x_path in "$@"; do
       _stask_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_stask_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/std_task_mod_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_task_new$' \
@@ -5440,7 +5563,7 @@ for x_path in "$@"; do
       _staskx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_staskx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/std_task_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?task_group_create_c$' \
@@ -5470,7 +5593,7 @@ for x_path in "$@"; do
       _sfut_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_sfut_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/std_fut_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?xlang_async_future_create_c$' \
@@ -5500,7 +5623,7 @@ for x_path in "$@"; do
       _senv_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_senv_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/std_env_mod_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_env_getenv$' \
@@ -5529,7 +5652,7 @@ for x_path in "$@"; do
       _senvx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_senvx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/std_env_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?args_iter_count_c$' \
@@ -5559,7 +5682,7 @@ for x_path in "$@"; do
       _scli_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_scli_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/std_cli_mod_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_cli_is_help$' \
@@ -5588,7 +5711,7 @@ for x_path in "$@"; do
       _sclix_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_sclix_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/std_cli_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?cli_is_help_c$' \
@@ -5620,7 +5743,7 @@ for x_path in "$@"; do
       _ssys_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_ssys_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/std_sys_mod_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_(macos_write_available|freestanding_write_available)$' \
@@ -5651,7 +5774,7 @@ for x_path in "$@"; do
       _smm_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_smm_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/std_sys_mmap_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_mmap_mmap_available$' \
@@ -5682,7 +5805,7 @@ for x_path in "$@"; do
       _skv_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_skv_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/std_kv_mod_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_db_kv_open$' \
@@ -5714,7 +5837,7 @@ for x_path in "$@"; do
       _skvx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_skvx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/std_kv_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?db_kv_open_c$' \
@@ -5745,7 +5868,7 @@ for x_path in "$@"; do
       _ssch_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_ssch_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/std_sch_mod_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_schema_text$' \
@@ -5775,7 +5898,7 @@ for x_path in "$@"; do
       _sschx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_sschx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/std_sch_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?schema_create_c$' \
@@ -5805,7 +5928,7 @@ for x_path in "$@"; do
       _strx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_strx_os" in
         Darwin|Linux)
-          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+          if "$XLANG_RUN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
               >"$tmp_dir/std_tr_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?trace_create_c$' \
@@ -5956,7 +6079,7 @@ for x_path in "$@"; do
   fi
   # bare-impl 需剥前缀且无完整 C：再试 -backend c KEEP_C
   if [ "$emit_ok" != "1" ] && [ "$bare_need_strip" = "1" ]; then
-    XLANG_KEEP_C=1 "$XLANG_BIN" -backend c -L .. -o "$tmp_dir/try_c_${idx}.o" "$x_path" \
+    XLANG_KEEP_C=1 "$XLANG_RUN" -backend c -L .. -o "$tmp_dir/try_c_${idx}.o" "$x_path" \
       >"$tmp_dir/xlangc_c_${idx}.log" 2>&1 || true
     kept=$(grep -E 'kept generated C:|keeping generated C:' "$tmp_dir/xlangc_c_${idx}.log" 2>/dev/null \
       | sed -n 's/.*generated C: //p' | tail -1)
@@ -5971,16 +6094,16 @@ for x_path in "$@"; do
   if [ "$emit_ok" != "1" ]; then
     # 回退 -E：拒绝明显截断（尾部无 } 或半截 token）
     if [ "$base_name" != "mod.x" ] && [ "$BARE_IMPL" = "1" ] && [ "$LIB_NAME_SUPPORTED" = "1" ]; then
-      if ! "$XLANG_BIN" -backend c -x -E -lib-name "" -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/xlangc_${idx}.log"; then
-        if ! "$XLANG_BIN" -x -E -lib-name "" -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/xlangc_${idx}.log"; then
+      if ! "$XLANG_RUN" -backend c -x -E -lib-name "" -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/xlangc_${idx}.log"; then
+        if ! "$XLANG_RUN" -x -E -lib-name "" -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/xlangc_${idx}.log"; then
           echo "xlang_compile_std_module.sh: -o and -x -E failed for $x_path" >&2
           cat "$tmp_dir/xlangc_${idx}.log" >&2
           exit 1
         fi
       fi
     else
-      if ! "$XLANG_BIN" -backend c -x -E -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/xlangc_${idx}.log"; then
-        if ! "$XLANG_BIN" -x -E -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/xlangc_${idx}.log"; then
+      if ! "$XLANG_RUN" -backend c -x -E -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/xlangc_${idx}.log"; then
+        if ! "$XLANG_RUN" -x -E -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/xlangc_${idx}.log"; then
           echo "xlang_compile_std_module.sh: -o and -x -E failed for $x_path" >&2
           cat "$tmp_dir/xlangc_${idx}.log" >&2
           exit 1
@@ -7708,4 +7831,5 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
   fi
 fi
 
+std_o_write_compiler_stamp "$out_o" || true
 echo "xlang_compile_std_module.sh: OK ($idx files -> $out_o)"

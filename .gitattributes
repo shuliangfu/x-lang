@@ -3,3 +3,8 @@
 
 # 2. 如果你还想让它参与统计（推荐加上）
 *.x linguist-detectable=true
+
+# 3. Force LF for .x on all checkouts (Win autocrlf=true otherwise
+#    yields CRLF; Win tip parser then mis-fires P012 on function-local
+#    `let` as duplicate top-level — tip_win_l2_hello_fmt_grain 11.16).
+*.x text eol=lf

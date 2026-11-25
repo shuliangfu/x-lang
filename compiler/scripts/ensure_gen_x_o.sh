@@ -329,27 +329,200 @@ build_lexer_x() {
   # w1546 (checklist 7.2, lexer only): lexer_x.o is one pure-asm emit of
   # src/lexer/lexer.x. No host cc of seeds/lexer_gen.linux.x86_64.c or of
   # lexer_gen.c, and no fallback. The seed file stays on disk (removal is 9.2).
-  # Caller deletes a warm object first; this function also removes lexer_x.o
-  # before emit so a failed emit cannot leave the previous host-cc object.
   # xlang_panic_ is weakened so Darwin runtime_panic.o stays the strong copy.
-  # PLATFORM: SHARED.
+  # note743k / knife256 (10.2): tip-cold seed may emit lexer_x.o with the pin
+  # egg, then overwrite ./xlang+bootstrap with a tip that SEGV on lexer.x.
+  # Do not delete a good same-session object until a new emit lands; try the
+  # archived pin egg (seeds/bootstrap_xlangc.<os>.<arch>) after product xl.
+  # tip_l4_tip_pe_undefined_main: Cap tip / tip_cap-host -c often emits a
+  # stack-probe lexer_next_body_into (~0x19e8) that mis-peels u8[] index on
+  # tip PE → P001 → hollow .o → BLD001 undefined main. Pin-egg / large-frame
+  # peels (~0x44e8 / 0x5088) clear rv. Reject probe-shaped objects so the
+  # cascade reaches the archived pin egg. PLATFORM: SHARED (Linux tip PE).
+  local _lex_keep="" _lex_xl _lex_os _lex_arch _lex_egg="" _lex_ok=0
   if [ ! -f scripts/pure_ld_shared.sh ] || [ ! -f src/lexer/lexer.x ]; then
     log "lexer_x.o: pure_ld_shared.sh or src/lexer/lexer.x missing"
     return 1
   fi
-  rm -f lexer_x.o
-  if (
-    # shellcheck disable=SC1091
-    . scripts/pure_ld_shared.sh
-    export XLANG_PREFER_ASM_O=1
-    unset G05_X_O_WEAK G05_X_O_SYM_RENAME
-    export G05_X_O_WEAK_FUNCS=xlang_panic_
-    pure_asm_x_to_o lexer_x.o src/lexer/lexer.x
-  ) && [ -s lexer_x.o ]; then
-    log "lexer_x.o <- pure-asm src/lexer/lexer.x (w1546)"
+  # Accept body_into peels with a large sub $imm,%rsp frame (pin-egg ~0x5088,
+  # tip_cap product ~0x44e8). Cap tip stack-probe prologues (mov $0x19xx,%eax
+  # + page loop) leave tip PE BLD001 — treat as emit miss.
+  _lexer_body_into_ok() {
+    # pipefail+SIGPIPE: do not early-exit awk while objdump still writes.
+    [ -s lexer_x.o ] || return 1
+    if ! command -v objdump >/dev/null 2>&1; then
+      return 0
+    fi
+    local _bi_dump
+    _bi_dump="$(mktemp "${TMPDIR:-/tmp}/lexer_body_into.XXXXXX")"
+    objdump -d --disassemble=lexer_next_body_into lexer_x.o >"$_bi_dump" 2>/dev/null || true
+    # Darwin Xcode objdump: --disassemble=SYM unsupported → empty dump.
+    # tip_l4 BLD001 knife: empty dump must NOT drop a good pin-egg peel
+    # (false Cap-probe reject → ensure deletes lexer_x.o → shim gate never
+    # lands). otool large-frame twin; if still unauditable, keep like no-objdump.
+    if [ ! -s "$_bi_dump" ]; then
+      rm -f "$_bi_dump"
+      if command -v otool >/dev/null 2>&1; then
+        if otool -tv -p _lexer_next_body_into lexer_x.o 2>/dev/null | awk '
+          function hex2dec(h,   i,c,v,d) {
+            h = tolower(h); v = 0
+            for (i = 1; i <= length(h); i++) {
+              c = substr(h, i, 1)
+              d = index("0123456789abcdef", c) - 1
+              if (d < 0) return -1
+              v = v * 16 + d
+            }
+            return v
+          }
+          /sub[ \t]+sp, sp, #0x[0-9a-fA-F]+/ {
+            hex=$0
+            sub(/.*#0x/, "", hex)
+            sub(/[^0-9a-fA-F].*/, "", hex)
+            n = hex2dec(hex)
+            if (n >= 16384) ok=1
+          }
+          /sub[ \t]+sp, sp, #([0-9]+)/ {
+            n = $0
+            sub(/.*#/, "", n)
+            sub(/[^0-9].*/, "", n)
+            if (n+0 >= 16384) ok=1
+          }
+          END { exit ok ? 0 : 1 }
+        '; then
+          return 0
+        fi
+      fi
+      return 0
+    fi
+    # tip_l4 Win: BusyBox awk has no strtonum — portable hex2dec.
+    # Also accept Cap tip / tip_aside page-probe peels that load a large
+    # frame into %eax/%rax then sub $0x1000,%rsp in a loop (total >=0x4000),
+    # not only a single large sub $imm,%rsp. PLATFORM: SHARED.
+    awk '
+      function hex2dec(h,   i,c,v,d) {
+        h = tolower(h); v = 0
+        for (i = 1; i <= length(h); i++) {
+          c = substr(h, i, 1)
+          d = index("0123456789abcdef", c) - 1
+          if (d < 0) return -1
+          v = v * 16 + d
+        }
+        return v
+      }
+      /sub[lq]?[ \t]+\$0x[0-9a-fA-F]+,%rsp/ {
+        hex=$0
+        sub(/.*\$0x/, "", hex)
+        sub(/,.*/, "", hex)
+        n = hex2dec(hex)
+        if (n >= 16384) ok=1
+      }
+      /mov[lq]?[ \t]+\$0x[0-9a-fA-F]+,%(e|r)ax/ {
+        hex=$0
+        sub(/.*\$0x/, "", hex)
+        sub(/,.*/, "", hex)
+        n = hex2dec(hex)
+        if (n >= 16384) probe=1
+      }
+      probe && /sub[lq]?[ \t]+\$0x1000,%rsp/ { ok=1 }
+      END { exit ok ? 0 : 1 }
+    ' "$_bi_dump"
+    local _bi_rc=$?
+    rm -f "$_bi_dump"
+    return "$_bi_rc"
+  }
+  # note743k: keep-seed skip when .x not newer and object non-empty.
+  # tip_l4: also require large-frame body_into (do not keep Cap tip probe).
+  if [ "${XLANG_HOST_CC_SEED_FORCE:-0}" != "1" ] && [ -s lexer_x.o ] \
+    && [ ! src/lexer/lexer.x -nt lexer_x.o ] \
+    && _lexer_body_into_ok; then
+    log "lexer_x.o skip up-to-date (w1546; note743k keep seed)"
     return 0
   fi
-  rm -f lexer_x.o
+  if [ -s lexer_x.o ] && ! _lexer_body_into_ok; then
+    log "lexer_x.o reject Cap tip stack-probe body_into (tip_l4; force re-emit)"
+  fi
+  if [ -s lexer_x.o ]; then
+    _lex_keep="$(mktemp "${TMPDIR:-/tmp}/lexer_x_keep.XXXXXX")"
+    cp -f lexer_x.o "$_lex_keep" || _lex_keep=""
+  fi
+  _lexer_try_xl() {
+    local xl="$1"
+    [ -n "$xl" ] && [ -x "$xl" ] || return 1
+    rm -f lexer_x.o
+    (
+      # shellcheck disable=SC1091
+      . scripts/pure_ld_shared.sh
+      export XLANG_PREFER_ASM_O=1
+      export XLANG="$xl"
+      unset G05_X_O_WEAK G05_X_O_SYM_RENAME
+      export G05_X_O_WEAK_FUNCS=xlang_panic_
+      pure_asm_x_to_o lexer_x.o src/lexer/lexer.x
+    ) && [ -s lexer_x.o ] && _lexer_body_into_ok
+  }
+  # tip first (product path), then product eggs, then archived pin egg.
+  _lex_ok=0
+  if [ -n "${XLANG:-}" ] && [ -x "$XLANG" ] && _lexer_try_xl "$XLANG"; then
+    _lex_ok=1
+  elif _lexer_try_xl ./xlang; then
+    _lex_ok=1
+  fi
+  if [ "$_lex_ok" = "1" ]; then
+    log "lexer_x.o <- pure-asm src/lexer/lexer.x (w1546)"
+    rm -f "$_lex_keep"
+    return 0
+  fi
+  for _lex_xl in ./xlang-c ./bootstrap_xlangc ./xlang_asm; do
+    if _lexer_try_xl "$_lex_xl"; then
+      log "lexer_x.o <- pure-asm src/lexer/lexer.x via $_lex_xl (w1546/note743k)"
+      rm -f "$_lex_keep"
+      return 0
+    fi
+  done
+  _lex_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
+  _lex_arch="$(uname -m 2>/dev/null)"
+  case "$_lex_os" in
+    darwin) _lex_os=darwin ;;
+    linux) _lex_os=linux ;;
+    mingw*|msys*|cygwin*|windows_nt*|windows) _lex_os=windows ;;
+    *) _lex_os="" ;;
+  esac
+  case "$_lex_arch" in
+    x86_64|amd64) _lex_arch=x86_64 ;;
+    arm64|aarch64) _lex_arch=arm64 ;;
+    *) _lex_arch="" ;;
+  esac
+  if [ -n "$_lex_os" ] && [ -n "$_lex_arch" ]; then
+    _lex_egg="seeds/bootstrap_xlangc.${_lex_os}.${_lex_arch}"
+  fi
+  if [ -n "$_lex_egg" ] && _lexer_try_xl "$_lex_egg"; then
+    log "lexer_x.o <- pure-asm src/lexer/lexer.x via $_lex_egg (w1546/note743k pin egg)"
+    rm -f "$_lex_keep"
+    return 0
+  fi
+  # tip_l4 Win: pin-egg XT001 on lexer.x; tip_aside emits Cap-good body
+  # (body_into authority). PLATFORM: SHARED.
+  for _lex_aside in \
+      ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang.exe"} \
+      ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang"} \
+      ./xlang.pre_l4_aside ./xlang.pre_l4_aside.exe ./xlang_bi ./xlang_bi.exe; do
+    if [ -n "$_lex_aside" ] && [ -x "$_lex_aside" ] && _lexer_try_xl "$_lex_aside"; then
+      log "lexer_x.o <- pure-asm src/lexer/lexer.x via tip_aside $_lex_aside (w1546)"
+      rm -f "$_lex_keep"
+      return 0
+    fi
+  done
+  # note743k: restore same-session seed object when tip re-emit SEGV.
+  # tip_l4: only restore when body_into is large-frame (never Cap tip probe).
+  if [ -n "$_lex_keep" ] && [ -s "$_lex_keep" ]; then
+    mv -f "$_lex_keep" lexer_x.o
+    if _lexer_body_into_ok; then
+      log "lexer_x.o keep seed (note743k; tip/pin re-emit failed)"
+      return 0
+    fi
+    log "lexer_x.o drop Cap tip probe keep seed (tip_l4)"
+    rm -f lexer_x.o
+  fi
+  rm -f lexer_x.o "$_lex_keep"
   log "lexer_x.o pure-asm failed (w1546; no cc fallback)"
   return 1
 }
@@ -389,8 +562,20 @@ build_parser_x() {
     ulimit -s 65532 2>/dev/null || ulimit -s hard || exit 1
     pure_asm_x_to_o "$out" src/parser/parser.x
   ) && [ -s "$out" ]; then
-    log "parser_x.o <- pure-asm src/parser/parser.x ($out)"
-    return 0
+    # knife256/10.2 note742: Ubuntu tip-cold egg can emit hollow ~134KB
+    # parser_x.o (no T parser_parse_into_buf). Callers (g05 pthin prefer,
+    # migrate) must not treat that as success — else Track L cold seed is
+    # overwritten and phase1 pure-ld UNDEFs. Require key T or fail closed.
+    # PLATFORM: SHARED.
+    if nm -gU "$out" 2>/dev/null | grep -E "T _?parser_parse_into_buf$" >/dev/null \
+      && nm -gU "$out" 2>/dev/null | grep -E "T _?parser_parse_expr_into$" >/dev/null \
+      && nm -gU "$out" 2>/dev/null | grep -E "T _?parser_parse_one_function_impl$" >/dev/null; then
+      log "parser_x.o <- pure-asm src/parser/parser.x ($out)"
+      return 0
+    fi
+    log "parser_x.o: tip pure-asm hollow (missing parser_parse_* T; note742); reject"
+    rm -f "$out"
+    return 1
   fi
   rm -f "$out"
   log "parser_x.o pure-asm failed (w1633; no cc fallback)"

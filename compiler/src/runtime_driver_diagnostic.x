@@ -1277,32 +1277,44 @@ export function driver_diagnostic_typeck_assign_mismatch(is_compound: i32, line:
  * @return i32
  */
 export function driver_diag_append_i32(dst: *u8, cap: i32, at: i32, val: i32): i32 {
+  // Tip x86: `let dig = t % 10` then use dig reloads a never-written slot
+  // (prints 0). Avoid `%` entirely: peel with /10, ones digit by subtract.
   if (dst == 0) { return at; }
   if (at + 1 >= cap) { return at; }
   let v: i32 = val;
   if (v < 0) {
-    dst[at] = 45; // '-'
+    dst[at] = 45;
     at = at + 1;
+    if (at + 1 >= cap) { return at; }
     v = 0 - v;
   }
-  let digits: i32[12] = [];
-  let dn: i32 = 0;
   if (v == 0) {
-    digits[0] = 0;
-    dn = 1;
-  } else {
-    let t: i32 = v;
-    while (t > 0) {
-      if (dn >= 12) { break; }
-      digits[dn] = t % 10;
-      t = t / 10;
-      dn = dn + 1;
-    }
+    dst[at] = 48;
+    at = at + 1;
+    dst[at] = 0;
+    return at;
   }
-  let i: i32 = dn - 1;
-  while (i >= 0) {
+  let n: i32 = 0;
+  let tt: i32 = v;
+  while (tt > 0) {
+    n = n + 1;
+    tt = tt / 10;
+  }
+  let i: i32 = n;
+  while (i > 0) {
     if (at + 1 >= cap) { break; }
-    dst[at] = (digits[i] + 48) as u8;
+    let pow: i32 = 1;
+    let j: i32 = 1;
+    while (j < i) {
+      pow = pow * 10;
+      j = j + 1;
+    }
+    let q: i32 = v / pow;
+    let dig: i32 = q;
+    while (dig >= 10) {
+      dig = dig - 10;
+    }
+    dst[at] = (dig + 48) as u8;
     at = at + 1;
     i = i - 1;
   }

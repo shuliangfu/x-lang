@@ -1,0 +1,39 @@
+# xlang.toml.core.example — Core (MVP) user template
+#
+# ONLY scalars + [section] / [a.b]. No array-of-string, no inline table,
+# no [[array-of-tables]] required for Core copy-paste.
+#
+# Full design draft (language-repo supersets, arrays, tool.xlang): xlang.toml
+# Roadmap / Core vs Full: analysis/xlang-toml-实现分析.md
+# Gate: tests/run-toml0-core-example-gate.sh (static shape; not runtime load)
+#
+# Status: schema plant (knife 11.30). Compiler does not read this file yet.
+# Runtime load_toml smoke deferred: current std/config/config.o load_toml_buf
+# returns OK but get_* NOT_FOUND under C-link; rebuild hits Soft Cap CG002 HOLD.
+
+version = "0.1.0"
+
+[package]
+name = "my-app"
+edition = "2026"
+
+[build]
+root = "src/main.x"
+default-target = "host"
+out-dir = "build"
+backend = "asm"
+link-std = true
+freestanding = false
+optimization = 0
+
+[profile.dev]
+opt-level = 0
+debug = true
+
+[profile.release]
+opt-level = 3
+lto = false
+
+[features]
+std = true
+async = false

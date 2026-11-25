@@ -27,6 +27,9 @@
 #   XLANG_MIGRATE_FORCE=1 — always recompile even if .o is newer than gen
 #   XLANG_FORCE_REGEN_GEN=1 — force ensure_migrate_gen -E path
 #
+# Env:
+#   XLANG_MIGRATE_TRACK_L_COLD_SEED=1 — opt-in archaeology Track L pin snapshot
+#     (default 0 / knife 254 9.2: tip assemble + host-cc local gen, not pin-first)
 # PLATFORM: SHARED shell orchestration; seed pins are host-portable C.
 # Wave: 735/736 Track MG · pairs with ensure_migrate_gen.sh + Makefile thin leaves.
 # wave832: Makefile *_x.o leaves are FORCE dep-thin; this script owns gen.c mtime
@@ -207,19 +210,17 @@ obj_has_t_sym() {
 }
 
 # wave329: Track L retirement — bespoke cold-seed rung for front-end M4 leaves
-# (parser/typeck/codegen). Force archaeology pin snapshot instead of
-# .x → -E → assemble → host-cc, avoiding:
-#   (a) 30s+ -E compile cost on slow machines (Alarm clock 14)
-#   (b) duplicate shared export symbols from shared module re-inline
-#   (c) gen.c migrate-output implicit-decl legacy bugs
-# Prologue mirrors driver_leaf_x_to_o PREFER_X_O C wrapper. Success returns 0;
-# any failure prints fallback and returns 1 (caller falls through to original
-# HALF host-cc path — zero risk regression).
-# Args: $1=OUT_O  $2=COLD_SEED  $3=extra_cflags (optional, e.g. -include xlang_weak.h for typeck)
-# PLATFORM: SHARED (Darwin arm64 + Ubuntu x86_64 gold: archaeology copy single-source
-# freestanding TU; weak symbols + xlang_weak.h handled.
+# (parser/typeck/codegen). Archaeology pin snapshot instead of
+# .x → -E → assemble → host-cc.
+# knife 254 / 9.2: DEFAULT OFF. Opt-in only via XLANG_MIGRATE_TRACK_L_COLD_SEED=1.
+# Product cold path uses tip assemble (ensure_migrate_gen) + host-cc of local gen,
+# not seed pin-first. Args: $1=OUT_O  $2=COLD_SEED  $3=extra_cflags (optional).
+# PLATFORM: SHARED — archaeology switch only; tip cold must not pin-first.
 _try_frontend_track_l_cold_seed() {
   local out="$1" seed="$2" extra_cflags="${3:-}"
+  if [ "${XLANG_MIGRATE_TRACK_L_COLD_SEED:-0}" != "1" ]; then
+    return 1
+  fi
   if [ -z "$seed" ] || [ ! -f "$seed" ]; then
     return 1
   fi
@@ -268,6 +269,25 @@ _try_frontend_track_l_cold_seed() {
 }
 
 build_parser() {
+  # w1633 Cap tip L4: pure-asm via ensure_gen_x_o (LEGACY heat tip can emit;
+  # Cap tip tip SEGV on parser.x). Prefer before archaeology host-cc of parser_gen.c.
+  # knife256/10.2 note741: Ubuntu tip-cold egg pure-asm parser can be hollow
+  # (~134KB, no T parser_parse_into_buf) → phase1 pure-ld UNDEF. Require key T
+  # or fall through to Track L cold seed / parser_gen.cc (ban soft SKIP).
+  if [ -f scripts/ensure_gen_x_o.sh ]; then
+    if bash scripts/ensure_gen_x_o.sh parser_x.o; then
+      if obj_has_t_sym parser_x.o parser_parse_into_buf \
+        && obj_has_t_sym parser_x.o parser_parse_expr_into \
+        && obj_has_t_sym parser_x.o parser_parse_one_function_impl; then
+        log "parser_x.o <- ensure_gen_x_o pure-asm (w1633)"
+        return 0
+      fi
+      log "parser_x.o: pure-asm hollow (missing parser_parse_* T); try Track L cold seed (note741)"
+      rm -f parser_x.o
+    else
+      log "parser_x.o: ensure_gen pure-asm failed; try migrate gen/cc archaeology"
+    fi
+  fi
   if want_ensure_gen parser parser_gen.c seeds/parser_gen.linux.x86_64.c; then
     ensure_gen_via_shell parser
   fi
@@ -275,7 +295,7 @@ build_parser() {
     log "parser_x.o up-to-date"
     return 0
   fi
-  # wave329: try Track L cold seed first (bypasses slow assemble + sync)
+  # knife 254 / 9.2: Track L cold seed opt-in only (default off; not pin-first)
   if _try_frontend_track_l_cold_seed parser_x.o "seeds/parser_gen.linux.x86_64.c"; then
     return 0
   fi
@@ -319,8 +339,13 @@ build_typeck() {
     _typeck_bak="typeck_x.o.bak_leftover_pe"
     cp -f typeck_x.o "$_typeck_bak"
   fi
-  # wave329: try Track L cold seed first (bypasses assemble/patch chain)
-  if _try_frontend_track_l_cold_seed typeck_x.o "seeds/typeck_gen.linux.x86_64.c"; then
+  # knife 254 / 9.2: Track L cold seed opt-in only (default off; not pin-first)
+  # knife256/10.2 note738: refuse archaeology typeck seed without copy+name_equal peel
+  # (Oct-12 pin still byte_at vs type_name[i] → Linux tip-cold type_alias XT001).
+  if [ -f seeds/typeck_gen.linux.x86_64.c ] \
+    && ! grep -q "knife256/10.2 note738: copy then typeck_name_equal" seeds/typeck_gen.linux.x86_64.c 2>/dev/null; then
+    log "typeck_x.o: skip Track L cold seed (seed peel missing note738 name_equal)"
+  elif _try_frontend_track_l_cold_seed typeck_x.o "seeds/typeck_gen.linux.x86_64.c"; then
     # PLATFORM: WINDOWS leftover PE — Track L cc of CURRENT typeck pin
     # succeeds, then bootstrap-driver-seed UNDEFs glue leftover pabi hybrid
     # does not define (harvest unique 58 @ e7d52c04f). Keep bak so a later
@@ -344,7 +369,8 @@ build_typeck() {
   set -e
   if [ "$_typeck_cc" -eq 0 ]; then
     sz=$(obj_size typeck_x.o)
-    if [ "$sz" -gt 10000 ]; then
+    # knife256: Track L healthy ~365KB; tip hollow ~135KB must not pass.
+    if [ "$sz" -ge 300000 ]; then
       if migrate_windows_leftover_pe_cannot_e && [ -n "$_typeck_bak" ] && [ -f "$_typeck_bak" ]; then
         log "typeck_x.o leftover PE pin cc OK ($sz bytes); kept $_typeck_bak"
       else
@@ -385,7 +411,7 @@ build_codegen() {
     _codegen_bak="codegen_x.o.bak_leftover_pe"
     cp -f codegen_x.o "$_codegen_bak"
   fi
-  # wave329: try Track L cold seed first
+  # knife 254 / 9.2: Track L cold seed opt-in only (default off; not pin-first)
   if _try_frontend_track_l_cold_seed codegen_x.o "seeds/codegen_gen.linux.x86_64.c"; then
     # PLATFORM: WINDOWS leftover PE — keep bak on Track L cc success
     # (same seed-link UNDEF class as typeck pin; see typeck bak note).

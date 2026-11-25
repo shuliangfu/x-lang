@@ -50,17 +50,37 @@ run_regress() {
   XLANG_E_SOFT_FAIL=1 ./tests/run-e-soft-retire-gate.sh
   if [ "${XLANG_DELETE_C_DOCKER:-0}" = "1" ]; then
     progress "regress Docker bootstrap + D-03 (./xbuild) ..."
-    # Bare ubuntu: residual host-cc/make until stage 12 (seed graph / build_tool).
-    # Prefer prebuilt xlang-linux-dev image when available (packages preinstalled).
-    docker run --rm --platform linux/amd64 -v "$(pwd):/src" -w /src ubuntu:22.04 bash -lc '
-      set -e
-      if ! command -v cc >/dev/null 2>&1 || ! command -v make >/dev/null 2>&1; then
-        apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq gcc make >/dev/null
-      fi
-      chmod +x ./xbuild ./xlang-build.sh
-      ./xbuild bootstrap-driver-bstrict
-      ./tests/run-d03-stage2-hash-gate.sh
-    '
+    # §6 10.5 · knife 11.10: prefer prebuilt image; bare ubuntu does NOT apt gcc/make
+    # unless XLANG_DOCKER_WITH_HOST_CC=1 (optional residual host-cc).
+    _img="${XLANG_LINUX_DEV_IMAGE:-xlang-linux-dev:22.04-amd64}"
+    _with_cc="${XLANG_DOCKER_WITH_HOST_CC:-0}"
+    if docker image inspect "$_img" >/dev/null 2>&1; then
+      docker run --rm --platform linux/amd64 -v "$(pwd):/src" -w /src \
+        -e "XLANG_DOCKER_WITH_HOST_CC=${_with_cc}" \
+        "$_img" bash -lc '
+          set -e
+          chmod +x ./xbuild ./xlang-build.sh
+          ./xbuild bootstrap-driver-bstrict
+          ./tests/run-d03-stage2-hash-gate.sh
+        '
+    else
+      docker run --rm --platform linux/amd64 -v "$(pwd):/src" -w /src \
+        -e "XLANG_DOCKER_WITH_HOST_CC=${_with_cc}" \
+        ubuntu:22.04 bash -lc '
+          set -e
+          if [ "${XLANG_DOCKER_WITH_HOST_CC:-0}" = "1" ]; then
+            if ! command -v cc >/dev/null 2>&1 || ! command -v make >/dev/null 2>&1; then
+              apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq gcc make >/dev/null
+            fi
+          elif ! command -v cc >/dev/null 2>&1 || ! command -v make >/dev/null 2>&1; then
+            echo "delete-one-c-file: bare ubuntu missing cc/make; build ./tests/docker/build-linux-dev-image.sh or set XLANG_DOCKER_WITH_HOST_CC=1 (§6 10.5 / 11.10)" >&2
+            exit 2
+          fi
+          chmod +x ./xbuild ./xlang-build.sh
+          ./xbuild bootstrap-driver-bstrict
+          ./tests/run-d03-stage2-hash-gate.sh
+        '
+    fi
   else
     progress "regress bootstrap-driver-bstrict via ./xbuild (host) ..."
     ./xbuild bootstrap-driver-bstrict

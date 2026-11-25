@@ -34,8 +34,9 @@ if docker image inspect "$LINUX_DEV_IMAGE" >/dev/null 2>&1; then
   USE_DEV_IMAGE=1
   echo "run-linux-a09-a11-gate: using prebuilt image $LINUX_DEV_IMAGE (no apt-get)"
 else
-  echo "run-linux-a09-a11-gate: image $LINUX_DEV_IMAGE missing; using ubuntu:22.04 + apt-get (run ./tests/docker/build-linux-dev-image.sh once to skip apt)"
+  echo "run-linux-a09-a11-gate: image $LINUX_DEV_IMAGE missing; using ubuntu:22.04 + apt-get without gcc/make by default (§6 10.5 · knife 11.10; build ./tests/docker/build-linux-dev-image.sh once; XLANG_DOCKER_WITH_HOST_CC=1 for residual host-cc)"
 fi
+WITH_HOST_CC="${XLANG_DOCKER_WITH_HOST_CC:-0}"
 
 echo "run-linux-a09-a11-gate: streaming to $LOG (watch: tail -f $LOG)"
 
@@ -57,6 +58,7 @@ if [ "$USE_DEV_IMAGE" -eq 1 ]; then
     -v "$(pwd):/src" \
     -w /src \
     -e XLANG_CI_DOCKER=1 \
+    -e "XLANG_DOCKER_WITH_HOST_CC=${WITH_HOST_CC}" \
     "$LINUX_DEV_IMAGE" \
     bash -lc "$INNER" 2>&1 | tee "$LOG"
 else
@@ -65,13 +67,18 @@ else
     --memory=8g --shm-size=2g \
     -v "$(pwd):/src" \
     -w /src \
+    -e "XLANG_DOCKER_WITH_HOST_CC=${WITH_HOST_CC}" \
     ubuntu:22.04 \
     bash -lc '
 set -e
 progress() { echo "[$(date +%H:%M:%S)] $*"; }
-progress "apt-get install ..."
+progress "apt-get install (no gcc/make by default · §6 10.5 / 11.10) ..."
 apt-get update -qq
-DEBIAN_FRONTEND=noninteractive apt-get install -y -qq gcc make liburing-dev zlib1g-dev libzstd-dev libbrotli-dev libsqlite3-dev curl xz-utils file python3 binutils >/dev/null
+DEBIAN_FRONTEND=noninteractive apt-get install -y -qq liburing-dev zlib1g-dev libzstd-dev libbrotli-dev libsqlite3-dev curl xz-utils file python3 binutils >/dev/null
+if [ "${XLANG_DOCKER_WITH_HOST_CC:-0}" = "1" ]; then
+  progress "optional host-cc: apt-get gcc make ..."
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq gcc make >/dev/null
+fi
 '"$INNER" 2>&1 | tee "$LOG"
 fi
 

@@ -675,12 +675,11 @@ int link_abi_user_o_needs_std_heap_page_mmap(const char *user_o) {
 
 /* product sys_linux exact UNDEF table + needs pure orch.
  * PLATFORM: SHARED — exact symbols only (no prefix/strstr probes). */
-/* 38 since 2026-09-09: +4 xlang_sys_* FFI externs the co-emitted
- * std.sys.linux module leaves U (glue = std/sys/linux.o +
- * compiler/src/asm/freestanding_io_x86_64.o; hosted user programs
- * importing std.process died BLD001 — run-process FAIL root).
- * Mirrors the .x twin. */
-int labi_od_sys_linux_sym_count(void) { return 38; }
+/* 34 std.sys.linux export names. The old +4 xlang_sys_* FFI names are
+ * undefs of linux.o itself, not a reason to pull it. Darwin tcp.o
+ * undefs xlang_sys_connect; that hit pushed linux.o into a hosted
+ * Mach-O link (BLD001 xlang_sys_open / openat). Mirrors the .x twin. */
+int labi_od_sys_linux_sym_count(void) { return 34; }
 /* Class BF: labi_od_sys_linux_sym_at → seeds/labi_od_needle_tables.c (always linked). */
 const char *labi_od_sys_linux_sym_at(int i);
 
@@ -1089,8 +1088,9 @@ int labi_fk0_sym_count(int k) {
    * G.7: every public std_error_* export ×57. */
   if (k == 8)
     return 57;
+  /* PLATFORM: SHARED — context.o fk0: std_context_* + ctx_*_c (mirror heavy). */
   if (k == 9)
-    return 4;
+    return 11;
   if (k == 10)
     return 42;
   if (k == 11)
@@ -1392,11 +1392,21 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
                                                         "../std/error/error.o");
                     (void)xlang_ensure_formal_std_make_o(include_root, "std/context/context.o",
                                                         "../std/context/context.o");
+                    /* PLATFORM: SHARED — net/mod.o read_ctx and write_ctx call
+                     * std_io_driver_submit_read / submit_write. Bodies live on
+                     * std/io/driver.o (simple group 16). User.o only references
+                     * std_net_*, so group 16 does not fire. G.7: same need_net
+                     * companion as error/context. push_obj dedups a later
+                     * group-16 hit. Do not add a second driver table. */
+                    (void)xlang_ensure_formal_std_make_o(include_root, "std/io/driver.o",
+                                                        "../std/io/driver.o");
                 }
                 link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_error(), lib_roots, n_lib_roots,
                                          bank, argv, la, max_la, NULL);
                 link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_context(), lib_roots, n_lib_roots,
                                          bank, argv, la, max_la, NULL);
+                link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_simple_group_rel(16),
+                                         lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
                 link_abi_asm_ld_push_glue_after_std(1, xlang_ensure_runtime_atomic_glue_o,
                     xlang_runtime_atomic_glue_o_path(link_argv0), link_argv0,
                     labi_od_rel_atomic_glue(), lib_roots, n_lib_roots, bank, argv, la, max_la);
@@ -1493,6 +1503,8 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
             if (include_root && include_root[0]) {
                 (void)xlang_ensure_formal_std_make_o(include_root, "std/heap/heap.o",
                                                     "../std/heap/heap.o");
+                (void)xlang_ensure_formal_std_make_o(include_root, "std/heap/page_mmap.o",
+                                                    "../std/heap/page_mmap.o");
                 (void)xlang_ensure_formal_std_make_o(include_root, "core/mem/mem.o",
                                                     "../core/mem/mem.o");
             }
@@ -1633,6 +1645,15 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
             link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_core_mem(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
         }
         if (need_page_mmap) {
+            /* PLATFORM: SHARED — L4 wipe deletes page_mmap.o; push skip-missing
+             * leaves std_heap_page_mmap_page_mmap_heap_* UNDEF (run-string
+             * BLD001). Mirror linux.o / sys.o formal ensure. Mirrors .x twin. */
+            {
+                const char *include_root = xlang_repo_root_from_argv0(link_argv0);
+                if (include_root && include_root[0])
+                    (void)xlang_ensure_formal_std_make_o(include_root, "std/heap/page_mmap.o",
+                                                        "../std/heap/page_mmap.o");
+            }
             link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_page_mmap(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
         }
         if (need_sys) {
@@ -1679,6 +1700,25 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
                 p_csmod = xlang_asm_ld_try_under_lib_roots(csmod_rel, lib_roots, n_lib_roots, bank);
             if (p_csmod)
                 link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_csmod);
+        }
+        /*
+         * note743y.6.8: core/slice/mod.o U core_option_{none,some}_* (get/first/last).
+         * User.o for subslice_split_chunks only U core_slice_* so g6 option
+         * simple-group never fires → BLD001. Co-push formal option.o with
+         * needs_core_slice (≡ encoding→string companion). PLATFORM: SHARED.
+         */
+        {
+            const char *opt_rel = "core/option/option.o";
+            const char *root_opt = xlang_repo_root_from_argv0(link_argv0);
+            if (root_opt && root_opt[0])
+                (void)xlang_ensure_formal_std_make_o(root_opt, opt_rel, "../core/option/option.o");
+            {
+                const char *p_opt = asm_link_obj_skip_missing(xlang_rel_o_path_from_argv0(link_argv0, opt_rel));
+                if (!p_opt && bank)
+                    p_opt = xlang_asm_ld_try_under_lib_roots(opt_rel, lib_roots, n_lib_roots, bank);
+                if (p_opt)
+                    link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_opt);
+            }
         }
     }
     if (labi_od_user_needs_any_sym_table(user_o, labi_od_kv_sym_count(), labi_od_kv_sym_at)) {
@@ -1821,6 +1861,10 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
                                                         "../std/compress/zstd/zstd.o");
                     (void)xlang_ensure_formal_std_make_o(include_root, "std/compress/brotli/brotli.o",
                                                         "../std/compress/brotli/brotli.o");
+                    /* gzip/zstd/brotli call core.mem. User.o does not.
+                     * PLATFORM: SHARED — same companion as queue → mem.o. */
+                    (void)xlang_ensure_formal_std_make_o(include_root, "core/mem/mem.o",
+                                                        "../core/mem/mem.o");
                 }
                 link_abi_asm_ld_push_obj(NULL, link_argv0, "std/compress/zlib/zlib.o", lib_roots, n_lib_roots,
                                          bank, argv, la, max_la, NULL);
@@ -1829,6 +1873,10 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
                 link_abi_asm_ld_push_obj(NULL, link_argv0, "std/compress/zstd/zstd.o", lib_roots, n_lib_roots,
                                          bank, argv, la, max_la, NULL);
                 link_abi_asm_ld_push_obj(NULL, link_argv0, "std/compress/brotli/brotli.o", lib_roots, n_lib_roots,
+                                         bank, argv, la, max_la, NULL);
+                /* gzip/zstd/brotli U core_mem_mem_zero / core_mem_mem_compare.
+                 * User.o only U std_compress_*. PLATFORM: SHARED. */
+                link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_core_mem(), lib_roots, n_lib_roots,
                                          bank, argv, la, max_la, NULL);
                 /* Glue + -lz stay in asm_ld_append_compress_libs (needs_zlib).
                  * Do not push runtime_compress_zlib_glue.o here (duplicate T). */
@@ -1887,6 +1935,12 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
                     (void)xlang_ensure_formal_std_make_o(include_root, "core/slice/slice.o",
                                                         "../core/slice/slice.o");
                 link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_core_slice(), lib_roots, n_lib_roots,
+                                         bank, argv, la, max_la, NULL);
+                /* note743y.6.8: mod.o U core_option_* — co-push option.o. */
+                if (include_root && include_root[0])
+                    (void)xlang_ensure_formal_std_make_o(include_root, "core/option/option.o",
+                                                        "../core/option/option.o");
+                link_abi_asm_ld_push_obj(NULL, link_argv0, "core/option/option.o", lib_roots, n_lib_roots,
                                          bank, argv, la, max_la, NULL);
             }
         }

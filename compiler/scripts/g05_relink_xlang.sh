@@ -15,6 +15,11 @@
 #   G05_CC          编译器（默认 cc）— residual path
 #   G05_CFLAGS      完整 cflags + link flags（含 -e _start 等）— residual path
 #   G05_OUT         输出二进制名（默认 xlang）
+# 10.69 DIG3 Prefer-M2 SoftCap parse prepend (named-struct / at_end first-wins)
+if [ -n "${_G05_DIG3_PARSE_PREPEND:-}" ]; then
+  export G05_OBJS="${_G05_DIG3_PARSE_PREPEND} ${G05_OBJS:-}"
+  echo "g05_relink_xlang: 10.69 DIG3 Prefer-M2 SoftCap parse prepend applied" >&2
+fi
 #   G05_OBJS        全部 .o 参数（空格分隔）
 #   G05_XLANG_C      xlang-c 同步名（默认 xlang-c）
 #   G05_BOOTSTRAP   bootstrap_xlangc 同步名（默认 bootstrap_xlangc）
@@ -34,14 +39,36 @@
 set -e
 cd "$(dirname "$0")/.."
 
+# knife256/10.2: install GOOD lex peel (fill→next_into + hard peek +20/+24)
+# Demote peel's source_data/length so nopark (real lexer globals) wins.
+if [ -s /tmp/p9a_lex_bridge_peel_GOOD.o ]; then
+  mkdir -p build_asm/selfhost_pabi
+  cp -f /tmp/p9a_lex_bridge_peel_GOOD.o build_asm/selfhost_pabi/p9a_lex_bridge_peel.o
+  echo "g05_relink_xlang: installed GOOD p9a_lex_bridge_peel.o" >&2
+  _oc="${LLVM_OBJCOPY:-/opt/homebrew/opt/llvm/bin/llvm-objcopy}"
+  _peel=build_asm/selfhost_pabi/p9a_lex_bridge_peel.o
+  if [ -x "$_oc" ] && [ -s "$_peel" ]; then
+    for _s in _parser_asm_lex_source_data_c _parser_asm_lex_source_length_c; do
+      if nm -gU "$_peel" 2>/dev/null | awk '{print $3}' | grep -qxF "$_s"; then
+        "$_oc" --redefine-sym="${_s}=${_s}__peel_dup" "$_peel" 2>/dev/null \
+          && echo "g05_relink_xlang: demoted peel $_s (nopark wins)" >&2 || true
+      fi
+    done
+  fi
+fi
+
 # w1484: refuse to link when ensure / relink_env logged a g05 pure-asm crash
 # (a retry or cc fallback may have hidden it). PLATFORM: SHARED.
+# knife256/10.2: overlay-missing = Cap prior kept, not a product crash.
 if [ -s build_asm/g05_xasm_crash.log ]; then
-  echo "g05_relink_xlang: g05 pure-asm compiler crashed (build_asm/g05_xasm_crash.log):" >&2
-  sed 's/^/  /' build_asm/g05_xasm_crash.log >&2
-  if [ "${XLANG_G05_XASM_ALLOW_CRASH:-0}" != "1" ]; then
-    echo "  fix the product and rm the log, or XLANG_G05_XASM_ALLOW_CRASH=1 to only warn" >&2
-    exit 1
+  _crash_hard=$(grep -v 'overlay-missing' build_asm/g05_xasm_crash.log || true)
+  if [ -n "$_crash_hard" ]; then
+    echo "g05_relink_xlang: g05 pure-asm compiler crashed (build_asm/g05_xasm_crash.log):" >&2
+    printf '%s\n' "$_crash_hard" | sed 's/^/  /' >&2
+    if [ "${XLANG_G05_XASM_ALLOW_CRASH:-0}" != "1" ]; then
+      echo "  fix the product and rm the log, or XLANG_G05_XASM_ALLOW_CRASH=1 to only warn" >&2
+      exit 1
+    fi
   fi
 fi
 
@@ -70,6 +97,867 @@ fi
 # G.7: pure-ld helpers — single authority (shared with cold seed link).
 # shellcheck disable=SC1091
 . scripts/pure_ld_shared.sh
+
+# knife256/10.2: g05_ensure re-runs darwin_phase1_hollow_fill AFTER g05_relink_env
+# w211 weaken. Egg/mega refresh can restore strong T on pabi → Darwin ld dup vs
+# register_tl_const.o. Re-weaken on the live pabi just before pure-ld.
+# note743y.6.20: same for modlet_float_imm / modlet_strpool overlays — tip-cold
+# Cap tip rebuilds src/runtime_pipeline_abi.o with strong T of
+# pipe_modlet_scalar_init_common_imm and pipe_modlet_bake_string_lit_elem_to_data
+# while overlays also export them → ld duplicate (primary L4 FAIL).
+# PLATFORM: MACOS · no FORCE_CC.
+if [ "$(uname -s 2>/dev/null)" = "Darwin" ] \
+  && [ -s src/runtime_pipeline_abi.o ]; then
+  _g05_oc=""
+  if [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+    _g05_oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+  elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+    _g05_oc=/usr/local/opt/llvm/bin/llvm-objcopy
+  elif command -v llvm-objcopy >/dev/null 2>&1; then
+    _g05_oc=$(command -v llvm-objcopy)
+  fi
+  if [ -n "$_g05_oc" ]; then
+    # 10.60 isol-C: Cap tip fa_array emit_return defers ARRAY_LIT/dest-SLICE to
+    # _pipeline_asm_emit_return_elf_impl_prev. Extract egg body as _prev (Darwin).
+    # PLATFORM: MACOS Cap tip.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])fa_array_lit_a64\.o([[:space:]]|$)' \
+      && nm -u build_asm/selfhost_pabi/fa_array_lit_a64.o 2>/dev/null \
+           | grep -q '_pipeline_asm_emit_return_elf_impl_prev'; then
+      _er_has_prev=0
+      for _er_o in $OBJS; do
+        [ -s "$_er_o" ] || continue
+        if nm "$_er_o" 2>/dev/null | grep -Eq ' [TW] _pipeline_asm_emit_return_elf_impl_prev$'; then
+          _er_has_prev=1
+          break
+        fi
+      done
+      if [ "$_er_has_prev" != "1" ]; then
+        _er_prev=build_asm/selfhost_pabi/return_sret_er_prev.o
+        _er_src=""
+        for _er_c in build_asm/selfhost_pabi/return_sret.o \
+                     build_asm/selfhost_pabi/pabi_weak.o \
+                     src/runtime_pipeline_abi.o; do
+          [ -s "$_er_c" ] || continue
+          if nm "$_er_c" 2>/dev/null | grep -Eq ' [TW] _pipeline_asm_emit_return_elf_impl$'; then
+            _er_src="$_er_c"
+            break
+          fi
+        done
+        if [ -n "$_er_src" ]; then
+          _er_exp="/tmp/g05_er_prev_$$.exp"
+          printf '%s\n' '_pipeline_asm_emit_return_elf_impl' > "$_er_exp"
+          if ld -r -o "$_er_prev" -exported_symbols_list "$_er_exp" "$_er_src" 2>/dev/null \
+            && "$_g05_oc" --redefine-sym=_pipeline_asm_emit_return_elf_impl=_pipeline_asm_emit_return_elf_impl_prev \
+                 "$_er_prev" 2>/dev/null \
+            && nm "$_er_prev" 2>/dev/null | grep -Eq ' [TW] _pipeline_asm_emit_return_elf_impl_prev$'; then
+            OBJS="$_er_prev $OBJS"
+            echo "g05_relink_xlang: 10.60 Darwin emit_return _prev from $_er_src" >&2
+          else
+            echo "g05_relink_xlang: WARN 10.60 emit_return _prev extract failed" >&2
+            rm -f "$_er_prev"
+          fi
+          rm -f "$_er_exp"
+        else
+          echo "g05_relink_xlang: WARN 10.60 no egg emit_return for _prev" >&2
+        fi
+        unset _er_prev _er_src _er_exp _er_c
+      fi
+      unset _er_has_prev _er_o
+    fi
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])register_tl_const\.o([[:space:]]|$)' \
+      && nm -gU src/runtime_pipeline_abi.o 2>/dev/null \
+           | grep -q ' T _pipeline_asm_register_module_top_level_lets_c$'; then
+      "$_g05_oc" --weaken-symbol=_pipeline_asm_register_module_top_level_lets_c \
+        src/runtime_pipeline_abi.o 2>/dev/null \
+        && echo "g05_relink_xlang: pre-ld weaken pabi register_tl (overlay wins)" >&2 \
+        || true
+    fi
+    # note743y.6.20: weaken mega copies so Cap tip overlays first-win.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])modlet_float_imm\.o([[:space:]]|$)' \
+      && nm -gU src/runtime_pipeline_abi.o 2>/dev/null \
+           | grep -q ' T _pipe_modlet_scalar_init_common_imm$'; then
+      "$_g05_oc" --weaken-symbol=_pipe_modlet_scalar_init_common_imm \
+        src/runtime_pipeline_abi.o 2>/dev/null \
+        && echo "g05_relink_xlang: pre-ld weaken pabi scalar_init_common_imm (float_imm wins)" >&2 \
+        || true
+    fi
+    # 10.53: f64 imm thin first-wins common_imm over Cap tip pabi_weak / mega.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])modlet_f64_imm\.o([[:space:]]|$)'; then
+      for _pabi_o in src/runtime_pipeline_abi.o build_asm/selfhost_pabi/pabi_weak.o; do
+        [ -s "$_pabi_o" ] || continue
+        if nm "$_pabi_o" 2>/dev/null | grep -q ' T _pipe_modlet_scalar_init_common_imm$'; then
+          "$_g05_oc" --weaken-symbol=_pipe_modlet_scalar_init_common_imm \
+            "$_pabi_o" 2>/dev/null \
+            && echo "g05_relink_xlang: 10.53 pre-ld weaken $_pabi_o common_imm (f64_imm wins)" >&2 \
+            || true
+        fi
+      done
+    fi
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])modlet_strpool\.o([[:space:]]|$)' \
+      && nm -gU src/runtime_pipeline_abi.o 2>/dev/null \
+           | grep -q ' T _pipe_modlet_bake_string_lit_elem_to_data$'; then
+      "$_g05_oc" --weaken-symbol=_pipe_modlet_bake_string_lit_elem_to_data \
+        src/runtime_pipeline_abi.o 2>/dev/null \
+        && echo "g05_relink_xlang: pre-ld weaken pabi bake_string_lit (strpool wins)" >&2 \
+        || true
+    fi
+    # 10.52: signed COMMON seed overlay first-wins; globalize BSS for table_base.
+    # Cap tip links pabi_weak.o; tip-cold may keep src/runtime_pipeline_abi.o.
+    # PLATFORM: MACOS Cap tip / tip-cold.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])modlet_seed_signed\.o([[:space:]]|$)'; then
+      for _pabi_o in src/runtime_pipeline_abi.o build_asm/selfhost_pabi/pabi_weak.o; do
+        [ -s "$_pabi_o" ] || continue
+        if nm "$_pabi_o" 2>/dev/null | grep -q ' T _pipeline_asm_modlet_seed_nonzero_inits_elf_c$'; then
+          "$_g05_oc" --weaken-symbol=_pipeline_asm_modlet_seed_nonzero_inits_elf_c \
+            "$_pabi_o" 2>/dev/null \
+            && echo "g05_relink_xlang: 10.52 pre-ld weaken $_pabi_o seed_nonzero (signed wins)" >&2 \
+            || true
+        fi
+        if nm "$_pabi_o" 2>/dev/null | grep -qE ' [bB] _g_pipeline_asm_modlet$'; then
+          "$_g05_oc" --globalize-symbol=_g_pipeline_asm_modlet \
+            "$_pabi_o" 2>/dev/null \
+            && echo "g05_relink_xlang: 10.52 pre-ld globalize $_pabi_o g_pipeline_asm_modlet" >&2 \
+            || true
+        fi
+      done
+    fi
+    # note743y.6.23: Cap tip G05 lists struct_lit_field.o + pabi_weak; both
+    # define glue_struct_lit_field_store_sz as T. Windows weakens pabi_weak
+    # in g05_relink_env; Darwin Cap tip must demote pabi_weak pre-ld (Apple
+    # ld rejects duplicate strong). Same for w211 vs const_lit_fold.
+    # PLATFORM: MACOS Cap tip / tip-cold.
+    # 10.67 FixC9 Prefer-M2: only demote when thin actually provides T (path
+    # may linger in OBJS string after a skipped-missing Cap tip env list).
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])struct_lit_field\.o([[:space:]]|$)' \
+      && [ -s build_asm/selfhost_pabi/struct_lit_field.o ] \
+      && nm build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null \
+           | grep -q ' T _glue_struct_lit_field_store_sz$' \
+      && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
+      && nm build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+           | grep -q ' T _glue_struct_lit_field_store_sz$'; then
+      "$_g05_oc" --redefine-sym=_glue_struct_lit_field_store_sz=_glue_struct_lit_field_store_sz__demoted \
+        build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+        && echo "g05_relink_xlang: note743y.6.23 pre-ld demote pabi_weak struct_lit_field_store_sz" >&2 \
+        || true
+    fi
+    # 10.94: Cap tip codegen_outbuf_len_thin first-wins length@0 over bak_cap
+    # writers (and over a refreshed pabi_weak from full runtime_pipeline_abi.o).
+    # PLATFORM: MACOS Cap tip.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])codegen_outbuf_len_thin\.o([[:space:]]|$)' \
+      && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+      for _col_sym in \
+        _codegen_out_buf_len \
+        _codegen_out_buf_set_len \
+        _codegen_codegen_out_buf_len \
+        _codegen_codegen_out_buf_set_len \
+        _pipeline_codegen_out_buf_len \
+        _pipeline_codegen_out_buf_set_len
+      do
+        if nm build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+             | grep -Eq " [TW] ${_col_sym}$"; then
+          "$_g05_oc" --redefine-sym=${_col_sym}=${_col_sym}__demoted \
+            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+            && echo "g05_relink_xlang: 10.94 pre-ld demote pabi_weak ${_col_sym#?}" >&2 \
+            || true
+        fi
+      done
+      unset _col_sym
+    fi
+    # 10.94b: Cap tip bak_cap pipe_elf_out_append writes data@0 (MH_MAGIC
+    # clobbers length@0). Thin first-wins after demote.
+    # PLATFORM: MACOS Cap tip.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])pipe_elf_out_append_thin\.o([[:space:]]|$)' \
+      && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+      if nm build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+           | grep -Eq ' [TW] _pipe_elf_out_append$'; then
+        "$_g05_oc" --redefine-sym=_pipe_elf_out_append=_pipe_elf_out_append__demoted \
+          build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+          && echo "g05_relink_xlang: 10.94 pre-ld demote pabi_weak pipe_elf_out_append" >&2 \
+          || true
+      fi
+    fi
+    # Also demote full runtime_pipeline_abi.o if Cap tip ever links both.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])codegen_outbuf_len_thin\.o([[:space:]]|$)' \
+      && [ -s src/runtime_pipeline_abi.o ]; then
+      for _col_sym in \
+        _codegen_out_buf_len \
+        _codegen_out_buf_set_len
+      do
+        if nm src/runtime_pipeline_abi.o 2>/dev/null \
+             | grep -Eq " [TW] ${_col_sym}$"; then
+          "$_g05_oc" --redefine-sym=${_col_sym}=${_col_sym}__demoted \
+            src/runtime_pipeline_abi.o 2>/dev/null \
+            && echo "g05_relink_xlang: 10.94 pre-ld demote runtime_pipeline_abi ${_col_sym#?}" >&2 \
+            || true
+        fi
+      done
+      unset _col_sym
+    fi
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])const_lit_fold\.o([[:space:]]|$)' \
+      && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
+      && nm build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+           | grep -q ' T _w211_fold_const_expr_i32$'; then
+      "$_g05_oc" --redefine-sym=_w211_fold_const_expr_i32=_w211_fold_const_expr_i32__demoted \
+        build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+        && echo "g05_relink_xlang: note743y.6.23 pre-ld demote pabi_weak w211_fold" >&2 \
+        || true
+    fi
+    # note743y.6.23: tip-cold opt/si Abort — mega egg
+    # pipeline_asm_emit_var_field_access_elf_c (frame 0x2a0) stack-chk fails
+    # on core/option. Cap tip / field_cap_residual_load (frame 0xd00) is the
+    # known-good body. Darwin llvm-objcopy --weaken often leaves T; demote
+    # mega (and pabi_weak if T) via redefine-sym so field_cap is sole strong.
+    # PLATFORM: MACOS tip cold.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])field_cap_residual_load\.o([[:space:]]|$)' \
+      && nm -gU src/runtime_pipeline_abi.o 2>/dev/null \
+           | grep -q ' T _pipeline_asm_emit_var_field_access_elf_c$'; then
+      "$_g05_oc" --redefine-sym=_pipeline_asm_emit_var_field_access_elf_c=_pipeline_asm_emit_var_field_access_elf_c__demoted \
+        src/runtime_pipeline_abi.o 2>/dev/null \
+        && echo "g05_relink_xlang: note743y.6.23 pre-ld demote pabi var_field_access (field_cap wins)" >&2 \
+        || true
+    fi
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])field_cap_residual_load\.o([[:space:]]|$)' \
+      && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
+      && nm build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+           | grep -q ' T _pipeline_asm_emit_var_field_access_elf_c$'; then
+      "$_g05_oc" --redefine-sym=_pipeline_asm_emit_var_field_access_elf_c=_pipeline_asm_emit_var_field_access_elf_c__demoted \
+        build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+        && echo "g05_relink_xlang: note743y.6.23 pre-ld demote pabi_weak var_field_access (field_cap wins)" >&2 \
+        || true
+    fi
+    # note743y.6.23: peel helpers_thin first-wins transparent_value over pabi_weak.
+    # PLATFORM: MACOS Cap tip.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])binop_block_peel_helpers_thin\.o([[:space:]]|$)' \
+      && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
+      && nm build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+           | grep -q ' T _glue_expr_block_transparent_value_ref_at$'; then
+      "$_g05_oc" --redefine-sym=_glue_expr_block_transparent_value_ref_at=_glue_expr_block_transparent_value_ref_at__pabi_weak_dup \
+        build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+        && echo "g05_relink_xlang: note743y.6.23 pre-ld demote pabi_weak transparent_value (helpers wins)" >&2 \
+        || true
+    fi
+    # 10.22: slice_length_to_rbx thin first-wins TYPE_SLICE dual-GP length.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])slice_length_to_rbx_a64\.o([[:space:]]|$)' \
+      && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
+      && nm build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+           | grep -q ' T _glue_emit_slice_length_to_rbx_elf_c$'; then
+      "$_g05_oc" --redefine-sym=_glue_emit_slice_length_to_rbx_elf_c=_glue_emit_slice_length_to_rbx_elf_c__demoted \
+        build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+        && echo "g05_relink_xlang: 10.22 pre-ld demote pabi_weak slice_length (thin wins)" >&2 \
+        || true
+    fi
+    # 10.44: struct_layout_offset thin first-wins layout offset faces over pabi_weak.
+    # Cap tip bak_cap restore re-strongs these; weaken alone often still looks T to
+    # nm -gU — demote like note743y.6.23 so Apple ld has one strong.
+    # PLATFORM: MACOS Cap tip.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])struct_layout_offset\.o([[:space:]]|$)' \
+      && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+      for _lo_sym in \
+        _glue_struct_layout_compute_field_offset_c \
+        _pipeline_struct_layout_next_field_offset_ex \
+        _pipeline_struct_layout_next_field_offset \
+        _glue_sync_struct_layout_field_offsets_c
+      do
+        if nm build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+             | grep -Eq " [TW] ${_lo_sym}$"; then
+          "$_g05_oc" --redefine-sym=${_lo_sym}=${_lo_sym}__demoted \
+            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+        fi
+      done
+      echo "g05_relink_xlang: 10.44 pre-ld demote pabi_weak layout offset (thin wins)" >&2
+    fi
+    # 10.67 FixC-follow: named_builtin_cap vs typeck peel duplicate T.
+    # Cap tip reapply demotes peel/cap_repr; tip-cold must pre-ld too.
+    # PLATFORM: MACOS.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])named_builtin_cap\.o([[:space:]]|$)' \
+      && [ -n "${_g05_oc:-}" ]; then
+      for _nb_pw in \
+        build_asm/selfhost_pabi/typeck_x_binop_cmp_peel.o \
+        build_asm/selfhost_pabi/typeck_x.cap_repr_weak.binop_cmp_peel.o \
+        build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o \
+        build_asm/selfhost_pabi/typeck_cap_residual.o \
+        typeck_x.o
+      do
+        [ -s "$_nb_pw" ] || continue
+        if nm -gU "$_nb_pw" 2>/dev/null | grep -q 'T _typeck_x_named_builtin_align$'; then
+          "$_g05_oc" \
+            --redefine-sym=_typeck_x_named_builtin_align=_typeck_x_named_builtin_align__demoted \
+            --redefine-sym=_typeck_x_named_builtin_size=_typeck_x_named_builtin_size__demoted \
+            "$_nb_pw" 2>/dev/null \
+            && echo "g05_relink_xlang: 10.67 pre-ld demoted named_builtin in $_nb_pw (cap wins)" >&2 \
+            || true
+        fi
+      done
+      unset _nb_pw
+    fi
+    # 10.67 FixC-follow: named_align.o U-refs _glue_type_align_simple__demoted.
+    # Tip-cold links src/runtime_pipeline_abi.o (pabi_weak gate often skipped);
+    # Cap tip bak/cp may re-strong egg after env demote — demote pre-ld on every
+    # holder. Prefer-M2 / existing objs only. PLATFORM: MACOS.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])named_align\.o([[:space:]]|$)' \
+      && [ -n "${_g05_oc:-}" ]; then
+      for _na_pw in \
+        src/runtime_pipeline_abi.o \
+        build_asm/selfhost_pabi/pabi_weak.o \
+        build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o
+      do
+        [ -s "$_na_pw" ] || continue
+        if nm -gU "$_na_pw" 2>/dev/null | grep -q " _glue_type_align_simple$"; then
+          "$_g05_oc" --redefine-sym=_glue_type_align_simple=_glue_type_align_simple__demoted \
+            "$_na_pw" 2>/dev/null \
+            && echo "g05_relink_xlang: 10.67 pre-ld demoted $_na_pw align_simple (named_align)" >&2 \
+            || true
+        fi
+      done
+      unset _na_pw
+    fi
+    # 10.44: Cap tip may skip g05_relink_env overlay — rename pipeline_glue→glue
+    # on struct_lit_field.o and demote fill/pabi_weak store_sz so thin wins.
+    if [ -n "${_g05_oc:-}" ] && [ -s build_asm/selfhost_pabi/struct_lit_field.o ]; then
+      if nm build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null \
+           | grep -q ' T _pipeline_glue_struct_lit_field_store_sz$'; then
+        "$_g05_oc" --redefine-sym=_pipeline_glue_struct_lit_field_store_sz=_glue_struct_lit_field_store_sz \
+          build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null \
+          && echo "g05_relink_xlang: 10.44 pre-ld renamed pipeline_glue store_sz" >&2 || true
+      fi
+      if nm build_asm/selfhost_pabi/struct_lit_field.o 2>/dev/null \
+           | grep -q ' T _glue_struct_lit_field_store_sz$'; then
+        for _slf_pw in build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o \
+                       build_asm/selfhost_pabi/pabi_weak.o; do
+          [ -s "$_slf_pw" ] || continue
+          if nm "$_slf_pw" 2>/dev/null | grep -q ' T _glue_struct_lit_field_store_sz$'; then
+            "$_g05_oc" --redefine-sym=_glue_struct_lit_field_store_sz=_glue_struct_lit_field_store_sz__demoted \
+              "$_slf_pw" 2>/dev/null \
+              && echo "g05_relink_xlang: 10.44 pre-ld demote $_slf_pw store_sz (thin wins)" >&2 || true
+          fi
+        done
+        unset _slf_pw
+      fi
+    fi
+    # 10.22: STRUCT_LIT.field→[]T — slice_modlet calls _prev; demote egg T/W.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])slice_modlet(_a64)?\.o([[:space:]]|$)'; then
+      for _sm_pw in build_asm/selfhost_pabi/pabi_weak.o \
+                    build_asm/selfhost_pabi/pabi_alias.skip_egg.o \
+                    build_asm/selfhost_pabi/pabi.o \
+                    build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o \
+                    src/runtime_pipeline_abi.o; do
+        [ -s "$_sm_pw" ] || continue
+        if nm "$_sm_pw" 2>/dev/null | grep -Eq ' [TW] _glue_emit_slice_from_array_let_init_elf_c$'; then
+          "$_g05_oc" --redefine-sym=_glue_emit_slice_from_array_let_init_elf_c=_glue_emit_slice_from_array_let_init_elf_c_prev \
+            "$_sm_pw" 2>/dev/null \
+            && echo "g05_relink_xlang: 10.22 pre-ld demote $_sm_pw slice_modlet→_prev" >&2 \
+            || true
+        fi
+      done
+      unset _sm_pw
+      # Cap tip G05_OBJS often omits runtime_pipeline_abi.o — demote then leaves
+      # no _prev in the link. Stub returns -1 (same as prior Cap tip CG002).
+      # Drop any prior stub first so demoted egg W/_prev is never doubled.
+      _sm_objs_new=""
+      for _sm_o in $OBJS; do
+        case "$_sm_o" in
+          *glue_slice_from_array_let_init_prev_stub*.o) continue ;;
+        esac
+        _sm_objs_new="${_sm_objs_new:+$_sm_objs_new }$_sm_o"
+      done
+      OBJS="$_sm_objs_new"
+      unset _sm_objs_new
+      _sm_has_prev=0
+      for _sm_o in $OBJS; do
+        [ -s "$_sm_o" ] || continue
+        if nm "$_sm_o" 2>/dev/null | grep -Eq ' [TW] _glue_emit_slice_from_array_let_init_elf_c_prev$'; then
+          _sm_has_prev=1
+          break
+        fi
+      done
+      if [ "$_sm_has_prev" != "1" ]; then
+        _sm_stub=build_asm/selfhost_pabi/glue_slice_from_array_let_init_prev_stub_a64.o
+        mkdir -p build_asm/selfhost_pabi
+        clang -c -o "$_sm_stub" src/asm/glue_slice_from_array_let_init_prev_stub_a64.s \
+          || { echo "g05_relink_xlang: ERROR 10.22 _prev stub assemble failed" >&2; exit 1; }
+        OBJS="$_sm_stub $OBJS"
+        echo "g05_relink_xlang: 10.22 prepended Cap tip _prev stub (-1)" >&2
+      else
+        echo "g05_relink_xlang: 10.22 _prev present (egg demote); skip stub" >&2
+      fi
+      unset _sm_has_prev _sm_stub _sm_o
+    fi
+
+    # 10.22: take_field_slice — weaken egg reverse_infer so soft T first-wins.
+    # Do NOT redefine-sym (rewrites call sites inside typeck_x to the dead name).
+    if printf "%s" " $OBJS " | grep -Eq "(^|[[:space:]/])typeck_field_reverse_infer_soft\.o([[:space:]]|$)"; then
+      for _ri_pw in build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o \
+                    build_asm/selfhost_pabi/typeck_x.cap_repr_weak.binop_cmp_peel.o \
+                    typeck_x.o \
+                    build_asm/selfhost_pabi/typeck_x_binop_cmp_peel.o; do
+        [ -s "$_ri_pw" ] || continue
+        if nm "$_ri_pw" 2>/dev/null | grep -Eq " T _typeck_field_reverse_infer_base_type$"; then
+          "$_g05_oc" --weaken-symbol=_typeck_field_reverse_infer_base_type \
+            "$_ri_pw" 2>/dev/null \
+            && echo "g05_relink_xlang: 10.22 weaken $_ri_pw reverse_infer (soft wins)" >&2 \
+            || true
+        fi
+      done
+      unset _ri_pw
+    fi
+    if printf "%s" " $OBJS " | grep -Eq "(^|[[:space:]/])call_arg_struct_lit_field\.o([[:space:]]|$)"; then
+      # Extract egg body as _prev (redefine on a COPY). Weaken egg definition so
+      # call sites still name glue_emit_one_call_arg_elf_c and bind to thin T.
+      _ca_prev=build_asm/selfhost_pabi/call_arg_emit_one_prev_a64.o
+      _ca_src_o=""
+      for _ca_pw in src/asm/backend_call_dispatch.o \
+                    build_asm/selfhost_pabi/pabi_weak.o \
+                    build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o \
+                    src/runtime_pipeline_abi.o; do
+        [ -s "$_ca_pw" ] || continue
+        if nm "$_ca_pw" 2>/dev/null | grep -Eq " [TW] _glue_emit_one_call_arg_elf_c$"; then
+          _ca_src_o="$_ca_pw"
+          break
+        fi
+      done
+      if [ -n "$_ca_src_o" ]; then
+        _ca_exp="/tmp/g05_call_arg_prev_$$.exp"
+        printf "%s\n" "_glue_emit_one_call_arg_elf_c" > "$_ca_exp"
+        if ld -r -o "$_ca_prev" -exported_symbols_list "$_ca_exp" "$_ca_src_o" 2>/dev/null; then
+          "$_g05_oc" --redefine-sym=_glue_emit_one_call_arg_elf_c=_glue_emit_one_call_arg_elf_c_prev \
+            "$_ca_prev" 2>/dev/null \
+            && echo "g05_relink_xlang: 10.22 call_arg _prev ld-r extract from $_ca_src_o" >&2 \
+            || rm -f "$_ca_prev"
+        else
+          rm -f "$_ca_prev"
+        fi
+        rm -f "$_ca_exp"
+        for _ca_pw in src/asm/backend_call_dispatch.o \
+                      build_asm/selfhost_pabi/pabi_weak.o \
+                      build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o \
+                      src/runtime_pipeline_abi.o; do
+          [ -s "$_ca_pw" ] || continue
+          if nm "$_ca_pw" 2>/dev/null | grep -Eq " T _glue_emit_one_call_arg_elf_c$"; then
+            "$_g05_oc" --weaken-symbol=_glue_emit_one_call_arg_elf_c "$_ca_pw" 2>/dev/null \
+              && echo "g05_relink_xlang: 10.22 weaken $_ca_pw call_arg (thin wins)" >&2 \
+              || true
+          fi
+        done
+        if [ -s "$_ca_prev" ] && nm "$_ca_prev" 2>/dev/null | grep -Eq " [TW] _glue_emit_one_call_arg_elf_c_prev$"; then
+          OBJS="$_ca_prev $OBJS"
+          echo "g05_relink_xlang: 10.22 prepended call_arg _prev extract" >&2
+        fi
+      fi
+      unset _ca_prev _ca_src_o _ca_pw
+    fi
+
+    # 10.22: when ast_to_elf_thin is in OBJS, demote archive_leaf face only
+    # (keep mega_body on leaf). Thin skips reset_data when data_len>0 (cims).
+    # PLATFORM: MACOS Cap tip.
+    if printf "%s" " $OBJS " | grep -Eq "(^|[[:space:]/])ast_to_elf_thin_a64\.o([[:space:]]|$)" \
+      && [ -s build_asm/selfhost_pabi/archive_leaf_extract.o ]; then
+      if nm -gU build_asm/selfhost_pabi/archive_leaf_extract.o 2>/dev/null \
+           | grep -q " T _pipeline_backend_asm_codegen_ast_to_elf_c$"; then
+        "$_g05_oc" --redefine-sym=_pipeline_backend_asm_codegen_ast_to_elf_c=_pipeline_backend_asm_codegen_ast_to_elf_c__demoted \
+          build_asm/selfhost_pabi/archive_leaf_extract.o 2>/dev/null \
+          && echo "g05_relink_xlang: 10.22 demote archive_leaf ast_to_elf_c (thin wins)" >&2 \
+          || true
+      fi
+    fi
+
+    # note743y.6.23: Cap tip archive_leaf owns backend_asm_codegen (+mega_body).
+    # ensure may rebuild mega after env demote → pure-ld duplicate mega_body.
+    # pre-ld demote both T on runtime_pipeline_abi.o. PLATFORM: MACOS tip cold.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])archive_leaf_extract\.o([[:space:]]|$)'; then
+      _al_demote=""
+      if nm -gU src/runtime_pipeline_abi.o 2>/dev/null \
+           | grep -q ' T _pipeline_backend_asm_codegen_ast_to_elf_c\$'; then
+        _al_demote="$_al_demote --redefine-sym=_pipeline_backend_asm_codegen_ast_to_elf_c=_pipeline_backend_asm_codegen_ast_to_elf_c__demoted"
+      fi
+      if nm -gU src/runtime_pipeline_abi.o 2>/dev/null \
+           | grep -q ' T _pipeline_backend_asm_codegen_ast_to_elf_mega_body_c\$'; then
+        _al_demote="$_al_demote --redefine-sym=_pipeline_backend_asm_codegen_ast_to_elf_mega_body_c=_pipeline_backend_asm_codegen_ast_to_elf_mega_body_c__demoted"
+      fi
+      if [ -n "$_al_demote" ]; then
+        # shellcheck disable=SC2086
+        "$_g05_oc" $_al_demote src/runtime_pipeline_abi.o 2>/dev/null \
+          && echo "g05_relink_xlang: note743y.6.23 pre-ld demote mega backend_asm_codegen (+mega_body; archive_leaf wins)" >&2 \
+          || true
+      fi
+      unset _al_demote
+    fi
+    # note743y.6.23: tip fat seed_mega on asm_backend_partial never calls
+    # pipeline_; demote when Cap tip front tramp is in OBJS so pure-ld first-wins.
+    # PLATFORM: MACOS tip cold.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])backend_codegen_to_elf_tramp_a64\.o([[:space:]]|$)' \
+      && [ -s build_asm/seed_host/asm_backend_partial.o ]; then
+      _sm_demote=""
+      for _sm_sy in _backend_asm_codegen_ast_to_elf_seed_mega _backend_asm_codegen_ast_to_elf; do
+        if nm -gU build_asm/seed_host/asm_backend_partial.o 2>/dev/null \
+             | grep -q " T ${_sm_sy}\$"; then
+          _sm_demote="$_sm_demote --redefine-sym=${_sm_sy}=${_sm_sy}__demoted"
+        fi
+      done
+      if [ -n "$_sm_demote" ]; then
+        # shellcheck disable=SC2086
+        "$_g05_oc" $_sm_demote build_asm/seed_host/asm_backend_partial.o 2>/dev/null \
+          && echo "g05_relink_xlang: note743y.6.23 pre-ld demote fat seed_mega (tramp wins)" >&2 \
+          || true
+      fi
+      unset _sm_demote _sm_sy
+    fi
+
+    # 10.91: asm_locals thin must win scoped find + loop_body over pabi_weak.
+    # Cap tip G05_OBJS often omits runtime_pipeline_abi.o — only demote when a
+    # thin provider is actually on the link line (runtime_pipeline_abi.o or
+    # asm_locals_thin.o). PLATFORM: MACOS Cap tip / tip-cold.
+    if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])(runtime_pipeline_abi|asm_locals_thin)\.o([[:space:]]|$)' \
+      && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+      for _sc_sym in \
+        _asm_ctx_local_find_offset_scoped \
+        _backend_emit_loop_body_content_elf_sync
+      do
+        for _sc_pw in build_asm/selfhost_pabi/pabi_weak.o \
+                      build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o; do
+          [ -s "$_sc_pw" ] || continue
+          if nm "$_sc_pw" 2>/dev/null | grep -Eq " [TW] ${_sc_sym}$"; then
+            "$_g05_oc" --redefine-sym=${_sc_sym}=${_sc_sym}__demoted \
+              "$_sc_pw" 2>/dev/null \
+              && echo "g05_relink_xlang: 10.91 pre-ld demote $_sc_pw ${_sc_sym#?} (asm_locals thin wins)" >&2 \
+              || true
+          fi
+        done
+      done
+      unset _sc_sym _sc_pw
+    fi
+  fi
+  unset _g05_oc
+fi
+# 10.22: Linux tip peel — slice_modlet calls _prev; demote egg W on alias.
+# PLATFORM: LINUX tip peel. No FORCE_CC.
+if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
+  _g05_oc=""
+  if command -v llvm-objcopy >/dev/null 2>&1; then
+    _g05_oc=$(command -v llvm-objcopy)
+  elif command -v objcopy >/dev/null 2>&1; then
+    _g05_oc=$(command -v objcopy)
+  fi
+  if [ -n "$_g05_oc" ] \
+    && printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])slice_modlet(_a64)?\.o([[:space:]]|$)'; then
+    for _sm_pw in build_asm/selfhost_pabi/pabi_alias.skip_egg.o \
+                  build_asm/selfhost_pabi/pabi_weak.o \
+                  build_asm/selfhost_pabi/pabi.o \
+                  src/runtime_pipeline_abi.o; do
+      [ -s "$_sm_pw" ] || continue
+      if nm "$_sm_pw" 2>/dev/null | grep -Eq ' [TW] glue_emit_slice_from_array_let_init_elf_c$'; then
+        "$_g05_oc" --redefine-sym=glue_emit_slice_from_array_let_init_elf_c=glue_emit_slice_from_array_let_init_elf_c_prev \
+          "$_sm_pw" 2>/dev/null \
+          && echo "g05_relink_xlang: 10.22 Linux demote $_sm_pw slice_modlet→_prev" >&2 \
+          || true
+      fi
+    done
+    unset _sm_pw
+  fi
+  # If egg demote missed / not in OBJS, still need _prev for slice_modlet.
+  if printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])slice_modlet(_a64)?\.o([[:space:]]|$)'; then
+    _sm_objs_new=""
+    for _sm_o in $OBJS; do
+      case "$_sm_o" in
+        *glue_slice_from_array_let_init_prev_stub*.o) continue ;;
+      esac
+      _sm_objs_new="${_sm_objs_new:+$_sm_objs_new }$_sm_o"
+    done
+    OBJS="$_sm_objs_new"
+    unset _sm_objs_new
+    _sm_has_prev=0
+    for _sm_o in $OBJS; do
+      [ -s "$_sm_o" ] || continue
+      if nm "$_sm_o" 2>/dev/null | grep -Eq ' [TW] glue_emit_slice_from_array_let_init_elf_c_prev$'; then
+        _sm_has_prev=1
+        break
+      fi
+    done
+    if [ "$_sm_has_prev" != "1" ]; then
+      _sm_stub=build_asm/selfhost_pabi/glue_slice_from_array_let_init_prev_stub_x64.o
+      mkdir -p build_asm/selfhost_pabi
+      clang -c -o "$_sm_stub" src/asm/glue_slice_from_array_let_init_prev_stub_x64.s \
+        || { echo "g05_relink_xlang: ERROR 10.22 Linux _prev stub assemble failed" >&2; exit 1; }
+      OBJS="$_sm_stub $OBJS"
+      echo "g05_relink_xlang: 10.22 prepended Linux _prev stub (-1)" >&2
+    else
+      echo "g05_relink_xlang: 10.22 Linux _prev present (egg demote); skip stub" >&2
+    fi
+    unset _sm_has_prev _sm_stub _sm_o
+  fi
+  # 10.22: take_field_slice — reverse_infer soft + call_arg thin (Linux ELF names).
+  # --gc-sections drops tip-emitted call_arg soft unless -u forces the T.
+  if [ -n "$_g05_oc" ] \
+    && printf "%s" " $OBJS " | grep -Eq "(^|[[:space:]/])typeck_field_reverse_infer_soft\.o([[:space:]]|$)"; then
+    for _ri_pw in build_asm/selfhost_pabi/typeck_x_ufcs_soft_retarget.o \
+                  build_asm/selfhost_pabi/typeck_x_binop_cmp_peel.o \
+                  typeck_x.o \
+                  /tmp/typeck_peel_tfs.o; do
+      [ -s "$_ri_pw" ] || continue
+      if nm "$_ri_pw" 2>/dev/null | grep -Eq " [TW] typeck_field_reverse_infer_base_type$"; then
+        "$_g05_oc" --weaken-symbol=typeck_field_reverse_infer_base_type "$_ri_pw" 2>/dev/null \
+          && echo "g05_relink_xlang: 10.22 Linux weaken $_ri_pw reverse_infer (soft wins)" >&2 \
+          || true
+      fi
+    done
+    # Also scan OBJS for any other strong reverse_infer (tip peel blobs)
+    for _ri_o in $OBJS; do
+      case "$(basename "$_ri_o")" in
+        typeck_field_reverse_infer_soft.o) continue ;;
+      esac
+      [ -s "$_ri_o" ] || continue
+      if nm "$_ri_o" 2>/dev/null | grep -Eq " T typeck_field_reverse_infer_base_type$"; then
+        "$_g05_oc" --weaken-symbol=typeck_field_reverse_infer_base_type "$_ri_o" 2>/dev/null \
+          && echo "g05_relink_xlang: 10.22 Linux weaken $_ri_o reverse_infer T→W" >&2 \
+          || true
+      fi
+    done
+    unset _ri_pw _ri_o
+    export XLANG_G05_LINUX_FORCE_U_REVERSE_INFER=1
+  fi
+  if [ -n "$_g05_oc" ] \
+    && printf "%s" " $OBJS " | grep -Eq "(^|[[:space:]/])call_arg_struct_lit_field\.o([[:space:]]|$)"; then
+    _ca_prev=build_asm/selfhost_pabi/backend_call_dispatch_ca_prev.o
+    _ca_src_o=""
+    for _ca_pw in src/asm/backend_call_dispatch.o \
+                  build_asm/selfhost_pabi/pabi_weak.o \
+                  src/runtime_pipeline_abi.o; do
+      [ -s "$_ca_pw" ] || continue
+      if nm "$_ca_pw" 2>/dev/null | grep -Eq " [TW] glue_emit_one_call_arg_elf_c$"; then
+        _ca_src_o="$_ca_pw"
+        break
+      fi
+    done
+    if [ -n "$_ca_src_o" ]; then
+      cp -f "$_ca_src_o" "$_ca_prev"
+      "$_g05_oc" --redefine-sym=glue_emit_one_call_arg_elf_c=glue_emit_one_call_arg_elf_c_prev \
+        "$_ca_prev" 2>/dev/null \
+        && echo "g05_relink_xlang: 10.22 Linux call_arg _prev from $_ca_src_o" >&2 \
+        || rm -f "$_ca_prev"
+      # Local call_args sites follow redefine to _prev; retarget them to soft U name.
+      if [ -s "$_ca_prev" ] && [ -f scripts/g05_elf_retarget_soft_syms.py ]; then
+        _ca_rt=build_asm/selfhost_pabi/backend_call_dispatch_ca_retarget.o
+        if python3 scripts/g05_elf_retarget_soft_syms.py "$_ca_prev" "$_ca_rt" \
+            glue_emit_one_call_arg_elf_c_prev=glue_emit_one_call_arg_elf_c \
+            2>/tmp/g05_call_arg_retarget.log; then
+          cp -f "$_ca_rt" "$_ca_prev"
+          echo "g05_relink_xlang: 10.22 Linux call_arg ELF retarget → soft" >&2
+        else
+          echo "g05_relink_xlang: WARN call_arg .o retarget failed (product patch later)" >&2
+        fi
+        unset _ca_rt
+      fi
+      _ca_objs_new=""
+      for _ca_o in $OBJS; do
+        case "$(basename "$_ca_o")" in
+          backend_call_dispatch.o) _ca_objs_new="${_ca_objs_new:+$_ca_objs_new }$_ca_prev" ;;
+          backend_call_dispatch_ca_prev.o) continue ;;
+          *) _ca_objs_new="${_ca_objs_new:+$_ca_objs_new }$_ca_o" ;;
+        esac
+      done
+      OBJS="$_ca_objs_new"
+      unset _ca_objs_new _ca_o
+      if [ -s "$_ca_prev" ] && nm "$_ca_prev" 2>/dev/null | grep -Eq " [TW] glue_emit_one_call_arg_elf_c_prev$"; then
+        case " $OBJS " in
+          *" $_ca_prev "*) ;;
+          *) OBJS="$_ca_prev $OBJS" ;;
+        esac
+      fi
+      export XLANG_G05_LINUX_FORCE_U_CALL_ARG=1
+    fi
+    unset _ca_prev _ca_src_o _ca_pw
+  fi
+  # 10.22: lane_scalar_binop thin — weaken pabi_weak / mega copy
+  if [ -n "$_g05_oc" ] \
+    && printf "%s" " $OBJS " | grep -Eq "(^|[[:space:]/])lane_scalar_binop_linux\.o([[:space:]]|$)"; then
+    for _ls_pw in build_asm/selfhost_pabi/pabi_weak.o \
+                  src/runtime_pipeline_abi.o \
+                  build_asm/selfhost_pabi/two.o; do
+      [ -s "$_ls_pw" ] || continue
+      if nm "$_ls_pw" 2>/dev/null | grep -Eq " [TW] glue_emit_vector_lane_scalar_binop_elf_c$"; then
+        "$_g05_oc" --weaken-symbol=glue_emit_vector_lane_scalar_binop_elf_c "$_ls_pw" 2>/dev/null \
+          && echo "g05_relink_xlang: 10.22 Linux weaken $_ls_pw lane_scalar (thin wins)" >&2 \
+          || true
+      fi
+    done
+    for _ls_o in $OBJS; do
+      case "$(basename "$_ls_o")" in
+        lane_scalar_binop_linux.o) continue ;;
+      esac
+      [ -s "$_ls_o" ] || continue
+      if nm "$_ls_o" 2>/dev/null | grep -Eq " T glue_emit_vector_lane_scalar_binop_elf_c$"; then
+        "$_g05_oc" --weaken-symbol=glue_emit_vector_lane_scalar_binop_elf_c "$_ls_o" 2>/dev/null \
+          && echo "g05_relink_xlang: 10.22 Linux weaken $_ls_o lane_scalar T→W" >&2 \
+          || true
+      fi
+    done
+    unset _ls_pw _ls_o
+    export XLANG_G05_LINUX_FORCE_U_LANE_SCALAR=1
+  fi
+
+  # 10.22: fa_array_lit thin — first-win ONLY fa_array_lit_into_rbx (+struct store).
+  # Do NOT let thin pipeline_asm_emit_return_elf_impl beat egg/return_sret: tip-cold
+  # Track-L typeck + thin emit_return → opt/si CG002 (L4_END_RC=1 @9fcbea). Cap tip
+  # can keep thin emit_return; Linux tip-cold needs egg emit_return for Option/stdlib.
+  if [ -n "$_g05_oc" ] \
+    && printf "%s" " $OBJS " | grep -Eq "(^|[[:space:]/])fa_array_lit_linux\.o([[:space:]]|$)"; then
+    # Demote thin extras so egg/return_sret stays authority; keep ONLY
+    # fa_array_lit_into_rbx T (E* helper). tip-cold@80e00 still CG002 opt/si
+    # with resolve T present — fa thin also first-won call_arg_var_use_lea /
+    # struct_lit_store / emit_array_lit_flat / emit_return and broke Option.
+    if [ -s build_asm/selfhost_pabi/fa_array_lit_linux.o ]; then
+      # 10.22: default KEEP=1 — thin emit_return + egg _prev (ARRAY_LIT/dest-SLICE);
+      # tip-cold opt/si OK after _ca_prev frame; dyn_ret E* without nested_slice regress.
+      if [ "${XLANG_LINUX_FA_KEEP_EMIT_RETURN:-1}" = "1" ]; then
+        _fa_demote_list="glue_call_arg_var_use_lea_not_load_elf_c glue_struct_lit_store_fixed_array_field_elf_c pipeline_asm_emit_array_lit_flat_elf_c"
+        echo "g05_relink_xlang: 10.22 Linux FA keep thin emit_return (dyn_ret E*)" >&2
+      else
+        _fa_demote_list="pipeline_asm_emit_return_elf_impl glue_call_arg_var_use_lea_not_load_elf_c glue_struct_lit_store_fixed_array_field_elf_c pipeline_asm_emit_array_lit_flat_elf_c"
+      fi
+      for _fa_demote in $_fa_demote_list; do
+        if nm build_asm/selfhost_pabi/fa_array_lit_linux.o 2>/dev/null | grep -Eq " T ${_fa_demote}$"; then
+          "$_g05_oc" --weaken-symbol="$_fa_demote" \
+            build_asm/selfhost_pabi/fa_array_lit_linux.o 2>/dev/null \
+            && echo "g05_relink_xlang: 10.22 Linux weaken fa_array thin $_fa_demote (egg wins)" >&2 \
+            || true
+        fi
+      done
+      unset _fa_demote
+      if [ "${XLANG_LINUX_FA_KEEP_EMIT_RETURN:-1}" = "1" ]; then
+        # Extract egg emit_return as _prev BEFORE weaken (ARRAY_LIT / dest-SLICE defer).
+        _er_prev=build_asm/selfhost_pabi/return_sret_er_prev.o
+        _er_src=""
+        for _fa_er in build_asm/selfhost_pabi/return_sret.o \
+                      build_asm/selfhost_pabi/two.o \
+                      build_asm/selfhost_pabi/pabi_weak.o \
+                      src/runtime_pipeline_abi.o; do
+          [ -s "$_fa_er" ] || continue
+          if nm "$_fa_er" 2>/dev/null | grep -Eq " [TW] pipeline_asm_emit_return_elf_impl$"; then
+            _er_src="$_fa_er"
+            break
+          fi
+        done
+        if [ -n "$_er_src" ]; then
+          cp -f "$_er_src" "$_er_prev"
+          if "$_g05_oc" --redefine-sym=pipeline_asm_emit_return_elf_impl=pipeline_asm_emit_return_elf_impl_prev \
+              "$_er_prev" 2>/dev/null \
+            && nm "$_er_prev" 2>/dev/null | grep -Eq " [TW] pipeline_asm_emit_return_elf_impl_prev$"; then
+            echo "g05_relink_xlang: 10.22 Linux emit_return _prev from $_er_src" >&2
+            case " $OBJS " in
+              *" $_er_prev "*) ;;
+              *) OBJS="$_er_prev $OBJS" ;;
+            esac
+          else
+            echo "g05_relink_xlang: WARN emit_return _prev extract failed" >&2
+            rm -f "$_er_prev"
+          fi
+        else
+          echo "g05_relink_xlang: WARN no egg emit_return for _prev" >&2
+        fi
+        for _fa_er in build_asm/selfhost_pabi/return_sret.o \
+                      build_asm/selfhost_pabi/two.o \
+                      build_asm/selfhost_pabi/pabi_weak.o \
+                      src/runtime_pipeline_abi.o; do
+          [ -s "$_fa_er" ] || continue
+          if nm "$_fa_er" 2>/dev/null | grep -Eq " [TW] pipeline_asm_emit_return_elf_impl$"; then
+            "$_g05_oc" --weaken-symbol=pipeline_asm_emit_return_elf_impl "$_fa_er" 2>/dev/null \
+              && echo "g05_relink_xlang: 10.22 Linux weaken $_fa_er emit_return (FA thin wins)" >&2 \
+              || true
+          fi
+        done
+        unset _fa_er _er_prev _er_src
+      fi
+    fi
+    for _fa_pw in build_asm/selfhost_pabi/return_sret.o \
+                  build_asm/selfhost_pabi/two.o \
+                  build_asm/selfhost_pabi/pabi_weak.o \
+                  src/runtime_pipeline_abi.o; do
+      [ -s "$_fa_pw" ] || continue
+      if nm "$_fa_pw" 2>/dev/null | grep -Eq " [TW] fa_array_lit_into_rbx$"; then
+        "$_g05_oc" --weaken-symbol=fa_array_lit_into_rbx "$_fa_pw" 2>/dev/null \
+          && echo "g05_relink_xlang: 10.22 Linux weaken $_fa_pw fa_array_lit" >&2 \
+          || true
+      fi
+
+    done
+    # Scan OBJS: weaken rival fa_array_lit_into_rbx only (never emit_return on egg)
+    for _fa_o in $OBJS; do
+      case "$(basename "$_fa_o")" in
+        fa_array_lit_linux.o) continue ;;
+      esac
+      [ -s "$_fa_o" ] || continue
+      if nm "$_fa_o" 2>/dev/null | grep -Eq " T fa_array_lit_into_rbx$"; then
+        "$_g05_oc" --weaken-symbol=fa_array_lit_into_rbx "$_fa_o" 2>/dev/null \
+          && echo "g05_relink_xlang: 10.22 Linux weaken $_fa_o fa_array_lit T→W" >&2 \
+          || true
+      fi
+    done
+    unset _fa_pw _fa_o
+    export XLANG_G05_LINUX_FORCE_U_FA_ARRAY=1
+  fi
+
+  # 10.22: w211 — weaken rival resolve/var_off so peel T first-wins
+  if [ -n "$_g05_oc" ] \
+    && printf "%s" " $OBJS " | grep -Eq "(^|[[:space:]/])call_arg_const_off\.o([[:space:]]|$)"; then
+    for _w211_pw in src/runtime_pipeline_abi.o \
+                    build_asm/selfhost_pabi/pabi_weak.o \
+                    build_asm/selfhost_pabi/pabi_alias.skip_egg.o \
+                    build_asm/selfhost_pabi/two.o \
+                    build_asm/selfhost_pabi/return_sret.o; do
+      [ -s "$_w211_pw" ] || continue
+      if nm "$_w211_pw" 2>/dev/null | grep -Eq " T glue_call_arg_resolve_var_stack_off_elf_c$"; then
+        "$_g05_oc" --weaken-symbol=glue_call_arg_resolve_var_stack_off_elf_c "$_w211_pw" 2>/dev/null \
+          && echo "g05_relink_xlang: 10.22 Linux weaken $_w211_pw call_arg_resolve (w211 wins)" >&2 \
+          || true
+      fi
+      if nm "$_w211_pw" 2>/dev/null | grep -Eq " T glue_var_expr_stack_off_elf_c$"; then
+        "$_g05_oc" --weaken-symbol=glue_var_expr_stack_off_elf_c "$_w211_pw" 2>/dev/null \
+          && echo "g05_relink_xlang: 10.22 Linux weaken $_w211_pw var_expr_stack_off (w211 wins)" >&2 \
+          || true
+      fi
+    done
+    unset _w211_pw
+  fi
+
+  # 10.22: durable_ptr thin vs pabi_alias hollow W
+  if [ -n "$_g05_oc" ] \
+    && printf "%s" " $OBJS " | grep -Eq "(^|[[:space:]/])array_lit_durable_thin\.o([[:space:]]|$)"; then
+    for _du_pw in build_asm/selfhost_pabi/pabi_alias.skip_egg.o \
+                  build_asm/selfhost_pabi/pabi_alias.elf64k.o \
+                  build_asm/selfhost_pabi/pabi_alias.o; do
+      [ -s "$_du_pw" ] || continue
+      if nm "$_du_pw" 2>/dev/null | grep -Eq " [TW] glue_asm_emit_array_lit_durable_ptr_rax_elf_c$"; then
+        "$_g05_oc" --weaken-symbol=glue_asm_emit_array_lit_durable_ptr_rax_elf_c "$_du_pw" 2>/dev/null \
+          && echo "g05_relink_xlang: 10.22 Linux weaken $_du_pw durable_ptr (thin wins)" >&2 \
+          || true
+      fi
+    done
+    unset _du_pw
+    export XLANG_G05_LINUX_FORCE_U_DURABLE=1
+  fi
+  # 10.91: same as Darwin — demote only when thin provider is in OBJS.
+  # ELF names have no leading _. PLATFORM: LINUX tip-cold / Cap.
+  if [ -n "$_g05_oc" ] \
+    && printf '%s' " $OBJS " | grep -Eq '(^|[[:space:]/])(runtime_pipeline_abi|asm_locals_thin|loc)\.o([[:space:]]|$)' \
+    && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+    for _sc_sym in \
+      asm_ctx_local_find_offset_scoped \
+      backend_emit_loop_body_content_elf_sync
+    do
+      for _sc_pw in build_asm/selfhost_pabi/pabi_weak.o \
+                    build_asm/selfhost_pabi/pabi.o; do
+        [ -s "$_sc_pw" ] || continue
+        if nm "$_sc_pw" 2>/dev/null | grep -Eq " [TW] ${_sc_sym}$"; then
+          "$_g05_oc" --redefine-sym=${_sc_sym}=${_sc_sym}__demoted \
+            "$_sc_pw" 2>/dev/null \
+            && echo "g05_relink_xlang: 10.91 Linux demote $_sc_pw ${_sc_sym} (asm_locals thin wins)" >&2 \
+            || true
+        fi
+      done
+    done
+    unset _sc_sym _sc_pw
+  fi
+  unset _g05_oc
+fi
 # nostdlib policy for Linux product (same as g05_relink_env).
 # shellcheck disable=SC1091
 . scripts/bootstrap_nostdlib_shared.sh
@@ -175,12 +1063,21 @@ bad = 0
 for pair in sys.argv[2:]:
     sym, _, want = pair.partition("=")
     got = [objs.get(i, "?") for i in syms.get(sym, [])]
-    ok = len(got) == 1 and os.path.realpath(got[0]) == os.path.realpath(want)
+    # knife 254: ALE linked last may also list the same name (local /
+    # no_dead_strip). Tip first-wins when want is among providers.
+    want_r = os.path.realpath(want)
+    ok = any(os.path.realpath(g) == want_r for g in got)
     print("g05_relink_xlang: winner %s -> %s %s" % (sym, ",".join(got) or "missing", "OK" if ok else "FAIL (want %s)" % want), file=sys.stderr)
     bad += not ok
 sys.exit(1 if bad else 0)
 PYEOF
 }
+
+# note743y.5: egg frame undercount → patch sub $imm,%rsp before pure-ld.
+# PLATFORM: LINUX only (objdump x86_64 ELF). Darwin Cap uses tip chkstk.
+if [ "$(uname -s)" = "Linux" ] && [ -f scripts/linux_patch_elf_frame_min.py ]; then
+  python3 scripts/linux_patch_elf_frame_min.py || true
+fi
 
 # pure-ld required when freestanding-eligible and not forced to CC residual.
 run_g05_pure_ld_required() {
@@ -194,6 +1091,35 @@ run_g05_pure_ld_required() {
     # PLATFORM: LINUX — map cc -nostdlib -static -Wl,--gc-sections → pure ld flags.
     # No -lc; freestanding_io + nostdlib stubs already in G05_OBJS.
     extra="-static --gc-sections"
+    if [ "${XLANG_G05_LINUX_FORCE_U_CALL_ARG:-0}" = "1" ]; then
+      extra="$extra -u glue_emit_one_call_arg_elf_c"
+      echo "g05_relink_xlang: 10.22 Linux -u glue_emit_one_call_arg_elf_c (keep call_arg soft)" >&2
+    fi
+    if [ "${XLANG_G05_LINUX_FORCE_U_REVERSE_INFER:-0}" = "1" ]; then
+      extra="$extra -u typeck_field_reverse_infer_base_type"
+      echo "g05_relink_xlang: 10.22 Linux -u typeck_field_reverse_infer_base_type (keep reverse_infer soft)" >&2
+    fi
+    if [ "${XLANG_G05_LINUX_FORCE_U_DURABLE:-0}" = "1" ]; then
+      extra="$extra -u glue_asm_emit_array_lit_durable_ptr_rax_elf_c"
+      echo "g05_relink_xlang: 10.22 Linux -u durable_ptr (keep thin)" >&2
+    fi
+    if [ "${XLANG_G05_LINUX_FORCE_U_FA_ARRAY:-0}" = "1" ]; then
+      extra="$extra -u fa_array_lit_into_rbx"
+      echo "g05_relink_xlang: 10.22 Linux -u fa_array_lit (egg emit_return; thin helper)" >&2
+    fi
+    # 10.22: keep w211 resolve/var_off T through tip-cold (opt/si CG002 if only W)
+    if printf "%s" " $OBJS " | grep -Eq "(^|[[:space:]/])call_arg_const_off\.o([[:space:]]|$)"; then
+      extra="$extra -u glue_call_arg_resolve_var_stack_off_elf_c"
+      echo "g05_relink_xlang: 10.22 Linux -u call_arg_resolve (w211)" >&2
+    fi
+    if printf "%s" " $OBJS " | grep -Eq "(^|[[:space:]/])const_var_off\.o([[:space:]]|$)"; then
+      extra="$extra -u glue_var_expr_stack_off_elf_c"
+      echo "g05_relink_xlang: 10.22 Linux -u var_expr_stack_off (w211)" >&2
+    fi
+    if [ "${XLANG_G05_LINUX_FORCE_U_LANE_SCALAR:-0}" = "1" ]; then
+      extra="$extra -u glue_emit_vector_lane_scalar_binop_elf_c"
+      echo "g05_relink_xlang: 10.22 Linux -u lane_scalar (keep thin)" >&2
+    fi
     tail=""
   else
     # Darwin / Linux-with-libc freestanding (nostartfiles-style).
@@ -215,6 +1141,12 @@ run_g05_pure_ld_required() {
     if [ -n "$_map" ]; then
       g05_check_link_winners "$_map" || exit 1
     fi
+    # 10.22: if call_args still PC-calls _prev (in-object redefine), retarget product.
+    if [ "${XLANG_G05_LINUX_FORCE_U_CALL_ARG:-0}" = "1" ] && [ -x "$OUT" ] \
+      && [ -f scripts/g05_elf_retarget_call_arg_prev_product.py ]; then
+      python3 scripts/g05_elf_retarget_call_arg_prev_product.py "$OUT" \
+        || echo "g05_relink_xlang: WARN call_arg product retarget failed" >&2
+    fi
     return 0
   fi
   echo "g05_relink_xlang: FAIL pure-ld for $OUT (no silent CC fallback; set XLANG_G05_FORCE_CC=1 for escape)" >&2
@@ -235,6 +1167,51 @@ else
   run_g05_pure_ld_required
 fi
 
+# note743y.6.1: tip-cold egg one.o undercounts frames; tip emits chkstk.
+# Full tip sidecars refresh broke the second pure-ld (skip_egg UNDEFs).
+# Only tip-rebuild one.o (for_call_args); keep first-link product on fail.
+# PLATFORM: LINUX. Egg ELF frame patch remains for the first link.
+if [ "$(uname -s)" = "Linux" ] && [ "${XLANG_G05_TIP_SIDECAR_REFRESH:-1}" = "1" ]; then
+  _y6_tip=""
+  if [ -x "$OUT" ]; then
+    _y6_tip="$OUT"
+  elif [ -x "./$OUT" ]; then
+    _y6_tip="./$OUT"
+  elif [ -x ./xlang_asm ]; then
+    _y6_tip=./xlang_asm
+  fi
+  if [ -n "$_y6_tip" ] && [ -f src/runtime_pipeline_abi_for_call_args_thin.x ]; then
+    echo "g05_relink_xlang: note743y.6.1 tip-refresh one.o via $_y6_tip" >&2
+    cp -f "$_y6_tip" "${OUT}.pre_y6"
+    _y6_work="$(mktemp -d "${TMPDIR:-/tmp}/g05_y6_one.XXXXXX")"
+    if timeout 300 "$_y6_tip" -c -backend asm \
+        -o "$_y6_work/one.o" src/runtime_pipeline_abi_for_call_args_thin.x >/dev/null 2>&1 \
+      && [ -s "$_y6_work/one.o" ]; then
+      mkdir -p build_asm/selfhost_pabi
+      cp -f "$_y6_work/one.o" build_asm/selfhost_pabi/one.o
+      # weaken extras; keep for_call_args strong (same as sidecars)
+      while read -r _ys; do
+        [ -n "$_ys" ] || continue
+        [ "$_ys" = "pipeline_asm_emit_expr_elf_for_call_args" ] && continue
+        objcopy --weaken-symbol="$_ys" build_asm/selfhost_pabi/one.o 2>/dev/null || true
+      done < <(nm "$_y6_work/one.o" | awk '$2=="T"{print $3}')
+      echo "g05_relink_xlang: note743y.6.1 tip one.o OK; second pure-ld" >&2
+      # Subshell: run_g05_pure_ld_required uses exit 1 on fail.
+      if ( run_g05_pure_ld_required ); then
+        rm -f "${OUT}.pre_y6"
+      else
+        echo "g05_relink_xlang: WARN tip one.o second pure-ld failed; restore first-link product" >&2
+        mv -f "${OUT}.pre_y6" "$OUT"
+        chmod +x "$OUT" 2>/dev/null || true
+      fi
+    else
+      echo "g05_relink_xlang: WARN tip one.o rebuild failed; keeping first-link product" >&2
+      rm -f "${OUT}.pre_y6"
+    fi
+    rm -rf "$_y6_work"
+  fi
+fi
+
 # w1010: PE mega same-TU leftover body_sync / emit_let_init → jmp to host-gcc twin.
 # PLATFORM: WINDOWS only (script no-ops on Mach-O/ELF).
 # MinGW -o xlang often materializes as xlang.exe; resolve before cp/patch.
@@ -246,6 +1223,52 @@ case "$(uname -s 2>/dev/null)" in
     if [ -f scripts/win_patch_body_sync_jmp.py ] && [ -f "$OUT" ]; then
       python3 scripts/win_patch_body_sync_jmp.py "$OUT" || { echo "g05_relink_xlang: win_patch_body_sync_jmp failed" >&2; exit 1; }
     fi
+    # Win tip P001/dig_min: face tramp/primary lex pass + literal kind ebx
+    # (DIG 2026-11-09). Symbol-relative PE patches; idempotent.
+    if [ -f scripts/win_tip_p001_face_pe_patch.py ] && [ -f "$OUT" ]; then
+      python3 scripts/win_tip_p001_face_pe_patch.py "$OUT" || { echo "g05_relink_xlang: win_tip_p001_face_pe_patch failed" >&2; exit 1; }
+    fi
+    ;;
+esac
+
+# knife253 / 9.1: Darwin ale leftovers define local (t) twins of global (T)
+# symbols; same-TU calls bind the short local and break struct-lit / option L2.
+# Trampoline every t->T pair in the freshly linked product, then ad-hoc codesign
+# (TEXT was rewritten). PLATFORM: DARWIN only.
+case "$(uname -s 2>/dev/null)" in
+  Darwin)
+    if [ "${XLANG_SKIP_DARWIN_TRAMP:-0}" != "1" ] && [ -f scripts/darwin_tramp_local_shadows_to_global.py ]; then
+      python3 scripts/darwin_tramp_local_shadows_to_global.py "$OUT"         || { echo "g05_relink_xlang: darwin_tramp_local_shadows_to_global failed" >&2; exit 1; }
+      codesign --sign - --force --timestamp=none "$OUT" 2>/dev/null         || codesign -f -s - "$OUT"         || { echo "g05_relink_xlang: codesign after trampoline failed" >&2; exit 1; }
+      echo "g05_relink_xlang: Darwin local-shadow trampolines + codesign OK" >&2
+    fi
+    # 10.68 Prefer-M2: Cap tip size ≤10M — localize leftover external Lxml_*
+    # (modlet homes) then strip local symtab; ad-hoc resign. Probe on tip
+    # 10710672 → localize+strip-x+resign 10470048 (under 10485760). Does not
+    # raise Soft Cap/nail. PLATFORM: DARWIN only.
+    if [ "${XLANG_SKIP_DARWIN_SIZE_STRIP:-0}" != "1" ] && [ -f "$OUT" ]; then
+      _sz_oc=""
+      if command -v llvm-objcopy >/dev/null 2>&1; then _sz_oc=llvm-objcopy
+      elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then _sz_oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+      elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then _sz_oc=/usr/local/opt/llvm/bin/llvm-objcopy
+      fi
+      _sz_loc="$(mktemp "${TMPDIR:-/tmp}/g05_lxml_loc.XXXXXX")"
+      nm -g "$OUT" 2>/dev/null | awk '$2 ~ /^[A-Z]$/ && $3 ~ /^_Lxml_/ { print $3 }' | sort -u > "$_sz_loc" || true
+      if [ -s "$_sz_loc" ] && [ -n "$_sz_oc" ]; then
+        if "$_sz_oc" --localize-symbols="$_sz_loc" "$OUT" 2>/dev/null; then
+          echo "g05_relink_xlang: Darwin localized $(wc -l < "$_sz_loc" | tr -d ' ') Lxml_* for size strip" >&2
+        else
+          echo "g05_relink_xlang: WARN llvm-objcopy localize Lxml failed; strip -x only" >&2
+        fi
+      fi
+      rm -f "$_sz_loc"
+      if strip -x "$OUT" 2>/dev/null; then
+        codesign --sign - --force --timestamp=none "$OUT" 2>/dev/null           || codesign -f -s - "$OUT"           || { echo "g05_relink_xlang: codesign after size strip failed" >&2; exit 1; }
+        echo "g05_relink_xlang: Darwin size strip -x + codesign OK (size=$(wc -c < "$OUT" | tr -d ' '))" >&2
+      else
+        echo "g05_relink_xlang: WARN strip -x failed; product size unchanged" >&2
+      fi
+    fi
     ;;
 esac
 
@@ -255,6 +1278,25 @@ esac
 # PLATFORM: MACOS needs it; SHARED harmless.
 _g05_cp_fresh() {
   [ "$1" = "$2" ] && return 0
+  # Windows MinGW: after -o xlang materializes as xlang.exe, the bare
+  # name and the .exe name are the same file. A string compare misses
+  # that; rm -f would be unsafe, and `cp -f xlang.exe xlang` exits 1
+  # ("are the same file") under set -e, so later xlang-c.exe sync never
+  # runs (DIG 2026-11-10, formal L4 @ de6a59418). PLATFORM: WINDOWS.
+  case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+      if [ "$1" = "$2.exe" ] || [ "$2" = "$1.exe" ]; then
+        return 0
+      fi
+      ;;
+  esac
+  if [ -e "$1" ] && [ -e "$2" ]; then
+    _g05_i1=$(ls -i "$1" 2>/dev/null | awk '{print $1; exit}') || true
+    _g05_i2=$(ls -i "$2" 2>/dev/null | awk '{print $1; exit}') || true
+    if [ -n "$_g05_i1" ] && [ "$_g05_i1" = "$_g05_i2" ]; then
+      return 0
+    fi
+  fi
   rm -f "$2"
   cp -f "$1" "$2"
 }
@@ -392,8 +1434,15 @@ case "$(uname -s 2>/dev/null)" in
             # FORCE=1 must rebuild; an untouched leaf is a skipped rebuild.
             _erc=nochange
           fi
-          mv -f "$_leaf.w2055bak" "$_leaf"
+          mv -f "$_leaf.w2055bak" "$_leaf" 2>/dev/null || rm -f "$_leaf.w2055bak"
           echo "g05_relink_xlang: FAIL cc-vehicle rebuild of $_leaf rc=$_erc (old leaf restored)" >&2
+          # FixC12k8e: Cap tip Prefer DIG — under ALLOW_STALE keep LEGACY leaf and
+          # continue (same as STALE LEAF KEPT). Product pure-ld already OK.
+          if [ "${XLANG_G05_ALLOW_STALE_LEAF:-0}" = "1" ]; then
+            _kept_stale="$_kept_stale $_leaf"
+            echo "g05_relink_xlang: !!!!! STALE LEAF KEPT: $_leaf (cc-vehicle fail; ALLOW_STALE) !!!!!" >&2
+            continue
+          fi
           rm -rf "$_ccv_dir" "$_nocc_dir"
           if [ -n "$_G05_STAGE_DIR" ]; then rm -rf "$_G05_STAGE_DIR"; fi
           exit 1
@@ -404,8 +1453,28 @@ case "$(uname -s 2>/dev/null)" in
       _erc=0
       PATH="$_nocc_dir:$PATH" XLANG_FORCE_LINK_BACKEND=asm XLANG="$_refresh_x" bash scripts/xlang_compile_std_module.sh ensure "$_leaf" >/dev/null 2>&1 || _erc=$?
       if [ "$_erc" = 3 ]; then
-        # Not a catalog leaf (exit 3): the product never ensures it; leave it.
-        mv -f "$_leaf.w2055bak" "$_leaf"
+        # 10.90: not formal_mod — try std_x ensure, then try-heat; else drop
+        # the orphan so relink does not keep a silent stale leaf the product
+        # never catalogs (终局: 进目录或删掉). PLATFORM: SHARED.
+        _erc_sx=0
+        PATH="$_nocc_dir:$PATH" XLANG_FORCE_LINK_BACKEND=asm XLANG="$_refresh_x"           bash scripts/xlang_compile_std_x.sh ensure "$_leaf" >/dev/null 2>&1 || _erc_sx=$?
+        if [ "$_erc_sx" = 0 ] && [ -s "$_leaf" ]; then
+          rm -f "$_leaf.w2055bak"
+          _after=$(stat -c %Y "$_leaf" 2>/dev/null || stat -f %m "$_leaf" 2>/dev/null || echo 0)
+          if [ "$_after" != "$_before" ]; then
+            echo "g05_relink_xlang: refreshed stale $_leaf (std_x)"
+          fi
+          continue
+        fi
+        _erc_ht=0
+        PATH="$_nocc_dir:$PATH" XLANG="$_refresh_x"           bash scripts/ensure_host_cc_seed_o.sh try-heat "$_leaf" >/dev/null 2>&1 || _erc_ht=$?
+        if [ "$_erc_ht" = 0 ] && [ -s "$_leaf" ]; then
+          rm -f "$_leaf.w2055bak"
+          echo "g05_relink_xlang: refreshed stale $_leaf (try-heat)"
+          continue
+        fi
+        rm -f "$_leaf" "$_leaf.w2055bak"
+        echo "g05_relink_xlang: dropped unowned leaf $_leaf (not formal_mod/std_x/heat)" >&2
         continue
       fi
       if [ "$_erc" = 0 ] && [ -s "$_leaf" ]; then
@@ -415,7 +1484,7 @@ case "$(uname -s 2>/dev/null)" in
           echo "g05_relink_xlang: refreshed stale $_leaf"
         fi
       else
-        mv -f "$_leaf.w2055bak" "$_leaf"
+        mv -f "$_leaf.w2055bak" "$_leaf" 2>/dev/null || rm -f "$_leaf.w2055bak"
         _kept_stale="$_kept_stale $_leaf"
         echo "g05_relink_xlang: !!!!! STALE LEAF KEPT: $_leaf (asm rebuild failed; programs linking it get the OLD object) !!!!!" >&2
       fi

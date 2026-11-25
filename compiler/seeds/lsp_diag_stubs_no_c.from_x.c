@@ -90,30 +90,12 @@ void lsp_diag_clear(void) {
 /* G-02f-22 thin+rest：_impl 实现；thin（src/lsp/lsp_diag_stubs_no_c.x）提供 public wrapper */
 
 #ifndef XLANG_LSP_DIAG_STUBS_NO_C_FROM_X
-/* rest→.x 迁移：_impl 由 src/lsp/lsp_diag_stubs_no_c.x 提供（PREFER_X_O 路径） */
-void lsp_diag_copy_text_impl(char *dst, int cap, const char *src) {
-    size_t n = 0;
-    if (!dst || cap <= 0)
-        return;
-    if (!src) {
-        dst[0] = '\0';
-        return;
-    }
-    while (n + 1 < (size_t)cap && src[n] != '\0') {
-        dst[n] = src[n];
-        n++;
-    }
-    dst[n] = '\0';
-}
+/* 记253／9.1: cold under #ifndef XLANG_LSP_DIAG_STUBS_NO_C_FROM_X removed */
 #else
 extern void lsp_diag_copy_text_impl(char *dst, int cap, const char *src);
 #endif
 
 #ifndef XLANG_LSP_DIAG_STUBS_NO_C_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-void lsp_diag_copy_text(char *dst, int cap, const char *src) {
-    lsp_diag_copy_text_impl(dst, cap, src);
-}
 #endif
 
 
@@ -155,36 +137,11 @@ void lsp_diag_collect_end(void) {
 /* G-02f-22 thin+rest：_impl 实现；thin 提供 public wrapper */
 
 #ifndef XLANG_LSP_DIAG_STUBS_NO_C_FROM_X
-/* rest→.x 迁移：_impl 由 src/lsp/lsp_diag_stubs_no_c.x 提供（PREFER_X_O 路径） */
-int json_escape_str_impl(const char *msg, char *out, int out_cap) {
-    int k = 0;
-    if (!msg || !out || out_cap <= 0) return 0;
-    for (int i = 0; msg[i] != '\0' && k < out_cap - 2; i++) {
-        char c = msg[i];
-        switch (c) {
-            case '"': case '\\':
-                if (k + 2 >= out_cap) { out[k] = '\0'; return k; }
-                out[k++] = '\\'; out[k++] = c; break;
-            case '\n': if (k + 2 >= out_cap) { out[k] = '\0'; return k; } out[k++] = '\\'; out[k++] = 'n'; break;
-            case '\r': if (k + 2 >= out_cap) { out[k] = '\0'; return k; } out[k++] = '\\'; out[k++] = 'r'; break;
-            case '\t': if (k + 2 >= out_cap) { out[k] = '\0'; return k; } out[k++] = '\\'; out[k++] = 't'; break;
-            default:
-                out[k++] = c;
-                break;
-        }
-    }
-    if (k < out_cap) out[k] = '\0';
-    return k;
-}
 #else
 extern int json_escape_str_impl(const char *msg, char *out, int out_cap);
 #endif
 
 #ifndef XLANG_LSP_DIAG_STUBS_NO_C_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-int json_escape_str(const char *msg, char *out, int out_cap) {
-    return json_escape_str_impl(msg, out, out_cap);
-}
 #endif
 
 

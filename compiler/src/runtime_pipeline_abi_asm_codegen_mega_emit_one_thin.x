@@ -94,15 +94,17 @@ export function w393_mega_emit_one(
     pipeline_asm_fill_param_slots(bctx, m, i);
     pipeline_debug_trace_named_func_bodies("mega_post_param_slots" as *u8, m, a);
     /*
-     * >16B return: mark sret active + record ret_sz. The 8B hidden-dest slot
-     * itself is reserved in w499_mega_emit_frame AFTER fill_local_slots
-     * (wave692) so 532-byte Type / 1224-byte Expr locals cannot overlap it.
-     * PLATFORM: LINUX+MACOS x86_64 SysV (rdi) · MACOS|ARM64 AAPCS64 x8.
+     * >=16B return: mark sret active + record ret_sz. Win64 (and this
+     * product's call lowering) uses a hidden dest for a 16-byte aggregate;
+     * the old `> 16` latch left Pair/id() with sret in rcx but act=0 so
+     * emit_return never copied (10.46). The 8B hidden-dest slot itself is
+     * reserved in w499_mega_emit_frame AFTER fill_local_slots (wave692).
+     * PLATFORM: WINDOWS · LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64.
      */
     if (ta == 0 || ta == 1) {
       pipe_store_i32_le(&cell[0], 0, glue_func_return_byte_size_c(m, a, i));
       v = w499h_c32(&cell[0]);
-      if (v > 16) {
+      if (v >= 16) {
         pipeline_asm_emit_ctx_sret_ret_sz_set(v);
         pipeline_asm_emit_ctx_sret_active_set(1);
       }

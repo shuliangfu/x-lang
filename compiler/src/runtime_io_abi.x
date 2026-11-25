@@ -77,11 +77,20 @@ export struct XlangRuntimeFileView {
   needs_munmap: i32;
 }
 
+/** Store one byte at buf[idx] (10.46). Call-arg form stops pure-asm from
+ * CSE-hoisting `buf + idx` before a later `buf = malloc(...)`.
+ * PLATFORM: SHARED.
+ */
+export function write_u8_at(buf: *u8, idx: usize, v: u8): void {
+  buf[idx] = v;
+}
+
+
 /**
  * 64-bit seek on an open fd (w1525).
  * @param fd i32 — open descriptor
  * @param offset i64 — byte offset
- * @param whence i32 — RIO_SEEK_SET or RIO_SEEK_END
+ * @param whence i32 — 0 or 2
  * @return i64 — new position, or -1 on error
  * PLATFORM: LINUX | MACOS lseek.
  */
@@ -96,7 +105,7 @@ function rio_lseek64(fd: i32, offset: i64, whence: i32): i64 {
  * 64-bit seek on an open fd (w1525).
  * @param fd i32 — open descriptor
  * @param offset i64 — byte offset
- * @param whence i32 — RIO_SEEK_SET or RIO_SEEK_END
+ * @param whence i32 — 0 or 2
  * @return i64 — new position, or -1 on error
  * PLATFORM: WINDOWS _lseeki64.
  */
@@ -141,6 +150,21 @@ function rio_munmap(addr: *u8, len: usize): i32 {
  * Track-L: #[no_mangle] short surface name for thin gate + rest consumers.
  * PLATFORM: SHARED contract / LINUX|MACOS flag values (see RIO_O_*).
  */
+// tip PE Win CG002: export-const OR / const return in this TU patches .Lf*
+// badly (code_len≈280). Use cfg literals (same numeric sources as RIO_O_*).
+// POSIX keeps the OR form (Mac/Linux tip PE OK). PLATFORM: SHARED.
+#[cfg(target_os = "windows")]
+#[no_mangle]
+export function xlang_fs_open_write_flags_impl(): i32 {
+  // 1|_O_CREAT(256)|_O_TRUNC(512)|_O_BINARY(32768)
+  return 33537;
+}
+#[cfg(target_os = "linux")]
+#[no_mangle]
+export function xlang_fs_open_write_flags_impl(): i32 {
+  return RIO_O_WRONLY | RIO_O_CREAT | RIO_O_TRUNC | RIO_O_BINARY;
+}
+#[cfg(target_os = "macos")]
 #[no_mangle]
 export function xlang_fs_open_write_flags_impl(): i32 {
   return RIO_O_WRONLY | RIO_O_CREAT | RIO_O_TRUNC | RIO_O_BINARY;
@@ -253,14 +277,14 @@ export function runtime_read_file_view_impl(path: *u8, out: *u8): i32 {
   v.needs_munmap = 0;
   let fd: i32 = 0;
   unsafe {
-    fd = open(path, RIO_O_RDONLY | RIO_O_BINARY, 0);
+    fd = open(path, 32768, 0);
   }
   if (fd < 0) {
     return -1;
   }
   let size_i: i64 = 0;
   unsafe {
-    size_i = rio_lseek64(fd, 0 as i64, RIO_SEEK_END);
+    size_i = rio_lseek64(fd, 0 as i64, 2);
   }
   if (size_i < 0) {
     unsafe {
@@ -276,7 +300,7 @@ export function runtime_read_file_view_impl(path: *u8, out: *u8): i32 {
     return 0;
   }
   unsafe {
-    let back: i64 = rio_lseek64(fd, 0 as i64, RIO_SEEK_SET);
+    let back: i64 = rio_lseek64(fd, 0 as i64, 0);
     if (back < 0) {
       close(fd);
       return -1;
@@ -637,11 +661,11 @@ export function xlang_read_fd_into_buf_impl(fd: i32, buf: *u8, cap: i64): i32 {
 #[no_mangle]
 export function xlang_runtime_file_view_read_malloc_impl(fd: i32, size: i64, out: *u8): i32 {
   let size_u: usize = size as usize;
-  let buf: *u8 = 0 as *u8;
+  let buf_u: usize = 0;
   unsafe {
-    buf = malloc(size_u + 1);
+    buf_u = malloc(size_u + 1) as usize;
   }
-  if (buf == 0 as *u8) {
+  if (buf_u == 0) {
     unsafe {
       close(fd);
     }
@@ -650,9 +674,9 @@ export function xlang_runtime_file_view_read_malloc_impl(fd: i32, size: i64, out
   let off: usize = 0 as usize;
   while (off < size_u) {
     unsafe {
-      let n: isize = xlang_sys_read(fd, buf + off, size_u - off);
+      let n: isize = xlang_sys_read(fd, (buf_u as *u8) + off, size_u - off);
       if (n < 0) {
-        free(buf);
+        free(buf_u as *u8);
         close(fd);
         return -1;
       }
@@ -667,16 +691,15 @@ export function xlang_runtime_file_view_read_malloc_impl(fd: i32, size: i64, out
   }
   if (off != size_u) {
     unsafe {
-      free(buf);
+      free(buf_u as *u8);
     }
     return -1;
   }
-  // buf[size] = '\0'
-  let zero_ptr: *u8 = buf + size_u;
-  zero_ptr[0] = 0;
+  // buf[size] = '\0' — via write_u8_at (10.46 hoist fix)
+  write_u8_at(buf_u as *u8, size_u, 0);
   // See implementation.
   let out_view: *XlangRuntimeFileView = out as *XlangRuntimeFileView;
-  out_view.data = buf;
+  out_view.data = buf_u as *u8;
   out_view.length = size_u;
   out_view.needs_free = 1;
   out_view.needs_munmap = 0;
@@ -701,28 +724,27 @@ export function runtime_read_file_malloc_impl(path: *u8, out_len: *u8): *u8 {
   if (view_rc != 0) {
     return 0 as *u8;
   }
-  let buf: *u8 = 0 as *u8;
+  let buf_u: usize = 0;
   unsafe {
-    buf = malloc(view.length + 1);
+    buf_u = malloc(view.length + 1) as usize;
   }
-  if (buf == 0 as *u8) {
+  if (buf_u == 0) {
     runtime_release_file_view(&view as *u8);
     return 0 as *u8;
   }
   if (view.length > 0) {
     unsafe {
-      memcpy(buf, view.data, view.length);
+      memcpy(buf_u as *u8, view.data, view.length);
     }
   }
-  // buf[view.length] = '\0'
-  let zero_ptr: *u8 = buf + view.length;
-  zero_ptr[0] = 0;
+  // buf[view.length] = '\0' — via write_u8_at (10.46 hoist fix)
+  write_u8_at(buf_u as *u8, view.length, 0);
   if (out_len != 0 as *u8) {
     let out_len_ptr: *usize = out_len as *usize;
     out_len_ptr[0] = view.length;
   }
   runtime_release_file_view(&view as *u8);
-  return buf;
+  return buf_u as *u8;
 }
 
 /** Exported function `xlang_read_file_into_path_impl`.
@@ -740,7 +762,7 @@ export function xlang_read_file_into_path_impl(path: *u8, buf: *u8, cap: i64): i
   let fd: i32 = 0;
   unsafe {
     // O_RDONLY|O_BINARY (0 on POSIX, _O_BINARY on Windows)
-    fd = open(path, RIO_O_RDONLY | RIO_O_BINARY, 0);
+    fd = open(path, 32768, 0);
   }
   if (fd < 0) {
     return -1;
@@ -773,7 +795,7 @@ export function std_sys_os_read_file_into_impl(path: *u8, buf: *u8, cap: i32): i
   let fd: i32 = 0;
   unsafe {
     // O_RDONLY|O_BINARY (0 on POSIX, _O_BINARY on Windows)
-    fd = open(path, RIO_O_RDONLY | RIO_O_BINARY, 0);
+    fd = open(path, 32768, 0);
   }
   if (fd < 0) {
     return -1;

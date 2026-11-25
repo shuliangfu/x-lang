@@ -621,11 +621,18 @@ export function pipeline_expr_field_access_soa_stride(a: *u8, expr_ref: i32): i3
 }
 
 
-/** Getter pipeline_expr_int_val_at. PLATFORM: SHARED */
+/**
+ * Getter pipeline_expr_int_val_at.
+ * note743y.6.12 Soft Cap: ban `load_i64 as i32` — Ubuntu tip turns
+ * 0x80000000 (i64) into 0 via that cast, so `2147483648 as u32` emitted 0
+ * and run-builtin clz/popcount(0x80000000) failed (exit=6).
+ * Low 32 bits via pipe_load_i32_le keep the bit pattern.
+ * PLATFORM: SHARED Soft Cap tip heal (note743y.6.12).
+ */
 export function pipeline_expr_int_val_at(a: *u8, expr_ref: i32): i32 {
   let ex: *u8 = w327_expr(a, expr_ref);
   if (ex == (0 as *u8)) { return 0; }
-  return w327_load_i64(ex, W327_E_INT_VAL) as i32;
+  return w327_load(ex, W327_E_INT_VAL);
 }
 
 
@@ -693,11 +700,30 @@ export function pipeline_expr_index_proven_in_bounds_at(a: *u8, expr_ref: i32): 
 }
 
 
-/** Getter pipeline_expr_int64_val_at. PLATFORM: SHARED */
+/**
+ * Getter pipeline_expr_int64_val_at.
+ * note743y.6.12 Soft Cap: ban mid `return w327_load_i64(...)` — Ubuntu tip
+ * U-starves the i64 call and leaves rax as the expr* from w327_expr, so
+ * wide INT_LIT emit became movabs $<stack/arena ptr> (lit probe EC=1/2)
+ * and `as u32` sibling hit the int_val_at cast→0 path (EC=3 / builtin=6).
+ * Rebuild i64 from two LE i32 loads + memcpy (no tip i64 return mid-call).
+ * PLATFORM: SHARED Soft Cap tip heal (note743y.6.12).
+ */
 export function pipeline_expr_int64_val_at(a: *u8, expr_ref: i32): i64 {
   let ex: *u8 = w327_expr(a, expr_ref);
+  let cell: u8[8] = [];
+  let r: i64 = 0;
+  let lo: i32 = 0;
+  let hi: i32 = 0;
   if (ex == (0 as *u8)) { return 0; }
-  return w327_load_i64(ex, W327_E_INT_VAL);
+  lo = w327_load(ex, W327_E_INT_VAL);
+  hi = w327_load(ex, W327_E_INT_VAL + 4);
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, lo);
+    pipe_store_i32_le(&cell[0], 4, hi);
+    memcpy((&r as *u8), &cell[0], 8 as usize);
+  }
+  return r;
 }
 
 
@@ -892,17 +918,29 @@ export function pipeline_expr_method_call_arg_ref(a: *u8, expr_ref: i32, idx: i3
 
 /** Slot ref pipeline_expr_array_lit_elem_ref. PLATFORM: SHARED */
 export function pipeline_expr_array_lit_elem_ref(a: *u8, expr_ref: i32, idx: i32): i32 {
+  /* note743y.6.7 / 10.22: break cyclic elem_ref==parent (nested ARRAY_LIT
+   * when egg append wins over thin relocate — Ubuntu tip compile SEGV in
+   * typeck_check_expr_array_lit). Peer of struct_lit_init_ref guard.
+   * PLATFORM: SHARED. */
   let slot: *u8 = expr_array_lit_elem_slot(a, expr_ref, idx, 0);
+  let er: i32 = 0;
   if (slot == (0 as *u8)) { return 0; }
-  return w327_load(slot, 0);
+  er = w327_load(slot, 0);
+  if (er == expr_ref) { return 0; }
+  return er;
 }
 
 
 /** Struct lit field init_ref. PLATFORM: SHARED */
 export function pipeline_expr_struct_lit_init_ref(a: *u8, expr_ref: i32, j: i32): i32 {
+  /* note743y.6.7: break cyclic init_ref==parent (imported Split_u8 nested
+   * anon). Callers that walk STRUCT_LIT forever SEGV otherwise. PLATFORM: SHARED. */
   let fe: *u8 = expr_struct_lit_field_at(a, expr_ref, j, 0);
+  let init_ref: i32 = 0;
   if (fe == (0 as *u8)) { return 0; }
-  return w327_load(fe, W327_SLF_INIT_REF);
+  init_ref = w327_load(fe, W327_SLF_INIT_REF);
+  if (init_ref == expr_ref) { return 0; }
+  return init_ref;
 }
 
 
@@ -993,21 +1031,66 @@ export function pipeline_expr_append_method_call_arg(a: *u8, expr_ref: i32, arg_
 }
 
 /**
- * Append array lit elem.
+ * Append one element ref onto an array literal.
+ * The first append records ELEM_BASE as the side-table length. Later
+ * appends use base+index and expect that range to still be the tail.
+ * A nested `[...]` element appends into the same table before the parent
+ * stores the next index, so base+index then names a slot the child owns.
+ * Writing there replaces the child's element with the child expr itself
+ * and the block walk recurses forever. When the next index is not the
+ * current tail, copy this literal's existing refs to the tail and
+ * retarget ELEM_BASE, then store the new ref. One move covers every
+ * nesting depth. A null arena or expr_ref<=0 returns -1.
+ * @param a Arena; null returns -1.
+ * @param expr_ref Array-literal expr; <=0 returns -1.
+ * @param elem_ref Element expr ref to store.
+ * @return i32 The previous element count, or -1.
  * PLATFORM: SHARED
  */
 export function pipeline_expr_append_array_lit_elem(a: *u8, expr_ref: i32, elem_ref: i32): i32 {
   let ex: *u8 = 0 as *u8;
   let sc: *u8 = 0 as *u8;
   let slot: *u8 = 0 as *u8;
+  let gv: *u8 = 0 as *u8;
+  let src: *u8 = 0 as *u8;
+  let dst: *u8 = 0 as *u8;
   let idx: i32 = 0;
+  let old_base: i32 = 0;
+  let new_base: i32 = 0;
+  let slot_i: i32 = 0;
+  let val: i32 = 0;
   if (a == (0 as *u8) || expr_ref <= 0) { return 0 - 1; }
   sc = w327_sc(a, 1);
   ex = w327_expr(a, expr_ref);
   if (sc == (0 as *u8) || ex == (0 as *u8)) { return 0 - 1; }
+  gv = sc + (W327_SC_EXPR_ARRAY_LIT_ELEM_REFS as usize);
   idx = w327_load(ex, W327_E_ARRAY_LIT_NUM_ELEMS);
   if (idx == 0) {
-    w327_store(ex, W327_E_ARRAY_LIT_ELEM_BASE, w327_gv_len(sc + (W327_SC_EXPR_ARRAY_LIT_ELEM_REFS as usize)));
+    w327_store(ex, W327_E_ARRAY_LIT_ELEM_BASE, w327_gv_len(gv));
+  } else {
+    old_base = w327_load(ex, W327_E_ARRAY_LIT_ELEM_BASE);
+    new_base = w327_gv_len(gv);
+    /* Child literals already consumed base+idx. Move our run to the tail. */
+    if (old_base + idx != new_base) {
+      slot_i = 0;
+      while (slot_i < idx) {
+        if (w327_gv_ensure_abs(gv, new_base + slot_i) == 0) {
+          return 0 - 1;
+        }
+        src = w529_gv_at(gv, old_base + slot_i);
+        dst = w529_gv_at(gv, new_base + slot_i);
+        if (src == (0 as *u8)) {
+          return 0 - 1;
+        }
+        if (dst == (0 as *u8)) {
+          return 0 - 1;
+        }
+        val = w327_load(src, 0);
+        w327_store(dst, 0, val);
+        slot_i = slot_i + 1;
+      }
+      w327_store(ex, W327_E_ARRAY_LIT_ELEM_BASE, new_base);
+    }
   }
   slot = expr_array_lit_elem_slot(a, expr_ref, idx, 1);
   if (slot == (0 as *u8)) { return 0 - 1; }
@@ -1057,13 +1140,44 @@ export function pipeline_expr_append_struct_lit_field(a: *u8, expr_ref: i32, nam
   let fe: *u8 = 0 as *u8;
   let idx: i32 = 0;
   let n: i32 = 0;
+  let base: i32 = 0;
+  let glen: i32 = 0;
+  let new_base: i32 = 0;
+  let k: i32 = 0;
+  let gv: *u8 = 0 as *u8;
+  let src: *u8 = 0 as *u8;
+  let dst: *u8 = 0 as *u8;
+  let tmp: u8[264] = [];
   if (a == (0 as *u8) || expr_ref <= 0) { return 0 - 1; }
   sc = w327_sc(a, 1);
   ex = w327_expr(a, expr_ref);
   if (sc == (0 as *u8) || ex == (0 as *u8)) { return 0 - 1; }
+  gv = sc + (W327_SC_EXPR_STRUCT_LIT_FIELDS as usize);
   idx = w327_load(ex, W327_E_STRUCT_LIT_NUM_FIELDS);
+  base = w327_load(ex, W327_E_STRUCT_LIT_FIELD_BASE);
+  glen = w327_gv_len(gv);
   if (idx == 0) {
-    w327_store(ex, W327_E_STRUCT_LIT_FIELD_BASE, w327_gv_len(sc + (W327_SC_EXPR_STRUCT_LIT_FIELDS as usize)));
+    w327_store(ex, W327_E_STRUCT_LIT_FIELD_BASE, glen);
+  } else if (glen != base + idx) {
+    // A nested struct lit appended its fields into the next slots.
+    // Copy this lit's fields to the end before the new field, or the
+    // write lands on the nested field and typeck recurses forever.
+    // PLATFORM: SHARED.
+    new_base = glen;
+    k = 0;
+    while (k < idx) {
+      src = w529_gv_at(gv, base + k);
+      if (w327_gv_ensure_abs(gv, new_base + k) == 0) {
+        return 0 - 1;
+      }
+      dst = w529_gv_at(gv, new_base + k);
+      unsafe {
+        memcpy(&tmp[0], src, 264 as usize);
+        memcpy(dst, &tmp[0], 264 as usize);
+      }
+      k = k + 1;
+    }
+    w327_store(ex, W327_E_STRUCT_LIT_FIELD_BASE, new_base);
   }
   fe = expr_struct_lit_field_at(a, expr_ref, idx, 1);
   if (fe == (0 as *u8)) { return 0 - 1; }
@@ -1607,7 +1721,8 @@ export function pipeline_expr_var_name_len_for_string_lit_c(a: *u8, expr_ref: i3
  * Recurse expr tree stamping block_ref on VAR nodes.
  * PLATFORM: SHARED
  */
-function glue_var_blk_walk_expr(a: *u8, er: i32, blk: i32): void {
+#[no_mangle]
+export function glue_var_blk_walk_expr(a: *u8, er: i32, blk: i32): void {
   let ko: i32 = 0;
   let l: i32 = 0;
   let i: i32 = 0;
@@ -1624,24 +1739,30 @@ function glue_var_blk_walk_expr(a: *u8, er: i32, blk: i32): void {
   }
   if ((ko >= 4 && ko <= 21) || (ko >= 28 && ko <= 38)) {
     unsafe { l = pipeline_expr_binop_left_ref_at(a, er); }
-    glue_var_blk_walk_expr(a, l, blk);
+    if (l > 0 && l != er) {
+      glue_var_blk_walk_expr(a, l, blk);
+    }
     unsafe { l = pipeline_expr_binop_right_ref_at(a, er); }
-    glue_var_blk_walk_expr(a, l, blk);
+    if (l > 0 && l != er) {
+      glue_var_blk_walk_expr(a, l, blk);
+    }
     return;
   }
   if (ko == 22 || ko == 23 || ko == 24 || ko == 41 || ko == 50 || ko == 51) {
     unsafe { l = pipeline_expr_unary_operand_ref_at(a, er); }
-    glue_var_blk_walk_expr(a, l, blk);
+    if (l > 0 && l != er) {
+      glue_var_blk_walk_expr(a, l, blk);
+    }
     return;
   }
-  unsafe { l = pipeline_expr_as_operand_ref_at(a, er); }
-  if (l > 0) {
-    glue_var_blk_walk_expr(a, l, blk);
-    return;
-  }
+  // Field, struct lit, array lit, index, and call before the AS slot.
+  // A stale AS operand on a struct lit points back at this node and
+  // the walk never returns. PLATFORM: SHARED.
   if (ko == 44) {
     unsafe { l = pipeline_expr_field_access_base_ref(a, er); }
-    glue_var_blk_walk_expr(a, l, blk);
+    if (l > 0 && l != er) {
+      glue_var_blk_walk_expr(a, l, blk);
+    }
     return;
   }
   if (ko == 46) {
@@ -1649,7 +1770,9 @@ function glue_var_blk_walk_expr(a: *u8, er: i32, blk: i32): void {
     i = 0;
     while (i < n) {
       unsafe { l = pipeline_expr_array_lit_elem_ref(a, er, i); }
-      glue_var_blk_walk_expr(a, l, blk);
+      if (l > 0 && l != er) {
+        glue_var_blk_walk_expr(a, l, blk);
+      }
       i = i + 1;
     }
     return;
@@ -1659,16 +1782,22 @@ function glue_var_blk_walk_expr(a: *u8, er: i32, blk: i32): void {
     i = 0;
     while (i < n) {
       unsafe { l = pipeline_expr_struct_lit_init_ref(a, er, i); }
-      glue_var_blk_walk_expr(a, l, blk);
+      if (l > 0 && l != er) {
+        glue_var_blk_walk_expr(a, l, blk);
+      }
       i = i + 1;
     }
     return;
   }
   if (ko == 47) {
     unsafe { l = pipeline_expr_index_base_ref(a, er); }
-    glue_var_blk_walk_expr(a, l, blk);
+    if (l > 0 && l != er) {
+      glue_var_blk_walk_expr(a, l, blk);
+    }
     unsafe { l = pipeline_expr_index_index_ref(a, er); }
-    glue_var_blk_walk_expr(a, l, blk);
+    if (l > 0 && l != er) {
+      glue_var_blk_walk_expr(a, l, blk);
+    }
     return;
   }
   if (ko == 48 || ko == 49) {
@@ -1676,9 +1805,18 @@ function glue_var_blk_walk_expr(a: *u8, er: i32, blk: i32): void {
     i = 0;
     while (i < n) {
       unsafe { l = pipeline_expr_call_arg_ref(a, er, i); }
-      glue_var_blk_walk_expr(a, l, blk);
+      if (l > 0 && l != er) {
+        glue_var_blk_walk_expr(a, l, blk);
+      }
       i = i + 1;
     }
+    return;
+  }
+  // EXPR_AS. Kind 54 may still report the operand through this getter.
+  // A slot that names this same expr is stale and must not recurse.
+  unsafe { l = pipeline_expr_as_operand_ref_at(a, er); }
+  if (l > 0 && l != er) {
+    glue_var_blk_walk_expr(a, l, blk);
     return;
   }
 }
@@ -1687,6 +1825,7 @@ function glue_var_blk_walk_expr(a: *u8, er: i32, blk: i32): void {
  * Stamp block_ref on VAR exprs under block tree.
  * PLATFORM: SHARED
  */
+#[no_mangle]
 export function glue_fill_var_block_refs_c(a: *u8, block_ref: i32): void {
   let stack_blk: i32[256] = [];
   let sp: i32 = 0;

@@ -320,6 +320,14 @@ pure_ld_partial_merge() {
     return 1
   fi
   os="$(uname -s 2>/dev/null || echo Unknown)"
+  # tip_l4 Win: MinGW gcc -r often fails on COFF partial link; ld -r works
+  # (fmt thin+rest measured). Prefer ld -r on Windows hosts.
+  # PLATFORM: WINDOWS|MSYS|MINGW|CYGWIN.
+  case "$os" in
+    MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+      XLANG_ZERO_CC_LD="${XLANG_ZERO_CC_LD:-1}"
+      ;;
+  esac
   if [ "${XLANG_ZERO_CC_LD:-0}" = "1" ]; then
     ld_bin="$(pure_ld_resolve_ld)" || {
       echo "pure_ld_shared: ld not found for partial_merge" >&2
@@ -622,12 +630,15 @@ pure_asm_emit_with_timeout() {
     "$xl" -backend asm -c -o "$stage" "$src" 2>"$_pure_err" &
   fi
   pid=$!
+  # knife256: redirect so a leftover killer cannot hold an outer
+  # `(cmd)|tee` write-end open after the emit returns (L4 step5 hang).
+  # PLATFORM: SHARED.
   (
     sleep "$to"
     kill -TERM "$pid" 2>/dev/null || true
     sleep 1
     kill -KILL "$pid" 2>/dev/null || true
-  ) &
+  ) >/dev/null 2>&1 &
   killer=$!
   rc=0
   wait "$pid" 2>/dev/null || rc=$?
@@ -823,6 +834,57 @@ pure_asm_x_to_o() {
   fi
   rm -f "$_pure_asm_stage" 2>/dev/null || true
   return 1
+}
+
+# ---------------------------------------------------------------------------
+# pure_asm_x_to_o_or_pin_egg OUT SRC
+# note743m: tip-cold g05 may leave tip/bootstrap as the same CG002 body
+# (code_len=0). Try product xl first (pure_asm_x_to_o), then retry with
+# XLANG=seeds/bootstrap_xlangc.<os>.<arch> (same pin-egg authority as
+# note743k lexer / note743l rcp). PLATFORM: SHARED.
+# ---------------------------------------------------------------------------
+pure_asm_x_to_o_or_pin_egg() {
+  local out="$1"
+  local src="$2"
+  local _egg_os _egg_arch _egg _aside
+  if pure_asm_x_to_o "$out" "$src"; then
+    return 0
+  fi
+  _egg_os="$(uname -s 2>/dev/null | tr "[:upper:]" "[:lower:]")"
+  _egg_arch="$(uname -m 2>/dev/null)"
+  case "$_egg_os" in
+    darwin) _egg_os=darwin ;;
+    linux) _egg_os=linux ;;
+    # tip_l4 Win: tip CG002 hollow; try tip_aside/xlang_bi then windows egg.
+    # Measured: xlang_bi emits Cap-good rt_run_exec (T driver_run_test).
+    # PLATFORM: WINDOWS|MSYS|MINGW|CYGWIN.
+    mingw*|msys*|cygwin*|windows_nt|windows) _egg_os=windows ;;
+    *) return 1 ;;
+  esac
+  case "$_egg_arch" in x86_64|amd64) _egg_arch=x86_64 ;; arm64|aarch64) _egg_arch=arm64 ;; *) return 1 ;; esac
+  if [ "$_egg_os" = "windows" ]; then
+    for _aside in \
+        ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang.exe"} \
+        ${XLANG_L4_TIP_ASIDE:+"${XLANG_L4_TIP_ASIDE}/xlang"} \
+        ./xlang_bi.exe ./xlang_bi \
+        ./xlang.pre_l4_aside.exe ./xlang.pre_l4_aside; do
+      if [ -n "$_aside" ] && [ -x "$_aside" ]; then
+        rm -f "$out"
+        if "$_aside" -backend asm -c "$src" -o "$out" >/dev/null 2>&1 \
+          && [ -s "$out" ]; then
+          echo "pure_asm_x_to_o_or_pin_egg: via $_aside (Win tip_aside/bi)" >&2
+          return 0
+        fi
+        rm -f "$out"
+      fi
+    done
+  fi
+  _egg="seeds/bootstrap_xlangc.${_egg_os}.${_egg_arch}"
+  if [ ! -x "$_egg" ]; then
+    return 1
+  fi
+  echo "pure_asm_x_to_o_or_pin_egg: tip/product failed; retry XLANG=$_egg (note743m)" >&2
+  XLANG="$_egg" pure_asm_x_to_o "$out" "$src"
 }
 
 # ---------------------------------------------------------------------------

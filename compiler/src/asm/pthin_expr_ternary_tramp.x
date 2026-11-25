@@ -44,8 +44,8 @@ extern function parser_asm_parse_ternary_x_into_c(arena: *u8, lex_inout: *u8, so
 
 /**
  * Dest-buffer assign body. Defined in pthin_expr_ternary.x.
- * This file only forwards the cursor. The body keeps the
- * redundant double parse. Do not collapse it here.
+ * This file only forwards the cursor. The body parses the
+ * left-hand ternary once. Do not add a second walk here.
  */
 extern function parser_asm_parse_assign_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32;
 
@@ -214,11 +214,11 @@ export function parser_parse_logor_ptr_into_c(arena: *u8, lex_inout: *u8, source
   unsafe {
     let p: *PthinTernaryLex = lex_inout as *PthinTernaryLex;
     pthin_expr_ternary_call_logor(arena, p, source, &res);
-    out_ok[0] = res.ok;
-    out_expr_ref[0] = res.expr_ref;
-    p.pos = res.next_lex.pos;
-    p.line = res.next_lex.line;
-    p.col = res.next_lex.col;
+    let rp: *i32 = &res as *i32;
+    out_ok[0] = rp[0];
+    out_expr_ref[0] = rp[1];
+    // Opaque 16-byte cursor. Field stores clobber out_ok (tip CG).
+    memcpy(lex_inout, (&res as *u8) + 8, 16);
   }
   return 1;
 }

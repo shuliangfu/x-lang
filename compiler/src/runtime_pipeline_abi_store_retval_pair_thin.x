@@ -28,6 +28,8 @@ export extern function backend_enc_store_rax_to_rbp_arch(elf_ctx: *u8, offset: i
 export extern function pipeline_type_kind_ord_at(arena: *u8, ref: i32): i32;
 export extern function glue_slice_dual_gp_length_off_c(data_home: i32, ta: i32): i32;
 export extern function backend_enc_store_rdx_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
+export extern function backend_enc_mov_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_store_eax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
 export extern function glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32, home: i32, ty_ref: i32, use_frame: i32): i32;
 export extern function pipe_load_i32_le(p: *u8, off: i32): i32;
 export extern function pipe_store_i32_le(p: *u8, off: i32, v: i32): void;
@@ -77,7 +79,8 @@ function w2060_store_pair_cell_i32(base: *u8): i32 {
  * @param ctx *u8 — function context. Null skips the slice deep copy.
  * @return i32 — 0 on success or when there is nothing to store. -1 when the
  *   context is null or an encoder returns nonzero. The wide-copy helper's
- *   own return is passed through.
+ *   own return is passed through. A 12-byte arm64 value stores the second
+ *   half as 4 bytes so the write stays inside the slot.
  * PLATFORM: WINDOWS, LINUX, and MACOS|DARWIN link of the SHARED tip body.
  * Keep this kind set identical to
  * glue_store_retval_pair_to_rbp_elf_c in runtime_pipeline_abi.x.
@@ -86,6 +89,7 @@ function w2060_store_pair_cell_i32(base: *u8): i32 {
 export function glue_store_retval_pair_to_rbp_elf_c(
     m: *u8, arena: *u8, elf_ctx: *u8, ty_ref: i32, slot_off: i32, ta: i32, init_ref: i32, ctx: *u8): i32 {
   let sz: i32 = 0;
+  let raw_sz: i32 = 0;
   let nsz: i32 = 0;
   let ko: i32 = 0;
   let tk: i32 = 0;
@@ -102,6 +106,9 @@ export function glue_store_retval_pair_to_rbp_elf_c(
     pipe_store_i32_le(&cell[0], 0, glue_type_size_simple(m, arena, ty_ref, 0));
   }
   sz = w2060_store_pair_cell_i32(&cell[0]);
+  // Keep the layout size. The dual-GP bump below can round 12 up to 16,
+  // and that rounded width must not decide the tail store.
+  raw_sz = sz;
   if (sz <= 16 && arena != (0 as *u8) && ty_ref > 0) {
     unsafe {
       pipe_store_i32_le(&cell[0], 0, glue_sysv_dual_gp_byte_size_c(arena, ty_ref));
@@ -191,17 +198,38 @@ export function glue_store_retval_pair_to_rbp_elf_c(
   }
   if (sz > 8 && sz <= 16) {
     // x86_64 second half sits 8 bytes below the low home. arm64 sits 8 above.
-    if (ta == 1) {
+    // A 12-byte struct only has 4 bytes left there. Storing x1 writes those
+    // 4 bytes plus the next local. arm64 rbx is x1, so mov into x0 then a
+    // w0 store keeps the tail inside the slot. PLATFORM: MACOS|ARM64.
+    if (ta == 1 && raw_sz == 12) {
       half2 = slot_off + 8;
+      unsafe {
+        pipe_store_i32_le(&cell[0], 0, backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta));
+      }
+      rc = w2060_store_pair_cell_i32(&cell[0]);
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        pipe_store_i32_le(&cell[0], 0, backend_enc_store_eax_to_rbp_arch(elf_ctx, half2, ta));
+      }
+      rc = w2060_store_pair_cell_i32(&cell[0]);
+      if (rc != 0) {
+        return 0 - 1;
+      }
     } else {
-      half2 = slot_off - 8;
-    }
-    unsafe {
-      pipe_store_i32_le(&cell[0], 0, backend_enc_store_rdx_to_rbp_arch(elf_ctx, half2, ta));
-    }
-    rc = w2060_store_pair_cell_i32(&cell[0]);
-    if (rc != 0) {
-      return 0 - 1;
+      if (ta == 1) {
+        half2 = slot_off + 8;
+      } else {
+        half2 = slot_off - 8;
+      }
+      unsafe {
+        pipe_store_i32_le(&cell[0], 0, backend_enc_store_rdx_to_rbp_arch(elf_ctx, half2, ta));
+      }
+      rc = w2060_store_pair_cell_i32(&cell[0]);
+      if (rc != 0) {
+        return 0 - 1;
+      }
     }
   }
   return 0;

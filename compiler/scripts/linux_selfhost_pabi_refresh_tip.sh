@@ -27,6 +27,49 @@ if [ ! -x "$XL" ]; then
   echo "linux_selfhost_pabi_refresh_tip: no product compiler" >&2
   exit 1
 fi
+# note743u: tip-cold tip may CG002 Cap thins (collect_imports); try each
+# product then seeds/bootstrap_xlangc.linux.x86_64 (same pin-egg as
+# sidecars note743o). PLATFORM: LINUX.
+_rt_xls=""
+for _c in ./xlang_asm ./xlang ./bootstrap_xlangc ./xlang-c; do
+  if [ -x "$_c" ]; then
+    case " $_rt_xls " in
+      *" $_c "*) ;;
+      *) _rt_xls="$_rt_xls $_c" ;;
+    esac
+  fi
+done
+_rt_egg="seeds/bootstrap_xlangc.linux.x86_64"
+if [ -x "$_rt_egg" ]; then
+  case " $_rt_xls " in
+    *" $_rt_egg "*) ;;
+    *) _rt_xls="$_rt_xls $_rt_egg" ;;
+  esac
+fi
+# Prefer the single XL first (historical), then the rest of _rt_xls.
+case " $_rt_xls " in
+  *" $XL "*) ;;
+  *) _rt_xls="$XL $_rt_xls" ;;
+esac
+# note743u.1: tip may CG002 early refresh thins (asl / cimp); try each xl.
+# Usage: rt_compile DST SRC [ENV_ASSIGN ...]  — ENV like XLANG_PREFER_ASM_O=1
+# or ENV -u XLANG_PREFER_ASM_O. Writes DST on success. PLATFORM: LINUX.
+rt_compile() {
+  local _dst="$1" _src="$2"
+  shift 2
+  local _xl _ok=0
+  for _xl in $_rt_xls; do
+    rm -f "$_dst"
+    if timeout 240 env "$@" "$_xl" -backend asm -c "$_src" -o "$_dst" \
+      && [ -s "$_dst" ]; then
+      echo "linux_selfhost_pabi_refresh_tip: OK via $_xl ($_src)" >&2
+      _ok=1
+      break
+    fi
+    rm -f "$_dst"
+  done
+  [ "$_ok" = "1" ]
+}
 
 # 1. pabi_alias
 # w1493: the tip pabi keeps LOCAL copies of four C-rest modlet faces next
@@ -43,7 +86,8 @@ if ! nm "$OUT/pabi_alias.o.new" | awk '$3=="glue_try_index_var_or_field_base_to_
   # Require a defined face (T/W), not a U reloc. Tip peel may leave the
   # egg with only U; keep the existing alias that still owns body+rest.
   # 记253／9.1: root-fix for tip U-only egg (no host-cc). PLATFORM: LINUX.
-  _base_addr=$(nm "$OUT/pabi_alias.o.new" | awk '$2 ~ /^[TtWw]$/ && $3=="glue_try_index_var_or_field_base_to_rbx_elf_c"{print $1; exit}')
+  _base_addr=$(nm "$OUT/pabi_alias.o.new" | awk '$2 ~ /^[TtWw]$/ && $3=="glue_try_index_var_or_field_base_to_rbx_elf_c"{print $1; found=1} END{exit 0}')
+  _base_addr=$(printf '%s\n' "$_base_addr" | head -n1)
   if [ -z "$_base_addr" ]; then
     if [ -s "$OUT/pabi_alias.o" ] \
       && nm "$OUT/pabi_alias.o" | awk '$3=="glue_try_index_var_or_field_base_to_rbx_elf_rest"{found=1} END{exit !found}'; then
@@ -51,9 +95,43 @@ if ! nm "$OUT/pabi_alias.o.new" | awk '$3=="glue_try_index_var_or_field_base_to_
       rm -f "$OUT/pabi_alias.o.new"
       _skip_alias=1
     else
-      echo "linux_selfhost_pabi_refresh_tip: index base symbol missing" >&2
-      rm -f "$OUT/pabi_alias.o.new"
-      exit 1
+      # 记743f: tip U-only and no rest-bearing alias (wipe left READY).
+      # Synthesize the historical egg face (ret -2) then alias _rest — same
+      # contract as sidecars when tip still owned T. No host-cc .c.
+      # PLATFORM: LINUX x86_64.
+      _egg_s="$OUT/index_base_rbx_egg_stub.s"
+      _egg_o="$OUT/index_base_rbx_egg_stub.o"
+      cat > "$_egg_s" <<'EOF'
+.globl glue_try_index_var_or_field_base_to_rbx_elf_c
+.type glue_try_index_var_or_field_base_to_rbx_elf_c, @function
+glue_try_index_var_or_field_base_to_rbx_elf_c:
+    movl $0xfffffffe, %eax
+    ret
+.size glue_try_index_var_or_field_base_to_rbx_elf_c, .-glue_try_index_var_or_field_base_to_rbx_elf_c
+EOF
+      if ! as --64 -o "$_egg_o" "$_egg_s"; then
+        echo "linux_selfhost_pabi_refresh_tip: index base egg stub assemble failed" >&2
+        rm -f "$OUT/pabi_alias.o.new" "$_egg_o"
+        exit 1
+      fi
+      if ! ld -r -o "$OUT/pabi_alias.o.new" src/runtime_pipeline_abi.o "$_egg_o"; then
+        echo "linux_selfhost_pabi_refresh_tip: ld -r tip+egg stub failed" >&2
+        rm -f "$OUT/pabi_alias.o.new" "$_egg_o"
+        exit 1
+      fi
+      _base_addr=$(nm "$OUT/pabi_alias.o.new" | awk '$2 ~ /^[TtWw]$/ && $3=="glue_try_index_var_or_field_base_to_rbx_elf_c"{print $1; found=1} END{exit 0}')
+      _base_addr=$(printf '%s\n' "$_base_addr" | head -n1)
+      if [ -z "$_base_addr" ]; then
+        echo "linux_selfhost_pabi_refresh_tip: index base symbol missing after egg stub" >&2
+        rm -f "$OUT/pabi_alias.o.new" "$_egg_o"
+        exit 1
+      fi
+      if ! objcopy --add-symbol "glue_try_index_var_or_field_base_to_rbx_elf_rest=.text:0x${_base_addr},global,function" "$OUT/pabi_alias.o.new"; then
+        echo "linux_selfhost_pabi_refresh_tip: add _rest after egg stub failed" >&2
+        rm -f "$OUT/pabi_alias.o.new" "$_egg_o"
+        exit 1
+      fi
+      echo "linux_selfhost_pabi_refresh_tip: tip U-only index base; synthesized egg+rest"
     fi
   else
     objcopy --add-symbol "glue_try_index_var_or_field_base_to_rbx_elf_rest=.text:0x${_base_addr},global,function" "$OUT/pabi_alias.o.new"
@@ -86,7 +164,7 @@ for _asl in call_bulk call_elems copy_bulk copy_elems call_one_elem; do
   if [ -s "$_dst" ] && [ ! "$_src" -nt "$_dst" ] && [ ! "$XL" -nt "$_dst" ]; then
     continue
   fi
-  if ! timeout 240 env XLANG_PREFER_ASM_O=1 "$XL" -backend asm -c "$_src" -o "$_tmp"; then
+  if ! rt_compile "$_tmp" "$_src" XLANG_PREFER_ASM_O=1; then
     echo "linux_selfhost_pabi_refresh_tip: $_src failed" >&2
     rm -f "$_tmp"
     exit 1
@@ -104,7 +182,7 @@ _slot_dst="$OUT/slot.o"
 if [ -f "$_slot_src" ] && { [ ! -s "$_slot_dst" ] || [ "$_slot_src" -nt "$_slot_dst" ] \
     || ! nm "$_slot_dst" | awk '$2=="T"&&$3=="pipe_slot_bytes_named_in_mod"{f++} $2=="T"&&$3=="asm_fixed_array_total_bytes_mod"{f++} END{exit f!=2}'; }; then
   _slot_tmp="$OUT/slot.tmp.o"
-  if ! timeout 240 "$XL" -backend asm -c "$_slot_src" -o "$_slot_tmp"; then
+  if ! rt_compile "$_slot_tmp" "$_slot_src"; then
     echo "linux_selfhost_pabi_refresh_tip: $_slot_src failed" >&2
     rm -f "$_slot_tmp"
     exit 1
@@ -126,6 +204,28 @@ if [ -f "$_slot_src" ] && { [ ! -s "$_slot_dst" ] || [ "$_slot_src" -nt "$_slot_
   mv -f "$_slot_tmp" "$_slot_dst"
   echo "linux_selfhost_pabi_refresh_tip: $_slot_dst (named_in_mod+fixed_array strong)"
 fi
+# 3b. 记743f: base.o from index_base_rbx_thin (HARD BAN PREFER into tip pabi;
+#     g05 links it ahead of pabi_alias). Rebuild when missing/stale/no strong T.
+#     PLATFORM: LINUX.
+_base_src=src/runtime_pipeline_abi_index_base_rbx_thin.x
+_base_dst="$OUT/base.o"
+_base_sym=glue_try_index_var_or_field_base_to_rbx_elf_c
+if [ -f "$_base_src" ] && { [ ! -s "$_base_dst" ] || [ "$_base_src" -nt "$_base_dst" ]     || [ "$XL" -nt "$_base_dst" ]     || ! nm "$_base_dst" | awk -v s="$_base_sym" '$2=="T"&&$3==s{f=1} END{exit !f}'; }; then
+  _base_tmp="$OUT/base.tmp.o"
+  rm -f "$_base_tmp"
+  if ! rt_compile "$_base_tmp" "$_base_src"; then
+    echo "linux_selfhost_pabi_refresh_tip: $_base_src failed" >&2
+    rm -f "$_base_tmp"
+    exit 1
+  fi
+  if ! nm "$_base_tmp" | awk -v s="$_base_sym" '$2=="T"&&$3==s{f=1} END{exit !f}'; then
+    echo "linux_selfhost_pabi_refresh_tip: $_base_src lacks strong $_base_sym" >&2
+    rm -f "$_base_tmp"
+    exit 1
+  fi
+  mv -f "$_base_tmp" "$_base_dst"
+  echo "linux_selfhost_pabi_refresh_tip: $_base_dst (index base thin strong)"
+fi
 # 4. w2055 collect-deps import scan: cimp.o keeps
 #    xlang_module_collect_imports_from_buf strong ahead of the pabi copy,
 #    whose old C body calls the struct-returning lexer_init().
@@ -143,7 +243,8 @@ if [ ! -f "$_cimp_src" ]; then
 fi
 _cimp_tmp="$OUT/cimp.tmp.o"
 rm -f "$_cimp_dst" "$_cimp_tmp"
-if ! timeout 240 env XLANG_PREFER_ASM_O=1 "$XL" -backend asm -c "$_cimp_src" -o "$_cimp_tmp"; then
+# note743u.1: tip often CG002 on collect_imports; rt_compile walks pin-egg.
+if ! rt_compile "$_cimp_tmp" "$_cimp_src" XLANG_PREFER_ASM_O=1; then
   echo "linux_selfhost_pabi_refresh_tip: $_cimp_src failed" >&2
   rm -f "$_cimp_tmp"
   exit 1
@@ -188,7 +289,7 @@ _ens_strong() {
 }
 _ens_tmp="$OUT/enum_ns_tag.tmp.o"
 rm -f "$_ens_dst" "$_ens_tmp"
-if ! timeout 240 env XLANG_PREFER_ASM_O=1 "$XL" -backend asm -c "$_ens_src" -o "$_ens_tmp"; then
+if ! rt_compile "$_ens_tmp" "$_ens_src" XLANG_PREFER_ASM_O=1; then
   echo "linux_selfhost_pabi_refresh_tip: $_ens_src failed" >&2
   rm -f "$_ens_tmp"
   exit 1
@@ -229,7 +330,7 @@ if [ ! -s "$_fca_dst" ] || [ "$_fca_src" -nt "$_fca_dst" ] || [ "$XL" -nt "$_fca
     || ! nm "$_fca_dst" | awk -v s="$_fca_sym" '$2=="T"&&$3==s{f=1} END{exit !f}'; then
   _fca_tmp="$OUT/one.tmp.o"
   rm -f "$_fca_tmp"
-  if ! timeout 240 "$XL" -backend asm -c "$_fca_src" -o "$_fca_tmp"; then
+  if ! rt_compile "$_fca_tmp" "$_fca_src"; then
     echo "linux_selfhost_pabi_refresh_tip: $_fca_src failed" >&2
     rm -f "$_fca_tmp"
     exit 1
@@ -279,7 +380,7 @@ if [ ! -s "$_rec_dst" ] || [ "$_rec_src" -nt "$_rec_dst" ] || [ "$XL" -nt "$_rec
     || ! _rec_has_pair "$_rec_dst"; then
   _rec_tmp="$OUT/rec.tmp.o"
   rm -f "$_rec_tmp"
-  if ! timeout 240 "$XL" -backend asm -c "$_rec_src" -o "$_rec_tmp"; then
+  if ! rt_compile "$_rec_tmp" "$_rec_src"; then
     echo "linux_selfhost_pabi_refresh_tip: $_rec_src failed" >&2
     rm -f "$_rec_tmp"
     exit 1
@@ -332,7 +433,7 @@ if [ ! -f "$_stp_src" ]; then
 fi
 _stp_tmp="$OUT/store_retval_pair.tmp.o"
 rm -f "$_stp_dst" "$_stp_tmp"
-if ! timeout 240 "$XL" -backend asm -c "$_stp_src" -o "$_stp_tmp"; then
+if ! rt_compile "$_stp_tmp" "$_stp_src"; then
   echo "linux_selfhost_pabi_refresh_tip: $_stp_src failed" >&2
   rm -f "$_stp_tmp"
   exit 1
@@ -389,7 +490,7 @@ if [ ! -f "$_fag_src" ]; then
 fi
 _fag_tmp="$OUT/field_agg_load.tmp.o"
 rm -f "$_fag_dst" "$_fag_tmp"
-if ! timeout 240 env -u XLANG_PREFER_ASM_O "$XL" -backend asm -c "$_fag_src" -o "$_fag_tmp"; then
+if ! rt_compile "$_fag_tmp" "$_fag_src" -u XLANG_PREFER_ASM_O; then
   echo "linux_selfhost_pabi_refresh_tip: $_fag_src failed" >&2
   rm -f "$_fag_tmp"
   exit 1

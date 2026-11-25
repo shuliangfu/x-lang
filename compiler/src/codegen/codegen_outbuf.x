@@ -6,8 +6,8 @@
 // PLATFORM: SHARED.
 
 export struct CodegenOutBuf {
-  data: u8[9437184];
   length: i32;
+  data: u8[9437184];
 }
 
 /**

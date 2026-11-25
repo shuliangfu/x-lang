@@ -826,6 +826,18 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
                 }
                 if (ltk == 8) {
                   unsafe {
+                    mod = glue_emit_module_from_ctx(ctx);
+                    store_sz = glue_type_size_simple(mod, arena, ltr, 0);
+                    rty = glue_type_named_layout_size_any_module_elf_c(arena, ltr);
+                  }
+                  if (rty > store_sz) {
+                    store_sz = rty;
+                  }
+                  /* 10.46: FIELD TYPE_NAMED — let_init owns CALL>16 sret into
+                   * frame-mag off (rhs+store_retval is wrong for sret ABI).
+                   * store_retval 44|3|45 lives in thin/egg for non-sret copies.
+                   * PLATFORM: SHARED — Win PE; Darwin ARM64; Ubuntu gold. */
+                  unsafe {
                     arr_st = glue_emit_struct_type_let_init_elf_c(
                         arena, elf_ctx, right_ref, ctx, ta, ltr, off);
                   }
@@ -834,29 +846,6 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
                   }
                   if (arr_st == 0 - 1) {
                     return 0 - 1;
-                  }
-                  unsafe {
-                    mod = glue_emit_module_from_ctx(ctx);
-                    store_sz = glue_type_size_simple(mod, arena, ltr, 0);
-                    rty = glue_type_named_layout_size_any_module_elf_c(arena, ltr);
-                  }
-                  if (rty > store_sz) {
-                    store_sz = rty;
-                  }
-                  if (store_sz > 8 && store_sz <= 16) {
-                    rc = glue_emit_assign_rhs_to_rax_elf_c(
-                        arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta);
-                    if (rc != 0) {
-                      return 0 - 1;
-                    }
-                    unsafe {
-                      rc = glue_store_retval_pair_to_rbp_elf_c(
-                          mod, arena, elf_ctx, ltr, off, ta, right_ref, ctx);
-                    }
-                    if (rc != 0) {
-                      return 0 - 1;
-                    }
-                    return 0;
                   }
                 }
                 /* FIELD dest TYPE_ARRAY (`bag.one = [w]`). Depth-1 scalar

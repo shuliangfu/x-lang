@@ -137,9 +137,566 @@ if [ -z "$SEED_LINK_OUT" ] || [ -z "$SEED_LINK_OBJS" ]; then
   fail "incomplete export (OUT/OBJS) from $export_target"
   echo "$export_raw" >&2
 fi
+
+# knife256 / 10.2: phase1/final hollow-fill objs first-win over pabi U.
+# Manifest from darwin_ or linux_phase1_hollow_fill.sh.
+# PLATFORM: SHARED — Darwin arm64 + Linux x86_64 tip cold after wipe.
+_HOLLOW_MANIFEST=build_asm/selfhost_pabi/phase1_hollow_fill_objs.txt
+if [ -s "$_HOLLOW_MANIFEST" ]; then
+  _hollow_objs=$(tr '\n' ' ' <"$_HOLLOW_MANIFEST" | sed 's/[[:space:]]*$//')
+  if [ -n "$_hollow_objs" ]; then
+    SEED_LINK_OBJS="$_hollow_objs $SEED_LINK_OBJS"
+    note "phase1 hollow-fill prepended ($(printf '%s\n' $_hollow_objs | wc -w | tr -d ' ') objs)"
+  fi
+fi
+
+# 10.26: mega merged call_spill → U glue_addr_simd_lane_type_c; Cap tip G05_OBJS
+# used to carry call_spill.o + prepend addr_of_call.o. After merge, mega holds the
+# U and phase1/final must still link addr_of_call.o (thin remains; not one of the
+# eleven). Mirror g05_cap_tip_reapply_darwin.sh simd_lane_type prepend.
+# PLATFORM: SHARED — Darwin arm64 + Linux x86_64 tip-cold phase1/final.
+_AOC=build_asm/selfhost_pabi/addr_of_call.o
+_AOC_X=src/runtime_pipeline_abi_addr_of_call_thin.x
+if [ ! -s "$_AOC" ] && [ -f "$_AOC_X" ]; then
+  mkdir -p build_asm/selfhost_pabi
+  _xc=
+  for _c in ./xlang ./bootstrap_xlangc ./xlang-c; do
+    if [ -x "$_c" ]; then _xc=$_c; break; fi
+  done
+  if [ -n "$_xc" ]; then
+    note "phase1 building addr_of_call.o from thin (mega call_spill U)"
+    if ! XLANG_PREFER_ASM_O=1 "$_xc" -backend asm -c "$_AOC_X" -o "$_AOC" >/tmp/phase1_aoc_build.log 2>&1; then
+      "$_xc" -backend asm -c "$_AOC_X" -o "$_AOC" >>/tmp/phase1_aoc_build.log 2>&1 || true
+    fi
+  fi
+fi
+if [ -s "$_AOC" ]; then
+  if nm -g "$_AOC" 2>/dev/null | grep -qE ' T [_]?glue_addr_simd_lane_type_c$'; then
+    case " $SEED_LINK_OBJS " in
+      *" $_AOC "*|*" build_asm/selfhost_pabi/addr_of_call.o "*) ;;
+      *)
+        SEED_LINK_OBJS="$_AOC $SEED_LINK_OBJS"
+        note "phase1 prepended addr_of_call.o (glue_addr_simd_lane_type_c)"
+        ;;
+    esac
+  fi
+fi
+
+
+
+
+# 10.44 follow: mega/pabi demotes glue_type_align_simple → __demoted; Cap tip /
+# g05 product keeps public T in named_align.o (named_align_thin). Phase1 catalog
+# lists backend_call_dispatch.o (U align_simple) but not named_align.o.
+# Cold Win tip: freshly rebuilt pabi still has public T (demote is g05-only) —
+# prepending thin named_align then UNDEFs __demoted (L4@a82d10d35). Gate:
+#   - if any SEED_LINK_OBJS already has T glue_type_align_simple → skip
+#   - else if __demoted exists → prepend named_align (thin / host-forward)
+#   - else host-cc self-contained stub (no demoted dep)
+# PLATFORM: SHARED — Win/Linux/Darwin tip-cold phase1/final.
+_NA=build_asm/selfhost_pabi/named_align.o
+_NA_X=src/runtime_pipeline_abi_named_align_thin.x
+_NA_C=build_asm/selfhost_pabi/named_align_phase1_host.c
+_na_need=0
+_na_have_pub=0
+_na_have_dem=0
+case " $SEED_LINK_OBJS " in
+  *" backend_call_dispatch.o "*|*"src/asm/backend_call_dispatch.o "*) _na_need=1 ;;
+esac
+if [ "$_na_need" = "1" ]; then
+  for _na_o in $SEED_LINK_OBJS; do
+    [ -s "$_na_o" ] || continue
+    if nm -g "$_na_o" 2>/dev/null | grep -qE ' T [_]?glue_type_align_simple$'; then
+      _na_have_pub=1
+    fi
+    if nm -g "$_na_o" 2>/dev/null | grep -qE ' T [_]?glue_type_align_simple__demoted$'; then
+      _na_have_dem=1
+    fi
+  done
+fi
+if [ "$_na_need" = "1" ] && [ "$_na_have_pub" = "1" ]; then
+  note "phase1 skip named_align (SEED_LINK_OBJS already T glue_type_align_simple)"
+elif [ "$_na_need" = "1" ]; then
+  if [ ! -s "$_NA" ]; then
+    mkdir -p build_asm/selfhost_pabi
+    if [ "$_na_have_dem" = "1" ]; then
+      _xc=
+      for _c in ./xlang.pre_l4_aside ./xlang ./xlang.exe ./bootstrap_xlangc ./xlang-c ./xlang-c.exe; do
+        if [ -x "$_c" ]; then _xc=$_c; break; fi
+      done
+      if [ -n "$_xc" ] && [ -f "$_NA_X" ]; then
+        note "phase1 building named_align.o from thin (pabi align demoted)"
+        if ! XLANG_PREFER_ASM_O=1 "$_xc" -backend asm -c "$_NA_X" -o "$_NA" >/tmp/phase1_named_align_build.log 2>&1; then
+          "$_xc" -backend asm -c "$_NA_X" -o "$_NA" >>/tmp/phase1_named_align_build.log 2>&1 || true
+        fi
+      fi
+      if [ ! -s "$_NA" ]; then
+        note "phase1 named_align thin fail → host-cc forward-to-demoted"
+        cat >"$_NA_C" <<'EOF_NA_C'
+/* phase1: public glue_type_align_simple → demoted egg. PLATFORM: SHARED. */
+typedef int int32_t;
+int32_t glue_type_align_simple__demoted(void *m, void *a, int32_t ty_ref, int32_t depth);
+int32_t glue_type_align_simple(void *m, void *a, int32_t ty_ref, int32_t depth) {
+  return glue_type_align_simple__demoted(m, a, ty_ref, depth);
+}
+EOF_NA_C
+        ${CC:-gcc} -c -O2 -o "$_NA" "$_NA_C" 2>/tmp/phase1_named_align_host.err || true
+      fi
+    else
+      note "phase1 named_align self-contained host-cc stub (no demoted in objs)"
+      cat >"$_NA_C" <<'EOF_NA_C'
+/* phase1 cold stub: no pabi demote yet; g05 tip named_align_thin replaces.
+ * PLATFORM: SHARED phase1 only. */
+typedef int int32_t;
+int32_t glue_type_align_simple(void *m, void *a, int32_t ty_ref, int32_t depth) {
+  (void)m; (void)a; (void)ty_ref; (void)depth;
+  return 1;
+}
+EOF_NA_C
+      ${CC:-gcc} -c -O2 -o "$_NA" "$_NA_C" 2>/tmp/phase1_named_align_host.err || true
+    fi
+  fi
+  if [ -s "$_NA" ] && nm -g "$_NA" 2>/dev/null | grep -qE ' T [_]?glue_type_align_simple$'; then
+    # Refuse thin that still U-refs __demoted when demoted absent.
+    if nm -g "$_NA" 2>/dev/null | grep -qE ' U [_]?glue_type_align_simple__demoted$' \
+      && [ "$_na_have_dem" != "1" ]; then
+      note "phase1 drop named_align thin (U __demoted, no provider); rebuild stub"
+      rm -f "$_NA"
+      cat >"$_NA_C" <<'EOF_NA_C'
+typedef int int32_t;
+int32_t glue_type_align_simple(void *m, void *a, int32_t ty_ref, int32_t depth) {
+  (void)m; (void)a; (void)ty_ref; (void)depth;
+  return 1;
+}
+EOF_NA_C
+      ${CC:-gcc} -c -O2 -o "$_NA" "$_NA_C" 2>/tmp/phase1_named_align_host.err || true
+    fi
+  fi
+  if [ -s "$_NA" ] && nm -g "$_NA" 2>/dev/null | grep -qE ' T [_]?glue_type_align_simple$'; then
+    case " $SEED_LINK_OBJS " in
+      *" $_NA "*|*" build_asm/selfhost_pabi/named_align.o "*) ;;
+      *)
+        SEED_LINK_OBJS="$_NA $SEED_LINK_OBJS"
+        note "phase1 prepended named_align.o (glue_type_align_simple)"
+        ;;
+    esac
+  fi
+fi
+
+# 10.22 follow: tip-cold phase1 of parser_asm_thin_glue.o UNDEFs
+# parser_asm_stretch_* (is_type_start / skip_balanced / skip_type_suffix /
+# skip_one_param) when omit-rest drops product_keep. Those T live in
+# stretch_product_keep_faces.o (official product_keep.inc live helpers).
+# Linux g05 tip-peel already prepends this; Windows seed phase1 did not,
+# so L4@1906d1c0f phase1 CC residual failed collect2. Darwin fat thin_glue
+# already has the T faces — leave Darwin alone. Prepend when thin_glue is
+# on the catalog. PLATFORM: LINUX|WINDOWS.
+_STFACES=build_asm/selfhost_pabi/stretch_product_keep_faces.o
+case " $SEED_LINK_OBJS " in
+  *" parser_asm_thin_glue.o "*|*"parser_asm_thin_glue.o "*)
+    case "$(uname -s 2>/dev/null)" in
+      Linux|Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+        if [ ! -s "$_STFACES" ] && [ -f seeds/stretch_product_keep_faces.c ]; then
+          mkdir -p build_asm/selfhost_pabi
+          ${CC:-cc} -Wall -O2 -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm             -c -o "$_STFACES" seeds/stretch_product_keep_faces.c             2>/tmp/phase1_stfaces.err || true
+        fi
+        if [ -s "$_STFACES" ]           && nm "$_STFACES" 2>/dev/null | grep -qE 'T _*parser_asm_stretch_is_type_start_kind_c$'; then
+          case " $SEED_LINK_OBJS " in
+            *" $_STFACES "*|*" stretch_product_keep_faces.o "*|*"build_asm/selfhost_pabi/stretch_product_keep_faces.o "*) ;;
+            *)
+              SEED_LINK_OBJS="$_STFACES $SEED_LINK_OBJS"
+              note "phase1 prepended stretch_product_keep_faces.o (parser_asm_stretch_* for thin_glue)"
+              ;;
+          esac
+        fi
+        ;;
+    esac
+    ;;
+esac
+
+# PLATFORM: WINDOWS — Darwin/Linux phase1 hollow defines lexer_src_*_store;
+# win_phase1_hollow_fill does not. Official bodies are
+# src/runtime/rt_lexer_src_store_win_fix.c (*out = parked), already used by
+# g05 Win driver leaves, but seed phase1 did not prepend them, so
+# lexer_x_trackl_abi.o + thin_glue left U/w lexer_src_*_store at L4@1906d1c0f.
+# Do not use pthin_stretch_win_stubs.x (those stores are no-ops).
+_LEXSRC_FIX=src/runtime/rt_lexer_src_store_win_fix.o
+_LEXSRC_SRC=src/runtime/rt_lexer_src_store_win_fix.c
+case "$(uname -s 2>/dev/null)" in
+  Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+    if [ -f "$_LEXSRC_SRC" ]; then
+      if [ ! -s "$_LEXSRC_FIX" ] || [ "$_LEXSRC_SRC" -nt "$_LEXSRC_FIX" ]; then
+        ${CC:-gcc} -std=c11 -O0 -g -I. -Iinclude -Isrc           -c -o "$_LEXSRC_FIX" "$_LEXSRC_SRC" 2>/tmp/phase1_lexsrc_fix.err || true
+      fi
+      if [ -s "$_LEXSRC_FIX" ]         && nm "$_LEXSRC_FIX" 2>/dev/null | grep -qE " T [_]?lexer_src_data_store$"; then
+        case " $SEED_LINK_OBJS " in
+          *" $_LEXSRC_FIX "*|*" rt_lexer_src_store_win_fix.o "*|*"src/runtime/rt_lexer_src_store_win_fix.o "*) ;;
+          *)
+            SEED_LINK_OBJS="$_LEXSRC_FIX $SEED_LINK_OBJS"
+            note "phase1 prepended rt_lexer_src_store_win_fix.o (lexer_src_*_store for thin_glue/lexer abi)"
+            ;;
+        esac
+      fi
+    fi
+    ;;
+esac
+
+# 10.67 FixC-follow: Cap tip Darwin phase1 pure-ld misses
+# glue_emit_assign_rhs_to_rax_elf_c / var_finish / var_store / var_try_let_elf_c
+# referenced from pipeline_struct_lit_store_match_bind_field in hybrid pabi.
+# Product Cap tip G05_OBJS already carries these av_assign_*.o; seed phase1
+# catalog does not. Prepend the Cap tip assign cluster (pure-asm thins; no
+# new host-cc) when pabi still has those U refs — mirror addr_of_call.o.
+# PLATFORM: SHARED — needed wherever hybrid pabi emits the U (Darwin tip-cold).
+_PABI_O=src/runtime_pipeline_abi.o
+_NEED_ASSIGN_CLUSTER=0
+if [ -f "$_PABI_O" ]; then
+  if nm -u "$_PABI_O" 2>/dev/null | grep -qE '[_]?glue_emit_assign_(rhs_to_rax|var_finish|var_store|var_try_let)_elf_c$'; then
+    _NEED_ASSIGN_CLUSTER=1
+  fi
+fi
+if [ "$_NEED_ASSIGN_CLUSTER" = "1" ]; then
+  mkdir -p build_asm/selfhost_pabi
+  _CAP="${XLANG_CAP_TIP_L4_CACHE:-}"
+  if [ -z "$_CAP" ] || [ ! -d "$_CAP/pabi" ]; then
+    for _c in /tmp/cap_tip_l4_safe_local /tmp/cap_tip_l4_safe_406200eef /tmp/cap_tip_l4_safe_* "$HOME/.cache/xlang_cap_tip_l4" .cap_tip_l4_cache; do
+      if [ -d "$_c/pabi" ]; then _CAP="$_c"; break; fi
+    done
+  fi
+  # tip cold: Cap cache may be absent — assemble missing av_assign_*.o from
+  # thin .x via tip aside (pure-asm; no Soft Cap Prefer / no host-cc).
+  # PLATFORM: SHARED (Darwin tip-cold phase1 U refs).
+  _ASIDE_XL=""
+  if [ -n "${XLANG_L4_TIP_ASIDE:-}" ] && [ -x "${XLANG_L4_TIP_ASIDE}/xlang" ]; then
+    _ASIDE_XL="${XLANG_L4_TIP_ASIDE}/xlang"
+  elif [ -x /tmp/xlang_l4_tip_aside_ba6c900ec/xlang ]; then
+    _ASIDE_XL=/tmp/xlang_l4_tip_aside_ba6c900ec/xlang
+  fi
+  # tip_l4_mac_aside_user_env_seed: seed ensure companions into tip-aside
+  # before any tip-aside -c / link. PLATFORM: SHARED.
+  if [ -n "$_ASIDE_XL" ]; then
+    bash "$(dirname "$0")/seed_tip_aside_ensure_companions.sh" "$(dirname "$_ASIDE_XL")" 2>/dev/null || true
+  fi
+  _THIN_MAP="\
+    av_assign_var_try_let.o:src/runtime_pipeline_abi_assign_var_try_let_thin.x \
+    av_assign_var_finish.o:src/runtime_pipeline_abi_assign_var_finish_thin.x \
+    av_assign_var_store.o:src/runtime_pipeline_abi_assign_var_store_thin.x \
+    av_assign_var_store_pair.o:src/runtime_pipeline_abi_assign_var_store_pair_thin.x \
+    av_assign_var_store_f32.o:src/runtime_pipeline_abi_assign_var_store_f32_thin.x \
+    av_assign_var_store_slice.o:src/runtime_pipeline_abi_assign_var_store_slice_thin.x \
+    av_assign_rhsrax_to_rax.o:src/runtime_pipeline_abi_assign_rhsrax_to_rax_thin.x \
+    av_assign_rhsrax_arms_simple.o:src/runtime_pipeline_abi_assign_rhsrax_arms_simple_thin.x \
+    av_assign_rhsrax_arms_div.o:src/runtime_pipeline_abi_assign_rhsrax_arms_div_thin.x \
+    av_assign_rhsrax_arms_div_float.o:src/runtime_pipeline_abi_assign_rhsrax_arms_div_float_thin.x \
+    av_assign_rhsrax_arms_shl.o:src/runtime_pipeline_abi_assign_rhsrax_arms_shl_thin.x \
+    av_assign_rhsrax_arms_shr.o:src/runtime_pipeline_abi_assign_rhsrax_arms_shr_thin.x"
+  if [ -n "$_ASIDE_XL" ]; then
+    for _pair in $_THIN_MAP; do
+      _bn="${_pair%%:*}"
+      _src="${_pair#*:}"
+      _o="build_asm/selfhost_pabi/$_bn"
+      if [ ! -s "$_o" ] && [ -f "$_src" ]; then
+        if "$_ASIDE_XL" -backend asm -c -o "$_o" "$_src" 2>/dev/null; then
+          note "phase1 tip-aside assembled $_bn from thin"
+          if [ -n "$_CAP" ] && [ -d "$_CAP/pabi" ]; then
+            cp -f "$_o" "$_CAP/pabi/$_bn" 2>/dev/null || true
+          fi
+        fi
+      fi
+    done
+  fi
+  _ASSIGN_CLUSTER="\
+    av_assign_var_try_let.o \
+    av_assign_var_finish.o \
+    av_assign_var_store.o \
+    av_assign_var_store_pair.o \
+    av_assign_var_store_f32.o \
+    av_assign_var_store_slice.o \
+    av_assign_rhsrax_to_rax.o \
+    av_assign_rhsrax_arms_simple.o \
+    av_assign_rhsrax_arms_div.o \
+    av_assign_rhsrax_arms_div_float.o \
+    av_assign_rhsrax_arms_shl.o \
+    av_assign_rhsrax_arms_shr.o"
+  _pre_n=0
+  for _bn in $_ASSIGN_CLUSTER; do
+    _o="build_asm/selfhost_pabi/$_bn"
+    if [ ! -s "$_o" ] && [ -n "$_CAP" ] && [ -s "$_CAP/pabi/$_bn" ]; then
+      cp -f "$_CAP/pabi/$_bn" "$_o" 2>/dev/null || true
+      note "phase1 restored $_bn from Cap tip cache"
+    fi
+    if [ -s "$_o" ]; then
+      case " $SEED_LINK_OBJS " in
+        *" $_o "*|*" build_asm/selfhost_pabi/$_bn "*) ;;
+        *)
+          SEED_LINK_OBJS="$_o $SEED_LINK_OBJS"
+          _pre_n=$((_pre_n + 1))
+          ;;
+      esac
+    fi
+  done
+  if [ "$_pre_n" -gt 0 ]; then
+    note "phase1 prepended $_pre_n Cap tip av_assign_*.o (struct_lit_store assign U)"
+  else
+    note "phase1 assign-cluster: needed but 0 objs prepended (missing thins?)"
+  fi
+fi
+
+# knife256 / 10.2: Darwin cold prefer may leave runtime_pipeline_abi.o as a
+# libtool archive (thin+rest). Apple ld -force_load then hits internal strong
+# dups. Flatten to one MH_OBJECT (rest weakened where thin already defines).
+# Also weaken tip copies of hollow-owned strong symbols (multiply_defined
+# obsolete). Re-apply mega e_machine off 0x10a→0x299 when needed.
+# PLATFORM: MACOS phase1/final.
+if [ "$(uname -s)" = "Darwin" ]; then
+  _pabi=src/runtime_pipeline_abi.o
+  _oc=""
+  for _c in /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
+    if [ -x "$_c" ]; then _oc=$_c; break; fi
+  done
+  if [ -z "$_oc" ] && command -v llvm-objcopy >/dev/null 2>&1; then
+    _oc=$(command -v llvm-objcopy)
+  fi
+  if [ -z "$_oc" ]; then
+    note "llvm-objcopy missing; hollow/tip strong dups may fail phase1 pure-ld"
+  fi
+  if [ -f "$_pabi" ] && [ -n "$_oc" ]; then
+    if dd if="$_pabi" bs=8 count=1 2>/dev/null | grep -q '^!<arch>'; then
+      _flat_dir=$(mktemp -d "${TMPDIR:-/tmp}/pabi_flat.XXXXXX")
+      if (
+        cd "$_flat_dir" || exit 1
+        ar -x "$(pwd -P 2>/dev/null || pwd)/../$_pabi" 2>/dev/null || ar -x "$OLDPWD/$_pabi" || exit 1
+        _thin=$(ls pabi_thin.* 2>/dev/null | head -1)
+        _rest=$(ls pabi_rest.* 2>/dev/null | head -1)
+        if [ -n "$_thin" ] && [ -n "$_rest" ]; then
+          while read -r _sym; do
+            "$_oc" --weaken-symbol="$_sym" "$_rest" 2>/dev/null || true
+          done < <(nm -gU "$_thin" 2>/dev/null | awk '/ T /{print $NF}')
+          ld -r -o pabi_flat.o "$_thin" "$_rest" || exit 1
+          cp -f pabi_flat.o "$OLDPWD/$_pabi"
+          echo "bootstrap_driver_seed_link: flattened libtool $_pabi → MH_OBJECT" >&2
+        fi
+      ); then
+        :
+      else
+        note "pabi flatten skipped/failed (keep archive)"
+      fi
+      rm -rf "$_flat_dir"
+    fi
+    # Always attempt weaken (no nm guard — archive nm layout varies).
+    for _hs in \
+      _parser_asm_copy_slice_to_name64_buf_c \
+      _platform_macho_write_macho_o_to_buf \
+      _pipeline_elf_ctx_add_label \
+      _pipeline_elf_ctx_add_sym \
+      _pipeline_asm_emit_return_elf_impl \
+      _backend_emit_block_body_sync_elf \
+      _pipeline_asm_emit_block_body_sync_elf \
+      _pipeline_asm_emit_expr_elf_fast
+    do
+      for _to in src/runtime_pipeline_abi.o parser_asm_thin_glue.o; do
+        if [ -f "$_to" ]; then
+          if "$_oc" --weaken-symbol="$_hs" "$_to" 2>/dev/null; then
+            note "weakened $_hs in $_to"
+          fi
+        fi
+      done
+    done
+    if [ -f scripts/pabi_patch_emachine_off_10a_to_299.py ]; then
+      python3 scripts/pabi_patch_emachine_off_10a_to_299.py "$_pabi" 2>/dev/null || true
+    fi
+  fi
+fi
+
+
+# knife256/10.2 note743c: remap egg shorts → contract longs immediately
+# before pure-ld (ensure may have run earlier; tip-cold needs last chance).
+# PLATFORM: SHARED. No FORCE_CC.
+if [ -f src/runtime_pipeline_abi.o ]; then
+  _oc743=""
+  for _c in /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
+    if [ -x "$_c" ]; then _oc743=$_c; break; fi
+  done
+  if [ -z "$_oc743" ] && command -v llvm-objcopy >/dev/null 2>&1; then _oc743=$(command -v llvm-objcopy); fi
+  if [ -z "$_oc743" ] && command -v objcopy >/dev/null 2>&1; then _oc743=$(command -v objcopy); fi
+  if [ -z "$_oc743" ] && command -v x86_64-linux-gnu-objcopy >/dev/null 2>&1; then _oc743=$(command -v x86_64-linux-gnu-objcopy); fi
+  if [ -n "$_oc743" ]; then
+    _did743=0
+    for _pair in \
+      "lane_operand_emit_let_block_chain=pipeline_lane_operand_emit_let_block_chain" \
+      "lane_shr_is_arith=pipeline_lane_shr_is_arith" \
+      "vlet_f32_fill_lane=vector_let_init_array_lit_a64_vlet_f32_fill_lane" \
+      "vlet_wide_elem=pabi_vector_let_init_nested_one_vlet_wide_elem"
+    do
+      _s="${_pair%%=*}"; _l="${_pair#*=}"
+      nm src/runtime_pipeline_abi.o 2>/dev/null | grep -Eq " [Tt] _?${_s}$" || continue
+      nm src/runtime_pipeline_abi.o 2>/dev/null | grep -Eq " [Tt] _?${_l}$" && continue
+      if "$_oc743" --redefine-sym "${_s}=${_l}" src/runtime_pipeline_abi.o 2>/dev/null \
+        || "$_oc743" --redefine-sym "_${_s}=_${_l}" src/runtime_pipeline_abi.o 2>/dev/null; then
+        note "note743c pre-ld alias ${_s} → ${_l}"
+        _did743=1
+      fi
+    done
+    if [ "$_did743" = "1" ]; then
+      _rtmp=$(mktemp "${TMPDIR:-/tmp}/pabi_note743_preld.XXXXXX.o")
+      if ld -r -o "$_rtmp" src/runtime_pipeline_abi.o 2>/dev/null && [ -s "$_rtmp" ]; then
+        mv -f "$_rtmp" src/runtime_pipeline_abi.o
+        note "note743c pre-ld ld -r bind"
+      else
+        rm -f "$_rtmp"
+      fi
+    else
+      note "note743c pre-ld: no aliases needed/applied"
+    fi
+  else
+    note "note743c pre-ld: no objcopy"
+  fi
+fi
+
 if [ -z "$SEED_LINK_CC" ] && [ -z "$SEED_LINK_LD" ]; then
   fail "incomplete export (CC/LD) from $export_target"
 fi
+
+# knife256 / 10.2: phase1/final must not pure-ld a missing frontend .o.
+# Track L migrate can race with a later wipe/refresh; re-seed parser/typeck/codegen
+# when listed in SEED_LINK_OBJS but absent on disk. PLATFORM: SHARED Darwin tip-cold.
+for _fe in parser_x.o typeck_x.o codegen_x.o; do
+  case " $SEED_LINK_OBJS " in
+    *" $_fe "*)
+      if [ ! -f "$_fe" ]; then
+        note "missing $_fe before $MODE link; migrate Track L re-seed"
+        if [ "${XLANG_MIGRATE_TRACK_L_COLD_SEED:-0}" != "1" ]; then
+          export XLANG_MIGRATE_TRACK_L_COLD_SEED=1
+        fi
+        if ! bash scripts/migrate_x_objs.sh "$_fe" >&2; then
+          fail "cannot restore missing $_fe via migrate_x_objs.sh"
+        fi
+        [ -f "$_fe" ] || fail "$_fe still missing after migrate"
+      fi
+      ;;
+  esac
+done
+
+# knife256 / 10.2 P001: Track L parser_x.o calls struct-returning
+# lexer_init(); tip pure-asm lexer_x.o exports lexer_init(out:*Lexer):void.
+# parse_into_buf uses lexer_next_buf_into (out-ptr; ABI-compatible with tip).
+# Fix: demote tip _lexer_init to local; prepend strong return-by-value asm
+# shim. Keep tip lexer for next_* so parser_asm bridges stay tip-ABI.
+# note743y.6.22: re-enable Darwin shim (twin Linux). P001 needs ret-by-value.
+# PLATFORM: SHARED phase1/final (Darwin+Linux).
+if [ -f parser_x.o ] && [ -f lexer_x.o ]; then
+  _psz=$(wc -c <parser_x.o | tr -d ' ')
+  if [ "$_psz" -lt 400000 ]; then
+    _shim_dir=build_asm/seed_host
+    mkdir -p "$_shim_dir"
+    _shim="$_shim_dir/lexer_init_ret_by_value_shim.o"
+    _lex_f="$_shim_dir/lexer_x_trackl_abi.o"
+    _arch=$(uname -m)
+    case "$_arch" in
+      arm64|aarch64) _shim_s=src/asm/lexer_init_ret_by_value_shim_arm64.s ;;
+      x86_64|amd64) _shim_s=src/asm/lexer_init_ret_by_value_shim_x86_64.s ;;
+      *) fail "P001 ABI shim: unsupported arch $_arch" ;;
+    esac
+    [ -f "$_shim_s" ] || fail "missing $_shim_s"
+    if [ ! -f "$_shim" ] || [ "$_shim_s" -nt "$_shim" ]; then
+      as -o "$_shim" "$_shim_s" || fail "as failed for $_shim_s"
+    fi
+    if [ ! -f "$_lex_f" ] || [ lexer_x.o -nt "$_lex_f" ]; then
+      _exp="$_shim_dir/lexer_x_trackl_exports.txt"
+      # Also drop token_is_eof — restored-built lexer_x.o exports it and
+      # conflicts with Track L parser_x.o (ld duplicate). Parser owns EOF.
+      nm -gU lexer_x.o | awk '/ [Tt] /{print $3}' \
+        | grep -v '^_lexer_init$' | grep -v '^lexer_init$' \
+        | grep -v '^_token_is_eof$' | grep -v '^token_is_eof$' >"$_exp"
+      # Darwin: -exported_symbols_list. GNU ld.bfd: --retain-symbols-file
+      # (unknown Darwin flag is treated as a linker script → syntax error).
+      # PLATFORM: SHARED.
+      case "$(uname -s)" in
+        Darwin)
+          ld -r -o "$_lex_f" -exported_symbols_list "$_exp" lexer_x.o             || fail "ld -r filter lexer_init failed"
+          ;;
+        *)
+          ld -r -o "$_lex_f" --retain-symbols-file="$_exp" lexer_x.o             || fail "ld -r filter lexer_init failed"
+          ;;
+      esac
+    fi
+    _new_objs=""
+    for _o in $SEED_LINK_OBJS; do
+      if [ "$_o" = "lexer_x.o" ]; then
+        _new_objs="$_new_objs $_lex_f"
+      else
+        _new_objs="$_new_objs $_o"
+      fi
+    done
+    SEED_LINK_OBJS="$_shim $_new_objs"
+    note "P001 ABI: return-by-value lexer_init shim + filtered tip lexer (Track L parser sz=$_psz)"
+  fi
+fi
+
+# Win tip-cold: dual-ABI trampoline for lexer_next_buf_into.
+# Callers pass *Lexer; tip body is by-val as lexer_next_buf_into_tip. G05
+# injects via _PABI_WIN_DRIVER_LEAVES; phase1 seed link must too — else cold
+# L4 undefined reference when tip was demoted in-place or Track L filtered.
+# PLATFORM: WINDOWS.
+case "$(uname -s 2>/dev/null)" in
+  Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+    _lexnbi_src=src/runtime/rt_lexer_next_buf_into_win_fix.s
+    _lexnbi_fix=src/runtime/rt_lexer_next_buf_into_win_fix.o
+    if [ -f "$_lexnbi_src" ]; then
+      if [ ! -s "$_lexnbi_fix" ] || [ "$_lexnbi_src" -nt "$_lexnbi_fix" ]; then
+        ${SEED_LINK_CC:-${CC:-gcc}} -c -o "$_lexnbi_fix" "$_lexnbi_src" \
+          || fail "Win lexnbi trampoline assemble failed"
+      fi
+      if [ -s "$_lexnbi_fix" ] && nm "$_lexnbi_fix" 2>/dev/null | grep -qE " T [_]?lexer_next_buf_into$"; then
+        _lexnbi_oc=""
+        if command -v objcopy >/dev/null 2>&1; then _lexnbi_oc=objcopy
+        elif command -v llvm-objcopy >/dev/null 2>&1; then _lexnbi_oc=llvm-objcopy
+        fi
+        for _lexnbi_demote in build_asm/seed_host/lexer_x_trackl_abi.o lexer_x.o; do
+          case " $SEED_LINK_OBJS " in
+            *" $_lexnbi_demote "*)
+              if [ -n "$_lexnbi_oc" ] && [ -s "$_lexnbi_demote" ] \
+                && nm "$_lexnbi_demote" 2>/dev/null | grep -qE " T [_]?lexer_next_buf_into$"; then
+                "$_lexnbi_oc" --redefine-sym=lexer_next_buf_into=lexer_next_buf_into_tip \
+                  "$_lexnbi_demote" 2>/dev/null \
+                  || "$_lexnbi_oc" --redefine-sym=_lexer_next_buf_into=_lexer_next_buf_into_tip \
+                       "$_lexnbi_demote" 2>/dev/null || true
+                note "Win lexnbi: demote lexer_next_buf_into→_tip in $_lexnbi_demote"
+              fi
+              ;;
+          esac
+        done
+        SEED_LINK_OBJS="$_lexnbi_fix $SEED_LINK_OBJS"
+        note "Win lexnbi: dual-ABI trampoline prepended for phase1/final"
+      fi
+    fi
+    ;;
+esac
+
+
+# knife256 / 10.2: gate Track L typeck against silent shrink (~135KB missing
+# typeck_x_ast_check_one_func). Healthy archaeology pin is ~365KB.
+# PLATFORM: SHARED phase1/final.
+case " $SEED_LINK_OBJS " in
+  *" typeck_x.o "*)
+    if [ -f typeck_x.o ]; then
+      _tsz=$(wc -c <typeck_x.o | tr -d ' ')
+      if [ "$_tsz" -lt 300000 ]; then
+        note "typeck_x.o too small ($_tsz); Track L re-seed"
+        export XLANG_MIGRATE_TRACK_L_COLD_SEED=1
+        bash scripts/migrate_x_objs.sh typeck_x.o >&2 || fail "typeck shrink re-seed failed"
+        _tsz=$(wc -c <typeck_x.o | tr -d ' ')
+        [ "$_tsz" -ge 300000 ] || fail "typeck_x.o still too small after re-seed ($_tsz)"
+      fi
+      if ! nm -gU typeck_x.o 2>/dev/null | grep -E 'T _?typeck_x_ast_check_one_func$' >/dev/null; then
+        note "typeck_x.o missing typeck_x_ast_check_one_func; Track L re-seed"
+        export XLANG_MIGRATE_TRACK_L_COLD_SEED=1
+        bash scripts/migrate_x_objs.sh typeck_x.o >&2 || fail "typeck symbol re-seed failed"
+        nm -gU typeck_x.o 2>/dev/null | grep -E 'T _?typeck_x_ast_check_one_func$' >/dev/null           || fail "typeck_x.o still missing typeck_x_ast_check_one_func"
+      fi
+    fi
+    ;;
+esac
 
 n_objs=$(printf '%s\n' "$SEED_LINK_OBJS" | wc -w | tr -d ' ')
 
@@ -165,6 +722,44 @@ run_cc_residual() {
 # ---------------------------------------------------------------------------
 run_pure_ld_required() {
   note "${MODE} pure-ld → $SEED_LINK_OUT  ($n_objs objs via pure_ld_shared)"
+  # knife256/10.2 note743d: last-chance short→long remap immediately before ld.
+  if [ -f src/runtime_pipeline_abi.o ]; then
+    _oc743=""
+    for _c in /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
+      if [ -x "$_c" ]; then _oc743=$_c; break; fi
+    done
+    if [ -z "$_oc743" ] && command -v llvm-objcopy >/dev/null 2>&1; then _oc743=$(command -v llvm-objcopy); fi
+    if [ -z "$_oc743" ] && command -v objcopy >/dev/null 2>&1; then _oc743=$(command -v objcopy); fi
+    if [ -z "$_oc743" ] && command -v x86_64-linux-gnu-objcopy >/dev/null 2>&1; then _oc743=$(command -v x86_64-linux-gnu-objcopy); fi
+    if [ -n "$_oc743" ]; then
+      note "note743d pre-ld nm: $(nm src/runtime_pipeline_abi.o 2>/dev/null | grep -E 'lane_operand_emit_let_block_chain|lane_shr_is_arith|vlet_f32_fill_lane|vlet_wide_elem|pipeline_lane_operand_emit_let_block_chain|pipeline_lane_shr_is_arith|vector_let_init_array_lit_a64_vlet_f32_fill_lane|pabi_vector_let_init_nested_one_vlet_wide_elem' | tr '\n' ';')"
+      _did743=0
+      for _pair in \
+        "lane_operand_emit_let_block_chain=pipeline_lane_operand_emit_let_block_chain" \
+        "lane_shr_is_arith=pipeline_lane_shr_is_arith" \
+        "vlet_f32_fill_lane=vector_let_init_array_lit_a64_vlet_f32_fill_lane" \
+        "vlet_wide_elem=pabi_vector_let_init_nested_one_vlet_wide_elem"
+      do
+        _s="${_pair%%=*}"; _l="${_pair#*=}"
+        nm src/runtime_pipeline_abi.o 2>/dev/null | grep -Eq " [Tt] _?${_s}$" || continue
+        nm src/runtime_pipeline_abi.o 2>/dev/null | grep -Eq " [Tt] _?${_l}$" && continue
+        if "$_oc743" --redefine-sym "${_s}=${_l}" src/runtime_pipeline_abi.o 2>/dev/null \
+          || "$_oc743" --redefine-sym "_${_s}=_${_l}" src/runtime_pipeline_abi.o 2>/dev/null; then
+          note "note743d last-chance alias ${_s} → ${_l}"
+          _did743=1
+        fi
+      done
+      if [ "$_did743" = "1" ]; then
+        _rtmp=$(mktemp "${TMPDIR:-/tmp}/pabi_note743_last.XXXXXX.o")
+        if ld -r -o "$_rtmp" src/runtime_pipeline_abi.o 2>/dev/null && [ -s "$_rtmp" ]; then
+          mv -f "$_rtmp" src/runtime_pipeline_abi.o
+          note "note743d last-chance ld -r bind"
+        else
+          rm -f "$_rtmp"
+        fi
+      fi
+    fi
+  fi
   if pure_ld_try_link "$SEED_LINK_OUT" "$SEED_LINK_OBJS" \
       "${SEED_LINK_ENTRY:-}" "${SEED_LINK_LD_TAIL:-}" "" "${SEED_LINK_LD:-}"; then
     note "OK pure-ld $SEED_LINK_OUT"

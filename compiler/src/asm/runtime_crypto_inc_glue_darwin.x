@@ -483,6 +483,29 @@ function crypto_sha256_rounds(h: *u32, w: *u32): void {
  * @param block *u8 — 64 bytes
  * PLATFORM: MACOS|DARWIN
  */
+/**
+ * Run load16/expand/rounds on an already-allocated schedule buffer.
+ * wraw is a parameter so tip body_sync cannot hoist `let w = raw as *u32`
+ * from a null let-init past malloc (crypto_w_store dest null).
+ * @param wraw *u8 — 256-byte schedule, not null
+ * @param H *u32 — 8-word state
+ * @param block *u8 — 64 bytes
+ * PLATFORM: MACOS|DARWIN
+ */
+function crypto_sha256_block_with_sched(wraw: *u8, H: *u32, block: *u8): void {
+  let w: *u32 = wraw as *u32;
+  crypto_sha256_load16(w, block);
+  crypto_sha256_expand(w);
+  crypto_sha256_rounds(H, w);
+}
+
+/**
+ * Compress one 64-byte block into H.
+ * The schedule is a 256-byte heap buffer.
+ * @param H *u32 — 8-word state
+ * @param block *u8 — 64 bytes
+ * PLATFORM: MACOS|DARWIN
+ */
 #[no_mangle]
 export function xlang_sha256_block_impl(H: *u32, block: *u8): void {
   let raw: *u8 = 0;
@@ -492,10 +515,9 @@ export function xlang_sha256_block_impl(H: *u32, block: *u8): void {
   if (raw == 0) {
     return;
   }
-  let w: *u32 = raw as *u32;
-  crypto_sha256_load16(w, block);
-  crypto_sha256_expand(w);
-  crypto_sha256_rounds(H, w);
+  // No `let w = raw as *u32` here — tip hoists that cast to the prologue
+  // with raw=0 (crypto_w_store dest null).
+  crypto_sha256_block_with_sched(raw, H, block);
   unsafe {
     free(raw);
   }
@@ -643,6 +665,40 @@ function crypto_sha256_finish(h: *u32, block: *u8, msg: *u8, len: i32, rem: i32)
  * @param out *u8 — 32-byte digest
  * PLATFORM: MACOS|DARWIN
  */
+/**
+ * IV + absorb + finish + out on already-allocated state/scratch.
+ * raw/block are parameters so tip body_sync cannot hoist
+ * `let h = raw as *u32` / `let rem = full(...)` from null let-inits
+ * past malloc (crypto_w_store dest null / SEGV in run-crypto).
+ * @param raw *u8 — 32-byte state buffer, not null
+ * @param block *u8 — 64-byte scratch, not null
+ * @param msg *u8 — message
+ * @param len i32 — byte count
+ * @param out *u8 — 32-byte digest
+ * PLATFORM: MACOS|DARWIN
+ */
+function crypto_sha256_after_alloc(raw: *u8, block: *u8, msg: *u8, len: i32, out: *u8): void {
+  let h: *u32 = raw as *u32;
+  crypto_sha256_iv(h);
+  let rem: i32 = crypto_sha256_full(h, msg, len);
+  if (rem < 0) {
+    unsafe {
+      memset(out, 0, 32);
+    }
+    return;
+  }
+  crypto_sha256_finish(h, block, msg, len, rem);
+  crypto_sha256_out(h, out);
+}
+
+/**
+ * SHA-256. A null out or a negative length writes 32 zero bytes when
+ * out is present, then returns. The empty message is a valid digest.
+ * @param msg *u8 — message, may be null when len is 0
+ * @param len i32 — byte count
+ * @param out *u8 — 32-byte digest
+ * PLATFORM: MACOS|DARWIN
+ */
 #[no_mangle]
 export function crypto_sha256_c(msg: *u8, len: i32, out: *u8): void {
   if (out == 0 || len < 0) {
@@ -667,19 +723,9 @@ export function crypto_sha256_c(msg: *u8, len: i32, out: *u8): void {
     unsafe { memset(out, 0, 32); }
     return;
   }
-  let h: *u32 = raw as *u32;
-  crypto_sha256_iv(h);
-  let rem: i32 = crypto_sha256_full(h, msg, len);
-  if (rem < 0) {
-    unsafe {
-      free(raw);
-      free(block);
-      memset(out, 0, 32);
-    }
-    return;
-  }
-  crypto_sha256_finish(h, block, msg, len, rem);
-  crypto_sha256_out(h, out);
+  // No `let h = raw as *u32` / `let rem = full(...)` here — tip body_sync
+  // hoists those lets to the prologue with raw=0 (crypto_w_store dest null).
+  crypto_sha256_after_alloc(raw, block, msg, len, out);
   unsafe {
     free(raw);
     free(block);

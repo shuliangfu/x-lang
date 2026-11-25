@@ -90,7 +90,7 @@ extern int32_t pipeline_ctx_append_lib_root(struct ast_PipelineDepCtx *ctx, uint
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 #ifndef XLANG_L2_LSP_CTX_THIN_FROM_X
-void lsp_diag_pipeline_ctx_fill_paths(void *ctx_void, const char *entry_dir, const char **lib_roots, int n_lib_roots)
+/* 记253／9.1: cold under #ifndef XLANG_L2_LSP_CTX_THIN_FROM_X removed */
 #else
 void lsp_diag_pipeline_ctx_fill_paths_impl(void *ctx_void, const char *entry_dir, const char **lib_roots, int n_lib_roots)
 #endif
@@ -149,7 +149,6 @@ typedef struct LspMainThreadArgs {
 /* G-02f-98：LSP IO policy / debug env gates. */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_CTX_THIN_FROM_X
-void lsp_debug_report_sqpoll_env(void)
 #else
 void lsp_debug_report_sqpoll_env_impl(void)
 #endif
@@ -168,7 +167,6 @@ void lsp_debug_report_sqpoll_env_impl(void)
 
 
 #ifndef XLANG_L2_LSP_CTX_THIN_FROM_X
-void lsp_apply_default_io_policy(void)
 #else
 void lsp_apply_default_io_policy_impl(void)
 #endif
@@ -190,7 +188,6 @@ static void *lsp_main_large_stack_thread_fn(void *arg) {
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 #ifndef XLANG_L2_LSP_CTX_THIN_FROM_X
-int32_t typeck_lsp_main(void)
 #else
 /* thin typeck_lsp_main → typeck_lsp_main_impl（本函数为大栈编排） */
 int32_t typeck_lsp_main_impl(void)
@@ -199,8 +196,6 @@ int32_t typeck_lsp_main_impl(void)
     LspMainThreadArgs args;
     args.result = -1;
 #ifndef XLANG_L2_LSP_CTX_THIN_FROM_X
-    lsp_apply_default_io_policy();
-    lsp_debug_report_sqpoll_env();
 #else
     lsp_apply_default_io_policy_impl();
     lsp_debug_report_sqpoll_env_impl();
@@ -218,7 +213,6 @@ uint8_t *lsp_state_buf_ptr(void) {
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 #ifndef XLANG_L2_LSP_CTX_THIN_FROM_X
-int32_t lsp_write_all(int32_t fd, const uint8_t *buf, int32_t len)
 #else
 int32_t lsp_write_all_impl(int32_t fd, const uint8_t *buf, int32_t len)
 #endif

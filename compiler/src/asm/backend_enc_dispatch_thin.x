@@ -1350,7 +1350,7 @@ export function backend_enc_cmp_setcc_movzbl_arch(elf_ctx: *u8, cc: i32, ta: i32
   /* setcc/cset writes w0/eax — drop stale VAR-in-rax (w2060: lko==void||rko==void
    * reused ord_void in x0 after cset left 0 → false T001 on i32+i32). Twin of
    * backend_enc_call_arch invalidate. PLATFORM: SHARED. */
-  let rc: i32 = 0 - 1;
+  let rc: i32 = (0 - 1);
   unsafe {
     if (ta == 1) {
       rc = arch_arm64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc);
@@ -1383,15 +1383,22 @@ export function backend_enc_store_rax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta:
   return 0 - 1;
 }
 
-/** Exported function `backend_enc_load_rbp_to_rax_arch`.
- * Implements `backend_enc_load_rbp_to_rax_arch`.
- * @param elf_ctx *u8
- * @param offset i32
- * @param ta i32
- * @return i32
+/**
+ * Load the frame slot at offset into rax (x0).
+ *
+ * Drops the binop VAR-slot rax belief first. The load overwrites rax,
+ * and a later operand must not skip its reload. Callers that want the
+ * new belief call glue_binop_var_slot_cache_set_rax after this returns.
+ * PLATFORM: SHARED — cache is compiler state. Twin of the full dispatch.
+ *
+ * @param elf_ctx *u8 — code buffer
+ * @param offset i32 — frame slot offset
+ * @param ta i32 — 0 x86_64, 1 arm64, 2 riscv64
+ * @return i32 — 0 when the load is emitted, -1 on encode failure
  */
 #[no_mangle]
 export function backend_enc_load_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
+  unsafe { glue_binop_var_slot_cache_invalidate_rax(); }
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_load_rbp_to_rax(elf_ctx, offset); }
   }
@@ -2813,15 +2820,24 @@ export function backend_enc_sub_imm_from_rbx_index_arch(elf_ctx: *u8, imm: i32, 
   return 0 - 1;
 }
 
-/** Exported function `backend_enc_load_rbp_to_rbx_arch`.
- * Implements `backend_enc_load_rbp_to_rbx_arch`.
- * @param elf_ctx *u8
- * @param offset i32
- * @param ta i32
- * @return i32
+/**
+ * Load the frame slot at offset into rbx (x1).
+ *
+ * Drops the binop VAR-slot rbx belief first. The load overwrites rbx.
+ * A restoring add that still believed rbx held the previous right-hand
+ * slot skipped its reload and added the wrong value. Callers that want
+ * the new belief call glue_binop_var_slot_cache_set_rbx after this
+ * returns. PLATFORM: SHARED — cache is compiler state. Twin of the full
+ * dispatch.
+ *
+ * @param elf_ctx *u8 — code buffer
+ * @param offset i32 — frame slot offset
+ * @param ta i32 — 0 x86_64, 1 arm64, 2 riscv64
+ * @return i32 — 0 when the load is emitted, -1 on encode failure
  */
 #[no_mangle]
 export function backend_enc_load_rbp_to_rbx_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
+  unsafe { glue_binop_var_slot_cache_invalidate_rbx(); }
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_load_rbp_to_rbx(elf_ctx, offset); }
   }
@@ -3714,7 +3730,7 @@ export function backend_enc_store_eax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta:
       return 0 - 1;
     }
     // Two's-complement LE bytes of disp=-offset. Unsigned div keeps 0xFF..20.
-    let disp: i32 = 0 - offset;
+    let disp: i32 = (0 - offset);
     let u: u32 = disp as u32;
     if (backend_enc_append_u8_c_impl(elf_ctx, 137) != 0) {
       return 0 - 1;
@@ -8631,7 +8647,7 @@ export function arch_x86_64_enc_enc_mov_rdx_to_arg_reg(elf_ctx: *u8, k: i32): i3
 #[no_mangle]
 export function arch_x86_64_enc_enc_store_rax_to_rbp(elf_ctx: *u8, offset: i32): i32 {
   // disp is 0 minus offset. -128..-1 uses the short displacement.
-  let disp: i32 = 0 - offset;
+  let disp: i32 = (0 - offset);
   let u: u32 = disp as u32;
   if (disp >= (0 - 128)) {
     if (disp <= (0 - 1)) {
@@ -8690,7 +8706,7 @@ export function arch_x86_64_enc_enc_store_r64_to_rbp(elf_ctx: *u8, reg: i32, off
   if (reg > 15) {
     return 0 - 1;
   }
-  let disp: i32 = 0 - offset;
+  let disp: i32 = (0 - offset);
   let u: u32 = disp as u32;
   if (reg >= 8) {
   if (backend_enc_append_u8_c(elf_ctx, 76) != 0) {
@@ -8741,7 +8757,7 @@ export function arch_x86_64_enc_enc_store_r64_to_rbp(elf_ctx: *u8, reg: i32, off
 #[no_mangle]
 export function arch_x86_64_enc_enc_load_rbp_to_rax(elf_ctx: *u8, offset: i32): i32 {
   // disp is 0 minus offset. -128..-1 uses the short displacement.
-  let disp: i32 = 0 - offset;
+  let disp: i32 = (0 - offset);
   let u: u32 = disp as u32;
   if (disp >= (0 - 128)) {
     if (disp <= (0 - 1)) {
@@ -8791,7 +8807,7 @@ export function arch_x86_64_enc_enc_load_rbp_to_rax(elf_ctx: *u8, offset: i32): 
 #[no_mangle]
 export function arch_x86_64_enc_enc_load_rbp_to_rbx(elf_ctx: *u8, offset: i32): i32 {
   // disp is 0 minus offset. -128..-1 uses the short displacement.
-  let disp: i32 = 0 - offset;
+  let disp: i32 = (0 - offset);
   let u: u32 = disp as u32;
   if (disp >= (0 - 128)) {
     if (disp <= (0 - 1)) {
@@ -8841,7 +8857,7 @@ export function arch_x86_64_enc_enc_load_rbp_to_rbx(elf_ctx: *u8, offset: i32): 
 #[no_mangle]
 export function arch_x86_64_enc_enc_lea_rbp_to_rax(elf_ctx: *u8, offset: i32): i32 {
   // disp is 0 minus offset. -128..-1 uses the short displacement.
-  let disp: i32 = 0 - offset;
+  let disp: i32 = (0 - offset);
   let u: u32 = disp as u32;
   if (disp >= (0 - 128)) {
     if (disp <= (0 - 1)) {
@@ -8891,7 +8907,7 @@ export function arch_x86_64_enc_enc_lea_rbp_to_rax(elf_ctx: *u8, offset: i32): i
 #[no_mangle]
 export function arch_x86_64_enc_enc_lea_rbp_to_rbx(elf_ctx: *u8, offset: i32): i32 {
   // disp is 0 minus offset. -128..-1 uses the short displacement.
-  let disp: i32 = 0 - offset;
+  let disp: i32 = (0 - offset);
   let u: u32 = disp as u32;
   if (disp >= (0 - 128)) {
     if (disp <= (0 - 1)) {
@@ -8993,7 +9009,7 @@ export function arch_x86_64_enc_enc_load_rbp_pos_to_rax(elf_ctx: *u8, off_pos: i
 #[no_mangle]
 export function arch_x86_64_enc_enc_load_rbp_to_eax32(elf_ctx: *u8, offset: i32): i32 {
   // disp is 0 minus offset. -128..-1 uses the short displacement.
-  let disp: i32 = 0 - offset;
+  let disp: i32 = (0 - offset);
   let u: u32 = disp as u32;
   if (disp >= (0 - 128)) {
     if (disp <= (0 - 1)) {
@@ -9037,7 +9053,7 @@ export function arch_x86_64_enc_enc_load_rbp_to_eax32(elf_ctx: *u8, offset: i32)
 #[no_mangle]
 export function arch_x86_64_enc_enc_load_rbp_to_ebx32(elf_ctx: *u8, offset: i32): i32 {
   // disp is 0 minus offset. -128..-1 uses the short displacement.
-  let disp: i32 = 0 - offset;
+  let disp: i32 = (0 - offset);
   let u: u32 = disp as u32;
   if (disp >= (0 - 128)) {
     if (disp <= (0 - 1)) {
@@ -9081,7 +9097,7 @@ export function arch_x86_64_enc_enc_load_rbp_to_ebx32(elf_ctx: *u8, offset: i32)
 #[no_mangle]
 export function arch_x86_64_enc_enc_load_rbp_to_ecx(elf_ctx: *u8, offset: i32): i32 {
   // disp is 0 minus offset. -128..-1 uses the short displacement.
-  let disp: i32 = 0 - offset;
+  let disp: i32 = (0 - offset);
   let u: u32 = disp as u32;
   if (disp >= (0 - 128)) {
     if (disp <= (0 - 1)) {
@@ -9125,7 +9141,7 @@ export function arch_x86_64_enc_enc_load_rbp_to_ecx(elf_ctx: *u8, offset: i32): 
 #[no_mangle]
 export function arch_x86_64_enc_enc_load_rbp_to_edx(elf_ctx: *u8, offset: i32): i32 {
   // disp is 0 minus offset. -128..-1 uses the short displacement.
-  let disp: i32 = 0 - offset;
+  let disp: i32 = (0 - offset);
   let u: u32 = disp as u32;
   if (disp >= (0 - 128)) {
     if (disp <= (0 - 1)) {
@@ -9451,7 +9467,7 @@ export function arch_x86_64_enc_enc_imul_imm_to_ebx(elf_ctx: *u8, imm: i32): i32
 #[no_mangle]
 export function arch_x86_64_enc_enc_store_rdx_to_rbp(elf_ctx: *u8, offset: i32): i32 {
   // disp is 0 minus offset. -128..-1 uses the short displacement.
-  let disp: i32 = 0 - offset;
+  let disp: i32 = (0 - offset);
   let u: u32 = disp as u32;
   if (disp >= (0 - 128)) {
     if (disp <= (0 - 1)) {
@@ -9501,7 +9517,7 @@ export function arch_x86_64_enc_enc_store_rdx_to_rbp(elf_ctx: *u8, offset: i32):
 #[no_mangle]
 export function arch_x86_64_enc_enc_load_rbp_to_rdx(elf_ctx: *u8, offset: i32): i32 {
   // disp is 0 minus offset. -128..-1 uses the short displacement.
-  let disp: i32 = 0 - offset;
+  let disp: i32 = (0 - offset);
   let u: u32 = disp as u32;
   if (disp >= (0 - 128)) {
     if (disp <= (0 - 1)) {
@@ -9831,7 +9847,11 @@ export function arch_arm64_enc_enc_store_rax_to_rbp(elf_ctx: *u8, offset: i32): 
  * store_size 16 or more writes x0 then x1, eight bytes apart, with x19
  * as the base. store_size 1, 2, and 4 select STRB, STRH, and STR W.
  * Every other size selects STR X. A negative offset is stored as 0.
- * The scaled immediate is a shift of the u32 bit pattern, clamped to 4095.
+ * A scaled immediate above 4095 is not clamped: that would write the
+ * wrong slot. The high part is added into x16 from the original base
+ * (x1, or x19 for a 16-byte pair). x1 and x19 stay unchanged, so the
+ * next call's absolute offset is still from that base. The low 12 bits
+ * stay in the immediate, and the store uses x16.
  * A null context returns -1 from append.
  * @param elf_ctx *u8 — emit context; null is rejected by append
  * @param offset i32 — byte offset; a negative value is stored as 0
@@ -9843,12 +9863,40 @@ export function arch_arm64_enc_enc_store_rax_to_rbp(elf_ctx: *u8, offset: i32): 
  */
 #[no_mangle]
 export function arch_arm64_enc_enc_store_rax_to_rbx_offset(elf_ctx: *u8, offset: i32, store_size: i32): i32 {
-  // 608 is x19 in bits 9:5. 32 is x1. 1024 is the imm12 shift.
+  // 608 is x19 in bits 9:5. 512 is x16. 32 is x1. 1024 is the imm12 shift.
   // STRB, STRH, STR W, and STR X bases are the four width words.
   // A shift of the u32 pattern matches a non-negative divide.
+  // base_bits is the Rn field of the store. A wide pair uses x19.
+  // An offset past 4095 switches the store to x16 after the add below.
   let off: i32 = offset;
+  let base_bits: i32 = 32;
   if (off < 0) {
     off = 0;
+  }
+  if (store_size >= 16) {
+    base_bits = 608;
+  }
+  /* STR scaled imm12 stops at 4095. Add the high part into x16 from
+   * the original base and keep the low 12 bits in the immediate.
+   * x1 and x19 are not written, so the next absolute offset still
+   * starts from the caller's base. A 16-byte pair reads x19; every
+   * other width reads x1. PLATFORM: MACOS|ARM64. The live product
+   * path is the stub at file offset 0x10b9b8; offsets past 4095
+   * branch from 0x10b9c0 to the cave at VA 0x10088f9b0. */
+  if (off > 4095) {
+    let residue: i32 = off & 4095;
+    let addend: i32 = off - residue;
+    let src_reg: i32 = 1;
+    if (store_size >= 16) {
+      src_reg = 19;
+    }
+    unsafe {
+      if (arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 16, src_reg, addend) != 0) {
+        return 0 - 1;
+      }
+    }
+    off = residue;
+    base_bits = 512;
   }
   let u: u32 = off as u32;
   let imm_lo: i32 = (u >> 3) as i32;
@@ -9856,15 +9904,16 @@ export function arch_arm64_enc_enc_store_rax_to_rbx_offset(elf_ctx: *u8, offset:
   let imm12: i32 = off;
   let base: u32 = 4177526784 as u32;
   /* w2060: do not clamp scaled imm12 to 4095 (silent wrong slot).
-   * Same family as enc_load_rbp_to_rax P001. Out of range → fail. */
+   * Offsets past 4095 were folded into x16 above. A miss here is
+   * an unaligned 8-byte field or an append failure. PLATFORM: MACOS|ARM64. */
   if (store_size >= 16) {
     if (imm_lo > 4095 || imm_hi > 4095) {
       return 0 - 1;
     }
-    if (backend_enc_append_u32_le_c(elf_ctx, (4177526784 as u32) | ((imm_lo as u32) * 1024) | (608 as u32)) != 0) {
+    if (backend_enc_append_u32_le_c(elf_ctx, (4177526784 as u32) | ((imm_lo as u32) * 1024) | (base_bits as u32)) != 0) {
       return 0 - 1;
     }
-    return backend_enc_append_u32_le_c(elf_ctx, (4177526784 as u32) | ((imm_hi as u32) * 1024) | (608 as u32) | (1 as u32));
+    return backend_enc_append_u32_le_c(elf_ctx, (4177526784 as u32) | ((imm_hi as u32) * 1024) | (base_bits as u32) | (1 as u32));
   }
   if (store_size == 1) {
     if (imm12 > 4095) {
@@ -9900,8 +9949,8 @@ export function arch_arm64_enc_enc_store_rax_to_rbx_offset(elf_ctx: *u8, offset:
           if (imm12 > 4095) {
             return 0 - 1;
           }
-          /* str w0, [x1, #offset] */
-          if (backend_enc_append_u32_le_c(elf_ctx, (3103784960 as u32) | ((imm12 as u32) * 1024) | (32 as u32)) != 0) {
+          /* str w0, [base, #offset]. base is x1, or x16 after a 4096 fold. */
+          if (backend_enc_append_u32_le_c(elf_ctx, (3103784960 as u32) | ((imm12 as u32) * 1024) | (base_bits as u32)) != 0) {
             return 0 - 1;
           }
           /* lsr x0, x0, #32 */
@@ -9912,8 +9961,8 @@ export function arch_arm64_enc_enc_store_rax_to_rbx_offset(elf_ctx: *u8, offset:
           if (imm12 > 4095) {
             return 0 - 1;
           }
-          /* str w0, [x1, #offset+4] */
-          return backend_enc_append_u32_le_c(elf_ctx, (3103784960 as u32) | ((imm12 as u32) * 1024) | (32 as u32));
+          /* str w0, [base, #offset+4]. Same base as the low half. */
+          return backend_enc_append_u32_le_c(elf_ctx, (3103784960 as u32) | ((imm12 as u32) * 1024) | (base_bits as u32));
         }
         imm12 = (u >> 3) as i32;
         if (imm12 > 4095) {
@@ -9923,7 +9972,7 @@ export function arch_arm64_enc_enc_store_rax_to_rbx_offset(elf_ctx: *u8, offset:
       }
     }
   }
-  return backend_enc_append_u32_le_c(elf_ctx, base | ((imm12 as u32) * 1024) | (32 as u32));
+  return backend_enc_append_u32_le_c(elf_ctx, base | ((imm12 as u32) * 1024) | (base_bits as u32));
 }
 
 /**
@@ -10371,10 +10420,10 @@ export function arch_x86_64_enc_enc_cmp_setcc_movzbl(elf_ctx: *u8, cc: i32): i32
   let nonneg: u32 = neg_cc - 1;
   let raw_below4: u32 = (ccu - 4) >> 31;
   let below4: u32 = raw_below4 & nonneg;
-  let m4: u32 = 0 - below4;
+  let m4: u32 = (0 - below4);
   let raw_below8: u32 = (ccu - 8) >> 31;
   let below8: u32 = raw_below8 & nonneg;
-  let m8: u32 = 0 - below8;
+  let m8: u32 = (0 - below8);
   let m4_sign: u32 = m4 >> 31;
   let not_m4: u32 = m4_sign - 1;
   let in_hi: u32 = m8 & not_m4;
@@ -10385,12 +10434,12 @@ export function arch_x86_64_enc_enc_cmp_setcc_movzbl(elf_ctx: *u8, cc: i32): i32
   let b_hi: u32 = (pack_hi >> sh) & 255;
   let op_low: u32 = (b_lo & m4) | (b_hi & in_hi);
   let diff8: u32 = ccu - 8;
-  let neg8: u32 = 0 - diff8;
+  let neg8: u32 = (0 - diff8);
   let or8: u32 = diff8 | neg8;
   let nz8: u32 = or8 >> 31;
   let eq8: u32 = nz8 - 1;
   let diff9: u32 = ccu - 9;
-  let neg9: u32 = 0 - diff9;
+  let neg9: u32 = (0 - diff9);
   let or9: u32 = diff9 | neg9;
   let nz9: u32 = or9 >> 31;
   let eq9: u32 = nz9 - 1;
@@ -10665,8 +10714,8 @@ export function arch_arm64_enc_enc_label(elf_ctx: *u8, name: *u8, name_len: i32,
     let diff: i32 = name_len - 255;
     let diff_u: u32 = diff as u32;
     let diff_sign: u32 = diff_u >> 31;
-    let keep: u32 = 0 - diff_sign;
-    let inv: u32 = 4294967295 - keep;
+    let keep: u32 = (0 - diff_sign);
+    let inv: u32 = (4294967295 - keep);
     let nl_u: u32 = name_len as u32;
     let copy_u: u32 = (nl_u & keep) | ((255 as u32) & inv);
     let copy_n: i32 = copy_u as i32;
@@ -10737,8 +10786,8 @@ export function arch_x86_64_enc_enc_label(elf_ctx: *u8, name: *u8, name_len: i32
     let diff: i32 = name_len - 255;
     let diff_u: u32 = diff as u32;
     let diff_sign: u32 = diff_u >> 31;
-    let keep: u32 = 0 - diff_sign;
-    let inv: u32 = 4294967295 - keep;
+    let keep: u32 = (0 - diff_sign);
+    let inv: u32 = (4294967295 - keep);
     let nl_u: u32 = name_len as u32;
     let copy_u: u32 = (nl_u & keep) | ((255 as u32) & inv);
     let copy_n: i32 = copy_u as i32;
@@ -10806,8 +10855,8 @@ export function arch_x86_64_enc_enc_call(elf_ctx: *u8, name: *u8, name_len: i32)
     let diff: i32 = name_len - 255;
     let diff_u: u32 = diff as u32;
     let diff_sign: u32 = diff_u >> 31;
-    let keep: u32 = 0 - diff_sign;
-    let inv: u32 = 4294967295 - keep;
+    let keep: u32 = (0 - diff_sign);
+    let inv: u32 = (4294967295 - keep);
     let nl_u: u32 = name_len as u32;
     let copy_u: u32 = (nl_u & keep) | ((255 as u32) & inv);
     let copy_n: i32 = copy_u as i32;
@@ -10859,8 +10908,8 @@ export function arch_x86_64_enc_enc_jmp_sym(elf_ctx: *u8, name: *u8, name_len: i
     let diff: i32 = name_len - 255;
     let diff_u: u32 = diff as u32;
     let diff_sign: u32 = diff_u >> 31;
-    let keep: u32 = 0 - diff_sign;
-    let inv: u32 = 4294967295 - keep;
+    let keep: u32 = (0 - diff_sign);
+    let inv: u32 = (4294967295 - keep);
     let nl_u: u32 = name_len as u32;
     let copy_u: u32 = (nl_u & keep) | ((255 as u32) & inv);
     let copy_n: i32 = copy_u as i32;
@@ -10909,14 +10958,14 @@ export function arch_arm64_enc_enc_prologue(elf_ctx: *u8, frame_sz: i32): i32 {
   /* A negative request becomes 0. A request below 16 becomes 16. */
   let fs0: i32 = frame_sz;
   let neg: u32 = (fs0 as u32) >> 31;
-  let neg_m: u32 = 0 - neg;
-  let inv_neg: u32 = 4294967295 - neg_m;
+  let neg_m: u32 = (0 - neg);
+  let inv_neg: u32 = (4294967295 - neg_m);
   let fs_nonneg: u32 = ((0 as u32) & neg_m) | ((fs0 as u32) & inv_neg);
   let fs_nn: i32 = fs_nonneg as i32;
   let diff: i32 = fs_nn - 16;
   let dsign: u32 = (diff as u32) >> 31;
-  let dkeep: u32 = 0 - dsign;
-  let dinv: u32 = 4294967295 - dkeep;
+  let dkeep: u32 = (0 - dsign);
+  let dinv: u32 = (4294967295 - dkeep);
   let fs_min_u: u32 = ((16 as u32) & dkeep) | ((fs_nn as u32) & dinv);
   let fs_m: i32 = fs_min_u as i32;
   /* (0 - size) masked to 4 bits is the pad up to the next multiple of 16. */
@@ -10980,8 +11029,8 @@ export function arch_arm64_enc_enc_epilogue(elf_ctx: *u8): i32 {
   unsafe {
     let fs0: i32 = arm64_enc_frame_size_load();
     let neg: u32 = (fs0 as u32) >> 31;
-    let neg_m: u32 = 0 - neg;
-    let inv_neg: u32 = 4294967295 - neg_m;
+    let neg_m: u32 = (0 - neg);
+    let inv_neg: u32 = (4294967295 - neg_m);
     let fs_u: u32 = ((0 as u32) & neg_m) | ((fs0 as u32) & inv_neg);
     let fs: i32 = fs_u as i32;
     let x19_off: i32 = fs - 16;
@@ -11000,8 +11049,8 @@ export function arch_arm64_enc_enc_epilogue(elf_ctx: *u8): i32 {
   unsafe {
     let fs0: i32 = arm64_enc_frame_size_load();
     let neg: u32 = (fs0 as u32) >> 31;
-    let neg_m: u32 = 0 - neg;
-    let inv_neg: u32 = 4294967295 - neg_m;
+    let neg_m: u32 = (0 - neg);
+    let inv_neg: u32 = (4294967295 - neg_m);
     let fs_u: u32 = ((0 as u32) & neg_m) | ((fs0 as u32) & inv_neg);
     let fs: i32 = fs_u as i32;
     if (arm64_enc_addsub_sp_imm_chunks(elf_ctx, fs, 0) != 0) {
@@ -11136,8 +11185,8 @@ export function backend_enc_arm64_call_c_impl(elf_ctx: *u8, name: *u8, name_len:
     let diff: i32 = name_len - 255;
     let diff_u: u32 = diff as u32;
     let diff_sign: u32 = diff_u >> 31;
-    let keep: u32 = 0 - diff_sign;
-    let inv: u32 = 4294967295 - keep;
+    let keep: u32 = (0 - diff_sign);
+    let inv: u32 = (4294967295 - keep);
     let nl_u: u32 = name_len as u32;
     let copy_u: u32 = (nl_u & keep) | ((255 as u32) & inv);
     let copy_n: i32 = copy_u as i32;

@@ -19,6 +19,10 @@
 
 let g_driver_pending_target_cpu_features: u32 = 0;
 
+/* Tip PE: u8[8192] on detect_host frame smash (cpuinfo bytes as fake bt).
+ * Same-TU BSS — labi_ensure stack-grain pattern. */
+let g_tcp_cpuinfo_buf: u8[8192] = [];
+
 // libc faces. Linux uses open/read/close so this file does not depend on
 // the syscall numbers inside runtime_asm_io_stubs.x. Print uses write on
 // POSIX and _write on Windows. O_RDONLY is 0.
@@ -41,8 +45,8 @@ extern "C" function _write(fd: i32, buf: *u8, n: u32): i32;
  */
 #[no_mangle]
 export function driver_set_pending_target_cpu_features(features: u32): void {
-  let slot: *u32 = &g_driver_pending_target_cpu_features;
-  slot[0] = features;
+  /* DIG tip_l4 Win: PE tip/bi/egg XT001 on let *u32=&g; Cap tip OK. Direct store. */
+  g_driver_pending_target_cpu_features = features;
 }
 
 /** Exported function `driver_get_pending_target_cpu_features`.
@@ -51,8 +55,7 @@ export function driver_set_pending_target_cpu_features(features: u32): void {
  */
 #[no_mangle]
 export function driver_get_pending_target_cpu_features(): u32 {
-  let slot: *u32 = &g_driver_pending_target_cpu_features;
-  return slot[0];
+  return g_driver_pending_target_cpu_features;
 }
 
 /* See implementation. */
@@ -85,19 +88,18 @@ export function tcp_tolower(c: u8): u8 {
  * PLATFORM: SHARED. */
 #[no_mangle]
 export function tcp_eq_at(name: *u8, base: usize, n: usize, lits: *u8): i32 {
-  let s: *u8 = name;
-  let w: *u8 = lits;
+  /* DIG tip_l4 Win egg: avoid let *u8 copies + i32 compound index (T001). */
   let i: i32 = 0;
   let lim: i32 = n as i32;
   let b: i32 = base as i32;
+  let nb: u8 = 0;
+  let wb: u8 = 0;
+  if (name == 0 as *u8) { return 0; }
+  if (lits == 0 as *u8) { return 0; }
   while (i < lim) {
-    let k: i32 = i;
-    let bk: i32 = b + k;
-    let nb: u8 = tcp_tolower(s[bk]);
-    let wb: u8 = w[k];
-    if (nb != wb) {
-      return 0;
-    }
+    nb = tcp_tolower(name[b + i]);
+    wb = lits[i];
+    if (nb != wb) { return 0; }
     i = i + 1;
   }
   return 1;
@@ -268,8 +270,7 @@ function tcp_read_cpuinfo(buf: *u8, cap: i32): i32 {
 #[cfg(target_arch = "x86_64")]
 #[no_mangle]
 export function xlang_target_cpu_detect_host(): u32 {
-  let buf: u8[8192] = [];
-  let p: *u8 = &buf[0];
+  let p: *u8 = &g_tcp_cpuinfo_buf[0];
   let n: i32 = 0;
   let ls: i32 = 0;
   let le: i32 = 0;
@@ -279,10 +280,10 @@ export function xlang_target_cpu_detect_host(): u32 {
   if (n <= 0) { return 1; }
   while (ls < n && hit == 0) {
     le = ls;
-    while (le < n && buf[le] != 10) { le = le + 1; }
-    buf[le] = 0;
-    if (tcp_prefix_at(&buf[ls], 5, "flags" as *u8) != 0) {
-      mask = tcp_x86_bits(&buf[ls]);
+    while (le < n && g_tcp_cpuinfo_buf[le] != 10) { le = le + 1; }
+    g_tcp_cpuinfo_buf[le] = 0;
+    if (tcp_prefix_at(&g_tcp_cpuinfo_buf[ls], 5, "flags" as *u8) != 0) {
+      mask = tcp_x86_bits(&g_tcp_cpuinfo_buf[ls]);
       hit = 1;
     }
     if (le < n) {
@@ -305,8 +306,7 @@ export function xlang_target_cpu_detect_host(): u32 {
 #[cfg(target_arch = "aarch64")]
 #[no_mangle]
 export function xlang_target_cpu_detect_host(): u32 {
-  let buf: u8[8192] = [];
-  let p: *u8 = &buf[0];
+  let p: *u8 = &g_tcp_cpuinfo_buf[0];
   let n: i32 = 0;
   let ls: i32 = 0;
   let le: i32 = 0;
@@ -316,12 +316,12 @@ export function xlang_target_cpu_detect_host(): u32 {
   if (n <= 0) { return mask; }
   while (ls < n && hit == 0) {
     le = ls;
-    while (le < n && buf[le] != 10) { le = le + 1; }
-    buf[le] = 0;
-    if (tcp_prefix_at(&buf[ls], 8, "Features" as *u8) != 0) {
-      if (flags_has_token(&buf[ls], "asimd" as *u8) != 0) { mask = mask | 256; }
-      if (flags_has_token(&buf[ls], "neon" as *u8) != 0) { mask = mask | 256; }
-      if (flags_has_token(&buf[ls], "sve" as *u8) != 0) { mask = mask | 512; }
+    while (le < n && g_tcp_cpuinfo_buf[le] != 10) { le = le + 1; }
+    g_tcp_cpuinfo_buf[le] = 0;
+    if (tcp_prefix_at(&g_tcp_cpuinfo_buf[ls], 8, "Features" as *u8) != 0) {
+      if (flags_has_token(&g_tcp_cpuinfo_buf[ls], "asimd" as *u8) != 0) { mask = mask | 256; }
+      if (flags_has_token(&g_tcp_cpuinfo_buf[ls], "neon" as *u8) != 0) { mask = mask | 256; }
+      if (flags_has_token(&g_tcp_cpuinfo_buf[ls], "sve" as *u8) != 0) { mask = mask | 512; }
       hit = 1;
     }
     if (le < n) {
@@ -343,8 +343,7 @@ export function xlang_target_cpu_detect_host(): u32 {
 #[cfg(target_arch = "riscv64")]
 #[no_mangle]
 export function xlang_target_cpu_detect_host(): u32 {
-  let buf: u8[4096] = [];
-  let p: *u8 = &buf[0];
+  let p: *u8 = &g_tcp_cpuinfo_buf[0];
   let n: i32 = 0;
   let ls: i32 = 0;
   let le: i32 = 0;
@@ -356,16 +355,16 @@ export function xlang_target_cpu_detect_host(): u32 {
   if (n <= 0) { return 0; }
   while (ls < n && hit == 0) {
     le = ls;
-    while (le < n && buf[le] != 10) { le = le + 1; }
-    buf[le] = 0;
-    if (tcp_prefix_at(&buf[ls], 3, "isa" as *u8) != 0) {
+    while (le < n && g_tcp_cpuinfo_buf[le] != 10) { le = le + 1; }
+    g_tcp_cpuinfo_buf[le] = 0;
+    if (tcp_prefix_at(&g_tcp_cpuinfo_buf[ls], 3, "isa" as *u8) != 0) {
       k = ls;
-      while (buf[k] != 0 && buf[k] != 58) { k = k + 1; }
-      if (buf[k] == 58) {
+      while (g_tcp_cpuinfo_buf[k] != 0 && g_tcp_cpuinfo_buf[k] != 58) { k = k + 1; }
+      if (g_tcp_cpuinfo_buf[k] == 58) {
         k = k + 1;
-        while (buf[k] == 32 || buf[k] == 9) { k = k + 1; }
-        while (buf[k] != 0) {
-          c = buf[k];
+        while (g_tcp_cpuinfo_buf[k] == 32 || g_tcp_cpuinfo_buf[k] == 9) { k = k + 1; }
+        while (g_tcp_cpuinfo_buf[k] != 0) {
+          c = g_tcp_cpuinfo_buf[k];
           if (c == 118) { mask = 65536; }
           k = k + 1;
         }

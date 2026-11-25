@@ -26,32 +26,7 @@ extern int32_t driver_asm_stub_gas_line_count(void);
 extern int32_t driver_asm_stub_out_append_cstr(void *out, uint8_t *s);
 
 #ifndef XLANG_RT_ASM_STUB_FROM_X
-
-/** compile.x extern：-o 后缀是否表示可执行（非 .o/.obj/.s）。 */
-int32_t driver_asm_output_want_exe(uint8_t *path) {
-  return xlang_output_want_exe(path ? (const char *)path : NULL);
-}
-
-/**
- * asm 后端 C 桩：-backend asm 时由 pipeline 调用，写出最小 GAS（main return 42）。
- * 9.7.3 G.7：行表与 append 唯一权威在 wave14 访问器，本 cold twin 与
- * 实验 asm-only 链并入 build_asm/backend.o 时须为 weak，避免与 backend.x 重复定义。
- */
-XLANG_WEAK int32_t asm_codegen_ast(void *module, void *arena, void *out) {
-  int32_t n;
-  int32_t i;
-  (void)module;
-  (void)arena;
-  if (!out)
-    return -1;
-  n = driver_asm_stub_gas_line_count();
-  for (i = 0; i < n; i++) {
-    if (driver_asm_stub_out_append_cstr(out, driver_asm_stub_gas_line_at(i)) != 0)
-      return -1;
-  }
-  return 0;
-}
-
+/* 记253／9.1: cold under #ifndef XLANG_RT_ASM_STUB_FROM_X removed */
 #else
 int32_t driver_asm_output_want_exe(uint8_t *path);
 int32_t asm_codegen_ast(void *module, void *arena, void *out);

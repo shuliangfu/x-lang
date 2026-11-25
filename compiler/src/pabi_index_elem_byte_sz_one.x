@@ -18,6 +18,8 @@
 
 export extern function pipeline_type_kind_ord_at(arena: *u8, ty_ref: i32): i32;
 export extern function pipeline_type_elem_ref_at(arena: *u8, ty_ref: i32): i32;
+
+
 export extern function pipeline_type_named_name_into(arena: *u8, ty_ref: i32, out: *u8): i32;
 export extern function glue_fixed_array_total_bytes_c(arena: *u8, ty_ref: i32, depth: i32): i32;
 export extern function glue_type_size_simple(mod: *u8, arena: *u8, ty_ref: i32, depth: i32): i32;
@@ -37,17 +39,114 @@ export extern function glue_field_access_field_type_ref_c(arena: *u8, mod: *u8, 
 export extern function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
 export extern function glue_var_expr_type_ref_with_decl_fallback_c(arena: *u8, expr_ref: i32): i32;
 export extern function glue_index_elem_byte_sz_from_type_ref_c(arena: *u8, tr: i32): i32;
+export extern function glue_index_simd_elem_bytes_c(arena: *u8, ty: i32): i32;
+
+export extern function arena_sidecar_get(key: *u8, create: i32): *u8;
+export extern function grow_vec_at(v: *u8, index: i32): *u8;
+export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 
 /**
- * True-pack width of one TYPE_NAMED ref inside the INDEX-expr tail.
- * @param arena *u8 — AST arena; caller already has a live type
- * @param ty i32 — named type ref
- * @return i32 — 1 for i8, 2 for i16 or u16, layout size when positive, else 0
- * The peeler owns the same byte checks for the type-ref entry. This copy
- * exists because the C tail writes the checks again and this object cannot
- * call a file-local in the other TU. Not a link export.
- * PLATFORM: SHARED — local helper, not a link export.
+ * Type.elem with the same sidecar-on-miss fallback as widen_type_kind_ord.
+ * Cached primitives with no elem stay 0. PLATFORM: SHARED.
  */
+
+/**
+ * Type.kind with sidecar-on-miss, same path as 83d6a7b85 widen_type_kind_ord.
+ * pipeline_type_kind_ord_at is tried first; sidecar only when it returns < 0.
+ * PLATFORM: SHARED.
+ */
+function widen_type_kind_ord(arena: *u8, type_ref: i32): i32 {
+  let kind: i32 = 0 - 1;
+  let sc: *u8 = 0 as *u8;
+  let n: i32 = 0;
+  let slot: *u8 = 0 as *u8;
+  if (arena == (0 as *u8) || type_ref <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    kind = pipeline_type_kind_ord_at(arena, type_ref);
+  }
+  if (kind >= 0) {
+    return kind;
+  }
+  unsafe {
+    sc = arena_sidecar_get(arena, 0);
+  }
+  if (sc == (0 as *u8)) {
+    return 0 - 1;
+  }
+  unsafe {
+    n = pipe_load_i32_le(sc + (16 as usize), 12);
+  }
+  if (type_ref > n) {
+    return 0 - 1;
+  }
+  unsafe {
+    slot = grow_vec_at(sc + (16 as usize), type_ref - 1);
+  }
+  if (slot == (0 as *u8)) {
+    return 0 - 1;
+  }
+  unsafe {
+    kind = pipe_load_i32_le(slot, 0);
+  }
+  return kind;
+}
+
+function widen_type_elem_ref(arena: *u8, type_ref: i32): i32 {
+  let elem: i32 = 0;
+  let kind: i32 = 0 - 1;
+  let sc: *u8 = 0 as *u8;
+  let n: i32 = 0;
+  let slot: *u8 = 0 as *u8;
+  if (arena == (0 as *u8) || type_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    elem = pipeline_type_elem_ref_at(arena, type_ref);
+  }
+  if (elem > 0) {
+    return elem;
+  }
+  unsafe {
+    kind = pipeline_type_kind_ord_at(arena, type_ref);
+  }
+  if (kind >= 0) {
+    return 0;
+  }
+  unsafe {
+    sc = arena_sidecar_get(arena, 0);
+  }
+  if (sc == (0 as *u8)) {
+    return 0;
+  }
+  unsafe {
+    n = pipe_load_i32_le(sc + (16 as usize), 12);
+  }
+  if (type_ref > n) {
+    return 0;
+  }
+  unsafe {
+    slot = grow_vec_at(sc + (16 as usize), type_ref - 1);
+  }
+  if (slot == (0 as *u8)) {
+    return 0;
+  }
+  // Live official typool still stamps Type.elem at historic C offset
+  // 136. Current typool source moved that field to 264 (AST layout)
+  // but is not folded; 264 is tried first so a future typool fold
+  // keeps working. A 0 at 264 falls back to 136.
+  unsafe {
+    elem = pipe_load_i32_le(slot, 264);
+  }
+  if (elem <= 0) {
+    unsafe {
+      elem = pipe_load_i32_le(slot, 136);
+    }
+  }
+  return elem;
+}
+
 function iesz_pack_name(arena: *u8, ty: i32): i32 {
   let sl: i32 = 0;
   let ssz: i32 = 0;
@@ -97,7 +196,7 @@ function iesz_vec_suffix(arena: *u8, pty: i32): i32 {
   let i6: i32 = 0;
   let sn: u8[128] = [];
   unsafe {
-    st = pipeline_type_elem_ref_at(arena, pty);
+    st = widen_type_elem_ref(arena, pty);
   }
   if (st > 0) {
     unsafe {
@@ -152,7 +251,7 @@ function iesz_vec_param(arena: *u8, vref: i32, mod: *u8, func_idx: i32): i32 {
   }
   if (pty > 0) {
     unsafe {
-      pk = pipeline_type_kind_ord_at(arena, pty);
+      pk = widen_type_kind_ord(arena, pty);
     }
     if (pk == 9) {
       return iesz_vec_suffix(arena, pty);
@@ -248,13 +347,13 @@ function iesz_slice_data_field(arena: *u8, base_ref: i32): i32 {
     return 0;
   }
   unsafe {
-    sk = pipeline_type_kind_ord_at(arena, sty);
+    sk = widen_type_kind_ord(arena, sty);
   }
   if (sk != 11) {
     return 0;
   }
   unsafe {
-    elem = pipeline_type_elem_ref_at(arena, sty);
+    elem = widen_type_elem_ref(arena, sty);
   }
   if (elem <= 0) {
     return 0;
@@ -319,7 +418,7 @@ function iesz_early(arena: *u8, tr: i32): i32 {
   let k: i32 = 0;
   let esz: i32 = 0;
   unsafe {
-    k = pipeline_type_kind_ord_at(arena, tr);
+    k = widen_type_kind_ord(arena, tr);
   }
   if (k == 9) {
     unsafe {
@@ -364,7 +463,7 @@ function iesz_resolved(arena: *u8, expr_ref: i32, tr: i32): i32 {
   let esz_pt: i32 = 0;
   let mod: *u8 = 0 as *u8;
   unsafe {
-    k = pipeline_type_kind_ord_at(arena, tr);
+    k = widen_type_kind_ord(arena, tr);
   }
   if (k == 10) {
     unsafe {
@@ -375,19 +474,30 @@ function iesz_resolved(arena: *u8, expr_ref: i32, tr: i32): i32 {
     }
   }
   unsafe {
-    k = pipeline_type_kind_ord_at(arena, tr);
+    k = widen_type_kind_ord(arena, tr);
   }
   if (k == 9) {
     return 8;
   }
   unsafe {
-    k = pipeline_type_kind_ord_at(arena, tr);
+    k = widen_type_kind_ord(arena, tr);
   }
   if (k == 11) {
     return 16;
   }
   unsafe {
     esz_res = glue_index_elem_byte_sz_from_type_ref_c(arena, tr);
+  }
+  if (k == 13) {
+    // Resolved type is the vector element. The peeler's bare kind-13
+    // arm is the lane stride (4). The address stride is the width.
+    // PLATFORM: SHARED.
+    unsafe {
+      asz = glue_index_simd_elem_bytes_c(arena, tr);
+    }
+    if (asz > 0) {
+      esz_res = asz;
+    }
   }
   unsafe {
     base2 = pipeline_expr_index_base_ref(arena, expr_ref);
@@ -415,7 +525,7 @@ function iesz_resolved(arena: *u8, expr_ref: i32, tr: i32): i32 {
     }
     if (tr_base > 0) {
       unsafe {
-        tk = pipeline_type_kind_ord_at(arena, tr_base);
+        tk = widen_type_kind_ord(arena, tr_base);
       }
       if (tk == 9) {
         unsafe {
@@ -439,14 +549,26 @@ function iesz_resolved(arena: *u8, expr_ref: i32, tr: i32): i32 {
  * @param pk i32 — pointee kind, already loaded
  * @return i32 — decided width, or 0 when the caller keeps pk and falls through
  * Kind 18 does not return 8 here. The type-ref peeler does. Kind 15 does
- * not return 8 here either. PLATFORM: SHARED — local helper.
+ * not return 8 here either. Kind 13 uses the peeler's vector width.
+ * PLATFORM: SHARED — local helper.
  */
 function iesz_tail_pointee(arena: *u8, pointee: i32, pk: i32): i32 {
   let asz: i32 = 0;
   if (pk == 2 || pk == 1) {
     return 1;
   }
-  if (pk == 0 || pk == 3 || pk == 13 || pk == 14) {
+  if (pk == 13) {
+    // Same width as iesz_arr_pointee. A miss keeps stride 4.
+    // PLATFORM: SHARED.
+    unsafe {
+      asz = glue_index_simd_elem_bytes_c(arena, pointee);
+    }
+    if (asz > 0) {
+      return asz;
+    }
+    return 4;
+  }
+  if (pk == 0 || pk == 3 || pk == 14) {
     return 4;
   }
   if (pk == 9) {
@@ -525,7 +647,7 @@ function iesz_tail(arena: *u8, expr_ref: i32): i32 {
     return 4;
   }
   unsafe {
-    kind_ord = pipeline_type_kind_ord_at(arena, tr);
+    kind_ord = widen_type_kind_ord(arena, tr);
   }
   if (kind_ord == 9) {
     unsafe {
@@ -535,11 +657,11 @@ function iesz_tail(arena: *u8, expr_ref: i32): i32 {
   }
   if (kind_ord == 10 || kind_ord == 11) {
     unsafe {
-      pointee = pipeline_type_elem_ref_at(arena, tr);
+      pointee = widen_type_elem_ref(arena, tr);
     }
     if (pointee > 0) {
       unsafe {
-        pk = pipeline_type_kind_ord_at(arena, pointee);
+        pk = widen_type_kind_ord(arena, pointee);
       }
       hit = iesz_tail_pointee(arena, pointee, pk);
       if (hit > 0) {
@@ -556,7 +678,7 @@ function iesz_tail(arena: *u8, expr_ref: i32): i32 {
   }
   if (kind_ord == 13) {
     unsafe {
-      pointee = pipeline_type_elem_ref_at(arena, tr);
+      pointee = widen_type_elem_ref(arena, tr);
     }
     if (pointee > 0) {
       unsafe {

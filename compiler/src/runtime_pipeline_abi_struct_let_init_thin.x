@@ -26,6 +26,9 @@ export extern function glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx: *u8, s
 export extern function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i32, ctx: *u8, ta: i32, let_ty_ref: i32, dest_spill: i32): i32;
 export extern function glue_emit_match_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, ty_ref: i32, dest_spill: i32): i32;
 export extern function glue_emit_module_from_ctx(ctx: *u8): *u8;
+export extern function glue_field_access_call_base_rvalue_elf_c(
+  arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, leave_addr: i32
+): i32;
 export extern function glue_enc_jz_after_bool_in_eax(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
 export extern function glue_field_layout_offset_for_var_base_field(a: *u8, m: *u8, base_var_ref: i32, field_name: *u8, flen: i32): i32;
 export extern function glue_slice_dual_gp_length_off_c(data_home: i32, ta: i32): i32;
@@ -51,11 +54,27 @@ export extern function pipeline_expr_if_cond_ref_at(arena: *u8, expr_ref: i32): 
 export extern function pipeline_expr_if_else_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_if_then_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_kind_ord_at(a: *u8, er: i32): i32;
+export extern function pipeline_expr_block_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_asm_emit_block_prefix_elf(arena: *u8, elf_ctx: *u8, block_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function ast_ast_block_num_lets(arena: *u8, block_ref: i32): i32;
+export extern function ast_ast_block_num_loops(arena: *u8, block_ref: i32): i32;
+export extern function ast_ast_block_final_expr_ref(arena: *u8, block_ref: i32): i32;
+export extern function pipeline_type_array_size_at(arena: *u8, ty_ref: i32): i32;
+export extern function pipeline_type_elem_ref_at(arena: *u8, ty_ref: i32): i32;
+export extern function glue_array_lit_force_esz_from_elem_type_c(arena: *u8, et: i32): i32;
+export extern function glue_index_elem_byte_sz_from_type_ref_c(arena: *u8, tr: i32): i32;
+export extern function fa_array_lit_into_rbx(arena: *u8, elf_ctx: *u8, src: i32, ctx: *u8, ta: i32, n_arr: i32, esz: i32): i32;
 export extern function pipeline_expr_resolved_type_ref(a: *u8, er: i32): i32;
 export extern function pipeline_expr_var_name_into(a: *u8, er: i32, out: *u8): void;
 export extern function pipeline_expr_var_name_len(a: *u8, er: i32): i32;
 export extern function try_inline_const_struct_lit_return_call_to_slot_elf(arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32): i32;
 export extern function try_inline_struct_lit_return_call_to_slot_elf(arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32): i32;
+export extern function pipeline_asm_simd_try_inline_shuffle_call_elf_c(
+  arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32, type_ref: i32
+): i32;
+export extern function pipeline_asm_simd_try_inline_select_call_elf_c(
+  arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32, type_ref: i32
+): i32;
 export extern function backend_enc_add_imm_to_rbx_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
 export extern function backend_enc_load_32_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_load_64_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
@@ -73,6 +92,9 @@ export extern function glue_emit_fixed_array_type_let_init_elf_c(arena: *u8, elf
 export extern function glue_emit_float_lit_to_rax_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ta: i32, force_ty_ref: i32, call_abi_widen_f64: i32): i32;
 export extern function glue_emit_sret_memcpy_rbx_to_home_elf_c(elf_ctx: *u8, sz: i32, ta: i32): i32;
 export extern function glue_emit_vector_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32, type_ref: i32): i32;
+export extern function glue_is_vector_lane_scalar_binop_ko(ko: i32): i32;
+export extern function vlet_lane_cmp_ko(ko: i32): i32;
+export extern function asm_local_slot_reg_offset(arena: *u8, type_ref: i32, off: i32, inout_off: *i32): i32;
 export extern function glue_struct_field_frame_mag_c(base_off: i32, foff: i32, ta: i32): i32;
 export extern function glue_struct_lit_dest_in_rbx(): i32;
 export extern function glue_struct_lit_field_store_sz(arena: *u8, expr_ref: i32, fi: i32): i32;
@@ -95,6 +117,136 @@ export extern function pipeline_asm_emit_struct_lit_fields_elf_c(arena: *u8, elf
 export extern function pipeline_asm_emit_struct_lit_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 export extern function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32): i32;
 
+/**
+ * Store one struct or vector initializer into a frame slot, or
+ * through the dest pointer when stack_slot_off is -3.
+ * A match arm that is a lane binop (kinds 4 through 13) is not a
+ * local. Unary minus (kind 22) and bitwise not (kind 23) are not
+ * locals either. An array literal (kind 46) is not a local.
+ * Logical not (kind 24) is not a local. The existing vector
+ * let-init already stores 0 or 1 on each lane of that not.
+ * Logical and (kind 20) is not a local. That same writer
+ * already stores 0 or 1 on each lane of that and.
+ * Logical or (kind 21) is not a local. That same writer
+ * already stores 0 or 1 on each lane of that or.
+ * A relational compare (kinds 14 through 19) is not a local.
+ * The existing compare writer already stores 0 or 1 on each
+ * lane. The predicate is vlet_lane_cmp_ko.
+ * An integer literal (kind 0) is not a local. The existing
+ * fill already splats that value on each lane.
+ * A boolean literal (kind 2) is not a local. That same fill
+ * already splats 1 for true and 0 for false on each lane.
+ * A float literal (kind 1) is not a local. The existing
+ * fill already narrows those f64 bits and splats them on
+ * each f32 lane. An integer lane stays outside that fill.
+ * The existing vector
+ * let-init writes each value into one slot from
+ * asm_local_slot_reg_offset. Kind 23 applies mvn on each
+ * i32 lane. An f32 lane with kind 23 still declines inside that
+ * writer. Kind 46 stores each lane with that same writer.
+ * Kind 45 is not this gate. The existing VAR copy then moves
+ * that slot through the dest pointer. Kind 51 is not a binop here.
+ * A decline before that store returns -2. An encoder or let-init
+ * failure returns -1.
+ * A bare CALL (kind 48) named simd_shuffle or simd_select has no
+ * module function. Before the sret call, the existing lane writers
+ * store that value. A miss (return 0) keeps the old store. Kind 49
+ * is not this gate. A negative slot stays on the old store.
+ * @param arena *u8 - AST arena. Null returns -2.
+ * @param elf_ctx *u8 - code buffer. Null returns -2.
+ * @param init_ref i32 - initializer expr. Values <= 0 return -2.
+ * @param ctx *u8 - function frame. Null returns -2.
+ * @param ta i32 - 0 is x86, 1 is ARM64.
+ * @param let_ty_ref i32 - destination type. 0 reads the expr type.
+ * @param stack_slot_off i32 - frame slot, or -3 when dest is in rbx.
+ * @return i32 - 0 stored, -1 encode or arm failure, -2 not this store.
+ * PLATFORM: MACOS|ARM64 live path. The copy rule is SHARED.
+ */
+/**
+ * Emit one dest-in-rbx IF arm.
+ * A bare ARRAY_LIT, or a block whose only value is an ARRAY_LIT,
+ * is not a value emit_expr can return. fa_array_lit_into_rbx fills a
+ * frame slot and copies it through the dest already in rbx. Blocks
+ * that also have lets or loops stay on the existing arm helper.
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — encoder context
+ * @param arm_ref i32 — then or else arm
+ * @param ctx *u8 — AsmFuncCtx
+ * @param ta i32 — 0 x86_64, 1 arm64
+ * @param let_ty_ref i32 — destination type; TYPE_ARRAY when the arm is an array literal
+ * @param dest_spill i32 — frame slot holding the dest pointer
+ * @return i32 — 0 stored, -1 encode failure
+ * PLATFORM: SHARED. Dest is already in rbx / x19.
+ */
+#[no_mangle]
+export function sli_emit_if_arm_or_array_elf_c(
+  arena: *u8, elf_ctx: *u8, arm_ref: i32, ctx: *u8, ta: i32, let_ty_ref: i32, dest_spill: i32
+): i32 {
+  let cur: i32 = arm_ref;
+  let ko: i32 = 0;
+  let br: i32 = 0;
+  let nlet: i32 = 0;
+  let nloop: i32 = 0;
+  let fin: i32 = 0;
+  let depth: i32 = 0;
+  let n_arr: i32 = 0;
+  let esz: i32 = 0;
+  let elem: i32 = 0;
+  if (arena == 0 as *u8 || arm_ref <= 0) {
+    return 0 - 1;
+  }
+  // EXPR_BLOCK = 26. Peel value blocks only. A let or a loop still
+  // belongs to glue_emit_if_arm_dest_in_rbx_elf_c.
+  while (depth < 4) {
+    unsafe {
+      ko = pipeline_expr_kind_ord_at(arena, cur);
+    }
+    if (ko != 26) {
+      break;
+    }
+    unsafe {
+      br = pipeline_expr_block_ref_at(arena, cur);
+    }
+    if (br <= 0) {
+      break;
+    }
+    unsafe {
+      nlet = ast_ast_block_num_lets(arena, br);
+      nloop = ast_ast_block_num_loops(arena, br);
+      fin = ast_ast_block_final_expr_ref(arena, br);
+    }
+    if (nlet != 0 || nloop != 0 || fin <= 0) {
+      break;
+    }
+    cur = fin;
+    depth = depth + 1;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, cur);
+  }
+  // ARRAY_LIT = 46. Same fill as `*p = [w]` / match arms.
+  if (ko == 46 && let_ty_ref > 0) {
+    unsafe {
+      n_arr = pipeline_type_array_size_at(arena, let_ty_ref);
+      elem = pipeline_type_elem_ref_at(arena, let_ty_ref);
+      esz = glue_array_lit_force_esz_from_elem_type_c(arena, elem);
+    }
+    if (esz <= 0) {
+      unsafe {
+        esz = glue_index_elem_byte_sz_from_type_ref_c(arena, let_ty_ref);
+      }
+    }
+    if (n_arr > 0 && esz > 0) {
+      unsafe {
+        return fa_array_lit_into_rbx(arena, elf_ctx, cur, ctx, ta, n_arr, esz);
+      }
+    }
+  }
+  unsafe {
+    return glue_emit_if_arm_dest_in_rbx_elf_c(arena, elf_ctx, arm_ref, ctx, ta, let_ty_ref, dest_spill);
+  }
+}
+
 #[no_mangle]
 export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, let_ty_ref: i32, stack_slot_off: i32): i32 {
   // The wave713 body called externs outside unsafe (legacy pabi mode).
@@ -102,6 +254,7 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   let ko: i32 = 0;
   let inl: i32 = 0;
   let emit_rc: i32 = 0;
+  let rvalue_ok: i32 = 0;
   let call_ret_sz: i32 = 0;
   let let_sz: i32 = 0;
   let named_sz: i32 = 0;
@@ -128,6 +281,14 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   let done_len: i32 = 0;
   let arm_rc: i32 = 0;
   let saved_sret_home: i32 = 0;
+  let lane_binop: i32 = 0;
+  let lane_cmp: i32 = 0;
+  let copy_arm: i32 = 0;
+  let slot_cur: i32 = 0;
+  let slot_io: i32[1] = [];
+  let blk_br: i32 = 0;
+  let blk_fin: i32 = 0;
+  let blk_pref: i32 = 0;
   if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || init_ref <= 0) {
     return 0 - 2;
   }
@@ -137,6 +298,56 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   }
   unsafe {
     ko = pipeline_expr_kind_ord_at(arena, init_ref);
+  }
+  // @shuffle / @select are kind 48; import simd.shuffle/select is
+  // METHOD_CALL kind 49. Both must hit the SHARED try_inline writers
+  // (pshufd / HW select) before falling through to a real call.
+  // PLATFORM: SHARED. Windows twin already did 48|49.
+  if ((ko == 48 || ko == 49) && stack_slot_off >= 0) {
+    inl = pipeline_asm_simd_try_inline_shuffle_call_elf_c(
+      arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, let_ty_ref);
+    if (inl == 1) {
+      return 0;
+    }
+    if (inl < 0) {
+      return 0 - 1;
+    }
+    inl = pipeline_asm_simd_try_inline_select_call_elf_c(
+      arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, let_ty_ref);
+    if (inl == 1) {
+      return 0;
+    }
+    if (inl < 0) {
+      return 0 - 1;
+    }
+  }
+  /* EXPR_BLOCK (26) as struct let-init: emit block prefix (lets/stmts),
+   * then dest-slot let-init the final value. emit_expr+store_retval of a
+   * block whose final is STRUCT_LIT parks a temp and stores a pointer into
+   * the let home while field loads expect value layout (block_pt run=1 on
+   * SoftCap Prefer / Cap tip). G.7: same dest authority as bare STRUCT_LIT.
+   * Prefer-M2 SoftCap tip.x grain (10.89). PLATFORM: SHARED. */
+  if (ko == 26) {
+    unsafe {
+      blk_br = pipeline_expr_block_ref_at(arena, init_ref);
+    }
+    if (blk_br <= 0) {
+      return 0 - 2;
+    }
+    unsafe {
+      blk_fin = ast_ast_block_final_expr_ref(arena, blk_br);
+    }
+    if (blk_fin <= 0) {
+      return 0 - 2;
+    }
+    unsafe {
+      blk_pref = pipeline_asm_emit_block_prefix_elf(arena, elf_ctx, blk_br, ctx, ta);
+    }
+    if (blk_pref != 0) {
+      return 0 - 1;
+    }
+    return glue_emit_struct_type_let_init_elf_c(
+        arena, elf_ctx, blk_fin, ctx, ta, let_ty_ref, stack_slot_off);
   }
   // STRUCT_LIT → field write into slot
   if (ko == 45) {
@@ -243,7 +454,7 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
     if (rc != 0) {
       return 0 - 1;
     }
-    arm_rc = glue_emit_if_arm_dest_in_rbx_elf_c(arena, elf_ctx, if_then, ctx, ta, ty_ref, dest_spill);
+    arm_rc = sli_emit_if_arm_or_array_elf_c(arena, elf_ctx, if_then, ctx, ta, ty_ref, dest_spill);
     if (arm_rc != 0) {
       return 0 - 1;
     }
@@ -272,7 +483,7 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
       if (rc != 0) {
         return 0 - 1;
       }
-      arm_rc = glue_emit_if_arm_dest_in_rbx_elf_c(arena, elf_ctx, if_else, ctx, ta, ty_ref, dest_spill);
+      arm_rc = sli_emit_if_arm_or_array_elf_c(arena, elf_ctx, if_else, ctx, ta, ty_ref, dest_spill);
       if (arm_rc != 0) {
         return 0 - 1;
       }
@@ -612,6 +823,255 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
     }
     return 0;
   }
+  // A match arm that is a lane binop arrives with the dest pointer
+  // in rbx. Kinds 4 through 13 are that binop. Kind 51 stays out:
+  // the predicate remaps an address to add. Kind 22 is unary minus.
+  // The existing vector let-init already negates each lane into one
+  // frame slot, including a VAR, a field, and a lane binop under the
+  // minus. Kind 23 is bitwise not. That writer applies mvn to each
+  // i32 lane, including a VAR, a field, and a lane binop under the
+  // not. An f32 lane with kind 23 still declines in that writer.
+  // Kind 46 is an array literal. That writer stores each lane
+  // into the slot, including an f32x8 literal. Kind 24 is
+  // logical not. That writer stores 0 or 1 on each lane.
+  // Kind 20 is logical and. That writer stores 0 or 1
+  // on each lane of that and. Kind 21 is logical or.
+  // That writer stores 0 or 1 on each lane of that or.
+  // Kinds 14 through 19 are a relational compare. The predicate
+  // vlet_lane_cmp_ko selects them. That writer stores 0 or 1
+  // on each lane. Kind 0 is an integer literal. The existing
+  // fill splats that value on each lane. Kind 2 is a boolean
+  // literal. That same fill splats 1 for true and 0 for false
+  // on each lane. Kind 1 is a float literal. That fill
+  // narrows the f64 bits and splats them on each f32 lane.
+  // Kind 45 is not
+  // this gate. Park the dest pointer first, because that writer
+  // loads the slot into rbx. Restore the pointer, then the VAR copy
+  // below moves
+  // the slot. The slot size comes from asm_local_slot_reg_offset.
+  // A frame dest is not this path.
+  // PLATFORM: MACOS|ARM64. The copy is SHARED.
+  lane_binop = 0;
+  if (dest_in_rbx != 0) {
+    if (ko != 51) {
+      unsafe {
+        lane_binop = glue_is_vector_lane_scalar_binop_ko(ko);
+      }
+    }
+  }
+  if (ta != 0) {
+    if (ta != 1) {
+      lane_binop = 0;
+    }
+  }
+  if (dest_in_rbx != 0) {
+    if (ko == 22) {
+      if (ta == 0) {
+        lane_binop = 1;
+      }
+      if (ta == 1) {
+        lane_binop = 1;
+      }
+    }
+  }
+  if (dest_in_rbx != 0) {
+    if (ko == 23) {
+      if (ta == 0) {
+        lane_binop = 1;
+      }
+      if (ta == 1) {
+        lane_binop = 1;
+      }
+    }
+  }
+  if (dest_in_rbx != 0) {
+    if (ko == 46) {
+      if (ta == 0) {
+        lane_binop = 1;
+      }
+      if (ta == 1) {
+        lane_binop = 1;
+      }
+    }
+  }
+  // Kind 24 reuses the park, the vector let-init, and the VAR
+  // copy above. Kind 51 stays
+  // declined. PLATFORM: MACOS|ARM64 dest-in-rbx logical not.
+  if (dest_in_rbx != 0) {
+    if (ko == 24) {
+      if (ta == 0) {
+        lane_binop = 1;
+      }
+      if (ta == 1) {
+        lane_binop = 1;
+      }
+    }
+  }
+  // Kind 20 reuses the park, the vector let-init, and the VAR
+  // copy above. Kind 51 stays
+  // declined. PLATFORM: MACOS|ARM64 dest-in-rbx logical and.
+  if (dest_in_rbx != 0) {
+    if (ko == 20) {
+      if (ta == 0) {
+        lane_binop = 1;
+      }
+      if (ta == 1) {
+        lane_binop = 1;
+      }
+    }
+  }
+  // Kind 21 reuses the park, the vector let-init, and the VAR
+  // copy above. Kind 51 stays declined. Kind 45 stays
+  // declined. PLATFORM: MACOS|ARM64 dest-in-rbx logical or.
+  if (dest_in_rbx != 0) {
+    if (ko == 21) {
+      if (ta == 0) {
+        lane_binop = 1;
+      }
+      if (ta == 1) {
+        lane_binop = 1;
+      }
+    }
+  }
+  // Kinds 14 through 19 reuse the park, the vector let-init,
+  // and the VAR copy above. The predicate is vlet_lane_cmp_ko.
+  // Kind 45 stays declined. Kind 51 stays declined.
+  // PLATFORM: MACOS|ARM64 dest-in-rbx compare.
+  if (dest_in_rbx != 0) {
+    unsafe {
+      lane_cmp = vlet_lane_cmp_ko(ko);
+    }
+    if (lane_cmp != 0) {
+      if (ta == 0) {
+        lane_binop = 1;
+      }
+      if (ta == 1) {
+        lane_binop = 1;
+      }
+    }
+  }
+  // Kind 0 reuses the park, the vector let-init, and the VAR
+  // copy above. The existing fill splats that integer on each
+  // lane.
+  // Kind 45 stays declined. Kind 51 stays declined.
+  // PLATFORM: MACOS|ARM64 dest-in-rbx integer literal.
+  if (dest_in_rbx != 0) {
+    if (ko == 0) {
+      if (ta == 0) {
+        lane_binop = 1;
+      }
+      if (ta == 1) {
+        lane_binop = 1;
+      }
+    }
+  }
+  // Kind 2 reuses the park, the vector let-init, and the VAR
+  // copy above. The existing fill splats 1 for true and 0
+  // for false on each lane.
+  // Kind 45 stays declined. Kind 51 stays declined.
+  // PLATFORM: MACOS|ARM64 dest-in-rbx boolean literal.
+  if (dest_in_rbx != 0) {
+    if (ko == 2) {
+      if (ta == 0) {
+        lane_binop = 1;
+      }
+      if (ta == 1) {
+        lane_binop = 1;
+      }
+    }
+  }
+  // Kind 1 reuses the park, the vector let-init, and the VAR
+  // copy above. The existing fill narrows the f64 bits and
+  // splats them on each f32 lane. An integer lane stays
+  // outside that fill.
+  // Kind 45 stays declined. Kind 51 stays declined.
+  // PLATFORM: MACOS|ARM64 dest-in-rbx float literal.
+  if (dest_in_rbx != 0) {
+    if (ko == 1) {
+      if (ta == 0) {
+        lane_binop = 1;
+      }
+      if (ta == 1) {
+        lane_binop = 1;
+      }
+    }
+  }
+  if (lane_binop != 0) {
+    ty_ref = let_ty_ref;
+    if (ty_ref <= 0) {
+      unsafe {
+        ty_ref = pipeline_expr_resolved_type_ref(arena, init_ref);
+      }
+    }
+    if (ty_ref <= 0) {
+      return 0 - 2;
+    }
+    unsafe {
+      modp = glue_emit_module_from_ctx(ctx);
+      let_sz = glue_type_size_simple(modp, arena, ty_ref, 0);
+      named_sz = glue_type_named_layout_size_any_module_elf_c(arena, ty_ref);
+    }
+    if (named_sz > let_sz) {
+      let_sz = named_sz;
+    }
+    if (let_sz < 8) {
+      return 0 - 2;
+    }
+    glue_align_next_offset(ctx);
+    dest_spill = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+    if (ta == 1) {
+      pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), dest_spill + 8);
+    } else {
+      dest_spill = dest_spill + 8;
+      pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), dest_spill);
+    }
+    if (ta == 1) {
+      rc = glue_arm64_mov_x19_to_x0_elf_c(elf_ctx);
+    } else {
+      unsafe {
+        rc = backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
+      }
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, dest_spill, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    glue_align_next_offset(ctx);
+    slot_cur = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+    slot_io[0] = slot_cur;
+    unsafe {
+      src_off = asm_local_slot_reg_offset(arena, ty_ref, slot_cur, &slot_io[0]);
+    }
+    pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), slot_io[0]);
+    if (src_off < 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = glue_emit_vector_type_let_init_elf_c(
+        arena, elf_ctx, init_ref, ctx, ta, src_off, ty_ref);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, dest_spill, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    bind_foff = 0;
+  }
   /* EXPR_VAR (3): slot-to-slot copy of a named struct.
    * Frame dest 9–16B: lea src + deref_struct16 + store_retval_pair
    * (same as FIELD frame dest). ARRAY_LIT `[w]` of a 16B named VAR
@@ -624,11 +1084,24 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
    * lower the frame dest ≤16 memcpy gate. Do not change FIELD
    * emit_expr. Do not change enc_store /8.
    * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
-  if (ko == 3 && (ta == 0 || ta == 1)) {
-    unsafe {
-      src_off = glue_var_expr_stack_off_elf_c(arena, ctx, init_ref);
+  copy_arm = 0;
+  if (ko == 3) {
+    if (ta == 0) {
+      copy_arm = 1;
     }
-    bind_foff = 0;
+    if (ta == 1) {
+      copy_arm = 1;
+    }
+  }
+  if (lane_binop != 0) {
+    copy_arm = 1;
+  }
+  if (copy_arm != 0) {
+    if (lane_binop == 0) {
+      unsafe {
+        src_off = glue_var_expr_stack_off_elf_c(arena, ctx, init_ref);
+      }
+      bind_foff = 0;
     /* dest-in-rbx MATCH field-bind: `h` in `Wrap { h } => h`
      * is not a local. dest-in-rbx VAR used to return −2
      * (Darwin CG002). G.7: same subject.field lea as
@@ -676,6 +1149,7 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
       if (src_off < 0) {
         return 0 - 2;
       }
+    }
     }
     ty_ref = let_ty_ref;
     if (ty_ref <= 0) {
@@ -862,11 +1336,36 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
         }
       }
     }
-    unsafe {
-      emit_rc = pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, init_ref, ctx, ta);
+    // A STRUCT_LIT, CALL, or METHOD base has no frame lvalue.
+    // The existing field materializer fills a temp and leaves this
+    // field's address in rax. -99 means the base is a VAR or another
+    // lvalue, so the address emitter below still runs. Nested fields
+    // and a block with lets are that materializer's one walk.
+    // Frame dest only. dest-in-rbx stays on the lvalue copy.
+    // PLATFORM: SHARED.
+    rvalue_ok = 0;
+    if (ko == 44) {
+      if (dest_in_rbx == 0) {
+        unsafe {
+          emit_rc = glue_field_access_call_base_rvalue_elf_c(
+            arena, elf_ctx, init_ref, ctx, ta, 1);
+        }
+        if (emit_rc == 0) {
+          rvalue_ok = 1;
+        } else {
+          if (emit_rc != (0 - 99)) {
+            return 0 - 1;
+          }
+        }
+      }
     }
-    if (emit_rc != 0) {
-      return 0 - 1;
+    if (rvalue_ok == 0) {
+      unsafe {
+        emit_rc = pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, init_ref, ctx, ta);
+      }
+      if (emit_rc != 0) {
+        return 0 - 1;
+      }
     }
     /* dest-in-rbx FIELD / INDEX / DEREF (`*p = w.h` / `*p = arr[i].h` /
      * `*p = arr[i]` / `*p = *q`): memcpy dest-in-rbx. Do not

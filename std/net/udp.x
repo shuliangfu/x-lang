@@ -62,16 +62,15 @@ extern "C" function fcntl(fd: i32, cmd: i32, ...): i32;
 /* 记231: Darwin libc ioctl is variadic; tip Apple va spill for 3rd+. */
 extern "C" function ioctl(fd: i32, req: u64, ...): i32;
 
-/* 记230: tip export const u64 with bit31 set sign-extends (0x8004667e →
- * 0xffffffff8004667e). Build FIONBIO via shift so movz/movk stay zero-ext. */
-#[cfg(target_os = "macos")]
-export function net_fionbio_c(): u64 {
-  return ((0x8004 as u64) * 65536) + (0x667e as u64);
-}
-#[cfg(target_os = "linux")]
-export function net_fionbio_c(): u64 {
-  return 0x5421 as u64;
-}
+/**
+ * FIONBIO request. The body is export function net_fionbio_c in
+ * std/net/tcp.x. A second export is another strong _net_fionbio_c,
+ * and Darwin ld -dead_strip dies on that duplicate.
+ * @return u64 — platform FIONBIO request defined in tcp.x
+ * PLATFORM: POSIX — macOS and Linux. Not Windows.
+ */
+#[cfg(not(target_os = "windows"))]
+extern function net_fionbio_c(): u64;
 
 
 /* See implementation. */
@@ -271,6 +270,40 @@ export function net_udp_send_to_c(fd: i32, addr_u32: u32, port_u32: u32, buf: *u
 /**
  * See implementation.
  */
+#[cfg(not(target_os = "windows"))]
+#[no_mangle]
+export function net_udp_recv_from_c(fd: i32, buf: *u8, len: usize, timeout_ms: u32, out_addr_u32: *u32, out_port_u32: *u32): i32 {
+  let peer_mem: u8[16] = [];
+  let peer_ptr: *u8 = net_udp_sin_buf_ptr_c(&peer_mem[0]);
+  let peer_len: u32 = 16;
+  let p_port: *u16 = (peer_ptr + 2) as *u16;
+  let p_addr: *u32 = (peer_ptr + 4) as *u32;
+  let n: i32 = 0;
+  if (timeout_ms != 0) {
+    if (net_udp_poll_readable_c(fd, timeout_ms) != 0) {
+      return -1;
+    }
+  }
+  unsafe { n = xlang_sys_recvfrom(fd, buf, len as i32, 0, peer_ptr, &peer_len); }
+  if (n < 0) {
+    if (net_udp_recv_is_eagain_c() != 0) {
+      return 0;
+    }
+    return -1;
+  }
+  if (out_addr_u32 != 0) {
+    unsafe { out_addr_u32[0] = ntohl(p_addr[0]); }
+  }
+  if (out_port_u32 != 0) {
+    unsafe { out_port_u32[0] = ntohs(p_port[0]) as u32; }
+  }
+  return n;
+}
+
+/** Windows: same body; tip Linux typeck requires cfg on the callee face
+ * when the body references cfg-gated helpers/consts/externs.
+ */
+#[cfg(target_os = "windows")]
 #[no_mangle]
 export function net_udp_recv_from_c(fd: i32, buf: *u8, len: usize, timeout_ms: u32, out_addr_u32: *u32, out_port_u32: *u32): i32 {
   let peer_mem: u8[16] = [];

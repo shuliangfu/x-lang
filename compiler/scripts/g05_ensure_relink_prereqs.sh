@@ -77,9 +77,13 @@ g05_stamp_frontend_x_pure_asm() {
   return 0
 }
 
-# 0 = host-cc the gen. 1 = leave the object (up to date, or the
-# pure-asm stamp matches). 2 = stamp and object both exist and differ;
-# caller must stop and must not cc.
+# 0 = legacy "would host-cc gen" (unused on product: never host-cc).
+# 1 = leave the object (pure-asm stamp matches, or no .o yet handled above).
+# 2 = must drop+pure-asm: stamp≠.o, OR .o present without a pure_asm stamp
+#     (Track L / migrate cold seed left an object that is not tip pure-asm).
+# knife256 / 10.2: never keep Track L parser_x/typeck_x/codegen_x without a
+# matching *.pure_asm stamp — that seed returns P001 / wrong arch on Darwin.
+# PLATFORM: SHARED.
 g05_frontend_x_needs_host_cc() {
   _fx_dir="${1:-.}"
   _fx_stem="${2:?stem}"
@@ -88,6 +92,10 @@ g05_frontend_x_needs_host_cc() {
     if g05_frontend_x_pure_asm_kept "$_fx_dir" "$_fx_stem"; then
       return 1
     fi
+    return 2
+  fi
+  # Object without pure-asm stamp (Track L archaeology / migrate seed) → rebuild.
+  if [ -f "$_fx_dir/${_fx_stem}.o" ] && [ ! -f "$_fx_dir/${_fx_stem}.pure_asm" ]; then
     return 2
   fi
   if [ ! -f "$_fx_dir/$_fx_gen" ]; then
@@ -340,6 +348,7 @@ g05_frontend_link_names_gate() {
 g05_p9a_bridge_pure() {
   local _bo="$1"
   local _bx="src/asm/parser_asm_lex_step_bridge.x"
+  local _os
   if [ ! -f "$_bx" ]; then
     echo "g05_ensure: P9a bridge .x missing" >&2
     return 1
@@ -348,15 +357,46 @@ g05_p9a_bridge_pure() {
     echo "g05_ensure: P9a bridge output path missing" >&2
     return 1
   fi
+  # knife256/10.2: Cap tip pure_asm collapses lexer_next_buf_into→into.
+  # GOOD peel is the Oct-20 known-good bridge (U:_lexer_next_into + T step/peek/anchor).
+  # Prior gate grepped U peel_next_buf_into — that symbol is never U in GOOD.o, so the
+  # gate never fired and every Cap tip tip-cold rebuilt a collapsed bridge → SEGV.
+  # PLATFORM: MACOS Cap tip L4 / Darwin g05.
+  if [ -s /tmp/p9a_lex_bridge_peel_GOOD.o ] \
+    && /usr/bin/nm -gU /tmp/p9a_lex_bridge_peel_GOOD.o 2>/dev/null \
+         | grep -q 'parser_asm_lex_step_bridge_w1534_anchor' \
+    && /usr/bin/nm -gU /tmp/p9a_lex_bridge_peel_GOOD.o 2>/dev/null \
+         | grep -q 'parser_asm_lex_step_kind_c'; then
+    cp -f /tmp/p9a_lex_bridge_peel_GOOD.o "$_bo"
+    echo "g05_ensure: P9a bridge using GOOD peel (anchor+step_kind)" >&2
+    return 0
+  fi
   rm -f "$_bo"
-  if ! (
-    export XLANG_PREFER_ASM_O=1
-    unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
-    pure_asm_x_to_o "$_bo" "$_bx"
-  ) || [ ! -s "$_bo" ]; then
-    echo "g05_ensure: P9a lexer-step bridge pure-asm failed" >&2
-    rm -f "$_bo"
-    return 1
+  # DIG tip_l4 Win: tip P012 on multi-cfg; bi CG002 on full/wrap_buf PE emit.
+  # windows-only nowrap TU + wrap stub, bi (.o-out) + ld -r.
+  # PLATFORM: WINDOWS.
+  _os="$(uname -s 2>/dev/null || echo Unknown)"
+  case "$_os" in
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+      if [ -f scripts/g05_p9a_win_bridge_build.sh ] \
+        && bash scripts/g05_p9a_win_bridge_build.sh "$_bo" \
+        && [ -s "$_bo" ]; then
+        :
+      else
+        rm -f "$_bo"
+      fi
+      ;;
+  esac
+  if [ ! -s "$_bo" ]; then
+    if ! (
+      export XLANG_PREFER_ASM_O=1
+      unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+      pure_asm_x_to_o_or_pin_egg "$_bo" "$_bx"
+    ) || [ ! -s "$_bo" ]; then
+      echo "g05_ensure: P9a lexer-step bridge pure-asm failed" >&2
+      rm -f "$_bo"
+      return 1
+    fi
   fi
   if ! g05_obj_defines "$_bo" "parser_asm_lex_step_kind_c" \
     || ! g05_obj_defines "$_bo" "parser_asm_lex_peek_kind_c" \
@@ -387,7 +427,7 @@ g05_binop_set_pure() {
   if ! (
     export XLANG_PREFER_ASM_O=1
     unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
-    pure_asm_x_to_o "$_bo" "$_bx"
+    pure_asm_x_to_o_or_pin_egg "$_bo" "$_bx"
   ) || [ ! -s "$_bo" ]; then
     echo "g05_ensure: P4 binop setter pure-asm failed" >&2
     rm -f "$_bo"
@@ -406,6 +446,7 @@ g05_binop_set_pure() {
 # PLATFORM: SHARED. $1 = output object. cwd is compiler/.
 g05_binop_tramp_pure() {
   local _bo="$1"
+  local _os _xl _bi_out
   local _bx="src/asm/pthin_expr_binop_tramp.x"
   if [ ! -f "$_bx" ]; then
     echo "g05_ensure: P4 binop trampoline .x missing" >&2
@@ -416,14 +457,43 @@ g05_binop_tramp_pure() {
     return 1
   fi
   rm -f "$_bo"
-  if ! (
-    export XLANG_PREFER_ASM_O=1
-    unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
-    pure_asm_x_to_o "$_bo" "$_bx"
-  ) || [ ! -s "$_bo" ]; then
-    echo "g05_ensure: P4 binop trampoline pure-asm failed" >&2
-    rm -f "$_bo"
-    return 1
+  # DIG tip_l4 Win: PE tip P012 on multi-cfg tramp; bi-first + .o-out.
+  # Win bi keys -c off a .o suffix (mktemp paths without .o → BLD001 ld).
+  # PLATFORM: WINDOWS.
+  _os="$(uname -s 2>/dev/null || echo Unknown)"
+  case "$_os" in
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+      case "$_bo" in
+        *.o|*.obj|*.O|*.OBJ) _bi_out="$_bo" ;;
+        *) _bi_out="${_bo}.o" ;;
+      esac
+      for _xl in ./xlang_bi.exe ./xlang_bi; do
+        [ -x "$_xl" ] || continue
+        rm -f "$_bi_out"
+        if "$_xl" -backend asm -c "$_bx" -o "$_bi_out" >/dev/null 2>&1 && [ -s "$_bi_out" ]; then
+          if [ "$_bi_out" != "$_bo" ]; then
+            mv -f "$_bi_out" "$_bo" || cp -f "$_bi_out" "$_bo"
+            rm -f "$_bi_out"
+          fi
+          if [ -s "$_bo" ]; then
+            echo "g05_ensure: P4 binop trampoline via $_xl (Win bi; tip P012; .o-out)" >&2
+            break
+          fi
+        fi
+        rm -f "$_bo" "$_bi_out"
+      done
+      ;;
+  esac
+  if [ ! -s "$_bo" ]; then
+    if ! (
+      export XLANG_PREFER_ASM_O=1
+      unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+      pure_asm_x_to_o_or_pin_egg "$_bo" "$_bx"
+    ) || [ ! -s "$_bo" ]; then
+      echo "g05_ensure: P4 binop trampoline pure-asm failed" >&2
+      rm -f "$_bo"
+      return 1
+    fi
   fi
   if ! g05_obj_defines "$_bo" "parser_asm_parse_term_into_slice_c" \
     || ! g05_obj_defines "$_bo" "parser_asm_parse_logor_into_slice_c" \
@@ -456,7 +526,7 @@ g05_unary_set_pure() {
   if ! (
     export XLANG_PREFER_ASM_O=1
     unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
-    pure_asm_x_to_o "$_bo" "$_bx"
+    pure_asm_x_to_o_or_pin_egg "$_bo" "$_bx"
   ) || [ ! -s "$_bo" ]; then
     echo "g05_ensure: P4 unary setter pure-asm failed" >&2
     rm -f "$_bo"
@@ -476,6 +546,7 @@ g05_unary_set_pure() {
 g05_unary_tramp_pure() {
   local _bo="$1"
   local _bx="src/asm/pthin_expr_unary_tramp.x"
+  local _os _xl _bi_out
   if [ ! -f "$_bx" ]; then
     echo "g05_ensure: P4 unary trampoline .x missing" >&2
     return 1
@@ -485,14 +556,44 @@ g05_unary_tramp_pure() {
     return 1
   fi
   rm -f "$_bo"
-  if ! (
-    export XLANG_PREFER_ASM_O=1
-    unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
-    pure_asm_x_to_o "$_bo" "$_bx"
-  ) || [ ! -s "$_bo" ]; then
-    echo "g05_ensure: P4 unary trampoline pure-asm failed" >&2
-    rm -f "$_bo"
-    return 1
+  # DIG tip_l4 Win: PE tip P012 on multi-cfg tramp; pin_egg may skip bi when
+  # uname/path odd under g05 — try xlang_bi.exe first. PLATFORM: WINDOWS.
+  # Win bi keys -c off a .o suffix: mktemp paths without .o go through ld
+  # (BLD001) even with -c. Write to ${_bo}.o then mv. PLATFORM: WINDOWS.
+  _os="$(uname -s 2>/dev/null || echo Unknown)"
+  case "$_os" in
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+      case "$_bo" in
+        *.o|*.obj|*.O|*.OBJ) _bi_out="$_bo" ;;
+        *) _bi_out="${_bo}.o" ;;
+      esac
+      for _xl in ./xlang_bi.exe ./xlang_bi; do
+        [ -x "$_xl" ] || continue
+        rm -f "$_bi_out"
+        if "$_xl" -backend asm -c "$_bx" -o "$_bi_out" >/dev/null 2>&1 && [ -s "$_bi_out" ]; then
+          if [ "$_bi_out" != "$_bo" ]; then
+            mv -f "$_bi_out" "$_bo" || cp -f "$_bi_out" "$_bo"
+            rm -f "$_bi_out"
+          fi
+          if [ -s "$_bo" ]; then
+            echo "g05_ensure: P4 unary trampoline via $_xl (Win bi; tip P012; .o-out)" >&2
+            break
+          fi
+        fi
+        rm -f "$_bo" "$_bi_out"
+      done
+      ;;
+  esac
+  if [ ! -s "$_bo" ]; then
+    if ! (
+      export XLANG_PREFER_ASM_O=1
+      unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+      pure_asm_x_to_o_or_pin_egg "$_bo" "$_bx"
+    ) || [ ! -s "$_bo" ]; then
+      echo "g05_ensure: P4 unary trampoline pure-asm failed" >&2
+      rm -f "$_bo"
+      return 1
+    fi
   fi
   if ! g05_obj_defines "$_bo" "parser_asm_parse_unary_into_slice_c" \
     || ! g05_obj_defines "$_bo" "parser_parse_primary_ptr_into_c" \
@@ -524,7 +625,7 @@ g05_as_suffix_set_pure() {
   if ! (
     export XLANG_PREFER_ASM_O=1
     unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
-    pure_asm_x_to_o "$_bo" "$_bx"
+    pure_asm_x_to_o_or_pin_egg "$_bo" "$_bx"
   ) || [ ! -s "$_bo" ]; then
     echo "g05_ensure: P4 as_suffix setter pure-asm failed" >&2
     rm -f "$_bo"
@@ -543,6 +644,7 @@ g05_as_suffix_set_pure() {
 # PLATFORM: SHARED. $1 = output object. cwd is compiler/.
 g05_as_suffix_tramp_pure() {
   local _bo="$1"
+  local _os _xl _bi_out
   local _bx="src/asm/pthin_expr_as_suffix_tramp.x"
   if [ ! -f "$_bx" ]; then
     echo "g05_ensure: P4 as_suffix trampoline .x missing" >&2
@@ -553,14 +655,43 @@ g05_as_suffix_tramp_pure() {
     return 1
   fi
   rm -f "$_bo"
-  if ! (
-    export XLANG_PREFER_ASM_O=1
-    unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
-    pure_asm_x_to_o "$_bo" "$_bx"
-  ) || [ ! -s "$_bo" ]; then
-    echo "g05_ensure: P4 as_suffix trampoline pure-asm failed" >&2
-    rm -f "$_bo"
-    return 1
+  # DIG tip_l4 Win: PE tip P012 on multi-cfg tramp; bi-first + .o-out.
+  # Win bi keys -c off a .o suffix (mktemp paths without .o → BLD001 ld).
+  # PLATFORM: WINDOWS.
+  _os="$(uname -s 2>/dev/null || echo Unknown)"
+  case "$_os" in
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+      case "$_bo" in
+        *.o|*.obj|*.O|*.OBJ) _bi_out="$_bo" ;;
+        *) _bi_out="${_bo}.o" ;;
+      esac
+      for _xl in ./xlang_bi.exe ./xlang_bi; do
+        [ -x "$_xl" ] || continue
+        rm -f "$_bi_out"
+        if "$_xl" -backend asm -c "$_bx" -o "$_bi_out" >/dev/null 2>&1 && [ -s "$_bi_out" ]; then
+          if [ "$_bi_out" != "$_bo" ]; then
+            mv -f "$_bi_out" "$_bo" || cp -f "$_bi_out" "$_bo"
+            rm -f "$_bi_out"
+          fi
+          if [ -s "$_bo" ]; then
+            echo "g05_ensure: P4 as_suffix trampoline via $_xl (Win bi; tip P012; .o-out)" >&2
+            break
+          fi
+        fi
+        rm -f "$_bo" "$_bi_out"
+      done
+      ;;
+  esac
+  if [ ! -s "$_bo" ]; then
+    if ! (
+      export XLANG_PREFER_ASM_O=1
+      unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+      pure_asm_x_to_o_or_pin_egg "$_bo" "$_bx"
+    ) || [ ! -s "$_bo" ]; then
+      echo "g05_ensure: P4 as_suffix trampoline pure-asm failed" >&2
+      rm -f "$_bo"
+      return 1
+    fi
   fi
   if ! g05_obj_defines "$_bo" "parser_asm_parse_as_suffix_into_slice_c" \
     || ! g05_obj_defines "$_bo" "parser_asm_lex_peek_kind_after_c" \
@@ -579,6 +710,7 @@ g05_as_suffix_tramp_pure() {
 # cwd is compiler/.
 g05_ternary_tramp_pure() {
   local _bo="$1"
+  local _os _xl _bi_out
   local _bx="src/asm/pthin_expr_ternary_tramp.x"
   if [ ! -f "$_bx" ]; then
     echo "g05_ensure: P4 ternary trampoline .x missing" >&2
@@ -589,14 +721,43 @@ g05_ternary_tramp_pure() {
     return 1
   fi
   rm -f "$_bo"
-  if ! (
-    export XLANG_PREFER_ASM_O=1
-    unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
-    pure_asm_x_to_o "$_bo" "$_bx"
-  ) || [ ! -s "$_bo" ]; then
-    echo "g05_ensure: P4 ternary trampoline pure-asm failed" >&2
-    rm -f "$_bo"
-    return 1
+  # DIG tip_l4 Win: PE tip P012 on multi-cfg tramp; bi-first + .o-out.
+  # Win bi keys -c off a .o suffix (mktemp paths without .o → BLD001 ld).
+  # PLATFORM: WINDOWS.
+  _os="$(uname -s 2>/dev/null || echo Unknown)"
+  case "$_os" in
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+      case "$_bo" in
+        *.o|*.obj|*.O|*.OBJ) _bi_out="$_bo" ;;
+        *) _bi_out="${_bo}.o" ;;
+      esac
+      for _xl in ./xlang_bi.exe ./xlang_bi; do
+        [ -x "$_xl" ] || continue
+        rm -f "$_bi_out"
+        if "$_xl" -backend asm -c "$_bx" -o "$_bi_out" >/dev/null 2>&1 && [ -s "$_bi_out" ]; then
+          if [ "$_bi_out" != "$_bo" ]; then
+            mv -f "$_bi_out" "$_bo" || cp -f "$_bi_out" "$_bo"
+            rm -f "$_bi_out"
+          fi
+          if [ -s "$_bo" ]; then
+            echo "g05_ensure: P4 ternary trampoline via $_xl (Win bi; tip P012; .o-out)" >&2
+            break
+          fi
+        fi
+        rm -f "$_bo" "$_bi_out"
+      done
+      ;;
+  esac
+  if [ ! -s "$_bo" ]; then
+    if ! (
+      export XLANG_PREFER_ASM_O=1
+      unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+      pure_asm_x_to_o_or_pin_egg "$_bo" "$_bx"
+    ) || [ ! -s "$_bo" ]; then
+      echo "g05_ensure: P4 ternary trampoline pure-asm failed" >&2
+      rm -f "$_bo"
+      return 1
+    fi
   fi
   if ! g05_obj_defines "$_bo" "parser_asm_parse_ternary_into_slice_c" \
     || ! g05_obj_defines "$_bo" "parser_asm_parse_assign_into_slice_c" \
@@ -628,6 +789,7 @@ g05_primary_tramp_pure() {
   local _bo="$1"
   local _bx="src/asm/pthin_expr_primary_tramp.x"
   local _bs
+  local _os
   if [ ! -f "$_bx" ]; then
     echo "g05_ensure: P4 primary trampoline .x missing" >&2
     return 1
@@ -637,10 +799,59 @@ g05_primary_tramp_pure() {
     return 1
   fi
   rm -f "$_bo"
+  # DIG tip_l4 Win: bi/tip CG002 on full tramp (59 funcs); five faces
+  # SEGV/CG002 even alone. windows-only split + win stubs + ld -r.
+  # Gate checks T and tramp-face U=0 (no nm-T false green). PLATFORM: WINDOWS.
+  _os="$(uname -s 2>/dev/null || echo Unknown)"
+  case "$_os" in
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+      if [ -f scripts/g05_primary_tramp_win_build.sh ] \
+        && bash scripts/g05_primary_tramp_win_build.sh "$_bo" \
+        && [ -s "$_bo" ]; then
+        :
+      else
+        rm -f "$_bo"
+      fi
+      ;;
+  esac
+  if [ -s "$_bo" ]; then
+    for _bs in labi_pthin_expr_primary_slice_marker \
+      parser_asm_append_type_inst_mangle_c \
+      parser_asm_struct_lit_append_field_src_c \
+      parser_asm_struct_lit_append_shorthand_src_c \
+      parser_asm_struct_lit_parse_field_value_c \
+      parser_asm_parse_anonymous_struct_lit_c \
+      parser_asm_finish_struct_lit_from_type_ident_into_c \
+      parser_parse_expr_ptr_into_c \
+      parser_finish_struct_lit_ptr_into_c \
+      parser_asm_lbrace_looks_like_block_ptr_c \
+      parser_asm_empty_ident_braces_prefer_block_ptr_c \
+      parser_asm_parse_struct_lit_fields_ptr_c \
+      parser_asm_string_lit_decode_span_ptr_c \
+      parser_asm_string_lit_append_byte_ptr_c \
+      parser_parse_match_ptr_into_c \
+      parser_parse_at_simd_builtin_ptr_into_c \
+      parser_asm_parse_anonymous_struct_lit_ptr_c \
+      parser_asm_parse_type_ref_ptr_into_c \
+      parser_asm_skip_angle_count_ptr_into_c \
+      parser_asm_ident_pre_dispatch_ptr_c \
+      parser_asm_parse_primary_into_slice_c \
+      pthin_expr_primary_tramp_w1539_anchor; do
+      if ! g05_obj_defines "$_bo" "$_bs"; then
+        echo "g05_ensure: P4 primary trampoline missing $_bs" >&2
+        rm -f "$_bo"
+        return 1
+      fi
+    done
+    return 0
+  fi
+  # note743y.6.3: tip product may SEGV on tramp.x (same qualified-name smash
+  # as ensure-std). Retry pin-egg like note743m so g05 can relink the fixed
+  # pthin_type_ref bodies. PLATFORM: SHARED.
   if ! (
     export XLANG_PREFER_ASM_O=1
     unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
-    pure_asm_x_to_o "$_bo" "$_bx"
+    pure_asm_x_to_o_or_pin_egg "$_bo" "$_bx"
   ) || [ ! -s "$_bo" ]; then
     echo "g05_ensure: P4 primary trampoline pure-asm failed" >&2
     rm -f "$_bo"
@@ -733,6 +944,37 @@ g05_try_x_to_o() {
   ); then
     return 0
   fi
+  # DIG tip_l4 Win: PE tip P012 / -E→host-cc XLANG_WEAK on multi-cfg .x;
+  # xlang_bi.exe emits PE .o. Skip when SYM_RENAME needs rewrite. bi keys -c
+  # off a .o suffix — mktemp paths without .o go through ld (BLD001).
+  # PLATFORM: WINDOWS.
+  if [ -z "${G05_X_O_SYM_RENAME:-}" ]; then
+    _bi_os="$(uname -s 2>/dev/null || echo Unknown)"
+    case "$_bi_os" in
+      Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+        case "$_xout" in
+          *.o|*.obj|*.O|*.OBJ) _bi_out="$_xout" ;;
+          *) _bi_out="${_xout}.o" ;;
+        esac
+        for _xl in ./xlang_bi.exe ./xlang_bi; do
+          [ -x "$_xl" ] || continue
+          rm -f "$_bi_out"
+          if "$_xl" -backend asm -c "$_xsrc" -o "$_bi_out" >/dev/null 2>&1 \
+            && [ -s "$_bi_out" ]; then
+            if [ "$_bi_out" != "$_xout" ]; then
+              mv -f "$_bi_out" "$_xout" || cp -f "$_bi_out" "$_xout"
+              rm -f "$_bi_out"
+            fi
+            if [ -s "$_xout" ]; then
+              echo "g05_ensure: g05_try_x_to_o via $_xl (Win bi; tip P012; .o-out) ← $_xsrc" >&2
+              return 0
+            fi
+          fi
+          rm -f "$_xout" "$_bi_out"
+        done
+        ;;
+    esac
+  fi
   # w1485: pure asm was the intended path and failed; record the silent host-cc
   # fallback (SYM_RENAME and PREFER_ASM_O_G05=0 are cc by design). PLATFORM: SHARED.
   if [ "${XLANG_PREFER_ASM_O_G05:-1}" = "1" ] && [ -z "${G05_X_O_SYM_RENAME:-}" ]; then
@@ -764,6 +1006,11 @@ g05_try_x_to_o() {
     rm -f "$_xtmp"
     return 1
   fi
+  # Cap 10.7.1 / 5.1: Cap tip -E emits `xlang_va_list ap = ;` for bare
+  # `let ap: VaList;` (empty init expr → nothing after `=`). Host-cc rejects.
+  # Rewrite to a bare decl (same face as seeds/diag.from_x.c reportf).
+  # PLATFORM: SHARED — Darwin/Linux tip -E+$CC.
+  perl -i -pe 's/\bxlang_va_list\s+(\w+)\s*=\s*;/xlang_va_list $1;/g' "$_xtmp" || true
   if [ "${G05_X_O_WEAK:-0}" = "1" ]; then
     # 仅改非 static 的简单返回类型函数定义行（-E 产物形态）
     # G-02f-335/336：含 uint8_t * / char * / int64_t 返回（diag_color_prefix / get_source_len 等）
@@ -985,6 +1232,10 @@ g05_try_x_to_o() {
         -e '/^extern int mkstemp(/d' \
         -e '/^extern int32_t rename(/d' \
         -e '/^extern int rename(/d' \
+        -e '/^extern int32_t xlang_vsnprintf(/d' \
+        -e '/^extern int xlang_vsnprintf(/d' \
+        -e '/^extern int32_t vsnprintf(/d' \
+        -e '/^extern int vsnprintf(/d' \
         "$_xtmp"
   } >"${_xtmp}.full" && mv "${_xtmp}.full" "$_xtmp"
   # shellcheck disable=SC2086
@@ -1060,9 +1311,10 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     echo "g05_ensure: $_rais_x has no pure-asm host for $_rais_os $_rais_mach" >&2
     exit 1
   fi
-  # Rebuild when missing, older than the .x, not from the .x (no doc anchor),
-  # or a 5.7a merge object (still carries the dropped backtrace residual).
-  if [ ! -f "$_rais_o" ] || [ "$_rais_x" -nt "$_rais_o" ] \
+  # Rebuild when missing, not strictly newer than the .x (10.65), not from the
+  # .x (no doc anchor), or a 5.7a merge object (still carries the dropped
+  # backtrace residual).
+  if [ ! -f "$_rais_o" ] || [ ! "$_rais_o" -nt "$_rais_x" ] \
     || ! nm "$_rais_o" 2>/dev/null | grep -q "T _*runtime_asm_io_stubs_x_doc_anchor\$" \
     || nm "$_rais_o" 2>/dev/null | grep -Eq " [TWw] _*backtrace_capture_c\$"; then
     _rais_done=0
@@ -1073,6 +1325,11 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         export XLANG_PREFER_ASM_O=1
         unset G05_X_O_WEAK G05_X_O_SYM_RENAME
         export G05_X_O_WEAK_FUNCS="$_rais_weak"
+        # 10.63: Darwin Cap tip drops 24B RaisReadPtrView sret (no x8 save);
+        # soft still emits sret. Prefer soft only for this whole-object rebuild.
+        if [ "$_rais_os" = "Darwin" ] && [ -x ./xlang_asm.g05_soft ]; then
+          export XLANG="$(pwd)/xlang_asm.g05_soft"
+        fi
         pure_asm_x_to_o "$_rais_o.x.tmp.o" "$_rais_x"
       ) && [ -s "$_rais_o.x.tmp.o" ]; then
         _rais_nm=$(nm "$_rais_o.x.tmp.o" 2>/dev/null)
@@ -1093,10 +1350,37 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       mv -f "$_rais_o.x.tmp.o" "$_rais_o"
       echo "g05_ensure: $_rais_o ← $_rais_x (w1516 pure asm, whole object, no seed)"
     else
-      rm -f "$_rais_o.x.tmp.o" "$_rais_o"
-      echo "$_rais_os $_rais_x" >>build_asm/g05_cc_fallback.log 2>/dev/null || true
-      echo "g05_ensure: ERROR $_rais_x pure asm failed 3x; no seed fallback (w1516)" >&2
-      exit 1
+      rm -f "$_rais_o.x.tmp.o"
+      # tip_l4 Win: tip/egg/aside/bi fail XT001/CG002; restore tip-cold pin
+      # that still carries g05 authority faces. PLATFORM: WINDOWS.
+      _rais_pin_ok=0
+      if [ "$_rais_os" = "Windows" ]; then
+        for _rais_pin in \
+            runtime_asm_io_stubs.o.tip_cold_pin \
+            src/asm/runtime_asm_io_stubs.o.tip_cold_pin \
+            /c/xlang_tmp/seeds/runtime_asm_io_stubs.o; do
+          if [ -s "$_rais_pin" ]; then
+            _rais_pnm=$(nm "$_rais_pin" 2>/dev/null || true)
+            if printf '%s\n' "$_rais_pnm" | grep -q "T _*runtime_asm_io_stubs_x_doc_anchor\$" \
+              && printf '%s\n' "$_rais_pnm" | grep -q "T _*std_fmt_println_i64\$" \
+              && printf '%s\n' "$_rais_pnm" | grep -q "T _*std_io_read_stdin_ptr_slice\$" \
+              && printf '%s\n' "$_rais_pnm" | grep -q "T _*std_io_ptr_view\$" \
+              && printf '%s\n' "$_rais_pnm" | grep -Eq "[TWw] _*xlang_target_cpu_detect_host\$" \
+              && printf '%s\n' "$_rais_pnm" | grep -Eq "[TWw] _*xlang_sys_write\$"; then
+              cp -f "$_rais_pin" "$_rais_o" && [ -s "$_rais_o" ] || continue
+              _rais_pin_ok=1
+              echo "g05_ensure: $_rais_o ← tip-cold pin $_rais_pin (w1516 Win)"
+              break
+            fi
+          fi
+        done
+      fi
+      if [ "$_rais_pin_ok" != "1" ]; then
+        rm -f "$_rais_o"
+        echo "$_rais_os $_rais_x" >>build_asm/g05_cc_fallback.log 2>/dev/null || true
+        echo "g05_ensure: ERROR $_rais_x pure asm failed 3x; no seed fallback (w1516)" >&2
+        exit 1
+      fi
     fi
   fi
   # wave765 G.7: labi multi-slice product PREFER → ensure try-labi-prefer
@@ -1126,6 +1410,47 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       RUNTIME_DRIVER_NO_C_CFLAGS="$RUNTIME_DRIVER_NO_C_CFLAGS" \
       bash scripts/ensure_host_cc_seed_o.sh try-rt-prefer src/runtime_driver_no_c.o \
       || echo "g05_ensure: try-rt-prefer failed (non-fatal if unused)" >&2
+    # knife256 / 10.2: seed-only R10 left run_compiler_c U; force rebuild once.
+    if [ -f src/runtime_driver_no_c.o ] \
+      && ! nm src/runtime_driver_no_c.o 2>/dev/null | grep -qE " T _?run_compiler_c$"; then
+      echo "g05_ensure: runtime_driver_no_c.o missing run_compiler_c; FORCE try-rt-prefer"
+      XLANG_HOST_CC_SEED_FORCE=1 XLANG_G05_PREFER_X_O="${XLANG_G05_PREFER_X_O:-1}" \
+        CC="$CC" CFLAGS="${CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}" \
+        RUNTIME_DRIVER_NO_C_CFLAGS="$RUNTIME_DRIVER_NO_C_CFLAGS" \
+        bash scripts/ensure_host_cc_seed_o.sh try-rt-prefer src/runtime_driver_no_c.o \
+        || { echo "g05_ensure: try-rt-prefer FORCE for run_compiler_c failed" >&2; exit 1; }
+      if ! nm src/runtime_driver_no_c.o 2>/dev/null | grep -qE " T _?run_compiler_c$"; then
+        echo "g05_ensure: runtime_driver_no_c.o still missing run_compiler_c after FORCE" >&2
+        exit 1
+      fi
+    fi
+    # knife256 / 10.2: 记253 hollowed R9 / dispatch_impl / parsed seeds.
+    # Force rebuild when any product face is missing (hollow stubs must not win).
+    _noc_need_force=0
+    if [ -f src/runtime_driver_no_c.o ]; then
+      for _need in asm_codegen_ast driver_run_compiler_full_x_impl_c \
+          driver_run_compiler_parsed driver_argv_has_emit_c_flag \
+          driver_compile_parse_argv_impl_c drv_eq_minus_o; do
+        nm src/runtime_driver_no_c.o 2>/dev/null | grep -qE " T _?${_need}$" \
+          || _noc_need_force=1
+      done
+    fi
+    if [ "$_noc_need_force" = "1" ]; then
+      echo "g05_ensure: runtime_driver_no_c.o missing asm_codegen_ast/impl_c/parsed; FORCE try-rt-prefer"
+      XLANG_HOST_CC_SEED_FORCE=1 XLANG_G05_PREFER_X_O="${XLANG_G05_PREFER_X_O:-1}" \
+        CC="$CC" CFLAGS="${CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}" \
+        RUNTIME_DRIVER_NO_C_CFLAGS="$RUNTIME_DRIVER_NO_C_CFLAGS" \
+        bash scripts/ensure_host_cc_seed_o.sh try-rt-prefer src/runtime_driver_no_c.o \
+        || { echo "g05_ensure: try-rt-prefer FORCE for hollow faces failed" >&2; exit 1; }
+      for _need in asm_codegen_ast driver_run_compiler_full_x_impl_c \
+          driver_run_compiler_parsed driver_argv_has_emit_c_flag \
+          driver_compile_parse_argv_impl_c drv_eq_minus_o; do
+        if ! nm src/runtime_driver_no_c.o 2>/dev/null | grep -qE " T _?${_need}$"; then
+          echo "g05_ensure: runtime_driver_no_c.o still missing $_need after FORCE" >&2
+          exit 1
+        fi
+      done
+    fi
     # w2060: driver_run_asm_backend must be the src/runtime/rt_run_asm_backend.x
     # body (fills the driver_asm work slots → entry exports keep the module
     # prefix). A stale or cold-seed leaf stops ensure here. PLATFORM: SHARED.
@@ -1134,7 +1459,14 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         echo "g05_ensure: rt-abk authority OK (src/runtime_driver_no_c.o ← rt_run_asm_backend.x) (w2060)"
       else
         echo "g05_ensure: ERROR src/runtime_driver_no_c.o lacks the rt_run_asm_backend.x body of driver_run_asm_backend (cold seed?) (w2060)" >&2
-        exit 1
+        # tip_l4 pthin prefer: keep going so P1–P20 thin_glue can still merge;
+        # prefer ignores g05 rc when parser_asm_thin_glue.o is present.
+        # PLATFORM: SHARED.
+        if [ "${XLANG_G05_PTHIN_KEEP_GOING:-0}" = "1" ]; then
+          echo "g05_ensure: PTHIN_KEEP_GOING=1; continue past rt-abk (thin_glue prefer)" >&2
+        else
+          exit 1
+        fi
       fi
     fi
     # 7.4.4 配套基建 (2026-09-10): G05_OBJS also links the five STANDALONE rt
@@ -1163,6 +1495,13 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     XLANG_G05_PREFER_X_O="${XLANG_G05_PREFER_X_O:-1}" \
       bash scripts/ensure_host_cc_seed_o.sh rt-slice \
       || echo "g05_ensure: rt-slice refresh failed (non-fatal if unused)" >&2
+    # knife256 / 10.2: rt_run_exec.o is on the g05 link line (knife 254) but
+    # not in catalog RT_SEED_SLICE_OBJS (would dup m8_reloc_stubs at phase1).
+    # Ensure it here alone via pure-asm. PLATFORM: SHARED.
+    echo "g05_ensure: rt-run-exec pure-asm (g05-only; not catalog rt-slice)"
+    XLANG_G05_PREFER_X_O="${XLANG_G05_PREFER_X_O:-1}" \
+      bash scripts/ensure_host_cc_seed_o.sh try-rt-run-exec-prefer \
+      || { echo "g05_ensure: rt_run_exec.o pure-asm failed" >&2; exit 1; }
     # Same class: driver_x.o compiles from driver_gen.c (gen-x family), but a
     # driver_gen.c regen above never re-triggered the .o in the warm g05 path
     # (2026-09-10 trap: pin gained a helper, gen refreshed, .o stayed old).
@@ -1417,11 +1756,40 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         mv -f "$_xenc_o.x.tmp.o" "$_xenc_o"
         echo "g05_ensure: $_xenc_o ← $_xenc_x (w1522 pure asm, whole object, no cc)"
       else
-        rm -f "$_xenc_o.x.tmp.o" "$_xenc_o"
-        mkdir -p build_asm
-        echo "$_xenc_os $_xenc_x" >>build_asm/g05_cc_fallback.log 2>/dev/null || true
-        echo "g05_ensure: ERROR $_xenc_x pure asm failed 3x; no cc fallback (w1522)" >&2
-        exit 1
+        # DIG tip_l4 Win: PE tip P012 on multi-cfg enc_c; xlang_bi.exe emits.
+        # PLATFORM: WINDOWS.
+        if [ "$_xenc_os" = "Windows" ]; then
+          for _xenc_xl in ./xlang_bi.exe ./xlang_bi \
+              ./xlang.pre_l4_aside.exe ./xlang.pre_l4_aside; do
+            [ -x "$_xenc_xl" ] || continue
+            rm -f "$_xenc_o.x.tmp.o"
+            if (
+              export XLANG="$_xenc_xl"
+              export XLANG_PREFER_ASM_O=1
+              unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+              pure_asm_x_to_o "$_xenc_o.x.tmp.o" "$_xenc_x"
+            ) && [ -s "$_xenc_o.x.tmp.o" ]; then
+              _xenc_nm=$(nm "$_xenc_o.x.tmp.o" 2>/dev/null | tr -d '\r')
+              if printf '%s\n' "$_xenc_nm" | grep -q " [TW] _*backend_x86_64_enc_c_x_doc_anchor\$" \
+                && printf '%s\n' "$_xenc_nm" | grep -q " [TW] _*arch_x86_64_enc_enc_mov_arg_reg_to_rax\$" \
+                && printf '%s\n' "$_xenc_nm" | grep -q " [TW] _*arch_x86_64_enc_enc_mov_rax_to_arg_reg\$" \
+                && printf '%s\n' "$_xenc_nm" | grep -q " [TW] _*x86_enc_jcc_rel32\$"; then
+                mv -f "$_xenc_o.x.tmp.o" "$_xenc_o"
+                echo "g05_ensure: $_xenc_o ← $_xenc_x via $_xenc_xl (w1522 Win bi; tip P012)"
+                _xenc_done=1
+                break
+              fi
+            fi
+            rm -f "$_xenc_o.x.tmp.o"
+          done
+        fi
+        if [ "$_xenc_done" != "1" ]; then
+          rm -f "$_xenc_o.x.tmp.o" "$_xenc_o"
+          mkdir -p build_asm
+          echo "$_xenc_os $_xenc_x" >>build_asm/g05_cc_fallback.log 2>/dev/null || true
+          echo "g05_ensure: ERROR $_xenc_x pure asm failed 3x; no cc fallback (w1522)" >&2
+          exit 1
+        fi
       fi
     fi
   fi
@@ -1492,42 +1860,49 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _uab_x=src/asm/user_asm_seed_bridge.x
   _uab_o=src/asm/user_asm_seed_bridge.o
   if [ -f "$_uab_x" ]; then
+    # tip_l4 pe_codegen_elf_o_hang: also rebuild when asm_asm_codegen_elf_o
+    # lacks while-ln++ (tip hang body). Egg-first via ensure uasb-pure.
+    # PLATFORM: SHARED.
+    _uab_need=0
     if [ ! -f "$_uab_o" ] || [ "$_uab_x" -nt "$_uab_o" ] \
       || ! nm "$_uab_o" 2>/dev/null | tr -d '\r' | grep -q " T _*uasb_rd32\$"; then
+      _uab_need=1
+    elif ! bash scripts/ensure_host_cc_seed_o.sh uasb-ln-inc-ok "$_uab_o"; then
+      _uab_need=1
+      echo "g05_ensure: $_uab_o fails codegen_elf_o ln++ authority; rebuild (tip_l4)"
+    fi
+    if [ "$_uab_need" = "1" ]; then
       _uab_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_uab_os" in MINGW*|MSYS*|CYGWIN*) _uab_os=Windows ;; esac
-      _uab_done=0
-      for _uab_try in 1 2 3; do
-        rm -f "$_uab_o.x.tmp.o"
-        if (
-          export XLANG_PREFER_ASM_O=1
-          unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
-          pure_asm_x_to_o "$_uab_o.x.tmp.o" "$_uab_x"
-        ) && [ -s "$_uab_o.x.tmp.o" ]; then
-          _uab_nm=$(nm "$_uab_o.x.tmp.o" 2>/dev/null | tr -d '\r')
-          if printf '%s\n' "$_uab_nm" | grep -q " T _*asm_asm_codegen_elf_o\$" \
-            && printf '%s\n' "$_uab_nm" | grep -q " T _*asm_asm_codegen_ast\$" \
-            && printf '%s\n' "$_uab_nm" | grep -q " T _*seed_platform_coff_write_coff_o_to_buf\$" \
-            && printf '%s\n' "$_uab_nm" | grep -q " T _*user_asm_seed_bridge_x_doc_anchor\$"; then
-            _uab_done=1
-            break
-          fi
+      rm -f "$_uab_o.x.tmp.o" "$_uab_o"
+      if bash scripts/ensure_host_cc_seed_o.sh uasb-pure "$_uab_o" \
+        && [ -s "$_uab_o" ] \
+        && bash scripts/ensure_host_cc_seed_o.sh uasb-ln-inc-ok "$_uab_o"; then
+        _uab_nm=$(nm "$_uab_o" 2>/dev/null | tr -d '\r')
+        if printf '%s\n' "$_uab_nm" | grep -q " T _*asm_asm_codegen_elf_o\$" \
+          && printf '%s\n' "$_uab_nm" | grep -q " T _*asm_asm_codegen_ast\$" \
+          && printf '%s\n' "$_uab_nm" | grep -q " T _*seed_platform_coff_write_coff_o_to_buf\$" \
+          && printf '%s\n' "$_uab_nm" | grep -q " T _*user_asm_seed_bridge_x_doc_anchor\$"; then
+          echo "g05_ensure: $_uab_o ← $_uab_x (w1518 egg-first uasb-pure, ln++ authority)"
+        else
+          rm -f "$_uab_o"
+          mkdir -p build_asm
+          echo "$_uab_os $_uab_x" >>build_asm/g05_cc_fallback.log 2>/dev/null || true
+          echo "g05_ensure: ERROR $_uab_x uasb-pure missing required T symbols (w1518)" >&2
+          exit 1
         fi
-        printf '%s try=%s g05_ensure: pure asm %s failed\n' \
-          "$(date +%H:%M:%S)" "$_uab_try" "$_uab_x" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
-      done
-      if [ "$_uab_done" = "1" ]; then
-        mv -f "$_uab_o.x.tmp.o" "$_uab_o"
-        echo "g05_ensure: $_uab_o ← $_uab_x (w1518 pure asm, whole object, no cc)"
       else
         rm -f "$_uab_o.x.tmp.o" "$_uab_o"
         mkdir -p build_asm
         echo "$_uab_os $_uab_x" >>build_asm/g05_cc_fallback.log 2>/dev/null || true
-        echo "g05_ensure: ERROR $_uab_x pure asm failed 3x; no cc fallback (w1518)" >&2
+        printf '%s try=egg-first g05_ensure: pure asm %s failed\n' \
+          "$(date +%H:%M:%S)" "$_uab_x" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
+        echo "g05_ensure: ERROR $_uab_x uasb-pure failed; no cc fallback (w1518 tip_l4)" >&2
         exit 1
       fi
     fi
   fi
+
   # w1519 (5.8b): src/asm/asm_backend_compat_stubs.o is the whole
   # src/asm/asm_backend_compat_stubs.x built by product pure asm on all three
   # hosts (format helpers, CodegenOutBuf line append, ELF u32 helpers, block
@@ -1998,6 +2373,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _pthin_p3b_ok=0
         _pthin_p4p_ok=0
         _pthin_p4pb_ok=0
+        _pthin_win_primary_tramp_miss=0
         _pthin_p4u_ok=0
         _pthin_p4u_set_ok=0
         _pthin_p4ub_ok=0
@@ -2311,12 +2687,44 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             exit 1
           fi
           if ! g05_primary_tramp_pure "$_pthin_p4p_o"; then
-            echo "g05_ensure: P4 primary trampoline pure-asm failed" >&2
-            exit 1
+            # DIG tip_l4 Win: bi/tip CG002 on primary_tramp (59 funcs,
+            # elf label match). Soft-keep must roll back P3b too — those
+            # bodies U-ref tramp faces (parse_type_ref_ptr_into_c etc.);
+            # nm-gate only counts T and missed the U hole that L4 ld
+            # later fails on. Flag later P6b demote. PLATFORM: WINDOWS.
+            _pt_os="$(uname -s 2>/dev/null || echo Unknown)"
+            case "$_pt_os" in
+              Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+                echo "g05_ensure: P4 primary trampoline pure-asm failed; Win roll back P3b/P4b C twins (tramp CG002)" >&2
+                _pthin_p4pb_ok=0
+                _pthin_p4p_extra=""
+                rm -f "$_pthin_p4p_o" "$_pthin_p4pb_thin_o"
+                _pthin_p3b_ok=0
+                _pthin_p3_extra=""
+                if [ -n "$_pthin_p3_o" ] && [ -f "$_pthin_p3_seed" ]; then
+                  # shellcheck disable=SC2086
+                  if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm                        -c -o "$_pthin_p3_o" "$_pthin_p3_seed"; then
+                    _pthin_p3_ok=1
+                    echo "g05_ensure: P3 type_ref ← $_pthin_p3_seed (full C twin; tramp miss rollback)" >&2
+                  else
+                    _pthin_p3_ok=0
+                    rm -f "$_pthin_p3_o"
+                  fi
+                fi
+                # Drop rest FROM_X that assumed tramp/P3b bodies.
+                _pthin_rest_defs="$(printf '%s' "$_pthin_rest_defs" | sed -e 's/ -DXLANG_PTHIN_TYPE_REF_FROM_X//g' -e 's/ -DXLANG_PTHIN_EXPR_PRIMARY_FROM_X//g')"
+                _pthin_win_primary_tramp_miss=1
+                ;;
+              *)
+                echo "g05_ensure: P4 primary trampoline pure-asm failed" >&2
+                exit 1
+                ;;
+            esac
+          else
+            _pthin_p4p_ok=1
+            _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_EXPR_PRIMARY_FROM_X"
+            echo "g05_ensure: P4 primary trampoline ← pure-asm w1539"
           fi
-          _pthin_p4p_ok=1
-          _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_EXPR_PRIMARY_FROM_X"
-          echo "g05_ensure: P4 primary trampoline ← pure-asm w1539"
         fi
         # PLATFORM: SHARED — 7.2.1 P4ub/P4uc/P4ud Route C (2026-09-13/15).
         # pthin_expr_unary.x holds TOKEN→ExprKind + wrap dest-buffer +
@@ -2587,6 +2995,15 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: P6b fn_block .x thin failed or missing layout match; P6 C twin stays full" >&2
           fi
         fi
+        # Win primary tramp miss: P6b U-refs tramp faces — demote before
+        # P6 seed cc so C twin stays full (no FN_BLOCK_FROM_X rest hole).
+        # PLATFORM: WINDOWS.
+        if [ "${_pthin_win_primary_tramp_miss:-0}" = "1" ] && [ "$_pthin_p6b_ok" = "1" ]; then
+          echo "g05_ensure: Win tramp miss; demote P6b before seed (keep P6 C twin)" >&2
+          _pthin_p6b_ok=0
+          _pthin_p6_extra=""
+          rm -f "$_pthin_p6b_thin_o"
+        fi
         if [ -n "$_pthin_p6_o" ] && [ -f "$_pthin_p6_seed" ]; then
           # shellcheck disable=SC2086
           if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
@@ -2773,7 +3190,48 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
               echo "g05_ensure: P9b stretch lite ← $_pthin_p9b_x (7.2.1 Route C productize)"
             fi
           else
-            echo "g05_ensure: P9b stretch .x thin failed; P9 C twin stays full" >&2
+            # DIG tip_l4 Win: bi CG002 on stretch.x / one-fns; WEAK -E XLANG_WEAK
+            # fails MinGW; P9 C hollow without LITE. Win stubs ld past U hole.
+            # PLATFORM: WINDOWS.
+            _p9b_os="$(uname -s 2>/dev/null || echo Unknown)"
+            case "$_p9b_os" in
+              Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+                if [ -f src/asm/pthin_stretch_win_stubs.x ]; then
+                  rm -f "$_pthin_p9b_thin_o"
+                  # bi keys -c off .o suffix (mktemp path without .o → BLD001).
+                  _p9b_stub_out="$_pthin_p9b_thin_o"
+                  case "$_p9b_stub_out" in
+                    *.o|*.obj|*.O|*.OBJ) ;;
+                    *) _p9b_stub_out="${_pthin_p9b_thin_o}.o" ;;
+                  esac
+                  _p9b_bi=""
+                  for _xl in ./xlang_bi.exe ./xlang_bi; do
+                    [ -x "$_xl" ] || continue
+                    _p9b_bi="$_xl"
+                    break
+                  done
+                  if [ -n "$_p9b_bi" ] \
+                    && "$_p9b_bi" -backend asm -c src/asm/pthin_stretch_win_stubs.x -o "$_p9b_stub_out" >/dev/null 2>&1 \
+                    && [ -s "$_p9b_stub_out" ]; then
+                    if [ "$_p9b_stub_out" != "$_pthin_p9b_thin_o" ]; then
+                      mv -f "$_p9b_stub_out" "$_pthin_p9b_thin_o" || cp -f "$_p9b_stub_out" "$_pthin_p9b_thin_o"
+                      rm -f "$_p9b_stub_out"
+                    fi
+                    _pthin_p9b_ok=1
+                    _pthin_p9_extra="$_pthin_p9_extra -DXLANG_PTHIN_STRETCH_LITE_FROM_X"
+                    echo "g05_ensure: P9b stretch ← win stubs via $_p9b_bi (bi CG002; tip stretch DIG)" >&2
+                  else
+                    echo "g05_ensure: P9b stretch .x thin failed; Win stubs bi failed; P9 C twin stays full" >&2
+                    rm -f "$_pthin_p9b_thin_o" "$_p9b_stub_out"
+                  fi
+                else
+                  echo "g05_ensure: P9b stretch .x thin failed; P9 C twin stays full" >&2
+                fi
+                ;;
+              *)
+                echo "g05_ensure: P9b stretch .x thin failed; P9 C twin stays full" >&2
+                ;;
+            esac
           fi
         fi
         if [ -n "$_pthin_p9_o" ] && [ -f "$_pthin_p9_seed" ]; then
@@ -3316,6 +3774,10 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         if [ "$_pthin_p1b_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p1b_thin_o"
         fi
+        if [ "${_pthin_win_primary_tramp_miss:-0}" = "1" ] && [ "$_pthin_p3b_ok" = "1" ]; then
+          echo "g05_ensure: Win tramp miss; demote P3b thin (keep P3 C twin)" >&2
+          _pthin_p3b_ok=0
+        fi
         if [ "$_pthin_p3_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p3_o"
         fi
@@ -3327,6 +3789,13 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         fi
         if [ "$_pthin_p2b_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p2b_thin_o"
+        fi
+        # Win primary tramp miss: P6b bi U-refs tramp faces — keep P6 C twin.
+        # PLATFORM: WINDOWS.
+        if [ "${_pthin_win_primary_tramp_miss:-0}" = "1" ] && [ "$_pthin_p6b_ok" = "1" ]; then
+          echo "g05_ensure: Win tramp miss; demote P6b thin (keep P6 C twin)" >&2
+          _pthin_p6b_ok=0
+          _pthin_rest_defs="$(printf '%s' "$_pthin_rest_defs" | sed -e 's/ -DXLANG_PTHIN_FN_BLOCK_FROM_X//g')"
         fi
         if [ "$_pthin_p6_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p6_o"
@@ -3472,8 +3941,22 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           && [ "$_pthin_p19_ok" = "1" ] && [ "$_pthin_p20_ok" = "1" ] && [ -n "$_pthin_link" ]; then
           _pthin_full=1
         fi
-        # Class BX: full P1–P20 omit-rest hybrid SEGV with pin parser on tip; opt-in only.
-        if [ "$_pthin_full" = "1" ] && [ "${XLANG_G05_PTHIN_FULL:-0}" = "1" ]; then
+        # Class BX: full P1–P20 omit-rest hybrid was tip-SEGV on pin parser; Linux product
+        # needs the merge (else Class CB partial peel drops glue faces). Default FULL on Linux.
+        # tip_l4 Win: without FULL, hybrid+rest fails → Class CB type_ref+FN_BLOCK peel
+        # drops primary tramp / P6b faces → thin_glue U hole → L4 ld UNDEF. Default FULL
+        # on Windows too so split+stubs tramp merges into thin_glue. Darwin keeps opt-in.
+        # PLATFORM: LINUX|WINDOWS default FULL.
+        _pthin_full_gate="${XLANG_G05_PTHIN_FULL:-0}"
+        if [ "$_pthin_full_gate" != "1" ]; then
+          _pthin_os="$(uname -s 2>/dev/null || echo Unknown)"
+          case "$_pthin_os" in
+            Linux|Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+              _pthin_full_gate=1
+              ;;
+          esac
+        fi
+        if [ "$_pthin_full" = "1" ] && [ "$_pthin_full_gate" = "1" ]; then
           # shellcheck disable=SC2086
           if pure_ld_partial_merge parser_asm_thin_glue.o $_pthin_link 2>/dev/null; then
             echo "g05_ensure: parser_asm_thin_glue.o ← P1–P7+P9–P20 only (G-02f-330 omit empty rest; P8 smoke-only)"
@@ -3489,7 +3972,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             # Class BX: slices-only (rest T=0) == full hybrid tip SEGV — leave done=0 for BX peel
             # unless XLANG_G05_PTHIN_FULL=1. Non-empty rest still merges (partial hybrid).
             if [ "${_pthin_rest_t:-1}" = "0" ]; then
-              if [ "${XLANG_G05_PTHIN_FULL:-0}" = "1" ]                 && pure_ld_partial_merge parser_asm_thin_glue.o $_pthin_link 2>/dev/null; then
+              if [ "$_pthin_full_gate" = "1" ] \
+                && pure_ld_partial_merge parser_asm_thin_glue.o $_pthin_link 2>/dev/null; then
                 echo "g05_ensure: parser_asm_thin_glue.o ← hybrid slices only (rest T=0 omit; G-02f-330)"
                 _pthin_done=1
               else
@@ -3509,8 +3993,19 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       # Class CB is the Darwin product glue. A successful first-pass hybrid
       # would keep audit and other slices this chapter has not peeled.
       # PLATFORM: MACOS|DARWIN arm64. Linux / Windows keep the first-pass result.
+      # knife 256 / 10.2 cold: save first-pass before Class CB wipe. When
+      # xlang_asm is absent (true cold wipe), Class CB pure-asm pieces fail
+      # and peel is hollow for product — first-pass egg hybrid still carries
+      # trait faces + parser_*_glue for seed-phase1. Restore on partial.
+      _pthin_first_pass=""
       if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
         && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ]; then
+        if [ "$_pthin_done" = "1" ] && [ -s parser_asm_thin_glue.o ]; then
+          _pthin_first_pass=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_first_pass.XXXXXX") || true
+          if [ -n "$_pthin_first_pass" ]; then
+            cp -f parser_asm_thin_glue.o "$_pthin_first_pass" || _pthin_first_pass=""
+          fi
+        fi
         _pthin_done=0
         rm -f parser_asm_thin_glue.o
       fi
@@ -4403,11 +4898,23 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             # stretch_audit, ...) undefined, and relink then stops on
             # dozens of UNDEFs after ensure printed OK. Stop here instead.
             # PLATFORM: MACOS|DARWIN arm64.
+            # knife 256 / 10.2: true cold has no xlang_asm → Class CB pure
+            # pieces fail. Prefer first-pass egg hybrid (trait + glue faces)
+            # over exiting with a thin peel; product lane still requires
+            # w1330 when first-pass was not saved.
             if [ "${_cb_full:-0}" != "1" ] \
               && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
               && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ]; then
-              echo "g05_ensure: ERROR parser_asm_thin_glue.o Class CB is partial (a pthin piece failed); not the w1330 product lane" >&2
-              exit 1
+              if [ -n "${_pthin_first_pass:-}" ] && [ -s "$_pthin_first_pass" ]; then
+                cp -f "$_pthin_first_pass" parser_asm_thin_glue.o
+                rm -f "$_pthin_first_pass"
+                _pthin_first_pass=""
+                echo "g05_ensure: Class CB partial; kept first-pass hybrid (knife256 cold seed; trait+glue faces)"
+                _pthin_done=1
+              else
+                echo "g05_ensure: ERROR parser_asm_thin_glue.o Class CB is partial (a pthin piece failed); not the w1330 product lane" >&2
+                exit 1
+              fi
             fi
           fi
         fi
@@ -4418,6 +4925,16 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           "$_cb_p7b" "$_cb_p7" "$_cb_p15b" "$_cb_p15" "$_cb_p11b" "$_cb_p11" \
           "$_cb_p9b" "$_cb_p9"
       fi
+      # knife 256 / 10.2: Class CB may fail before any peel; restore first-pass
+      # hybrid rather than hollow thin_c (emptied monothin). PLATFORM: DARWIN.
+      if [ "$_pthin_done" = "0" ] \
+        && [ -n "${_pthin_first_pass:-}" ] && [ -s "$_pthin_first_pass" ]; then
+        cp -f "$_pthin_first_pass" parser_asm_thin_glue.o
+        echo "g05_ensure: Class CB unavailable; kept first-pass hybrid (knife256 cold seed)"
+        _pthin_done=1
+      fi
+      rm -f "${_pthin_first_pass:-}"
+      _pthin_first_pass=""
       if [ "$_pthin_done" = "0" ]; then
         echo "g05_ensure: parser_asm_thin_glue.o ← thin seed (G-02f-10)"
         # shellcheck disable=SC2086
@@ -4431,17 +4948,31 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # w2060: always try diag_thin.x + seed-rest (snap_* live only in thin);
   # full seed alone omits diag_snap_* / diag_store_ptr_le. PREFER_X_O=0
   # still needs the hybrid. PLATFORM: SHARED.
+  # 5.1／10.9: also merge src/diag_reportf.x (Cap va reportf; no host-cc).
   _diag=seeds/diag.from_x.c
   _diag_thin_x=src/diag_thin.x
+  _diag_reportf_x=src/diag_reportf.x
   _diag_o=src/diag.o
   if [ -f "$_diag" ]; then
     # 记250／8.7: also src/diag.x (basename surface; thin is diag_thin.x).
+    # tip_l4 pe_diagthin_cstr_len_hang: also rebuild when cstr_len n++ authority
+    # fails (tip hang body can look up-to-date vs .x). PLATFORM: SHARED.
+    _diag_need=0
     if [ ! -f "$_diag_o" ] || [ "$_diag" -nt "$_diag_o" ] \
       || { [ -f "$_diag_thin_x" ] && [ "$_diag_thin_x" -nt "$_diag_o" ]; } \
+      || { [ -f "$_diag_reportf_x" ] && [ "$_diag_reportf_x" -nt "$_diag_o" ]; } \
       || { [ -f src/diag.x ] && [ src/diag.x -nt "$_diag_o" ]; }; then
+      _diag_need=1
+    elif [ -f scripts/ensure_host_cc_seed_o.sh ] \
+      && ! bash scripts/ensure_host_cc_seed_o.sh diagthin-cstr-len-ok "$_diag_o"; then
+      _diag_need=1
+      echo "g05_ensure: $_diag_o fails cstr_len n++ authority; rebuild (tip_l4)"
+    fi
+    if [ "$_diag_need" = "1" ]; then
       _diag_done=0
       if [ -f "$_diag_thin_x" ]; then
         _diag_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_diag_thin.XXXXXX") || true
+        _diag_reportf_o=$(mktemp "${TMPDIR:-/tmp}/g05_diag_reportf.XXXXXX") || true
         _diag_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_diag_rest.XXXXXX") || true
         # w1140: Darwin arm64 compiles eight pure-asm pieces. Other hosts
         # keep the single-file -E path. The on-disk src/diag.o is replaced
@@ -4464,27 +4995,88 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # compiler that folds the checks still accepts the flag.
         # PLATFORM: SHARED flag. Measured on WINDOWS x86_64.
         # shellcheck disable=SC2086
+        if [ -f "$_diag_reportf_x" ]; then
+          # 5.1/10.9: Cap tip pure-asm still leaves U _va_start/_va_end (Cap
+          # asm Cap-va rewrite not firing for export-extern faces). Force
+          # -E+$CC so Cap tip rewrites to xlang_va_* macros (L4 gold path).
+          # PLATFORM: SHARED — no new host-cc .c; .x remains authority.
+          if ! { [ -n "$_diag_reportf_o" ] \
+            && XLANG_PREFER_ASM_O_G05=0 XLANG_PURE_ASM_ALLOW_U_PANIC=1 G05_X_O_WEAK=1 \
+                 g05_try_x_to_o "$_diag_reportf_x" "$_diag_reportf_o"; }; then
+            echo "g05_ensure: diag_reportf.x -E+$CC failed; seed reportf C bodies kept" >&2
+            rm -f "$_diag_reportf_o"
+            _diag_reportf_o=""
+          elif nm -u "$_diag_reportf_o" 2>/dev/null | grep -E ' (_)?va_(start|end)$' >/dev/null; then
+            echo "g05_ensure: diag_reportf.o still U va_start/end; seed reportf kept" >&2
+            rm -f "$_diag_reportf_o"
+            _diag_reportf_o=""
+          fi
+        else
+          _diag_reportf_o=""
+        fi
+        _diag_rest_flags="-DXLANG_L2_DIAG_THIN_FROM_X"
+        if [ -n "$_diag_reportf_o" ] && [ -f "$_diag_reportf_o" ]; then
+          _diag_rest_flags="$_diag_rest_flags -DXLANG_L2_DIAG_REPORTF_FROM_X"
+        fi
+        _diag_merge_ok=0
         if [ -n "$_diag_thin_o" ] && [ -n "$_diag_rest_o" ] \
           && { [ "$_diag_pure" = "1" ] \
             || XLANG_PURE_ASM_ALLOW_U_PANIC=1 G05_X_O_WEAK=1 g05_try_x_to_o "$_diag_thin_x" "$_diag_thin_o"; } \
-          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_L2_DIAG_THIN_FROM_X \
-               -c -o "$_diag_rest_o" "$_diag" \
-          && pure_ld_partial_merge "$_diag_o" "$_diag_thin_o" "$_diag_rest_o" 2>/dev/null; then
-          if [ "$_diag_pure" = "1" ]; then
-            echo "g05_ensure: $_diag_o ← pure-asm eight .x pieces (w1140) + seed rest"
+          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc $_diag_rest_flags \
+               -c -o "$_diag_rest_o" "$_diag"; then
+          if [ -n "$_diag_reportf_o" ] && [ -f "$_diag_reportf_o" ]; then
+            if pure_ld_partial_merge "$_diag_o" "$_diag_thin_o" "$_diag_reportf_o" "$_diag_rest_o" 2>/dev/null; then
+              _diag_merge_ok=1
+            fi
           else
-            echo "g05_ensure: $_diag_o ← $_diag_thin_x + seed-rest (G-02f-347/420/421 L2 hybrid diag thin)"
+            if pure_ld_partial_merge "$_diag_o" "$_diag_thin_o" "$_diag_rest_o" 2>/dev/null; then
+              _diag_merge_ok=1
+            fi
+          fi
+        fi
+        if [ "$_diag_merge_ok" = "1" ]; then
+          # tip_l4: refuse hang body in final hybrid. PLATFORM: SHARED.
+          if [ -f scripts/ensure_host_cc_seed_o.sh ] \
+            && ! bash scripts/ensure_host_cc_seed_o.sh diagthin-cstr-len-ok "$_diag_o"; then
+            echo "g05_ensure: $_diag_o merge lacks cstr_len n++; discard" >&2
+            rm -f "$_diag_o"
+            _diag_merge_ok=0
+          fi
+        fi
+        if [ "$_diag_merge_ok" = "1" ]; then
+          if [ "$_diag_pure" = "1" ]; then
+            if [ -n "$_diag_reportf_o" ] && [ -f "$_diag_reportf_o" ]; then
+              echo "g05_ensure: $_diag_o ← pure-asm egg-first/eight (w1140 tip_l4 cstr_len n++) + diag_reportf.x + seed rest"
+            else
+              echo "g05_ensure: $_diag_o ← pure-asm egg-first/eight (w1140 tip_l4 cstr_len n++) + seed rest"
+            fi
+          else
+            if [ -n "$_diag_reportf_o" ] && [ -f "$_diag_reportf_o" ]; then
+              echo "g05_ensure: $_diag_o ← $_diag_thin_x + $_diag_reportf_x + seed-rest (5.1/10.9 Cap va reportf)"
+            else
+              echo "g05_ensure: $_diag_o ← $_diag_thin_x + seed-rest (G-02f-347/420/421 L2 hybrid diag thin)"
+            fi
           fi
           _diag_done=1
         else
           echo "g05_ensure: L2 hybrid diag thin failed; fallback full seed" >&2
         fi
-        rm -f "$_diag_thin_o" "$_diag_rest_o"
+        rm -f "$_diag_thin_o" "$_diag_reportf_o" "$_diag_rest_o"
       fi
       if [ "$_diag_done" = "0" ]; then
         echo "g05_ensure: $_diag_o ← seed (G-02f-11)"
         # shellcheck disable=SC2086
-        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_diag_o" "$_diag"
+        if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_diag_o" "$_diag"; then
+          echo "g05_ensure: ERROR diag full seed cc failed" >&2
+          rm -f "$_diag_o"
+          # tip_l4 pthin prefer: thin_glue already merged; do not abort g05
+          # solely on hollow/corrupt diag seed. PLATFORM: SHARED.
+          if [ "${XLANG_G05_PTHIN_KEEP_GOING:-0}" = "1" ]; then
+            echo "g05_ensure: PTHIN_KEEP_GOING=1; continue past diag seed cc" >&2
+          else
+            exit 1
+          fi
+        fi
       fi
     fi
   fi
@@ -4561,11 +5153,10 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   done
-  # w1546 (checklist 7.2, lexer only): rebuild lexer_x.o from src/lexer/lexer.x
-  # every generation. A warm host-cc object is not a timestamp hit — delete it
-  # first. Authority is build_lexer_x in ensure_gen_x_o.sh. No $CC fallback.
-  # PLATFORM: SHARED. lexer_gen seed stays (removal is 9.2).
-  rm -f lexer_x.o
+  # w1546 (checklist 7.2, lexer only): ensure lexer_x.o from src/lexer/lexer.x.
+  # Authority is build_lexer_x in ensure_gen_x_o.sh. No $CC fallback.
+  # note743k: do NOT rm first — tip-cold seed may already own a good pure-asm
+  # object; build_lexer_x keep-seeds / multi-xl / pin-egg. PLATFORM: SHARED.
   if ! bash scripts/ensure_gen_x_o.sh lexer_x; then
     echo "g05_ensure: lexer_x.o pure-asm failed" >&2
     exit 1
@@ -4573,37 +5164,69 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # parser_x.o cold path.
   # Missing object (w1633 Linux, w1812 Darwin and Windows): rebuild from
   # src/parser/parser.x via build_parser_x. No host cc, no -E assemble.
-  # L4 deletes the .o and keeps the stamp, so the rebuild has to run in
-  # that case. The helper was measured against the installed object:
-  # same defined and undefined sets, same .text. The installed compiler
-  # frame for pipeline_asm_cmp_enum_rhs_tag_c covers the 256-byte name
-  # buffers, so Darwin and Windows can emit this module.
+  # L4 wipes .o and *.pure_asm (knife256); missing .o → pure-asm rebuild.
+  # Stamp≠.o (seed vs leftover) → drop+pure-asm, never host-cc.
+  # The helper was measured against the installed object: same defined
+  # and undefined sets, same .text. The installed compiler frame for
+  # pipeline_asm_cmp_enum_rhs_tag_c covers the 256-byte name buffers,
+  # so Darwin and Windows can emit this module.
   # PLATFORM: SHARED.
   # w1578: a matching parser_x.pure_asm stamp skips a later gen refresh.
   # A stamp that does not match the object stops ensure (exit 2).
   g05_frontend_x_drop_stale parser_x src/parser src/lexer src/ast
   if [ ! -f parser_x.o ]; then
     echo "g05_ensure: parser_x.o missing; pure-asm src/parser/parser.x (no host-cc)"
-    if ! bash scripts/ensure_gen_x_o.sh parser_x; then
-      echo "g05_ensure: parser_x.o pure-asm failed" >&2
-      exit 1
-    fi
-    if ! g05_stamp_parser_x_pure_asm .; then
-      echo "g05_ensure: parser_x.o pure-asm stamp failed" >&2
-      exit 1
+    # note742: stamp only when tip exports key T (hollow Ubuntu egg rejects).
+    if bash scripts/ensure_gen_x_o.sh parser_x \
+      && nm -gU parser_x.o 2>/dev/null | grep -E "T _?parser_parse_into_buf$" >/dev/null \
+      && g05_stamp_parser_x_pure_asm .; then
+      echo "g05_ensure: parser_x.o <- tip pure-asm OK (missing-path)"
+    else
+      # knife256/10.2: tip/egg cannot emit large parser.x (CG002/stack/hollow) —
+      # same Track L archaeology restore as the needs-host-cc path below.
+      # PLATFORM: SHARED. note742: hollow tip must not keep a pure_asm stamp.
+      rm -f parser_x.o parser_x.pure_asm
+      echo "g05_ensure: parser_x pure-asm failed/hollow (missing); restore Track L cold seed" >&2
+      export XLANG_MIGRATE_TRACK_L_COLD_SEED=1
+      if ! bash scripts/migrate_x_objs.sh parser_x.o >&2; then
+        echo "g05_ensure: parser_x.o Track L restore failed (missing-path)" >&2
+        exit 1
+      fi
+      [ -f parser_x.o ] || { echo "g05_ensure: parser_x.o missing after Track L" >&2; exit 1; }
+      echo "g05_ensure: parser_x.o kept via Track L (missing-path; no pure_asm stamp)"
     fi
   fi
   _px_rc=0
   g05_parser_x_needs_host_cc || _px_rc=$?
-  if [ "$_px_rc" -eq 2 ]; then
-    echo "g05_ensure: ERROR parser_x.pure_asm does not match parser_x.o; refusing to host-cc" >&2
-    exit 1
-  fi
-  if [ "$_px_rc" -eq 0 ]; then
-    # gen.c is newer and there is no pure-asm stamp. The object stays.
+  if [ "$_px_rc" -eq 2 ] || [ "$_px_rc" -eq 0 ]; then
+    # knife256 / 10.2: prefer tip pure-asm over Track L. If tip/product cannot
+    # emit parser.x (CG002 / egg abort), keep/restore Track L archaeology so
+    # phase1/g05 link still proceeds; L2 P001 is then a separate root-fix.
     # PLATFORM: SHARED.
-    echo "g05_ensure: parser_x.o kept; parser_gen.c is not host-cc'd"
-  elif g05_parser_x_pure_asm_kept; then
+    echo "g05_ensure: parser_x needs pure-asm (rc=$_px_rc); try tip pure-asm (no host-cc)"
+    _px_had_trackl=0
+    [ -f parser_x.o ] && [ ! -f parser_x.pure_asm ] && _px_had_trackl=1
+    rm -f parser_x.o parser_x.pure_asm
+    # note742: do not stamp hollow tip (~134KB); restore Track L instead.
+    if bash scripts/ensure_gen_x_o.sh parser_x \
+      && nm -gU parser_x.o 2>/dev/null | grep -E "T _?parser_parse_into_buf$" >/dev/null \
+      && g05_stamp_parser_x_pure_asm .; then
+      echo "g05_ensure: parser_x.o <- tip pure-asm OK"
+      _px_rc=1
+    else
+      rm -f parser_x.o parser_x.pure_asm
+      echo "g05_ensure: parser_x pure-asm failed/hollow; restore Track L cold seed (egg cannot emit parser.x)" >&2
+      export XLANG_MIGRATE_TRACK_L_COLD_SEED=1
+      if ! bash scripts/migrate_x_objs.sh parser_x.o >&2; then
+        echo "g05_ensure: parser_x.o Track L restore failed" >&2
+        exit 1
+      fi
+      [ -f parser_x.o ] || { echo "g05_ensure: parser_x.o missing after Track L restore" >&2; exit 1; }
+      echo "g05_ensure: parser_x.o kept via Track L (no pure_asm stamp; tip emit blocked)"
+      _px_rc=1
+    fi
+  fi
+  if g05_parser_x_pure_asm_kept; then
     echo "g05_ensure: parser_x.o kept (pure-asm stamp matches; no host-cc)"
   fi
   g05_frontend_link_names_gate parser_x.o parser_parse_into_buf \
@@ -4611,24 +5234,38 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # typeck_x.o cold path.
   # Missing object (w1635 Linux, w1812 Darwin and Windows): rebuild from
   # src/typeck/typeck.x via build_typeck_x. No host cc, no -E assemble.
-  # L4 deletes the .o and keeps the stamp, so the rebuild has to run in
-  # that case. The helper emits the same defined set as the installed
-  # object. Seven CTFE names and the cap-residual slot names stay
-  # undefined; their bodies stay in the companion objects already on the
-  # link list. Layout remainder sites no longer emit the idiv
-  # zero-divisor panic sequence, so the bytes are not a drop-in and this
-  # path does not replace an object that is already present.
+  # L4 wipes .o and *.pure_asm (knife256); missing .o → pure-asm rebuild.
+  # Stamp≠.o (seed vs leftover) → drop+pure-asm, never host-cc.
+  # The helper emits the same defined set as the installed object. Seven
+  # CTFE names and the cap-residual slot names stay undefined; their
+  # bodies stay in the companion objects already on the link list. Layout
+  # remainder sites no longer emit the idiv zero-divisor panic sequence,
+  # so the bytes are not a drop-in and this path does not replace an
+  # object that is already present.
   # PLATFORM: SHARED.
   g05_frontend_x_drop_stale typeck_x src/typeck src/parser src/lexer src/ast
   if [ ! -f typeck_x.o ]; then
     echo "g05_ensure: typeck_x.o missing; pure-asm src/typeck/typeck.x (no host-cc)"
-    if ! bash scripts/ensure_gen_x_o.sh typeck_x; then
-      echo "g05_ensure: typeck_x.o pure-asm failed" >&2
-      exit 1
+    _tck_ok=0
+    if bash scripts/ensure_gen_x_o.sh typeck_x && g05_stamp_frontend_x_pure_asm . typeck_x; then
+      _tsz=$(wc -c <typeck_x.o | tr -d ' ')
+      if [ "$_tsz" -ge 300000 ]         && nm -gU typeck_x.o 2>/dev/null | grep -E 'T _?typeck_x_ast_check_one_func$' >/dev/null; then
+        echo "g05_ensure: typeck_x.o <- tip pure-asm OK (missing-path; $_tsz bytes)"
+        _tck_ok=1
+      else
+        echo "g05_ensure: typeck_x tip pure-asm hollow ($_tsz); Track L restore" >&2
+        rm -f typeck_x.o typeck_x.pure_asm
+      fi
     fi
-    if ! g05_stamp_frontend_x_pure_asm . typeck_x; then
-      echo "g05_ensure: typeck_x.o pure-asm stamp failed" >&2
-      exit 1
+    if [ "$_tck_ok" != "1" ]; then
+      echo "g05_ensure: typeck_x pure-asm failed/hollow (missing); restore Track L cold seed" >&2
+      export XLANG_MIGRATE_TRACK_L_COLD_SEED=1
+      if ! bash scripts/migrate_x_objs.sh typeck_x.o >&2; then
+        echo "g05_ensure: typeck_x.o Track L restore failed (missing-path)" >&2
+        exit 1
+      fi
+      [ -f typeck_x.o ] || { echo "g05_ensure: typeck_x.o missing after Track L" >&2; exit 1; }
+      echo "g05_ensure: typeck_x.o kept via Track L (missing-path)"
     fi
   fi
   # w1504 (10.30): host-local typeck_gen.c is reused when tip -E typeck.x is
@@ -4654,8 +5291,42 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _tgx_rc=0
   g05_frontend_x_needs_host_cc . typeck_x || _tgx_rc=$?
   if [ "$_tgx_rc" -eq 2 ]; then
-    echo "g05_ensure: ERROR typeck_x.pure_asm does not match typeck_x.o; refusing to host-cc" >&2
-    exit 1
+    # knife256 / 10.2: tip pure-asm first; Track L restore if tip cannot emit.
+    # PLATFORM: SHARED.
+    echo "g05_ensure: typeck_x needs pure-asm (rc=2); try tip pure-asm (no host-cc)"
+    rm -f typeck_x.o typeck_x.pure_asm
+    if bash scripts/ensure_gen_x_o.sh typeck_x && g05_stamp_frontend_x_pure_asm . typeck_x; then
+      _tsz=$(wc -c <typeck_x.o | tr -d ' ')
+      # knife256: tip can "succeed" with a hollow ~135KB object missing
+      # typeck_x_ast_check_one_func → phase1 UNDEF. Gate size+symbol.
+      # PLATFORM: SHARED.
+      if [ "$_tsz" -ge 300000 ] \
+        && nm -gU typeck_x.o 2>/dev/null | grep -E 'T _?typeck_x_ast_check_one_func$' >/dev/null; then
+        echo "g05_ensure: typeck_x.o <- tip pure-asm OK ($_tsz bytes)"
+        _tgx_rc=1
+      else
+        echo "g05_ensure: typeck_x tip pure-asm too small/incomplete ($_tsz); Track L restore" >&2
+        rm -f typeck_x.o typeck_x.pure_asm
+        export XLANG_MIGRATE_TRACK_L_COLD_SEED=1
+        if ! bash scripts/migrate_x_objs.sh typeck_x.o >&2; then
+          echo "g05_ensure: typeck_x.o Track L restore failed" >&2
+          exit 1
+        fi
+        [ -f typeck_x.o ] || { echo "g05_ensure: typeck_x.o missing after Track L restore" >&2; exit 1; }
+        echo "g05_ensure: typeck_x.o kept via Track L (tip hollow rejected)"
+        _tgx_rc=1
+      fi
+    else
+      echo "g05_ensure: typeck_x pure-asm failed; restore Track L cold seed" >&2
+      export XLANG_MIGRATE_TRACK_L_COLD_SEED=1
+      if ! bash scripts/migrate_x_objs.sh typeck_x.o >&2; then
+        echo "g05_ensure: typeck_x.o Track L restore failed" >&2
+        exit 1
+      fi
+      [ -f typeck_x.o ] || { echo "g05_ensure: typeck_x.o missing after Track L restore" >&2; exit 1; }
+      echo "g05_ensure: typeck_x.o kept via Track L (tip emit blocked)"
+      _tgx_rc=1
+    fi
   fi
   if [ "$_tgx_rc" -eq 1 ] && g05_frontend_x_pure_asm_kept . typeck_x; then
     echo "g05_ensure: typeck_x.o kept (pure-asm stamp matches; no host-cc)"
@@ -4669,28 +5340,34 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     fi
   fi
   g05_frontend_link_names_gate typeck_x.o typeck_get_field_offset_from_layout_deps \
-    typeck_check_expr_impl_mega typeck_ensure_u8_type_ref typeck_find_or_alloc_ptr_type_ref
+    typeck_check_expr_impl_mega typeck_ensure_u8_type_ref typeck_find_or_alloc_ptr_type_ref \
+    typeck_x_ast_check_one_func
   # codegen_x.o cold path.
   # Missing object (w1634 Linux, w1812 Darwin and Windows): rebuild from
   # src/codegen/codegen.x and codegen_late.x via build_codegen_x, then
   # ld -r into this one object (w1830). No host cc, no -E assemble.
-  # L4 deletes the .o and keeps the stamp, so the rebuild has to run in
-  # that case. The helper emits the same defined set as the installed
-  # object. Two constant-10 division checks inside format_uint64 are
-  # absent on this compiler, so the bytes are not a drop-in and this
-  # path does not replace an object that is already present.
+  # L4 wipes .o and *.pure_asm (knife256); missing .o → pure-asm rebuild.
+  # Stamp≠.o (seed vs leftover) → drop+pure-asm, never host-cc.
+  # The helper emits the same defined set as the installed object. Two
+  # constant-10 division checks inside format_uint64 are absent on this
+  # compiler, so the bytes are not a drop-in and this path does not
+  # replace an object that is already present.
   # PLATFORM: SHARED.
   # Cap residual stays a separate object. It is not inside codegen.x.
   g05_frontend_x_drop_stale codegen_x src/codegen src/typeck src/parser src/lexer src/ast
   if [ ! -f codegen_x.o ]; then
-    echo "g05_ensure: codegen_x.o missing; pure-asm codegen.x + codegen_late.x (no host-cc)"
-    if ! bash scripts/ensure_gen_x_o.sh codegen_x; then
-      echo "g05_ensure: codegen_x.o pure-asm failed" >&2
-      exit 1
-    fi
-    if ! g05_stamp_frontend_x_pure_asm . codegen_x; then
-      echo "g05_ensure: codegen_x.o pure-asm stamp failed" >&2
-      exit 1
+    echo "g05_ensure: codegen_x.o missing; pure-asm src/codegen/codegen.x (no host-cc)"
+    if bash scripts/ensure_gen_x_o.sh codegen_x && g05_stamp_frontend_x_pure_asm . codegen_x; then
+      echo "g05_ensure: codegen_x.o <- tip pure-asm OK (missing-path)"
+    else
+      echo "g05_ensure: codegen_x pure-asm failed (missing); restore Track L cold seed" >&2
+      export XLANG_MIGRATE_TRACK_L_COLD_SEED=1
+      if ! bash scripts/migrate_x_objs.sh codegen_x.o >&2; then
+        echo "g05_ensure: codegen_x.o Track L restore failed (missing-path)" >&2
+        exit 1
+      fi
+      [ -f codegen_x.o ] || { echo "g05_ensure: codegen_x.o missing after Track L" >&2; exit 1; }
+      echo "g05_ensure: codegen_x.o kept via Track L (missing-path)"
     fi
   fi
   # w1610: same stamp as parser_x.pure_asm. A matching
@@ -4702,8 +5379,24 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _cgx_rc=0
   g05_frontend_x_needs_host_cc . codegen_x || _cgx_rc=$?
   if [ "$_cgx_rc" -eq 2 ]; then
-    echo "g05_ensure: ERROR codegen_x.pure_asm does not match codegen_x.o; refusing to host-cc" >&2
-    exit 1
+    # knife256 / 10.2: tip pure-asm first; Track L restore if tip cannot emit.
+    # PLATFORM: SHARED.
+    echo "g05_ensure: codegen_x needs pure-asm (rc=2); try tip pure-asm (no host-cc)"
+    rm -f codegen_x.o codegen_x.pure_asm
+    if bash scripts/ensure_gen_x_o.sh codegen_x && g05_stamp_frontend_x_pure_asm . codegen_x; then
+      echo "g05_ensure: codegen_x.o <- tip pure-asm OK"
+      _cgx_rc=1
+    else
+      echo "g05_ensure: codegen_x pure-asm failed; restore Track L cold seed" >&2
+      export XLANG_MIGRATE_TRACK_L_COLD_SEED=1
+      if ! bash scripts/migrate_x_objs.sh codegen_x.o >&2; then
+        echo "g05_ensure: codegen_x.o Track L restore failed" >&2
+        exit 1
+      fi
+      [ -f codegen_x.o ] || { echo "g05_ensure: codegen_x.o missing after Track L restore" >&2; exit 1; }
+      echo "g05_ensure: codegen_x.o kept via Track L (tip emit blocked)"
+      _cgx_rc=1
+    fi
   fi
   if [ "$_cgx_rc" -eq 0 ]; then
     # gen.c is newer and there is no pure-asm stamp. The object stays.
@@ -4711,6 +5404,25 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     echo "g05_ensure: codegen_x.o kept; codegen_gen.c is not host-cc'd"
   elif g05_frontend_x_pure_asm_kept . codegen_x; then
     echo "g05_ensure: codegen_x.o kept (pure-asm stamp matches; no host-cc)"
+  fi
+  # knife256 / 10.2 note743h: tip pure-asm codegen leaves cap residual as U
+  # (paste lives only in seeds/codegen_cap_residual.from_x.c → Track L /
+  # host-cc gen). Product forbids host-cc of codegen_cap_residual_tu.c.
+  # When the sentinel is not T, drop pure-asm and restore Track L cold
+  # seed (assemble paste). PLATFORM: SHARED.
+  if [ -f codegen_x.o ]     && ! nm codegen_x.o 2>/dev/null | grep -q ' T _*codegen_set_host_call_arg_param_ty$'; then
+    echo "g05_ensure: codegen_x.o missing cap residual T; restore Track L (note743h)" >&2
+    rm -f codegen_x.o codegen_x.pure_asm
+    export XLANG_MIGRATE_TRACK_L_COLD_SEED=1
+    if ! bash scripts/migrate_x_objs.sh codegen_x.o >&2; then
+      echo "g05_ensure: codegen_x.o Track L restore failed (cap residual)" >&2
+      exit 1
+    fi
+    if ! nm codegen_x.o 2>/dev/null | grep -q ' T _*codegen_set_host_call_arg_param_ty$'; then
+      echo "g05_ensure: Track L codegen_x.o still lacks codegen_set_host_call_arg_param_ty" >&2
+      exit 1
+    fi
+    echo "g05_ensure: codegen_x.o <- Track L cold seed (cap residual paste)"
   fi
   # G-02e：产品链 C 源缺失或比 .o 新时强制重编（并入/删 TU 后跨机 git pull 必走此路径）
   # shellcheck disable=SC2086
@@ -4893,7 +5605,8 @@ if [ -f build_asm/seed_host/asm_backend_partial.o ] && [ -x scripts/gen_asm_full
             export XLANG_PREFER_ASM_O=1
             unset G05_X_O_WEAK G05_X_O_SYM_RENAME G05_X_O_WEAK_FUNCS
             [ -n "$_fls_weak" ] && export G05_X_O_WEAK_FUNCS="$_fls_weak"
-            pure_asm_x_to_o "$_fls_o.x.tmp.o" "$_fls_x"
+            # note743n: tip CG002 → pin-egg (same as note743m)
+            pure_asm_x_to_o_or_pin_egg "$_fls_o.x.tmp.o" "$_fls_x"
           ) && [ -s "$_fls_o.x.tmp.o" ]; then
             _fls_nm=$(nm "$_fls_o.x.tmp.o" 2>/dev/null)
             _fls_have=$(printf '%s\n' "$_fls_nm" | grep -Ec ' [TWw] ')
@@ -5017,12 +5730,89 @@ if [ "${XLANG_NO_C_SEED_LINK:-0}" != "1" ] && [ "${XLANG_LEGACY_C_FRONTEND:-0}" 
   fi
 fi
 
+# knife256 / 10.2: do NOT auto-build full elf_ctx_thin.o here — it dups
+# elf_undef_cap / reloc_typed strong T without pabi_weak redefine path.
+# Supply g_pipeline_elf_data_* via hollow-fill BSS so data_len can bind.
+# PLATFORM: MACOS tip cold.
+if [ "$(uname -s)" = "Darwin" ] && [ -f scripts/darwin_phase1_hollow_fill.sh ]; then
+  echo "g05_ensure: darwin_phase1_hollow_fill refresh (knife256 BSS)" >&2
+  bash scripts/darwin_phase1_hollow_fill.sh >&2 \
+    || echo "g05_ensure: WARN hollow_fill refresh failed" >&2
+fi
+
+# note743y / 10.2: Linux phase1 hollow-fill must refresh on every g05 ensure so
+# tip-cold residual U (m8_tail / lexer_src_* / driver_* W) can bind after tip
+# peel. PLATFORM: LINUX tip cold.
+if [ "$(uname -s)" = "Linux" ] && [ -f scripts/linux_phase1_hollow_fill.sh ]; then
+  echo "g05_ensure: linux_phase1_hollow_fill refresh (note743y)" >&2
+  bash scripts/linux_phase1_hollow_fill.sh >&2 \
+    || echo "g05_ensure: WARN linux hollow_fill refresh failed" >&2
+fi
+
+# Win phase1 hollow-fill: PE tip-cold seed phase1 CC residual UNDEF bag
+# (driver_*/emit_block/pipe_modlet/vlet/mangle/sys). PLATFORM: WINDOWS.
+_win_os=$(uname -s 2>/dev/null || true)
+case "$_win_os" in
+  Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+    if [ -f scripts/win_phase1_hollow_fill.sh ]; then
+      echo "g05_ensure: win_phase1_hollow_fill refresh" >&2
+      bash scripts/win_phase1_hollow_fill.sh >&2 \
+        || echo "g05_ensure: WARN win hollow_fill refresh failed" >&2
+    fi
+    ;;
+esac
+
 # w1483: Linux selfhost_pabi tip refresh (pabi_alias + arr_struct_lit peers).
+# knife256 / 10.2 note743h: L4 wipe (or partial sidecars) can leave READY
+# while core .o (esz/loc/lea/…) are gone. Tip-only refresh then leaves
+# g05_relink_env to drop the whole _PABI_SELFHOST pack → empty G05_OBJS.
+# Rebuild full sidecars when any core object is missing; else refresh.
 # PLATFORM: LINUX.
-if [ "$(uname -s)" = "Linux" ] && [ -f build_asm/selfhost_pabi/READY ]; then
-  if ! bash scripts/linux_selfhost_pabi_refresh_tip.sh >&2; then
-    echo "g05_ensure_relink_prereqs: selfhost_pabi tip refresh failed" >&2
-    exit 1
+if [ "$(uname -s)" = "Linux" ]; then
+  _pabi_dir=build_asm/selfhost_pabi
+  _pabi_core_miss=0
+  if [ -f "$_pabi_dir/READY" ]; then
+    for _co in slot.o esz.o loc.o lea.o rec.o two.o one.o as.o sizeof.o; do
+      if [ ! -s "$_pabi_dir/$_co" ]; then
+        echo "g05_ensure: selfhost_pabi missing $_co (READY stale); full sidecars" >&2
+        _pabi_core_miss=1
+        break
+      fi
+    done
+  else
+    # No READY after tip-cold wipe: rebuild when a product compiler exists.
+    if [ -x ./xlang ] || [ -x ./xlang_asm ]; then
+      echo "g05_ensure: selfhost_pabi no READY; full sidecars" >&2
+      _pabi_core_miss=1
+    fi
+  fi
+  if [ "$_pabi_core_miss" = "1" ]; then
+    rm -f "$_pabi_dir/READY"
+    if [ ! -x ./xlang ] && [ ! -x ./xlang_asm ]; then
+      echo "g05_ensure_relink_prereqs: cannot rebuild sidecars without ./xlang" >&2
+      exit 1
+    fi
+    # sidecars.sh requires ./xlang (not xlang_asm). Prefer symlink/copy if needed.
+    if [ ! -x ./xlang ] && [ -x ./xlang_asm ]; then
+      ln -sf xlang_asm ./xlang
+    fi
+    if ! bash scripts/linux_selfhost_pabi_sidecars.sh >&2; then
+      echo "g05_ensure_relink_prereqs: linux_selfhost_pabi_sidecars failed" >&2
+      exit 1
+    fi
+    # note743u: full sidecars creates READY but does not emit cimp.o /
+    # enum_ns_tag / store_retval_pair / field_agg_load (those live in
+    # refresh_tip). Always refresh after a cold sidecars rebuild.
+    # PLATFORM: LINUX.
+    if ! bash scripts/linux_selfhost_pabi_refresh_tip.sh >&2; then
+      echo "g05_ensure_relink_prereqs: selfhost_pabi tip refresh failed (after sidecars)" >&2
+      exit 1
+    fi
+  elif [ -f "$_pabi_dir/READY" ]; then
+    if ! bash scripts/linux_selfhost_pabi_refresh_tip.sh >&2; then
+      echo "g05_ensure_relink_prereqs: selfhost_pabi tip refresh failed" >&2
+      exit 1
+    fi
   fi
 fi
 
@@ -5048,12 +5838,20 @@ fi
 
 # w1484: a pure-asm compile that crashed (signal / timeout) may have been
 # papered over by a retry or a host-cc seed fallback; refuse to call it OK.
+# knife256/10.2: overlay-missing means tip could not emit a Cap thin and the
+# prior Cap .o is kept — not a product crash. Filter those before the gate.
+# PLATFORM: SHARED (Darwin tip egg often cannot emit pipeline Cap thins).
 if [ -s build_asm/g05_xasm_crash.log ]; then
-  echo "g05_ensure_relink_prereqs: g05 pure-asm compiler crashed $(wc -l <build_asm/g05_xasm_crash.log | tr -d ' ') time(s):" >&2
-  sed 's/^/  /' build_asm/g05_xasm_crash.log >&2
-  if [ "${XLANG_G05_XASM_ALLOW_CRASH:-0}" != "1" ]; then
-    echo "  (pure-asm may have fallen back to cc; fix the product, or XLANG_G05_XASM_ALLOW_CRASH=1 to only warn)" >&2
-    exit 1
+  _crash_hard=$(grep -v 'overlay-missing' build_asm/g05_xasm_crash.log || true)
+  if [ -n "$_crash_hard" ]; then
+    echo "g05_ensure_relink_prereqs: g05 pure-asm compiler crashed $(printf '%s\n' "$_crash_hard" | grep -c . | tr -d ' ') time(s):" >&2
+    printf '%s\n' "$_crash_hard" | sed 's/^/  /' >&2
+    if [ "${XLANG_G05_XASM_ALLOW_CRASH:-0}" != "1" ]; then
+      echo "  (pure-asm may have fallen back to cc; fix the product, or XLANG_G05_XASM_ALLOW_CRASH=1 to only warn)" >&2
+      exit 1
+    fi
+  else
+    echo "g05_ensure_relink_prereqs: note overlay-missing only (Cap prior kept); not a crash gate" >&2
   fi
 fi
 # w1485: silent g05 host-cc fallback detector. Known debt lives in

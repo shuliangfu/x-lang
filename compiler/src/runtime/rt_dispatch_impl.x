@@ -82,12 +82,12 @@ export extern "C" function driver_dispatch_opt_default(): *u8;
  * PLATFORM: SHARED — link-name contract; dual-host prove. */
 #[no_mangle]
 export function rt_di_env_xlang_lto(): *u8 {
-  let p: *u8 = 0 as *u8;
+  let p: *u8 = (0 as *u8);
   unsafe {
     p = malloc(16 as usize);
   }
-  if (p == 0 as *u8) {
-    return 0 as *u8;
+  if (p == (0 as *u8)) {
+    return (0 as *u8);
   }
   // S H U X _ L T O \0
   p[0] = 83;
@@ -110,12 +110,12 @@ export function rt_di_env_xlang_lto(): *u8 {
 #[no_mangle]
 export function rt_di_argv_has_e_extern(argc: i32, argv: *u8): i32 {
   let k: i32 = 1;
-  let buf: *u8 = 0 as *u8;
+  let buf: *u8 = (0 as *u8);
   let n: i32 = 0;
   unsafe {
     buf = malloc(32 as usize);
   }
-  if (buf == 0 as *u8) {
+  if (buf == (0 as *u8)) {
     return 0;
   }
   while (k < argc) {
@@ -151,20 +151,20 @@ export function rt_di_argv_has_e_extern(argc: i32, argv: *u8): i32 {
  */
 #[no_mangle]
 export function rt_di_effective_use_lto(use_lto: i32): i32 {
-  let env_name: *u8 = 0 as *u8;
-  let env_val: *u8 = 0 as *u8;
+  let env_name: *u8 = (0 as *u8);
+  let env_val: *u8 = (0 as *u8);
   if (use_lto != 0) {
     return 1;
   }
   env_name = rt_di_env_xlang_lto();
-  if (env_name == 0 as *u8) {
+  if (env_name == (0 as *u8)) {
     return 0;
   }
   unsafe {
     env_val = link_abi_getenv(env_name);
     free(env_name);
   }
-  if (env_val == 0 as *u8) {
+  if (env_val == (0 as *u8)) {
     return 0;
   }
   // Exact "1\0" only (ASCII 49 then NUL).
@@ -181,20 +181,20 @@ export function driver_run_asm_backend_impl_c(
   argc: i32, argv: *u8
 ): i32 {
   let n: i32 = 0;
-  let roots: *u8 = 0 as *u8;
+  let roots: *u8 = (0 as *u8);
   let feat: u32 = 0;
-  let tgt: *u8 = 0 as *u8;
+  let tgt: *u8 = (0 as *u8);
   unsafe {
     roots = driver_dispatch_lib_roots_from_key(lib_key, &n);
   }
-  if (lib_key != 0 as *u8) {
+  if (lib_key != (0 as *u8)) {
     let st: *RtDispatchState = lib_key as *RtDispatchState;
     feat = st.target_cpu_features as u32;
   }
   unsafe {
     driver_set_pending_target_cpu_features(feat);
   }
-  if (target != 0 as *u8) {
+  if (target != (0 as *u8)) {
     if (target[0] != 0) {
       tgt = target;
     }
@@ -230,24 +230,24 @@ export function driver_run_emit_c_path_impl_c(
   opt_level: *u8, use_lto: i32, argc: i32, argv: *u8
 ): i32 {
   let n: i32 = 0;
-  let roots: *u8 = 0 as *u8;
-  let tgt: *u8 = 0 as *u8;
-  let opt: *u8 = 0 as *u8;
+  let roots: *u8 = (0 as *u8);
+  let tgt: *u8 = (0 as *u8);
+  let opt: *u8 = (0 as *u8);
   let lto: i32 = 0;
   unsafe {
     roots = driver_dispatch_lib_roots_from_key(lib_key, &n);
   }
-  if (target != 0 as *u8) {
+  if (target != (0 as *u8)) {
     if (target[0] != 0) {
       tgt = target;
     }
   }
-  if (opt_level != 0 as *u8) {
+  if (opt_level != (0 as *u8)) {
     if (opt_level[0] != 0) {
       opt = opt_level;
     }
   }
-  if (opt == 0 as *u8) {
+  if (opt == (0 as *u8)) {
     unsafe {
       opt = driver_dispatch_opt_default();
     }
@@ -268,12 +268,12 @@ export function driver_run_x_emit_c_from_compile_state(
 ): i32 {
   let want_extern: i32 = 0;
   let n: i32 = 0;
-  let roots: *u8 = 0 as *u8;
+  let roots: *u8 = (0 as *u8);
   let k: i32 = 0;
-  let row: *u8 = 0 as *u8;
+  let row: *u8 = (0 as *u8);
   let llen: usize = 0;
-  let dot: *u8 = 0 as *u8;
-  if (state == 0 as *RtDispatchState) {
+  let dot: *u8 = (0 as *u8);
+  if (state == (0 as *RtDispatchState)) {
     return 1;
   }
   if (state.path_len <= 0) {
@@ -289,7 +289,7 @@ export function driver_run_x_emit_c_from_compile_state(
     unsafe {
       dot = malloc(4 as usize);
     }
-    if (dot == 0 as *u8) {
+    if (dot == (0 as *u8)) {
       return 1;
     }
     dot[0] = 46;
@@ -305,8 +305,8 @@ export function driver_run_x_emit_c_from_compile_state(
       unsafe {
         row = driver_dispatch_lib_root_at(roots, k);
       }
-      if (row == 0 as *u8) {
-        llen = 0 as usize;
+      if (row == (0 as *u8)) {
+        llen = (0 as usize);
       } else {
         unsafe {
           llen = strlen(row);
@@ -332,10 +332,10 @@ export function driver_run_x_emit_c_from_compile_state(
 export function driver_run_compiler_full_x_post_parse_impl_c(
   state: *RtDispatchState, argc: i32, argv: *u8
 ): i32 {
-  let out_ptr: *u8 = 0 as *u8;
-  let target_ptr: *u8 = 0 as *u8;
+  let out_ptr: *u8 = (0 as *u8);
+  let target_ptr: *u8 = (0 as *u8);
   let has_import: i32 = 0;
-  if (state == 0 as *RtDispatchState) {
+  if (state == (0 as *RtDispatchState)) {
     return 1;
   }
   // Dispatch medium impl (asm/emit/post_parse/full_x); G.9 English; body authoritative.
@@ -397,10 +397,10 @@ export function driver_run_compiler_full_x_post_parse_impl_c(
  */
 #[no_mangle]
 export function driver_run_compiler_full_x_impl_c(argc: i32, argv: *u8): i32 {
-  let state: *RtDispatchState = 0 as *RtDispatchState;
+  let state: *RtDispatchState = (0 as *RtDispatchState);
   let rc: i32 = 0;
   let explain_rc: i32 = 0;
-  let out: *u8 = 0 as *u8;
+  let out: *u8 = (0 as *u8);
   unsafe {
     explain_rc = runtime_try_handle_explain_cli(argc, argv);
   }
@@ -423,7 +423,7 @@ export function driver_run_compiler_full_x_impl_c(argc: i32, argv: *u8): i32 {
     driver_bump_stack_limit();
     state = driver_compile_state_alloc_c();
   }
-  if (state == 0 as *RtDispatchState) {
+  if (state == (0 as *RtDispatchState)) {
     return 1;
   }
   unsafe {

@@ -172,10 +172,7 @@ void net_ensure_wsa_impl_c(void) {
 }
 
 #ifndef XLANG_RUNTIME_NET_SOCK_FAST_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-void net_ensure_wsa(void) {
-    net_ensure_wsa_impl_c();
-}
+/* 记253／9.1: cold under #ifndef XLANG_RUNTIME_NET_SOCK_FAST_FROM_X removed */
 #endif
 
 __attribute__((constructor(65534)))
@@ -184,10 +181,6 @@ void net_wsa_ctor_impl_c(void) {
 }
 
 #ifndef XLANG_RUNTIME_NET_SOCK_FAST_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-void net_wsa_ctor(void) {
-    net_ensure_wsa();
-}
 #endif
 
 int32_t net_set_blocking_c(int32_t fd, int32_t blocking) {

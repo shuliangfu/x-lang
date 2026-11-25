@@ -39,23 +39,24 @@ export extern "C" function _write(fd: i32, buf: *u8, n: u32): i32;
 let g_defines: u8[8192] = [];
 // Count of names in g_defines. Stored as one i32 so the slot is an index store.
 // PLATFORM: SHARED.
-let g_ndefines: i32[1] = [0];
+let g_ndefines: i32[1] = [];
 // 16 slots of 128 bytes. Slot s starts at s * 128.
 // PLATFORM: SHARED.
 let g_scratch: u8[2048] = [];
 // Layout metric scalars. al starts at 1, matching the C initializer.
 // PLATFORM: SHARED.
-let g_sz_slot: i32[1] = [0];
-let g_al_slot: i32[1] = [1];
+let g_sz_slot: i32[1] = [];
+/* DIG tip_l4 Win: PE tip CG002 on i32[1]=[1]; zero BSS then anchor sets 1. */
+let g_al_slot: i32[1] = [];
 let g_sz_depth: i32[64] = [];
 let g_al_depth: i32[64] = [];
-let g_dep_idx: i32[1] = [0];
-let g_func_idx: i32[1] = [0];
-let g_over_ret: i32[1] = [0];
+let g_dep_idx: i32[1] = [];
+let g_func_idx: i32[1] = [];
+let g_over_ret: i32[1] = [];
 // Import path staged between the copy and the dep-ctx set.
 // PLATFORM: SHARED.
 let g_fill_path: u8[128] = [];
-let g_fill_len: i32[1] = [0];
+let g_fill_len: i32[1] = [];
 
 /**
  * Anchor the ensure checks before it links this object. Always 0.
@@ -64,6 +65,8 @@ let g_fill_len: i32[1] = [0];
  */
 #[no_mangle]
 export function runtime_driver_strict_glue_stubs_x_w1530_anchor(): i32 {
+  /* DIG tip_l4 Win: restore g_al_slot default 1 after [] BSS init. */
+  g_al_slot[0] = 1;
   return 0;
 }
 
@@ -222,7 +225,7 @@ function w1530_path_class(path: *u8, mode: i32): i32 {
   }
 
   let b_nlen: i32 = 0;
-  let b_needle: *u8 = "\\lsp\\lsp.x";
+  let b_needle: *u8 = "/lsp/lsp.x";
   let b_i: i32 = 0;
   let b_k: i32 = 0;
   let b_ok: i32 = 0;
@@ -956,7 +959,7 @@ export function lsp_codegen_emit_path_is_lsp_main_x(path: *u8): i32 {
 }
 
 /**
- * Append text to a CodegenOutBuf. The length field is at byte 9437184. Loops only, so this strong body has no call.
+ * Append text to a CodegenOutBuf. The length field is at byte 0 (10.94). Loops only, so this strong body has no call.
  * @param out_buf *u8 — CodegenOutBuf, or null
  * @param text *u8 — NUL-terminated text, or null
  * @return i32 — 0, or -1 when null or the 9MiB cap would overflow
@@ -974,9 +977,9 @@ export function append_text_to_codegen_buf(out_buf: *u8, text: *u8): i32 {
   if (text == 0 as *u8) {
     return 0 - 1;
   }
-  // CodegenOutBuf.length sits after unsigned char data[9 * 1024 * 1024].
+  // CodegenOutBuf.length sits at offset 0; data[] at +4 (10.94).
   // PLATFORM: SHARED.
-  lenp = (out_buf + 9437184) as *i32;
+  lenp = out_buf as *i32;
   length = lenp[0];
   if (length < 0) {
     return 0 - 1;
@@ -988,7 +991,7 @@ export function append_text_to_codegen_buf(out_buf: *u8, text: *u8): i32 {
     return 0 - 1;
   }
   while (i < n) {
-    out_buf[length + i] = text[i];
+    out_buf[4 + length + i] = text[i];
     i = i + 1;
   }
   lenp[0] = length + n;
@@ -1003,7 +1006,13 @@ export function append_text_to_codegen_buf(out_buf: *u8, text: *u8): i32 {
  */
 #[no_mangle]
 export function lsp_codegen_emit_heap_alias_block(out_ptr: *u8): void {
-  let s: *u8 = "\n/* lsp_codegen_extern: std.heap typeck 链接别名（C-04 v0；std_io extern 由 codegen 自动生成） */\nextern uint8_t *typeck_std_heap_alloc(size_t size);\nextern void typeck_std_heap_free(uint8_t *ptr);\n#define std_heap_alloc typeck_std_heap_alloc\n#define std_heap_free typeck_std_heap_free\n";
+  let s: *u8 = "
+/* lsp_codegen_extern: std.heap typeck 链接别名（C-04 v0；std_io extern 由 codegen 自动生成） */
+extern uint8_t *typeck_std_heap_alloc(size_t size);
+extern void typeck_std_heap_free(uint8_t *ptr);
+ #define std_heap_alloc typeck_std_heap_alloc
+ #define std_heap_free typeck_std_heap_free
+";
   let n: i32 = 0;
   let h: i64 = 0;
   let fd: i32 = 0 - 1;
@@ -1028,7 +1037,19 @@ export function lsp_codegen_emit_heap_alias_block(out_ptr: *u8): void {
  */
 #[no_mangle]
 export function lsp_codegen_emit_io_extern_block(out_ptr: *u8): void {
-  let s: *u8 = "\n/* lsp_codegen_extern: deprecated full io block — 保留给旧 bootstrap 路径 */\nextern int32_t std_io_read(size_t handle, uint8_t *ptr, size_t len, uint32_t timeout_ms);\nextern int32_t std_io_write(size_t handle, uint8_t *ptr, size_t len, uint32_t timeout_ms);\nextern void lsp_debug_u32(uint32_t n);\n#define typeck_lsp_debug_u32 lsp_debug_u32\nextern void lsp_debug_ptr(uint8_t *p);\n#define typeck_lsp_debug_ptr lsp_debug_ptr\nextern uint8_t *typeck_std_heap_alloc(size_t size);\nextern void typeck_std_heap_free(uint8_t *ptr);\n#define std_heap_alloc typeck_std_heap_alloc\n#define std_heap_free typeck_std_heap_free\n";
+  let s: *u8 = "
+/* lsp_codegen_extern: deprecated full io block — 保留给旧 bootstrap 路径 */
+extern int32_t std_io_read(size_t handle, uint8_t *ptr, size_t len, uint32_t timeout_ms);
+extern int32_t std_io_write(size_t handle, uint8_t *ptr, size_t len, uint32_t timeout_ms);
+extern void lsp_debug_u32(uint32_t n);
+ #define typeck_lsp_debug_u32 lsp_debug_u32
+extern void lsp_debug_ptr(uint8_t *p);
+ #define typeck_lsp_debug_ptr lsp_debug_ptr
+extern uint8_t *typeck_std_heap_alloc(size_t size);
+extern void typeck_std_heap_free(uint8_t *ptr);
+ #define std_heap_alloc typeck_std_heap_alloc
+ #define std_heap_free typeck_std_heap_free
+";
   let n: i32 = 0;
   let h: i64 = 0;
   let fd: i32 = 0 - 1;
@@ -1053,7 +1074,33 @@ export function lsp_codegen_emit_io_extern_block(out_ptr: *u8): void {
  */
 #[no_mangle]
 export function lsp_codegen_emit_gen_extern_block(out_ptr: *u8): void {
-  let s: *u8 = "\n/* lsp_codegen_extern: lsp.x -E-extern stubs (lsp_io_x.o 符号桥接) */\nextern ptrdiff_t typeck_read_message(int32_t fd, uint8_t *body_out, int32_t body_cap, uint8_t *state_buf);\nextern ptrdiff_t typeck_write_fd(int32_t fd, uint8_t *ptr, size_t count);\nextern uint8_t *typeck_lsp_alloc(size_t size);\nextern void typeck_lsp_free(uint8_t *ptr);\nextern int32_t typeck_lsp_is_null(uint8_t *ptr);\nextern int32_t typeck_extract_document_text(uint8_t *body, int32_t body_len, uint8_t *out_buf, int32_t out_cap);\nstatic inline ptrdiff_t lsp_io_read_message(int32_t fd, uint8_t *body_out, int32_t body_cap, uint8_t *state_buf) {\n  return typeck_read_message(fd, body_out, body_cap, state_buf);\n}\nstatic inline ptrdiff_t lsp_io_write_fd(int32_t fd, uint8_t *ptr, size_t count) {\n  return typeck_write_fd(fd, ptr, count);\n}\nstatic inline uint8_t *lsp_io_lsp_alloc(size_t size) {\n  return typeck_lsp_alloc(size);\n}\nstatic inline void lsp_io_lsp_free(uint8_t *ptr) {\n  typeck_lsp_free(ptr);\n}\nstatic inline int32_t lsp_io_lsp_is_null(uint8_t *ptr) {\n  return typeck_lsp_is_null(ptr);\n}\nstatic inline int32_t lsp_io_extract_document_text(uint8_t *body, int32_t body_len, uint8_t *out_buf, int32_t out_cap) {\n  return typeck_extract_document_text(body, body_len, out_buf, out_cap);\n}\n";
+  let s: *u8 = "
+/* lsp_codegen_extern: lsp.x -E-extern stubs (lsp_io_x.o 符号桥接) */
+extern ptrdiff_t typeck_read_message(int32_t fd, uint8_t *body_out, int32_t body_cap, uint8_t *state_buf);
+extern ptrdiff_t typeck_write_fd(int32_t fd, uint8_t *ptr, size_t count);
+extern uint8_t *typeck_lsp_alloc(size_t size);
+extern void typeck_lsp_free(uint8_t *ptr);
+extern int32_t typeck_lsp_is_null(uint8_t *ptr);
+extern int32_t typeck_extract_document_text(uint8_t *body, int32_t body_len, uint8_t *out_buf, int32_t out_cap);
+static inline ptrdiff_t lsp_io_read_message(int32_t fd, uint8_t *body_out, int32_t body_cap, uint8_t *state_buf) {
+  return typeck_read_message(fd, body_out, body_cap, state_buf);
+}
+static inline ptrdiff_t lsp_io_write_fd(int32_t fd, uint8_t *ptr, size_t count) {
+  return typeck_write_fd(fd, ptr, count);
+}
+static inline uint8_t *lsp_io_lsp_alloc(size_t size) {
+  return typeck_lsp_alloc(size);
+}
+static inline void lsp_io_lsp_free(uint8_t *ptr) {
+  typeck_lsp_free(ptr);
+}
+static inline int32_t lsp_io_lsp_is_null(uint8_t *ptr) {
+  return typeck_lsp_is_null(ptr);
+}
+static inline int32_t lsp_io_extract_document_text(uint8_t *body, int32_t body_len, uint8_t *out_buf, int32_t out_cap) {
+  return typeck_extract_document_text(body, body_len, out_buf, out_cap);
+}
+";
   let n: i32 = 0;
   let h: i64 = 0;
   let fd: i32 = 0 - 1;
@@ -1078,7 +1125,13 @@ export function lsp_codegen_emit_gen_extern_block(out_ptr: *u8): void {
  */
 #[no_mangle]
 export function lsp_codegen_emit_heap_alias_to_buf(out_buf: *u8): i32 {
-  let s: *u8 = "\n/* lsp_codegen_extern: std.heap typeck 链接别名（C-04 v0；std_io extern 由 codegen 自动生成） */\nextern uint8_t *typeck_std_heap_alloc(size_t size);\nextern void typeck_std_heap_free(uint8_t *ptr);\n#define std_heap_alloc typeck_std_heap_alloc\n#define std_heap_free typeck_std_heap_free\n";
+  let s: *u8 = "
+/* lsp_codegen_extern: std.heap typeck 链接别名（C-04 v0；std_io extern 由 codegen 自动生成） */
+extern uint8_t *typeck_std_heap_alloc(size_t size);
+extern void typeck_std_heap_free(uint8_t *ptr);
+ #define std_heap_alloc typeck_std_heap_alloc
+ #define std_heap_free typeck_std_heap_free
+";
   return append_text_to_codegen_buf(out_buf, s);
 }
 
@@ -1090,7 +1143,19 @@ export function lsp_codegen_emit_heap_alias_to_buf(out_buf: *u8): i32 {
  */
 #[no_mangle]
 export function lsp_codegen_emit_io_extern_to_buf(out_buf: *u8): i32 {
-  let s: *u8 = "\n/* lsp_codegen_extern: deprecated full io block — 保留给旧 bootstrap 路径 */\nextern int32_t std_io_read(size_t handle, uint8_t *ptr, size_t len, uint32_t timeout_ms);\nextern int32_t std_io_write(size_t handle, uint8_t *ptr, size_t len, uint32_t timeout_ms);\nextern void lsp_debug_u32(uint32_t n);\n#define typeck_lsp_debug_u32 lsp_debug_u32\nextern void lsp_debug_ptr(uint8_t *p);\n#define typeck_lsp_debug_ptr lsp_debug_ptr\nextern uint8_t *typeck_std_heap_alloc(size_t size);\nextern void typeck_std_heap_free(uint8_t *ptr);\n#define std_heap_alloc typeck_std_heap_alloc\n#define std_heap_free typeck_std_heap_free\n";
+  let s: *u8 = "
+/* lsp_codegen_extern: deprecated full io block — 保留给旧 bootstrap 路径 */
+extern int32_t std_io_read(size_t handle, uint8_t *ptr, size_t len, uint32_t timeout_ms);
+extern int32_t std_io_write(size_t handle, uint8_t *ptr, size_t len, uint32_t timeout_ms);
+extern void lsp_debug_u32(uint32_t n);
+ #define typeck_lsp_debug_u32 lsp_debug_u32
+extern void lsp_debug_ptr(uint8_t *p);
+ #define typeck_lsp_debug_ptr lsp_debug_ptr
+extern uint8_t *typeck_std_heap_alloc(size_t size);
+extern void typeck_std_heap_free(uint8_t *ptr);
+ #define std_heap_alloc typeck_std_heap_alloc
+ #define std_heap_free typeck_std_heap_free
+";
   return append_text_to_codegen_buf(out_buf, s);
 }
 
@@ -1102,7 +1167,33 @@ export function lsp_codegen_emit_io_extern_to_buf(out_buf: *u8): i32 {
  */
 #[no_mangle]
 export function lsp_codegen_emit_gen_extern_to_buf(out_buf: *u8): i32 {
-  let s: *u8 = "\n/* lsp_codegen_extern: lsp.x -E-extern stubs (lsp_io_x.o 符号桥接) */\nextern ptrdiff_t typeck_read_message(int32_t fd, uint8_t *body_out, int32_t body_cap, uint8_t *state_buf);\nextern ptrdiff_t typeck_write_fd(int32_t fd, uint8_t *ptr, size_t count);\nextern uint8_t *typeck_lsp_alloc(size_t size);\nextern void typeck_lsp_free(uint8_t *ptr);\nextern int32_t typeck_lsp_is_null(uint8_t *ptr);\nextern int32_t typeck_extract_document_text(uint8_t *body, int32_t body_len, uint8_t *out_buf, int32_t out_cap);\nstatic inline ptrdiff_t lsp_io_read_message(int32_t fd, uint8_t *body_out, int32_t body_cap, uint8_t *state_buf) {\n  return typeck_read_message(fd, body_out, body_cap, state_buf);\n}\nstatic inline ptrdiff_t lsp_io_write_fd(int32_t fd, uint8_t *ptr, size_t count) {\n  return typeck_write_fd(fd, ptr, count);\n}\nstatic inline uint8_t *lsp_io_lsp_alloc(size_t size) {\n  return typeck_lsp_alloc(size);\n}\nstatic inline void lsp_io_lsp_free(uint8_t *ptr) {\n  typeck_lsp_free(ptr);\n}\nstatic inline int32_t lsp_io_lsp_is_null(uint8_t *ptr) {\n  return typeck_lsp_is_null(ptr);\n}\nstatic inline int32_t lsp_io_extract_document_text(uint8_t *body, int32_t body_len, uint8_t *out_buf, int32_t out_cap) {\n  return typeck_extract_document_text(body, body_len, out_buf, out_cap);\n}\n";
+  let s: *u8 = "
+/* lsp_codegen_extern: lsp.x -E-extern stubs (lsp_io_x.o 符号桥接) */
+extern ptrdiff_t typeck_read_message(int32_t fd, uint8_t *body_out, int32_t body_cap, uint8_t *state_buf);
+extern ptrdiff_t typeck_write_fd(int32_t fd, uint8_t *ptr, size_t count);
+extern uint8_t *typeck_lsp_alloc(size_t size);
+extern void typeck_lsp_free(uint8_t *ptr);
+extern int32_t typeck_lsp_is_null(uint8_t *ptr);
+extern int32_t typeck_extract_document_text(uint8_t *body, int32_t body_len, uint8_t *out_buf, int32_t out_cap);
+static inline ptrdiff_t lsp_io_read_message(int32_t fd, uint8_t *body_out, int32_t body_cap, uint8_t *state_buf) {
+  return typeck_read_message(fd, body_out, body_cap, state_buf);
+}
+static inline ptrdiff_t lsp_io_write_fd(int32_t fd, uint8_t *ptr, size_t count) {
+  return typeck_write_fd(fd, ptr, count);
+}
+static inline uint8_t *lsp_io_lsp_alloc(size_t size) {
+  return typeck_lsp_alloc(size);
+}
+static inline void lsp_io_lsp_free(uint8_t *ptr) {
+  typeck_lsp_free(ptr);
+}
+static inline int32_t lsp_io_lsp_is_null(uint8_t *ptr) {
+  return typeck_lsp_is_null(ptr);
+}
+static inline int32_t lsp_io_extract_document_text(uint8_t *body, int32_t body_len, uint8_t *out_buf, int32_t out_cap) {
+  return typeck_extract_document_text(body, body_len, out_buf, out_cap);
+}
+";
   return append_text_to_codegen_buf(out_buf, s);
 }
 
@@ -1113,7 +1204,9 @@ export function lsp_codegen_emit_gen_extern_to_buf(out_buf: *u8): i32 {
  */
 #[no_mangle]
 export function driver_print_usage_c(): void {
-  let s: *u8 = "Xlang (stub)\nUsage: xlang [options] file.x\n";
+  let s: *u8 = "Xlang (stub)
+Usage: xlang [options] file.x
+";
   w1530_host_write(1, s, 43);
 }
 
@@ -1130,7 +1223,8 @@ export function driver_print_usage_c(): void {
  */
 #[no_mangle]
 export function codegen_dump_wpo_callgraph_json(out_ptr: *u8, entry_ptr: *u8, entry_path: *u8, all_mods: *u8, all_paths: *u8, n_all: i32): void {
-  let s: *u8 = "{\"version\":2,\"nodes\":[]}\n";
+  let s: *u8 = "{'version':2,'nodes':[]}
+";
   let n: i32 = 0;
   let h: i64 = 0;
   let fd: i32 = 0 - 1;

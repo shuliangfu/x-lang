@@ -1,0 +1,4 @@
+	.align 2
+	.globl _typeck_type_is_free_type_param__demoted
+_typeck_type_is_free_type_param__demoted:
+	b _typeck_type_is_free_type_param

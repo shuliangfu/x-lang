@@ -1,9 +1,10 @@
 // Isolated red: module-level const type mismatch must T001.
-// `const x: i32 = [1, 2]` used to compile (typeck skipped module lets).
+// LANG-006 C5 owns `const N: i32 = [1,2,…]` → length fold (not a mismatch).
+// This case uses f64 init vs i32 decl — must stay hard T001.
 // Expected: compile T001.
 // PLATFORM: SHARED — Ubuntu gold typeck.
 
-const x: i32 = [1, 2];
+const x: i32 = 1.5;
 
 /**
  * Unreachable if typeck rejects the module const.

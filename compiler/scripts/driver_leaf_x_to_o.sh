@@ -516,6 +516,13 @@ pick_xlang() {
     driver_fmt_x.o|driver_check_x.o|driver_test_x.o|driver_build_x.o|driver_run_x.o|driver_compile_x.o|driver_emit_x.o|lsp_io_std_heap_x.o|preprocess_x.o)
       case "$(uname -s 2>/dev/null)" in
         Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+          # tip L4 grain: in-tree ./xlang-c.exe may SEGV on compile.x mid-heat
+          # even when byte-identical to the tip aside PE (Win path/image). Prefer
+          # XLANG_L4_TIP_ASIDE/xlang-c.exe abs path when set (aside 10/10 -E OK).
+          if [ -n "${XLANG_L4_TIP_ASIDE:-}" ] && [ -x "${XLANG_L4_TIP_ASIDE}/xlang-c.exe" ]; then
+            printf '%s\n' "${XLANG_L4_TIP_ASIDE}/xlang-c.exe"
+            return 0
+          fi
           if [ -x ./xlang-c.exe ]; then
             printf '%s\n' ./xlang-c.exe
             return 0

@@ -1373,8 +1373,8 @@ extern int32_t ast_ast_arena_func_alloc(struct ast_ASTArena * arena);
 extern struct ast_Func ast_ast_arena_func_get(struct ast_ASTArena * arena, int32_t ref);
 extern void ast_ast_arena_func_set(struct ast_ASTArena * arena, int32_t ref, struct ast_Func f);
 struct codegen_CodegenOutBuf {
-  uint8_t data[9437184];
   int32_t length;
+  uint8_t data[9437184];
 };
 
 struct xlang_slice_CodegenOutBuf { struct codegen_CodegenOutBuf *data; size_t length; };

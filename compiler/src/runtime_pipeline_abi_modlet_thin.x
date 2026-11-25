@@ -107,7 +107,10 @@ export function asm_module_top_level_let_name_exists(m: *u8, name: *u8, name_len
       if (nl == name_len && nl > 0) {
         let k: i32 = 0;
         while (k < name_len) {
-          if (pipeline_module_top_level_let_name_byte_at(m, tl, k) != (name[k] as i32)) {
+          // note743q: extern byte_at in condition — declare-then-assign.
+          let nb: i32 = 0;
+          unsafe { nb = pipeline_module_top_level_let_name_byte_at(m, tl, k); }
+          if (nb != (name[k] as i32)) {
             break;
           }
           k = k + 1;
@@ -2466,8 +2469,10 @@ function pipe_modlet_array_lit_has_ptr_addr_elem(
       if (etk == 10) {
         // Nested row: recurse with the row's elem type (seeder twin walk).
         if (ek == 46) {
-          if (pipe_modlet_array_lit_has_ptr_addr_elem(
-              arena, eref, pipeline_type_elem_ref_at(arena, elem_ty)) != 0) {
+          // note743q: bare extern in arg → T001; declare-then-assign (header contract).
+          let row_et: i32 = 0;
+          unsafe { row_et = pipeline_type_elem_ref_at(arena, elem_ty); }
+          if (pipe_modlet_array_lit_has_ptr_addr_elem(arena, eref, row_et) != 0) {
             return 1;
           }
         }
@@ -3709,9 +3714,12 @@ function pipe_modlet_bake_ptr_addr_elem_to_data(
     return 0 - 1;
   }
   if (is_addr_of != 0) {
-    idx = pipeline_asm_modlet_find(&name[0], vlen);
+    // note743q: same-TU find may still be typed extern-before-def on egg/tip.
+    unsafe { idx = pipeline_asm_modlet_find(&name[0], vlen); }
     if (idx >= 0) {
-      unsafe { llen = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_label_len(idx)); }
+      let lab_off: i32 = 0;
+      unsafe { lab_off = pipe_modlet_off_label_len(idx); }
+      unsafe { llen = pipe_load_i32_le(&g_pipeline_asm_modlet[0], lab_off); }
       lbase = pipe_modlet_off_label(idx);
       if (llen <= 0 || llen > 24) {
         return 0 - 1;
@@ -3734,7 +3742,8 @@ function pipe_modlet_bake_ptr_addr_elem_to_data(
     if (fi < 0) {
       return 0 - 1;
     }
-    slen = pipe_modlet_fn_sym_spell_into(elf_ctx, &name[0], vlen, &sym[0]);
+    // note743q: pipe_modlet_fn_sym_spell_into is export extern — wrap.
+    unsafe { slen = pipe_modlet_fn_sym_spell_into(elf_ctx, &name[0], vlen, &sym[0]); }
     if (slen <= 0) {
       return 0 - 1;
     }
@@ -3755,7 +3764,7 @@ function pipe_modlet_bake_ptr_addr_elem_to_data(
   if (fi < 0) {
     return 1;
   }
-  slen = pipe_modlet_fn_sym_spell_into(elf_ctx, &name[0], vlen, &sym[0]);
+  unsafe { slen = pipe_modlet_fn_sym_spell_into(elf_ctx, &name[0], vlen, &sym[0]); }
   if (slen <= 0) {
     return 0 - 1;
   }
@@ -4048,51 +4057,13 @@ function pipe_modlet_cell_payload(csz: i32): i32 {
   return p;
 }
 
-/**
- * Spell a same-module function's link name into dst.
- * Mach-O leading '_' on Darwin, bare ELF name on Linux. Completes the
- * spelling previously inlined in pipe_modlet_lea_fn_sym_to_rax so LEA
- * and .data absolute64 relocs share one authority.
- * @param elf_ctx *u8 - ElfCodegenCtx (reads macho_leading_underscore)
- * @param name *u8 - source-level function name
- * @param name_len i32 - 1..255
- * @param dst *u8 - caller buffer; capacity >= name_len+1 (typically 130)
- * @return i32 - spelled length; -1 bad args
- * PLATFORM: SHARED · MACOS Mach-O '_' · LINUX ELF bare name.
- */
-function pipe_modlet_fn_sym_spell_into(
+// Link spelling of a same-module function lives in
+// runtime_pipeline_abi_modlet_fn_sym_spell_thin.x. The pabi copy
+// wrote only '_' plus the source name, so `let f = inc` relocated
+// `_inc` while the definition is `_p_global_inc`.
+export extern function pipe_modlet_fn_sym_spell_into(
   elf_ctx: *u8, name: *u8, name_len: i32, dst: *u8
-): i32 {
-  let macho: i32 = 0;
-  let k: i32 = 0;
-  if (elf_ctx == (0 as *u8) || name == (0 as *u8) || dst == (0 as *u8) || name_len <= 0 || name_len > 255) {
-    return 0 - 1;
-  }
-  unsafe {
-    unsafe { macho = pipeline_elf_ctx_macho_leading_underscore(elf_ctx); }
-  }
-  if (macho != 0) {
-    unsafe {
-      dst[0] = 95 as u8;
-    }
-    k = 0;
-    while (k < name_len) {
-      unsafe {
-        dst[k + 1] = name[k];
-      }
-      k = k + 1;
-    }
-    return name_len + 1;
-  }
-  k = 0;
-  while (k < name_len) {
-    unsafe {
-      dst[k] = name[k];
-    }
-    k = k + 1;
-  }
-  return name_len;
-}
+): i32;
 
 /**
  * FNV-1a 32-bit mix of one byte (unsigned 32-bit wrap).
@@ -4136,7 +4107,8 @@ export function pipe_modlet_lea_fn_sym_to_rax(elf_ctx: *u8, name: *u8, name_len:
   if (elf_ctx == (0 as *u8) || name == (0 as *u8) || name_len <= 0 || name_len > 255 || (ta != 0 && ta != 1)) {
     return 0 - 1;
   }
-  len = pipe_modlet_fn_sym_spell_into(elf_ctx, name, name_len, &sym[0]);
+  // note743q: spell_into is export extern.
+  unsafe { len = pipe_modlet_fn_sym_spell_into(elf_ctx, name, name_len, &sym[0]); }
   if (len <= 0) {
     return 0 - 1;
   }
@@ -5697,244 +5669,11 @@ function pipeline_asm_modlet_reset(): void {
   g_pipe_modlet_strpool_seq = 0;
 }
 
-/**
- * High half for one scalar COMMON seed immediate.
- * init_imm is one 32-bit two's-complement word. A non-negative word
- * always has high half 0. A negative word sign-extends (high half -1)
- * only for a signed cell: i32, i64, isize, or Cap residual i8/i16.
- * Unsigned cells stay zero-extended, including u32 all-ones, whose
- * low word is negative when read as i32. u8, u32, u64, usize, and
- * Cap residual u16 take this path. Any other kind, or a missing
- * module, arena, or name, keeps the historic zero high half.
- * The lookup matches the modlet name against top-level lets. The
- * 32-bit table cannot hold an i64 outside that word; this function
- * does not invent the missing half.
- * @param imm i32 — folded init_imm; may be negative
- * @param name *u8 — modlet name bytes; not NUL-terminated
- * @param name_len i32 — name length; <= 0 returns 0
- * @return i32 — 0 or -1, passed as hi to backend_enc_mov_imm64_to_rax_arch
- * PLATFORM: SHARED — main-entry COMMON seed. Library .data bake stays
- * on pipe_modlet_bake_scalar_imm_to_data.
- */
-function pipe_modlet_seed_imm_hi(imm: i32, name: *u8, name_len: i32): i32 {
-  let mod: *u8 = (0 as *u8);
-  let arena: *u8 = (0 as *u8);
-  let nlets: i32 = 0;
-  let tl: i32 = 0;
-  if (imm >= 0) {
-    return 0;
-  }
-  if (name == (0 as *u8) || name_len <= 0 || name_len > 255) {
-    return 0;
-  }
-  unsafe { mod = pipeline_asm_emit_module_ref_c(); }
-  unsafe { arena = pipeline_asm_emit_ctx_arena_get(); }
-  if (mod == (0 as *u8) || arena == (0 as *u8)) {
-    return 0;
-  }
-  unsafe { nlets = pipe_mod_get_num_top_level_lets(mod); }
-  tl = 0;
-  while (tl < nlets) {
-    let nlen: i32 = 0;
-    unsafe { nlen = pipeline_module_top_level_let_name_len(mod, tl); }
-    if (nlen == name_len) {
-      let same: i32 = 1;
-      let k: i32 = 0;
-      while (k < nlen) {
-        let b: i32 = 0;
-        unsafe { b = pipeline_module_top_level_let_name_byte_at(mod, tl, k); }
-        if (b != (name[k] as i32)) {
-          same = 0;
-          break;
-        }
-        k = k + 1;
-      }
-      if (same != 0) {
-        let tr: i32 = 0;
-        let tk: i32 = 0;
-        unsafe { tr = pipeline_module_top_level_let_type_ref(mod, tl); }
-        if (tr <= 0) {
-          return 0;
-        }
-        unsafe { tk = pipeline_type_kind_ord_at(arena, tr); }
-        // u8=2, u32=3, u64=4, usize=6. Bit 31 stays in the low word.
-        if (tk == 2 || tk == 3 || tk == 4 || tk == 6) {
-          return 0;
-        }
-        // i32=0, i64=5, isize=7.
-        if (tk == 0 || tk == 5 || tk == 7) {
-          return 0 - 1;
-        }
-        // TYPE_NAMED=8. Only Cap residual i8/i16 sign-extend.
-        // u16 and every other spelling stay zero-extended.
-        if (tk == 8) {
-          let nm: u8[8] = [];
-          let nl: i32 = 0;
-          unsafe { nl = pipeline_type_named_name_into(arena, tr, &(nm[0])); }
-          if (nl == 2) {
-            if (nm[0] == 105) {
-              if (nm[1] == 56) {
-                return 0 - 1;
-              }
-            }
-          }
-          if (nl == 3) {
-            if (nm[0] == 105) {
-              if (nm[1] == 49) {
-                if (nm[2] == 54) {
-                  return 0 - 1;
-                }
-              }
-            }
-          }
-        }
-        return 0;
-      }
-    }
-    tl = tl + 1;
-  }
-  return 0;
-}
+// Signed high half of a COMMON seed lives in
+// runtime_pipeline_abi_modlet_seed_signed_thin.x. The pabi copy of
+// this symbol hardcodes the high half to 0. That file is the linked body.
+export extern function pipeline_asm_modlet_seed_nonzero_inits_elf_c(elf_ctx: *u8, ta: i32): i32;
 
-/**
- * Seed COMMON cells once on hoist-target entry.
- * Scalar cells: non-zero init_imm (historic wave139).
- * A signed negative word is sign-extended by pipe_modlet_seed_imm_hi
- * so `let GP: i32 = -3` compares equal to -3. Unsigned words, including
- * u32 all-ones, stay zero-extended.
- * TYPE_ARRAY ARRAY_LIT cells: prepare emits zero BSS; write LIT elems
- * into COMMON so dest-SLICE / INDEX LEA sees the source payload
- * (`let A:[2]i32=[10,32]` and `const A:[2]i32=[10,32]`). Empty
- * `u8[N]=[]` stays zero (correct).
- * Arena/module from emit ctx (no extra pointer arg).
- * @param elf_ctx *u8 - ElfCodegenCtx*
- * @param ta i32 - target arch
- * @return i32 - 0 ok; -1 mov/store fail
- * wave139 pure: G.7 authority (was static seed_nonzero_inits_elf_c).
- * wave344 / wave699: library TUs (main_func_index < 0) bake non-zero
- *   scalar imms into .data at prepare. Runtime seed is for programs
- *   with main(). FORCE mega has no main; dumping seed into the first
- *   export made parser_parse_into_init first-win over parser_x.
- * Cap residual: backend_enc_mov_imm64_to_rax_arch + store_from_rax +
- *   store_rax_to_rbx_offset + ARRAY_LIT readers.
- * PLATFORM: SHARED.
- */
-#[no_mangle]
-export function pipeline_asm_modlet_seed_nonzero_inits_elf_c(elf_ctx: *u8, ta: i32): i32 {
-  if (elf_ctx == 0 as *u8 || (ta != 0 && ta != 1)) {
-    return 0;
-  }
-  // wave344 / wave699: no runtime seed for library TUs (no main).
-  // PLATFORM: SHARED.
-  let mod0: *u8 = (0 as *u8);
-  unsafe { mod0 = pipeline_asm_emit_module_ref_c(); }
-  if (mod0 != (0 as *u8)) {
-    let mi: i32 = 0;
-    unsafe { mi = pipeline_module_main_func_index(mod0); }
-    if (mi < 0) {
-      return 0;
-    }
-  }
-  let n: i32 = pipe_modlet_get_n();
-  let i: i32 = 0;
-  while (i < n) {
-    let imm: i32 = 0;
-    unsafe { imm = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_init_imm(i)); }
-    if (imm != 0) {
-      let rc: i32 = 0;
-      let nlen: i32 = 0;
-      let nbase: i32 = 0;
-      let hi: i32 = 0;
-      unsafe { nlen = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_name_len(i)); }
-      nbase = pipe_modlet_off_name(i);
-      // Signed negatives need hi=-1. Unsigned bit 31 stays hi=0.
-      hi = pipe_modlet_seed_imm_hi(imm, &g_pipeline_asm_modlet[nbase], nlen);
-      unsafe {
-        unsafe { rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, imm, hi, ta); }
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      if (pipeline_asm_modlet_store_from_rax_elf_c(elf_ctx, &g_pipeline_asm_modlet[nbase], nlen, ta) != 0) {
-        return 0 - 1;
-      }
-    }
-    i = i + 1;
-  }
-  // Module TYPE_ARRAY ARRAY_LIT (const + mutable) → COMMON is BSS zero
-  // until we store elems here (hoist skips all TYPE_ARRAY). dest-SLICE
-  // wrap / INDEX LEAs the cell; without this seed A[0] reads 0.
-  // PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
-  let arena: *u8 = (0 as *u8);
-  unsafe { arena = pipeline_asm_emit_ctx_arena_get(); }
-  let mod: *u8 = (0 as *u8);
-  unsafe { mod = pipeline_asm_emit_module_ref_c(); }
-  if (arena != (0 as *u8) && mod != (0 as *u8)) {
-    let nlets: i32 = 0;
-    unsafe { nlets = pipe_mod_get_num_top_level_lets(mod); }
-    let nexprs: i32 = 0;
-    unsafe { nexprs = pipe_load_i32_le(arena, pipe_arena_off_num_exprs()); }
-    let tl: i32 = 0;
-    while (tl < nlets) {
-      let nlen: i32 = 0;
-      let init_ref: i32 = 0;
-      let type_ref: i32 = 0;
-      let ik: i32 = 0;
-      let tk: i32 = 0;
-      let idx: i32 = 0;
-      let csz: i32 = 0;
-      let et: i32 = 0;
-      let rc2: i32 = 0;
-      let name_buf: u8[256] = [];
-      let k: i32 = 0;
-      unsafe {
-        unsafe { nlen = pipeline_module_top_level_let_name_len(mod, tl); }
-      }
-      if (nlen > 0 && nlen <= 255) {
-        k = 0;
-        while (k < nlen) {
-          unsafe {
-            unsafe { name_buf[k] = pipeline_module_top_level_let_name_byte_at(mod, tl, k) as u8; }
-          }
-          k = k + 1;
-        }
-        idx = pipeline_asm_modlet_find(&name_buf[0], nlen);
-        if (idx >= 0) {
-          unsafe { csz = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_cell_size(idx)); }
-          // Skip .data-backed cells: bytes already baked at prepare; stores
-          // into Mach-O __DATA,__const may fault after final link.
-          // PLATFORM: SHARED — library-TU .data knife.
-          if (pipe_modlet_cell_is_array(csz) != 0 && pipe_modlet_cell_is_data(csz) == 0) {
-            unsafe {
-              unsafe { init_ref = pipeline_module_top_level_let_init_ref(mod, tl); }
-              unsafe { type_ref = pipeline_module_top_level_let_type_ref(mod, tl); }
-            }
-            if (init_ref > 0 && init_ref <= nexprs && type_ref > 0) {
-              unsafe {
-                unsafe { ik = pipeline_expr_kind_ord_at(arena, init_ref); }
-                unsafe { tk = pipeline_type_kind_ord_at(arena, type_ref); }
-              }
-              if (ik == 46 && tk == 10) {
-                unsafe {
-                  unsafe { et = pipeline_type_elem_ref_at(arena, type_ref); }
-                }
-                if (pipeline_asm_modlet_lea_rbx_arch(elf_ctx, idx, ta) == 0) {
-                  rc2 = pipe_modlet_seed_array_lit_elems_to_rbx(
-                    arena, elf_ctx, init_ref, et, ta, 0, mod);
-                  if (rc2 != 0) {
-                    return rc2;
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-      tl = tl + 1;
-    }
-  }
-  return 0;
-}
 
 /**
  * Store rax/x0 into a shared modlet cell.

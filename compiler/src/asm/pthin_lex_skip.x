@@ -270,20 +270,41 @@ export function parser_asm_angle_list_token_is_stmt_boundary_c(k: i32): i32 {
  * PLATFORM: SHARED — buf-path authority; slice wrappers stay C trampolines.
  */
 #[no_mangle]
+export extern "C" function lexer_src_data_store(out: *u8): void;
+export extern "C" function lexer_src_len_store(out: *u8): void;
+
 export function parser_asm_copy_slice_to_name64_buf_c(source: *u8, source_len: i32, start: usize, nlen: i32, out: *u8): void {
+  // knife256 / 10.2: tip may pass source=0x3a (smashed u8[]); use parked lexer BSS.
+  // knife256 / 10.2 io-context: hard-cap nlen to 256 — Cap tip trampoline name[256]
+  // ends at stack canary; uncapped nlen smashed __stack_chk (Abort trap:6).
+  // PLATFORM: SHARED.
   let i: i32 = 0;
   let off: usize = 0;
   let slen: usize = 0;
   let c: u8 = 0;
-  if (source == 0 as *u8 || out == 0 as *u8 || nlen <= 0) {
+  let sp: *u8 = source;
+  let n: i32 = nlen;
+  if (out == 0 as *u8 || n <= 0) {
     return;
   }
+  if (n > 256) {
+    n = 256;
+  }
   slen = source_len as usize;
-  while (i < nlen) {
+  if (sp == 0 as *u8 || ((sp as usize) <= (4096 as usize))) {
+    unsafe {
+      lexer_src_data_store((&sp as *u8));
+      lexer_src_len_store((&slen as *u8));
+    }
+  }
+  if (sp == 0 as *u8) {
+    return;
+  }
+  while (i < n) {
     off = start + i as usize;
     if (off < slen) {
       unsafe {
-        c = source[off];
+        c = sp[off];
         out[i] = c;
       }
     }
@@ -306,10 +327,17 @@ export function parser_asm_copy_slice_to_name64_at_end_buf_c(source: *u8, source
   if (source == 0 as *u8 || out == 0 as *u8 || nlen <= 0) {
     return;
   }
+  // Prefer-M2 Cap soft tiphead (10.62 SoftCap tiphead typeck name identity):
+  // tip miscompiled `end_pos - nlen as usize` as a call-arg into a bare
+  // JMP to *_buf_c (start-pos API), so consume_qualified first segment
+  // copied the bytes *after* the IDENT (` = Po` / blank `W`). Mirror
+  // parser.x: bind start to a local before the call so tip cannot fold
+  // the subtract away.
   // Darwin compiles this function alone. The name64 copy is an extern,
   // so the call sits in unsafe.
   unsafe {
-    parser_asm_copy_slice_to_name64_buf_c(source, source_len, end_pos - nlen as usize, nlen, out);
+    let start: usize = end_pos - (nlen as usize);
+    parser_asm_copy_slice_to_name64_buf_c(source, source_len, start, nlen, out);
   }
 }
 
@@ -364,10 +392,12 @@ export function parser_asm_copy_slice_to_param32_at_end_buf_c(source: *u8, sourc
   if (out == 0 as *u8) {
     return;
   }
+  // Same Prefer-M2 local-start shield as name64_at_end (tip JMP-alias).
   // Darwin compiles this function alone. The param32 copy is an extern,
   // so the call sits in unsafe.
   unsafe {
-    parser_asm_copy_slice_to_param32_buf_c(source, source_len, end_pos - nlen as usize, nlen, out);
+    let start: usize = end_pos - (nlen as usize);
+    parser_asm_copy_slice_to_param32_buf_c(source, source_len, start, nlen, out);
   }
 }
 

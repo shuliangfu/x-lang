@@ -30,10 +30,11 @@
 // from runtime_env_os. This file does not walk the block itself and
 // does not call libc setenv or unsetenv.
 //
-// A direct store to a file-level let does not emit. Cache pointers
-// and lengths are published with memcpy after the address is loaded
-// into a local. Passing &let as a call argument makes this compiler
-// exit 139. A function name used as a pointer value also exits 139,
+// A direct store or a direct load of a file-level let does not emit.
+// Cache pointers and lengths are published and read with memcpy after
+// the address is loaded into a local. Passing &let as a call argument
+// makes this compiler exit 139. A function name used as a pointer
+// value also exits 139,
 // so the SIGCHLD handler is taken with dlsym. A 4096-byte stack
 // buffer does not fit, so the cwd and exe caches are malloc'd.
 // Each function keeps a single loop. This file has no loop.
@@ -135,7 +136,7 @@ export extern "C" function chdir(path: *u8): i32;
  * @return i32 — 0 on success, -1 on failure
  * PLATFORM: MACOS|DARWIN
  */
-export extern "C" function __NSGetExecutablePath(buf: *u8, bufsize: *u32): i32;
+export extern "C" function _NSGetExecutablePath(buf: *u8, bufsize: *u32): i32;
 
 /**
  * libSystem fork. The child receives 0. The parent receives the pid.
@@ -212,7 +213,7 @@ export extern "C" function dlsym(handle: *u8, name: *u8): *u8;
  * @return ***u8 — address of the environ pointer
  * PLATFORM: MACOS|DARWIN
  */
-export extern "C" function __NSGetEnviron(): ***u8;
+export extern "C" function _NSGetEnviron(): ***u8;
 
 /**
  * Empty SIGCHLD handler defined by the shared thin.
@@ -313,12 +314,69 @@ function process_exe_len_set(n: i32): void {
 }
 
 /**
+ * Read the cwd cache pointer. A direct load of the file-level let
+ * does not emit, so the bytes are memcpy'd from its address.
+ * @return *u8 — buffer, or null
+ * PLATFORM: MACOS|DARWIN
+ */
+function process_cwd_buf_get(): *u8 {
+  let slot: **u8 = &process_cwd_buf;
+  let out: *u8 = 0;
+  unsafe {
+    memcpy(&out as *u8, slot as *u8, 8);
+  }
+  return out;
+}
+
+/**
+ * Read the cwd length. A direct load of the file-level let does not emit.
+ * @return i32 — bytes excluding NUL, or 0
+ * PLATFORM: MACOS|DARWIN
+ */
+function process_cwd_len_get(): i32 {
+  let slot: *i32 = &process_cwd_len;
+  let out: i32 = 0;
+  unsafe {
+    memcpy(&out as *u8, slot as *u8, 4);
+  }
+  return out;
+}
+
+/**
+ * Read the executable-path cache pointer.
+ * @return *u8 — buffer, or null
+ * PLATFORM: MACOS|DARWIN
+ */
+function process_exe_buf_get(): *u8 {
+  let slot: **u8 = &process_exe_buf;
+  let out: *u8 = 0;
+  unsafe {
+    memcpy(&out as *u8, slot as *u8, 8);
+  }
+  return out;
+}
+
+/**
+ * Read the executable-path length.
+ * @return i32 — bytes excluding NUL, or 0
+ * PLATFORM: MACOS|DARWIN
+ */
+function process_exe_len_get(): i32 {
+  let slot: *i32 = &process_exe_len;
+  let out: i32 = 0;
+  unsafe {
+    memcpy(&out as *u8, slot as *u8, 4);
+  }
+  return out;
+}
+
+/**
  * Cwd cache, allocated once.
  * @return *u8 — 4096-byte buffer, or null
  * PLATFORM: MACOS|DARWIN
  */
 function process_cwd_ensure(): *u8 {
-  let cur: *u8 = process_cwd_buf;
+  let cur: *u8 = process_cwd_buf_get();
   if (cur != 0) {
     return cur;
   }
@@ -339,7 +397,7 @@ function process_cwd_ensure(): *u8 {
  * PLATFORM: MACOS|DARWIN
  */
 function process_exe_ensure(): *u8 {
-  let cur: *u8 = process_exe_buf;
+  let cur: *u8 = process_exe_buf_get();
   if (cur != 0) {
     return cur;
   }
@@ -361,7 +419,7 @@ function process_exe_ensure(): *u8 {
  */
 function process_environ(): **u8 {
   unsafe {
-    let slot: ***u8 = __NSGetEnviron();
+    let slot: ***u8 = _NSGetEnviron();
     if (slot == 0) {
       return 0;
     }
@@ -370,13 +428,15 @@ function process_environ(): **u8 {
 }
 
 /**
- * Store one pointer at argv[i]. The base is a parameter.
- * @param argv **u8 — vector
+ * Store one pointer at base[i] (base is argv bytes; slot stride 8).
+ * Takes *u8 so tip body_sync cannot hoist a **u8 cast of a pre-malloc null.
+ * @param base *u8 — argv allocation
  * @param i i32 — slot
  * @param v *u8 — pointer, or null
  * PLATFORM: MACOS|DARWIN
  */
-function process_store_ptr(argv: **u8, i: i32, v: *u8): void {
+function process_store_ptr(base: *u8, i: i32, v: *u8): void {
+  let argv: **u8 = base as **u8;
   argv[i] = v;
 }
 
@@ -556,8 +616,8 @@ export function process_getcwd_impl(buf: *u8, buf_size: i32): i32 {
   if (buf == 0 || buf_size <= 0) {
     return 0 - 1;
   }
-  let n: i32 = process_cwd_len;
-  let cache: *u8 = process_cwd_buf;
+  let n: i32 = process_cwd_len_get();
+  let cache: *u8 = process_cwd_buf_get();
   if (n > 0 && cache != 0) {
     if (n >= buf_size) {
       return 0 - 1;
@@ -599,8 +659,8 @@ export function process_getcwd_impl(buf: *u8, buf_size: i32): i32 {
  */
 #[no_mangle]
 export function process_getcwd_ptr_impl(): *u8 {
-  let n: i32 = process_cwd_len;
-  let cache: *u8 = process_cwd_buf;
+  let n: i32 = process_cwd_len_get();
+  let cache: *u8 = process_cwd_buf_get();
   if (n > 0 && cache != 0) {
     return cache;
   }
@@ -630,7 +690,7 @@ export function process_getcwd_ptr_impl(): *u8 {
  */
 #[no_mangle]
 export function process_getcwd_cached_len_impl(): i32 {
-  return process_cwd_len;
+  return process_cwd_len_get();
 }
 
 /**
@@ -664,8 +724,8 @@ export function process_self_exe_path_impl(buf: *u8, buf_size: i32): i32 {
   if (buf == 0 || buf_size <= 0) {
     return 0 - 1;
   }
-  let n: i32 = process_exe_len;
-  let cache: *u8 = process_exe_buf;
+  let n: i32 = process_exe_len_get();
+  let cache: *u8 = process_exe_buf_get();
   if (n > 0 && cache != 0) {
     if (n >= buf_size) {
       return 0 - 1;
@@ -682,7 +742,7 @@ export function process_self_exe_path_impl(buf: *u8, buf_size: i32): i32 {
   let sz: u32 = 4096;
   let rc: i32 = 0;
   unsafe {
-    rc = __NSGetExecutablePath(cache, &sz);
+    rc = _NSGetExecutablePath(cache, &sz);
   }
   if (rc != 0) {
     return 0 - 1;
@@ -708,8 +768,8 @@ export function process_self_exe_path_impl(buf: *u8, buf_size: i32): i32 {
  */
 #[no_mangle]
 export function process_self_exe_path_ptr_impl(): *u8 {
-  let n: i32 = process_exe_len;
-  let cache: *u8 = process_exe_buf;
+  let n: i32 = process_exe_len_get();
+  let cache: *u8 = process_exe_buf_get();
   if (n > 0 && cache != 0) {
     return cache;
   }
@@ -720,7 +780,7 @@ export function process_self_exe_path_ptr_impl(): *u8 {
   let sz: u32 = 4096;
   let rc: i32 = 0;
   unsafe {
-    rc = __NSGetExecutablePath(cache, &sz);
+    rc = _NSGetExecutablePath(cache, &sz);
   }
   if (rc != 0) {
     return 0;
@@ -740,7 +800,7 @@ export function process_self_exe_path_ptr_impl(): *u8 {
  */
 #[no_mangle]
 export function process_self_exe_path_cached_len_impl(): i32 {
-  return process_exe_len;
+  return process_exe_len_get();
 }
 
 /**
@@ -856,9 +916,10 @@ export function process_spawn_simple_impl(program: *u8): i32 {
   if (raw == 0) {
     return 0 - 1;
   }
-  let argv: **u8 = raw as **u8;
-  process_store_ptr(argv, 0, program);
-  process_store_ptr(argv, 1, 0);
+  // Pass raw (*u8) — do not let-cast to **u8 before/after malloc (tip body_sync
+  // hoists that let to the raw=0 init and spawn_wait SEGV on null argv).
+  process_store_ptr(raw, 0, program);
+  process_store_ptr(raw, 1, 0);
   return process_spawn_impl(program, raw);
 }
 
@@ -880,9 +941,8 @@ export function process_exec_simple_impl(program: *u8): i32 {
   if (raw == 0) {
     return 0 - 1;
   }
-  let argv: **u8 = raw as **u8;
-  process_store_ptr(argv, 0, program);
-  process_store_ptr(argv, 1, 0);
+  process_store_ptr(raw, 0, program);
+  process_store_ptr(raw, 1, 0);
   return process_exec_impl(program, raw);
 }
 
@@ -976,6 +1036,21 @@ export function process_spawn_io_impl(program: *u8, argv_ptr: *u8, io_void: *u8)
 }
 
 /**
+ * Copy pipe ends from a filled 8-byte buffer into out slots.
+ * raw is a parameter so tip body_sync cannot hoist loads before malloc.
+ * @param raw *u8 — pipe(2) buffer
+ * @param read_fd *i32 — read end out
+ * @param write_fd *i32 — write end out
+ * PLATFORM: MACOS|DARWIN
+ */
+function process_pipe_copy_fds(raw: *u8, read_fd: *i32, write_fd: *i32): void {
+  let r: i32 = process_load_i32(raw, 0);
+  let w: i32 = process_load_i32(raw, 4);
+  process_set_i32(read_fd, r);
+  process_set_i32(write_fd, w);
+}
+
+/**
  * Create a pipe. The two descriptors are written through the out pointers.
  * @param read_fd *i32 — read end out
  * @param write_fd *i32 — write end out
@@ -1001,9 +1076,7 @@ export function process_pipe_impl(read_fd: *i32, write_fd: *i32): i32 {
   if (rc != 0) {
     return 0 - 1;
   }
-  let r: i32 = process_load_i32(raw, 0);
-  let w: i32 = process_load_i32(raw, 4);
-  process_set_i32(read_fd, r);
-  process_set_i32(write_fd, w);
+  // Delegate loads: tip body_sync hoists let r/w = load(raw) to raw=0 init → SEGV.
+  process_pipe_copy_fds(raw, read_fd, write_fd);
   return 0;
 }

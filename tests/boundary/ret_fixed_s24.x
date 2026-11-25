@@ -62,7 +62,7 @@ function from_field(): S24[2] {
  * Same-layer neighborhood: [N]S24 → []S24 (Path B0 dest SLICE, esz>8).
  * @return []S24 — fat over a durable copy of lit()
  */
-function from_var_slice(): []{
+function from_var_slice(): []S24 {
   let s: S24[2] = lit();
   return s;
 }
