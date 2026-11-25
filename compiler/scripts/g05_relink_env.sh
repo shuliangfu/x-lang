@@ -2117,6 +2117,41 @@ if [ -x ./xlang_asm ]; then
       _G05_LINK_WINNERS="$_G05_LINK_WINNERS glue_var_expr_stack_off_elf_c=$_G05_W211_VAR_OFF"
     fi
   fi
+  # DIG s211: tipU thin skip_codegen get/set treat pointer as flag value
+  # (get always 1 → -x -E CG004). Host-cc .c twins first-wins (s133/s134
+  # check_only class). PLATFORM: SHARED host-cc.
+  _G05_W211_SKIP_CG=""
+  _g05_scg_get_c=src/runtime_pipeline_abi_driver_x_pipeline_skip_codegen_get_thin.c
+  _g05_scg_set_c=src/runtime_pipeline_abi_driver_x_pipeline_skip_codegen_set_thin.c
+  _g05_scg_o=build_asm/selfhost_pabi/skip_codegen_flag.o
+  if [ -f "$_g05_scg_get_c" ] && [ -f "$_g05_scg_set_c" ]; then
+    _g05_scg_tmp="${_g05_scg_o}.tmp.o"
+    _g05_scg_get_o="${_g05_scg_o}.get.tmp.o"
+    _g05_scg_set_o="${_g05_scg_o}.set.tmp.o"
+    if gcc -c -O2 -o "$_g05_scg_get_o" "$_g05_scg_get_c" 2>/tmp/g05_scg_get.err \
+      && gcc -c -O2 -o "$_g05_scg_set_o" "$_g05_scg_set_c" 2>/tmp/g05_scg_set.err; then
+      if nm "$_g05_scg_get_o" 2>/dev/null | grep -qE ' T driver_x_pipeline_skip_codegen_get$' \
+        && nm "$_g05_scg_set_o" 2>/dev/null | grep -qE ' T driver_x_pipeline_skip_codegen_set$'; then
+        if command -v ld >/dev/null 2>&1 && ld -r -o "$_g05_scg_tmp" "$_g05_scg_get_o" "$_g05_scg_set_o" 2>/tmp/g05_scg_ld.err; then
+          mv -f "$_g05_scg_tmp" "$_g05_scg_o"
+          _G05_W211_SKIP_CG="$_g05_scg_o"
+          echo "g05_relink_env: s211 host-cc skip_codegen get/set (.c twin)" >&2
+        fi
+      fi
+    fi
+    rm -f "$_g05_scg_get_o" "$_g05_scg_set_o" "$_g05_scg_tmp"
+  fi
+  if [ -n "$_G05_W211_SKIP_CG" ]; then
+    if [ "$UNAME_S" = "Darwin" ]; then
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS _driver_x_pipeline_skip_codegen_get=$_G05_W211_SKIP_CG"
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS _driver_x_pipeline_skip_codegen_set=$_G05_W211_SKIP_CG"
+    else
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS driver_x_pipeline_skip_codegen_get=$_G05_W211_SKIP_CG"
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS driver_x_pipeline_skip_codegen_set=$_G05_W211_SKIP_CG"
+    fi
+  else
+    echo "g05_relink_env: WARNING s211 skip_codegen host-cc twin did not build" >&2
+  fi
   _g05_pure_overlay src/runtime_pipeline_abi_call_arg_const_off_thin.x \
     build_asm/selfhost_pabi/call_arg_const_off.o \
     glue_call_arg_resolve_var_stack_off_elf_c
