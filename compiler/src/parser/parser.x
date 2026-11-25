@@ -751,23 +751,6 @@ export function parser_rewind_lex_for_following_stmt(lex_in: Lexer, r: LexerResu
 /**
  * See implementation.
  * See implementation.
- * See implementation.
- */
-export function parser_realign_lex_after_compound_stmt(lex_in: Lexer, r_in: LexerResult, source: u8[]): Lexer {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  // DIG s226: tip typeck XT001 — (1) Lexer struct reassign check_block;
-  // (2) bare `return call(...)` → "cannot resolve return subexpression".
-  // Two lets + return local (tip Win monofile pattern).
-  unsafe {
-  let lex_mid: Lexer = parser_rewind_lex_for_following_stmt(lex_in, r_in);
-  let lex_out: Lexer = parser_rewind_lex_for_lparen_control_stmt(lex_mid, r_in, source);
-  return lex_out;
-  }
-}
-
-/**
- * See implementation.
- * See implementation.
  */
 /* Anti-loop state for lparen→if/while/for re-sync.
  * Same keyword start pos rewound many times = infinite parse_if re-entry
@@ -885,6 +868,27 @@ export function parser_rewind_lex_for_lparen_control_stmt(lex_in: Lexer, r_in: L
   return lex_in;
   }
 }
+
+/**
+ * Realign lexer after a compound stmt: following-stmt rewind then
+ * lparen-control re-sync. Defined *after* rewind_lex_for_lparen so tip
+ * typeck can resolve the callee return (DIG s226 forward-ref XT001).
+ * @param lex_in Lexer
+ * @param r_in LexerResult
+ * @param source u8[]
+ * @return Lexer
+ * PLATFORM: SHARED — LANG-007 S0 whole-body unsafe FFI gate.
+ */
+export function parser_realign_lex_after_compound_stmt(lex_in: Lexer, r_in: LexerResult, source: u8[]): Lexer {
+  // DIG s226: tip typeck XT001 when this sat above lparen (forward call
+  // → cannot resolve return / check_block). Two lets + return local.
+  unsafe {
+  let lex_mid: Lexer = parser_rewind_lex_for_following_stmt(lex_in, r_in);
+  let lex_out: Lexer = parser_rewind_lex_for_lparen_control_stmt(lex_mid, r_in, source);
+  return lex_out;
+  }
+}
+
 export function parser_match_kw_immediately_before(source: u8[], ident_start: usize): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
