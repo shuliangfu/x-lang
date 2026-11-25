@@ -755,10 +755,12 @@ export function parser_rewind_lex_for_following_stmt(lex_in: Lexer, r: LexerResu
  */
 export function parser_realign_lex_after_compound_stmt(lex_in: Lexer, r_in: LexerResult, source: u8[]): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // DIG s226: tip typeck XT001 check_block on Lexer reassignment
+  // (`lex_out = rewind_lparen(...)`). Keep one let + return call (same
+  // pattern as following_stmt_into); avoid struct reassign.
   unsafe {
-  let lex_out: Lexer = parser_rewind_lex_for_following_stmt(lex_in, r_in);
-  lex_out = parser_rewind_lex_for_lparen_control_stmt(lex_out, r_in, source);
-  return lex_out;
+  let lex_mid: Lexer = parser_rewind_lex_for_following_stmt(lex_in, r_in);
+  return parser_rewind_lex_for_lparen_control_stmt(lex_mid, r_in, source);
   }
 }
 
