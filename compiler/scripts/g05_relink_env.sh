@@ -2317,6 +2317,52 @@ if [ -x ./xlang_asm ]; then
   else
     echo "g05_relink_env: WARNING s216 assign_mismatch host-cc twin did not build" >&2
   fi
+  # DIG s217: tipU fixed enc_* plant lea -0x48d768e0(%rbp) then store
+  # opcode bytes (poison u8[N] init). AV on compound *= /= &= |= ^=
+  # <<= >>= (and div test/cltd/idiv). Host-cc twins → x86_enc_bytes.
+  # Aside poisonjmp greened -c; load_lr emit still s213 twin.
+  # PLATFORM: SHARED host-cc (x86_64).
+  _G05_W217_ENC=""
+  _g05_enc_c=src/asm/backend_x86_64_enc_fixed_insns_hostcc_thin.c
+  _g05_enc_o=build_asm/selfhost_pabi/enc_fixed_insns_hostcc.o
+  if [ -f "$_g05_enc_c" ]; then
+    if gcc -c -O2 -o "${_g05_enc_o}.tmp.o" "$_g05_enc_c" 2>/tmp/g05_enc217.err; then
+      if nm "${_g05_enc_o}.tmp.o" 2>/dev/null | grep -qE ' T _?arch_x86_64_enc_enc_imul_rbx_rax$'; then
+        mv -f "${_g05_enc_o}.tmp.o" "$_g05_enc_o"
+        _G05_W217_ENC="$_g05_enc_o"
+        echo "g05_relink_env: s217 host-cc fixed enc insns (.c)" >&2
+      else
+        rm -f "${_g05_enc_o}.tmp.o"
+      fi
+    fi
+  fi
+  if [ -n "$_G05_W217_ENC" ]; then
+    for _g05_enc_sym in \
+      arch_x86_64_enc_enc_and_rbx_rax \
+      arch_x86_64_enc_enc_or_rbx_rax \
+      arch_x86_64_enc_enc_xor_rbx_rax \
+      arch_x86_64_enc_enc_test_rbx_rbx \
+      arch_x86_64_enc_enc_cltd \
+      arch_x86_64_enc_enc_idiv_rbx \
+      arch_x86_64_enc_enc_imul_rbx_rax \
+      arch_x86_64_enc_enc_shl_cl_eax \
+      arch_x86_64_enc_enc_shr_cl_eax \
+      arch_x86_64_enc_enc_sar_cl_eax \
+      arch_x86_64_enc_enc_shl_cl_rax \
+      arch_x86_64_enc_enc_shr_cl_rax \
+      arch_x86_64_enc_enc_sar_cl_rax \
+      arch_x86_64_enc_enc_xor_edx_edx \
+      arch_x86_64_enc_enc_div_rbx
+    do
+      if [ "$UNAME_S" = "Darwin" ]; then
+        _G05_LINK_WINNERS="$_G05_LINK_WINNERS _${_g05_enc_sym}=$_G05_W217_ENC"
+      else
+        _G05_LINK_WINNERS="$_G05_LINK_WINNERS ${_g05_enc_sym}=$_G05_W217_ENC"
+      fi
+    done
+  else
+    echo "g05_relink_env: WARNING s217 enc fixed-insns host-cc twin did not build" >&2
+  fi
   _g05_pure_overlay src/runtime_pipeline_abi_call_arg_const_off_thin.x \
     build_asm/selfhost_pabi/call_arg_const_off.o \
     glue_call_arg_resolve_var_stack_off_elf_c
