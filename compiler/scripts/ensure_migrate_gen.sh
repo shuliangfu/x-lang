@@ -316,22 +316,6 @@ ensure_parser_gen() {
   if [ "$need_assemble" = "1" ]; then
     if parser_assemble_from_x; then
       did_assemble=1
-      # DIG s220: tip -E assemble can drop a function signature while still
-      # matching symbol-string contract (orphan body after an extern — e.g.
-      # parser_slice_view returning u8[]). Host-cc syntax-check before accept;
-      # on fail restore archaeology seed so cold bootstrap is not stuck.
-      # PLATFORM: SHARED — same gate Darwin/Linux; Windows leftover skips -E.
-      if ! ${CC:-gcc} ${CFLAGS:--O0} -fsyntax-only -I. -Iinclude -Isrc \
-        parser_gen.c >/tmp/parser_gen_syn.out 2>/tmp/parser_gen_syn.err; then
-        log "parser_gen.c: tip assemble fails host-cc syntax → archaeology seed"
-        if [ "$XLANG_PARSER_ALLOW_PIN" = "1" ] && seed_ok "$seed"; then
-          cp -f "$seed" parser_gen.c
-          did_assemble=0
-        else
-          log "parser_gen.c: FAIL assemble syntax-bad and no pin escape"
-          exit 1
-        fi
-      fi
     else
       if [ "$XLANG_FORCE_REGEN_GEN" = "1" ]; then
         if [ "$XLANG_PARSER_ALLOW_PIN" = "1" ] && seed_ok "$seed"; then
@@ -366,14 +350,36 @@ ensure_parser_gen() {
       cp -f "$seed" parser_gen.c
       if [ "$did_assemble" = "1" ]; then
         log "parser_gen.c: tip assemble failed contract → archaeology seed"
+        did_assemble=0
       else
         log "parser_gen.c: local failed contract → archaeology seed"
       fi
     fi
   fi
 
-  # Dedup slice layouts if any (legacy pin + assemble both may emit them).
-  perl -i -ne 'print unless /^struct xlang_slice_uint8_t/ && $seen++' parser_gen.c 2>/dev/null || true
+  # Dedup duplicate slice *layouts* only (brace form).
+  # DIG s221: prior `/^struct xlang_slice_uint8_t/` also matched
+  # `struct xlang_slice_uint8_t parser_slice_view(...)` and deleted the
+  # function signature → orphan body after extern (s220 host-cc red root).
+  # PLATFORM: SHARED — layout dedup must never eat by-value slice returns.
+  perl -i -ne 'print unless /^struct xlang_slice_uint8_t \{/ && $seen++' parser_gen.c 2>/dev/null || true
+
+  # DIG s220/s221: host-cc syntax AFTER layout dedup (s220 gate before perl
+  # was blind to the signature-delete). On fail → archaeology seed.
+  # PLATFORM: SHARED — same gate Darwin/Linux; Windows leftover skips -E.
+  if [ "$did_assemble" = "1" ]; then
+    if ! ${CC:-gcc} ${CFLAGS:--O0} -fsyntax-only -I. -Iinclude -Isrc \
+      parser_gen.c >/tmp/parser_gen_syn.out 2>/tmp/parser_gen_syn.err; then
+      log "parser_gen.c: tip assemble fails host-cc syntax → archaeology seed"
+      if [ "$XLANG_PARSER_ALLOW_PIN" = "1" ] && seed_ok "$seed"; then
+        cp -f "$seed" parser_gen.c
+        did_assemble=0
+      else
+        log "parser_gen.c: FAIL assemble syntax-bad and no pin escape"
+        exit 1
+      fi
+    fi
+  fi
 
   if ! parser_gen_contract_ok parser_gen.c; then
     log "parser_gen.c: FAIL product contract (missing parse_expr / collect_imports / copy_module / one_function_impl)"

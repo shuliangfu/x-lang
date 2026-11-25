@@ -3641,7 +3641,8 @@ ensure_asm_pipeline_glue_standalone_obj() {
   perl scripts/patch_pipeline_gen_ast_layout.pl "$GEN_PIPELINE"
   fi
   fi
-  perl -i -ne 'print unless /^struct xlang_slice_uint8_t/ && $seen++' "$GEN_PIPELINE" 2>/dev/null || true
+  # DIG s221: brace-only layout dedup (bare prefix ate by-value slice returns).
+  perl -i -ne 'print unless /^struct xlang_slice_uint8_t \{/ && $seen++' "$GEN_PIPELINE" 2>/dev/null || true
   perl scripts/fix_slim_arena_gen_c.pl "$GEN_PIPELINE" 2>/dev/null || true
   perl scripts/hoist_pipeline_prototypes.pl "$GEN_PIPELINE" 2>/dev/null || true
   echo " perl extract_pipeline_glue_types.pl -> $GLUE_TYPES"
@@ -5048,10 +5049,12 @@ ensure_asm_gen_driver_x_objs() {
   LIB_E_MAIN="-L .. -L src -L src/lsp -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess"
 
   # -E 单文件聚合时可能对 slice ABI 重复吐出同名 struct，同一 TU 内触发重定义；与 verify-selfhost.sh 一致只保留首行。
+  # DIG s221: brace-only — bare `/^struct xlang_slice_uint8_t/` deleted
+  # `struct xlang_slice_uint8_t parser_slice_view(...)` signatures (orphan body).
   dedupe_xlang_slice_struct() {
   f="$1"
   [ -f "$f" ] || return 0
-  perl -i -ne 'print unless /^struct xlang_slice_uint8_t/ && $seen++' "$f" 2>/dev/null || true
+  perl -i -ne 'print unless /^struct xlang_slice_uint8_t \{/ && $seen++' "$f" 2>/dev/null || true
   }
 
   # 与 Makefile bootstrap-pipeline 一致：优先复用已补齐布局的顶层 pipeline_gen.c，避免旧 xlang-c 重新 -E pipeline.x 失败。
