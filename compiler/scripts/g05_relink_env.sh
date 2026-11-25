@@ -2058,6 +2058,7 @@ _G05_W233_PARSEARGV=""
 _G05_W234_FILEVIEW=""
 _G05_W234_FV_MALLOC=""
 _G05_W235_PPDIR=""
+_G05_PREPROCESS_O="preprocess_x.o"
 if [ -x ./xlang_asm ]; then
   _g05_pure_overlay src/runtime_pipeline_abi_const_lit_fold_thin.x \
     build_asm/selfhost_pabi/const_lit_fold.o \
@@ -2570,6 +2571,41 @@ if [ -x ./xlang_asm ]; then
       _G05_LINK_WINNERS="$_G05_LINK_WINNERS _parse_directive_into=$_G05_W235_PPDIR"
     else
       _G05_LINK_WINNERS="$_G05_LINK_WINNERS parse_directive_into=$_G05_W235_PPDIR"
+    fi
+    # Same-TU local BSS: tipU parse_directive_into + preprocess_x_buf share
+    # `b g_pp_kind` / `b g_pp_sym_len` inside preprocess_x.o. Host-cc twin
+    # cannot see local BSS (Ubuntu UNDEF wipe). Soft Cap: link copy with
+    # BSS globalized + tipU parse_directive renamed so host-cc is sole T
+    # and writes the same storage preprocess_x_buf reads. PLATFORM: SHARED.
+    _G05_PREPROCESS_O="preprocess_x.o"
+    if [ -s preprocess_x.o ]; then
+      _g05_pp_w=build_asm/selfhost_pabi/preprocess_x_s235.o
+      _g05_pp_oc=""
+      if command -v llvm-objcopy >/dev/null 2>&1; then _g05_pp_oc=llvm-objcopy
+      elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then _g05_pp_oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+      elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then _g05_pp_oc=/usr/local/opt/llvm/bin/llvm-objcopy
+      elif command -v objcopy >/dev/null 2>&1; then _g05_pp_oc=objcopy
+      fi
+      if [ -n "$_g05_pp_oc" ]; then
+        cp -f preprocess_x.o "$_g05_pp_w"
+        if [ "$UNAME_S" = "Darwin" ]; then
+          "$_g05_pp_oc" \
+            --globalize-symbol=_g_pp_kind --globalize-symbol=_g_pp_sym_len \
+            --redefine-sym=_parse_directive_into=_parse_directive_into__tipu \
+            "$_g05_pp_w" 2>/tmp/g05_w235_pp_oc.err \
+            && _G05_PREPROCESS_O="$_g05_pp_w" \
+            && echo "g05_relink_env: s235 preprocess_x BSS global + tipU rename (Darwin)" >&2
+        else
+          "$_g05_pp_oc" \
+            --globalize-symbol=g_pp_kind --globalize-symbol=g_pp_sym_len \
+            --redefine-sym=parse_directive_into=parse_directive_into__tipu \
+            "$_g05_pp_w" 2>/tmp/g05_w235_pp_oc.err \
+            && _G05_PREPROCESS_O="$_g05_pp_w" \
+            && echo "g05_relink_env: s235 preprocess_x BSS global + tipU rename" >&2
+        fi
+      else
+        echo "g05_relink_env: WARNING s235 no objcopy; parse_directive host-cc may UNDEF g_pp_*" >&2
+      fi
     fi
   else
     echo "g05_relink_env: WARNING s235 parse_directive_into host-cc twin did not build" >&2
@@ -9296,7 +9332,7 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
 esac
 
 # Win leaves BEFORE DRIVER_SEED so scan_at/emit first-win over no_c / hollow.
-G05_OBJS="$_PABI_TIP_PEEL $_CAP_TIP_FRONT $_PABI_M8_RELOC_STUBS $_PABI_WIN_DRIVER_LEAVES $_DRIVER_SEED_OBJS driver_x.o $_PIPELINE_LINK_O lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $_DRIVER_SUBCMD src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $_USER_ASM_LINK $_GLUE_SUFFIX $_AST_GEN2 $_PABI_ARCHIVE_LEAF $_PABI_WIN_HOLLOW_TAIL"
+G05_OBJS="$_PABI_TIP_PEEL $_CAP_TIP_FRONT $_PABI_M8_RELOC_STUBS $_PABI_WIN_DRIVER_LEAVES $_DRIVER_SEED_OBJS driver_x.o $_PIPELINE_LINK_O lsp_x.o lsp_diag_x.o lsp_io_x.o ${_G05_PREPROCESS_O:-preprocess_x.o} $_DRIVER_SUBCMD src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $_USER_ASM_LINK $_GLUE_SUFFIX $_AST_GEN2 $_PABI_ARCHIVE_LEAF $_PABI_WIN_HOLLOW_TAIL"
 
 # FixC12k8h: Cap tip Prefer L2 parse — force bak/CACHE lexer peel into
 # G05_OBJS even when note743y.6.22 shim path skipped (_G05_LEXER_X_O empty
