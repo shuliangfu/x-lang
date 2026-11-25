@@ -895,6 +895,54 @@ if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
     export XLANG_G05_LINUX_FORCE_U_FA_ARRAY=1
   fi
 
+  # DIG s223: two.o / FA thin may U-ref pipeline_asm_emit_return_elf_impl_prev
+  # even when fa_array_lit_linux.o is absent (so the 10.22 FA extract never
+  # runs). Ensure a _prev T is on the link or CC residual UNDEFs. PLATFORM:
+  # LINUX.
+  if [ -n "$_g05_oc" ]; then
+    _er_need_prev=0
+    _er_has_prev=0
+    for _er_o in $OBJS; do
+      [ -s "$_er_o" ] || continue
+      if nm -u "$_er_o" 2>/dev/null | grep -qE '^pipeline_asm_emit_return_elf_impl_prev$'; then
+        _er_need_prev=1
+      fi
+      if nm "$_er_o" 2>/dev/null | grep -qE ' [TW] pipeline_asm_emit_return_elf_impl_prev$'; then
+        _er_has_prev=1
+      fi
+    done
+    if [ "$_er_need_prev" = "1" ] && [ "$_er_has_prev" != "1" ]; then
+      _er_prev=build_asm/selfhost_pabi/return_sret_er_prev.o
+      _er_src=""
+      for _er_c in build_asm/selfhost_pabi/return_sret.o \
+                   build_asm/selfhost_pabi/two.o \
+                   build_asm/selfhost_pabi/pabi_weak.o \
+                   src/runtime_pipeline_abi.o; do
+        [ -s "$_er_c" ] || continue
+        if nm "$_er_c" 2>/dev/null | grep -qE ' [TW] pipeline_asm_emit_return_elf_impl$'; then
+          _er_src="$_er_c"
+          break
+        fi
+      done
+      if [ -n "$_er_src" ]; then
+        mkdir -p build_asm/selfhost_pabi
+        cp -f "$_er_src" "$_er_prev"
+        if "$_g05_oc" --redefine-sym=pipeline_asm_emit_return_elf_impl=pipeline_asm_emit_return_elf_impl_prev \
+            "$_er_prev" 2>/dev/null \
+          && nm "$_er_prev" 2>/dev/null | grep -qE ' [TW] pipeline_asm_emit_return_elf_impl_prev$'; then
+          OBJS="$_er_prev $OBJS"
+          echo "g05_relink_xlang: s223 Linux emit_return _prev from $_er_src" >&2
+        else
+          echo "g05_relink_xlang: WARN s223 emit_return _prev extract failed" >&2
+          rm -f "$_er_prev"
+        fi
+      else
+        echo "g05_relink_xlang: WARN s223 no egg emit_return for _prev" >&2
+      fi
+    fi
+    unset _er_need_prev _er_has_prev _er_o _er_prev _er_src _er_c
+  fi
+
   # 10.22: w211 — weaken rival resolve/var_off so peel T first-wins
   if [ -n "$_g05_oc" ] \
     && printf "%s" " $OBJS " | grep -Eq "(^|[[:space:]/])call_arg_const_off\.o([[:space:]]|$)"; then
