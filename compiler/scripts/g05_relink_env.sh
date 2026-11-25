@@ -344,6 +344,12 @@ fi
 _g05_win_asm_c() {
   _wa_x=$1
   _wa_o=$2
+  # DIG s235: keep prior under FORCE_CC — hung tip PE otherwise blocks
+  # each mega Soft Cap forever. PLATFORM: WINDOWS.
+  if [ "${XLANG_G05_FORCE_CC:-0}" = "1" ] && [ -s "$_wa_o" ]; then
+    echo "g05_relink_env: keep prior $_wa_o (FORCE_CC Win asm_c)" >&2
+    return 0
+  fi
   rm -f "$_wa_o"
   # 10.46: product Soft Cap often hollow-emits non-tiny thins (EC=0, 0-byte);
   # xlang_live.exe still Soft Caps mega_emit_* (Pair >=16 latch). Try live
@@ -352,8 +358,13 @@ _g05_win_asm_c() {
       ./xlang_bi.exe ./xlang_bi \
       ./xlang_asm.exe ./xlang_asm ./xlang_asm_thinT.exe; do
     [ -x "$_wa_bin" ] || continue
-    if XLANG_PREFER_ASM_O=1 "$_wa_bin" -backend asm -c "$_wa_x" -o "$_wa_o" >/dev/null 2>&1 \
-      && [ -s "$_wa_o" ]; then
+    _wa_rc=0
+    if command -v timeout >/dev/null 2>&1; then
+      timeout 25 env XLANG_PREFER_ASM_O=1 "$_wa_bin" -backend asm -c "$_wa_x" -o "$_wa_o" >/dev/null 2>&1 || _wa_rc=$?
+    else
+      XLANG_PREFER_ASM_O=1 "$_wa_bin" -backend asm -c "$_wa_x" -o "$_wa_o" >/dev/null 2>&1 || _wa_rc=$?
+    fi
+    if [ "$_wa_rc" -eq 0 ] && [ -s "$_wa_o" ]; then
       return 0
     fi
     rm -f "$_wa_o"
