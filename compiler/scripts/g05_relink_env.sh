@@ -394,6 +394,20 @@ _g05_pure_overlay() {
   mkdir -p build_asm/selfhost_pabi
   # Keep prior $_po_o on tipU/CG002 miss (记211: wipe left Ubuntu without overlays).
   rm -f "$_po_o.tmp.o"
+  # DIG s235: Win tip PE can spin in preprocess; unbounded tip -c here
+  # deadlocks g05_relink_env after Soft Cap partial PE. FORCE_CC Win: keep
+  # prior good overlay and skip tip. PLATFORM: WINDOWS.
+  case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*|CYGWIN*|Windows_NT)
+      if [ "${XLANG_G05_FORCE_CC:-0}" = "1" ] \
+        && [ -s "$_po_o" ] \
+        && nm "$_po_o" 2>/dev/null | tr -d '\r' | grep -qE " T [_]?${_po_sym}\$"; then
+        _G05_PO_OUT="$_po_o"
+        echo "g05_relink_env: keep prior overlay $_po_o (FORCE_CC Win; tip -c bounded elsewhere)" >&2
+        return 0
+      fi
+      ;;
+  esac
   # knife256/10.2: try ./xlang then ./xlang_asm (park-fixed tip may emit rio
   # but miss Cap thins that an older xlang_asm still emits). PLATFORM: SHARED.
   # note743n: tip-cold tip/bootstrap may be CG002; try product then archived
@@ -453,7 +467,13 @@ _g05_pure_overlay() {
   for _po_bin in $_po_bins; do
     for _po_try in 1 2 3; do
       _po_rc=0
-      "$_po_bin" -backend asm -c "$_po_x" -o "$_po_o.tmp.o" >/dev/null 2>&1 || _po_rc=$?
+      # DIG s235: bound tip -c so a spinning PE cannot hang g05 forever.
+      # PLATFORM: SHARED (timeout no-op if missing).
+      if command -v timeout >/dev/null 2>&1; then
+        timeout 25 "$_po_bin" -backend asm -c "$_po_x" -o "$_po_o.tmp.o" >/dev/null 2>&1 || _po_rc=$?
+      else
+        "$_po_bin" -backend asm -c "$_po_x" -o "$_po_o.tmp.o" >/dev/null 2>&1 || _po_rc=$?
+      fi
       if [ "$_po_rc" -eq 124 ] || [ "$_po_rc" -ge 128 ]; then
         printf '%s rc=%s g05_relink_env: %s -backend asm -c %s\n' \
           "$(date +%H:%M:%S)" "$_po_rc" "$_po_bin" "$_po_x" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
