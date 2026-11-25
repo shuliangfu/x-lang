@@ -3071,12 +3071,36 @@ if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
 fi
 # w1483: arr_struct_lit peers (tip pabi U). Built by
 # linux_selfhost_pabi_sidecars.sh. PLATFORM: LINUX.
+# DIG s223: tip-asm asl_*.o may be ELF Machine=None (EM:0) — ld rejects.
+# Keep only x86_64 objs; fill the four known EM:0 faces with host-cc
+# ret0 stubs (thin tip also returns 0 after query). PLATFORM: LINUX.
 if [ -n "$_PABI_SELFHOST" ]; then
+  _asl_need_hostcc=0
   for _asl in call_bulk call_elems copy_bulk copy_elems call_one_elem; do
-    if [ -s "build_asm/selfhost_pabi/asl_$_asl.o" ]; then
-      _PABI_SELFHOST="$_PABI_SELFHOST build_asm/selfhost_pabi/asl_$_asl.o"
+    _asl_o="build_asm/selfhost_pabi/asl_$_asl.o"
+    if [ -s "$_asl_o" ] \
+      && readelf -h "$_asl_o" 2>/dev/null \
+           | grep -q 'Machine:[[:space:]]*Advanced Micro Devices X86-64'; then
+      _PABI_SELFHOST="$_PABI_SELFHOST $_asl_o"
+    elif [ -s "$_asl_o" ]; then
+      echo "g05_relink_env: s223 skip EM≠x86_64 $_asl_o" >&2
+      case "$_asl" in
+        call_bulk|call_elems|copy_bulk|copy_elems) _asl_need_hostcc=1 ;;
+      esac
     fi
   done
+  if [ "$_asl_need_hostcc" = "1" ]; then
+    _asl_c=src/runtime_pipeline_abi_asl_em0_hostcc_stubs.c
+    _asl_ho=build_asm/selfhost_pabi/asl_em0_hostcc_stubs.o
+    if [ -f "$_asl_c" ] \
+      && gcc -c -O2 -o "$_asl_ho" "$_asl_c" 2>/tmp/g05_asl_em0.err \
+      && nm "$_asl_ho" 2>/dev/null | grep -q ' T glue_struct_lit_call_bulk_elf_c$'; then
+      _PABI_SELFHOST="$_PABI_SELFHOST $_asl_ho"
+      echo "g05_relink_env: s223 host-cc asl EM:0 stubs (.c)" >&2
+    else
+      echo "g05_relink_env: WARNING s223 asl EM:0 host-cc stubs did not build" >&2
+    fi
+  fi
 fi
 # w2055: collect-deps import scan ahead of the pabi copy (old C body calls
 # the struct-returning lexer_init). linux_selfhost_pabi_refresh_tip.sh
