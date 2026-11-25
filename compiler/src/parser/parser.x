@@ -2546,6 +2546,12 @@ function parse_if_stmt_into(arena: *ASTArena, lex_at_if: Lexer, source: u8[], ty
  * See implementation.
  */
 /**
+ * Forward decl so tip typeck can resolve parse_block_into → with_scratch
+ * (DIG s227: mutual recursion; definition stays below). PLATFORM: SHARED
+ */
+extern function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer, source: u8[], type_ref: i32, out: *ParseBlockResult, temp: *OneFuncResult): void;
+
+/**
  * Parse `{ ... }` into a block. Heap-scratches OneFuncResult for nested bodies
  * and always release+free the scratch (wave1226).
  *
