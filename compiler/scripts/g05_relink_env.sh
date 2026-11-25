@@ -3196,12 +3196,29 @@ case "$UNAME_S" in
         if env XLANG_PREFER_ASM_O=1 $_lw156_to "$_lw156_xl" -backend asm -c \
             "$_lw156_x" -o "$_lw156_o.tmp.o" >/dev/null 2>&1 \
           && [ -s "$_lw156_o.tmp.o" ]; then
-          echo "g05_relink_env: w156 via $_lw156_xl (note743v)" >&2
-          _lw156_ok=1
-          break
+          # DIG s223: tip-asm may write ELF Machine=None (EM:0) → ld
+          # "generic ELF". Reject and fall through to host-cc twin.
+          if readelf -h "$_lw156_o.tmp.o" 2>/dev/null | grep -q 'Machine:[[:space:]]*Advanced Micro Devices X86-64'; then
+            echo "g05_relink_env: w156 via $_lw156_xl (note743v)" >&2
+            _lw156_ok=1
+            break
+          fi
+          echo "g05_relink_env: w156 tip-asm EM≠x86_64 via $_lw156_xl; try host-cc" >&2
         fi
         rm -f "$_lw156_o.tmp.o"
       done
+      # DIG s223: host-cc always-miss twin when tip-asm EM is broken.
+      if [ "$_lw156_ok" != "1" ]; then
+        _lw156_c=src/runtime_pipeline_abi_w156_guard_hostcc_thin.c
+        if [ -f "$_lw156_c" ] \
+          && gcc -c -O2 -o "$_lw156_o.tmp.o" "$_lw156_c" 2>/tmp/g05_w156.err \
+          && nm "$_lw156_o.tmp.o" 2>/dev/null | grep -q " T ${_lw156_s}\$"; then
+          echo "g05_relink_env: s223 host-cc w156 guard (.c)" >&2
+          _lw156_ok=1
+        else
+          rm -f "$_lw156_o.tmp.o"
+        fi
+      fi
       if [ "$_lw156_ok" != "1" ]; then
         echo "g05_relink_env: $_lw156_x failed (Linux w156 guard)" >&2
         exit 1
