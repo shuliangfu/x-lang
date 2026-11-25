@@ -2152,6 +2152,41 @@ if [ -x ./xlang_asm ]; then
   else
     echo "g05_relink_env: WARNING s211 skip_codegen host-cc twin did not build" >&2
   fi
+  # DIG s212: remaining tipU flag-slot get/set family (pointer-as-value).
+  # One host-cc .c twin first-wins. PLATFORM: SHARED host-cc.
+  _G05_W212_FLAGS=""
+  _g05_flg_c=src/runtime_pipeline_abi_driver_flag_slot_accessors_thin.c
+  _g05_flg_o=build_asm/selfhost_pabi/flag_slot_accessors.o
+  if [ -f "$_g05_flg_c" ]; then
+    if gcc -c -O2 -o "${_g05_flg_o}.tmp.o" "$_g05_flg_c" 2>/tmp/g05_flg.err; then
+      if nm "${_g05_flg_o}.tmp.o" 2>/dev/null | grep -qE ' T driver_x_pipeline_skip_typeck_get$' \
+        && nm "${_g05_flg_o}.tmp.o" 2>/dev/null | grep -qE ' T driver_freestanding_get$'; then
+        mv -f "${_g05_flg_o}.tmp.o" "$_g05_flg_o"
+        _G05_W212_FLAGS="$_g05_flg_o"
+        echo "g05_relink_env: s212 host-cc flag-slot accessors (.c twin)" >&2
+      else
+        rm -f "${_g05_flg_o}.tmp.o"
+      fi
+    fi
+  fi
+  if [ -n "$_G05_W212_FLAGS" ]; then
+    for _g05_flg_sym in \
+      driver_x_pipeline_skip_typeck_get driver_x_pipeline_skip_typeck_set \
+      driver_freestanding_get driver_freestanding_set \
+      driver_skip_codegen_dep_0_get driver_skip_codegen_dep_0_set \
+      driver_sanitize_address_get driver_sanitize_address_set \
+      driver_fmt_check_only_get driver_fmt_check_only_set \
+      driver_is_large_stack_thread driver_large_stack_thread_mark
+    do
+      if [ "$UNAME_S" = "Darwin" ]; then
+        _G05_LINK_WINNERS="$_G05_LINK_WINNERS _${_g05_flg_sym}=$_G05_W212_FLAGS"
+      else
+        _G05_LINK_WINNERS="$_G05_LINK_WINNERS ${_g05_flg_sym}=$_G05_W212_FLAGS"
+      fi
+    done
+  else
+    echo "g05_relink_env: WARNING s212 flag-slot accessors host-cc twin did not build" >&2
+  fi
   _g05_pure_overlay src/runtime_pipeline_abi_call_arg_const_off_thin.x \
     build_asm/selfhost_pabi/call_arg_const_off.o \
     glue_call_arg_resolve_var_stack_off_elf_c
