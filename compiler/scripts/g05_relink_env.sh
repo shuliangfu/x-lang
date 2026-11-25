@@ -2603,14 +2603,35 @@ if [ -x ./xlang_asm ]; then
     else
       _G05_LINK_WINNERS="$_G05_LINK_WINNERS parse_directive_into=$_G05_W235_PPDIR"
     fi
-    # Same-TU local BSS: tipU parse_directive_into + preprocess_x_buf share
-    # `b g_pp_kind` / `b g_pp_sym_len` inside preprocess_x.o. Host-cc twin
-    # cannot see local BSS (Ubuntu UNDEF wipe). Soft Cap: link copy with
-    # BSS globalized + tipU parse_directive renamed so host-cc is sole T
-    # and writes the same storage preprocess_x_buf reads. PLATFORM: SHARED.
+    # Same-TU: preprocess_x_buf calls parse_directive via PC-relative tipU
+    # body (host-cc first-wins only external). tipU compiles else-break as
+    # nop that falls into while-head (74 06 … 90). Soft Cap: patch those
+    # je +6 → je +0x0f (exit loop) on a link copy; globalize g_pp_* so
+    # host-cc twin can share BSS. Do NOT redefine tipU (internal calls
+    # must hit the patched body). PLATFORM: SHARED.
     _G05_PREPROCESS_O="preprocess_x.o"
     if [ -s preprocess_x.o ]; then
       _g05_pp_w=build_asm/selfhost_pabi/preprocess_x_s235.o
+      cp -f preprocess_x.o "$_g05_pp_w"
+      _g05_pp_n=$(python3 - "$_g05_pp_w" <<'PY'
+import sys
+from pathlib import Path
+p = Path(sys.argv[1])
+data = bytearray(p.read_bytes())
+pat = bytes([0x74, 0x06, 0x83, 0x45, 0xfc, 0x01, 0xeb, 0x01, 0x90])
+n = 0
+i = 0
+while True:
+    j = data.find(pat, i)
+    if j < 0:
+        break
+    data[j + 1] = 0x0F
+    n += 1
+    i = j + 1
+p.write_bytes(data)
+print(n)
+PY
+)
       _g05_pp_oc=""
       if command -v llvm-objcopy >/dev/null 2>&1; then _g05_pp_oc=llvm-objcopy
       elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then _g05_pp_oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
@@ -2618,24 +2639,19 @@ if [ -x ./xlang_asm ]; then
       elif command -v objcopy >/dev/null 2>&1; then _g05_pp_oc=objcopy
       fi
       if [ -n "$_g05_pp_oc" ]; then
-        cp -f preprocess_x.o "$_g05_pp_w"
         if [ "$UNAME_S" = "Darwin" ]; then
-          "$_g05_pp_oc" \
-            --globalize-symbol=_g_pp_kind --globalize-symbol=_g_pp_sym_len \
-            --redefine-sym=_parse_directive_into=_parse_directive_into__tipu \
-            "$_g05_pp_w" 2>/tmp/g05_w235_pp_oc.err \
-            && _G05_PREPROCESS_O="$_g05_pp_w" \
-            && echo "g05_relink_env: s235 preprocess_x BSS global + tipU rename (Darwin)" >&2
+          "$_g05_pp_oc" --globalize-symbol=_g_pp_kind --globalize-symbol=_g_pp_sym_len \
+            "$_g05_pp_w" 2>/tmp/g05_w235_pp_oc.err || true
         else
-          "$_g05_pp_oc" \
-            --globalize-symbol=g_pp_kind --globalize-symbol=g_pp_sym_len \
-            --redefine-sym=parse_directive_into=parse_directive_into__tipu \
-            "$_g05_pp_w" 2>/tmp/g05_w235_pp_oc.err \
-            && _G05_PREPROCESS_O="$_g05_pp_w" \
-            && echo "g05_relink_env: s235 preprocess_x BSS global + tipU rename" >&2
+          "$_g05_pp_oc" --globalize-symbol=g_pp_kind --globalize-symbol=g_pp_sym_len \
+            "$_g05_pp_w" 2>/tmp/g05_w235_pp_oc.err || true
         fi
+      fi
+      if [ "${_g05_pp_n:-0}" -ge 1 ]; then
+        _G05_PREPROCESS_O="$_g05_pp_w"
+        echo "g05_relink_env: s235 preprocess_x tipU break patch x${_g05_pp_n} + BSS global" >&2
       else
-        echo "g05_relink_env: WARNING s235 no objcopy; parse_directive host-cc may UNDEF g_pp_*" >&2
+        echo "g05_relink_env: WARNING s235 tipU break pattern not found in preprocess_x.o" >&2
       fi
     fi
   else
