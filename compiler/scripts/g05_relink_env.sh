@@ -2288,6 +2288,35 @@ if [ -x ./xlang_asm ]; then
   else
     echo "g05_relink_env: WARNING s214 uasb host-cc twins did not build" >&2
   fi
+  # DIG s216: tipU assign_mismatch places epart/fpart/msg at lea
+  # -0x50/-0x58/-0x60 while fill/build pass cap 112/112/240 → smash
+  # saved rbp/ret (same undersized-local class as s187/s214 uasb).
+  # Manifests as `let s: string = "…"` typeck AV at ret; stderr shows
+  # overlapping "signment…" repeats. Host-cc twin real buffers.
+  # PLATFORM: SHARED host-cc.
+  _G05_W216_ASSIGN_MM=""
+  _g05_amm_c=src/runtime_driver_diagnostic_assign_mismatch_hostcc_thin.c
+  _g05_amm_o=build_asm/selfhost_pabi/assign_mismatch_hostcc.o
+  if [ -f "$_g05_amm_c" ]; then
+    if gcc -c -O2 -o "${_g05_amm_o}.tmp.o" "$_g05_amm_c" 2>/tmp/g05_amm.err; then
+      if nm "${_g05_amm_o}.tmp.o" 2>/dev/null | grep -qE ' T _?driver_diagnostic_typeck_assign_mismatch$'; then
+        mv -f "${_g05_amm_o}.tmp.o" "$_g05_amm_o"
+        _G05_W216_ASSIGN_MM="$_g05_amm_o"
+        echo "g05_relink_env: s216 host-cc assign_mismatch twin (.c)" >&2
+      else
+        rm -f "${_g05_amm_o}.tmp.o"
+      fi
+    fi
+  fi
+  if [ -n "$_G05_W216_ASSIGN_MM" ]; then
+    if [ "$UNAME_S" = "Darwin" ]; then
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS _driver_diagnostic_typeck_assign_mismatch=$_G05_W216_ASSIGN_MM"
+    else
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS driver_diagnostic_typeck_assign_mismatch=$_G05_W216_ASSIGN_MM"
+    fi
+  else
+    echo "g05_relink_env: WARNING s216 assign_mismatch host-cc twin did not build" >&2
+  fi
   _g05_pure_overlay src/runtime_pipeline_abi_call_arg_const_off_thin.x \
     build_asm/selfhost_pabi/call_arg_const_off.o \
     glue_call_arg_resolve_var_stack_off_elf_c
