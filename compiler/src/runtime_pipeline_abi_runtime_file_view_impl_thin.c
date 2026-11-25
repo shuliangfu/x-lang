@@ -28,8 +28,20 @@
 
 extern int open(const char *path, int flags, int mode);
 extern int close(int fd);
+/* PLATFORM: WINDOWS tipU exports runtime_io_abi_rio_*; LINUX/POSIX
+ * runtime_io_abi.o exports short rio_* (same bodies). Soft Cap twin
+ * must resolve on both; wrong name UNDEF wipe Ubuntu g05 (s234). */
+#if defined(_WIN32) || defined(__CYGWIN__)
 extern int64_t runtime_io_abi_rio_lseek64(int fd, int64_t off, int whence);
 extern int runtime_io_abi_rio_munmap(void *p, uint64_t n);
+#define XLANG_RIO_LSEEK64 runtime_io_abi_rio_lseek64
+#define XLANG_RIO_MUNMAP runtime_io_abi_rio_munmap
+#else
+extern int64_t rio_lseek64(int fd, int64_t off, int whence);
+extern int rio_munmap(void *p, uint64_t n);
+#define XLANG_RIO_LSEEK64 rio_lseek64
+#define XLANG_RIO_MUNMAP rio_munmap
+#endif
 extern int32_t xlang_runtime_file_view_read_malloc_impl(int32_t fd, int64_t size, uint8_t *out);
 
 enum { OFF_DATA = 0 };
@@ -54,7 +66,7 @@ void runtime_release_file_view_impl(uint8_t *view) {
   if (needs_munmap != 0) {
     if (data != 0) {
       if (length > 0) {
-        runtime_io_abi_rio_munmap(data, length);
+        XLANG_RIO_MUNMAP(data, length);
       }
     }
   }
@@ -88,7 +100,7 @@ int32_t runtime_read_file_view_impl(uint8_t *path, uint8_t *out) {
   if (fd < 0) {
     return -1;
   }
-  size_i = runtime_io_abi_rio_lseek64(fd, 0, 2);
+  size_i = XLANG_RIO_LSEEK64(fd, 0, 2);
   if (size_i < 0) {
     close(fd);
     return -1;
@@ -97,7 +109,7 @@ int32_t runtime_read_file_view_impl(uint8_t *path, uint8_t *out) {
     close(fd);
     return 0;
   }
-  back = runtime_io_abi_rio_lseek64(fd, 0, 0);
+  back = XLANG_RIO_LSEEK64(fd, 0, 0);
   if (back < 0) {
     close(fd);
     return -1;
