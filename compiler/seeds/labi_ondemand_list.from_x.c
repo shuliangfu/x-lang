@@ -1088,8 +1088,9 @@ int labi_fk0_sym_count(int k) {
    * G.7: every public std_error_* export ×57. */
   if (k == 8)
     return 57;
+  /* PLATFORM: SHARED — context.o fk0: std_context_* + ctx_*_c (mirror heavy). */
   if (k == 9)
-    return 4;
+    return 11;
   if (k == 10)
     return 42;
   if (k == 11)

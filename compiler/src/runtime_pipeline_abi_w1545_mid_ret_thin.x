@@ -6,6 +6,8 @@
  *   so typool pend_is / emit_call_args / pend_rcx_emit stay coherent.
  *   Do not park a private BSS for those slots. idx8 of thins with calls
  *   AVs in typool va_cap; use host-cc of the .c.
+ * s183: .c binds Lxml_* by name (not absolute VA); s42 pin 0x1404f0720
+ *   drifted into .text after s177–s182 growth → WRITE AV mid_ret+0xd7.
  * PLATFORM: SHARED — packed u8 stores; dual-host prove.
  */
 export extern function pipeline_asm_emit_call_sret_reg_shift_c(): i32;

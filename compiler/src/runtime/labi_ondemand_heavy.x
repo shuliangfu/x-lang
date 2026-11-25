@@ -395,8 +395,10 @@ export function labi_fk0_sym_count(k: i32): i32 {
   if (k == 8) {
     return 57;
   }
+  // PLATFORM: SHARED — context.o fk0: std_context_* + ctx_*_c (C ABI).
+  // DIG soft hello.o U only ctx_*_c after link_only skip of std.context.
   if (k == 9) {
-    return 4;
+    return 11;
   }
   if (k == 10) {
     return 42;

@@ -8,18 +8,25 @@
  * (SET_FUNC 86/121) → SIGSEGV at pipe_load_i32_le 0x14015b251.
  * Same class as typool mid_ret u8[8] scale-8 (already folded). Do not
  * idx8 the documentation .x twin. Bind typool epi BSS VAs directly
- * (Mingw .refptr is unresolved by pe_fold_append_last). */
+ * (Mingw .refptr is unresolved by pe_fold_append_last).
+ * s184: Lxml_* by name (typool second T: fi/off/sz/mod). */
 #include <stdint.h>
 
 extern int32_t pipeline_asm_emit_func_index_c(void);
 extern uint8_t *pipeline_asm_emit_module_ref_c(void);
 extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *elf_ctx, uint8_t *b, int32_t n);
 
-/* typool w1545_epi_{fi,off,sz,mod} BSS (nm on s67). */
-#define W1545_EPI_FI  (*(int32_t *)(uintptr_t)0x1404f072cULL)
-#define W1545_EPI_OFF (*(int32_t *)(uintptr_t)0x1404f0730ULL)
-#define W1545_EPI_SZ  (*(int32_t *)(uintptr_t)0x1404f0734ULL)
-#define W1545_EPI_MOD (*(uint8_t **)(uintptr_t)0x14a061888ULL)
+/* typool w1545_epi_{fi,off,sz,mod} BSS — bind live Lxml_* (s184).
+ * Absolute tip VAs 0x1404f072c/30/34 and 0x14a061888 drifted after thin growth.
+ * PLATFORM: WINDOWS DIG full gcc link resolves D/B; pe_fold .refptr N/A here. */
+extern int32_t Lxml_0d51f80f7ed6acf6;
+extern int32_t Lxml_dd451da47ed6acf6;
+extern int32_t Lxml_54be1c7d7ed6acf6;
+extern uint8_t *Lxml_b5c4f9457ed6acf6;
+#define W1545_EPI_FI  (Lxml_0d51f80f7ed6acf6)
+#define W1545_EPI_OFF (Lxml_dd451da47ed6acf6)
+#define W1545_EPI_SZ  (Lxml_54be1c7d7ed6acf6)
+#define W1545_EPI_MOD (Lxml_b5c4f9457ed6acf6)
 
 static int32_t w1545_put(uint8_t *elf_ctx, uint8_t *b, int32_t n) {
   return pipeline_elf_ctx_append_bytes(elf_ctx, b, n);

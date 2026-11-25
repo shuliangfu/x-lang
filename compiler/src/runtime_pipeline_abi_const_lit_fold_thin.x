@@ -14,11 +14,19 @@ export extern function pipeline_expr_int_val_at(a: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_unary_operand_ref_at(a: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_binop_left_ref_at(a: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_binop_right_ref_at(a: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_as_operand_ref_at(a: *u8, expr_ref: i32): i32;
 
 /**
- * Fold const init to i32. Depth-1 INT_LIT / NEG LIT / SUB LIT LIT.
+ * Fold const init to i32. Depth-1 INT_LIT / NEG LIT / SUB LIT LIT / AS peel.
  * Writes *out_imm via pipe_store_i32_le. A raw deref store is dropped by
  * the Cap-tip assign arm (kind 52 returns 0). PLATFORM: SHARED.
+ *
+ * s177 DIG face: peel EXPR_AS (kind 54) so `export const IO_FIXED_MAX: u32 =
+ * 8 as u32` folds to imm 8. Without this arm, binop load of
+ * `nr > (IO_FIXED_MAX as i32)` soft-fails (-1) after needs_full_emit=0
+ * peels the compare-side AS to a module VAR that const_lit cannot fold.
+ * Recurses on the AS operand only (int lit / neg / sub already handled).
+ * Float-target AS is not a module const_lit_i32 consumer. PLATFORM: SHARED.
  */
 function w211_fold_const_expr_i32(a: *u8, eref: i32, out_imm: *i32): i32 {
   unsafe {
@@ -35,6 +43,16 @@ function w211_fold_const_expr_i32(a: *u8, eref: i32, out_imm: *i32): i32 {
        * writer this function already uses for the cell. PLATFORM: SHARED. */
       pipe_store_i32_le(out_imm as *u8, 0, pipe_load_i32_le(&cell[0], 4));
       return 1;
+    }
+    /* EXPR_AS = 54 — `8 as u32` / `N as i32`. Peel to operand and fold.
+     * cell+8 holds the operand ref; recurse uses the same out_imm publish.
+     * PLATFORM: SHARED · s177 DIG face AS-over-foldable. */
+    if (pipe_load_i32_le(&cell[0], 0) == 54) {
+      pipe_store_i32_le(&cell[0], 8, pipeline_expr_as_operand_ref_at(a, eref));
+      if (pipe_load_i32_le(&cell[0], 8) <= 0) {
+        return 0;
+      }
+      return w211_fold_const_expr_i32(a, pipe_load_i32_le(&cell[0], 8), out_imm);
     }
     /* NEG over INT_LIT: const E = -1 */
     if (pipe_load_i32_le(&cell[0], 0) == 22) {

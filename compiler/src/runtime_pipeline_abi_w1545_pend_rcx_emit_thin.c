@@ -5,16 +5,24 @@
  * then SIGSEGV with rcx = that smashed byte (0x90 on the result
  * typool-rebuild CALL ok path). Writer RIP typool 0x1403f5a45.
  * Same class as already-folded w1545_win_epi_prefix u8[8] scale-8.
- * Do not idx8. Bind typool pend BSS VAs directly (Mingw .refptr
- * unresolved by pe_fold_append_last). */
+ * Do not idx8.
+ * s184: bind live Lxml_* pend BSS by name (DIG full gcc link). Absolute
+ * tip VAs 0x1404f0720/24/28 drifted into .text after thin growth — s183
+ * mid_ret Lxml bind exposed WRITE AV here at +0x5f (PEND_USED).
+ * PLATFORM: WINDOWS — PE fold first-wins; LINUX/MACOS use the .x thin. */
 #include <stdint.h>
 
 extern int32_t backend_call_dispatch_w1545_pend_is(int32_t expr_ref);
 extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *elf_ctx, uint8_t *b, int32_t n);
 
-#define W1545_PEND_EXPR (*(int32_t *)(uintptr_t)0x1404f0720ULL)
-#define W1545_PEND_OFF  (*(int32_t *)(uintptr_t)0x1404f0724ULL)
-#define W1545_PEND_USED (*(int32_t *)(uintptr_t)0x1404f0728ULL)
+/* Live typool BSS pend slots (same D cluster as mid_ret). */
+extern int32_t Lxml_045d986c7ed6acf6;
+extern int32_t Lxml_1282d7477ed6acf6;
+extern int32_t Lxml_46cbe7807ed6acf6;
+
+#define W1545_PEND_EXPR (Lxml_045d986c7ed6acf6)
+#define W1545_PEND_OFF  (Lxml_1282d7477ed6acf6)
+#define W1545_PEND_USED (Lxml_46cbe7807ed6acf6)
 
 int32_t backend_call_dispatch_w1545_pend_rcx_emit(uint8_t *elf_ctx, int32_t expr_ref) {
   uint8_t b[8];

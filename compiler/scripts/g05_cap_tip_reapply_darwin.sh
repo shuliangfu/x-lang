@@ -4292,7 +4292,7 @@ _ca_keep=""
 # Cap tip Prefer s24=110 sizes). Narrow list only — ban bulk extract.
 # PLATFORM: MACOS Cap tip Prefer.
 _k8f_n=0
-for _k8f_pair in   "bake_struct.o:5000:6500"   "bake_scalar_imm_soft.o:800:1000"   "av_assign_var_try_let.o:1400:1600"   "register_tl_const.o:3500:3800"   "index_base_rax_a64.o:280:340"   "parser_mega_allow.o:1900:2200"   "vector_let_init_decline_a64.o:30000:33000"   "const_var_off.o:1700:2000"   "lea_cold_fwd.o:100:160"   "add_common_sym_soft.o:700:800"   "copy_large_a64.o:4200:4600"   "store_retval_pair_a64.o:3700:4000"   "body_sync_let_order.o:7800:8600"   "asm_expr_rec.o:15500:17500"   "field_cap_residual_load.o:20000:23000"   "reent_nocap.o:15000:16500"   "asm_locals_thin.o:14000:15500"   "const_lit_fold.o:4000:4300"   "emit_epilogue_f64.o:1800:2100"   "addr_of_call.o:10500:11500"   "modlet_f64_imm.o:2100:2400"   "typeck_field_reverse_infer_soft.o:7000:7600"
+for _k8f_pair in   "bake_struct.o:5000:6500"   "bake_scalar_imm_soft.o:800:1000"   "av_assign_var_try_let.o:1400:1600"   "register_tl_const.o:3500:3800"   "index_base_rax_a64.o:280:340"   "parser_mega_allow.o:1900:2200"   "vector_let_init_decline_a64.o:30000:33000"   "const_var_off.o:400:2500"   "lea_cold_fwd.o:100:160"   "add_common_sym_soft.o:700:800"   "copy_large_a64.o:4200:4600"   "store_retval_pair_a64.o:3700:4000"   "body_sync_let_order.o:7800:8600"   "asm_expr_rec.o:15500:17500"   "field_cap_residual_load.o:20000:23000"   "reent_nocap.o:15000:16500"   "asm_locals_thin.o:14000:15500"   "const_lit_fold.o:4000:4300"   "emit_epilogue_f64.o:1800:2100"   "addr_of_call.o:10500:11500"   "modlet_f64_imm.o:2100:2400"   "typeck_field_reverse_infer_soft.o:7000:7600"
 do
   _k8f_f="${_k8f_pair%%:*}"
   _k8f_rest="${_k8f_pair#*:}"

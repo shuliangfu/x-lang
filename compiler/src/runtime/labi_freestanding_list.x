@@ -2568,6 +2568,14 @@ export function labi_win_ld_append_head(bufs: *u8, cap: i32, argv: **u8, la: *i3
   labi_win_ld_push(argv, la, max_la, "-m");
   labi_win_ld_push(argv, la, max_la, "i386pep");
   labi_win_ld_push(argv, la, max_la, "-Bdynamic");
+  // PLATFORM: WINDOWS — console want-exe (else crtexewin → U WinMain despite T main).
+  labi_win_ld_push(argv, la, max_la, "--subsystem");
+  labi_win_ld_push(argv, la, max_la, "console");
+  labi_win_ld_push(argv, la, max_la, "-e");
+  labi_win_ld_push(argv, la, max_la, "main");
+  // PLATFORM: WINDOWS — duplicate T inside unicode.o (mod_0/mod_1 ld -r);
+  // bare MinGW ld needs the same allow-multiple as historical WIN_LDFLAGS.
+  labi_win_ld_push(argv, la, max_la, "--allow-multiple-definition");
   labi_win_ld_push(argv, la, max_la, labi_win_ld_slot(bufs, cap, 2));
   labi_win_ld_push(argv, la, max_la, labi_win_ld_slot(bufs, cap, 3));
   labi_win_ld_push(argv, la, max_la, labi_win_ld_slot(bufs, cap, 5));
@@ -2604,5 +2612,12 @@ export function labi_win_ld_append_tail(bufs: *u8, cap: i32, argv: **u8, la: *i3
   labi_win_ld_push(argv, la, max_la, "-lmingwex");
   labi_win_ld_push(argv, la, max_la, "-lmsvcrt");
   labi_win_ld_push(argv, la, max_la, "-lkernel32");
+  // PLATFORM: WINDOWS — runtime_random_fill U BCryptGenRandom / OpenAlgorithmProvider.
+  labi_win_ld_push(argv, la, max_la, "-lbcrypt");
+  // PLATFORM: WINDOWS — co-emitted std.io.win32 / net face U WSAStartup.
+  // Soft hello user.o carries WSAStartup UNDEF; bare MinGW ld has no implicit
+  // winsock. G.7: complete existing win_ld tail (≡ bcrypt); do not add a second
+  // probe table. Product -o on Win always needs ws2 when those faces co-emit.
+  labi_win_ld_push(argv, la, max_la, "-lws2_32");
   labi_win_ld_push(argv, la, max_la, labi_win_ld_slot(bufs, cap, 4));
 }

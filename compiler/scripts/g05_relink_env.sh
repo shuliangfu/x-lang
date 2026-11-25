@@ -2081,18 +2081,41 @@ if [ -x ./xlang_asm ]; then
   else
     echo "g05_relink_env: WARNING 记211 register_tl_const_thin.x did not build (Cap/from_x skip-all-consts)" >&2
   fi
-  _g05_pure_overlay src/runtime_pipeline_abi_const_var_off_thin.x \
-    build_asm/selfhost_pabi/const_var_off.o \
-    glue_var_expr_stack_off_elf_c
-  if [ -s build_asm/selfhost_pabi/const_var_off.o ]; then
-    _G05_W211_VAR_OFF="build_asm/selfhost_pabi/const_var_off.o"
+  # DIG s208: tipU pipe-cell overlay hung context.x asm. Prefer host-cc .c twin
+  # on Windows (same semantics, no tipU storm); Darwin/Linux keep pure .x.
+  # PLATFORM: WINDOWS host-cc | SHARED .x overlay.
+  _G05_W211_VAR_OFF=""
+  case "$UNAME_S" in
+    MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+      _g05_cvo_c=src/runtime_pipeline_abi_const_var_off_thin.c
+      _g05_cvo_o=build_asm/selfhost_pabi/const_var_off.o
+      if [ -f "$_g05_cvo_c" ] && gcc -c -O2 -o "${_g05_cvo_o}.tmp.o" "$_g05_cvo_c" 2>/tmp/g05_cvo_hostcc.err; then
+        if nm "${_g05_cvo_o}.tmp.o" 2>/dev/null | grep -qE ' T glue_var_expr_stack_off_elf_c$'; then
+          mv -f "${_g05_cvo_o}.tmp.o" "$_g05_cvo_o"
+          _G05_W211_VAR_OFF="$_g05_cvo_o"
+          echo "g05_relink_env: s208 Windows host-cc const_var_off (.c twin)" >&2
+        else
+          rm -f "${_g05_cvo_o}.tmp.o"
+        fi
+      fi
+      ;;
+  esac
+  if [ -z "$_G05_W211_VAR_OFF" ]; then
+    _g05_pure_overlay src/runtime_pipeline_abi_const_var_off_thin.x \
+      build_asm/selfhost_pabi/const_var_off.o \
+      glue_var_expr_stack_off_elf_c
+    if [ -s build_asm/selfhost_pabi/const_var_off.o ]; then
+      _G05_W211_VAR_OFF="build_asm/selfhost_pabi/const_var_off.o"
+    else
+      echo "g05_relink_env: WARNING 记211 const_var_off_thin.x did not build" >&2
+    fi
+  fi
+  if [ -n "$_G05_W211_VAR_OFF" ]; then
     if [ "$UNAME_S" = "Darwin" ]; then
       _G05_LINK_WINNERS="$_G05_LINK_WINNERS _glue_var_expr_stack_off_elf_c=$_G05_W211_VAR_OFF"
     else
       _G05_LINK_WINNERS="$_G05_LINK_WINNERS glue_var_expr_stack_off_elf_c=$_G05_W211_VAR_OFF"
     fi
-  else
-    echo "g05_relink_env: WARNING 记211 const_var_off_thin.x did not build" >&2
   fi
   _g05_pure_overlay src/runtime_pipeline_abi_call_arg_const_off_thin.x \
     build_asm/selfhost_pabi/call_arg_const_off.o \

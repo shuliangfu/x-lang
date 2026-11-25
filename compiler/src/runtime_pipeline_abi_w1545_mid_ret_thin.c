@@ -14,6 +14,12 @@
  *   rip-loads all use those addresses. A private folded BSS splits
  *   that state (s42 first fold: no sret lea, buf in rcx, run 139).
  *
+ * s183: s42 hardcoded absolute VAs 0x1404f0720/24/28. After s177–s182
+ *   thin growth those slots landed in .text (parser_asm_*); WRITE AV at
+ *   mid_ret+0xd7 storing PEND_EXPR. Bind the live Lxml_* BSS names so
+ *   layout shifts stay linked (DIG full gcc link resolves D symbols;
+ *   pe_fold .refptr issue does not apply on this path).
+ *
  * PLATFORM: WINDOWS — PE fold first-wins; LINUX/MACOS use the .x thin.
  */
 #include <stdint.h>
@@ -27,15 +33,14 @@ extern void call_dispatch_store_i32_le(uint8_t *p, int32_t off, int32_t v);
 extern int32_t backend_call_dispatch_w1521_body(uint8_t *arena, uint8_t *elf_ctx, int32_t expr_ref, uint8_t *ctx, int32_t ta, int32_t is_m);
 extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *elf_ctx, uint8_t *b, int32_t n);
 
-/*
- * typool w1545_pend_{expr,off,used} (Lxml_045d986c7ed6acf6 /
- * Lxml_1282d7477ed6acf6 / Lxml_46cbe7807ed6acf6). Mingw emits .refptr
- * for extern data, which pe_fold_append_last cannot resolve, so bind
- * the VAs proven on s40/s41 (nm + gdb) directly.
- */
-#define W1545_PEND_EXPR (*(int32_t *)(uintptr_t)0x1404f0720ULL)
-#define W1545_PEND_OFF  (*(int32_t *)(uintptr_t)0x1404f0724ULL)
-#define W1545_PEND_USED (*(int32_t *)(uintptr_t)0x1404f0728ULL)
+/* Live typool BSS pend slots (nm D on s182: 0x14050d760/64/68). */
+extern int32_t Lxml_045d986c7ed6acf6;
+extern int32_t Lxml_1282d7477ed6acf6;
+extern int32_t Lxml_46cbe7807ed6acf6;
+
+#define W1545_PEND_EXPR (Lxml_045d986c7ed6acf6)
+#define W1545_PEND_OFF  (Lxml_1282d7477ed6acf6)
+#define W1545_PEND_USED (Lxml_46cbe7807ed6acf6)
 
 int32_t backend_call_dispatch_w1545_win_mid_ret_call(uint8_t *arena, uint8_t *elf_ctx, int32_t expr_ref, uint8_t *ctx, int32_t ta, int32_t is_m) {
   int32_t ty;
