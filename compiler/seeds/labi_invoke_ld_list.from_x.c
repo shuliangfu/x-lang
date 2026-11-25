@@ -713,12 +713,71 @@ int labi_formal_std_build_make_cmd(char *cmd, int cap, const char *xlang_bin,
   return 1;
 }
 
+#if defined(_WIN32) || defined(_WIN64)
+/**
+ * DIG s209: map `std/foo/foo.o` → `std/foo/foo.x` for direct product asm ensure.
+ * PLATFORM: WINDOWS — bash compiler-make.sh is not available under cmd/system.
+ */
+static int labi_formal_std_rel_o_to_x(char *dst, int cap, const char *rel_o) {
+  int n;
+  if (!dst || cap < 4 || !rel_o || !rel_o[0])
+    return 0;
+  n = (int)strlen(rel_o);
+  if (n < 3 || n + 1 >= cap)
+    return 0;
+  if (rel_o[n - 2] != '.' || rel_o[n - 1] != 'o')
+    return 0;
+  memcpy(dst, rel_o, (size_t)(n - 1));
+  dst[n - 1] = 'x';
+  dst[n] = '\0';
+  return 1;
+}
+
+/**
+ * Build cmd.exe-safe ensure: set env then product host asm -c SRC.x -o OUT.o.
+ * PLATFORM: WINDOWS — no bash; quotes for paths with spaces.
+ */
+static int labi_formal_std_build_win_asm_cmd(char *cmd, int cap, const char *xlang_bin,
+                                            const char *src_x, const char *out_o) {
+  int pos = 0;
+  if (!cmd || cap <= 0 || !xlang_bin || !xlang_bin[0] || !src_x || !src_x[0] ||
+      !out_o || !out_o[0])
+    return 0;
+  pos = labi_net_tls_buf_append(cmd, cap, pos, "set XLANG_FORMAL_STD_ENSURE=1&& \"");
+  if (pos < 0)
+    return 0;
+  pos = labi_net_tls_buf_append(cmd, cap, pos, xlang_bin);
+  if (pos < 0)
+    return 0;
+  pos = labi_net_tls_buf_append(cmd, cap, pos, "\" -backend asm -c \"");
+  if (pos < 0)
+    return 0;
+  pos = labi_net_tls_buf_append(cmd, cap, pos, src_x);
+  if (pos < 0)
+    return 0;
+  pos = labi_net_tls_buf_append(cmd, cap, pos, "\" -o \"");
+  if (pos < 0)
+    return 0;
+  pos = labi_net_tls_buf_append(cmd, cap, pos, out_o);
+  if (pos < 0)
+    return 0;
+  pos = labi_net_tls_buf_append(cmd, cap, pos, "\"");
+  if (pos < 0)
+    return 0;
+  return 1;
+}
+#endif
+
 int xlang_ensure_formal_std_make_o(const char *repo_root, const char *rel_from_repo,
                                   const char *make_target) {
   char abs[4096];
-  char cmd[768];
+  char cmd[2048];
   char xlang_bin[4096];
   char cand[4096];
+#if defined(_WIN32) || defined(_WIN64)
+  char src_rel[4096];
+  char src_abs[4096];
+#endif
   const char *env_xlang;
   const char *ensuring;
   const char *have;
@@ -775,8 +834,21 @@ int xlang_ensure_formal_std_make_o(const char *repo_root, const char *rel_from_r
   }
   if (!xlang_bin[0])
     return 0;
-  if (!labi_formal_std_build_make_cmd(cmd, 768, xlang_bin, repo_root, make_target))
+#if defined(_WIN32) || defined(_WIN64)
+  /* DIG s209: bash compiler-make.sh does not run under Win system()/cmd —
+   * product host asm -c SRC.x is the formal ensure path. PLATFORM: WINDOWS. */
+  if (!labi_formal_std_rel_o_to_x(src_rel, 4096, rel_from_repo))
     return 0;
+  if (!labi_net_tls_join_repo_rel(src_abs, 4096, repo_root, src_rel))
+    return 0;
+  if (xlang_path_access(src_abs, R_OK) != 0)
+    return 0;
+  if (!labi_formal_std_build_win_asm_cmd(cmd, 2048, xlang_bin, src_abs, abs))
+    return 0;
+#else
+  if (!labi_formal_std_build_make_cmd(cmd, 2048, xlang_bin, repo_root, make_target))
+    return 0;
+#endif
   (void)link_abi_system(cmd); /* wave224 G.7 */
   return asm_link_obj_skip_missing(abs) ? 1 : 0;
 }
