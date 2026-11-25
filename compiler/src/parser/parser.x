@@ -751,20 +751,6 @@ export function parser_rewind_lex_for_following_stmt(lex_in: Lexer, r: LexerResu
 /**
  * See implementation.
  * See implementation.
- * See implementation.
- */
-export function parser_realign_lex_after_compound_stmt(lex_in: Lexer, r_in: LexerResult, source: u8[]): Lexer {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-  let lex_out: Lexer = parser_rewind_lex_for_following_stmt(lex_in, r_in);
-  lex_out = parser_rewind_lex_for_lparen_control_stmt(lex_out, r_in, source);
-  return lex_out;
-  }
-}
-
-/**
- * See implementation.
- * See implementation.
  */
 /* Anti-loop state for lparen→if/while/for re-sync.
  * Same keyword start pos rewound many times = infinite parse_if re-entry
@@ -864,11 +850,11 @@ export function parser_rewind_lex_for_lparen_control_stmt(lex_in: Lexer, r_in: L
       scan_i = scan_i + (1 as usize);
     }
     let lex_lp: Lexer = { pos: new_pos, line: rew_line, col: rew_col };
-    let r_lp: LexerResult = {
-      next_lex: lex_lp,
-      tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 },
-      token_start: (0 as usize)
-    };
+    // DIG s226: tip typeck XT001 on nested LexerResult{ tok:{…} } STRUCT_LIT
+    // (check_block of callers: realign / parse_block). Seed from r_in then
+    // overwrite next_lex; lexer_next_into fills tok. PLATFORM: SHARED.
+    let r_lp: LexerResult = r_in;
+    r_lp.next_lex = lex_lp;
     lexer.lexer_next_into(&r_lp, lex_lp, source);
     // Probe must not leave sticky L009 from mid-ident landing (defensive).
     // PLATFORM: SHARED — wave1218 Cap residual root.
@@ -876,12 +862,34 @@ export function parser_rewind_lex_for_lparen_control_stmt(lex_in: Lexer, r_in: L
     if ((r_lp.tok.kind as i32) == (token.TokenKind.TOKEN_IF as i32)
         || (r_lp.tok.kind as i32) == (token.TokenKind.TOKEN_WHILE as i32)
         || (r_lp.tok.kind as i32) == (token.TokenKind.TOKEN_FOR as i32)) {
-      return parser_rewind_lex_for_following_stmt(lex_in, r_lp);
+      let lex_fw: Lexer = parser_rewind_lex_for_following_stmt(lex_in, r_lp);
+      return lex_fw;
     }
   }
   return lex_in;
   }
 }
+
+/**
+ * Realign lexer after a compound stmt: following-stmt rewind then
+ * lparen-control re-sync. Defined *after* rewind_lex_for_lparen so tip
+ * typeck can resolve the callee return (DIG s226 forward-ref XT001).
+ * @param lex_in Lexer
+ * @param r_in LexerResult
+ * @param source u8[]
+ * @return Lexer
+ * PLATFORM: SHARED — LANG-007 S0 whole-body unsafe FFI gate.
+ */
+export function parser_realign_lex_after_compound_stmt(lex_in: Lexer, r_in: LexerResult, source: u8[]): Lexer {
+  // DIG s226: tip typeck XT001 when this sat above lparen (forward call
+  // → cannot resolve return / check_block). Two lets + return local.
+  unsafe {
+  let lex_mid: Lexer = parser_rewind_lex_for_following_stmt(lex_in, r_in);
+  let lex_out: Lexer = parser_rewind_lex_for_lparen_control_stmt(lex_mid, r_in, source);
+  return lex_out;
+  }
+}
+
 export function parser_match_kw_immediately_before(source: u8[], ident_start: usize): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
