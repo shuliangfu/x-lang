@@ -850,11 +850,11 @@ export function parser_rewind_lex_for_lparen_control_stmt(lex_in: Lexer, r_in: L
       scan_i = scan_i + (1 as usize);
     }
     let lex_lp: Lexer = { pos: new_pos, line: rew_line, col: rew_col };
-    let r_lp: LexerResult = {
-      next_lex: lex_lp,
-      tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 },
-      token_start: (0 as usize)
-    };
+    // DIG s226: tip typeck XT001 on nested LexerResult{ tok:{…} } STRUCT_LIT
+    // (check_block of callers: realign / parse_block). Seed from r_in then
+    // overwrite next_lex; lexer_next_into fills tok. PLATFORM: SHARED.
+    let r_lp: LexerResult = r_in;
+    r_lp.next_lex = lex_lp;
     lexer.lexer_next_into(&r_lp, lex_lp, source);
     // Probe must not leave sticky L009 from mid-ident landing (defensive).
     // PLATFORM: SHARED — wave1218 Cap residual root.
@@ -862,7 +862,8 @@ export function parser_rewind_lex_for_lparen_control_stmt(lex_in: Lexer, r_in: L
     if ((r_lp.tok.kind as i32) == (token.TokenKind.TOKEN_IF as i32)
         || (r_lp.tok.kind as i32) == (token.TokenKind.TOKEN_WHILE as i32)
         || (r_lp.tok.kind as i32) == (token.TokenKind.TOKEN_FOR as i32)) {
-      return parser_rewind_lex_for_following_stmt(lex_in, r_lp);
+      let lex_fw: Lexer = parser_rewind_lex_for_following_stmt(lex_in, r_lp);
+      return lex_fw;
     }
   }
   return lex_in;
