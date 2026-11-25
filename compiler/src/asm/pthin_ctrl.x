@@ -137,6 +137,12 @@
 // arm / pattern whiles. Do not dest-buffer parse_type_ref. Do not
 // merge wrap. Do not FORCE pabi mega.
 //
+// DIG s219: after `=>`, `{ ... }` arm result uses the same EXPR_BLOCK
+// path as if-expr then/else (parse_block + wrap_block_ref). Trailing
+// `;` is optional after that block (still required after a bare expr).
+// Without this, `1 => { return 10; }` silently drops the function
+// (P001 no functions) while `1 => return 10;` and `1 => {..};` green.
+//
 // 7.2.1 P5k T-shrink (2026-09-16): leftover C twin of already-T
 // parse_if_stmt_x (`parser_asm_parse_if_stmt_into_slice_c`) plus the
 // unused is_ws_byte / dead sync_lex_after_if_cond_paren helpers are
@@ -2106,14 +2112,85 @@ export function parser_asm_parse_match_struct_fields_x_into_c(arena: *u8, lex_in
 }
 
 /**
+ * Parse one match-arm result after `=>` (DIG s219 / P5j complete).
+ *
+ * When the next token is `{`, take the if-expr block path: consume `{`,
+ * parse_block_ptr, wrap_block_ref as EXPR_BLOCK; trailing `;` optional.
+ * Otherwise parse a bare expr and require `;`.
+ *
+ * PLATFORM: SHARED — single authority for arm-result after fatarrow
+ * (guard path and plain path). Reuses parse_block + wrap_block_ref
+ * (G.7; do not copy wrap into parse_expr primary).
+ *
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @param lex_inout *u8 — live lexer cursor
+ * @param source *u8 — opaque slice
+ * @param out_ok *i32 — 1 when out_expr_ref is valid
+ * @param out_expr_ref *i32 — arm result EXPR ref
+ * @return i32 — 1 when the bridge ran (out_ok may still be 0); 0 on null
+ */
+function parser_asm_parse_match_arm_result_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
+  let kind: i32 = 0;
+  let bok: i32 = 0;
+  let bref: i32 = 0;
+  let wrap: i32 = 0;
+  let eok: i32 = 0;
+  let eref: i32 = 0;
+  let rc: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    out_ok[0] = 0;
+    out_expr_ref[0] = 0;
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind == TOKEN_LBRACE) {
+      /* Same shape as if-expr then/else block arm; `;` optional after `}`. */
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      bok = 0;
+      bref = 0;
+      if (parser_parse_block_ptr_into_c(arena, lex_inout, source, 0, &bok, &bref) == 0 || bok == 0) {
+        return 1;
+      }
+      wrap = parser_asm_wrap_block_ref_as_expr_into_c(arena, bref, 0);
+      if (wrap == 0) {
+        return 1;
+      }
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (kind == TOKEN_SEMICOLON) {
+        parser_asm_lex_step_kind_c(lex_inout, source);
+      }
+      out_ok[0] = 1;
+      out_expr_ref[0] = wrap;
+      return 1;
+    }
+    eok = 0;
+    eref = 0;
+    rc = parser_parse_expr_ptr_into_c(arena, lex_inout, source, &eok, &eref);
+    if (rc == 0 || eok == 0) {
+      return 1;
+    }
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_SEMICOLON) {
+      return 1;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    out_ok[0] = 1;
+    out_expr_ref[0] = eref;
+    return 1;
+  }
+  return 0;
+}
+
+/**
  * Parse `match expr { pat => result; ... }` at the live cursor.
  * .x mirror of parser_asm_parse_match_into_c: P9a peek/step.
  * Entry cursor is the unconsumed MATCH keyword (C twin's first
  * lexer_next). Subject is P5h; `{ fields }` is P5i; MATCH wrap is
- * P5g wrap_into. Arm result / `if` guard go through the existing
- * parse_expr ptr shim. Multi-pattern `|` and implicit field guards
- * live in the C 16-pattern pack (language has no local i32[16]).
- * Enum/variant IDENT spans go through C name-buffer dest-tag
+ * P5g wrap_into. Arm result after `=>` is parse_match_arm_result
+ * (DIG s219: block optional `;`). Multi-pattern `|` and implicit
+ * field guards live in the C 16-pattern pack (language has no local
+ * i32[16]). Enum/variant IDENT spans go through C name-buffer dest-tag
  * trampolines (language has no local u8[N]). Clamp copies the C
  * twin: ident_len>255 → 127. Do not `break` out of the arm / pattern
  * whiles.
@@ -2308,15 +2385,10 @@ export function parser_asm_parse_match_into_x_into_c(arena: *u8, lex_inout: *u8,
               parser_asm_lex_step_kind_c(lex_inout, source);
               eok = 0;
               eref = 0;
-              rc = parser_parse_expr_ptr_into_c(arena, lex_inout, source, &eok, &eref);
+              rc = parser_asm_parse_match_arm_result_x_into_c(arena, lex_inout, source, &eok, &eref);
               if (rc == 0 || eok == 0) {
                 return 0;
               }
-              kind = parser_asm_lex_peek_kind_c(lex_inout, source);
-              if (kind != TOKEN_SEMICOLON) {
-                return 0;
-              }
-              parser_asm_lex_step_kind_c(lex_inout, source);
               if (parser_asm_match_arm_pat_commit_c(arena, mref, pack, eref, gref) == 0) {
                 return 0;
               }
@@ -2334,15 +2406,10 @@ export function parser_asm_parse_match_into_x_into_c(arena: *u8, lex_inout: *u8,
           parser_asm_lex_step_kind_c(lex_inout, source);
           eok = 0;
           eref = 0;
-          rc = parser_parse_expr_ptr_into_c(arena, lex_inout, source, &eok, &eref);
+          rc = parser_asm_parse_match_arm_result_x_into_c(arena, lex_inout, source, &eok, &eref);
           if (rc == 0 || eok == 0) {
             return 0;
           }
-          kind = parser_asm_lex_peek_kind_c(lex_inout, source);
-          if (kind != TOKEN_SEMICOLON) {
-            return 0;
-          }
-          parser_asm_lex_step_kind_c(lex_inout, source);
           if (parser_asm_match_arm_pat_commit_c(arena, mref, pack, eref, 0) == 0) {
             return 0;
           }
