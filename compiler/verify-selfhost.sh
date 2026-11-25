@@ -69,7 +69,8 @@ echo "── Step 2: 修复 _gen.c ──"
 
 # 去重 xlang_slice_uint8_t
 for f in parser_gen.c typeck_gen.c codegen_gen.c pipeline_gen.c driver_gen.c preprocess_gen.c; do
-  perl -i -ne 'print unless /^struct xlang_slice_uint8_t/ && $seen++' "$f" 2>/dev/null || true
+  # DIG s221: brace-only — bare prefix ate by-value slice return signatures.
+  perl -i -ne 'print unless /^struct xlang_slice_uint8_t \{/ && $seen++' "$f" 2>/dev/null || true
 done
 
 # pipeline_gen.c: 确保 parser_parse_into_buf extern 在文件头部
@@ -106,7 +107,8 @@ echo "  preprocess_x.o..."
 cc $CFLAGS -c preprocess_gen.c -o preprocess_x.o
 
 echo "  pipeline_x.o..."
-perl -i -ne 'print unless /^struct xlang_slice_uint8_t/ && $seen++' pipeline_gen.c 2>/dev/null || true
+# DIG s221: brace-only layout dedup (bare prefix ate slice-return defs).
+perl -i -ne 'print unless /^struct xlang_slice_uint8_t \{/ && $seen++' pipeline_gen.c 2>/dev/null || true
 cc $CFLAGS -c pipeline_gen.c -o pipeline_x.o
 
 echo "  driver_x.o..."

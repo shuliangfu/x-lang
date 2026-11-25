@@ -170,7 +170,8 @@ $GEN -x -E -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L s
 echo ""
 echo "── Step 2: 修复 pipeline_gen2.c / 去重 slice 结构体 ──"
 for f in parser_gen2.c typeck_gen2.c codegen_gen2.c pipeline_gen2.c driver_gen2.c preprocess_gen2.c; do
-  perl -i -ne 'print unless /^struct xlang_slice_uint8_t/ && $seen++' "$f" 2>/dev/null || true
+  # DIG s221: brace-only — bare prefix ate `struct xlang_slice_uint8_t foo(` defs.
+  perl -i -ne 'print unless /^struct xlang_slice_uint8_t \{/ && $seen++' "$f" 2>/dev/null || true
 done
 for f in ast_gen2.c lexer_gen2.c parser_gen2.c typeck_gen2.c codegen_gen2.c pipeline_gen2.c driver_gen2.c; do
   perl scripts/fix_slim_arena_gen_c.pl "$f" 2>/dev/null || true
