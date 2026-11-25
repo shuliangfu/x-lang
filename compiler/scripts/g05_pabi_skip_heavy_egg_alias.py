@@ -15,8 +15,9 @@ prefix. The thin calls the _egg alias for the unchanged dispatcher.
 
 It does not rebuild the egg and does not edit SRC. src==dst fails
 closed. The original symbol must be one weak function. Dual-mega eggs
-had twelve PLT32 call sites; tip peel leaves two. DST must keep the
-same allowed count against that name.
+had twelve PLT32 call sites; tip peel leaves two; some leftover /
+elf64k alias peels leave four. DST must keep the same allowed count
+against that name.
 
 Usage: g05_pabi_skip_heavy_egg_alias.py SRC DST
 """
@@ -27,7 +28,7 @@ import sys
 
 NAME = "asm_skip_heavy_module_func_body"
 EGG = "asm_skip_heavy_module_func_body_egg"
-RELOCS_ALLOWED = {2, 12}  # tip peel: 2; dual-mega: 12
+RELOCS_ALLOWED = {2, 4, 12}  # tip peel: 2; leftover/elf64k peel: 4; dual-mega: 12
 # STB_WEAK | STT_FUNC in the low nibble / high nibble of st_info.
 WEAK_FUNC = 0x22
 GLOBAL_FUNC = 0x12

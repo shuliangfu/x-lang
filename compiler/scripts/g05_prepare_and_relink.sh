@@ -71,7 +71,7 @@ bash scripts/g05_ensure_relink_prereqs.sh
 echo "g05_prepare_and_relink: export link env (shell) + final link"
 # shellcheck disable=SC2046
 eval "$(bash scripts/g05_relink_env.sh)"
-export G05_CC G05_CFLAGS G05_OUT G05_XLANG_C G05_BOOTSTRAP G05_OBJS
+export G05_CC G05_CFLAGS G05_OUT G05_XLANG_C G05_BOOTSTRAP G05_OBJS G05_LINK_WINNERS
 # g05_relink_xlang also reads G05_SYNC_ASM; prepare owns outer cp when SYNC_ASM=1.
 # Keep inner sync off so we do not double-cp; outer block below is the authority.
 export G05_SYNC_ASM=0
@@ -160,7 +160,7 @@ if [ -n "$_stage2_xl" ] \
       echo "g05_prepare_and_relink: stage2 fmt rebuilt; relink once"
       # shellcheck disable=SC2046
       eval "$(bash scripts/g05_relink_env.sh)"
-      export G05_CC G05_CFLAGS G05_OUT G05_XLANG_C G05_BOOTSTRAP G05_OBJS
+      export G05_CC G05_CFLAGS G05_OUT G05_XLANG_C G05_BOOTSTRAP G05_OBJS G05_LINK_WINNERS
       export G05_SYNC_ASM=0
       bash scripts/g05_relink_xlang.sh
       if [ "$SYNC_ASM" = "1" ]; then
