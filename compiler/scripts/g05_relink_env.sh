@@ -2652,6 +2652,11 @@ PY
       if [ "${_g05_pp_n:-0}" -ge 1 ]; then
         _G05_PREPROCESS_O="$_g05_pp_w"
         echo "g05_relink_env: s235 preprocess_x tipU break patch x${_g05_pp_n} + BSS global" >&2
+      elif nm "$_g05_pp_w" 2>/dev/null | grep -qE ' [BD] [_]?g_pp_kind$'; then
+        # Linux tipU encoding may miss 74 06 Soft Cap; host-cc twin still
+        # needs globalized g_pp_* BSS or FORCE_CC UNDEF. PLATFORM: SHARED.
+        _G05_PREPROCESS_O="$_g05_pp_w"
+        echo "g05_relink_env: s235 preprocess_x BSS global only (tipU pattern miss)" >&2
       else
         echo "g05_relink_env: WARNING s235 tipU break pattern not found in preprocess_x.o" >&2
       fi
@@ -2728,7 +2733,8 @@ PY
       _G05_DIAG_O="$_g05_diag_w"
       echo "g05_relink_env: s236 diagnostic tipU c==0 break patch x${_g05_diag_n}" >&2
     else
-      echo "g05_relink_env: WARNING s236 tipU append_cstr break pattern not found" >&2
+      # Ubuntu tipU already jmps forward on c==0 (0 hang sites). Keep tip .o.
+      echo "g05_relink_env: s236 diagnostic tipU no hang sites (fwd-only or miss)" >&2
     fi
   fi
   # DIG s214: tipU uasb_note2 (and note1) place msg at lea -0x50/-0x28
