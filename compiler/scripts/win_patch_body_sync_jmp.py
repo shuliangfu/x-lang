@@ -643,7 +643,12 @@ def main() -> int:
                 f"lea→mov &state x{_n} @0x{_sa:x}"
             )
     if patched:
-        exe.write_bytes(data)
+        # Write via temp then replace — direct write_bytes fails with
+        # PermissionError when a hung PE still maps the file (Win Services
+        # dig leftovers). PLATFORM: WINDOWS.
+        _tmp = exe.with_suffix(exe.suffix + ".tmp_win_patch")
+        _tmp.write_bytes(data)
+        _tmp.replace(exe)
     print(f"win_patch_body_sync_jmp: patched={patched}")
     return 0
 
