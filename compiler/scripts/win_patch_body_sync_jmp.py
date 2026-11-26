@@ -422,6 +422,9 @@ def main() -> int:
         "driver_compile_parse_argv_init_c",
         "cfg_sync_compile_target_from_state_c",
         "driver_compile_resolve_target_cpu_c",
+        # DIG s239: tipU driver_check_only_get cmp-pointer-as-flag; fold
+        # leftover tipU T → host-cc earliest. PLATFORM: WINDOWS.
+        "driver_check_only_get",
         # w2060: mixed-width add/sub and f32 promote. The three arithmetic
         # exports are dual T; demote keeps the cap-band external, and the
         # relink weaken turns that external into W. glue_float_promote is
@@ -559,6 +562,7 @@ def main() -> int:
             or name == "driver_compile_parse_argv_init_c"
             or name == "cfg_sync_compile_target_from_state_c"
             or name == "driver_compile_resolve_target_cpu_c"
+            or name == "driver_check_only_get"
         ):
             # Tip + leftover T duplicates: fold extras to earliest T.
             # w1024: let_init tip may leave dual egg T with no W when
