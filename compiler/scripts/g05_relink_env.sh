@@ -2772,25 +2772,40 @@ PY
   if [ -s src/runtime/rt_parse_diag.o ]; then
     _g05_pd_w=build_asm/selfhost_pabi/rt_parse_diag_s237.o
     # Scope Soft Cap to tipU rt_rec_next_tok only — whole-.o hang-pattern
-    # rewrite corrupted sibling faces (parse fail after 15x). PLATFORM: SHARED.
-    _g05_pd_lo=$(nm --print-size src/runtime/rt_parse_diag.o 2>/dev/null \
-      | awk '$NF=="rt_rec_next_tok" && $(NF-1) ~ /^[Tt]$/ {printf "0x%s 0x%s", $1, $2; exit}')
+    # rewrite corrupted sibling faces (parse fail after 15x). Bounds from
+    # nm + next T symbol (Win nm may omit --print-size). PLATFORM: SHARED.
     _g05_pd_text_off=$(objdump -h src/runtime/rt_parse_diag.o 2>/dev/null \
       | awk '/\.text/{print "0x"$6; exit}')
     _g05_pd_n=$(python3 - src/runtime/rt_parse_diag.o "$_g05_pd_w" \
-      ${_g05_pd_lo:-0x0 0x0} ${_g05_pd_text_off:-0x0} <<'PY'
+      "${_g05_pd_text_off:-0x0}" <<'PY'
 import struct
+import subprocess
 import sys
 from pathlib import Path
 src, dst = Path(sys.argv[1]), Path(sys.argv[2])
-sym_lo = int(sys.argv[3], 0)
-sym_sz = int(sys.argv[4], 0)
-text_off = int(sys.argv[5], 0)
-sym_hi = sym_lo + sym_sz if sym_sz else sym_lo
+text_off = int(sys.argv[3], 0)
 data = bytearray(src.read_bytes())
+# Collect T/t symbol VMAs; next_tok range = [lo, next_lo).
+syms = []
+try:
+    out = subprocess.check_output(["nm", str(src)], text=True, errors="replace")
+except Exception:
+    out = ""
+for line in out.splitlines():
+    parts = line.split()
+    if len(parts) >= 3 and parts[-2] in ("T", "t"):
+        try:
+            syms.append((int(parts[0], 16), parts[-1]))
+        except ValueError:
+            pass
+syms.sort()
+sym_lo = sym_hi = -1
+for i, (a, name) in enumerate(syms):
+    if name == "rt_rec_next_tok" or name == "_rt_rec_next_tok":
+        sym_lo = a
+        sym_hi = syms[i + 1][0] if i + 1 < len(syms) else a
+        break
 # tipU break-as-jmp-to-while: 0f 84 0a 00 00 00 e9 rel32 (rel<0).
-# Soft Cap: only inside rt_rec_next_tok; retarget hang jmp to the insn
-# after the loop continue back-edge. PLATFORM: SHARED.
 pat = bytes([0x0F, 0x84, 0x0A, 0x00, 0x00, 0x00, 0xE9])
 n = 0
 i = 0
@@ -2800,7 +2815,7 @@ while True:
         break
     rel = struct.unpack_from("<i", data, j + 7)[0]
     vma = j - text_off if text_off else -1
-    in_fn = (sym_sz > 0 and text_off > 0 and sym_lo <= vma < sym_hi)
+    in_fn = (sym_lo >= 0 and text_off > 0 and sym_lo <= vma < sym_hi)
     if rel < 0 and in_fn:
         base = j + 11
         for off in range(0, 0x200):
