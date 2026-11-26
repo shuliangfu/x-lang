@@ -1064,7 +1064,16 @@ run_g05_cc_residual() {
   $CC $CFLAGS ${_cmap:+-Wl,-Map=$_cmap} -o "$OUT" $OBJS
   echo "g05_relink_xlang: OK CC residual $OUT" >&2
   if [ -n "$_cmap" ]; then
-    g05_check_link_winners "$_cmap" || exit 1
+    # FORCE_CC DIG path: winner misses must not skip win_patch (PE dual-T
+    # fold). Soft-fail under FORCE_CC; hard-fail on product pure-ld path.
+    # PLATFORM: WINDOWS.
+    if ! g05_check_link_winners "$_cmap"; then
+      if g05_force_cc; then
+        echo "g05_relink_xlang: WARN winner check FAIL under FORCE_CC (continue → win_patch)" >&2
+      else
+        exit 1
+      fi
+    fi
   fi
 }
 

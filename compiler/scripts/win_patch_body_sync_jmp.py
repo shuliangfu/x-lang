@@ -545,6 +545,10 @@ def main() -> int:
             # → earliest without requiring W. PLATFORM: WINDOWS.
             or name == "rt_rec_next_tok"
             or name == "rt_rec_skip_ws_comment"
+            # DIG s238: tipU alloc/parse_argv shallow-lea smash; host-cc
+            # earliest T; fold leftover tipU T. PLATFORM: WINDOWS.
+            or name == "driver_compile_state_alloc_c"
+            or name == "driver_compile_parse_argv_impl_c"
         ):
             # Tip + leftover T duplicates: fold extras to earliest T.
             # w1024: let_init tip may leave dual egg T with no W when
