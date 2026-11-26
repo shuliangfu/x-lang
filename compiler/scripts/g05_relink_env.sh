@@ -9580,6 +9580,7 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
     # Win tip P001 dig_min lexer leaves (DIG 2026-11-09).
     mkdir -p build_asm/seed_host
     _G05_W241_PUNCT=""
+    _G05_W244_NEXT=""
     for _p001_src in \
       src/runtime/rt_lexer_write_result_win_64.s \
       src/runtime/rt_lexer_park_token_start_win_64.s \
@@ -9593,15 +9594,22 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
         ${CC:-gcc} -c -o "$_p001_obj" "$_p001_src" >/dev/null 2>&1 || true
       fi
       if [ -s "$_p001_obj" ]; then
-        # DIG s242: Soft Cap next_punct must precede tipU lexer_x in the
-        # leaf bag AND tipU copies must be localized (below) — PE still
-        # first-won tipU (0x47b8 stack-probe smash) over the s241 leaf.
-        if [ "$_p001_src" = "src/runtime/rt_lexer_next_punct_into_win_64.s" ]; then
-          _PABI_WIN_DRIVER_LEAVES="$_p001_obj $_PABI_WIN_DRIVER_LEAVES"
-          _G05_W241_PUNCT="$_p001_obj"
-        else
-          _PABI_WIN_DRIVER_LEAVES="$_PABI_WIN_DRIVER_LEAVES $_p001_obj"
-        fi
+        # DIG s242/s244: Soft Cap next_punct / next_into must precede tipU
+        # lexer_x; tipU copies localized below. PE first-won tipU next_into
+        # (by-value only) over the dual-ABI Soft Cap shim → empty module.
+        case "$_p001_src" in
+          src/runtime/rt_lexer_next_punct_into_win_64.s)
+            _PABI_WIN_DRIVER_LEAVES="$_p001_obj $_PABI_WIN_DRIVER_LEAVES"
+            _G05_W241_PUNCT="$_p001_obj"
+            ;;
+          src/runtime/rt_lexer_next_into_win_64.s)
+            _PABI_WIN_DRIVER_LEAVES="$_p001_obj $_PABI_WIN_DRIVER_LEAVES"
+            _G05_W244_NEXT="$_p001_obj"
+            ;;
+          *)
+            _PABI_WIN_DRIVER_LEAVES="$_PABI_WIN_DRIVER_LEAVES $_p001_obj"
+            ;;
+        esac
         echo "g05_relink_env: Win P001 leaf $_p001_src -> G05" >&2
       fi
     done
@@ -9701,6 +9709,54 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
         fi
         _G05_LINK_WINNERS="${_G05_LINK_WINNERS} lexer_next_punct_into=$_G05_W241_PUNCT"
         echo "g05_relink_env: s242 LINK_WINNERS lexer_next_punct_into → Soft Cap leaf" >&2
+      fi
+    fi
+
+    # DIG s244: tipU lexer_next_into (by-value only) first-wins over Soft Cap
+    # dual-ABI shim (cmp rdx,$0x10000 → pointer→by-value). Parser ~110 sites
+    # pass *Lexer → tipU treats pointer as pos → empty module (num_funcs=0)
+    # after s243 int-break Soft Cap. Soft Cap: localize tipU→t; fold t→T.
+    # PLATFORM: WINDOWS.
+    if [ -n "$_G05_W244_NEXT" ]; then
+      _oc244=""
+      if command -v objcopy >/dev/null 2>&1; then _oc244=objcopy
+      elif command -v llvm-objcopy >/dev/null 2>&1; then _oc244=llvm-objcopy
+      fi
+      if [ -n "$_oc244" ]; then
+        for _ni_obj in \
+          build_asm/seed_host/lexer_x_nbi_demoted.o \
+          build_asm/seed_host/lexer_x_s238_trykw.o \
+          build_asm/seed_host/lexer_x_s242_punct.o \
+          build_asm/seed_host/lexer_x_trackl_abi.o
+        do
+          [ -s "$_ni_obj" ] || continue
+          nm "$_ni_obj" 2>/dev/null | grep -qE " T [_]?lexer_next_into$" || continue
+          "$_oc244" --localize-symbol=lexer_next_into "$_ni_obj" 2>/dev/null \
+            || "$_oc244" --localize-symbol=_lexer_next_into "$_ni_obj" 2>/dev/null \
+            || true
+          if nm "$_ni_obj" 2>/dev/null | grep -qE " t [_]?lexer_next_into$"; then
+            echo "g05_relink_env: s244 localize tipU lexer_next_into → t in $_ni_obj" >&2
+          fi
+        done
+        if [ -s lexer_x.o ] \
+          && nm lexer_x.o 2>/dev/null | grep -qE " T [_]?lexer_next_into$"; then
+          mkdir -p build_asm/seed_host
+          _ni_lex=build_asm/seed_host/lexer_x_s244_next.o
+          if [ -n "${_G05_LEXER_X_O:-}" ] && [ -s "$_G05_LEXER_X_O" ]; then
+            cp -f "$_G05_LEXER_X_O" "$_ni_lex"
+          else
+            cp -f lexer_x.o "$_ni_lex"
+          fi
+          "$_oc244" --localize-symbol=lexer_next_into "$_ni_lex" 2>/dev/null \
+            || "$_oc244" --localize-symbol=_lexer_next_into "$_ni_lex" 2>/dev/null \
+            || true
+          if nm "$_ni_lex" 2>/dev/null | grep -qE " t [_]?lexer_next_into$"; then
+            _G05_LEXER_X_O="$_ni_lex"
+            echo "g05_relink_env: s244 localize tipU lexer_next_into → t; LEXER_X_O=$_ni_lex" >&2
+          fi
+        fi
+        _G05_LINK_WINNERS="${_G05_LINK_WINNERS} lexer_next_into=$_G05_W244_NEXT"
+        echo "g05_relink_env: s244 LINK_WINNERS lexer_next_into → Soft Cap dual-ABI shim" >&2
       fi
     fi
 
