@@ -415,6 +415,13 @@ def main() -> int:
         # Host-cc twins first-wins; fold leftover tipU T → earliest. PLATFORM: WINDOWS.
         "rt_rec_next_tok",
         "rt_rec_skip_ws_comment",
+        # DIG s238: tipU alloc/parse_argv/init shallow-lea smash; fold
+        # leftover tipU T → host-cc earliest. PLATFORM: WINDOWS.
+        "driver_compile_state_alloc_c",
+        "driver_compile_parse_argv_impl_c",
+        "driver_compile_parse_argv_init_c",
+        "cfg_sync_compile_target_from_state_c",
+        "driver_compile_resolve_target_cpu_c",
         # w2060: mixed-width add/sub and f32 promote. The three arithmetic
         # exports are dual T; demote keeps the cap-band external, and the
         # relink weaken turns that external into W. glue_float_promote is
@@ -545,6 +552,13 @@ def main() -> int:
             # → earliest without requiring W. PLATFORM: WINDOWS.
             or name == "rt_rec_next_tok"
             or name == "rt_rec_skip_ws_comment"
+            # DIG s238: tipU alloc/parse_argv/init shallow-lea smash;
+            # host-cc earliest T; fold leftover tipU T. PLATFORM: WINDOWS.
+            or name == "driver_compile_state_alloc_c"
+            or name == "driver_compile_parse_argv_impl_c"
+            or name == "driver_compile_parse_argv_init_c"
+            or name == "cfg_sync_compile_target_from_state_c"
+            or name == "driver_compile_resolve_target_cpu_c"
         ):
             # Tip + leftover T duplicates: fold extras to earliest T.
             # w1024: let_init tip may leave dual egg T with no W when
@@ -568,8 +582,73 @@ def main() -> int:
         print(
             f"win_patch_body_sync_jmp: skip {_lea_cold}(t) (overlay not linked)"
         )
+    # DIG s238: tipU lexer_try_keyword does not write TOKEN_EXPORT through
+    # out → bare `export function` parse skip / P001. Soft Cap localizes
+    # tipU copies to t and keeps host-cc win_64 as sole T; fold every t
+    # onto that T (same-TU REL32). PLATFORM: WINDOWS.
+    _trykw = "lexer_try_keyword"
+    _tk_ents = syms.get(_trykw, [])
+    _tk_t = [a for a, k in _tk_ents if k == "T"]
+    _tk_loc = [a for a, k in _tk_ents if k == "t"]
+    if len(_tk_t) == 1 and _tk_loc:
+        for _a in _tk_loc:
+            patched += _patch_jmp(data, secs, _trykw + "(t)", _a, _tk_t[0])
+    else:
+        print(
+            f"win_patch_body_sync_jmp: skip {_trykw}(t) "
+            f"(need 1 T + t; T={len(_tk_t)} t={len(_tk_loc)})"
+        )
+    # DIG s238: tipU driver_compile_parse_argv_step_c shallow-lea through
+    # &state at [rbp-0x20] (`lea rax,[rbp-0x20]` = 48 8d 45 e0) then
+    # `add rax,OFF` for field stores — smashes full_x -0x28 during
+    # rt_parse_argv_scan_at. Soft Cap: rewrite lea→mov (48 8b 45 e0) in
+    # every tipU body (same length). Host-cc twin of full step is large;
+    # this is the minimal body fix. PLATFORM: WINDOWS.
+    _step = "driver_compile_parse_argv_step_c"
+    _step_ents = sorted(
+        (a for a, k in syms.get(_step, []) if k in "Tt"), reverse=True
+    )
+    _lea_pat = bytes((0x48, 0x8D, 0x45, 0xE0))  # lea rax,[rbp-0x20]
+    _mov_pat = bytes((0x48, 0x8B, 0x45, 0xE0))  # mov rax,[rbp-0x20]
+    _all_vas = sorted(
+        {a for ents in syms.values() for a, k in ents if k in "TtWw"}
+    )
+    for _sa in _step_ents:
+        # Body ends at next global VA or +0x2000 cap.
+        _end = _sa + 0x2000
+        for _va in _all_vas:
+            if _va > _sa:
+                _end = min(_end, _va)
+                break
+        try:
+            _off0 = _va_to_off(secs, _sa)
+            _off1 = _va_to_off(secs, _end - 1) + 1
+        except SystemExit:
+            continue
+        if _off1 <= _off0:
+            continue
+        _n = 0
+        _i = _off0
+        while _i + 4 <= _off1:
+            if data[_i : _i + 4] == _lea_pat:
+                data[_i : _i + 4] = _mov_pat
+                _n += 1
+                patched += 1
+                _i += 4
+            else:
+                _i += 1
+        if _n:
+            print(
+                f"win_patch_body_sync_jmp: {_step} "
+                f"lea→mov &state x{_n} @0x{_sa:x}"
+            )
     if patched:
-        exe.write_bytes(data)
+        # Write via temp then replace — direct write_bytes fails with
+        # PermissionError when a hung PE still maps the file (Win Services
+        # dig leftovers). PLATFORM: WINDOWS.
+        _tmp = exe.with_suffix(exe.suffix + ".tmp_win_patch")
+        _tmp.write_bytes(data)
+        _tmp.replace(exe)
     print(f"win_patch_body_sync_jmp: patched={patched}")
     return 0
 

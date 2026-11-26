@@ -2092,6 +2092,11 @@ _G05_W235_PPDIR=""
 _G05_W236_DIAGAP=""
 _G05_W237_NEXTTOK=""
 _G05_W237_SKIPWS=""
+_G05_W238_TRYKW=""
+_G05_W238_ALLOC=""
+_G05_W238_ARGVINIT=""
+_G05_W238_CFGSYNC=""
+_G05_W238_RESOLVECPU=""
 _G05_PREPROCESS_O="preprocess_x.o"
 _G05_DIAG_O="src/runtime_driver_diagnostic.o"
 _G05_PARSE_DIAG_O="src/runtime/rt_parse_diag.o"
@@ -2529,6 +2534,119 @@ if [ -x ./xlang_asm ]; then
     fi
   else
     echo "g05_relink_env: WARNING s233 parse_argv host-cc twin did not build" >&2
+  fi
+  # DIG s238: Win tip SEGV in tipU driver_compile_state_alloc_c —
+  # shallow lea through &state (local) for use_asm_backend@0x408 /
+  # opt_level_buf@0x614 / opt_level_len@0x61c smashes caller
+  # driver_run_compiler_full_x_impl_c frame → nil state @+0x6b8.
+  # Existing host-cc twin was never g05-wired (s233 only covered
+  # parse_argv). PLATFORM: SHARED first-wins.
+  _G05_W238_ALLOC=""
+  _g05_alloc_c=src/runtime_pipeline_abi_driver_compile_state_alloc_thin.c
+  _g05_alloc_o=build_asm/selfhost_pabi/driver_compile_state_alloc_hostcc.o
+  if [ -f "$_g05_alloc_c" ]; then
+    if gcc -c -O2 -o "${_g05_alloc_o}.tmp.o" "$_g05_alloc_c" 2>/tmp/g05_w238_alloc.err; then
+      if nm "${_g05_alloc_o}.tmp.o" 2>/dev/null \
+           | grep -qE ' T [_]?driver_compile_state_alloc_c$'; then
+        mv -f "${_g05_alloc_o}.tmp.o" "$_g05_alloc_o"
+        _G05_W238_ALLOC="$_g05_alloc_o"
+        echo "g05_relink_env: s238 host-cc driver_compile_state_alloc (.c)" >&2
+      else
+        rm -f "${_g05_alloc_o}.tmp.o"
+      fi
+    fi
+  fi
+  if [ -n "$_G05_W238_ALLOC" ]; then
+    if [ "$UNAME_S" = "Darwin" ]; then
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS _driver_compile_state_alloc_c=$_G05_W238_ALLOC"
+    else
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS driver_compile_state_alloc_c=$_G05_W238_ALLOC"
+    fi
+  else
+    echo "g05_relink_env: WARNING s238 state_alloc host-cc twin did not build" >&2
+  fi
+  # DIG s238: tipU driver_compile_parse_argv_init_c shallow-lea through
+  # &state smashes host-cc parse_argv → full_x -0x28 (SEGV @+0x6b8) even
+  # after alloc Soft Cap. Wire host-cc init twin. PLATFORM: SHARED.
+  _G05_W238_ARGVINIT=""
+  _g05_ainit_c=src/runtime_pipeline_abi_driver_compile_parse_argv_init_thin.c
+  _g05_ainit_o=build_asm/selfhost_pabi/driver_compile_parse_argv_init_hostcc.o
+  if [ -f "$_g05_ainit_c" ]; then
+    if gcc -c -O2 -o "${_g05_ainit_o}.tmp.o" "$_g05_ainit_c" 2>/tmp/g05_w238_ainit.err; then
+      if nm "${_g05_ainit_o}.tmp.o" 2>/dev/null \
+           | grep -qE ' T [_]?driver_compile_parse_argv_init_c$'; then
+        mv -f "${_g05_ainit_o}.tmp.o" "$_g05_ainit_o"
+        _G05_W238_ARGVINIT="$_g05_ainit_o"
+        echo "g05_relink_env: s238 host-cc driver_compile_parse_argv_init (.c)" >&2
+      else
+        rm -f "${_g05_ainit_o}.tmp.o"
+      fi
+    fi
+  fi
+  if [ -n "$_G05_W238_ARGVINIT" ]; then
+    if [ "$UNAME_S" = "Darwin" ]; then
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS _driver_compile_parse_argv_init_c=$_G05_W238_ARGVINIT"
+    else
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS driver_compile_parse_argv_init_c=$_G05_W238_ARGVINIT"
+    fi
+  else
+    echo "g05_relink_env: WARNING s238 parse_argv_init host-cc twin did not build" >&2
+  fi
+  # DIG s238: tipU cfg_sync_compile_target_from_state_c shallow-lea through
+  # &st (existing host-cc twin never g05-wired). Called from host-cc
+  # parse_argv after init/scan; smash continues to nil full_x -0x28.
+  # PLATFORM: SHARED.
+  _G05_W238_CFGSYNC=""
+  _g05_cfgs_c=src/runtime_pipeline_abi_cfg_sync_compile_target_from_state_thin.c
+  _g05_cfgs_o=build_asm/selfhost_pabi/cfg_sync_compile_target_hostcc.o
+  if [ -f "$_g05_cfgs_c" ]; then
+    if gcc -c -O2 -o "${_g05_cfgs_o}.tmp.o" "$_g05_cfgs_c" 2>/tmp/g05_w238_cfgs.err; then
+      if nm "${_g05_cfgs_o}.tmp.o" 2>/dev/null \
+           | grep -qE ' T [_]?cfg_sync_compile_target_from_state_c$'; then
+        mv -f "${_g05_cfgs_o}.tmp.o" "$_g05_cfgs_o"
+        _G05_W238_CFGSYNC="$_g05_cfgs_o"
+        echo "g05_relink_env: s238 host-cc cfg_sync_compile_target (.c)" >&2
+      else
+        rm -f "${_g05_cfgs_o}.tmp.o"
+      fi
+    fi
+  fi
+  if [ -n "$_G05_W238_CFGSYNC" ]; then
+    if [ "$UNAME_S" = "Darwin" ]; then
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS _cfg_sync_compile_target_from_state_c=$_G05_W238_CFGSYNC"
+    else
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS cfg_sync_compile_target_from_state_c=$_G05_W238_CFGSYNC"
+    fi
+  else
+    echo "g05_relink_env: WARNING s238 cfg_sync host-cc twin did not build" >&2
+  fi
+  # DIG s238: tipU driver_compile_resolve_target_cpu_c shallow-lea through
+  # &state (target_cpu_*). Called from host-cc parse_argv after scan;
+  # continued nil full_x -0x28 after alloc/init/cfg_sync Soft Caps.
+  # PLATFORM: SHARED.
+  _G05_W238_RESOLVECPU=""
+  _g05_rcpu_c=src/runtime_pipeline_abi_driver_compile_resolve_target_cpu_thin.c
+  _g05_rcpu_o=build_asm/selfhost_pabi/driver_compile_resolve_target_cpu_hostcc.o
+  if [ -f "$_g05_rcpu_c" ]; then
+    if gcc -c -O2 -o "${_g05_rcpu_o}.tmp.o" "$_g05_rcpu_c" 2>/tmp/g05_w238_rcpu.err; then
+      if nm "${_g05_rcpu_o}.tmp.o" 2>/dev/null \
+           | grep -qE ' T [_]?driver_compile_resolve_target_cpu_c$'; then
+        mv -f "${_g05_rcpu_o}.tmp.o" "$_g05_rcpu_o"
+        _G05_W238_RESOLVECPU="$_g05_rcpu_o"
+        echo "g05_relink_env: s238 host-cc driver_compile_resolve_target_cpu (.c)" >&2
+      else
+        rm -f "${_g05_rcpu_o}.tmp.o"
+      fi
+    fi
+  fi
+  if [ -n "$_G05_W238_RESOLVECPU" ]; then
+    if [ "$UNAME_S" = "Darwin" ]; then
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS _driver_compile_resolve_target_cpu_c=$_G05_W238_RESOLVECPU"
+    else
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS driver_compile_resolve_target_cpu_c=$_G05_W238_RESOLVECPU"
+    fi
+  else
+    echo "g05_relink_env: WARNING s238 resolve_target_cpu host-cc twin did not build" >&2
   fi
   # DIG s234: Win tip heap c0000374 / IO001 — tipU file_view read/release
   # shallow-lea through &view (existing host-cc twins never g05-wired).
@@ -7738,7 +7856,7 @@ _X_FRONTEND="parser_x.o ${_G05_LEXER_X_O:-lexer_x.o} ${_G05_TYPECK_X_O:-typeck_x
 # --allow-multiple-definition first-wins (LINK_WINNERS alone does not put
 # the .o on the link line). PLATFORM: SHARED.
 # DIG s234–s237: host-cc Soft Caps BEFORE tip providers. PLATFORM: SHARED.
-_DRIVER_SEED_OBJS="$_G05_W237_SKIPWS $_G05_W237_NEXTTOK $_G05_W236_DIAGAP $_G05_W235_PPDIR $_G05_W234_FV_MALLOC $_G05_W234_FILEVIEW $_PABI_WIN_1046_PROVIDERS $_PABI_MODLET_TABLE_BASE $_PABI_MODLET_SEED_SIGNED $_PABI_ADDR_OF_CALL $_PABI_ELF_LAYOUT_64K $_PABI_INDEX_BASE_FIELD $_PABI_SLICE_MODLET $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_ELF_UNDEF_CAP $_PABI_LAYOUT_OFF $_PABI_NAMED_BUILTIN_CAP $_PABI_NAMED_ALIGN $_PABI_NAMED_SIZE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_REENT_SUM $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_WPO_ALIAS $_PABI_RELOC_TYPED $_PABI_ELF_CTX $_PABI_DATA_LEN $_G05_W233_PARSEARGV $_G05_W231_EMITCTX $_G05_W229_DIAGEX $_G05_W225_POOL $_G05_W224_PARK $_G05_W223_ASG $_G05_W223_FLSZ $_G05_W223_IDX $_G05_W223_MTRIM $_G05_W213_ASSIGN_RHS $_G05_W214_UASB $_G05_W216_ASSIGN_MM $_G05_W217_ENC $_G05_W212_FLAGS $_G05_W211_SKIP_CG $_G05_W211_CALL_ARG $_G05_W211_VAR_OFF $_G05_W211_REGISTER $_PABI_CONST_LIT $_MAIN_LINK_O ${_G05_IO_ABI_O:-src/runtime_io_abi.o} src/runtime_link_abi.o src/runtime_driver_abi.o ${_G05_DIAG_O:-src/runtime_driver_diagnostic.o} src/diag.o $_PANIC_LINK_O $_PABI_SKIP_HEAVY $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_CODEGEN_CAP_RESIDUAL $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
+_DRIVER_SEED_OBJS="$_G05_W238_ALLOC $_G05_W238_ARGVINIT $_G05_W238_CFGSYNC $_G05_W238_RESOLVECPU $_G05_W237_SKIPWS $_G05_W237_NEXTTOK $_G05_W236_DIAGAP $_G05_W235_PPDIR $_G05_W234_FV_MALLOC $_G05_W234_FILEVIEW $_PABI_WIN_1046_PROVIDERS $_PABI_MODLET_TABLE_BASE $_PABI_MODLET_SEED_SIGNED $_PABI_ADDR_OF_CALL $_PABI_ELF_LAYOUT_64K $_PABI_INDEX_BASE_FIELD $_PABI_SLICE_MODLET $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_ELF_UNDEF_CAP $_PABI_LAYOUT_OFF $_PABI_NAMED_BUILTIN_CAP $_PABI_NAMED_ALIGN $_PABI_NAMED_SIZE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_REENT_SUM $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_WPO_ALIAS $_PABI_RELOC_TYPED $_PABI_ELF_CTX $_PABI_DATA_LEN $_G05_W233_PARSEARGV $_G05_W231_EMITCTX $_G05_W229_DIAGEX $_G05_W225_POOL $_G05_W224_PARK $_G05_W223_ASG $_G05_W223_FLSZ $_G05_W223_IDX $_G05_W223_MTRIM $_G05_W213_ASSIGN_RHS $_G05_W214_UASB $_G05_W216_ASSIGN_MM $_G05_W217_ENC $_G05_W212_FLAGS $_G05_W211_SKIP_CG $_G05_W211_CALL_ARG $_G05_W211_VAR_OFF $_G05_W211_REGISTER $_PABI_CONST_LIT $_MAIN_LINK_O ${_G05_IO_ABI_O:-src/runtime_io_abi.o} src/runtime_link_abi.o src/runtime_driver_abi.o ${_G05_DIAG_O:-src/runtime_driver_diagnostic.o} src/diag.o $_PANIC_LINK_O $_PABI_SKIP_HEAVY $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_CODEGEN_CAP_RESIDUAL $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
 # ast_gen2.o: in LEGACY mode, append at link END (mirrors Makefile xlang-c LEGACY L2501
@@ -9458,7 +9576,45 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
       fi
       if [ -s "$_trykw_obj" ] && nm "$_trykw_obj" 2>/dev/null | grep -qE " T [_]?lexer_try_keyword$"; then
         _PABI_WIN_DRIVER_LEAVES="$_PABI_WIN_DRIVER_LEAVES $_trykw_obj"
+        _G05_W238_TRYKW="$_trykw_obj"
         echo "g05_relink_env: Win try_keyword packed Token leaf → G05" >&2
+      fi
+    fi
+    # DIG s238: tipU lexer_try_keyword does not write TOKEN_EXPORT through
+    # out → bare `export function` parse skip / P001. Host-cc win_64 leaf
+    # already first-wins as sole T, but same-TU PC-rel still hits tipU
+    # bodies in demoted/lexer_x. Soft Cap: localize those tipU copies to
+    # t; win_patch_body_sync_jmp folds t→host-cc T. Never mutate
+    # lexer_x.o in place (cold L4 seed poison). PLATFORM: WINDOWS.
+    if [ -n "$_G05_W238_TRYKW" ]; then
+      _oc238=""
+      if command -v objcopy >/dev/null 2>&1; then _oc238=objcopy
+      elif command -v llvm-objcopy >/dev/null 2>&1; then _oc238=llvm-objcopy
+      fi
+      if [ -n "$_oc238" ]; then
+        _tk_dem=build_asm/seed_host/lexer_x_nbi_demoted.o
+        if [ -s "$_tk_dem" ] \
+          && nm "$_tk_dem" 2>/dev/null | grep -qE " T [_]?lexer_try_keyword$"; then
+          "$_oc238" --localize-symbol=lexer_try_keyword "$_tk_dem" 2>/dev/null \
+            || "$_oc238" --localize-symbol=_lexer_try_keyword "$_tk_dem" 2>/dev/null \
+            || true
+          if nm "$_tk_dem" 2>/dev/null | grep -qE " t [_]?lexer_try_keyword$"; then
+            echo "g05_relink_env: s238 localize tipU lexer_try_keyword → t in $_tk_dem" >&2
+          fi
+        fi
+        if [ -s lexer_x.o ] \
+          && nm lexer_x.o 2>/dev/null | grep -qE " T [_]?lexer_try_keyword$"; then
+          mkdir -p build_asm/seed_host
+          _tk_lex=build_asm/seed_host/lexer_x_s238_trykw.o
+          cp -f lexer_x.o "$_tk_lex"
+          "$_oc238" --localize-symbol=lexer_try_keyword "$_tk_lex" 2>/dev/null \
+            || "$_oc238" --localize-symbol=_lexer_try_keyword "$_tk_lex" 2>/dev/null \
+            || true
+          if nm "$_tk_lex" 2>/dev/null | grep -qE " t [_]?lexer_try_keyword$"; then
+            _G05_LEXER_X_O="$_tk_lex"
+            echo "g05_relink_env: s238 localize tipU lexer_try_keyword → t; LEXER_X_O=$_tk_lex" >&2
+          fi
+        fi
       fi
     fi
 
