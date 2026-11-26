@@ -415,6 +415,10 @@ def main() -> int:
         # Host-cc twins first-wins; fold leftover tipU T → earliest. PLATFORM: WINDOWS.
         "rt_rec_next_tok",
         "rt_rec_skip_ws_comment",
+        # DIG s238: tipU alloc/parse_argv shallow-lea smash; fold leftover
+        # tipU T → host-cc earliest. PLATFORM: WINDOWS.
+        "driver_compile_state_alloc_c",
+        "driver_compile_parse_argv_impl_c",
         # w2060: mixed-width add/sub and f32 promote. The three arithmetic
         # exports are dual T; demote keeps the cap-band external, and the
         # relink weaken turns that external into W. glue_float_promote is
