@@ -2092,6 +2092,7 @@ _G05_W235_PPDIR=""
 _G05_W236_DIAGAP=""
 _G05_W237_NEXTTOK=""
 _G05_W237_SKIPWS=""
+_G05_W238_TRYKW=""
 _G05_PREPROCESS_O="preprocess_x.o"
 _G05_DIAG_O="src/runtime_driver_diagnostic.o"
 _G05_PARSE_DIAG_O="src/runtime/rt_parse_diag.o"
@@ -9458,7 +9459,45 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
       fi
       if [ -s "$_trykw_obj" ] && nm "$_trykw_obj" 2>/dev/null | grep -qE " T [_]?lexer_try_keyword$"; then
         _PABI_WIN_DRIVER_LEAVES="$_PABI_WIN_DRIVER_LEAVES $_trykw_obj"
+        _G05_W238_TRYKW="$_trykw_obj"
         echo "g05_relink_env: Win try_keyword packed Token leaf → G05" >&2
+      fi
+    fi
+    # DIG s238: tipU lexer_try_keyword does not write TOKEN_EXPORT through
+    # out → bare `export function` parse skip / P001. Host-cc win_64 leaf
+    # already first-wins as sole T, but same-TU PC-rel still hits tipU
+    # bodies in demoted/lexer_x. Soft Cap: localize those tipU copies to
+    # t; win_patch_body_sync_jmp folds t→host-cc T. Never mutate
+    # lexer_x.o in place (cold L4 seed poison). PLATFORM: WINDOWS.
+    if [ -n "$_G05_W238_TRYKW" ]; then
+      _oc238=""
+      if command -v objcopy >/dev/null 2>&1; then _oc238=objcopy
+      elif command -v llvm-objcopy >/dev/null 2>&1; then _oc238=llvm-objcopy
+      fi
+      if [ -n "$_oc238" ]; then
+        _tk_dem=build_asm/seed_host/lexer_x_nbi_demoted.o
+        if [ -s "$_tk_dem" ] \
+          && nm "$_tk_dem" 2>/dev/null | grep -qE " T [_]?lexer_try_keyword$"; then
+          "$_oc238" --localize-symbol=lexer_try_keyword "$_tk_dem" 2>/dev/null \
+            || "$_oc238" --localize-symbol=_lexer_try_keyword "$_tk_dem" 2>/dev/null \
+            || true
+          if nm "$_tk_dem" 2>/dev/null | grep -qE " t [_]?lexer_try_keyword$"; then
+            echo "g05_relink_env: s238 localize tipU lexer_try_keyword → t in $_tk_dem" >&2
+          fi
+        fi
+        if [ -s lexer_x.o ] \
+          && nm lexer_x.o 2>/dev/null | grep -qE " T [_]?lexer_try_keyword$"; then
+          mkdir -p build_asm/seed_host
+          _tk_lex=build_asm/seed_host/lexer_x_s238_trykw.o
+          cp -f lexer_x.o "$_tk_lex"
+          "$_oc238" --localize-symbol=lexer_try_keyword "$_tk_lex" 2>/dev/null \
+            || "$_oc238" --localize-symbol=_lexer_try_keyword "$_tk_lex" 2>/dev/null \
+            || true
+          if nm "$_tk_lex" 2>/dev/null | grep -qE " t [_]?lexer_try_keyword$"; then
+            _G05_LEXER_X_O="$_tk_lex"
+            echo "g05_relink_env: s238 localize tipU lexer_try_keyword → t; LEXER_X_O=$_tk_lex" >&2
+          fi
+        fi
       fi
     fi
 

@@ -568,6 +568,22 @@ def main() -> int:
         print(
             f"win_patch_body_sync_jmp: skip {_lea_cold}(t) (overlay not linked)"
         )
+    # DIG s238: tipU lexer_try_keyword does not write TOKEN_EXPORT through
+    # out → bare `export function` parse skip / P001. Soft Cap localizes
+    # tipU copies to t and keeps host-cc win_64 as sole T; fold every t
+    # onto that T (same-TU REL32). PLATFORM: WINDOWS.
+    _trykw = "lexer_try_keyword"
+    _tk_ents = syms.get(_trykw, [])
+    _tk_t = [a for a, k in _tk_ents if k == "T"]
+    _tk_loc = [a for a, k in _tk_ents if k == "t"]
+    if len(_tk_t) == 1 and _tk_loc:
+        for _a in _tk_loc:
+            patched += _patch_jmp(data, secs, _trykw + "(t)", _a, _tk_t[0])
+    else:
+        print(
+            f"win_patch_body_sync_jmp: skip {_trykw}(t) "
+            f"(need 1 T + t; T={len(_tk_t)} t={len(_tk_loc)})"
+        )
     if patched:
         exe.write_bytes(data)
     print(f"win_patch_body_sync_jmp: patched={patched}")
