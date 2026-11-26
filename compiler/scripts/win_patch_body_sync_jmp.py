@@ -602,6 +602,42 @@ def main() -> int:
             f"win_patch_body_sync_jmp: skip {_trykw}(t) "
             f"(need 1 T + t; T={len(_tk_t)} t={len(_tk_loc)})"
         )
+    # DIG s242: tipU lexer_next_punct_into (0x47b8 stack probe) first-wins
+    # over Soft Cap leaf → brace path hang. Soft Cap localizes tipU to t;
+    # fold every t onto sole host-cc T. If dual T remains, prefer the Soft
+    # Cap body (starts with mov rax,[rdx] = 48 8b 02) as primary. PLATFORM:
+    # WINDOWS.
+    _punct = "lexer_next_punct_into"
+    _pn_ents = syms.get(_punct, [])
+    _pn_t = sorted({a for a, k in _pn_ents if k == "T"})
+    _pn_loc = [a for a, k in _pn_ents if k == "t"]
+    _pn_primary = None
+    if len(_pn_t) == 1:
+        _pn_primary = _pn_t[0]
+    elif len(_pn_t) >= 2:
+        for _a in _pn_t:
+            try:
+                _off = _va_to_off(secs, _a)
+            except SystemExit:
+                continue
+            if data[_off : _off + 3] == bytes((0x48, 0x8B, 0x02)):
+                _pn_primary = _a
+                break
+        if _pn_primary is None:
+            _pn_primary = max(_pn_t)  # Soft Cap leaf linked later → higher VA
+        for _a in _pn_t:
+            if _a != _pn_primary:
+                patched += _patch_jmp(
+                    data, secs, _punct + "(extraT)", _a, _pn_primary
+                )
+    if _pn_primary is not None and _pn_loc:
+        for _a in _pn_loc:
+            patched += _patch_jmp(data, secs, _punct + "(t)", _a, _pn_primary)
+    else:
+        print(
+            f"win_patch_body_sync_jmp: skip {_punct}(t) "
+            f"(need Soft Cap T + t; T={len(_pn_t)} t={len(_pn_loc)})"
+        )
     # DIG s238: tipU driver_compile_parse_argv_step_c shallow-lea through
     # &state at [rbp-0x20] (`lea rax,[rbp-0x20]` = 48 8d 45 e0) then
     # `add rax,OFF` for field stores — smashes full_x -0x28 during
