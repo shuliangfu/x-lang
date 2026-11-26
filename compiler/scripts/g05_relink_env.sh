@@ -2740,10 +2740,11 @@ PY
     fi
   fi
   # DIG s237: Win tip -c hang — tipU rt_rec_next_tok compiles ident-loop
-  # `if (!alpha && !digit && nn != '_') { break; }` as je+0xa; jmp while-head
-  # (spin on space nn=32). Existing host-cc twin never g05-wired. Same-TU
-  # callers in rt_parse_diag.o are PC-relative → also patch tipU hang sites
-  # (retarget to insn after continue back-edge). PLATFORM: SHARED.
+  # `break` as jmp-to-while-head (spin on space). Soft Cap: host-cc twin
+  # first-wins + win_patch_body_sync_jmp folds leftover tipU T → earliest
+  # host-cc (same-TU PE still enters tipU entry). Byte-patch of tipU body
+  # corrupted token semantics — do not use. PLATFORM: SHARED host-cc;
+  # PE fold is WINDOWS-only (script no-ops elsewhere).
   _G05_W237_NEXTTOK=""
   _G05_PARSE_DIAG_O="src/runtime/rt_parse_diag.o"
   _g05_nt_c=src/runtime_pipeline_abi_rt_rec_next_tok_thin.c
@@ -2768,81 +2769,6 @@ PY
     fi
   else
     echo "g05_relink_env: WARNING s237 rt_rec_next_tok host-cc twin did not build" >&2
-  fi
-  if [ -s src/runtime/rt_parse_diag.o ]; then
-    _g05_pd_w=build_asm/selfhost_pabi/rt_parse_diag_s237.o
-    # Scope Soft Cap to tipU rt_rec_next_tok only — whole-.o hang-pattern
-    # rewrite corrupted sibling faces (parse fail after 15x). Bounds from
-    # nm + next T symbol (Win nm may omit --print-size). PLATFORM: SHARED.
-    _g05_pd_text_off=$(objdump -h src/runtime/rt_parse_diag.o 2>/dev/null \
-      | awk '/\.text/{print "0x"$6; exit}')
-    _g05_pd_n=$(python3 - src/runtime/rt_parse_diag.o "$_g05_pd_w" \
-      "${_g05_pd_text_off:-0x0}" <<'PY'
-import struct
-import subprocess
-import sys
-from pathlib import Path
-src, dst = Path(sys.argv[1]), Path(sys.argv[2])
-text_off = int(sys.argv[3], 0)
-data = bytearray(src.read_bytes())
-# Collect T/t symbol VMAs; next_tok range = [lo, next_lo).
-syms = []
-try:
-    out = subprocess.check_output(["nm", str(src)], text=True, errors="replace")
-except Exception:
-    out = ""
-for line in out.splitlines():
-    parts = line.split()
-    if len(parts) >= 3 and parts[-2] in ("T", "t"):
-        try:
-            syms.append((int(parts[0], 16), parts[-1]))
-        except ValueError:
-            pass
-syms.sort()
-sym_lo = sym_hi = -1
-for i, (a, name) in enumerate(syms):
-    if name == "rt_rec_next_tok" or name == "_rt_rec_next_tok":
-        sym_lo = a
-        sym_hi = syms[i + 1][0] if i + 1 < len(syms) else a
-        break
-# tipU break-as-jmp-to-while: 0f 84 0a 00 00 00 e9 rel32 (rel<0).
-pat = bytes([0x0F, 0x84, 0x0A, 0x00, 0x00, 0x00, 0xE9])
-n = 0
-i = 0
-while True:
-    j = data.find(pat, i)
-    if j < 0:
-        break
-    rel = struct.unpack_from("<i", data, j + 7)[0]
-    vma = j - text_off if text_off else -1
-    in_fn = (sym_lo >= 0 and text_off > 0 and sym_lo <= vma < sym_hi)
-    if rel < 0 and in_fn:
-        base = j + 11
-        for off in range(0, 0x200):
-            if base + off + 5 > len(data):
-                break
-            if data[base + off] != 0xE9:
-                continue
-            r = struct.unpack_from("<i", data, base + off + 1)[0]
-            if r < 0:
-                exit_at = base + off + 5
-                struct.pack_into("<i", data, j + 7, exit_at - (j + 11))
-                n += 1
-                break
-    i = j + 1
-dst.write_bytes(data)
-print(n)
-PY
-)
-    if [ "${_g05_pd_n:-0}" -ge 1 ]; then
-      _G05_PARSE_DIAG_O="$_g05_pd_w"
-      echo "g05_relink_env: s237 parse_diag tipU break patch x${_g05_pd_n}" >&2
-    else
-      echo "g05_relink_env: s237 parse_diag tipU no hang sites (fwd-only or miss)" >&2
-    fi
-    # _RT_SEED_SLICE_OBJS is built near file top before Soft Caps; rebuild
-    # so ${_G05_PARSE_DIAG_O} reaches DRIVER_SEED. PLATFORM: SHARED.
-    _RT_SEED_SLICE_OBJS="src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o ${_G05_PARSE_DIAG_O:-src/runtime/rt_parse_diag.o} src/runtime/rt_run_exec.o"
   fi
   # DIG s214: tipU uasb_note2 (and note1) place msg at lea -0x50/-0x28
   # with cap=256 → smash saved args → put_str reads int-as-ptr AV.
