@@ -4,7 +4,7 @@
  * with POINTER ABI — rcx=out *LexerResult, rdx=*Lexer {pos@0,line@8,col@12},
  * r8=*Fat (ignored), r9=c. Older Soft Cap expected by-value (rdx=pos,
  * r8=line|col<<32, r9=*Fat, c on stack); tipU &Lexer was read as pos →
- * huge offset / memmove hang after export path reaches `{`.
+ * huge offset / memmove hang after export path reached `{`.
  *
  * Writes next_lex@0, tok@16 (kind@0 line@4 col@8 of product Token),
  * token_start@64. tipU peek_kind reads kind at +0x10 of the result buffer
@@ -25,57 +25,58 @@ lexer_next_punct_into:
 	movl	%r11d, %r8d			/* col0 */
 	addq	$1, %rax			/* pos++ */
 	addl	$1, %r11d			/* col++ */
-	/* map c -> kind (r9d was c; reuse r9d for kind) */
+	/* map c -> kind (keep c in dl; kind in r9d) */
 	movl	%r9d, %edx			/* c in edx */
 	movl	$0, %r9d
 	cmpb	$40, %dl
-	jne	1f
+	jne	.Lp1
 	movl	$82, %r9d
-	jmp	9f
-1:	cmpb	$41, %dl
-	jne	2f
+	jmp	.Lpdone
+.Lp1:	cmpb	$41, %dl
+	jne	.Lp2
 	movl	$83, %r9d
-	jmp	9f
-2:	cmpb	$123, %dl
-	jne	3f
+	jmp	.Lpdone
+.Lp2:	cmpb	$123, %dl
+	jne	.Lp3
 	movl	$84, %r9d
-	jmp	9f
-3:	cmpb	$125, %dl
-	jne	4f
+	jmp	.Lpdone
+.Lp3:	cmpb	$125, %dl
+	jne	.Lp4
 	movl	$85, %r9d
-	jmp	9f
-4:	cmpb	$58, %dl
-	jne	5f
+	jmp	.Lpdone
+.Lp4:	cmpb	$58, %dl
+	jne	.Lp5
 	movl	$91, %r9d
-	jmp	9f
-5:	cmpb	$59, %dl
-	jne	6f
+	jmp	.Lpdone
+.Lp5:	cmpb	$59, %dl
+	jne	.Lp6
 	movl	$95, %r9d
-	jmp	9f
-6:	cmpb	$91, %dl
-	jne	7f
+	jmp	.Lpdone
+.Lp6:	cmpb	$91, %dl
+	jne	.Lp7
 	movl	$86, %r9d
-	jmp	9f
-7:	cmpb	$93, %dl
-	jne	8f
+	jmp	.Lpdone
+.Lp7:	cmpb	$93, %dl
+	jne	.Lp8
 	movl	$87, %r9d
-	jmp	9f
-8:	cmpb	$44, %dl
-	jne	8a
+	jmp	.Lpdone
+.Lp8:	cmpb	$44, %dl
+	jne	.Lp8a
 	movl	$90, %r9d
-	jmp	9f
-8a:	cmpb	$61, %dl
-	jne	8b
+	jmp	.Lpdone
+.Lp8a:	cmpb	$61, %dl
+	jne	.Lp8b
 	movl	$117, %r9d
-	jmp	9f
-8b:	cmpb	$46, %dl
-	jne	8c
+	jmp	.Lpdone
+.Lp8b:	cmpb	$46, %dl
+	jne	.Lp8c
 	movl	$92, %r9d
-	jmp	9f
-8c:	cmpb	$42, %dl
-	jne	9f
+	jmp	.Lpdone
+.Lp8c:	cmpb	$42, %dl
+	jne	.Lpdone
 	movl	$98, %r9d
-9:	/* write next_lex: pos in rax, line r10d, col r11d */
+.Lpdone:
+	/* write next_lex: pos in rax, line r10d, col r11d */
 	movq	%rax, (%rcx)
 	movl	%r10d, 8(%rcx)
 	movl	%r11d, 12(%rcx)
