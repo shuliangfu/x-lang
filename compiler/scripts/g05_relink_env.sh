@@ -2813,6 +2813,9 @@ PY
     else
       echo "g05_relink_env: s237 parse_diag tipU no hang sites (fwd-only or miss)" >&2
     fi
+    # _RT_SEED_SLICE_OBJS is built near file top before Soft Caps; rebuild
+    # so ${_G05_PARSE_DIAG_O} reaches DRIVER_SEED. PLATFORM: SHARED.
+    _RT_SEED_SLICE_OBJS="src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o ${_G05_PARSE_DIAG_O:-src/runtime/rt_parse_diag.o} src/runtime/rt_run_exec.o"
   fi
   # DIG s214: tipU uasb_note2 (and note1) place msg at lea -0x50/-0x28
   # with cap=256 → smash saved args → put_str reads int-as-ptr AV.
