@@ -261,7 +261,7 @@ _GLUE_SUFFIX="src/runtime_driver_strict_glue_stubs.o"
 # Do NOT empty this when no_c is U; if no_c ever merges strong defs, fix no_c merge
 # first — do not leave slices empty as a "dup-symbol" workaround.
 # 含 rt_parse_diag：runtime_report_parse_recovery_diagnostics（冷启动 no_c 为 U）
-_RT_SEED_SLICE_OBJS="src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o src/runtime/rt_parse_diag.o src/runtime/rt_run_exec.o"
+_RT_SEED_SLICE_OBJS="src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o ${_G05_PARSE_DIAG_O:-src/runtime/rt_parse_diag.o} src/runtime/rt_run_exec.o"
 # knife 254 / 9.2 tip cold: rt_run_exec covers driver_exec_* / driver_run_test /
 # driver_print_target_cpu_features_c that lived only in Darwin leftover
 # pabi_weak egg. Do not silently omit — tip cold L2 needs them on the
@@ -2090,8 +2090,11 @@ _G05_W234_FILEVIEW=""
 _G05_W234_FV_MALLOC=""
 _G05_W235_PPDIR=""
 _G05_W236_DIAGAP=""
+_G05_W237_NEXTTOK=""
+_G05_W237_SKIPWS=""
 _G05_PREPROCESS_O="preprocess_x.o"
 _G05_DIAG_O="src/runtime_driver_diagnostic.o"
+_G05_PARSE_DIAG_O="src/runtime/rt_parse_diag.o"
 if [ -x ./xlang_asm ]; then
   _g05_pure_overlay src/runtime_pipeline_abi_const_lit_fold_thin.x \
     build_asm/selfhost_pabi/const_lit_fold.o \
@@ -2736,6 +2739,59 @@ PY
       # Ubuntu tipU already jmps forward on c==0 (0 hang sites). Keep tip .o.
       echo "g05_relink_env: s236 diagnostic tipU no hang sites (fwd-only or miss)" >&2
     fi
+  fi
+  # DIG s237: Win tip -c hang — tipU rt_rec_next_tok / rt_rec_skip_ws_comment
+  # compile `break` as jmp-to-while-head (ident space / // newline). Soft Cap:
+  # host-cc twins first-wins + win_patch_body_sync_jmp folds leftover tipU T
+  # → earliest host-cc. PLATFORM: SHARED host-cc; PE fold WINDOWS-only.
+  _G05_W237_NEXTTOK=""
+  _G05_W237_SKIPWS=""
+  _G05_PARSE_DIAG_O="src/runtime/rt_parse_diag.o"
+  _g05_nt_c=src/runtime_pipeline_abi_rt_rec_next_tok_thin.c
+  _g05_nt_o=build_asm/selfhost_pabi/rt_rec_next_tok_hostcc.o
+  if [ -f "$_g05_nt_c" ]; then
+    if gcc -c -O2 -o "${_g05_nt_o}.tmp.o" "$_g05_nt_c" 2>/tmp/g05_w237_nt.err; then
+      if nm "${_g05_nt_o}.tmp.o" 2>/dev/null \
+           | grep -qE ' T [_]?rt_rec_next_tok$'; then
+        mv -f "${_g05_nt_o}.tmp.o" "$_g05_nt_o"
+        _G05_W237_NEXTTOK="$_g05_nt_o"
+        echo "g05_relink_env: s237 host-cc rt_rec_next_tok (.c)" >&2
+      else
+        rm -f "${_g05_nt_o}.tmp.o"
+      fi
+    fi
+  fi
+  _g05_sw_c=src/runtime_pipeline_abi_rt_rec_skip_ws_comment_thin.c
+  _g05_sw_o=build_asm/selfhost_pabi/rt_rec_skip_ws_comment_hostcc.o
+  if [ -f "$_g05_sw_c" ]; then
+    if gcc -c -O2 -o "${_g05_sw_o}.tmp.o" "$_g05_sw_c" 2>/tmp/g05_w237_sw.err; then
+      if nm "${_g05_sw_o}.tmp.o" 2>/dev/null \
+           | grep -qE ' T [_]?rt_rec_skip_ws_comment$'; then
+        mv -f "${_g05_sw_o}.tmp.o" "$_g05_sw_o"
+        _G05_W237_SKIPWS="$_g05_sw_o"
+        echo "g05_relink_env: s237 host-cc rt_rec_skip_ws_comment (.c)" >&2
+      else
+        rm -f "${_g05_sw_o}.tmp.o"
+      fi
+    fi
+  fi
+  if [ -n "$_G05_W237_NEXTTOK" ]; then
+    if [ "$UNAME_S" = "Darwin" ]; then
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS _rt_rec_next_tok=$_G05_W237_NEXTTOK"
+    else
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS rt_rec_next_tok=$_G05_W237_NEXTTOK"
+    fi
+  else
+    echo "g05_relink_env: WARNING s237 rt_rec_next_tok host-cc twin did not build" >&2
+  fi
+  if [ -n "$_G05_W237_SKIPWS" ]; then
+    if [ "$UNAME_S" = "Darwin" ]; then
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS _rt_rec_skip_ws_comment=$_G05_W237_SKIPWS"
+    else
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS rt_rec_skip_ws_comment=$_G05_W237_SKIPWS"
+    fi
+  else
+    echo "g05_relink_env: WARNING s237 rt_rec_skip_ws_comment host-cc twin did not build" >&2
   fi
   # DIG s214: tipU uasb_note2 (and note1) place msg at lea -0x50/-0x28
   # with cap=256 → smash saved args → put_str reads int-as-ptr AV.
@@ -7681,8 +7737,8 @@ _X_FRONTEND="parser_x.o ${_G05_LEXER_X_O:-lexer_x.o} ${_G05_TYPECK_X_O:-typeck_x
 # DIG s223: host-cc twins s211–s223 MUST precede $_PABI_LINK_O so Linux
 # --allow-multiple-definition first-wins (LINK_WINNERS alone does not put
 # the .o on the link line). PLATFORM: SHARED.
-# DIG s234–s236: host-cc Soft Caps BEFORE tip providers. PLATFORM: SHARED.
-_DRIVER_SEED_OBJS="$_G05_W236_DIAGAP $_G05_W235_PPDIR $_G05_W234_FV_MALLOC $_G05_W234_FILEVIEW $_PABI_WIN_1046_PROVIDERS $_PABI_MODLET_TABLE_BASE $_PABI_MODLET_SEED_SIGNED $_PABI_ADDR_OF_CALL $_PABI_ELF_LAYOUT_64K $_PABI_INDEX_BASE_FIELD $_PABI_SLICE_MODLET $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_ELF_UNDEF_CAP $_PABI_LAYOUT_OFF $_PABI_NAMED_BUILTIN_CAP $_PABI_NAMED_ALIGN $_PABI_NAMED_SIZE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_REENT_SUM $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_WPO_ALIAS $_PABI_RELOC_TYPED $_PABI_ELF_CTX $_PABI_DATA_LEN $_G05_W233_PARSEARGV $_G05_W231_EMITCTX $_G05_W229_DIAGEX $_G05_W225_POOL $_G05_W224_PARK $_G05_W223_ASG $_G05_W223_FLSZ $_G05_W223_IDX $_G05_W223_MTRIM $_G05_W213_ASSIGN_RHS $_G05_W214_UASB $_G05_W216_ASSIGN_MM $_G05_W217_ENC $_G05_W212_FLAGS $_G05_W211_SKIP_CG $_G05_W211_CALL_ARG $_G05_W211_VAR_OFF $_G05_W211_REGISTER $_PABI_CONST_LIT $_MAIN_LINK_O ${_G05_IO_ABI_O:-src/runtime_io_abi.o} src/runtime_link_abi.o src/runtime_driver_abi.o ${_G05_DIAG_O:-src/runtime_driver_diagnostic.o} src/diag.o $_PANIC_LINK_O $_PABI_SKIP_HEAVY $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_CODEGEN_CAP_RESIDUAL $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
+# DIG s234–s237: host-cc Soft Caps BEFORE tip providers. PLATFORM: SHARED.
+_DRIVER_SEED_OBJS="$_G05_W237_SKIPWS $_G05_W237_NEXTTOK $_G05_W236_DIAGAP $_G05_W235_PPDIR $_G05_W234_FV_MALLOC $_G05_W234_FILEVIEW $_PABI_WIN_1046_PROVIDERS $_PABI_MODLET_TABLE_BASE $_PABI_MODLET_SEED_SIGNED $_PABI_ADDR_OF_CALL $_PABI_ELF_LAYOUT_64K $_PABI_INDEX_BASE_FIELD $_PABI_SLICE_MODLET $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_ELF_UNDEF_CAP $_PABI_LAYOUT_OFF $_PABI_NAMED_BUILTIN_CAP $_PABI_NAMED_ALIGN $_PABI_NAMED_SIZE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_REENT_SUM $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_WPO_ALIAS $_PABI_RELOC_TYPED $_PABI_ELF_CTX $_PABI_DATA_LEN $_G05_W233_PARSEARGV $_G05_W231_EMITCTX $_G05_W229_DIAGEX $_G05_W225_POOL $_G05_W224_PARK $_G05_W223_ASG $_G05_W223_FLSZ $_G05_W223_IDX $_G05_W223_MTRIM $_G05_W213_ASSIGN_RHS $_G05_W214_UASB $_G05_W216_ASSIGN_MM $_G05_W217_ENC $_G05_W212_FLAGS $_G05_W211_SKIP_CG $_G05_W211_CALL_ARG $_G05_W211_VAR_OFF $_G05_W211_REGISTER $_PABI_CONST_LIT $_MAIN_LINK_O ${_G05_IO_ABI_O:-src/runtime_io_abi.o} src/runtime_link_abi.o src/runtime_driver_abi.o ${_G05_DIAG_O:-src/runtime_driver_diagnostic.o} src/diag.o $_PANIC_LINK_O $_PABI_SKIP_HEAVY $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_CODEGEN_CAP_RESIDUAL $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
 # ast_gen2.o: in LEGACY mode, append at link END (mirrors Makefile xlang-c LEGACY L2501

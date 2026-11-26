@@ -411,6 +411,10 @@ def main() -> int:
         # weaken, same-TU relocs still enter that body, so fold W onto the
         # tip T. Not a local-t name. PLATFORM: WINDOWS.
         "xlang_module_collect_imports_from_buf",
+        # DIG s237: tipU rt_rec_next_tok / skip_ws_comment break-as-jmp hang.
+        # Host-cc twins first-wins; fold leftover tipU T → earliest. PLATFORM: WINDOWS.
+        "rt_rec_next_tok",
+        "rt_rec_skip_ws_comment",
         # w2060: mixed-width add/sub and f32 promote. The three arithmetic
         # exports are dual T; demote keeps the cap-band external, and the
         # relink weaken turns that external into W. glue_float_promote is
@@ -534,7 +538,13 @@ def main() -> int:
                         f"win_patch_body_sync_jmp: {cold_name} t={c_addr:#x} -> T={t_addr:#x}"
                     )
         elif len(strong) > 1 and (
-            weak or name == "glue_emit_fixed_array_type_let_init_elf_c"
+            weak
+            or name == "glue_emit_fixed_array_type_let_init_elf_c"
+            # DIG s237: tipU rt_rec_* hang (break→while); host-cc twin is
+            # earliest T; same-TU PE still enters tipU body — fold extra T
+            # → earliest without requiring W. PLATFORM: WINDOWS.
+            or name == "rt_rec_next_tok"
+            or name == "rt_rec_skip_ws_comment"
         ):
             # Tip + leftover T duplicates: fold extras to earliest T.
             # w1024: let_init tip may leave dual egg T with no W when
