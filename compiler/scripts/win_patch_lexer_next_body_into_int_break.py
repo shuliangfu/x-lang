@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Retarget typool lexer_next_body_into int-digit `else { break; }` jmps.
+"""Retarget typool lexer_next_body_into int-digit `else { break; }` + INT emit.
 
 typool compiles the number-span while in lexer_next_body_into:
 
@@ -8,33 +8,26 @@ typool compiles the number-span while in lexer_next_body_into:
         else if (lexer_is_digit_sep(data, l.pos, 0)) { advance '_'; }
         else { break; }
     }
+    // then emit TOKEN_INT via huge-frame Token at -0xdd0
 
-The typool-wrong `else { break; }` is a jmp back to the while head,
-same typool break-as-jmp class as skip_ws / skip_comment / bound-scan.
-Live fromsrc_s106_noaslr hello check hung at typool
-lexer_next_body_into+19233 @ 0x140037199 (e9 96 fd ff ff -> loop head
-0x140036f34). pos stuck at 849, the ';' of `return 0;` in
-core/fmt/mod.x line 22; ival=0; lexer_is_digit / lexer_is_digit_sep
-correctly return 0 on ';'. After the failed is_digit_sep, typool
-`je`s to that typool-wrong jmp instead of leaving the while
-(after-loop is 0x1400371a3). typool is_digit and is_digit_sep are
-the loop workers, not the hang writer.
+The typool-wrong `else { break; }` is a jmp back to the while head
+(same class as skip_ws / skip_comment). s243 retargeted that jmp past
+the continue trampoline (`after = break+10`). On tip PE that landing
+is the while-exit merge that STILL has `pos < len` true when breaking
+on `;`, so control falls into sibling float/hex arms and never reaches
+the decimal `mov $0x50` INT emit — next_body advances past the digit
+but leaves tok.kind=0 (DIG s246: `return 7;` → one_fn fail → nf=0).
 
-The same typool encoding (post-is_digit_sep `je +0x3d` to a jmp-to-head,
-with a continue trampoline immediately after) appears at every
-int-digit while in typool lexer_next_body_into (decimal live; hex /
-bin / oct / exponent siblings share the encoding). This script
-retargets each typool-wrong break to skip the continue trampoline
-and land on the after-loop code. It does not wholesale-fold typool
-lexer_next_body_into.
+s246 Soft Cap (PLATFORM: WINDOWS|X86_64):
+  1) Retarget each else-break to the lea -0xdd0 that seeds the next
+     `mov $0x50` INT emit in the same face (skip the merge fall-through).
+  2) After that mov $0x50, typool copies write_tok_into from the wrong
+     huge-frame slot -0x310 (kind stays 0 even when -0xdd0 has kind=80 /
+     ival). Patch those `lea -0x310(%rbp)` to `lea -0xdd0(%rbp)`.
+     Authority: runtime_pipeline_abi_lexer_emit_int_token_thin.c comments;
+     host-cc twin remains available for a later from_body_into cave.
 
-Pattern is VA-independent (nm + body scan). Idempotent. Refuses
-compiler/xlang_asm.exe. PLATFORM: WINDOWS|X86_64 unofficial from-source
-DIG images only. Soft Cap / tiphead HOLD.
-
-DIG s243: wired into g05_relink_xlang.sh (Win PE post-link, after
-win_tip_p001_face_pe_patch). Live tip hang was is_digit(';') spin
-after Soft Cap next_punct (s242); this Soft Cap closes that UNIQUE.
+Idempotent. Refuses compiler/xlang_asm.exe. Soft Cap / tiphead HOLD.
 """
 from __future__ import annotations
 
@@ -48,6 +41,9 @@ from pathlib import Path
 # After typool's call lexer_is_digit_sep (cltq; add $0x20,%rsp; test;
 # setne; movzbl; test; je +0x3d). The je target is the typool-wrong break.
 POST_CALL = bytes.fromhex("48984883c42085c00f95c00fb6c085c00f843d000000")
+MOV_IMM50 = bytes.fromhex("b850000000")  # mov $0x50,%eax  (TOKEN_INT)
+LEA_DD0 = bytes.fromhex("488d8530f2ffff")  # lea -0xdd0(%rbp),%rax
+LEA_310 = bytes.fromhex("488d85f0fcffff")  # lea -0x310(%rbp),%rax
 
 
 def pe_va_to_off(data: bytes, va: int) -> tuple[int, int]:
@@ -85,15 +81,42 @@ def nm_text_addrs(exe: Path, name: str) -> list[int]:
     return sorted(set(addrs))
 
 
-def find_sites(data: bytearray, exe: Path) -> list[tuple[int, int, int, int, bytes]]:
+def find_mov50_vas(data: bytes, face_va: int, face_off: int, window: int) -> list[int]:
+    blob = bytes(data[face_off : face_off + window])
+    out: list[int] = []
+    start = 0
+    while True:
+        i = blob.find(MOV_IMM50, start)
+        if i < 0:
+            break
+        out.append(face_va + i)
+        start = i + 1
+    return out
+
+
+def emit_lea_before_mov50(data: bytes, mov_va: int) -> int | None:
+    """Return VA of lea -0xdd0 immediately before mov $0x50, if present."""
+    off, _ = pe_va_to_off(data, mov_va)
+    pre = bytes(data[off - 0x20 : off])
+    j = pre.rfind(LEA_DD0)
+    if j < 0:
+        return None
+    return mov_va - 0x20 + j
+
+
+def find_sites(
+    data: bytearray, exe: Path
+) -> list[tuple[int, int, int, int, bytes, int | None]]:
+    """Return (break_va, break_off, old_target, new_target, insn, mov50_va|None)."""
     addrs = nm_text_addrs(exe, "lexer_next_body_into")
     if not addrs:
         raise SystemExit("missing lexer_next_body_into")
     print("SYM lexer_next_body_into", [hex(a) for a in addrs])
-    hits: list[tuple[int, int, int, int, bytes]] = []
+    hits: list[tuple[int, int, int, int, bytes, int | None]] = []
+    window = 0x8000
     for va in addrs:
         off, _image_base = pe_va_to_off(data, va)
-        window = 0x8000
+        movs = find_mov50_vas(data, va, off, window)
         blob = bytes(data[off : off + window])
         start = 0
         while True:
@@ -111,28 +134,57 @@ def find_sites(data: bytearray, exe: Path) -> list[tuple[int, int, int, int, byt
                 start = i + 1
                 continue
             rel = struct.unpack_from("<i", insn, 1)[0]
-            target = break_va + 5 + rel
-            after = break_va + 10
+            old_target = break_va + 5 + rel
+            # Prefer INT emit lea; else legacy skip-continue trampoline.
+            nxt = [m for m in movs if m > break_va]
+            mov50 = nxt[0] if nxt else None
+            if mov50 is not None:
+                emit = emit_lea_before_mov50(data, mov50)
+                new_target = emit if emit is not None else mov50
+            else:
+                new_target = break_va + 10
             print(
                 f"HIT face={hex(va)} je={hex(je_va)} break={hex(break_va)} "
-                f"insn={insn.hex()} target={hex(target)} after={hex(after)}"
+                f"insn={insn.hex()} old={hex(old_target)} new={hex(new_target)} "
+                f"mov50={hex(mov50) if mov50 else None}"
             )
-            hits.append((break_va, break_off, target, after, insn))
+            hits.append((break_va, break_off, old_target, new_target, insn, mov50))
             start = i + 1
     return hits
 
 
-def patch_hits(data: bytearray, hits: list[tuple[int, int, int, int, bytes]]) -> int:
+def patch_lea310_after_mov50(data: bytearray, mov50_va: int) -> int:
+    """Rewrite lea -0x310(%rbp) → lea -0xdd0(%rbp) in the write_tok copy window."""
+    off, _ = pe_va_to_off(data, mov50_va)
     n = 0
-    for break_va, break_off, _target, after, insn in hits:
-        new_rel = after - (break_va + 5)
+    # Field copies + call write_tok sit within ~0x200 of mov $0x50.
+    for j in range(0, 0x200 - 7):
+        abs_off = off + j
+        if bytes(data[abs_off : abs_off + 7]) == LEA_310:
+            data[abs_off : abs_off + 7] = LEA_DD0
+            n += 1
+    if n:
+        print(f"LEA310→DD0 mov50={hex(mov50_va)} n={n}")
+    return n
+
+
+def patch_hits(
+    data: bytearray, hits: list[tuple[int, int, int, int, bytes, int | None]]
+) -> int:
+    n = 0
+    patched_movs: set[int] = set()
+    for break_va, break_off, _old, new_target, insn, mov50 in hits:
+        new_rel = new_target - (break_va + 5)
         new = bytes([0xE9]) + struct.pack("<i", new_rel)
-        if insn == new:
+        if insn != new:
+            print(f"PATCH {hex(break_va)} {insn.hex()} -> {new.hex()} jmp {hex(new_target)}")
+            data[break_off : break_off + 5] = new
+            n += 1
+        else:
             print(f"ALREADY {hex(break_va)} {insn.hex()}")
-            continue
-        print(f"PATCH {hex(break_va)} {insn.hex()} -> {new.hex()} jmp {hex(after)}")
-        data[break_off : break_off + 5] = new
-        n += 1
+        if mov50 is not None and mov50 not in patched_movs:
+            n += patch_lea310_after_mov50(data, mov50)
+            patched_movs.add(mov50)
     return n
 
 
@@ -154,7 +206,7 @@ def main() -> int:
     n = patch_hits(data, hits)
     if n:
         exe.write_bytes(data)
-    print(f"PATCHED {n} / {len(hits)}")
+    print(f"PATCHED {n} ops / {len(hits)} break sites")
     return 0
 
 
