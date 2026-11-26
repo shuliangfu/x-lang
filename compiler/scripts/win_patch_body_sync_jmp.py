@@ -415,10 +415,11 @@ def main() -> int:
         # Host-cc twins first-wins; fold leftover tipU T → earliest. PLATFORM: WINDOWS.
         "rt_rec_next_tok",
         "rt_rec_skip_ws_comment",
-        # DIG s238: tipU alloc/parse_argv shallow-lea smash; fold leftover
-        # tipU T → host-cc earliest. PLATFORM: WINDOWS.
+        # DIG s238: tipU alloc/parse_argv/init shallow-lea smash; fold
+        # leftover tipU T → host-cc earliest. PLATFORM: WINDOWS.
         "driver_compile_state_alloc_c",
         "driver_compile_parse_argv_impl_c",
+        "driver_compile_parse_argv_init_c",
         # w2060: mixed-width add/sub and f32 promote. The three arithmetic
         # exports are dual T; demote keeps the cap-band external, and the
         # relink weaken turns that external into W. glue_float_promote is
@@ -549,10 +550,11 @@ def main() -> int:
             # → earliest without requiring W. PLATFORM: WINDOWS.
             or name == "rt_rec_next_tok"
             or name == "rt_rec_skip_ws_comment"
-            # DIG s238: tipU alloc/parse_argv shallow-lea smash; host-cc
-            # earliest T; fold leftover tipU T. PLATFORM: WINDOWS.
+            # DIG s238: tipU alloc/parse_argv/init shallow-lea smash;
+            # host-cc earliest T; fold leftover tipU T. PLATFORM: WINDOWS.
             or name == "driver_compile_state_alloc_c"
             or name == "driver_compile_parse_argv_impl_c"
+            or name == "driver_compile_parse_argv_init_c"
         ):
             # Tip + leftover T duplicates: fold extras to earliest T.
             # w1024: let_init tip may leave dual egg T with no W when
