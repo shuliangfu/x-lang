@@ -638,10 +638,11 @@ def main() -> int:
             f"win_patch_body_sync_jmp: skip {_punct}(t) "
             f"(need Soft Cap T + t; T={len(_pn_t)} t={len(_pn_loc)})"
         )
-    # DIG s244: tipU lexer_next_into (by-value only) first-wins over Soft Cap
-    # dual-ABI shim → parser *Lexer sites smash → num_funcs=0. Soft Cap
-    # localizes tipU to t; prefer body starting with cmp rdx,$0x10000
-    # (48 81 fa 00 00 01 00). PLATFORM: WINDOWS.
+    # DIG s244/s245: tipU lexer_next_into first-wins over Soft Cap dual-ABI
+    # shim. Soft Cap localizes tipU to t; prefer body starting with
+    # cmp rdx,$0x10000 (48 81 fa 00 00 01 00). s245 rewrote the shim to
+    # feed tipU next_impl POINTER ABI (jae pass-through / by-value spill).
+    # PLATFORM: WINDOWS.
     _next = "lexer_next_into"
     _ni_ents = syms.get(_next, [])
     _ni_t = sorted({a for a, k in _ni_ents if k == "T"})
