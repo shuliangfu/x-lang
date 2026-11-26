@@ -9579,6 +9579,7 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
 
     # Win tip P001 dig_min lexer leaves (DIG 2026-11-09).
     mkdir -p build_asm/seed_host
+    _G05_W241_PUNCT=""
     for _p001_src in \
       src/runtime/rt_lexer_write_result_win_64.s \
       src/runtime/rt_lexer_park_token_start_win_64.s \
@@ -9592,7 +9593,15 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
         ${CC:-gcc} -c -o "$_p001_obj" "$_p001_src" >/dev/null 2>&1 || true
       fi
       if [ -s "$_p001_obj" ]; then
-        _PABI_WIN_DRIVER_LEAVES="$_PABI_WIN_DRIVER_LEAVES $_p001_obj"
+        # DIG s242: Soft Cap next_punct must precede tipU lexer_x in the
+        # leaf bag AND tipU copies must be localized (below) — PE still
+        # first-won tipU (0x47b8 stack-probe smash) over the s241 leaf.
+        if [ "$_p001_src" = "src/runtime/rt_lexer_next_punct_into_win_64.s" ]; then
+          _PABI_WIN_DRIVER_LEAVES="$_p001_obj $_PABI_WIN_DRIVER_LEAVES"
+          _G05_W241_PUNCT="$_p001_obj"
+        else
+          _PABI_WIN_DRIVER_LEAVES="$_PABI_WIN_DRIVER_LEAVES $_p001_obj"
+        fi
         echo "g05_relink_env: Win P001 leaf $_p001_src -> G05" >&2
       fi
     done
@@ -9645,6 +9654,53 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
             echo "g05_relink_env: s238 localize tipU lexer_try_keyword → t; LEXER_X_O=$_tk_lex" >&2
           fi
         fi
+      fi
+    fi
+
+    # DIG s242: tipU lexer_next_punct_into (0x47b8 probe) first-wins over the
+    # s241 Soft Cap leaf → brace path smashes / hangs. Soft Cap: localize
+    # tipU copies to t (same objects as s238 trykw); win_patch folds t→T.
+    # PLATFORM: WINDOWS.
+    if [ -n "$_G05_W241_PUNCT" ]; then
+      _oc242=""
+      if command -v objcopy >/dev/null 2>&1; then _oc242=objcopy
+      elif command -v llvm-objcopy >/dev/null 2>&1; then _oc242=llvm-objcopy
+      fi
+      if [ -n "$_oc242" ]; then
+        for _pn_obj in \
+          build_asm/seed_host/lexer_x_nbi_demoted.o \
+          build_asm/seed_host/lexer_x_s238_trykw.o \
+          build_asm/seed_host/lexer_x_trackl_abi.o
+        do
+          [ -s "$_pn_obj" ] || continue
+          nm "$_pn_obj" 2>/dev/null | grep -qE " T [_]?lexer_next_punct_into$" || continue
+          "$_oc242" --localize-symbol=lexer_next_punct_into "$_pn_obj" 2>/dev/null \
+            || "$_oc242" --localize-symbol=_lexer_next_punct_into "$_pn_obj" 2>/dev/null \
+            || true
+          if nm "$_pn_obj" 2>/dev/null | grep -qE " t [_]?lexer_next_punct_into$"; then
+            echo "g05_relink_env: s242 localize tipU lexer_next_punct_into → t in $_pn_obj" >&2
+          fi
+        done
+        if [ -s lexer_x.o ] \
+          && nm lexer_x.o 2>/dev/null | grep -qE " T [_]?lexer_next_punct_into$"; then
+          mkdir -p build_asm/seed_host
+          _pn_lex=build_asm/seed_host/lexer_x_s242_punct.o
+          # Prefer s238 trykw copy (already localized try_keyword) as base.
+          if [ -n "${_G05_LEXER_X_O:-}" ] && [ -s "$_G05_LEXER_X_O" ]; then
+            cp -f "$_G05_LEXER_X_O" "$_pn_lex"
+          else
+            cp -f lexer_x.o "$_pn_lex"
+          fi
+          "$_oc242" --localize-symbol=lexer_next_punct_into "$_pn_lex" 2>/dev/null \
+            || "$_oc242" --localize-symbol=_lexer_next_punct_into "$_pn_lex" 2>/dev/null \
+            || true
+          if nm "$_pn_lex" 2>/dev/null | grep -qE " t [_]?lexer_next_punct_into$"; then
+            _G05_LEXER_X_O="$_pn_lex"
+            echo "g05_relink_env: s242 localize tipU lexer_next_punct_into → t; LEXER_X_O=$_pn_lex" >&2
+          fi
+        fi
+        _G05_LINK_WINNERS="${_G05_LINK_WINNERS} lexer_next_punct_into=$_G05_W241_PUNCT"
+        echo "g05_relink_env: s242 LINK_WINNERS lexer_next_punct_into → Soft Cap leaf" >&2
       fi
     fi
 
