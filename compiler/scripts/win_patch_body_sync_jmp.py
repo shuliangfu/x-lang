@@ -598,6 +598,50 @@ def main() -> int:
             f"win_patch_body_sync_jmp: skip {_trykw}(t) "
             f"(need 1 T + t; T={len(_tk_t)} t={len(_tk_loc)})"
         )
+    # DIG s238: tipU driver_compile_parse_argv_step_c shallow-lea through
+    # &state at [rbp-0x20] (`lea rax,[rbp-0x20]` = 48 8d 45 e0) then
+    # `add rax,OFF` for field stores — smashes full_x -0x28 during
+    # rt_parse_argv_scan_at. Soft Cap: rewrite lea→mov (48 8b 45 e0) in
+    # every tipU body (same length). Host-cc twin of full step is large;
+    # this is the minimal body fix. PLATFORM: WINDOWS.
+    _step = "driver_compile_parse_argv_step_c"
+    _step_ents = sorted(
+        (a for a, k in syms.get(_step, []) if k in "Tt"), reverse=True
+    )
+    _lea_pat = bytes((0x48, 0x8D, 0x45, 0xE0))  # lea rax,[rbp-0x20]
+    _mov_pat = bytes((0x48, 0x8B, 0x45, 0xE0))  # mov rax,[rbp-0x20]
+    _all_vas = sorted(
+        {a for ents in syms.values() for a, k in ents if k in "TtWw"}
+    )
+    for _sa in _step_ents:
+        # Body ends at next global VA or +0x2000 cap.
+        _end = _sa + 0x2000
+        for _va in _all_vas:
+            if _va > _sa:
+                _end = min(_end, _va)
+                break
+        try:
+            _off0 = _va_to_off(secs, _sa)
+            _off1 = _va_to_off(secs, _end - 1) + 1
+        except SystemExit:
+            continue
+        if _off1 <= _off0:
+            continue
+        _n = 0
+        _i = _off0
+        while _i + 4 <= _off1:
+            if data[_i : _i + 4] == _lea_pat:
+                data[_i : _i + 4] = _mov_pat
+                _n += 1
+                patched += 1
+                _i += 4
+            else:
+                _i += 1
+        if _n:
+            print(
+                f"win_patch_body_sync_jmp: {_step} "
+                f"lea→mov &state x{_n} @0x{_sa:x}"
+            )
     if patched:
         exe.write_bytes(data)
     print(f"win_patch_body_sync_jmp: patched={patched}")
