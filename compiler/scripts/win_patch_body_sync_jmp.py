@@ -638,6 +638,42 @@ def main() -> int:
             f"win_patch_body_sync_jmp: skip {_punct}(t) "
             f"(need Soft Cap T + t; T={len(_pn_t)} t={len(_pn_loc)})"
         )
+    # DIG s244: tipU lexer_next_into (by-value only) first-wins over Soft Cap
+    # dual-ABI shim → parser *Lexer sites smash → num_funcs=0. Soft Cap
+    # localizes tipU to t; prefer body starting with cmp rdx,$0x10000
+    # (48 81 fa 00 00 01 00). PLATFORM: WINDOWS.
+    _next = "lexer_next_into"
+    _ni_ents = syms.get(_next, [])
+    _ni_t = sorted({a for a, k in _ni_ents if k == "T"})
+    _ni_loc = [a for a, k in _ni_ents if k == "t"]
+    _ni_primary = None
+    _ni_sig = bytes((0x48, 0x81, 0xFA, 0x00, 0x00, 0x01, 0x00))
+    if len(_ni_t) == 1:
+        _ni_primary = _ni_t[0]
+    elif len(_ni_t) >= 2:
+        for _a in _ni_t:
+            try:
+                _off = _va_to_off(secs, _a)
+            except SystemExit:
+                continue
+            if data[_off : _off + len(_ni_sig)] == _ni_sig:
+                _ni_primary = _a
+                break
+        if _ni_primary is None:
+            _ni_primary = max(_ni_t)
+        for _a in _ni_t:
+            if _a != _ni_primary:
+                patched += _patch_jmp(
+                    data, secs, _next + "(extraT)", _a, _ni_primary
+                )
+    if _ni_primary is not None and _ni_loc:
+        for _a in _ni_loc:
+            patched += _patch_jmp(data, secs, _next + "(t)", _a, _ni_primary)
+    else:
+        print(
+            f"win_patch_body_sync_jmp: skip {_next}(t) "
+            f"(need Soft Cap T + t; T={len(_ni_t)} t={len(_ni_loc)})"
+        )
     # DIG s238: tipU driver_compile_parse_argv_step_c shallow-lea through
     # &state at [rbp-0x20] (`lea rax,[rbp-0x20]` = 48 8d 45 e0) then
     # `add rax,OFF` for field stores — smashes full_x -0x28 during
