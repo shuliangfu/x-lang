@@ -1286,6 +1286,15 @@ case "$(uname -s 2>/dev/null)" in
     if [ -f scripts/win_tip_p001_face_pe_patch.py ] && [ -f "$OUT" ]; then
       python3 scripts/win_tip_p001_face_pe_patch.py "$OUT" || { echo "g05_relink_xlang: win_tip_p001_face_pe_patch failed" >&2; exit 1; }
     fi
+    # DIG s243: tipU lexer_next_body_into int-digit `else { break; }` is
+    # jmp-to-while-head → spin on ';' after `return 7;` (is_digit/sep OK,
+    # never leave the loop). Soft Cap: VA-independent PE retarget of each
+    # typool-wrong break past the continue trampoline (existing script).
+    # PLATFORM: WINDOWS.
+    if [ -f scripts/win_patch_lexer_next_body_into_int_break.py ] && [ -f "$OUT" ]; then
+      python3 scripts/win_patch_lexer_next_body_into_int_break.py "$OUT" \
+        || { echo "g05_relink_xlang: win_patch_lexer_next_body_into_int_break failed" >&2; exit 1; }
+    fi
     ;;
 esac
 

@@ -31,6 +31,10 @@ lexer_next_body_into.
 Pattern is VA-independent (nm + body scan). Idempotent. Refuses
 compiler/xlang_asm.exe. PLATFORM: WINDOWS|X86_64 unofficial from-source
 DIG images only. Soft Cap / tiphead HOLD.
+
+DIG s243: wired into g05_relink_xlang.sh (Win PE post-link, after
+win_tip_p001_face_pe_patch). Live tip hang was is_digit(';') spin
+after Soft Cap next_punct (s242); this Soft Cap closes that UNIQUE.
 """
 from __future__ import annotations
 
