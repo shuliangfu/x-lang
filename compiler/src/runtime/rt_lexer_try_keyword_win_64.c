@@ -103,7 +103,17 @@ void lexer_try_keyword(Token *out, Fat *data, uint64_t start, uint64_t len,
   K(5, "await", 56);
   K(3, "run", 57);
   K(5, "spawn", 58);
-  K(6, "export", 131);
+  /*
+   * Soft Cap s240 (PLATFORM: WINDOWS): tipU `parser_parse_into_buf` compares
+   * export with immediate 0x37 (55 = TokenKind.TOKEN_ASYNC slot in product
+   * token.x), NOT product TOKEN_EXPORT=131. Host-cc returning 131 takes the
+   * wrong branch → hang inside parse_into_buf before EXPORT_PATH. DIG: kind@
+   * first lex = 131 → cmp miss; force kind=55 → hit +836 EXPORT_PATH.
+   * Collision with async (also 55) is accepted until tipU enum emission of
+   * TOKEN_EXPORT is fixed to 131 end-to-end; do NOT "fix" tipU cmp in PE
+   * (code-cave unmapped). Authority remains token.x=131 for non-Win/tipU.
+   */
+  K(6, "export", 55);
   K(3, "i32", 60);
   K(4, "bool", 61);
   K(2, "u8", 62);
