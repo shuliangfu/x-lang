@@ -91,9 +91,14 @@ extern int32_t pipeline_onefunc_num_consts(uint8_t *pool);
 extern void parser_report_untyped_binding_p010_c(int32_t line, int32_t col, int32_t is_let);
 extern void parser_report_keyword_binding_p014_c(int32_t line, int32_t col);
 
-/* OneFuncResult: only touch fields via helpers + num_lets/num_consts offsets.
- * Layout matches parser_gen: ok, next_lex, name[256], name_len, num_params,
- * num_generic_params, num_consts, num_lets — num_lets at known offset. */
+/*
+ * Soft Cap must NOT write OneFuncResult fields by offset (ok/num_lets/…).
+ * Tip OneFuncResult is much larger (allow(padding) bool ok + many tails);
+ * host-cc partial struct writes were a Heisenbug candidate (gdb let green,
+ * native P001 after Soft Cap dig ok). Authority: pool append helpers only;
+ * tip refreshes num_lets/num_consts from pool after Soft Cap returns.
+ * PLATFORM: WINDOWS Soft Cap / SHARED OneFuncResult contract.
+ */
 typedef struct {
   int ok;
   Lexer next_lex;
@@ -320,8 +325,7 @@ int parser_parse_body_lets_into(void *arena, Lexer lex, SliceU8 *source, OneFunc
         lex_out->col = lex.col;
         return 0;
       }
-      out->num_lets = pipeline_onefunc_num_lets(pool);
-      softcap_body_lets_dig("appended", out->num_lets, r.tok.kind);
+      softcap_body_lets_dig("appended", pipeline_onefunc_num_lets(pool), r.tok.kind);
     } else {
       if (pipeline_onefunc_append_const(pool, &name_row[0], name_len, 0, let_init_ref, let_ty_ref) < 0) {
         lex_out->pos = lex.pos;
@@ -329,12 +333,13 @@ int parser_parse_body_lets_into(void *arena, Lexer lex, SliceU8 *source, OneFunc
         lex_out->col = lex.col;
         return 0;
       }
-      out->num_consts = pipeline_onefunc_num_consts(pool);
     }
   }
   lex_out->pos = lex.pos;
   lex_out->line = lex.line;
   lex_out->col = lex.col;
-  softcap_body_lets_dig("ok", out->num_lets, r.tok.kind);
+  /* DIG: lex_out.pos + kind at exit (native vs gdb Heisenbug map). */
+  softcap_body_lets_dig("ok_pos", (int32_t)lex_out->pos, r.tok.kind);
+  softcap_body_lets_dig("ok_nlets", pipeline_onefunc_num_lets(pool), (int32_t)lex_out->line);
   return 1;
 }
