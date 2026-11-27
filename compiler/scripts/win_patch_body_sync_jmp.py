@@ -111,6 +111,10 @@ _STATIC_T_TO_OVERLAY: tuple[str, ...] = (
     # the external has been weakened. The private pair helper is not an
     # egg symbol and stays out of this list. PLATFORM: WINDOWS.
     "pipeline_asm_emit_expr_elf_rec",
+    # DIG s261: Soft Cap call_arg_const_off host-cc; tip local t still
+    # entered by emit_expr_elf_fast same-TU e8 → SEGV on return x.
+    # PLATFORM: WINDOWS.
+    "glue_call_arg_resolve_var_stack_off_elf_c",
     # w2060: store-retval pair. The egg copy is dual T. demote keeps the
     # cap-band external and leaves the earlier body as static t. Same-TU
     # relocs still enter that t. Fold it onto this thin once the external
@@ -453,6 +457,15 @@ def main() -> int:
         # DIG s258: Soft Cap glue_emit_block_final_expr_elf (let -c SEGV);
         # tipU sole late T after Soft Cap body_sync. PLATFORM: WINDOWS.
         "glue_emit_block_final_expr_elf",
+        # DIG s259: Soft Cap emit_return EXIT host-cc first-wins; fold of
+        # tip-compiled return_sret (0x7168) stays via w1521 name below.
+        # PLATFORM: WINDOWS.
+        # DIG s260: Soft Cap emit_expr_elf_rec host-cc first-wins over Cap
+        # soft tip 0x2bf8 probe; fold tipU/W via name below.
+        # PLATFORM: WINDOWS.
+        # DIG s261: Soft Cap call_arg_const_off host-cc; fold tip local t
+        # (FAST same-TU) + late T → Soft Cap. PLATFORM: WINDOWS.
+        "glue_call_arg_resolve_var_stack_off_elf_c",
         # w2060: mixed-width add/sub and f32 promote. The three arithmetic
         # exports are dual T; demote keeps the cap-band external, and the
         # relink weaken turns that external into W. glue_float_promote is
@@ -530,6 +543,15 @@ def main() -> int:
         _st = [a for a, k in _ents if k == "T"]
         _wk = [a for a, k in _ents if k == "W"]
         _lc = [a for a, k in _ents if k == "t"]
+        # DIG s261: Soft Cap host-cc + Cap soft + tip late T (3×T) still
+        # needs tip local t → earliest Soft Cap. Classic gate wants
+        # exactly one T + W; allow multi-T Soft Cap DIG for this name.
+        # PLATFORM: WINDOWS.
+        if _ln == "glue_call_arg_resolve_var_stack_off_elf_c" and _st and _lc:
+            _dst = min(_st)
+            for _a in _lc:
+                patched += _patch_jmp(data, secs, _ln + "(t)", _a, _dst)
+            continue
         if len(_st) != 1 or not _wk or not _lc:
             print(f"win_patch_body_sync_jmp: skip {_ln}(t) (overlay not linked)")
             continue
@@ -607,6 +629,11 @@ def main() -> int:
             or name == "driver_asm_mkstemp_fdopen"
             or name == "xlang_invoke_ld_for_exe_impl"
             or name == "glue_emit_block_final_expr_elf"
+            # DIG s261: Soft Cap call_arg_const_off host-cc earliest; tip
+            # local t + late T still entered by FAST same-TU — fold extras
+            # (and t below) → earliest without requiring W.
+            # PLATFORM: WINDOWS.
+            or name == "glue_call_arg_resolve_var_stack_off_elf_c"
         ):
             # Tip + leftover T duplicates: fold extras to earliest T.
             # w1024: let_init tip may leave dual egg T with no W when
