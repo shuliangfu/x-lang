@@ -80,7 +80,18 @@ extern void parser_parse_expr_into(void *arena, Lexer lex, SliceU8 *source, Pars
 extern void parser_lexer_copy_from_parse_expr_result_into(Lexer *out_lex, ParseExprResult *res);
 extern void parser_rewind_lex_for_following_stmt_into(Lexer *out_lex, Lexer lex_in, LexerResult r);
 extern int32_t parser_parse_type_ref_for_arena_into(void *arena, Lexer lex, SliceU8 *source, Lexer *out_lex);
-extern int32_t parser_alloc_int_lit(void *arena, int64_t ival);
+/*
+ * DIG s268: tip parser_alloc_int_lit is sub $0x9c0 (Expr by-value get/set).
+ * Soft Cap INT init must NOT call that tip face — nested 0x9c0 from Soft Cap
+ * is the Soft Cap-after native P001 Heisenbug candidate (gdb let green).
+ * Use arena alloc + pipeline_expr_set_* thin writers (no Expr by-value).
+ * PLATFORM: WINDOWS Soft Cap; SHARED ExprKind EXPR_LIT=0 contract.
+ */
+extern int32_t ast_ast_arena_expr_alloc(void *arena);
+extern void pipeline_expr_set_common_zeros_c(void *a, int32_t er);
+extern void pipeline_expr_set_kind(void *a, int32_t er, int32_t kind);
+extern void pipeline_expr_set_line_col(void *a, int32_t er, int32_t line, int32_t col);
+extern void pipeline_expr_set_int_val(void *a, int32_t er, int64_t v);
 extern uint8_t *parser_onefunc_result_pool_ptr(void *res);
 extern int32_t pipeline_onefunc_append_let(uint8_t *out, uint8_t *name, int32_t name_len, int32_t init_val,
                                           int32_t init_ref, int32_t type_ref);
@@ -255,15 +266,20 @@ int parser_parse_body_lets_into(void *arena, Lexer lex, SliceU8 *source, OneFunc
     }
     parser_lex_from_result_ptr_into(&lex, &r);
     lexer_next_into(&r, lex, source);
-    /* INT lit fast path */
+    /* INT lit fast path — thin alloc (avoid tip parser_alloc_int_lit 0x9c0). */
     if (r.tok.kind == 80) {
-      let_init_ref = parser_alloc_int_lit(arena, r.tok.int_val);
+      let_init_ref = ast_ast_arena_expr_alloc(arena);
       if (let_init_ref == 0) {
         lex_out->pos = lex.pos;
         lex_out->line = lex.line;
         lex_out->col = lex.col;
         return 0;
       }
+      pipeline_expr_set_common_zeros_c(arena, let_init_ref);
+      pipeline_expr_set_kind(arena, let_init_ref, 0); /* EXPR_LIT */
+      pipeline_expr_set_int_val(arena, let_init_ref, r.tok.int_val);
+      pipeline_expr_set_line_col(arena, let_init_ref, 0, 0);
+      softcap_body_lets_dig("int_thin", let_init_ref, (int32_t)r.tok.int_val);
       parser_lex_from_result_ptr_into(&lex, &r);
       lexer_next_into(&r, lex, source);
     } else if (r.tok.kind == 59 || r.tok.kind == 51 || r.tok.kind == 129) {
