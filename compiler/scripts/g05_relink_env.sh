@@ -3070,12 +3070,16 @@ PY
   # Manifests as `if (i == lit) { return ...; }` first-stmt return AV
   # after coff_write note2. Host-cc twins (s187/s188 aside) were never
   # g05 LINK_WINNERS — tip-land them now. PLATFORM: SHARED host-cc.
+  # DIG s251: Soft Cap note1 still called tipU put_i32 → smash emit
+  # trace / SEGV after coff_write (RC=5, 0-byte -o). Fold put_i32 into
+  # the same Soft Cap object. PLATFORM: SHARED host-cc.
   _G05_W214_UASB=""
   _g05_uasb_o=build_asm/selfhost_pabi/uasb_notes.o
   _g05_uasb_ok=1
   _g05_uasb_parts=""
   for _g05_uasb_c in \
     src/runtime_pipeline_abi_uasb_put_str_thin.c \
+    src/runtime_pipeline_abi_uasb_put_i32_thin.c \
     src/runtime_pipeline_abi_uasb_note1_thin.c \
     src/runtime_pipeline_abi_uasb_note2_thin.c \
     src/runtime_pipeline_abi_uasb_out_append_thin.c
@@ -3086,6 +3090,7 @@ PY
     _g05_uasb_tmps=""
     for _g05_uasb_c in \
       src/runtime_pipeline_abi_uasb_put_str_thin.c \
+      src/runtime_pipeline_abi_uasb_put_i32_thin.c \
       src/runtime_pipeline_abi_uasb_note1_thin.c \
       src/runtime_pipeline_abi_uasb_note2_thin.c \
       src/runtime_pipeline_abi_uasb_out_append_thin.c
@@ -3102,10 +3107,11 @@ PY
       # Darwin nm prefixes `_`; Linux does not. PLATFORM: SHARED.
       if ld -r -o "${_g05_uasb_o}.tmp.o" $_g05_uasb_tmps 2>/tmp/g05_uasb_ld.err \
         && nm "${_g05_uasb_o}.tmp.o" 2>/dev/null | grep -qE ' T _?user_asm_seed_bridge_uasb_note2$' \
-        && nm "${_g05_uasb_o}.tmp.o" 2>/dev/null | grep -qE ' T _?user_asm_seed_bridge_uasb_put_str$'; then
+        && nm "${_g05_uasb_o}.tmp.o" 2>/dev/null | grep -qE ' T _?user_asm_seed_bridge_uasb_put_str$' \
+        && nm "${_g05_uasb_o}.tmp.o" 2>/dev/null | grep -qE ' T _?user_asm_seed_bridge_uasb_put_i32$'; then
         mv -f "${_g05_uasb_o}.tmp.o" "$_g05_uasb_o"
         _G05_W214_UASB="$_g05_uasb_o"
-        echo "g05_relink_env: s214 host-cc uasb note/put_str/out_append (.c)" >&2
+        echo "g05_relink_env: s214/s251 host-cc uasb note/put_str/put_i32/out_append (.c)" >&2
       else
         rm -f "${_g05_uasb_o}.tmp.o"
         _g05_uasb_ok=0
@@ -3118,6 +3124,7 @@ PY
   if [ -n "$_G05_W214_UASB" ]; then
     for _g05_uasb_sym in \
       user_asm_seed_bridge_uasb_put_str \
+      user_asm_seed_bridge_uasb_put_i32 \
       user_asm_seed_bridge_uasb_note1 \
       user_asm_seed_bridge_uasb_note2 \
       user_asm_seed_bridge_uasb_out_append
@@ -3129,7 +3136,7 @@ PY
       fi
     done
   else
-    echo "g05_relink_env: WARNING s214 uasb host-cc twins did not build" >&2
+    echo "g05_relink_env: WARNING s214/s251 uasb host-cc twins did not build" >&2
   fi
   # DIG s216: tipU assign_mismatch places epart/fpart/msg at lea
   # -0x50/-0x58/-0x60 while fill/build pass cap 112/112/240 → smash
