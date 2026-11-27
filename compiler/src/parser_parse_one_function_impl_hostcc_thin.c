@@ -107,6 +107,8 @@ extern void pipeline_expr_set_line_col(void *a, int32_t er, int32_t line, int32_
 extern void pipeline_expr_set_int_val(void *a, int32_t er, int64_t v);
 extern void parser_onefunc_finish_impl_to_out(void *out, void *snap, Lexer lex, uint8_t *name,
                                              int32_t name_len, int32_t ret_expr_storage);
+extern void parser_onefunc_snap_set_return_path(void *snap, int has_call, uint8_t *ret_var,
+                                               int32_t ret_var_len, int32_t ret_expr_ref);
 extern void parser_parse_one_function_impl_tip(void *out, void *arena, Lexer lex, SliceU8 *source);
 
 /**
@@ -129,11 +131,17 @@ static void softcap_call_tip_body(void *out, void *arena, Lexer lex, SliceU8 *so
   tip_body(out, arena, lex, source);
 }
 
-/* Field offsets from tip parser_copy_onefunc_into / layout dig. PLATFORM: WINDOWS tip PE. */
+/*
+ * Field offsets from Win MinGW sizeof OneFuncResult=920 dig (≡ parser_gen layout).
+ * Soft Cap avoids full struct; tip finish/copy uses these scalars. PLATFORM: WINDOWS.
+ */
 enum {
   OF_OK = 0,
   OF_NUM_LETS = 0x124, /* may vary — Soft Cap uses tip push helpers, not raw writes */
-  OF_FUNC_RET_TY = 0x390
+  OF_RETURN_EXPR_REF = 876,
+  OF_HAS_FINAL_EXPR = 880,
+  OF_HAS_EXPLICIT_RETURN_KW = 884,
+  OF_FUNC_RET_TY = 0x390 /* 912 */
 };
 
 /**
@@ -328,8 +336,20 @@ static int softcap_try_dig_one_function(void *out, void *arena, Lexer lex, Slice
   }
   parser_lex_from_next_into(&lex_cur, r);
 
+  /*
+   * Tip return face sets has_explicit_return_kw + has_final_expr on snap before
+   * finish (else typeck XT001 "must use explicit return"). Soft Cap must match.
+   * PLATFORM: SHARED ≡ tip parse_one_function_impl return finish.
+   */
+  parser_onefunc_snap_set_return_path(&snap_buf, 0, &dummy_name[0], 0, ret_ref);
+  *(int *)((uint8_t *)&snap_buf + OF_HAS_FINAL_EXPR) = 1;
+  *(int *)((uint8_t *)&snap_buf + OF_HAS_EXPLICIT_RETURN_KW) = 1;
   parser_onefunc_finish_impl_to_out(out, &snap_buf, lex_cur, &dummy_name[0], name_len, ret_ref);
   softcap_onefn_dig("ok", name_len, ret_ref);
+  softcap_onefn_dig("out_ok", *(int *)((uint8_t *)out + OF_OK),
+                    *(int *)((uint8_t *)out + OF_HAS_EXPLICIT_RETURN_KW));
+  softcap_onefn_dig("out_ret", *(int32_t *)((uint8_t *)out + OF_RETURN_EXPR_REF),
+                    *(int32_t *)((uint8_t *)out + OF_FUNC_RET_TY));
   return 1;
 }
 
