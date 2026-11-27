@@ -450,6 +450,9 @@ def main() -> int:
         # DIG s257: Soft Cap invoke_ld_for_exe_impl (empty o → kept);
         # tipU/platform passes cleared tmp slot. PLATFORM: WINDOWS.
         "xlang_invoke_ld_for_exe_impl",
+        # DIG s258: Soft Cap glue_emit_block_final_expr_elf (let -c SEGV);
+        # tipU sole late T after Soft Cap body_sync. PLATFORM: WINDOWS.
+        "glue_emit_block_final_expr_elf",
         # w2060: mixed-width add/sub and f32 promote. The three arithmetic
         # exports are dual T; demote keeps the cap-band external, and the
         # relink weaken turns that external into W. glue_float_promote is
@@ -603,6 +606,7 @@ def main() -> int:
             or name == "user_asm_seed_bridge_uasb_sym_name_ptr"
             or name == "driver_asm_mkstemp_fdopen"
             or name == "xlang_invoke_ld_for_exe_impl"
+            or name == "glue_emit_block_final_expr_elf"
         ):
             # Tip + leftover T duplicates: fold extras to earliest T.
             # w1024: let_init tip may leave dual egg T with no W when
