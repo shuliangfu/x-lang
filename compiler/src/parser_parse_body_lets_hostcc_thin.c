@@ -164,6 +164,8 @@ int parser_parse_body_lets_into(void *arena, Lexer lex, SliceU8 *source, OneFunc
   ParseExprResult expr_tmp;
   int32_t is_let;
   int32_t let_init_ref;
+  /* Tip append_let init_val face (INT lit); Soft Cap used to pass 0. PLATFORM: SHARED. */
+  int32_t let_init_val;
   int32_t let_ty_ref;
   int32_t name_len;
   size_t name_start;
@@ -195,6 +197,7 @@ int parser_parse_body_lets_into(void *arena, Lexer lex, SliceU8 *source, OneFunc
     }
     is_let = (r.tok.kind == 2) ? 1 : 0;
     let_init_ref = 0;
+    let_init_val = 0;
     let_ty_ref = 0;
     is_discard_name = 0;
     name_len = 0;
@@ -304,7 +307,8 @@ int parser_parse_body_lets_into(void *arena, Lexer lex, SliceU8 *source, OneFunc
       pipeline_expr_set_kind(arena, let_init_ref, 0); /* EXPR_LIT */
       pipeline_expr_set_int_val(arena, let_init_ref, r.tok.int_val);
       pipeline_expr_set_line_col(arena, let_init_ref, 0, 0);
-      softcap_body_lets_dig("int_thin", let_init_ref, (int32_t)r.tok.int_val);
+      let_init_val = (int32_t)r.tok.int_val;
+      softcap_body_lets_dig("int_thin", let_init_ref, let_init_val);
       parser_lex_from_result_ptr_into(&lex, &r);
       lexer_next_into(&r, lex, source);
     } else if (r.tok.kind == 59 || r.tok.kind == 51 || r.tok.kind == 129) {
@@ -360,7 +364,8 @@ int parser_parse_body_lets_into(void *arena, Lexer lex, SliceU8 *source, OneFunc
       return 0;
     }
     if (is_let != 0) {
-      if (pipeline_onefunc_append_let(pool, &name_row[0], name_len, 0, let_init_ref, let_ty_ref) < 0) {
+      if (pipeline_onefunc_append_let(pool, &name_row[0], name_len, let_init_val, let_init_ref,
+                                      let_ty_ref) < 0) {
         lex_out->pos = lex.pos;
         lex_out->line = lex.line;
         lex_out->col = lex.col;
@@ -368,7 +373,8 @@ int parser_parse_body_lets_into(void *arena, Lexer lex, SliceU8 *source, OneFunc
       }
       softcap_body_lets_dig("appended", pipeline_onefunc_num_lets(pool), r.tok.kind);
     } else {
-      if (pipeline_onefunc_append_const(pool, &name_row[0], name_len, 0, let_init_ref, let_ty_ref) < 0) {
+      if (pipeline_onefunc_append_const(pool, &name_row[0], name_len, let_init_val, let_init_ref,
+                                        let_ty_ref) < 0) {
         lex_out->pos = lex.pos;
         lex_out->line = lex.line;
         lex_out->col = lex.col;

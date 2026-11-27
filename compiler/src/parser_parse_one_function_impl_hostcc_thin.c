@@ -160,7 +160,6 @@ static void softcap_set_func_return_type_ref(void *out, int32_t ty) {
  */
 static int softcap_try_dig_one_function(void *out, void *arena, Lexer lex, SliceU8 *source) {
   SoftcapOneFuncBuf clean_buf;
-  SoftcapOneFuncBuf snap_buf;
   uint8_t dummy_name[256];
   LexerResult r;
   ParseExprResult expr;
@@ -180,24 +179,26 @@ static int softcap_try_dig_one_function(void *out, void *arena, Lexer lex, Slice
     return 0;
   }
   memset(&clean_buf, 0, sizeof(clean_buf));
-  memset(&snap_buf, 0, sizeof(snap_buf));
   memset(dummy_name, 0, sizeof(dummy_name));
   memset(&r, 0, sizeof(r));
   memset(&expr, 0, sizeof(expr));
 
+  /*
+   * Wire only `out` (caller's OneFuncResult). Prior Soft Cap kept a second
+   * SoftcapOneFuncBuf snap and finish(out, &snap) — DIG: append_let on out
+   * then merge/copy through stack snap still native-P001 while skip_append
+   * greens. Finish with snap==out avoids a second sidecar key. PLATFORM: WINDOWS.
+   */
   pool = parser_onefunc_result_pool_ptr(out);
   ast_pool_onefunc_reset(pool);
   clean_buf = parser_onefunc_alloc_wired_for_parse(lex);
   parser_copy_onefunc_into(out, &clean_buf);
-
-  snap_buf = parser_onefunc_scratch_empty();
-  ast_pool_onefunc_reset(parser_onefunc_result_pool_ptr(&snap_buf));
-  parser_onefunc_res_wire_dummy_head(&snap_buf, lex, dummy_name);
-  parser_onefunc_res_wire_dummy_const_let(&snap_buf);
-  parser_onefunc_res_wire_dummy_if_mul(&snap_buf);
-  parser_onefunc_res_wire_dummy_call_binop(&snap_buf, dummy_name);
-  parser_onefunc_res_wire_dummy_loop_call(&snap_buf);
-  parser_onefunc_res_wire_dummy_for_if(&snap_buf);
+  parser_onefunc_res_wire_dummy_head(out, lex, dummy_name);
+  parser_onefunc_res_wire_dummy_const_let(out);
+  parser_onefunc_res_wire_dummy_if_mul(out);
+  parser_onefunc_res_wire_dummy_call_binop(out, dummy_name);
+  parser_onefunc_res_wire_dummy_loop_call(out);
+  parser_onefunc_res_wire_dummy_for_if(out);
 
   lex_cur = lex;
   lexer_next_into(&r, lex_cur, source);
@@ -337,14 +338,14 @@ static int softcap_try_dig_one_function(void *out, void *arena, Lexer lex, Slice
   parser_lex_from_next_into(&lex_cur, r);
 
   /*
-   * Tip return face sets has_explicit_return_kw + has_final_expr on snap before
-   * finish (else typeck XT001 "must use explicit return"). Soft Cap must match.
+   * Tip return face sets has_explicit_return_kw + has_final_expr before finish
+   * (else typeck XT001). Soft Cap finishes with snap==out (no stack twin).
    * PLATFORM: SHARED ≡ tip parse_one_function_impl return finish.
    */
-  parser_onefunc_snap_set_return_path(&snap_buf, 0, &dummy_name[0], 0, ret_ref);
-  *(int *)((uint8_t *)&snap_buf + OF_HAS_FINAL_EXPR) = 1;
-  *(int *)((uint8_t *)&snap_buf + OF_HAS_EXPLICIT_RETURN_KW) = 1;
-  parser_onefunc_finish_impl_to_out(out, &snap_buf, lex_cur, &dummy_name[0], name_len, ret_ref);
+  parser_onefunc_snap_set_return_path(out, 0, &dummy_name[0], 0, ret_ref);
+  *(int *)((uint8_t *)out + OF_HAS_FINAL_EXPR) = 1;
+  *(int *)((uint8_t *)out + OF_HAS_EXPLICIT_RETURN_KW) = 1;
+  parser_onefunc_finish_impl_to_out(out, out, lex_cur, &dummy_name[0], name_len, ret_ref);
   softcap_onefn_dig("ok", name_len, ret_ref);
   softcap_onefn_dig("out_ok", *(int *)((uint8_t *)out + OF_OK),
                     *(int *)((uint8_t *)out + OF_HAS_EXPLICIT_RETURN_KW));
