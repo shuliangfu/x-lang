@@ -3077,10 +3077,18 @@ PY
   # uasb_zero (scale-8 qword store — s140 Soft Cap twin never g05
   # LINK_WINNERS) → ret-to-0 SEGV / RC=5 / 0-byte -o. Fold zero into
   # the same Soft Cap object. PLATFORM: SHARED host-cc.
+  # DIG s253: Soft Cap zero first-wins; Win bare under ASLR SEGV in
+  # tipU coff_machine_ok → uasb_rd32(off=UASB_E_MACHINE=41484312).
+  # WINDOWS-only Soft Cap that only checks code_len@0 (do not fold on
+  # Darwin/Linux — those arms require e_machine==62). PLATFORM: WINDOWS.
   _G05_W214_UASB=""
   _g05_uasb_o=build_asm/selfhost_pabi/uasb_notes.o
   _g05_uasb_ok=1
   _g05_uasb_parts=""
+  _g05_uasb_win_coff_ok=0
+  case "$UNAME_S" in
+    MINGW*|MSYS*|CYGWIN*|Windows_NT*) _g05_uasb_win_coff_ok=1 ;;
+  esac
   for _g05_uasb_c in \
     src/runtime_pipeline_abi_uasb_put_str_thin.c \
     src/runtime_pipeline_abi_uasb_put_i32_thin.c \
@@ -3091,6 +3099,9 @@ PY
   do
     if [ ! -f "$_g05_uasb_c" ]; then _g05_uasb_ok=0; break; fi
   done
+  if [ "$_g05_uasb_win_coff_ok" = "1" ] && [ ! -f src/runtime_pipeline_abi_uasb_coff_machine_ok_thin.c ]; then
+    _g05_uasb_ok=0
+  fi
   if [ "$_g05_uasb_ok" = "1" ]; then
     _g05_uasb_tmps=""
     for _g05_uasb_c in \
@@ -3109,16 +3120,37 @@ PY
         break
       fi
     done
+    if [ "$_g05_uasb_ok" = "1" ] && [ "$_g05_uasb_win_coff_ok" = "1" ]; then
+      _g05_uasb_tmp="${_g05_uasb_o}.runtime_pipeline_abi_uasb_coff_machine_ok_thin.tmp.o"
+      if gcc -c -O2 -o "$_g05_uasb_tmp" src/runtime_pipeline_abi_uasb_coff_machine_ok_thin.c 2>/tmp/g05_uasb.err; then
+        _g05_uasb_tmps="$_g05_uasb_tmps $_g05_uasb_tmp"
+      else
+        _g05_uasb_ok=0
+      fi
+    fi
     if [ "$_g05_uasb_ok" = "1" ] && command -v ld >/dev/null 2>&1; then
       # Darwin nm prefixes `_`; Linux does not. PLATFORM: SHARED.
+      _g05_uasb_nm_ok=0
       if ld -r -o "${_g05_uasb_o}.tmp.o" $_g05_uasb_tmps 2>/tmp/g05_uasb_ld.err \
         && nm "${_g05_uasb_o}.tmp.o" 2>/dev/null | grep -qE ' T _?user_asm_seed_bridge_uasb_note2$' \
         && nm "${_g05_uasb_o}.tmp.o" 2>/dev/null | grep -qE ' T _?user_asm_seed_bridge_uasb_put_str$' \
         && nm "${_g05_uasb_o}.tmp.o" 2>/dev/null | grep -qE ' T _?user_asm_seed_bridge_uasb_put_i32$' \
         && nm "${_g05_uasb_o}.tmp.o" 2>/dev/null | grep -qE ' T _?user_asm_seed_bridge_uasb_zero$'; then
+        _g05_uasb_nm_ok=1
+        if [ "$_g05_uasb_win_coff_ok" = "1" ]; then
+          if ! nm "${_g05_uasb_o}.tmp.o" 2>/dev/null | grep -qE ' T _?user_asm_seed_bridge_uasb_coff_machine_ok$'; then
+            _g05_uasb_nm_ok=0
+          fi
+        fi
+      fi
+      if [ "$_g05_uasb_nm_ok" = "1" ]; then
         mv -f "${_g05_uasb_o}.tmp.o" "$_g05_uasb_o"
         _G05_W214_UASB="$_g05_uasb_o"
-        echo "g05_relink_env: s214/s251/s252 host-cc uasb note/put_str/put_i32/zero/out_append (.c)" >&2
+        if [ "$_g05_uasb_win_coff_ok" = "1" ]; then
+          echo "g05_relink_env: s214/s251–s253 host-cc uasb note/put/zero/coff_machine_ok (.c)" >&2
+        else
+          echo "g05_relink_env: s214/s251/s252 host-cc uasb note/put_str/put_i32/zero/out_append (.c)" >&2
+        fi
       else
         rm -f "${_g05_uasb_o}.tmp.o"
         _g05_uasb_ok=0
@@ -3143,8 +3175,12 @@ PY
         _G05_LINK_WINNERS="$_G05_LINK_WINNERS ${_g05_uasb_sym}=$_G05_W214_UASB"
       fi
     done
+    # PLATFORM: WINDOWS only — Soft Cap coff_machine_ok (s253).
+    if [ "$_g05_uasb_win_coff_ok" = "1" ]; then
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS user_asm_seed_bridge_uasb_coff_machine_ok=$_G05_W214_UASB"
+    fi
   else
-    echo "g05_relink_env: WARNING s214/s251/s252 uasb host-cc twins did not build" >&2
+    echo "g05_relink_env: WARNING s214/s251–s253 uasb host-cc twins did not build" >&2
   fi
   # DIG s216: tipU assign_mismatch places epart/fpart/msg at lea
   # -0x50/-0x58/-0x60 while fill/build pass cap 112/112/240 → smash

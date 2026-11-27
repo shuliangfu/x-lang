@@ -431,6 +431,11 @@ def main() -> int:
         # DIG s239: tipU driver_check_only_get cmp-pointer-as-flag; fold
         # leftover tipU T → host-cc earliest. PLATFORM: WINDOWS.
         "driver_check_only_get",
+        # DIG s252/s253: Soft Cap uasb_zero + coff_machine_ok; same-TU
+        # coff_write e8 tipU — dual-T fold tipU → Soft Cap earliest.
+        # PLATFORM: WINDOWS.
+        "user_asm_seed_bridge_uasb_zero",
+        "user_asm_seed_bridge_uasb_coff_machine_ok",
         # w2060: mixed-width add/sub and f32 promote. The three arithmetic
         # exports are dual T; demote keeps the cap-band external, and the
         # relink weaken turns that external into W. glue_float_promote is
@@ -573,6 +578,11 @@ def main() -> int:
             or name == "cfg_sync_compile_target_from_state_c"
             or name == "driver_compile_resolve_target_cpu_c"
             or name == "driver_check_only_get"
+            # DIG s252/s253: Soft Cap uasb_zero / coff_machine_ok earliest;
+            # same-TU coff_write still e8 tipU — fold tipU T → Soft Cap.
+            # PLATFORM: WINDOWS.
+            or name == "user_asm_seed_bridge_uasb_zero"
+            or name == "user_asm_seed_bridge_uasb_coff_machine_ok"
         ):
             # Tip + leftover T duplicates: fold extras to earliest T.
             # w1024: let_init tip may leave dual egg T with no W when
