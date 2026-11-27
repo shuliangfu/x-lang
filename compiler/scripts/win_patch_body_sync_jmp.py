@@ -453,6 +453,9 @@ def main() -> int:
         # DIG s258: Soft Cap glue_emit_block_final_expr_elf (let -c SEGV);
         # tipU sole late T after Soft Cap body_sync. PLATFORM: WINDOWS.
         "glue_emit_block_final_expr_elf",
+        # DIG s259: Soft Cap emit_return EXIT host-cc first-wins; fold of
+        # tip-compiled return_sret (0x7168) stays via w1521 name below.
+        # PLATFORM: WINDOWS.
         # w2060: mixed-width add/sub and f32 promote. The three arithmetic
         # exports are dual T; demote keeps the cap-band external, and the
         # relink weaken turns that external into W. glue_float_promote is
