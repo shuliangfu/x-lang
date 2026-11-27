@@ -543,6 +543,15 @@ def main() -> int:
         _st = [a for a, k in _ents if k == "T"]
         _wk = [a for a, k in _ents if k == "W"]
         _lc = [a for a, k in _ents if k == "t"]
+        # DIG s261: Soft Cap host-cc + Cap soft + tip late T (3×T) still
+        # needs tip local t → earliest Soft Cap. Classic gate wants
+        # exactly one T + W; allow multi-T Soft Cap DIG for this name.
+        # PLATFORM: WINDOWS.
+        if _ln == "glue_call_arg_resolve_var_stack_off_elf_c" and _st and _lc:
+            _dst = min(_st)
+            for _a in _lc:
+                patched += _patch_jmp(data, secs, _ln + "(t)", _a, _dst)
+            continue
         if len(_st) != 1 or not _wk or not _lc:
             print(f"win_patch_body_sync_jmp: skip {_ln}(t) (overlay not linked)")
             continue
@@ -620,6 +629,11 @@ def main() -> int:
             or name == "driver_asm_mkstemp_fdopen"
             or name == "xlang_invoke_ld_for_exe_impl"
             or name == "glue_emit_block_final_expr_elf"
+            # DIG s261: Soft Cap call_arg_const_off host-cc earliest; tip
+            # local t + late T still entered by FAST same-TU — fold extras
+            # (and t below) → earliest without requiring W.
+            # PLATFORM: WINDOWS.
+            or name == "glue_call_arg_resolve_var_stack_off_elf_c"
         ):
             # Tip + leftover T duplicates: fold extras to earliest T.
             # w1024: let_init tip may leave dual egg T with no W when
