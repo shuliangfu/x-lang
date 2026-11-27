@@ -20,6 +20,24 @@
 #include <stddef.h>
 #include <string.h>
 #include <stdio.h>
+
+/**
+ * DIG s266b: native Soft Cap exit map (gdb let greens; native P001).
+ * Remove after native typed let greens. PLATFORM: WINDOWS.
+ */
+static void softcap_body_lets_dig(const char *msg, int32_t a, int32_t b) {
+  FILE *f;
+  f = fopen("../tmp/from-x-lang-repo/s266/body_lets_dig.log", "a");
+  if (f == 0) {
+    f = fopen("tmp/from-x-lang-repo/s266/body_lets_dig.log", "a");
+  }
+  if (f == 0) {
+    return;
+  }
+  fprintf(f, "%s a=%d b=%d\n", msg, (int)a, (int)b);
+  fclose(f);
+}
+
 typedef struct {
   size_t pos;
   int32_t line;
