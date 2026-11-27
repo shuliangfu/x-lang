@@ -6,7 +6,7 @@
  * without breakpoints) returns body_lets rax=1 and coff_write=163. Not an
  * ASLR bug — giant-frame/chkstk Heisenbug. G.7: small-frame host-cc EXIT
  * (sub $0x1c8) mirrors the product typed binding shape
- * `let|const name: Type = <expr-or-int>;` for the Win tip DIG probe.
+ * `let|const name: Type = <expr-or-int>` (`;` optional before stmt-start) for the Win tip DIG probe.
  *
  * ABI: tip callers pass Lexer* in RDX (movdqu (%rdx)); Token 48B /
  * LexerResult 72B match seed. lexer_next_into Soft Cap accepts pointer
@@ -19,25 +19,6 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
-#include <stdio.h>
-
-/**
- * DIG s266: append one line to tmp dig log (Win Soft Cap let fail map).
- * Not product path — remove after native let greens. PLATFORM: WINDOWS.
- */
-static void softcap_body_lets_dig(const char *msg, int32_t a, int32_t b) {
-  FILE *f;
-  f = fopen("../tmp/from-x-lang-repo/s266/body_lets_dig.log", "a");
-  if (f == 0) {
-    f = fopen("tmp/from-x-lang-repo/s266/body_lets_dig.log", "a");
-  }
-  if (f == 0) {
-    return;
-  }
-  fprintf(f, "%s a=%d b=%d\n", msg, (int)a, (int)b);
-  fclose(f);
-}
-
 typedef struct {
   size_t pos;
   int32_t line;
@@ -130,10 +111,7 @@ int parser_parse_body_lets_into(void *arena, Lexer lex, SliceU8 *source, OneFunc
   int32_t ni;
   int32_t zi;
   int32_t is_discard_name;
-
-  softcap_body_lets_dig("enter", 0, 0);
   if (arena == 0 || source == 0 || out == 0 || lex_out == 0) {
-    softcap_body_lets_dig("null_arg", 0, 0);
     return 0;
   }
   memset(&r, 0, sizeof(r));
@@ -141,13 +119,11 @@ int parser_parse_body_lets_into(void *arena, Lexer lex, SliceU8 *source, OneFunc
   pool = parser_onefunc_result_pool_ptr(out);
   r.next_lex = lex;
   lexer_next_into(&r, lex, source);
-  softcap_body_lets_dig("first_tok", r.tok.kind, r.tok.ident_len);
   if (r.tok.kind != 2 && r.tok.kind != 3) {
     lex = parser_lex_at_token_from_result(r);
     lex_out->pos = lex.pos;
     lex_out->line = lex.line;
     lex_out->col = lex.col;
-    softcap_body_lets_dig("empty_ok", r.tok.kind, 0);
     return 1;
   }
   while (1) {
@@ -163,7 +139,6 @@ int parser_parse_body_lets_into(void *arena, Lexer lex, SliceU8 *source, OneFunc
     memset(name_row, 0, sizeof(name_row));
     parser_lex_from_result_ptr_into(&lex, &r);
     lexer_next_into(&r, lex, source);
-    softcap_body_lets_dig("name_tok", r.tok.kind, r.tok.ident_len);
     /* optional mut after let */
     if (is_let != 0 && r.tok.kind == 59 && r.tok.ident_len == 3) {
       uint8_t m0 = 0;
@@ -186,7 +161,6 @@ int parser_parse_body_lets_into(void *arena, Lexer lex, SliceU8 *source, OneFunc
     if (r.tok.kind == 52) {
       is_discard_name = 1;
     } else if (r.tok.kind != 59 && r.tok.kind != 51) {
-      softcap_body_lets_dig("bad_name", r.tok.kind, 0);
       parser_report_keyword_binding_p014_c(r.tok.line, r.tok.col);
       lex_out->pos = lex.pos;
       lex_out->line = lex.line;
@@ -200,7 +174,6 @@ int parser_parse_body_lets_into(void *arena, Lexer lex, SliceU8 *source, OneFunc
       name_len = 4;
     }
     if (name_len <= 0 || name_len > 255) {
-      softcap_body_lets_dig("bad_len", name_len, 0);
       lex_out->pos = lex.pos;
       lex_out->line = lex.line;
       lex_out->col = lex.col;
@@ -226,12 +199,10 @@ int parser_parse_body_lets_into(void *arena, Lexer lex, SliceU8 *source, OneFunc
     }
     parser_lex_from_result_ptr_into(&lex, &r);
     lexer_next_into(&r, lex, source);
-    softcap_body_lets_dig("after_name", r.tok.kind, 0);
     /* require `: Type` for let; const may omit */
     if (r.tok.kind == 91) {
       parser_lex_from_result_ptr_into(&lex, &r);
       let_ty_ref = parser_parse_type_ref_for_arena_into(arena, lex, source, &lex);
-      softcap_body_lets_dig("ty_ref", let_ty_ref, 0);
       if (let_ty_ref == 0) {
         lex_out->pos = lex.pos;
         lex_out->line = lex.line;
@@ -239,11 +210,9 @@ int parser_parse_body_lets_into(void *arena, Lexer lex, SliceU8 *source, OneFunc
         return 0;
       }
       lexer_next_into(&r, lex, source);
-      softcap_body_lets_dig("after_ty", r.tok.kind, 0);
     } else if (is_let == 0 && r.tok.kind == 117) {
       let_ty_ref = 0;
     } else {
-      softcap_body_lets_dig("untyped", r.tok.kind, is_let);
       parser_report_untyped_binding_p010_c(r.tok.line, r.tok.col, is_let);
       lex_out->pos = lex.pos;
       lex_out->line = lex.line;
@@ -252,7 +221,6 @@ int parser_parse_body_lets_into(void *arena, Lexer lex, SliceU8 *source, OneFunc
     }
     if (r.tok.kind != 117) {
       /* omit-init only for let when next is stmt-start — DIG probe always has `=` */
-      softcap_body_lets_dig("no_assign", r.tok.kind, 0);
       lex_out->pos = lex.pos;
       lex_out->line = lex.line;
       lex_out->col = lex.col;
@@ -260,11 +228,9 @@ int parser_parse_body_lets_into(void *arena, Lexer lex, SliceU8 *source, OneFunc
     }
     parser_lex_from_result_ptr_into(&lex, &r);
     lexer_next_into(&r, lex, source);
-    softcap_body_lets_dig("init_tok", r.tok.kind, (int32_t)r.tok.int_val);
     /* INT lit fast path */
     if (r.tok.kind == 80) {
       let_init_ref = parser_alloc_int_lit(arena, r.tok.int_val);
-      softcap_body_lets_dig("int_lit", let_init_ref, 0);
       if (let_init_ref == 0) {
         lex_out->pos = lex.pos;
         lex_out->line = lex.line;
@@ -273,7 +239,6 @@ int parser_parse_body_lets_into(void *arena, Lexer lex, SliceU8 *source, OneFunc
       }
       parser_lex_from_result_ptr_into(&lex, &r);
       lexer_next_into(&r, lex, source);
-      softcap_body_lets_dig("after_int", r.tok.kind, 0);
     } else if (r.tok.kind == 59 || r.tok.kind == 51 || r.tok.kind == 129) {
       size_t rhs_start = r.token_start;
       parser_lex_from_result_ptr_into(&lex, &r);
@@ -297,18 +262,29 @@ int parser_parse_body_lets_into(void *arena, Lexer lex, SliceU8 *source, OneFunc
       parser_rewind_lex_for_following_stmt_into(&lex, lex, r);
     } else {
       /* Soft Cap: unsupported init shape → soft-drop (same class as tip miss). */
-      softcap_body_lets_dig("unsup_init", r.tok.kind, 0);
       lex_out->pos = lex.pos;
       lex_out->line = lex.line;
       lex_out->col = lex.col;
       return 0;
     }
+    /*
+     * Tip (parser.x): after plain INT init, `;` may be omitted when the next
+     * token is a stmt-start (RETURN=11, LET=2, CONST=3, IF=4, WHILE=6,
+     * FOR=8, LBRACE=85). DIG s266: Soft Cap required SEMI → no_semi on
+     * `let x: i32 = 1\n  return x` (kind=11). PLATFORM: SHARED.
+     */
     if (r.tok.kind == 95) {
+      /* Consume `;`, then land lex/r on the following stmt token (tip twin). */
       parser_lex_from_result_ptr_into(&lex, &r);
       lexer_next_into(&r, lex, source);
-      softcap_body_lets_dig("after_semi", r.tok.kind, 0);
+      lex = parser_lex_at_token_from_result(r);
+      lexer_next_into(&r, lex, source);
+    } else if (r.tok.kind == 2 || r.tok.kind == 3 || r.tok.kind == 11
+               || r.tok.kind == 4 || r.tok.kind == 6 || r.tok.kind == 8
+               || r.tok.kind == 85) {
+      /* Omit `;`: leave r on stmt-start; point lex at that token. */
+      lex = parser_lex_at_token_from_result(r);
     } else {
-      softcap_body_lets_dig("no_semi", r.tok.kind, 0);
       lex_out->pos = lex.pos;
       lex_out->line = lex.line;
       lex_out->col = lex.col;
@@ -316,17 +292,14 @@ int parser_parse_body_lets_into(void *arena, Lexer lex, SliceU8 *source, OneFunc
     }
     if (is_let != 0) {
       if (pipeline_onefunc_append_let(pool, &name_row[0], name_len, 0, let_init_ref, let_ty_ref) < 0) {
-        softcap_body_lets_dig("append_let_fail", name_len, let_init_ref);
         lex_out->pos = lex.pos;
         lex_out->line = lex.line;
         lex_out->col = lex.col;
         return 0;
       }
       out->num_lets = pipeline_onefunc_num_lets(pool);
-      softcap_body_lets_dig("append_let_ok", out->num_lets, name_len);
     } else {
       if (pipeline_onefunc_append_const(pool, &name_row[0], name_len, 0, let_init_ref, let_ty_ref) < 0) {
-        softcap_body_lets_dig("append_const_fail", name_len, 0);
         lex_out->pos = lex.pos;
         lex_out->line = lex.line;
         lex_out->col = lex.col;
@@ -338,6 +311,5 @@ int parser_parse_body_lets_into(void *arena, Lexer lex, SliceU8 *source, OneFunc
   lex_out->pos = lex.pos;
   lex_out->line = lex.line;
   lex_out->col = lex.col;
-  softcap_body_lets_dig("ok_exit", out->num_lets, 0);
   return 1;
 }
