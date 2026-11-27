@@ -436,6 +436,10 @@ def main() -> int:
         # PLATFORM: WINDOWS.
         "user_asm_seed_bridge_uasb_zero",
         "user_asm_seed_bridge_uasb_coff_machine_ok",
+        # DIG s254: Soft Cap uasb_rd32/wr32 (full 64-bit p+off); tipU
+        # truncates p to 32-bit under ASLR. PLATFORM: WINDOWS.
+        "uasb_rd32",
+        "user_asm_seed_bridge_uasb_wr32",
         # w2060: mixed-width add/sub and f32 promote. The three arithmetic
         # exports are dual T; demote keeps the cap-band external, and the
         # relink weaken turns that external into W. glue_float_promote is
@@ -583,6 +587,8 @@ def main() -> int:
             # PLATFORM: WINDOWS.
             or name == "user_asm_seed_bridge_uasb_zero"
             or name == "user_asm_seed_bridge_uasb_coff_machine_ok"
+            or name == "uasb_rd32"
+            or name == "user_asm_seed_bridge_uasb_wr32"
         ):
             # Tip + leftover T duplicates: fold extras to earliest T.
             # w1024: let_init tip may leave dual egg T with no W when
