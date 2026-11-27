@@ -111,6 +111,10 @@ _STATIC_T_TO_OVERLAY: tuple[str, ...] = (
     # the external has been weakened. The private pair helper is not an
     # egg symbol and stays out of this list. PLATFORM: WINDOWS.
     "pipeline_asm_emit_expr_elf_rec",
+    # DIG s261: Soft Cap call_arg_const_off host-cc; tip local t still
+    # entered by emit_expr_elf_fast same-TU e8 → SEGV on return x.
+    # PLATFORM: WINDOWS.
+    "glue_call_arg_resolve_var_stack_off_elf_c",
     # w2060: store-retval pair. The egg copy is dual T. demote keeps the
     # cap-band external and leaves the earlier body as static t. Same-TU
     # relocs still enter that t. Fold it onto this thin once the external
@@ -459,6 +463,9 @@ def main() -> int:
         # DIG s260: Soft Cap emit_expr_elf_rec host-cc first-wins over Cap
         # soft tip 0x2bf8 probe; fold tipU/W via name below.
         # PLATFORM: WINDOWS.
+        # DIG s261: Soft Cap call_arg_const_off host-cc; fold tip local t
+        # (FAST same-TU) + late T → Soft Cap. PLATFORM: WINDOWS.
+        "glue_call_arg_resolve_var_stack_off_elf_c",
         # w2060: mixed-width add/sub and f32 promote. The three arithmetic
         # exports are dual T; demote keeps the cap-band external, and the
         # relink weaken turns that external into W. glue_float_promote is
