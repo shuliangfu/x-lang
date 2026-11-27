@@ -415,6 +415,12 @@ def main() -> int:
         # Host-cc twins first-wins; fold leftover tipU T → earliest. PLATFORM: WINDOWS.
         "rt_rec_next_tok",
         "rt_rec_skip_ws_comment",
+        # DIG s247: tipU generic_bound_scan EOF break→while hang after
+        # FINISH_OK; host-cc twin first-wins; fold leftover tipU. PLATFORM: WINDOWS.
+        "parser_asm_generic_bound_scan_into_c",
+        # DIG s247 residual: tipU peek_kind uninit kind@EOF; Soft Cap memset.
+        # PLATFORM: WINDOWS.
+        "parser_asm_lex_peek_kind_c",
         # DIG s238: tipU alloc/parse_argv/init shallow-lea smash; fold
         # leftover tipU T → host-cc earliest. PLATFORM: WINDOWS.
         "driver_compile_state_alloc_c",
@@ -555,6 +561,10 @@ def main() -> int:
             # → earliest without requiring W. PLATFORM: WINDOWS.
             or name == "rt_rec_next_tok"
             or name == "rt_rec_skip_ws_comment"
+            # DIG s247: tipU generic_bound_scan EOF break→while; fold
+            # leftover tipU T → host-cc earliest. PLATFORM: WINDOWS.
+            or name == "parser_asm_generic_bound_scan_into_c"
+            or name == "parser_asm_lex_peek_kind_c"
             # DIG s238: tipU alloc/parse_argv/init shallow-lea smash;
             # host-cc earliest T; fold leftover tipU T. PLATFORM: WINDOWS.
             or name == "driver_compile_state_alloc_c"

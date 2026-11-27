@@ -1,17 +1,20 @@
 /* Source-faithful pipeline_asm_wpo_reach_compute_for_elf twin
  * (runtime_pipeline_abi_asm_wpo_thin.x).
- * s139 hang after prerun: prerun returned 0 at 0.704s, typeck method
- * call entered, then live samples sat in typool
- * pipeline_asm_wpo_reach_compute_for_elf (0x1400c49e4) scanning names
- * via pipeline_module_func_name_equal_at -> module_func_at / sidecar.
- * Source `break` after found_root=1 was typool-compiled as
+ *
+ * DIG s139 / s249 Soft Cap (PLATFORM: SHARED host-cc; PE fold WINDOWS):
+ * typool first-wins compiles `found_root=1; break` as
  *   movl $1, found_root; jmp loop_test
- * without leaving the loop or incrementing fi0. Hello's first function
- * is "main", so typool re-compared fi0=0 forever. Same typool
- * break-as-jmp-to-head family as s137 rt_ab_dep_waits_unvisited.
- * typool first-wins WPO state in runtime_pipeline_abi_asm_wpo_thin.o
- * is Lxml end-labeled COMMON/.data (not the leftover pabi_weak g_aw_*
- * locals). Accessors match typool lea SYM-size. docs-only .x, do not idx8.
+ * without leaving the loop or incrementing fi0. A module whose first
+ * function is "main" (hello / bare_colon) re-compares fi0=0 forever via
+ * pipeline_module_func_name_equal_at → module_func_at / sidecar (looks
+ * like a sidecar hang; root is the break-as-jmp). Same family as s137
+ * rt_ab_dep_waits_unvisited / s247 generic_bound_scan EOF break.
+ *
+ * typool first-wins WPO state in runtime_pipeline_abi_asm_wpo_thin.o is
+ * Lxml end-labeled COMMON/.data (not leftover pabi_weak g_aw_* locals).
+ * This twin must lea the same Lxml slots so Soft Cap first-wins still
+ * shares state with tipU build_reach / register_* helpers.
+ * docs-only .x, do not idx8. g05 LINK_WINNERS + DRIVER_SEED first (s249).
  */
 #include <stdint.h>
 
