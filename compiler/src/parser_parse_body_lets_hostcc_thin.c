@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
+#include <stdio.h>
 typedef struct {
   size_t pos;
   int32_t line;
@@ -111,7 +112,9 @@ int parser_parse_body_lets_into(void *arena, Lexer lex, SliceU8 *source, OneFunc
   int32_t ni;
   int32_t zi;
   int32_t is_discard_name;
+  softcap_body_lets_dig("enter", 0, 0);
   if (arena == 0 || source == 0 || out == 0 || lex_out == 0) {
+    softcap_body_lets_dig("null",0,0);
     return 0;
   }
   memset(&r, 0, sizeof(r));
@@ -119,6 +122,7 @@ int parser_parse_body_lets_into(void *arena, Lexer lex, SliceU8 *source, OneFunc
   pool = parser_onefunc_result_pool_ptr(out);
   r.next_lex = lex;
   lexer_next_into(&r, lex, source);
+  softcap_body_lets_dig("first", r.tok.kind, 0);
   if (r.tok.kind != 2 && r.tok.kind != 3) {
     lex = parser_lex_at_token_from_result(r);
     lex_out->pos = lex.pos;
@@ -287,6 +291,7 @@ int parser_parse_body_lets_into(void *arena, Lexer lex, SliceU8 *source, OneFunc
     } else {
       lex_out->pos = lex.pos;
       lex_out->line = lex.line;
+      softcap_body_lets_dig("semi_fail", r.tok.kind, 0);
       lex_out->col = lex.col;
       return 0;
     }
@@ -298,6 +303,7 @@ int parser_parse_body_lets_into(void *arena, Lexer lex, SliceU8 *source, OneFunc
         return 0;
       }
       out->num_lets = pipeline_onefunc_num_lets(pool);
+      softcap_body_lets_dig("appended", out->num_lets, r.tok.kind);
     } else {
       if (pipeline_onefunc_append_const(pool, &name_row[0], name_len, 0, let_init_ref, let_ty_ref) < 0) {
         lex_out->pos = lex.pos;
@@ -311,5 +317,6 @@ int parser_parse_body_lets_into(void *arena, Lexer lex, SliceU8 *source, OneFunc
   lex_out->pos = lex.pos;
   lex_out->line = lex.line;
   lex_out->col = lex.col;
+  softcap_body_lets_dig("ok", out->num_lets, r.tok.kind);
   return 1;
 }
