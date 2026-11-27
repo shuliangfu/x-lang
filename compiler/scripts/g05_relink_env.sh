@@ -3550,12 +3550,6 @@ PY
             mv -f "${_g05_bl_o}.tmp.o" "$_g05_bl_o"
             _G05_W265_BODYLETS="$_g05_bl_o"
             _G05_LINK_WINNERS="$_G05_LINK_WINNERS parser_parse_body_lets_into=$_g05_bl_o"
-            # DIG s270: Soft Cap also owns pipeline_onefunc_num_lets (one-shot
-            # suppress after Soft Cap prefix push). PLATFORM: WINDOWS.
-            if nm "$_g05_bl_o" 2>/dev/null | grep -qE ' T [_]?pipeline_onefunc_num_lets$'; then
-              _G05_LINK_WINNERS="$_G05_LINK_WINNERS pipeline_onefunc_num_lets=$_g05_bl_o"
-              echo "g05_relink_env: s270 host-cc pipeline_onefunc_num_lets EXIT (.c)" >&2
-            fi
             echo "g05_relink_env: s266 host-cc parse_body_lets_into EXIT (.c)" >&2
           else
             rm -f "${_g05_bl_o}.tmp.o"

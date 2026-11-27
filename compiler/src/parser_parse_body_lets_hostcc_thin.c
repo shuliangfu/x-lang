@@ -122,37 +122,10 @@ extern int32_t pipeline_onefunc_append_let(uint8_t *out, uint8_t *name, int32_t 
                                           int32_t init_ref, int32_t type_ref);
 extern int32_t pipeline_onefunc_append_const(uint8_t *out, uint8_t *name, int32_t name_len, int32_t init_val,
                                             int32_t init_ref, int32_t type_ref);
-/*
- * DIG s270: tip parse_one_function_impl 0x2268 lets-path Heisenbug after Soft Cap
- * append (skip_append greens; append → native P001). Soft Cap pushes prefix let
- * stmt_order here, then arms a one-shot suppress so tip's post-Soft Cap
- * `out.num_lets = pipeline_onefunc_num_lets(...)` sees 0 and skips the giant-frame
- * while-push loop. Raw count uses ast_pipeline_onefunc_num_lets (not this Soft Cap).
- * PLATFORM: WINDOWS Soft Cap DIG.
- */
-extern int32_t ast_pipeline_onefunc_num_lets(uint8_t *pool);
-extern int32_t pipeline_onefunc_push_stmt_order(uint8_t *out, uint8_t kind, int32_t idx);
+extern int32_t pipeline_onefunc_num_lets(uint8_t *pool);
 extern int32_t pipeline_onefunc_num_consts(uint8_t *pool);
 extern void parser_report_untyped_binding_p010_c(int32_t line, int32_t col, int32_t is_let);
 extern void parser_report_keyword_binding_p014_c(int32_t line, int32_t col);
-
-static int g_softcap_nlets_suppress_once = 0;
-
-/**
- * Soft Cap twin of pipeline_onefunc_num_lets (DIG s270 one-shot suppress).
- *
- * @param pool OneFuncResult* pool key
- * @return let count; 0 once after Soft Cap body_lets arms suppress
- * PLATFORM: WINDOWS Soft Cap; SHARED sidecar count contract via ast_ twin.
- */
-int32_t pipeline_onefunc_num_lets(uint8_t *pool) {
-  if (g_softcap_nlets_suppress_once != 0) {
-    g_softcap_nlets_suppress_once = 0;
-    softcap_body_lets_dig("nlets_suppress", 0, 0);
-    return 0;
-  }
-  return ast_pipeline_onefunc_num_lets(pool);
-}
 
 /*
  * Soft Cap must NOT write OneFuncResult fields by offset (ok/num_lets/…).
@@ -393,7 +366,7 @@ int parser_parse_body_lets_into(void *arena, Lexer lex, SliceU8 *source, OneFunc
         lex_out->col = lex.col;
         return 0;
       }
-      softcap_body_lets_dig("appended", ast_pipeline_onefunc_num_lets(pool), r.tok.kind);
+      softcap_body_lets_dig("appended", pipeline_onefunc_num_lets(pool), r.tok.kind);
     } else {
       if (pipeline_onefunc_append_const(pool, &name_row[0], name_len, 0, let_init_ref, let_ty_ref) < 0) {
         lex_out->pos = lex.pos;
@@ -408,29 +381,8 @@ int parser_parse_body_lets_into(void *arena, Lexer lex, SliceU8 *source, OneFunc
   lex_out->col = lex.col;
   /* DIG: lex_out.pos + kind at exit (native vs gdb Heisenbug map). */
   softcap_body_lets_dig("ok_pos", (int32_t)lex_out->pos, r.tok.kind);
-  {
-    int32_t nlets_exit;
-    int32_t pi;
-    nlets_exit = ast_pipeline_onefunc_num_lets(pool);
-    softcap_body_lets_dig("ok_nlets", nlets_exit, (int32_t)lex_out->line);
-    /*
-     * DIG s270: push prefix let stmt_order in Soft Cap (small frame), then arm
-     * one-shot num_lets suppress so tip skips 0x2268 while-push Heisenbug.
-     * Later tip/codegen num_lets calls see the real count again.
-     */
-    if (nlets_exit > 0) {
-      pi = 0;
-      while (pi < nlets_exit) {
-        if (pipeline_onefunc_push_stmt_order(pool, (uint8_t)1, pi) < 0) {
-          softcap_body_lets_dig("push_fail", pi, nlets_exit);
-          return 0;
-        }
-        pi = pi + 1;
-      }
-      g_softcap_nlets_suppress_once = 1;
-      softcap_body_lets_dig("armed_suppress", nlets_exit, 0);
-    }
-  }
+  softcap_body_lets_dig("ok_nlets", pipeline_onefunc_num_lets(pool), (int32_t)lex_out->line);
+  /* Commit tip caller pages before returning into 0x2268 lets-path. */
   softcap_touch_caller_stack_pages();
   return 1;
 }
