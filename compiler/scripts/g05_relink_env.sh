@@ -3081,6 +3081,9 @@ PY
   # tipU coff_machine_ok → uasb_rd32(off=UASB_E_MACHINE=41484312).
   # WINDOWS-only Soft Cap that only checks code_len@0 (do not fold on
   # Darwin/Linux — those arms require e_machine==62). PLATFORM: WINDOWS.
+  # DIG s254: Soft Cap machine_ok closed E_MACHINE path; coff_write then
+  # SEGV in tipU uasb_rd32 — p truncated to 32-bit before p+off (ASLR
+  # high heap). Fold host-cc rd32/wr32 (full pointer width). PLATFORM: SHARED.
   _G05_W214_UASB=""
   _g05_uasb_o=build_asm/selfhost_pabi/uasb_notes.o
   _g05_uasb_ok=1
@@ -3093,6 +3096,7 @@ PY
     src/runtime_pipeline_abi_uasb_put_str_thin.c \
     src/runtime_pipeline_abi_uasb_put_i32_thin.c \
     src/runtime_pipeline_abi_uasb_zero_thin.c \
+    src/runtime_pipeline_abi_uasb_rd32_thin.c \
     src/runtime_pipeline_abi_uasb_note1_thin.c \
     src/runtime_pipeline_abi_uasb_note2_thin.c \
     src/runtime_pipeline_abi_uasb_out_append_thin.c
@@ -3108,6 +3112,7 @@ PY
       src/runtime_pipeline_abi_uasb_put_str_thin.c \
       src/runtime_pipeline_abi_uasb_put_i32_thin.c \
       src/runtime_pipeline_abi_uasb_zero_thin.c \
+      src/runtime_pipeline_abi_uasb_rd32_thin.c \
       src/runtime_pipeline_abi_uasb_note1_thin.c \
       src/runtime_pipeline_abi_uasb_note2_thin.c \
       src/runtime_pipeline_abi_uasb_out_append_thin.c
@@ -3135,7 +3140,9 @@ PY
         && nm "${_g05_uasb_o}.tmp.o" 2>/dev/null | grep -qE ' T _?user_asm_seed_bridge_uasb_note2$' \
         && nm "${_g05_uasb_o}.tmp.o" 2>/dev/null | grep -qE ' T _?user_asm_seed_bridge_uasb_put_str$' \
         && nm "${_g05_uasb_o}.tmp.o" 2>/dev/null | grep -qE ' T _?user_asm_seed_bridge_uasb_put_i32$' \
-        && nm "${_g05_uasb_o}.tmp.o" 2>/dev/null | grep -qE ' T _?user_asm_seed_bridge_uasb_zero$'; then
+        && nm "${_g05_uasb_o}.tmp.o" 2>/dev/null | grep -qE ' T _?user_asm_seed_bridge_uasb_zero$' \
+        && nm "${_g05_uasb_o}.tmp.o" 2>/dev/null | grep -qE ' T _?uasb_rd32$' \
+        && nm "${_g05_uasb_o}.tmp.o" 2>/dev/null | grep -qE ' T _?user_asm_seed_bridge_uasb_wr32$'; then
         _g05_uasb_nm_ok=1
         if [ "$_g05_uasb_win_coff_ok" = "1" ]; then
           if ! nm "${_g05_uasb_o}.tmp.o" 2>/dev/null | grep -qE ' T _?user_asm_seed_bridge_uasb_coff_machine_ok$'; then
@@ -3147,9 +3154,9 @@ PY
         mv -f "${_g05_uasb_o}.tmp.o" "$_g05_uasb_o"
         _G05_W214_UASB="$_g05_uasb_o"
         if [ "$_g05_uasb_win_coff_ok" = "1" ]; then
-          echo "g05_relink_env: s214/s251–s253 host-cc uasb note/put/zero/coff_machine_ok (.c)" >&2
+          echo "g05_relink_env: s214/s251–s254 host-cc uasb note/put/zero/rd32/coff_machine_ok (.c)" >&2
         else
-          echo "g05_relink_env: s214/s251/s252 host-cc uasb note/put_str/put_i32/zero/out_append (.c)" >&2
+          echo "g05_relink_env: s214/s251/s252/s254 host-cc uasb note/put/zero/rd32 (.c)" >&2
         fi
       else
         rm -f "${_g05_uasb_o}.tmp.o"
@@ -3167,7 +3174,9 @@ PY
       user_asm_seed_bridge_uasb_zero \
       user_asm_seed_bridge_uasb_note1 \
       user_asm_seed_bridge_uasb_note2 \
-      user_asm_seed_bridge_uasb_out_append
+      user_asm_seed_bridge_uasb_out_append \
+      uasb_rd32 \
+      user_asm_seed_bridge_uasb_wr32
     do
       if [ "$UNAME_S" = "Darwin" ]; then
         _G05_LINK_WINNERS="$_G05_LINK_WINNERS _${_g05_uasb_sym}=$_G05_W214_UASB"
@@ -3180,7 +3189,7 @@ PY
       _G05_LINK_WINNERS="$_G05_LINK_WINNERS user_asm_seed_bridge_uasb_coff_machine_ok=$_G05_W214_UASB"
     fi
   else
-    echo "g05_relink_env: WARNING s214/s251–s253 uasb host-cc twins did not build" >&2
+    echo "g05_relink_env: WARNING s214/s251–s254 uasb host-cc twins did not build" >&2
   fi
   # DIG s216: tipU assign_mismatch places epart/fpart/msg at lea
   # -0x50/-0x58/-0x60 while fill/build pass cap 112/112/240 → smash
