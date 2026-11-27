@@ -109,6 +109,26 @@ extern void parser_onefunc_finish_impl_to_out(void *out, void *snap, Lexer lex, 
                                              int32_t name_len, int32_t ret_expr_storage);
 extern void parser_parse_one_function_impl_tip(void *out, void *arena, Lexer lex, SliceU8 *source);
 
+/**
+ * Call real tip body after win_patch plants `jmp SoftCap` at tip entry (5 bytes).
+ * Soft Cap non-DIG / dig-miss must not call tip symbol (that would recurse).
+ * PLATFORM: WINDOWS Soft Cap + win_patch s271.
+ */
+static void softcap_call_tip_body(void *out, void *arena, Lexer lex, SliceU8 *source) {
+  typedef void (*TipFn)(void *, void *, Lexer, SliceU8 *);
+  uint8_t *tip_entry;
+  TipFn tip_body;
+
+  tip_entry = (uint8_t *)(void *)&parser_parse_one_function_impl_tip;
+  /* Skip planted E9 rel32 at tip entry when present; else call tip as-is. */
+  if (tip_entry[0] == 0xE9) {
+    tip_body = (TipFn)(void *)(tip_entry + 5);
+  } else {
+    tip_body = (TipFn)(void *)tip_entry;
+  }
+  tip_body(out, arena, lex, source);
+}
+
 /* Field offsets from tip parser_copy_onefunc_into / layout dig. PLATFORM: WINDOWS tip PE. */
 enum {
   OF_OK = 0,
@@ -173,13 +193,18 @@ static int softcap_try_dig_one_function(void *out, void *arena, Lexer lex, Slice
 
   lex_cur = lex;
   lexer_next_into(&r, lex_cur, source);
-  /* TOKEN_FUNCTION=1 */
-  if (r.tok.kind != 1) {
-    softcap_onefn_dig("no_fn", r.tok.kind, 0);
-    return 0;
+  /*
+   * Entry contract (≡ tip parse_one_function_impl / parse_into):
+   * parse_into consumes TOKEN_FUNCTION then calls with lex AFTER `function`,
+   * so the first token is usually TOKEN_IDENT (name). Direct callers may still
+   * pass lex AT TOKEN_FUNCTION. Accept both; reject other shapes → tip.
+   * PLATFORM: SHARED DIG vs tip IDENT-first empty branch + FUNCTION path.
+   */
+  if (r.tok.kind == 1) {
+    /* TOKEN_FUNCTION — consume then expect IDENT */
+    parser_lex_from_next_into(&lex_cur, r);
+    lexer_next_into(&r, lex_cur, source);
   }
-  parser_lex_from_next_into(&lex_cur, r);
-  lexer_next_into(&r, lex_cur, source);
   /* TOKEN_IDENT=59 */
   if (r.tok.kind != 59) {
     softcap_onefn_dig("no_name", r.tok.kind, 0);
@@ -324,5 +349,5 @@ void parser_parse_one_function_impl(void *out, void *arena, Lexer lex, SliceU8 *
     return;
   }
   softcap_onefn_dig("tip", 0, 0);
-  parser_parse_one_function_impl_tip(out, arena, lex, source);
+  softcap_call_tip_body(out, arena, lex, source);
 }

@@ -143,6 +143,12 @@ _STATIC_T_TO_OVERLAY: tuple[str, ...] = (
 # PLATFORM: WINDOWS.
 _ALIAS_TO_CHECKED: tuple[tuple[str, str], ...] = (
     ("pipeline_asm_expr_lit_i32_at_c", "pipeline_asm_cmp_expr_lit_i32_at"),
+    # DIG s271: tip mega same-TU e8 still hits parser_parse_one_function_impl_tip
+    # (parser_x.o redefine); Soft Cap first-wins the unprefixed name only.
+    # Fold tip entry → Soft Cap; Soft Cap fallthrough calls tip+5 (skip this jmp).
+    # PLATFORM: WINDOWS.
+    ("parser_parse_one_function_impl_tip", "parser_parse_one_function_impl"),
+    ("parse_one_function_impl_tip", "parser_parse_one_function_impl"),
 )
 
 
