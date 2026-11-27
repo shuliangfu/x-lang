@@ -444,6 +444,9 @@ def main() -> int:
         # tipU add %eax truncates. PLATFORM: WINDOWS.
         "user_asm_seed_bridge_uasb_sym_at",
         "user_asm_seed_bridge_uasb_sym_name_ptr",
+        # DIG s256: Soft Cap driver_asm_mkstemp_fdopen (want-exe -o hang);
+        # tipU sole T hangs on empty template. PLATFORM: WINDOWS.
+        "driver_asm_mkstemp_fdopen",
         # w2060: mixed-width add/sub and f32 promote. The three arithmetic
         # exports are dual T; demote keeps the cap-band external, and the
         # relink weaken turns that external into W. glue_float_promote is
@@ -595,6 +598,7 @@ def main() -> int:
             or name == "user_asm_seed_bridge_uasb_wr32"
             or name == "user_asm_seed_bridge_uasb_sym_at"
             or name == "user_asm_seed_bridge_uasb_sym_name_ptr"
+            or name == "driver_asm_mkstemp_fdopen"
         ):
             # Tip + leftover T duplicates: fold extras to earliest T.
             # w1024: let_init tip may leave dual egg T with no W when

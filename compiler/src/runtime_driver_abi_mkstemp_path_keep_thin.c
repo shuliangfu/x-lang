@@ -5,11 +5,14 @@
  * coff_write succeeds, but by invoke_ld the same BSS slot is empty → ld argv
  * user .o is "" → U WinMain (no T main on the link line).
  *
+ * DIG s256 Soft Cap tip-land (PLATFORM: WINDOWS host-cc; PE fold):
+ * After s255 Win bare -c green, bare -o hangs in tipU
+ * driver_asm_mkstemp_fdopen (sole late T, empty template / typool body).
+ * Fold this twin into g05 LINK_WINNERS + DRIVER_SEED; win_patch dual-T.
+ *
  * Keep a durable copy of the mkstemp path that work_reset / BSS smash must not
  * share with the mutable template slot. invoke_ld (win_ld) prefers the kept
  * path when o_path is empty.
- *
- * PLATFORM: WINDOWS DIG host-cc first-wins; SHARED mkstemp contract.
  */
 #include <stdint.h>
 #include <stdio.h>
@@ -82,13 +85,6 @@ void *driver_asm_mkstemp_fdopen(unsigned char *path_out64) {
     path_out64[0] = 0;
     g_driver_asm_tmp_path_kept[0] = '\0';
     return 0;
-  }
-  {
-    FILE *log = fopen("C:/xlang_tmp/dig_l2_rc1_verify_2026-11-11/_mkstemp_kept.txt", "w");
-    if (log) {
-      fprintf(log, "path=[%s]\nkept=[%s]\n", (char *)path_out64, g_driver_asm_tmp_path_kept);
-      fclose(log);
-    }
   }
   return fp;
 }
