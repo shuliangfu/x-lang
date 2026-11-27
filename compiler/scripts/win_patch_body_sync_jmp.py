@@ -119,6 +119,9 @@ _STATIC_T_TO_OVERLAY: tuple[str, ...] = (
     # entered by FAST same-TU e8 after VAROFF fold → SEGV on return x.
     # PLATFORM: WINDOWS.
     "glue_load_var_as_value_to_rax_rdx_elf_c",
+    # DIG s263: Soft Cap needs_ptr_load host-cc; tip/typool 0x1168 SEGV.
+    # PLATFORM: WINDOWS.
+    "glue_local_var_slot_needs_ptr_load_elf_c",
     # w2060: store-retval pair. The egg copy is dual T. demote keeps the
     # cap-band external and leaves the earlier body as static t. Same-TU
     # relocs still enter that t. Fold it onto this thin once the external
@@ -473,6 +476,9 @@ def main() -> int:
         # DIG s262: Soft Cap load_var_dual_gp host-cc; fold tip local t
         # (FAST same-TU) + late T → Soft Cap. PLATFORM: WINDOWS.
         "glue_load_var_as_value_to_rax_rdx_elf_c",
+        # DIG s263: Soft Cap needs_ptr_load host-cc; fold tip/typool
+        # 0x1168 + late T → Soft Cap. PLATFORM: WINDOWS.
+        "glue_local_var_slot_needs_ptr_load_elf_c",
         # w2060: mixed-width add/sub and f32 promote. The three arithmetic
         # exports are dual T; demote keeps the cap-band external, and the
         # relink weaken turns that external into W. glue_float_promote is
@@ -559,6 +565,7 @@ def main() -> int:
             in (
                 "glue_call_arg_resolve_var_stack_off_elf_c",
                 "glue_load_var_as_value_to_rax_rdx_elf_c",
+                "glue_local_var_slot_needs_ptr_load_elf_c",
             )
             and _st
             and _lc
@@ -653,6 +660,10 @@ def main() -> int:
             # local t + late T still entered by FAST same-TU — fold extras
             # → earliest without requiring W. PLATFORM: WINDOWS.
             or name == "glue_load_var_as_value_to_rax_rdx_elf_c"
+            # DIG s263: Soft Cap needs_ptr_load host-cc earliest; tip/typool
+            # 0x1168 still entered — fold extras → earliest without W.
+            # PLATFORM: WINDOWS.
+            or name == "glue_local_var_slot_needs_ptr_load_elf_c"
         ):
             # Tip + leftover T duplicates: fold extras to earliest T.
             # w1024: let_init tip may leave dual egg T with no W when
