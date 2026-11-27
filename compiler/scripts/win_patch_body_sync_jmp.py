@@ -125,6 +125,9 @@ _STATIC_T_TO_OVERLAY: tuple[str, ...] = (
     # DIG s264: Soft Cap holds_indirect_ptr host-cc; tip 0x8a8 SEGV.
     # PLATFORM: WINDOWS.
     "asm_local_var_slot_holds_indirect_ptr",
+    # DIG s265: Soft Cap parse_body_lets_into host-cc; tip 0x11d8 P001.
+    # PLATFORM: WINDOWS.
+    "parser_parse_body_lets_into",
     # w2060: store-retval pair. The egg copy is dual T. demote keeps the
     # cap-band external and leaves the earlier body as static t. Same-TU
     # relocs still enter that t. Fold it onto this thin once the external
@@ -485,6 +488,9 @@ def main() -> int:
         # DIG s264: Soft Cap holds_indirect_ptr host-cc; fold tip 0x8a8
         # → Soft Cap. PLATFORM: WINDOWS.
         "asm_local_var_slot_holds_indirect_ptr",
+        # DIG s265: Soft Cap parse_body_lets_into host-cc; fold tip 0x11d8
+        # → Soft Cap. PLATFORM: WINDOWS.
+        "parser_parse_body_lets_into",
         # w2060: mixed-width add/sub and f32 promote. The three arithmetic
         # exports are dual T; demote keeps the cap-band external, and the
         # relink weaken turns that external into W. glue_float_promote is
@@ -573,6 +579,7 @@ def main() -> int:
                 "glue_load_var_as_value_to_rax_rdx_elf_c",
                 "glue_local_var_slot_needs_ptr_load_elf_c",
                 "asm_local_var_slot_holds_indirect_ptr",
+                "parser_parse_body_lets_into",
             )
             and _st
             and _lc
@@ -675,6 +682,10 @@ def main() -> int:
             # 0x8a8 still entered — fold extras → earliest without W.
             # PLATFORM: WINDOWS.
             or name == "asm_local_var_slot_holds_indirect_ptr"
+            # DIG s265: Soft Cap parse_body_lets_into host-cc earliest; tip
+            # 0x11d8 still entered — fold extras → earliest without W.
+            # PLATFORM: WINDOWS.
+            or name == "parser_parse_body_lets_into"
         ):
             # Tip + leftover T duplicates: fold extras to earliest T.
             # w1024: let_init tip may leave dual egg T with no W when
