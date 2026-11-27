@@ -3000,6 +3000,37 @@ PY
   else
     echo "g05_relink_env: WARNING s247 peek_kind host-cc twin did not build" >&2
   fi
+  # DIG s249: Win tip -c hang AFTER Soft Cap lex/parse — typool first-wins
+  # pipeline_asm_wpo_reach_compute_for_elf compiles `found_root=1; break`
+  # as mov $1; jmp loop_test (no leave / no fi0++). Hello/bare "main" at
+  # fi0=0 → infinite name_equal_at. Soft Cap: existing host-cc twin
+  # (Lxml tipU WPO state) first-wins + win_patch folds leftover tipU/
+  # seed T → earliest. PLATFORM: SHARED host-cc; PE fold WINDOWS-only.
+  _G05_W249_REACH=""
+  _g05_rc_c=src/runtime_pipeline_abi_asm_wpo_reach_compute_for_elf_thin.c
+  _g05_rc_o=build_asm/selfhost_pabi/wpo_reach_compute_for_elf_hostcc.o
+  if [ -f "$_g05_rc_c" ]; then
+    mkdir -p build_asm/selfhost_pabi
+    if gcc -c -O2 -o "${_g05_rc_o}.tmp.o" "$_g05_rc_c" 2>/tmp/g05_w249_rc.err; then
+      if nm "${_g05_rc_o}.tmp.o" 2>/dev/null \
+           | grep -qE ' T [_]?pipeline_asm_wpo_reach_compute_for_elf$'; then
+        mv -f "${_g05_rc_o}.tmp.o" "$_g05_rc_o"
+        _G05_W249_REACH="$_g05_rc_o"
+        echo "g05_relink_env: s249 host-cc wpo_reach_compute_for_elf (.c)" >&2
+      else
+        rm -f "${_g05_rc_o}.tmp.o"
+      fi
+    fi
+  fi
+  if [ -n "$_G05_W249_REACH" ]; then
+    if [ "$UNAME_S" = "Darwin" ]; then
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS _pipeline_asm_wpo_reach_compute_for_elf=$_G05_W249_REACH"
+    else
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS pipeline_asm_wpo_reach_compute_for_elf=$_G05_W249_REACH"
+    fi
+  else
+    echo "g05_relink_env: WARNING s249 wpo_reach_compute_for_elf host-cc twin did not build" >&2
+  fi
   # DIG s214: tipU uasb_note2 (and note1) place msg at lea -0x50/-0x28
   # with cap=256 → smash saved args → put_str reads int-as-ptr AV.
   # Manifests as `if (i == lit) { return ...; }` first-stmt return AV
@@ -7944,8 +7975,8 @@ _X_FRONTEND="parser_x.o ${_G05_LEXER_X_O:-lexer_x.o} ${_G05_TYPECK_X_O:-typeck_x
 # DIG s223: host-cc twins s211–s223 MUST precede $_PABI_LINK_O so Linux
 # --allow-multiple-definition first-wins (LINK_WINNERS alone does not put
 # the .o on the link line). PLATFORM: SHARED.
-# DIG s234–s237 / s247: host-cc Soft Caps BEFORE tip providers. PLATFORM: SHARED.
-_DRIVER_SEED_OBJS="$_G05_W247_PEEKIND $_G05_W247_BOUNDSCAN $_G05_W239_CHECKONLY $_G05_W238_ALLOC $_G05_W238_ARGVINIT $_G05_W238_CFGSYNC $_G05_W238_RESOLVECPU $_G05_W237_SKIPWS $_G05_W237_NEXTTOK $_G05_W236_DIAGAP $_G05_W235_PPDIR $_G05_W234_FV_MALLOC $_G05_W234_FILEVIEW $_PABI_WIN_1046_PROVIDERS $_PABI_MODLET_TABLE_BASE $_PABI_MODLET_SEED_SIGNED $_PABI_ADDR_OF_CALL $_PABI_ELF_LAYOUT_64K $_PABI_INDEX_BASE_FIELD $_PABI_SLICE_MODLET $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_ELF_UNDEF_CAP $_PABI_LAYOUT_OFF $_PABI_NAMED_BUILTIN_CAP $_PABI_NAMED_ALIGN $_PABI_NAMED_SIZE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_REENT_SUM $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_WPO_ALIAS $_PABI_RELOC_TYPED $_PABI_ELF_CTX $_PABI_DATA_LEN $_G05_W233_PARSEARGV $_G05_W231_EMITCTX $_G05_W229_DIAGEX $_G05_W225_POOL $_G05_W224_PARK $_G05_W223_ASG $_G05_W223_FLSZ $_G05_W223_IDX $_G05_W223_MTRIM $_G05_W213_ASSIGN_RHS $_G05_W214_UASB $_G05_W216_ASSIGN_MM $_G05_W217_ENC $_G05_W212_FLAGS $_G05_W211_SKIP_CG $_G05_W211_CALL_ARG $_G05_W211_VAR_OFF $_G05_W211_REGISTER $_PABI_CONST_LIT $_MAIN_LINK_O ${_G05_IO_ABI_O:-src/runtime_io_abi.o} src/runtime_link_abi.o src/runtime_driver_abi.o ${_G05_DIAG_O:-src/runtime_driver_diagnostic.o} src/diag.o $_PANIC_LINK_O $_PABI_SKIP_HEAVY $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_CODEGEN_CAP_RESIDUAL $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
+# DIG s234–s237 / s247 / s249: host-cc Soft Caps BEFORE tip providers. PLATFORM: SHARED.
+_DRIVER_SEED_OBJS="$_G05_W249_REACH $_G05_W247_PEEKIND $_G05_W247_BOUNDSCAN $_G05_W239_CHECKONLY $_G05_W238_ALLOC $_G05_W238_ARGVINIT $_G05_W238_CFGSYNC $_G05_W238_RESOLVECPU $_G05_W237_SKIPWS $_G05_W237_NEXTTOK $_G05_W236_DIAGAP $_G05_W235_PPDIR $_G05_W234_FV_MALLOC $_G05_W234_FILEVIEW $_PABI_WIN_1046_PROVIDERS $_PABI_MODLET_TABLE_BASE $_PABI_MODLET_SEED_SIGNED $_PABI_ADDR_OF_CALL $_PABI_ELF_LAYOUT_64K $_PABI_INDEX_BASE_FIELD $_PABI_SLICE_MODLET $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_ELF_UNDEF_CAP $_PABI_LAYOUT_OFF $_PABI_NAMED_BUILTIN_CAP $_PABI_NAMED_ALIGN $_PABI_NAMED_SIZE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_REENT_SUM $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_WPO_ALIAS $_PABI_RELOC_TYPED $_PABI_ELF_CTX $_PABI_DATA_LEN $_G05_W233_PARSEARGV $_G05_W231_EMITCTX $_G05_W229_DIAGEX $_G05_W225_POOL $_G05_W224_PARK $_G05_W223_ASG $_G05_W223_FLSZ $_G05_W223_IDX $_G05_W223_MTRIM $_G05_W213_ASSIGN_RHS $_G05_W214_UASB $_G05_W216_ASSIGN_MM $_G05_W217_ENC $_G05_W212_FLAGS $_G05_W211_SKIP_CG $_G05_W211_CALL_ARG $_G05_W211_VAR_OFF $_G05_W211_REGISTER $_PABI_CONST_LIT $_MAIN_LINK_O ${_G05_IO_ABI_O:-src/runtime_io_abi.o} src/runtime_link_abi.o src/runtime_driver_abi.o ${_G05_DIAG_O:-src/runtime_driver_diagnostic.o} src/diag.o $_PANIC_LINK_O $_PABI_SKIP_HEAVY $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_CODEGEN_CAP_RESIDUAL $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
 # ast_gen2.o: in LEGACY mode, append at link END (mirrors Makefile xlang-c LEGACY L2501
