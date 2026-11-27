@@ -1,11 +1,16 @@
 /*
- * Host-gcc Soft Cap twin of parser_parse_body_lets_into (DIG s265).
+ * Host-gcc Soft Cap twin of parser_parse_body_lets_into (DIG s265/s266).
  *
- * Tip typool body (sole T @ PE) opens with mov $0x11d8 / ___chkstk_ms —
- * native typed `let` returns P001 while the same PE under gdb returns
- * success (rax=1, coff_write=163). G.7: small-frame host-cc EXIT mirrors
- * the product let/const run for the common typed binding shape
- * `let|const name: Type = <expr-or-int>;` used by the Win tip DIG probe.
+ * Tip typool body opens with mov $0x11d8 / ___chkstk_ms. Win DIG: native
+ * typed `let` always P001; the same PE under gdb (ASLR on or off, with or
+ * without breakpoints) returns body_lets rax=1 and coff_write=163. Not an
+ * ASLR bug — giant-frame/chkstk Heisenbug. G.7: small-frame host-cc EXIT
+ * (sub $0x1c8) mirrors the product typed binding shape
+ * `let|const name: Type = <expr-or-int>;` for the Win tip DIG probe.
+ *
+ * ABI: tip callers pass Lexer* in RDX (movdqu (%rdx)); Token 48B /
+ * LexerResult 72B match seed. lexer_next_into Soft Cap accepts pointer
+ * path (RDX>=0x10000).
  *
  * PLATFORM: WINDOWS host-cc Soft Cap; SHARED contract vs parser.x /
  * parser_gen parse_body_lets_into (subset sufficient for DIG probe;
