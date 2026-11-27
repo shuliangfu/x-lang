@@ -38,6 +38,31 @@ static void softcap_body_lets_dig(const char *msg, int32_t a, int32_t b) {
   fclose(f);
 }
 
+/**
+ * DIG s269: tip parse_one_function_impl uses mov $0x2268 + ___chkstk_ms.
+ * Soft Cap returns into that frame; native lets-path (num_lets>=1) P001 while
+ * skip_append (same Soft Cap depth, num_lets=0) greens — likely uncommitted
+ * stack pages for deeper tip locals. Touch ~0x3000 below the caller's frame
+ * before Soft Cap returns so tip lets-path slots are committed.
+ * PLATFORM: WINDOWS Soft Cap DIG; remove after native typed let greens.
+ */
+static void softcap_touch_caller_stack_pages(void) {
+  volatile unsigned char *fp;
+  size_t i;
+  unsigned char sink;
+  sink = 0;
+  fp = (volatile unsigned char *)__builtin_frame_address(1);
+  if (fp == 0) {
+    softcap_body_lets_dig("touch_nofp", 0, 0);
+    return;
+  }
+  /* Walk down toward older frames / deeper tip alloca (page size 0x1000). */
+  for (i = 0; i < 0x3000; i += 0x1000) {
+    sink = (unsigned char)(sink + fp[-((ptrdiff_t)i)]);
+  }
+  softcap_body_lets_dig("touch", (int32_t)sink, 0x3000);
+}
+
 typedef struct {
   size_t pos;
   int32_t line;
@@ -357,5 +382,7 @@ int parser_parse_body_lets_into(void *arena, Lexer lex, SliceU8 *source, OneFunc
   /* DIG: lex_out.pos + kind at exit (native vs gdb Heisenbug map). */
   softcap_body_lets_dig("ok_pos", (int32_t)lex_out->pos, r.tok.kind);
   softcap_body_lets_dig("ok_nlets", pipeline_onefunc_num_lets(pool), (int32_t)lex_out->line);
+  /* Commit tip caller pages before returning into 0x2268 lets-path. */
+  softcap_touch_caller_stack_pages();
   return 1;
 }
