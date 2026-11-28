@@ -2322,7 +2322,22 @@ if [ -x ./xlang_asm ]; then
       fi
     fi
   fi
-  if [ -n "$_G05_W223_ASG" ]; then
+  # typool assign.o (authority assign_thin.x; w945 weaken_keep keeps the
+  # four T) already precedes the host-cc twin in _DRIVER_SEED_OBJS
+  # (_PABI_SELFHOST before _G05_W223_ASG), so typool first-wins. Point
+  # LINK_WINNERS at that typool T when present; keep the host-cc twin
+  # as leftover-U gold only when typool assign.o lacks the T.
+  # PLATFORM: SHARED. M2 typool when typool typool-shown.
+  _g05_asg_want="$_G05_W223_ASG"
+  _g05_asg_ty=build_asm/selfhost_pabi/assign.o
+  if [ -s "$_g05_asg_ty" ] \
+    && nm "$_g05_asg_ty" 2>/dev/null | grep -qE ' T asg_thin_load_i32_le$' \
+    && nm "$_g05_asg_ty" 2>/dev/null | grep -qE ' T asg_thin_store_i32_le$' \
+    && nm "$_g05_asg_ty" 2>/dev/null | grep -qE ' T asg_thin_ctx_off_next_offset$' \
+    && nm "$_g05_asg_ty" 2>/dev/null | grep -qE ' T asg_thin_align_next_offset$'; then
+    _g05_asg_want="$_g05_asg_ty"
+  fi
+  if [ -n "$_g05_asg_want" ]; then
     for _g05_asg_sym in \
       asg_thin_load_i32_le \
       asg_thin_store_i32_le \
@@ -2330,9 +2345,9 @@ if [ -x ./xlang_asm ]; then
       asg_thin_align_next_offset
     do
       if [ "$UNAME_S" = "Darwin" ]; then
-        _G05_LINK_WINNERS="$_G05_LINK_WINNERS _${_g05_asg_sym}=$_G05_W223_ASG"
+        _G05_LINK_WINNERS="$_G05_LINK_WINNERS _${_g05_asg_sym}=$_g05_asg_want"
       else
-        _G05_LINK_WINNERS="$_G05_LINK_WINNERS ${_g05_asg_sym}=$_G05_W223_ASG"
+        _G05_LINK_WINNERS="$_G05_LINK_WINNERS ${_g05_asg_sym}=$_g05_asg_want"
       fi
     done
   else
