@@ -115,6 +115,19 @@ _STATIC_T_TO_OVERLAY: tuple[str, ...] = (
     # entered by emit_expr_elf_fast same-TU e8 → SEGV on return x.
     # PLATFORM: WINDOWS.
     "glue_call_arg_resolve_var_stack_off_elf_c",
+    # DIG s262: Soft Cap load_var_dual_gp host-cc; tip local t still
+    # entered by FAST same-TU e8 after VAROFF fold → SEGV on return x.
+    # PLATFORM: WINDOWS.
+    "glue_load_var_as_value_to_rax_rdx_elf_c",
+    # DIG s263: Soft Cap needs_ptr_load host-cc; tip/typool 0x1168 SEGV.
+    # PLATFORM: WINDOWS.
+    "glue_local_var_slot_needs_ptr_load_elf_c",
+    # DIG s264: Soft Cap holds_indirect_ptr host-cc; tip 0x8a8 SEGV.
+    # PLATFORM: WINDOWS.
+    "asm_local_var_slot_holds_indirect_ptr",
+    # DIG s265: Soft Cap parse_body_lets_into host-cc; tip 0x11d8 P001.
+    # PLATFORM: WINDOWS.
+    "parser_parse_body_lets_into",
     # w2060: store-retval pair. The egg copy is dual T. demote keeps the
     # cap-band external and leaves the earlier body as static t. Same-TU
     # relocs still enter that t. Fold it onto this thin once the external
@@ -130,6 +143,12 @@ _STATIC_T_TO_OVERLAY: tuple[str, ...] = (
 # PLATFORM: WINDOWS.
 _ALIAS_TO_CHECKED: tuple[tuple[str, str], ...] = (
     ("pipeline_asm_expr_lit_i32_at_c", "pipeline_asm_cmp_expr_lit_i32_at"),
+    # DIG s271: tip mega same-TU e8 still hits parser_parse_one_function_impl_tip
+    # (parser_x.o redefine); Soft Cap first-wins the unprefixed name only.
+    # Fold tip entry → Soft Cap; Soft Cap fallthrough calls tip+5 (skip this jmp).
+    # PLATFORM: WINDOWS.
+    ("parser_parse_one_function_impl_tip", "parser_parse_one_function_impl"),
+    ("parse_one_function_impl_tip", "parser_parse_one_function_impl"),
 )
 
 
@@ -466,6 +485,18 @@ def main() -> int:
         # DIG s261: Soft Cap call_arg_const_off host-cc; fold tip local t
         # (FAST same-TU) + late T → Soft Cap. PLATFORM: WINDOWS.
         "glue_call_arg_resolve_var_stack_off_elf_c",
+        # DIG s262: Soft Cap load_var_dual_gp host-cc; fold tip local t
+        # (FAST same-TU) + late T → Soft Cap. PLATFORM: WINDOWS.
+        "glue_load_var_as_value_to_rax_rdx_elf_c",
+        # DIG s263: Soft Cap needs_ptr_load host-cc; fold tip/typool
+        # 0x1168 + late T → Soft Cap. PLATFORM: WINDOWS.
+        "glue_local_var_slot_needs_ptr_load_elf_c",
+        # DIG s264: Soft Cap holds_indirect_ptr host-cc; fold tip 0x8a8
+        # → Soft Cap. PLATFORM: WINDOWS.
+        "asm_local_var_slot_holds_indirect_ptr",
+        # DIG s265: Soft Cap parse_body_lets_into host-cc; fold tip 0x11d8
+        # → Soft Cap. PLATFORM: WINDOWS.
+        "parser_parse_body_lets_into",
         # w2060: mixed-width add/sub and f32 promote. The three arithmetic
         # exports are dual T; demote keeps the cap-band external, and the
         # relink weaken turns that external into W. glue_float_promote is
@@ -543,11 +574,22 @@ def main() -> int:
         _st = [a for a, k in _ents if k == "T"]
         _wk = [a for a, k in _ents if k == "W"]
         _lc = [a for a, k in _ents if k == "t"]
-        # DIG s261: Soft Cap host-cc + Cap soft + tip late T (3×T) still
+        # DIG s261/s262: Soft Cap host-cc + Cap soft + tip late T still
         # needs tip local t → earliest Soft Cap. Classic gate wants
-        # exactly one T + W; allow multi-T Soft Cap DIG for this name.
+        # exactly one T + W; allow multi-T Soft Cap DIG for these names.
         # PLATFORM: WINDOWS.
-        if _ln == "glue_call_arg_resolve_var_stack_off_elf_c" and _st and _lc:
+        if (
+            _ln
+            in (
+                "glue_call_arg_resolve_var_stack_off_elf_c",
+                "glue_load_var_as_value_to_rax_rdx_elf_c",
+                "glue_local_var_slot_needs_ptr_load_elf_c",
+                "asm_local_var_slot_holds_indirect_ptr",
+                "parser_parse_body_lets_into",
+            )
+            and _st
+            and _lc
+        ):
             _dst = min(_st)
             for _a in _lc:
                 patched += _patch_jmp(data, secs, _ln + "(t)", _a, _dst)
@@ -634,6 +676,22 @@ def main() -> int:
             # (and t below) → earliest without requiring W.
             # PLATFORM: WINDOWS.
             or name == "glue_call_arg_resolve_var_stack_off_elf_c"
+            # DIG s262: Soft Cap load_var_dual_gp host-cc earliest; tip
+            # local t + late T still entered by FAST same-TU — fold extras
+            # → earliest without requiring W. PLATFORM: WINDOWS.
+            or name == "glue_load_var_as_value_to_rax_rdx_elf_c"
+            # DIG s263: Soft Cap needs_ptr_load host-cc earliest; tip/typool
+            # 0x1168 still entered — fold extras → earliest without W.
+            # PLATFORM: WINDOWS.
+            or name == "glue_local_var_slot_needs_ptr_load_elf_c"
+            # DIG s264: Soft Cap holds_indirect_ptr host-cc earliest; tip
+            # 0x8a8 still entered — fold extras → earliest without W.
+            # PLATFORM: WINDOWS.
+            or name == "asm_local_var_slot_holds_indirect_ptr"
+            # DIG s265: Soft Cap parse_body_lets_into host-cc earliest; tip
+            # 0x11d8 still entered — fold extras → earliest without W.
+            # PLATFORM: WINDOWS.
+            or name == "parser_parse_body_lets_into"
         ):
             # Tip + leftover T duplicates: fold extras to earliest T.
             # w1024: let_init tip may leave dual egg T with no W when
