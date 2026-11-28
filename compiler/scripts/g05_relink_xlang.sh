@@ -1295,6 +1295,14 @@ case "$(uname -s 2>/dev/null)" in
       python3 scripts/win_patch_lexer_next_body_into_int_break.py "$OUT" \
         || { echo "g05_relink_xlang: win_patch_lexer_next_body_into_int_break failed" >&2; exit 1; }
     fi
+    # DIG s280: typool lexer_next_impl pos>=len EOF arm copies wrong slot
+    # -0x70 instead of TOKEN_EOF at -0xe0. Redirect only that arm to the
+    # host-cc lexer_emit_eof_token thin, then jmp impl epilogue.
+    # Do not replace lexer_next_impl. PLATFORM: WINDOWS.
+    if [ -f scripts/win_patch_lexer_next_impl_eof_arm.py ] && [ -f "$OUT" ]; then
+      python3 scripts/win_patch_lexer_next_impl_eof_arm.py "$OUT" \
+        || { echo "g05_relink_xlang: win_patch_lexer_next_impl_eof_arm failed" >&2; exit 1; }
+    fi
     ;;
 esac
 
