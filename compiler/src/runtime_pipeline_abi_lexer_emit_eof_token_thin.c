@@ -16,7 +16,8 @@
  * ABI diverge; a full thin hung on hello). typool tip / body_into /
  * skip_function / append_i32 / fputc / try_keyword_c / typool rec are
  * not in this thin. docs-only .x, do not idx8. Do not JMP typool rec
- * T 0x140087de4. */
+ * T 0x140087de4. s280: Windows g05 links this thin and
+ * win_patch_lexer_next_impl_eof_arm wires only the typool pos>=len arm. */
 #include <stdint.h>
 #include <string.h>
 
