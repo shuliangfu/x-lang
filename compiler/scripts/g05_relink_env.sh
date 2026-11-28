@@ -6475,6 +6475,80 @@ g05_darwin_pabi_thin_sidecar src/runtime_pipeline_abi_dual_gp_byte_size_thin.x \
   fi
   _PABI_LINK_O="build_asm/selfhost_pabi/pabi_weak.o"
 fi
+# s290: 10.26 emptied overlay vars ("merged into mega") typool typool-assuming
+# the Darwin link object still has those T. typool typool-shown Cap tip
+# _PABI_LINK_O is pabi_weak, which typool typool-shown lacks the leftover
+# official pure-ld undefs; standalone T provider .o files typool typool-exist.
+# Win 10.46 typool typool-reinjects the typool typool-same typool typool-class for PE.
+# typool typool-Reinject typool typool-shown existing T providers when pabi_weak
+# typool typool-lacks the need T. typool typool-No typool typool-new typool typool-host-cc.
+# typool typool-Do typool typool-not typool typool-prepend leftover
+# src/runtime_pipeline_abi.o. PLATFORM: MACOS|DARWIN.
+if [ "$UNAME_S" = "Darwin" ] \
+  && [ "${_PABI_LINK_O:-}" = "build_asm/selfhost_pabi/pabi_weak.o" ] \
+  && [ -s "$_PABI_LINK_O" ]; then
+  _s290_oc=""
+  if command -v llvm-objcopy >/dev/null 2>&1; then
+    _s290_oc=llvm-objcopy
+  elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+    _s290_oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+  elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+    _s290_oc=/usr/local/opt/llvm/bin/llvm-objcopy
+  elif command -v objcopy >/dev/null 2>&1; then
+    _s290_oc=objcopy
+  fi
+  for _s290_have in \
+    "build_asm/selfhost_pabi/asm_locals_thin.o|asm_ctx_local_find_offset_scoped" \
+    "build_asm/selfhost_pabi/codegen_outbuf_len_thin.o|codegen_out_buf_len" \
+    "build_asm/selfhost_pabi/fa_array_lit_a64.o|fa_array_lit_into_rbx" \
+    "build_asm/selfhost_pabi/binop_wide.o|glue_binop_named_narrow_id" \
+    "build_asm/selfhost_pabi/binop_block_peel_helpers_thin.o|glue_expr_block_transparent_value_ref_at" \
+    "build_asm/selfhost_pabi/struct_lit_field.o|glue_struct_lit_field_store_sz" \
+    "build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o|glue_type_named_layout_size_any_module_elf_c" \
+    "build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o|glue_wide_i32_vec_array_bytes" \
+    "build_asm/selfhost_pabi/pipe_elf_out_append_thin.o|pipe_elf_out_append" \
+    "build_asm/selfhost_pabi/compute_frame_size.o|pipeline_asm_compute_frame_size_c" \
+    "build_asm/selfhost_pabi/ast_to_elf_thin_a64.o|pipeline_backend_asm_codegen_ast_to_elf_c" \
+    "build_asm/selfhost_pabi/match_module_slot_a64.o|pipeline_parser_get_match_module" \
+    "build_asm/selfhost_pabi/vector_let_init_decline_a64.o|vector_let_init_array_lit_a64_vlet_f32_fill_lane"
+  do
+    _s290_o="${_s290_have%%|*}"
+    _s290_sym="${_s290_have##*|}"
+    [ -s "$_s290_o" ] || continue
+    case " ${_PABI_SELFHOST:-} ${_G05_W213_ASSIGN_RHS:-} ${_PABI_BINOP_WIDE:-} ${_PABI_FRAME_SIZE:-} ${_PABI_STRUCT_LIT_FIELD:-} " in
+      *" $_s290_o "*) continue ;;
+    esac
+    if nm "$_s290_o" 2>/dev/null | grep -qE " T _?${_s290_sym}$" \
+      && ! nm "$_PABI_LINK_O" 2>/dev/null | grep -qE " T _?${_s290_sym}$"; then
+      if [ -n "$_s290_oc" ]; then
+        # typool typool-shown Darwin ld typool typool-has typool typool-no typool typool-multidef:
+        # typool typool-weaken typool typool-a typool typool-strong typool typool-pabi_weak typool typool-copy
+        # typool typool-so typool typool-the typool typool-thin typool typool-T typool typool-wins.
+        # typool typool-Already typool typool-weak typool typool-pabi_weak typool typool-copies typool typool-are typool typool-left typool typool-alone.
+        nm -gU "$_s290_o" 2>/dev/null | awk '$2=="T"{n=$3; sub(/^_/,"",n); print n}' \
+          | while IFS= read -r _s290_tn; do
+              [ -n "$_s290_tn" ] || continue
+              if nm -m "$_PABI_LINK_O" 2>/dev/null \
+                | grep -E " _${_s290_tn}$" \
+                | grep -v undefined | grep -qv weak; then
+                "$_s290_oc" --weaken-symbol="_${_s290_tn}" "$_PABI_LINK_O" 2>/dev/null || true
+              fi
+            done
+        # typool typool-shown typool typool-binop_wide typool typool-and typool typool-s213 typool typool-assign_rhs typool typool-both typool typool-export typool typool-rhs_mod;
+        # typool typool-weaken typool typool-the typool typool-binop typool typool-copy typool typool-so typool typool-s213 typool typool-wins.
+        if [ "$_s290_o" = "build_asm/selfhost_pabi/binop_wide.o" ] \
+          && [ -n "${_G05_W213_ASSIGN_RHS:-}" ] \
+          && nm "$_s290_o" 2>/dev/null | grep -qE " T _?glue_emit_assign_rhs_mod_elf_c$" \
+          && nm "${_G05_W213_ASSIGN_RHS}" 2>/dev/null | grep -qE " T _?glue_emit_assign_rhs_mod_elf_c$"; then
+          "$_s290_oc" --weaken-symbol=_glue_emit_assign_rhs_mod_elf_c "$_s290_o" 2>/dev/null || true
+        fi
+      fi
+      _PABI_SELFHOST="$_s290_o ${_PABI_SELFHOST:-}"
+      echo "g05_relink_env: s290 Darwin reinject $_s290_o ($_s290_sym; pabi_weak lacks T)" >&2
+    fi
+  done
+  unset _s290_oc _s290_have _s290_o _s290_sym
+fi
 # 10.67 FixC-follow (post pabi_weak gate): tip-cold often lacks pabi_weak /
 # lea_cold_fwd so the Darwin pabi_weak if above is skipped and _PABI_LINK_O
 # stays src/runtime_pipeline_abi.o. Cap tip env links pabi_weak (demoted
