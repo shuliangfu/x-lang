@@ -292,10 +292,23 @@ fi
 # leftover egg alone had the short asm_wpo_collect_walk T. Darwin alias
 # covers tip cold without copying archive .prev into the product.
 # PLATFORM: MACOS tip cold.
+# s286: Linux s249 host-cc twin calls pipeline_asm_wpo_* but the PREFER
+# thin exports short asm_wpo_*; assemble pipeline → short aliases.
+# PLATFORM: LINUX.
 case "$UNAME_S" in
   Darwin*)
     if [ -s src/runtime/asm_wpo_collect_walk_alias.o ]; then
       _PABI_WPO_ALIAS="src/runtime/asm_wpo_collect_walk_alias.o"
+    fi
+    ;;
+  Linux*)
+    _wpo_al_s=src/runtime/asm_wpo_pipeline_alias_linux.s
+    _wpo_al_o=build_asm/selfhost_pabi/asm_wpo_pipeline_alias_linux.o
+    if [ -f "$_wpo_al_s" ]; then
+      mkdir -p build_asm/selfhost_pabi
+      if gcc -c -o "$_wpo_al_o" "$_wpo_al_s" 2>/dev/null && [ -s "$_wpo_al_o" ]; then
+        _PABI_WPO_ALIAS="$_wpo_al_o"
+      fi
     fi
     ;;
 esac
