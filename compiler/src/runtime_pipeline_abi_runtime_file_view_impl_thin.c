@@ -28,10 +28,12 @@
 
 extern int open(const char *path, int flags, int mode);
 extern int close(int fd);
-/* PLATFORM: WINDOWS tipU exports runtime_io_abi_rio_*; LINUX/POSIX
- * runtime_io_abi.o exports short rio_* (same bodies). Soft Cap twin
- * must resolve on both; wrong name UNDEF wipe Ubuntu g05 (s234). */
-#if defined(_WIN32) || defined(__CYGWIN__)
+/* PLATFORM: WINDOWS tipU and typool typool-shown Darwin runtime_io_abi.o
+ * export runtime_io_abi_rio_*; LINUX typool typool-exports short rio_*
+ * (same bodies). Soft Cap twin must resolve on both; typool typool-wrong
+ * short name typool typool-UNDEF typool typool-wipe Ubuntu g05 (s234) and
+ * typool typool-shown typool typool-Darwin official pure-ld (s288–s291). */
+#if defined(_WIN32) || defined(__CYGWIN__) || defined(__APPLE__)
 extern int64_t runtime_io_abi_rio_lseek64(int fd, int64_t off, int whence);
 extern int runtime_io_abi_rio_munmap(void *p, uint64_t n);
 #define XLANG_RIO_LSEEK64 runtime_io_abi_rio_lseek64
