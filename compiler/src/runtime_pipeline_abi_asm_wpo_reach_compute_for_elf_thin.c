@@ -18,7 +18,14 @@
  */
 #include <stdint.h>
 
-/* typool Lxml end labels from first-wins asm_wpo_thin.o (reach_clear relocs). */
+/* typool Lxml labels from first-wins asm_wpo_thin.o (reach_clear relocs).
+ * Darwin: end labels, cookie edf5c0f6; root_id is .data start.
+ * Linux: COMMON start labels (lea + store at the symbol, no minus),
+ * cookie 6bd41d3b; root_id/valid first-8 typool typool-shown from
+ * reach_clear (c22abbc6 / 87e06f04), not the Darwin hashes.
+ * PLATFORM: SHARED host-cc; label shape is per-OS typool.
+ */
+#if defined(__APPLE__)
 extern uint8_t Lxml_47de0326edf5c0f6[]; /* g_aw_nmods, 8 */
 extern uint8_t Lxml_5f00fba9edf5c0f6[]; /* g_aw_nfuncs, 8 */
 extern uint8_t Lxml_c32abd59edf5c0f6[]; /* g_aw_valid, 8 */
@@ -30,6 +37,19 @@ extern int64_t Lxml_eeba97b0edf5c0f6;   /* g_aw_root_id, .data start */
 #define g_aw_valid_slot (*(int64_t *)(Lxml_c32abd59edf5c0f6 - 8))
 #define g_aw_reachable (Lxml_97c78f2fedf5c0f6 - 4096)
 #define g_aw_root_id Lxml_eeba97b0edf5c0f6
+#else
+extern int32_t Lxml_47de03266bd41d3b; /* g_aw_nmods */
+extern int32_t Lxml_5f00fba96bd41d3b; /* g_aw_nfuncs */
+extern int32_t Lxml_87e06f046bd41d3b; /* g_aw_valid */
+extern uint8_t Lxml_97c78f2f6bd41d3b[]; /* g_aw_reachable, 4096 start */
+extern int32_t Lxml_c22abbc66bd41d3b; /* g_aw_root_id */
+
+#define g_aw_nmods (Lxml_47de03266bd41d3b)
+#define g_aw_nfuncs (Lxml_5f00fba96bd41d3b)
+#define g_aw_valid_slot (Lxml_87e06f046bd41d3b)
+#define g_aw_reachable (Lxml_97c78f2f6bd41d3b)
+#define g_aw_root_id (Lxml_c22abbc66bd41d3b)
+#endif
 
 void pipeline_asm_wpo_reach_clear(void);
 int32_t pipeline_asm_wpo_dce_env_enabled(void);
