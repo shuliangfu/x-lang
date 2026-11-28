@@ -6483,7 +6483,11 @@ fi
 # typool typool-Reinject typool typool-shown existing T providers when pabi_weak
 # typool typool-lacks the need T. typool typool-No typool typool-new typool typool-host-cc.
 # typool typool-Do typool typool-not typool typool-prepend leftover
-# src/runtime_pipeline_abi.o. PLATFORM: MACOS|DARWIN.
+# src/runtime_pipeline_abi.o. s293: after compute_frame_size
+# typool typool-reinject, typool typool-shown leftover call_spill.o holds T
+# for the four glue_asm_last_* U that typool typool-blocked official
+# Darwin pure-ld; 10.26 typool typool-cleared _PABI_CALL_SPILL.
+# PLATFORM: MACOS|DARWIN.
 if [ "$UNAME_S" = "Darwin" ] \
   && [ "${_PABI_LINK_O:-}" = "build_asm/selfhost_pabi/pabi_weak.o" ] \
   && [ -s "$_PABI_LINK_O" ]; then
@@ -6508,6 +6512,7 @@ if [ "$UNAME_S" = "Darwin" ] \
     "build_asm/selfhost_pabi/cap_tip_pabi_sym_fill.o|glue_wide_i32_vec_array_bytes" \
     "build_asm/selfhost_pabi/pipe_elf_out_append_thin.o|pipe_elf_out_append" \
     "build_asm/selfhost_pabi/compute_frame_size.o|pipeline_asm_compute_frame_size_c" \
+    "build_asm/selfhost_pabi/call_spill.o|glue_asm_last_struct_lit_temp_bytes_c" \
     "build_asm/selfhost_pabi/ast_to_elf_thin_a64.o|pipeline_backend_asm_codegen_ast_to_elf_c" \
     "build_asm/selfhost_pabi/match_module_slot_a64.o|pipeline_parser_get_match_module" \
     "build_asm/selfhost_pabi/vector_let_init_decline_a64.o|vector_let_init_array_lit_a64_vlet_f32_fill_lane"
