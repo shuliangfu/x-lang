@@ -2170,7 +2170,7 @@ if [ -x ./xlang_asm ]; then
       _g05_cvo_c=src/runtime_pipeline_abi_const_var_off_thin.c
       _g05_cvo_o=build_asm/selfhost_pabi/const_var_off.o
       if [ -f "$_g05_cvo_c" ] && gcc -c -O2 -o "${_g05_cvo_o}.tmp.o" "$_g05_cvo_c" 2>/tmp/g05_cvo_hostcc.err; then
-        if nm "${_g05_cvo_o}.tmp.o" 2>/dev/null | grep -qE ' T glue_var_expr_stack_off_elf_c$'; then
+        if nm "${_g05_cvo_o}.tmp.o" 2>/dev/null | grep -qE ' T _?glue_var_expr_stack_off_elf_c$'; then
           mv -f "${_g05_cvo_o}.tmp.o" "$_g05_cvo_o"
           _G05_W211_VAR_OFF="$_g05_cvo_o"
           echo "g05_relink_env: s208 Windows host-cc const_var_off (.c twin)" >&2
@@ -2210,8 +2210,8 @@ if [ -x ./xlang_asm ]; then
     _g05_scg_set_o="${_g05_scg_o}.set.tmp.o"
     if gcc -c -O2 -o "$_g05_scg_get_o" "$_g05_scg_get_c" 2>/tmp/g05_scg_get.err \
       && gcc -c -O2 -o "$_g05_scg_set_o" "$_g05_scg_set_c" 2>/tmp/g05_scg_set.err; then
-      if nm "$_g05_scg_get_o" 2>/dev/null | grep -qE ' T driver_x_pipeline_skip_codegen_get$' \
-        && nm "$_g05_scg_set_o" 2>/dev/null | grep -qE ' T driver_x_pipeline_skip_codegen_set$'; then
+      if nm "$_g05_scg_get_o" 2>/dev/null | grep -qE ' T _?driver_x_pipeline_skip_codegen_get$' \
+        && nm "$_g05_scg_set_o" 2>/dev/null | grep -qE ' T _?driver_x_pipeline_skip_codegen_set$'; then
         if command -v ld >/dev/null 2>&1 && ld -r -o "$_g05_scg_tmp" "$_g05_scg_get_o" "$_g05_scg_set_o" 2>/tmp/g05_scg_ld.err; then
           mv -f "$_g05_scg_tmp" "$_g05_scg_o"
           _G05_W211_SKIP_CG="$_g05_scg_o"
@@ -2239,8 +2239,8 @@ if [ -x ./xlang_asm ]; then
   _g05_flg_o=build_asm/selfhost_pabi/flag_slot_accessors.o
   if [ -f "$_g05_flg_c" ]; then
     if gcc -c -O2 -o "${_g05_flg_o}.tmp.o" "$_g05_flg_c" 2>/tmp/g05_flg.err; then
-      if nm "${_g05_flg_o}.tmp.o" 2>/dev/null | grep -qE ' T driver_x_pipeline_skip_typeck_get$' \
-        && nm "${_g05_flg_o}.tmp.o" 2>/dev/null | grep -qE ' T driver_freestanding_get$'; then
+      if nm "${_g05_flg_o}.tmp.o" 2>/dev/null | grep -qE ' T _?driver_x_pipeline_skip_typeck_get$' \
+        && nm "${_g05_flg_o}.tmp.o" 2>/dev/null | grep -qE ' T _?driver_freestanding_get$'; then
         mv -f "${_g05_flg_o}.tmp.o" "$_g05_flg_o"
         _G05_W212_FLAGS="$_g05_flg_o"
         echo "g05_relink_env: s212 host-cc flag-slot accessors (.c twin)" >&2
@@ -2276,9 +2276,9 @@ if [ -x ./xlang_asm ]; then
   _g05_arh_o=build_asm/selfhost_pabi/assign_rhs_elf_hostcc.o
   if [ -f "$_g05_arh_c" ]; then
     if gcc -c -O2 -o "${_g05_arh_o}.tmp.o" "$_g05_arh_c" 2>/tmp/g05_arh.err; then
-      if nm "${_g05_arh_o}.tmp.o" 2>/dev/null | grep -qE ' T glue_emit_assign_rhs_elf_c$' \
-        && nm "${_g05_arh_o}.tmp.o" 2>/dev/null | grep -qE ' T glue_emit_assign_load_lr_elf_c$' \
-        && nm "${_g05_arh_o}.tmp.o" 2>/dev/null | grep -qE ' T glue_emit_assign_rhs_mod_elf_c$'; then
+      if nm "${_g05_arh_o}.tmp.o" 2>/dev/null | grep -qE ' T _?glue_emit_assign_rhs_elf_c$' \
+        && nm "${_g05_arh_o}.tmp.o" 2>/dev/null | grep -qE ' T _?glue_emit_assign_load_lr_elf_c$' \
+        && nm "${_g05_arh_o}.tmp.o" 2>/dev/null | grep -qE ' T _?glue_emit_assign_rhs_mod_elf_c$'; then
         mv -f "${_g05_arh_o}.tmp.o" "$_g05_arh_o"
         _G05_W213_ASSIGN_RHS="$_g05_arh_o"
         echo "g05_relink_env: s213 host-cc assign_rhs_elf twins (.c)" >&2
@@ -2310,10 +2310,10 @@ if [ -x ./xlang_asm ]; then
   _g05_asg_o=build_asm/selfhost_pabi/asg_thin_hostcc.o
   if [ -f "$_g05_asg_c" ]; then
     if gcc -c -O2 -o "${_g05_asg_o}.tmp.o" "$_g05_asg_c" 2>/tmp/g05_asg.err; then
-      if nm "${_g05_asg_o}.tmp.o" 2>/dev/null | grep -qE ' T asg_thin_load_i32_le$' \
-        && nm "${_g05_asg_o}.tmp.o" 2>/dev/null | grep -qE ' T asg_thin_store_i32_le$' \
-        && nm "${_g05_asg_o}.tmp.o" 2>/dev/null | grep -qE ' T asg_thin_ctx_off_next_offset$' \
-        && nm "${_g05_asg_o}.tmp.o" 2>/dev/null | grep -qE ' T asg_thin_align_next_offset$'; then
+      if nm "${_g05_asg_o}.tmp.o" 2>/dev/null | grep -qE ' T _?asg_thin_load_i32_le$' \
+        && nm "${_g05_asg_o}.tmp.o" 2>/dev/null | grep -qE ' T _?asg_thin_store_i32_le$' \
+        && nm "${_g05_asg_o}.tmp.o" 2>/dev/null | grep -qE ' T _?asg_thin_ctx_off_next_offset$' \
+        && nm "${_g05_asg_o}.tmp.o" 2>/dev/null | grep -qE ' T _?asg_thin_align_next_offset$'; then
         mv -f "${_g05_asg_o}.tmp.o" "$_g05_asg_o"
         _G05_W223_ASG="$_g05_asg_o"
         echo "g05_relink_env: s223 host-cc asg_thin helpers (.c)" >&2
@@ -2331,10 +2331,10 @@ if [ -x ./xlang_asm ]; then
   _g05_asg_want="$_G05_W223_ASG"
   _g05_asg_ty=build_asm/selfhost_pabi/assign.o
   if [ -s "$_g05_asg_ty" ] \
-    && nm "$_g05_asg_ty" 2>/dev/null | grep -qE ' T asg_thin_load_i32_le$' \
-    && nm "$_g05_asg_ty" 2>/dev/null | grep -qE ' T asg_thin_store_i32_le$' \
-    && nm "$_g05_asg_ty" 2>/dev/null | grep -qE ' T asg_thin_ctx_off_next_offset$' \
-    && nm "$_g05_asg_ty" 2>/dev/null | grep -qE ' T asg_thin_align_next_offset$'; then
+    && nm "$_g05_asg_ty" 2>/dev/null | grep -qE ' T _?asg_thin_load_i32_le$' \
+    && nm "$_g05_asg_ty" 2>/dev/null | grep -qE ' T _?asg_thin_store_i32_le$' \
+    && nm "$_g05_asg_ty" 2>/dev/null | grep -qE ' T _?asg_thin_ctx_off_next_offset$' \
+    && nm "$_g05_asg_ty" 2>/dev/null | grep -qE ' T _?asg_thin_align_next_offset$'; then
     _g05_asg_want="$_g05_asg_ty"
   fi
   if [ -n "$_g05_asg_want" ]; then
@@ -2360,7 +2360,7 @@ if [ -x ./xlang_asm ]; then
   _g05_flsz_o=build_asm/selfhost_pabi/field_load_sz_bytes_eq_hostcc.o
   if [ -f "$_g05_flsz_c" ]; then
     if gcc -c -O2 -o "${_g05_flsz_o}.tmp.o" "$_g05_flsz_c" 2>/tmp/g05_flsz.err; then
-      if nm "${_g05_flsz_o}.tmp.o" 2>/dev/null | grep -qE ' T field_load_sz_bytes_eq$'; then
+      if nm "${_g05_flsz_o}.tmp.o" 2>/dev/null | grep -qE ' T _?field_load_sz_bytes_eq$'; then
         mv -f "${_g05_flsz_o}.tmp.o" "$_g05_flsz_o"
         _G05_W223_FLSZ="$_g05_flsz_o"
         echo "g05_relink_env: s223 host-cc field_load_sz_bytes_eq (.c)" >&2
@@ -2388,7 +2388,7 @@ if [ -x ./xlang_asm ]; then
   do
     if [ -s "$_g05_idx_cand" ] \
       && nm "$_g05_idx_cand" 2>/dev/null \
-           | grep -qE ' T glue_try_index_var_or_field_base_to_rbx_elf_c$'; then
+           | grep -qE ' T _?glue_try_index_var_or_field_base_to_rbx_elf_c$'; then
       _G05_W223_IDX="$_g05_idx_cand"
       break
     fi
@@ -2407,7 +2407,7 @@ if [ -x ./xlang_asm ]; then
   _g05_mt_o=build_asm/selfhost_pabi/malloc_trim_hostcc_stub.o
   if [ -f "$_g05_mt_c" ]; then
     if gcc -c -O2 -o "${_g05_mt_o}.tmp.o" "$_g05_mt_c" 2>/tmp/g05_mtrim.err; then
-      if nm "${_g05_mt_o}.tmp.o" 2>/dev/null | grep -qE ' T malloc_trim$'; then
+      if nm "${_g05_mt_o}.tmp.o" 2>/dev/null | grep -qE ' T _?malloc_trim$'; then
         mv -f "${_g05_mt_o}.tmp.o" "$_g05_mt_o"
         _G05_W223_MTRIM="$_g05_mt_o"
         echo "g05_relink_env: s223 host-cc malloc_trim stub (.c)" >&2
